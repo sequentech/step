@@ -35,6 +35,7 @@ lazy_static! {
     static ref PASSWORD_COL_NAME: String = String::from("password");
     static ref USERNAME_COL_NAME: String = String::from("username");
     static ref EMAIL_COL_NAME: String = String::from("email");
+    static ref EMAIL_VERIFIED_COL_NAME: String = String::from("email_verified");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref ELECTION_COL_PREFIX: String = String::from("election__");
@@ -43,7 +44,8 @@ lazy_static! {
         SALT_COL_NAME.clone(),
         PASSWORD_COL_NAME.clone(),
         GROUP_COL_NAME.clone(),
-        NUMBER_OF_ITERATIONS_COL_NAME.clone()
+        NUMBER_OF_ITERATIONS_COL_NAME.clone(),
+        EMAIL_VERIFIED_COL_NAME.clone()
     ];
 }
 
@@ -251,7 +253,7 @@ fn get_insert_user_query(
                 )
                 SELECT
                     '{realm_id}',
-                    true,
+                    COALESCE(email_verified::boolean, true),
                     (extract(epoch from now()) * 1000)::bigint,
                     {}
                 FROM
@@ -608,6 +610,7 @@ pub async fn import_users_file(
                     }
                     column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
                     column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
+                    column_name if column_name == &*EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
                     _ => data.to_string(),
                 };
 

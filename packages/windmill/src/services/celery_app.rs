@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use async_once::AsyncOnce;
 use celery::prelude::Task;
 use celery::Celery;
@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
-use tracing::{event, instrument, Level};
+use tracing::{event, info, instrument, Level};
 
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
@@ -160,8 +160,41 @@ lazy_static! {
 }
 
 /// Returns the global Celery app.
+#[instrument]
 pub async fn get_celery_app() -> Arc<Celery> {
     CELERY_APP.get().await.clone()
+}
+
+#[instrument]
+async fn create_connection() -> Result<(Arc<Connection>, String)> {
+    // you can use "amqp://rabbitmq2:5672,amqp://rabbitmq:5672" for $AMQP_ADDR to configure multiple nodes, separated by comma
+    let amqp_urls: Vec<String> = std::env::var("AMQP_ADDR")?
+        .split(',')
+        .map(String::from)
+        .collect();
+
+    let mut last_error = None;
+    for amqp_url in amqp_urls {
+        match Connection::connect(&amqp_url, ConnectionProperties::default())
+            .await
+            .with_context(|| format!("Failed to connect to any AMQP server {}", amqp_url))
+        {
+            Ok(connection) => {
+                let arc_conn = Arc::new(connection);
+                // Set the global connection so it can be reused.
+                let _ = CELERY_CONNECTION.set(arc_conn.clone());
+                return Ok((arc_conn, amqp_url));
+            }
+            Err(e) => {
+                // Log the error and try the next URL.
+                info!("Failed to connect to AMQP server '{}': {:?}", amqp_url, e);
+                last_error = Some(e);
+            }
+        }
+    }
+
+    // If no connection was successful, return an error.
+    Err(last_error.unwrap_or(anyhow!("Failed to connect to any AMQP server")))
 }
 
 #[instrument]
@@ -184,8 +217,9 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         prefetch_count,
         acks_late
     );
+    let amqp_addr = create_connection().await.unwrap().1;
     celery::app!(
-        broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
+        broker = AMQPBroker { amqp_addr },
         tasks = [
             create_keys,
             review_boards,
@@ -281,21 +315,21 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         task_max_retries = task_max_retries,
         heartbeat = Some(heartbeat),
         broker_connection_max_retries = broker_connection_max_retries,
-    ).await.unwrap()
+    )
+    .await
+    .unwrap()
 }
 
 static CELERY_CONNECTION: OnceLock<Arc<Connection>> = OnceLock::new();
 
 /// Returns a reused AMQP connection wrapped in an Arc.
 /// If no connection exists (or if it’s disconnected), a new connection is created and stored.
+#[instrument]
 pub async fn get_celery_connection() -> Result<Arc<Connection>> {
     if let Some(conn) = CELERY_CONNECTION.get() {
         // For simplicity we assume the connection is still valid.
         return Ok(conn.clone());
     }
-    let amqp_url = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into());
-    let connection = Connection::connect(&amqp_url, ConnectionProperties::default()).await?;
-    let arc_conn = Arc::new(connection);
-    let _ = CELERY_CONNECTION.set(arc_conn.clone());
-    Ok(arc_conn)
+
+    create_connection().await.map(|(connection, _)| connection)
 }

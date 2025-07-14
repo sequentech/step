@@ -38,10 +38,11 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {GetElectionsQuery} from "../gql/graphql"
+import {GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
 import {SessionBallotData} from "../store/castVotes/castVotesSlice"
+import {GET_DOCUMENT} from "../queries/GetDocument"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -143,6 +144,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const [openPrintDemoModal, setOpenPrintDemoModal] = useState<boolean>(false)
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const isDemo = oneBallotStyle?.ballot_eml.public_key?.is_demo
+    const [isPolling, setIsPolling] = useState<boolean>(false)
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
@@ -151,6 +153,19 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             electionIds: ballotStyleElectionIds,
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+    })
+
+    const {
+        data: ballotReceiptDocuments,
+        startPolling,
+        stopPolling,
+    } = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
+        variables: {
+            ids: documentId ? [documentId] : [],
+            electionEventId: eventId,
+            tenantId: tenantId || "",
+        },
+        skip: !documentId, // Skip query if no documentId
     })
 
     const isAnyVotingStatusOpen = dataElections?.sequent_backend_election.some(
@@ -196,7 +211,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             let docId = res.data?.create_ballot_receipt?.id
             console.log("docId: ", docId)
             setDocumentId(docId)
-            await new Promise((resolve) => setTimeout(resolve, retryInterval * 2))
         }
         setIsDownloadingReport(true)
     }
@@ -217,14 +231,24 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     }
 
     useEffect(() => {
-        if (isDownloadingReport) {
+        if (ballotReceiptDocuments?.sequent_backend_document?.[0]?.id && documentId) {
             const fileName = `ballot_receipt_${eventId}.pdf`
             const documentUrl = getDocumentUrl(documentId!, fileName)
             downloadFileWithRetry(documentUrl, fileName)
             setIsDownloadingReport(false)
             setIsHitPrint(false)
+            setIsPolling(false)
+            setDocumentId(null)
+            stopPolling()
         }
-    }, [isDownloadingReport])
+    }, [ballotReceiptDocuments?.sequent_backend_document?.[0]?.id, documentId])
+
+    useEffect(() => {
+        if (!isPolling && documentId) {
+            setIsPolling(true)
+            startPolling(globalSettings.QUERY_POLL_INTERVAL_MS)
+        }
+    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS, documentId, isPolling])
 
     return (
         <>
