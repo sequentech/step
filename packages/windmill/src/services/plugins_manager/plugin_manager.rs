@@ -4,6 +4,7 @@
 use crate::services::plugins_manager::plugin::{HookValue, Plugin};
 use anyhow::{anyhow, Context, Result};
 use dashmap::DashMap;
+use futures::future;
 use once_cell::sync::OnceCell;
 use sequent_core::services::s3::{get_files_bytes_from_s3, get_public_bucket};
 use std::sync::Arc;
@@ -129,28 +130,51 @@ impl PluginManager {
             .get(hook)
             .context(format!("Hook '{:?}' not registered by any plugin", hook))?;
 
-        let mut all_results: Vec<Vec<HookValue>> = Vec::new();
+        let mut tasks = Vec::new();
 
-        for plugin_name in plugin_names.value() {
+        for plugin_name in plugin_names.iter() {
             let plugin = self.plugins.get(plugin_name).context(format!(
                 "Plugin '{:?}' not found for hook '{}'",
                 plugin_name, hook
             ))?;
 
-            let results = plugin
-                .value()
-                .call_hook_dynamic(hook, args.clone(), expected_result_types.clone())
-                .await
-                .map_err(|e| {
-                    anyhow!(
-                        "Failed to call hook '{}' in plugin '{}': {:?}",
-                        hook,
-                        plugin_name,
-                        e
-                    )
-                })?;
+            let args_clone = args.clone();
+            let expected_result_types_clone = expected_result_types.clone();
+            let hook_clone = hook.to_string(); // Clone the hook string
 
-            all_results.push(results);
+            let plugin_arc_clone = std::sync::Arc::new(plugin.clone());
+
+            let plugin_name_clone = plugin_name.clone();
+
+            let task = tokio::spawn(async move {
+                let results = plugin_arc_clone
+                    .call_hook_dynamic(&hook_clone, args_clone, expected_result_types_clone)
+                    .await
+                    .map_err(|e| {
+                        anyhow!(
+                            "Failed to call hook '{}' in plugin '{}': {:?}",
+                            hook_clone,
+                            plugin_name_clone,
+                            e
+                        )
+                    })?;
+                Ok(results)
+            });
+            tasks.push(task);
+        }
+
+        let results_from_tasks: Vec<Result<Vec<HookValue>>> = future::join_all(tasks)
+            .await
+            .into_iter()
+            .map(|join_result| match join_result {
+                Ok(inner_result) => inner_result,
+                Err(join_error) => Err(anyhow!("Hook task panicked or failed: {}", join_error)),
+            })
+            .collect();
+
+        let mut all_results: Vec<Vec<HookValue>> = Vec::new();
+        for result in results_from_tasks {
+            all_results.push(result?);
         }
 
         Ok(all_results)
