@@ -65,7 +65,9 @@ const SelectTenants: React.FC = () => {
 
 export default SelectTenants
 
-const Container = styled(Box)<{hasSingle: boolean}>`
+const Container = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "hasSingle", // Prevent `hasSingle` from being passed to the DOM
+})<{hasSingle: boolean}>`
     display: flex;
     align-items: center;
     padding-left: 1rem;

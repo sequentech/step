@@ -26,10 +26,7 @@ async fn rocket() -> _ {
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
-    init_plugin_manager().await.map_err(|e| {
-        event!(Level::ERROR, "Failed to initialize plugin manager: {}", e);
-        e
-    })?;
+    init_plugin_manager().await.unwrap();
 
     rocket::build()
         .register(

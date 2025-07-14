@@ -20,6 +20,7 @@ use chrono::{DateTime, Local};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::{
     services::date::ISO8601,
     types::{
@@ -44,7 +45,7 @@ async fn process_uuids(
     match ids {
         None => Ok(None),
         Some(ids) => {
-            let parsed: Vec<String> = serde_json::from_str::<Vec<String>>(ids)
+            let parsed: Vec<String> = deserialize_str::<Vec<String>>(ids)
                 .map_err(|e| anyhow!("Failed to parse UUID array as JSON: {:?}", e))?;
 
             let new_ids: Vec<String> = parsed
@@ -71,7 +72,7 @@ pub async fn get_replaced_id(
     let id: String = record
         .get(index as usize)
         .ok_or_else(|| anyhow!("Missing column {index}"))
-        .and_then(|s| serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON: {:?}", e)))?;
+        .and_then(|s| deserialize_str(s).map_err(|e| anyhow!("Invalid JSON: {:?}", e)))?;
     let new_id = replacement_map
         .get(&id)
         .ok_or(anyhow!("Can't find id:{id} in replacement map"))?
@@ -97,7 +98,7 @@ pub async fn get_opt_json_value_item(record: &StringRecord, index: usize) -> Res
     let item = record
         .get(index)
         .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
+        .map(deserialize_str)
         .transpose()
         .map_err(|err| anyhow!("Error process json column {index} {:?}", err))?;
     Ok(item)
@@ -131,7 +132,7 @@ pub async fn get_string_or_null_item(
             if s == "null" {
                 Ok(None)
             } else {
-                serde_json::from_str::<String>(s).map(Some)
+                deserialize_str::<String>(s).map(Some)
             }
         })
         .transpose()
@@ -181,7 +182,7 @@ async fn process_event_results_file(
             .get(8)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -242,7 +243,7 @@ async fn process_results_election_file(
             .get(13)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -339,7 +340,7 @@ pub async fn process_tally_session_record(
     let configuration = record
         .get(13)
         .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
+        .map(deserialize_str)
         .transpose()
         .map_err(|err| anyhow!("Error at process configuration {:?}", err))?;
 
@@ -348,7 +349,7 @@ pub async fn process_tally_session_record(
     let permission_label = record
         .get(15)
         .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
+        .map(deserialize_str)
         .transpose()
         .map_err(|err| anyhow!("Error at process permission_label {:?}", err))?;
 
@@ -478,7 +479,7 @@ async fn process_tally_session_execution_file(
             .get(9)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str::<Vec<i32>>(s))
+            .map(|s| deserialize_str::<Vec<i32>>(s))
             .transpose()
             .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
 
@@ -553,7 +554,7 @@ async fn process_results_election_area_file(
             .get(8)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -646,7 +647,7 @@ async fn process_results_contest_candidate_file(
             .get(15)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -726,7 +727,7 @@ pub async fn process_results_contest_record(
         .get(26)
         .map(str::trim)
         .filter(|s| *s != "null" && *s != "\"null\"")
-        .map(|s| serde_json::from_str(s))
+        .map(|s| deserialize_str(s))
         .transpose()
         .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -809,7 +810,7 @@ async fn process_results_area_contest_file(
             .get(24)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -887,7 +888,7 @@ async fn process_results_area_contest_candidate_file(
             .get(16)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 

@@ -1314,6 +1314,8 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de Crear a Cerimonia de Chaves. Esta acción notificará aos Fiduciarios para participar na creación e distribución das Chaves do Evento Electoral.",
                 },
                 filterTrustees: "Filtrar Autoridades",
+                errorPermisionLabels:
+                    "Non se pode crear a cerimonia de chaves: falta unha ou máis etiquetas de permisos.",
             },
             ceremonyStep: {
                 cancel: "Cancelar Cerimonia de Chaves",

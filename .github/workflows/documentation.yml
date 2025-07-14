@@ -1,0 +1,39 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Documentation Preview
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/documentation.yml'
+      - 'docs/docusaurus/**'
+    branches:
+      - main
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '>= 18.0'
+      - name: Build Preview
+        working-directory: ./docs/docusaurus
+        run: |
+          export BASE_URL=/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+          yarn install --frozen-lockfile
+          yarn build
+      - name: Publish
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          pages-base-url: doc-previews.sequentech.io
+          source-dir: ./docs/docusaurus/build/
+          preview-branch: pr-doc-previews
+          token: ${{ secrets.PAT }}
