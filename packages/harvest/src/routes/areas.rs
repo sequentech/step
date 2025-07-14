@@ -50,7 +50,7 @@ pub async fn upsert_area(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_WRITE],
+        vec![Permissions::AREA_CREATE],
     )?;
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
