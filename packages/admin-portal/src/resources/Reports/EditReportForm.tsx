@@ -277,6 +277,19 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
             delete formValues.password
         }
 
+        if (isCronActive) {
+            const expr = values.cron_config?.cron_expression
+            const emails = values.cron_config?.email_recipients || []
+            if (!expr) {
+                notify("Please configure a cron schedule before saving", {type: "error"})
+                return
+            }
+            if (emails.length === 0) {
+                notify("Please enter at least one e-mail recipient", {type: "error"})
+                return
+            }
+        }
+
         const formData: Partial<Sequent_Backend_Report> = {
             ...formValues,
             encryption_policy: reportEncryptionPolicy,
@@ -392,6 +405,7 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
 interface EmailRecipientsInputProps extends InputProps {
     label?: string
     placeholder?: string
+    onChange?: (newValue: any) => void
 }
 
 interface EmailRecipientsInputProps extends InputProps {
@@ -406,6 +420,7 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
         isRequired,
         id,
     } = useInput(props)
+    const {label, placeholder, onChange} = props
 
     return (
         <Autocomplete
@@ -414,7 +429,10 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
             options={[] as string[]}
             value={field.value || []}
             onChange={(event: any, newValue: string[]) => {
-                field.onChange(newValue)
+                field.onChange(newValue || [])
+                if (onChange) {
+                    onChange(newValue || []) // Call the passed onChange prop
+                }
             }}
             fullWidth={true}
             renderTags={(value: string[], getTagProps) =>
@@ -426,8 +444,8 @@ const EmailRecipientsInput: React.FC<EmailRecipientsInputProps> = (props) => {
                 <TextField
                     {...params}
                     variant="outlined"
-                    label={props.label}
-                    placeholder={props.placeholder}
+                    label={label}
+                    placeholder={placeholder}
                     error={fieldState.invalid}
                     helperText={fieldState.error?.message}
                     required={isRequired}
@@ -747,6 +765,9 @@ const FormContent: React.FC<CreateReportProps> = ({
                         label={t("reportsScreen.fields.emailRecipients")}
                         placeholder={t("reportsScreen.fields.emailRecipientsPlaceholder")}
                         isRequired={false}
+                        onChange={(newValue) => {
+                            setValue("cron_config.email_recipients", newValue)
+                        }}
                     />
                 </>
             )}
