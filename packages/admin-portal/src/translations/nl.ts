@@ -98,6 +98,7 @@ const dutchTranslation: TranslationType = {
                 deleteError: "Fout bij verwijderen van gebied",
             },
             createAreaSuccess: "Gebied aangemaakt",
+            updateAreaSuccess: "Gebied bijgewerkt",
             createAreaError: "Kon gebied niet aanmaken",
             sequent_backend_area_contest: "Verkiezingen",
             empty: {

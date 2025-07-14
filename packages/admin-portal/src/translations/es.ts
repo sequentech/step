@@ -99,6 +99,7 @@ const spanishTranslation: TranslationType = {
                 deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
+            updateAreaSuccess: "Área actualizada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
             empty: {
