@@ -131,7 +131,6 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
             .orElse(false);
 
     try {
-      log.info("FFFF ResetMessageOTPRequiredAction sendCode");
       Utils.sendCode(
           config.get(),
           session,
