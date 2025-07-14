@@ -314,14 +314,14 @@ async fn main() -> Result<()> {
 ///    |
 ///   └ trustee.toml
 fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
             let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
@@ -444,7 +444,7 @@ async fn post_ballots<C: Ctx>(
         let ballot_batch = b3::messages::artifact::Ballots::new(ballots);
         let pm = get_pm(PhantomData::<RistrettoCtx>)?;
 
-        for i in 0..batches {
+        for i in 1..=batches {
             let message = b3::messages::message::Message::ballots_msg(
                 &configuration,
                 i as usize,

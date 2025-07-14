@@ -23,7 +23,6 @@ use std::io::ErrorKind;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
-use curve25519_dalek::constants::RISTRETTO_BASEPOINT_TABLE;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
@@ -136,7 +135,7 @@ impl Ctx for RistrettoCtx {
     }
     #[inline(always)]
     fn gmod_pow(&self, other: &ScalarS) -> Self::E {
-        RistrettoPointS(&other.0 * RISTRETTO_BASEPOINT_TABLE)
+        RistrettoPointS(RistrettoPoint::mul_base(&other.0))
     }
     #[inline(always)]
     fn emod_pow(&self, base: &Self::E, exponent: &Self::X) -> Self::E {
@@ -233,23 +232,9 @@ impl Ctx for RistrettoCtx {
         ))
     }
     fn exp_from_u64(&self, value: u64) -> Self::X {
-        let val_bytes = value.to_le_bytes();
-        let mut bytes = [0u8; 32];
-        let mut vec = val_bytes.to_vec();
-        vec.resize(32, 0);
-        bytes.copy_from_slice(&vec);
-        let scalar = Scalar::from_bytes_mod_order(bytes);
+        let ret: Scalar = value.into();
 
-        ///// FIXME remove this sanity check
-        let mut scalar_bytes = scalar.as_bytes().to_vec();
-        scalar_bytes.resize(8, 0);
-        let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(&scalar_bytes);
-        let check = u64::from_le_bytes(bytes);
-        assert_eq!(value, check);
-        /////
-
-        ScalarS(scalar)
+        ScalarS(ret)
     }
 
     fn encrypt_exp(

@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
     braid::util::init_log(true);
 
     // generate dummy values, these are not important
-    let dummy_sk = StrandSignatureSk::gen().unwrap();
+    let dummy_sk = StrandSignatureSk::generate().unwrap();
     let dummy_encryption_key = strand::symm::gen_key();
 
     let args = Cli::parse();

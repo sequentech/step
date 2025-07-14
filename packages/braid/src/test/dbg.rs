@@ -281,7 +281,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
@@ -290,7 +290,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     let trustees: Vec<Trustee<C>> = (0..n_trustees)
         .into_iter()
         .map(|i| {
-            let kp = StrandSignatureSk::gen().unwrap();
+            let kp = StrandSignatureSk::generate().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             Trustee::new(
