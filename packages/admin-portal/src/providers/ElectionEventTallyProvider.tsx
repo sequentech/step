@@ -197,7 +197,7 @@ export const useElectionEventTallyStore: () => {
     tallyId: string | null
     setTallyId: (tallyId: string | null, isTrustee?: boolean | undefined) => void
     isTrustee: boolean | undefined
-    isCreatingType: ETallyType | null
+    creatingType: ETallyType | null
     setCreatingFlag: (isCreating: ETallyType | null) => void
     setCreatedFlag: (isCreated: boolean) => void
     isCreated: boolean | undefined
@@ -251,7 +251,7 @@ export const useElectionEventTallyStore: () => {
         tallyId,
         setTallyId,
         isTrustee,
-        isCreatingType,
+        creatingType: isCreatingType,
         setCreatingFlag,
         isCreated,
         setCreatedFlag,
