@@ -382,9 +382,6 @@ export const TallyCeremony: React.FC = () => {
             let newIsButtonDisabled =
                 (page === WizardSteps.Start && selectedElections?.length === 0 ? true : false) ||
                 !is_published
-            console.log(
-                `selectedElections isButtonDisabled = ${isButtonDisabled}, newIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
-            )
             setIsButtonDisabled(newIsButtonDisabled)
         }
     }, [selectedElections])
@@ -435,9 +432,6 @@ export const TallyCeremony: React.FC = () => {
                     : isInitAllowed
             let newIsButtonDisabled =
                 tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
-            console.log(
-                `WizardSteps.Ceremony isButtonDisabled = ${isButtonDisabled}, newIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
-            )
             if (newIsButtonDisabled !== isButtonDisabled) {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
@@ -445,9 +439,6 @@ export const TallyCeremony: React.FC = () => {
 
         if (page === WizardSteps.Tally) {
             let newIsButtonDisabled = tally?.execution_status !== ITallyExecutionStatus.SUCCESS
-            console.log(
-                `WizardSteps.Tally isButtonDisabled = ${isButtonDisabled}, newIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
-            )
             if (newIsButtonDisabled !== isButtonDisabled) {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
@@ -463,11 +454,13 @@ export const TallyCeremony: React.FC = () => {
     }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
 
     useEffect(() => {
-        if (creatingType === ETallyType.INITIALIZATION_REPORT && page === WizardSteps.Start && selectedElections && elections && allTallySessions) {
-            // log these objects selectedElections, elections, allTallySessions:
-            console.log(selectedElections)
-            console.log(elections)
-            console.log(allTallySessions)
+        if (
+            creatingType === ETallyType.INITIALIZATION_REPORT &&
+            page === WizardSteps.Start &&
+            selectedElections &&
+            elections &&
+            allTallySessions
+        ) {
             // An initialization report is considered succesfully created if:
             // 1. It's not in CANCELLED status.
             // 2. It's in a cancellable status or successful. Cancellable status
@@ -506,13 +499,11 @@ export const TallyCeremony: React.FC = () => {
                             election.initialization_report_generated
                     ) ||
                 false
-            console.log(`InitReport: setIsButtonDisabled = ${newStatus}`)
             setIsButtonDisabled(newStatus)
         }
     }, [selectedElections, elections, allTallySessions])
 
     const handleNext = () => {
-        console.log(`handleNext: page = ${page}`)
         if (page === WizardSteps.Start) {
             setIsButtonDisabled(true)
             setOpenModal(true)
@@ -1100,6 +1091,7 @@ export const TallyCeremony: React.FC = () => {
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
                             <NextButton
+                                key="tally-next-button"
                                 color="primary"
                                 onClick={handleNext}
                                 disabled={isButtonDisabled}
@@ -1115,10 +1107,13 @@ export const TallyCeremony: React.FC = () => {
                                         ? t("tally.common.results")
                                         : t("tally.common.next")}
                                     {isConfirming ? (
-                                        <StyledCircularProgress key="progress-tally-next" color="inherit" />
+                                        <StyledCircularProgress
+                                            key="progress-tally-next"
+                                            color="inherit"
+                                        />
                                     ) : (
                                         <ChevronRightIcon
-                                            key="icon-tally-next" 
+                                            key="icon-tally-next"
                                             style={{
                                                 transform:
                                                     i18n.dir(i18n.language) === "rtl"
@@ -1134,6 +1129,7 @@ export const TallyCeremony: React.FC = () => {
             </TallyStyles.FooterContainer>
 
             <Dialog
+                key="tally-create-dialog"
                 variant="info"
                 open={openModal}
                 ok={t("tally.common.dialog.ok")}
@@ -1156,6 +1152,7 @@ export const TallyCeremony: React.FC = () => {
             </Dialog>
 
             <Dialog
+                key="tally-start-dialog"
                 variant="info"
                 open={openCeremonyModal}
                 ok={t("tally.common.dialog.okTally")}
