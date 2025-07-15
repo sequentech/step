@@ -164,7 +164,8 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         .iter()
         .any(|choice| choice.is_explicit_invalid);
 
-    let ballot_choices = BallotChoices::new(is_explicit_invalid, contest_choices);
+    let ballot_choices =
+        BallotChoices::new(is_explicit_invalid, contest_choices);
 
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
