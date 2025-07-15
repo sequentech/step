@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useContext, useMemo, useState} from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
     stringToHtml,
@@ -23,6 +23,7 @@ import {
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import {
     checkAllowWriteIns,
+    checkIsInvalidVote,
     checkIsWriteIn,
     getImageUrl,
     getLinkUrl,
@@ -61,7 +62,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     isActive,
     iconCheckboxPolicy,
     isReview,
-    isInvalidVote,
+    isInvalidVote: isInvalidVoteInput,
     isExplicitBlankVote,
     isInvalidWriteIns,
     isRadioSelection,
@@ -84,6 +85,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
     const ballotService = provideBallotService()
+    const isInvalidVote = useMemo(() => isInvalidVoteInput ?? checkIsInvalidVote(answer), [isInvalidVoteInput, answer])
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {
