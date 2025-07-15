@@ -5,6 +5,11 @@
 name: Documentation Preview
 on:
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
     paths:
       - '.github/workflows/documentation.yml'
       - 'docs/docusaurus/**'
