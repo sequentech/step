@@ -132,6 +132,7 @@ async fn rocket() -> _ {
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
                 routes::set_voter_authentication::set_voter_authentication,
+                routes::set_admin_authentication::set_admin_authentication,
             ],
         )
         .manage(LastDatafixAccessToken::init())

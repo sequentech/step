@@ -7,6 +7,7 @@ use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentation};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use rocket::http::Status;
+use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::RoleAction;
 use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
@@ -257,6 +258,83 @@ pub async fn read_roles_config_file(
                         .with_context(|| format!("Error adding roles to new group '{}'", role))?;
                 }
                 None => {}
+            }
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn update_keycloak_admin_golden_authentication(
+    tenant_id: Option<String>,
+    golden_authentication: bool,
+) -> Result<()> {
+    let Some(ref tenant_id) = tenant_id else {
+        return Ok(());
+    };
+
+    let realm_name = get_tenant_realm(tenant_id);
+
+    // Define authentication flows to update
+    let authentication_flows = vec!["sequent browser flow"];
+
+    // Loop through each flow to update its execution
+    for flow_name in authentication_flows {
+        let keycloak_client = KeycloakAdminClient::new().await?;
+        let pub_client = KeycloakAdminClient::pub_new().await?;
+
+        let flow_executions = keycloak_client
+            .get_flow_executions(&pub_client, &realm_name, flow_name)
+            .await
+            .with_context(|| format!("Error fetching flow executions for '{}'", flow_name))?;
+
+        for mut execution in flow_executions {
+            if execution.provider_id.as_deref() == Some("auth-password-form") {
+                println!("auth-password-form entered");
+                let new_golden_authentication_state = if golden_authentication {
+                    "REQUIRED".to_string()
+                } else {
+                    "DISABLED".to_string()
+                };
+
+                println!("-- auth-password-form entered ga: {golden_authentication}, ngas: {new_golden_authentication_state}");
+
+                execution.requirement = Some(new_golden_authentication_state.clone());
+
+                keycloak_client
+                    .upsert_flow_execution(
+                        &pub_client,
+                        &realm_name,
+                        flow_name,
+                        &serde_json::to_string(&execution)?,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Error updating flow execution for '{}'", flow_name)
+                    })?;
+            }
+            if execution.provider_id.as_deref() == Some("allow-access-authenticator") {
+                let new_golden_authentication_state = if golden_authentication {
+                    "DISABLED".to_string()
+                } else {
+                    "REQUIRED".to_string()
+                };
+
+                println!("-- allow-access-authenticator ga: {golden_authentication}, ngas: {new_golden_authentication_state}");
+
+                execution.requirement = Some(new_golden_authentication_state.clone());
+
+                keycloak_client
+                    .upsert_flow_execution(
+                        &pub_client,
+                        &realm_name,
+                        flow_name,
+                        &serde_json::to_string(&execution)?,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Error updating flow execution for '{}'", flow_name)
+                    })?;
             }
         }
     }

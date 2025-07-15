@@ -1122,6 +1122,19 @@ actions:
               version: 2
       permissions:
           - role: miru-send
+    - name: set_admin_authentication
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/set-admin-authentication
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: set_custom_urls
       definition:
           kind: synchronous
@@ -1434,4 +1447,5 @@ custom_types:
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
         - name: RenderDocumentPDFOutput
+        - name: SetAdminAuthenticationOutput
     scalars: []

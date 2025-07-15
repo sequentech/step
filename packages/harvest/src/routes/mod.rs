@@ -41,6 +41,7 @@ pub mod permissions;
 pub mod reports;
 pub mod roles;
 pub mod scheduled_event;
+pub mod set_admin_authentication;
 pub mod set_voter_authentication;
 pub mod tally_ceremony;
 pub mod tally_sheets;

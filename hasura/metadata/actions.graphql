@@ -522,6 +522,12 @@ type Mutation {
 }
 
 type Mutation {
+    set_admin_authentication(
+        golden_authentication: Boolean!
+    ): SetAdminAuthenticationOutput
+}
+
+type Mutation {
     set_custom_urls(
         origin: String!
         redirect_to: String!
@@ -1573,4 +1579,9 @@ type CountUsersOutput {
 type RenderDocumentPDFOutput {
     document_id: String
     task_execution: tasks_execution_type
+}
+
+type SetAdminAuthenticationOutput {
+    success: Boolean!
+    message: String
 }

@@ -824,6 +824,12 @@ export type ScheduledEventOutput3 = {
     id?: Maybe<Scalars["String"]["output"]>
 }
 
+export type SetAdminAuthenticationOutput = {
+    __typename?: "SetAdminAuthenticationOutput"
+    message?: Maybe<Scalars["String"]["output"]>
+    success: Scalars["Boolean"]["output"]
+}
+
 export type SetCustomUrlsOutput = {
     __typename?: "SetCustomUrlsOutput"
     message?: Maybe<Scalars["String"]["output"]>
@@ -1420,6 +1426,7 @@ export type Mutation_Root = {
     render_document_pdf?: Maybe<RenderDocumentPdfOutput>
     restore_private_key?: Maybe<RestorePrivateKeyOutput>
     send_transmission_package?: Maybe<OptionalId>
+    set_admin_authentication?: Maybe<SetAdminAuthenticationOutput>
     set_custom_urls?: Maybe<SetCustomUrlsOutput>
     set_role_permission?: Maybe<SetRolePermissionOutput>
     set_user_role?: Maybe<SetUserRoleOutput>
@@ -2953,6 +2960,11 @@ export type Mutation_RootSend_Transmission_PackageArgs = {
     area_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
     tally_session_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootSet_Admin_AuthenticationArgs = {
+    golden_authentication: Scalars["Boolean"]["input"]
 }
 
 /** mutation root */
