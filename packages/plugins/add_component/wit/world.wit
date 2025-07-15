@@ -1,9 +1,0 @@
-package docs:adder;
-
-world adder {
-    import docs:transactions-manager/transaction;
-    export get-manifest: func() -> string;
-    export  add: func(x: u32, y: u32) -> string;
-    export  add-route: func(data:string) -> string;
-    export  add-task: func(data:string);
-}

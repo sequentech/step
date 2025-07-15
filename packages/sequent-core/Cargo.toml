@@ -118,6 +118,11 @@ async-trait = { version = "0.1", optional = true }
 printpdf = { version = "0.7.0", optional = true }
 kuchiki = { version = "0.8.1", optional = true }
 
+
+# WASM plugin management
+wasmtime = "33.0.0"
+wasmtime-wasi = "33.0.0"
+
 [dev-dependencies]
 ptree = "0.5.0"
 

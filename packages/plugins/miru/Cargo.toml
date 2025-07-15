@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 [package]
-name = "add_component"
+name = "miru"
 version = "0.1.0"
 edition = "2021"
 
@@ -21,4 +21,5 @@ package = "docs:adder"
 path = "./wit/world.wit"
 
 [package.metadata.component.target.dependencies]
-"docs:transactions-manager" = { path = "../../windmill/src/services/plugins_manager/wit/transaction.wit" }
+"plugins-manager:transactions-manager" = { path = "../../sequent-core/src/plugins-wit/transaction/transaction-world.wit" }
+"plugins-manager:common" = { path = "../../sequent-core/src/plugins-wit/plugin/plugin-world.wit" }

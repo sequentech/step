@@ -3,15 +3,6 @@
 version = 4
 
 [[package]]
-name = "add_component"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "wit-bindgen-rt 0.42.1",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5474,6 +5465,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "miru"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "wit-bindgen-rt 0.42.1",
+]
+
+[[package]]
 name = "mock_server"
 version = "0.1.0"
 dependencies = [
@@ -8130,6 +8130,8 @@ dependencies = [
  "uuid",
  "warp",
  "wasm-bindgen",
+ "wasmtime",
+ "wasmtime-wasi",
  "web-sys",
 ]
 

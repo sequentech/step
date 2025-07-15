@@ -1,11 +1,16 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-pub use super::plugin_db_manager::docs::transactions_manager::transaction::add_to_linker as add_transaction_linker;
 use crate::services::plugins_manager::plugin_db_manager::{
     PluginDbManager, PluginTransactionsManager,
 };
 use anyhow::{anyhow, Context, Result};
+use sequent_core::plugins_wit::lib::plugin_bindings::{
+    plugins_manager::common::types::{Manifest, PluginRoute},
+    Plugin as PluginInterface,
+};
+use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::
+transactions_manager::transaction::{add_to_linker as add_transaction_linker};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
@@ -96,7 +101,7 @@ pub struct Plugin {
     pub name: String,
     pub component: Component,
     pub instance: Arc<Mutex<(Store<PluginStore>, Instance)>>,
-    pub manifest: serde_json::Value,
+    pub manifest: Manifest,
 }
 
 impl Plugin {
@@ -126,27 +131,20 @@ impl Plugin {
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 
-        let func_index = component
-            .get_export_index(None, "get-manifest")
-            .with_context(|| "get-manifest export not found")?;
-        let func = instance
-            .get_func(&mut store, &func_index)
-            .with_context(|| "get-manifest function not found")?;
-        let mut results = [Val::String("".into())];
-        func.call_async(&mut store, &[], &mut results).await?;
-        let manifest_str = match &results[0] {
-            Val::String(s) => s.clone(),
-            _ => return Err(anyhow!("get-manifest did not return a string")),
-        };
-        func.post_return_async(&mut store).await?;
-        let manifest_json: serde_json::Value = serde_json::from_str(&manifest_str)?;
-        let plugin_name = manifest_json["plugin_name"].as_str().unwrap().to_string();
+        let plugin_common_instance =
+            PluginInterface::instantiate_async(&mut store, &component, &linker).await?;
+
+        let plugin_manifest = plugin_common_instance
+            .plugins_manager_common_plugin_common()
+            .call_get_manifest(&mut store)
+            .await
+            .context("Failed to get plugin manifest")?;
 
         Ok(Self {
-            name: plugin_name,
+            name: plugin_manifest.plugin_name.clone(),
             component,
             instance: Arc::new(Mutex::new((store, instance))),
-            manifest: serde_json::from_str(&manifest_str)?,
+            manifest: plugin_manifest.clone(),
         })
     }
 

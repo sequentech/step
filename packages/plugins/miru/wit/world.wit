@@ -1,0 +1,6 @@
+package plugins-manager:miru;
+
+world miru {
+    import plugins-manager:transactions-manager/transaction;
+    export plugins-manager:common/plugin-common;
+}

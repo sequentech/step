@@ -128,3 +128,9 @@ num_cpus = "1.16.0"
 ordered-float = { version = "4.4.0", features = ["serde"] }
 
 ouroboros = "0.18.5"
+
+
+[package.metadata.component]
+
+[package.metadata.component.target.dependencies]
+"docs:plugin" = { path = "packages/sequent-core/src/wit/plugin_interface.wit" }

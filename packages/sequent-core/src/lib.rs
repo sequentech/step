@@ -18,6 +18,7 @@ pub mod fixtures;
 pub mod interpret_plaintext;
 pub mod mixed_radix;
 pub mod plaintext;
+pub mod plugins_wit;
 pub mod serialization;
 pub mod services;
 pub mod util;

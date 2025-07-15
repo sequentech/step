@@ -1,7 +1,7 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-package docs:transactions-manager;
+package plugins-manager:transactions-manager;
 
 interface transaction {
     create-hasura-transaction: func() -> result<string, string>;

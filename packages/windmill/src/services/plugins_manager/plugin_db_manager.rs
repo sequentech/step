@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
@@ -7,14 +7,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-wasmtime::component::bindgen!({
-    path: "src/services/plugins_manager/wit/transaction.wit",
-    world: "transactions-manager",
-    async: true,
-});
-
-use docs::transactions_manager::transaction::Host;
+use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::transactions_manager::transaction::Host;
 
 #[ouroboros::self_referencing]
 pub struct PluginDbManager {

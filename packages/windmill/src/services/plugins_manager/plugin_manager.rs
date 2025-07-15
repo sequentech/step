@@ -1,11 +1,15 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::plugins_manager::plugin::{HookValue, Plugin};
 use anyhow::{anyhow, Context, Result};
+use core::convert::Into;
 use dashmap::DashMap;
 use futures::future;
 use once_cell::sync::OnceCell;
+use sequent_core::plugins_wit::lib::plugin_bindings::plugins_manager::common::types::{
+    Manifest, PluginRoute,
+};
 use sequent_core::services::s3::{get_files_bytes_from_s3, get_public_bucket};
 use std::sync::Arc;
 use wasmtime::{Config, Engine};
@@ -41,74 +45,29 @@ impl PluginManager {
         for wasm in wasms_files {
             let plugin = Plugin::init_plugin_from_wasm_bytes(&self.engine, wasm).await?;
             let plugin_name = plugin.name.clone();
-            let plugin_manifest = &plugin.manifest;
+            let plugin_manifest: Manifest = plugin.manifest.clone();
 
-            let parse_string_array = |key: &str| -> Result<Vec<String>> {
-                plugin_manifest[key]
-                    .as_array()
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "'{}' field not found or not an array in plugin manifest",
-                            key
-                        )
-                    })?
-                    .iter()
-                    .map(|v| {
-                        v.as_str()
-                            .map(|s| s.to_string())
-                            .ok_or_else(|| anyhow!("Value in '{}' array is not a string", key))
-                    })
-                    .collect::<Result<Vec<String>>>()
-            };
+            let plugin_hooks = &plugin_manifest.hooks;
 
-            let hooks = parse_string_array("hooks").context(format!(
-                "Failed to parse 'hooks' for plugin '{}'",
-                plugin_name
-            ))?;
-            for hook in hooks {
+            for hook in plugin_hooks {
                 self.hooks
-                    .entry(hook)
+                    .entry(hook.clone())
                     .or_default()
                     .push(plugin_name.clone());
             }
 
-            let routes_array = plugin_manifest["routes"]
-                .as_array()
-                .ok_or_else(|| {
-                    anyhow!("'routes' field not found or not an array in plugin manifest")
-                })
-                .context(format!(
-                    "Failed to parse 'routes' array for plugin '{}'",
-                    plugin_name
-                ))?;
+            let plugin_routes: &Vec<PluginRoute> = &plugin_manifest.routes;
 
-            for route_value in routes_array {
-                let path = route_value["path"]
-                    .as_str()
-                    .map(|s| s.to_string())
-                    .ok_or_else(|| anyhow!("Route 'path' is not a string"))
-                    .context(format!(
-                        "Failed to get 'path' for a route in plugin '{}'",
-                        plugin_name
-                    ))?;
-                let handler = route_value["handler"]
-                    .as_str()
-                    .map(|s| s.to_string())
-                    .ok_or_else(|| anyhow!("Route 'handler' is not a string"))
-                    .context(format!(
-                        "Failed to get 'handler' for a route in plugin '{}'",
-                        plugin_name
-                    ))?;
+            for route in plugin_routes {
+                let path = route.path.clone();
+                let handler = route.handler.clone();
                 self.routes.insert(path, (handler, plugin_name.clone()));
             }
 
-            let tasks = parse_string_array("tasks").context(format!(
-                "Failed to parse 'tasks' for plugin '{}'",
-                plugin_name
-            ))?;
-            for task in tasks {
+            let plugin_tasks: &Vec<String> = &plugin_manifest.tasks;
+            for task in plugin_tasks {
                 self.tasks
-                    .entry(task)
+                    .entry(task.clone())
                     .or_default()
                     .push(plugin_name.clone());
             }
@@ -128,19 +87,18 @@ impl PluginManager {
         let plugin_names = self
             .hooks
             .get(hook)
-            .context(format!("Hook '{:?}' not registered by any plugin", hook))?;
+            .context(anyhow!("Hook '{hook}' not registered by any plugin"))?;
 
         let mut tasks = Vec::new();
 
         for plugin_name in plugin_names.iter() {
-            let plugin = self.plugins.get(plugin_name).context(format!(
-                "Plugin '{:?}' not found for hook '{}'",
-                plugin_name, hook
+            let plugin = self.plugins.get(plugin_name).context(anyhow!(
+                "Plugin '{plugin_name}' not found for hook '{hook}'"
             ))?;
 
             let args_clone = args.clone();
             let expected_result_types_clone = expected_result_types.clone();
-            let hook_clone = hook.to_string(); // Clone the hook string
+            let hook_clone = hook.to_string();
 
             let plugin_arc_clone = std::sync::Arc::new(plugin.clone());
 
@@ -152,9 +110,7 @@ impl PluginManager {
                     .await
                     .map_err(|e| {
                         anyhow!(
-                            "Failed to call hook '{}' in plugin '{}': {:?}",
-                            hook_clone,
-                            plugin_name_clone,
+                            "Failed to call hook '{hook_clone}' in plugin '{plugin_name_clone}': {:?}",
                             e
                         )
                     })?;
@@ -187,7 +143,7 @@ impl PluginManager {
             let plugin = self
                 .plugins
                 .get(plugin_name)
-                .context(format!("Plugin '{}' not found for route", plugin_name))?;
+                .context(anyhow!("Plugin '{plugin_name}' not found for route"))?;
 
             // Call the route handler, routes should always receive and return a string of json response
             let results: Vec<HookValue> = plugin
@@ -198,7 +154,7 @@ impl PluginManager {
                     vec![HookValue::String("".to_string())],
                 )
                 .await
-                .map_err(|e| anyhow!("Failed to call hook '{}': {:?}", handler, e))?;
+                .map_err(|e| anyhow!("Failed to call hook '{handler}': {:?}", e))?;
             let cal_res = results[0].as_str();
 
             if let Some(res) = cal_res {
@@ -207,7 +163,7 @@ impl PluginManager {
                 Err(anyhow!("Route handler did not return a string"))
             }
         } else {
-            return Err(anyhow!("Route '{}' not found", path));
+            return Err(anyhow!("Route '{path}' not found"));
         }
     }
 
@@ -215,12 +171,11 @@ impl PluginManager {
         let plugin_names = self
             .tasks
             .get(task)
-            .context(format!("Task '{:?}' not registered by any plugin", task))?;
+            .context(anyhow!("Task '{task}' not registered by any plugin"))?;
 
         for plugin_name in plugin_names.value() {
-            let plugin = self.plugins.get(plugin_name).context(format!(
-                "Plugin '{:?}' not found for task '{}'",
-                plugin_name, task
+            let plugin = self.plugins.get(plugin_name).context(anyhow!(
+                "Plugin '{plugin_name}'  not found for task '{task}'"
             ))?;
 
             let _ = plugin
@@ -229,9 +184,7 @@ impl PluginManager {
                 .await
                 .map_err(|e| {
                     anyhow!(
-                        "Failed to call task '{}' in plugin '{}': {:?}",
-                        task,
-                        plugin_name,
+                        "Failed to call task '{task}' in plugin '{plugin_name}': {:?}",
                         e
                     )
                 })?;
