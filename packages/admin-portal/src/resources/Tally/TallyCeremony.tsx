@@ -138,7 +138,7 @@ export const TallyCeremony: React.FC = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
-    const [selectedElections, setSelectedElections] = useState<string[]>([])
+    const [selectedElections, setSelectedElections] = useState<string[] | undefined>(undefined)
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
@@ -374,16 +374,16 @@ export const TallyCeremony: React.FC = () => {
     }, [tallySession])
 
     useEffect(() => {
-        if (page === WizardSteps.Start) {
+        if (page === WizardSteps.Start && creatingType !== ETallyType.INITIALIZATION_REPORT) {
             let is_published = elections?.every(
                 (election) =>
-                    !selectedElections.includes(election.id) || election.status?.is_published
+                    !selectedElections?.includes(election.id) || election.status?.is_published
             )
             let newIsButtonDisabled =
-                (page === WizardSteps.Start && selectedElections.length === 0 ? true : false) ||
+                (page === WizardSteps.Start && selectedElections?.length === 0 ? true : false) ||
                 !is_published
             console.log(
-                `useEffect isButtonDisabled = ${isButtonDisabled}, newIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
+                `selectedElections isButtonDisabled = ${isButtonDisabled}, newIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
             )
             setIsButtonDisabled(newIsButtonDisabled)
         }
@@ -463,7 +463,11 @@ export const TallyCeremony: React.FC = () => {
     }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
 
     useEffect(() => {
-        if (creatingType === ETallyType.INITIALIZATION_REPORT) {
+        if (creatingType === ETallyType.INITIALIZATION_REPORT && page === WizardSteps.Start && selectedElections && elections && allTallySessions) {
+            // log these objects selectedElections, elections, allTallySessions:
+            console.log(selectedElections)
+            console.log(elections)
+            console.log(allTallySessions)
             // An initialization report is considered succesfully created if:
             // 1. It's not in CANCELLED status.
             // 2. It's in a cancellable status or successful. Cancellable status
@@ -489,9 +493,9 @@ export const TallyCeremony: React.FC = () => {
             // or if the initialization report is either not allowed or already generated when allowed,
             // then `newStatus` will be `true`, and the button will be disabled.
             const newStatus =
-                selectedElections.length == 0 ||
+                selectedElections?.length == 0 ||
                 elections
-                    ?.filter((election) => selectedElections.includes(election.id))
+                    ?.filter((election) => selectedElections?.includes(election.id))
                     .some(
                         (election) =>
                             !election.status?.is_published ||
@@ -530,7 +534,7 @@ export const TallyCeremony: React.FC = () => {
                     tenant_id: record?.tenant_id,
                     election_event_id: record?.id,
                     keys_ceremony_id: keysCeremonyId,
-                    election_ids: selectedElections,
+                    election_ids: selectedElections ?? [],
                     tally_type: creatingType,
                 },
             })
