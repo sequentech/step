@@ -23,6 +23,7 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
+    /// Creates a new PluginManager instance with an async-enabled Wasmtime engine and empty plugin registries.
     pub fn new() -> Result<Self> {
         let mut config = Config::new();
         config.async_support(true);
@@ -37,6 +38,7 @@ impl PluginManager {
         })
     }
 
+    /// Loads all plugin WASM files from the S3 bucket, initializes them, and registers their hooks, routes, and tasks.
     pub async fn load_plugins(&self) -> Result<()> {
         let bucket: String = get_public_bucket().context("failed to get public S3 bucket")?;
         let wasms_files: Vec<Vec<u8>> =
@@ -78,6 +80,8 @@ impl PluginManager {
         Ok(())
     }
 
+    /// Dynamically calls a hook by name on all plugins that registered for it, passing arguments and expected result types.
+    /// Returns a vector of results from each plugin.
     pub async fn call_hook_dynamic(
         &self,
         hook: &str,
@@ -136,6 +140,7 @@ impl PluginManager {
         Ok(all_results)
     }
 
+    /// Calls a registered route handler by path, passing a JSON string as input, and returns the JSON string result.
     pub async fn call_route(&self, path: &str, input_json: String) -> Result<String> {
         if let Some(route_entry) = self.routes.get(path) {
             let (handler, plugin_name) = route_entry.value();
@@ -167,6 +172,7 @@ impl PluginManager {
         }
     }
 
+    /// Executes a registered task by name, passing a JSON string as input, on all plugins that registered for the task.
     pub async fn execute_task(&self, task: &str, input_json: String) -> Result<()> {
         let plugin_names = self
             .tasks
@@ -196,6 +202,7 @@ impl PluginManager {
 
 static PLUGIN_MANAGER: OnceCell<PluginManager> = OnceCell::new();
 
+/// Returns a reference to the global PluginManager singleton, initializing it if necessary.
 pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
     let plugin_manager = match PLUGIN_MANAGER.get() {
         Some(manager) => manager,
@@ -211,6 +218,7 @@ pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
     Ok(plugin_manager)
 }
 
+/// Initializes the global PluginManager singleton and loads all plugins from S3.
 pub async fn init_plugin_manager() -> Result<()> {
     if PLUGIN_MANAGER.get().is_some() {
         return Ok(());
@@ -227,17 +235,3 @@ pub async fn init_plugin_manager() -> Result<()> {
 }
 
 pub use super::plugins_hooks::PluginHooks;
-
-// How to call hook:
-/*
-use windmill::services::plugins_manager::plugin_manager::{self,PluginHooks,PluginManager};
-....
-        let plugin_manager = plugin_manager::get_plugin_manager()
-            .await
-            .map_err(|e| (Status::InternalServerError, e.to_string()))?;
-
-        /*  ---- when  add have its own implementation in plugin_hooks.rs  ---- */
-        let res = plugin_manager.add(2,4).await.map_err(|e| (Status::InternalServerError, e.to_string()))?;
-        println!("Result from plugin manager add: {}", res);
-....
-*/

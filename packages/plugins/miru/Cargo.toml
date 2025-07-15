@@ -15,11 +15,11 @@ serde_json = "1.0.105"
 serde = "1.0.152"
 
 [package.metadata.component]
-package = "docs:adder"
+package = "plugins-manager:miru"
 
 [package.metadata.component.target]
 path = "./wit/world.wit"
 
 [package.metadata.component.target.dependencies]
-"plugins-manager:transactions-manager" = { path = "../../sequent-core/src/plugins-wit/transaction/transaction-world.wit" }
-"plugins-manager:common" = { path = "../../sequent-core/src/plugins-wit/plugin/plugin-world.wit" }
+"plugins-manager:transactions-manager" = { path = "../../sequent-core/src/plugins_wit/transaction/transaction-world.wit" }
+"plugins-manager:common" = { path = "../../sequent-core/src/plugins_wit/plugin/plugin-world.wit" }
