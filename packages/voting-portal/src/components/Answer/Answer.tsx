@@ -85,7 +85,10 @@ export const Answer: React.FC<IAnswerProps> = ({
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
     const ballotService = provideBallotService()
-    const isInvalidVote = useMemo(() => isInvalidVoteInput ?? checkIsInvalidVote(answer), [isInvalidVoteInput, answer])
+    const isInvalidVote = useMemo(
+        () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
+        [isInvalidVoteInput, answer]
+    )
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {
