@@ -4,6 +4,10 @@
 
 name: Documentation Preview
 on:
+  push:
+    branches:
+      - main
+      - release/*
   pull_request:
     types:
       - opened
@@ -15,6 +19,7 @@ on:
       - 'docs/docusaurus/**'
     branches:
       - main
+      - release/*
 
 permissions:
   contents: write
@@ -29,16 +34,58 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: '>= 18.0'
-      - name: Build Preview
+      - name: Build Preview (PR)
         working-directory: ./docs/docusaurus
         run: |
           export BASE_URL=/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
           yarn install --frozen-lockfile
           yarn build
-      - name: Publish
+      - name: Build Preview (main)
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        run: |
+          export BASE_URL=/main-preview
+          yarn install --frozen-lockfile
+          yarn build
+      - name: Build Preview (release)
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
+        run: |
+          export BASE_URL=/release-preview/${{ github.ref_name }}
+          yarn install --frozen-lockfile
+          yarn build
+      - name: Publish (PR)
         uses: rossjrw/pr-preview-action@v1
+        if: github.event_name == 'pull_request'
         with:
           pages-base-url: doc-previews.sequentech.io
           source-dir: ./docs/docusaurus/build/
           preview-branch: pr-doc-previews
           token: ${{ secrets.PAT }}
+          clean-exclude: |
+            main-preview
+            release-preview/*
+          umbrella-dir: pr-preview
+      - name: Publish (main)
+        uses: JamesIves/github-pages-deploy-action@v4
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        with:
+          folder: ./docs/docusaurus/build/
+          branch: pr-previews
+          target-folder: main-preview
+          commit-message: "Deploy preview for ${{ github.ref_name }}"
+          token: ${{ secrets.PAT }}
+          clean-exclude: |
+            pr-preview/*
+            release-preview/*
+      - name: Publish (release)
+        uses: JamesIves/github-pages-deploy-action@v4
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
+        with:
+          folder: ./docs/docusaurus/build/
+          branch: pr-previews
+          target-folder: "release-preview/${{ github.ref_name }}"
+          commit-message: "Deploy preview for ${{ github.ref_name }}"
+          token: ${{ secrets.PAT }}
+          clean-exclude: |
+            main-preview
+            pr-preview/*
+            release-preview/*
