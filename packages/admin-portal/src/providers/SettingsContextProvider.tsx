@@ -121,7 +121,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         if (!loaded) {
             loadSettings()
         }
-    }, [])
+    }, [loaded])
     // Setup the context provider
     return (
         <SettingsContext.Provider
