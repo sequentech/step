@@ -9,6 +9,7 @@
 extern crate lazy_static;
 use lazy_static::lazy_static;
 
+use anyhow::Context;
 use anyhow::{anyhow, Result};
 use celery::Celery;
 use dotenv::dotenv;
@@ -21,15 +22,22 @@ use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::tasks_semaphore::init_semaphore;
 
+fn get_queue_name(queue: Queue) -> String {
+    let slug = std::env::var("ENV_SLUG")
+        .with_context(|| "missing env var ENV_SLUG")
+        .unwrap();
+    queue.queue_name(&slug)
+}
+
 lazy_static! {
-    static ref BEAT_QUEUE_NAME: String = Queue::Beat.queue_name();
-    static ref SHORT_QUEUE_NAME: String = Queue::Short.queue_name();
-    static ref ELECTORAL_LOG_BEAT_QUEUE_NAME: String = Queue::ElectoralLogBeat.queue_name();
-    static ref COMMUNICATION_QUEUE_NAME: String = Queue::Communication.queue_name();
-    static ref TALLY_QUEUE_NAME: String = Queue::Tally.queue_name();
-    static ref REPORTS_QUEUE_NAME: String = Queue::Reports.queue_name();
-    static ref IMPORT_EXPORT_QUEUE_NAME: String = Queue::ImportExport.queue_name();
-    static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = Queue::ElectoralLogBatch.queue_name();
+    static ref BEAT_QUEUE_NAME: String = get_queue_name(Queue::Beat);
+    static ref SHORT_QUEUE_NAME: String = get_queue_name(Queue::Short);
+    static ref ELECTORAL_LOG_BEAT_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBeat);
+    static ref COMMUNICATION_QUEUE_NAME: String = get_queue_name(Queue::Communication);
+    static ref TALLY_QUEUE_NAME: String = get_queue_name(Queue::Tally);
+    static ref REPORTS_QUEUE_NAME: String = get_queue_name(Queue::Reports);
+    static ref IMPORT_EXPORT_QUEUE_NAME: String = get_queue_name(Queue::ImportExport);
+    static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBatch);
 }
 
 #[derive(Debug, StructOpt, Clone)]

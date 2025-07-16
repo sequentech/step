@@ -83,8 +83,7 @@ pub enum Queue {
 }
 
 impl Queue {
-    pub fn queue_name(&self) -> String {
-        let slug = std::env::var("ENV_SLUG").unwrap();
+    pub fn queue_name(&self, slug: &str) -> String {
         format!("{}_{}", slug, self.as_ref())
     }
 }
@@ -163,7 +162,7 @@ pub fn get_queues() -> Vec<String> {
 /// built separately from the Broker because it handles task routing/scheduling.
 lazy_static! {
     static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
-        AsyncOnce::new(async { generate_celery_app().await });
+        AsyncOnce::new(async { generate_celery_app().await.unwrap() });
 }
 
 /// Returns the global Celery app.
@@ -205,7 +204,7 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
 }
 
 #[instrument]
-pub async fn generate_celery_app() -> Arc<Celery> {
+pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     let prefetch_count: u16;
     let acks_late: bool;
     let task_max_retries: u32;
@@ -224,7 +223,11 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         prefetch_count,
         acks_late
     );
-    let amqp_addr = create_connection().await.unwrap().1;
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let amqp_addr = create_connection()
+        .await
+        .with_context(|| "error creating rabbitmq connection")?
+        .1;
     celery::app!(
         broker = AMQPBroker { amqp_addr },
         tasks = [
@@ -273,49 +276,49 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             render_document_pdf,
         ],
         task_routes = [
-            create_keys::NAME => &Queue::Short.queue_name(),
-            review_boards::NAME => &Queue::Beat.queue_name(),
-            process_board::NAME => &Queue::Beat.queue_name(),
-            generate_manual_verification_report::NAME => &Queue::Reports.queue_name(),
-            render_report::NAME => &Queue::Reports.queue_name(),
-            create_ballot_receipt::NAME => &Queue::Reports.queue_name(),
-            generate_report::NAME => &Queue::Reports.queue_name(),
-            generate_template::NAME => &Queue::Reports.queue_name(),
-            render_document_pdf::NAME => &Queue::Reports.queue_name(),
-            set_public_key::NAME => &Queue::Short.queue_name(),
-            execute_tally_session::NAME => &Queue::Tally.queue_name(),
-            update_election_event_ballot_styles::NAME => &Queue::Short.queue_name(),
-            insert_election_event_t::NAME => &Queue::Short.queue_name(),
-            insert_tenant::NAME => &Queue::Short.queue_name(),
-            send_template::NAME => &Queue::Communication.queue_name(),
-            import_users::NAME => &Queue::ImportExport.queue_name(),
-            export_users::NAME => &Queue::ImportExport.queue_name(),
-            export_election_event::NAME => &Queue::ImportExport.queue_name(),
-            generate_activity_logs_report::NAME => &Queue::ImportExport.queue_name(),
-            export_tasks_execution::NAME => &Queue::ImportExport.queue_name(),
-            export_trustees_task::NAME => &Queue::ImportExport.queue_name(),
-            import_election_event::NAME => &Queue::ImportExport.queue_name(),
-            export_templates::NAME => &Queue::ImportExport.queue_name(),
-            export_tenant_config::NAME => &Queue::ImportExport.queue_name(),
-            import_tenant_config::NAME => &Queue::ImportExport.queue_name(),
-            scheduled_events::NAME => &Queue::Beat.queue_name(),
-            scheduled_reports::NAME => &Queue::Beat.queue_name(),
-            manage_election_date::NAME => &Queue::Beat.queue_name(),
-            manage_election_event_date::NAME => &Queue::Beat.queue_name(),
-            manage_election_event_enrollment::NAME => &Queue::Beat.queue_name(),
-            manage_election_event_lockdown::NAME => &Queue::Beat.queue_name(),
-            manage_election_init_report::NAME => &Queue::Beat.queue_name(),
-            manage_election_voting_period_end::NAME => &Queue::Beat.queue_name(),
-            manage_election_allow_tally::NAME => &Queue::Beat.queue_name(),
-            create_transmission_package_task::NAME => &Queue::Short.queue_name(),
-            send_transmission_package_task::NAME => &Queue::Short.queue_name(),
-            delete_election_event_t::NAME => &Queue::Short.queue_name(),
-            export_ballot_publication::NAME => &Queue::ImportExport.queue_name(),
-            export_application::NAME => &Queue::ImportExport.queue_name(),
-            import_applications::NAME => &Queue::ImportExport.queue_name(),
-            enqueue_electoral_log_event::NAME => &Queue::ElectoralLogEvent.queue_name(),
-            process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(),
-            electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(),
+            create_keys::NAME => &Queue::Short.queue_name(&slug),
+            review_boards::NAME => &Queue::Beat.queue_name(&slug),
+            process_board::NAME => &Queue::Beat.queue_name(&slug),
+            generate_manual_verification_report::NAME => &Queue::Reports.queue_name(&slug),
+            render_report::NAME => &Queue::Reports.queue_name(&slug),
+            create_ballot_receipt::NAME => &Queue::Reports.queue_name(&slug),
+            generate_report::NAME => &Queue::Reports.queue_name(&slug),
+            generate_template::NAME => &Queue::Reports.queue_name(&slug),
+            render_document_pdf::NAME => &Queue::Reports.queue_name(&slug),
+            set_public_key::NAME => &Queue::Short.queue_name(&slug),
+            execute_tally_session::NAME => &Queue::Tally.queue_name(&slug),
+            update_election_event_ballot_styles::NAME => &Queue::Short.queue_name(&slug),
+            insert_election_event_t::NAME => &Queue::Short.queue_name(&slug),
+            insert_tenant::NAME => &Queue::Short.queue_name(&slug),
+            send_template::NAME => &Queue::Communication.queue_name(&slug),
+            import_users::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_users::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
+            generate_activity_logs_report::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_tasks_execution::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_trustees_task::NAME => &Queue::ImportExport.queue_name(&slug),
+            import_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_templates::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_tenant_config::NAME => &Queue::ImportExport.queue_name(&slug),
+            import_tenant_config::NAME => &Queue::ImportExport.queue_name(&slug),
+            scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
+            scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
+            manage_election_date::NAME => &Queue::Beat.queue_name(&slug),
+            manage_election_event_date::NAME => &Queue::Beat.queue_name(&slug),
+            manage_election_event_enrollment::NAME => &Queue::Beat.queue_name(&slug),
+            manage_election_event_lockdown::NAME => &Queue::Beat.queue_name(&slug),
+            manage_election_init_report::NAME => &Queue::Beat.queue_name(&slug),
+            manage_election_voting_period_end::NAME => &Queue::Beat.queue_name(&slug),
+            manage_election_allow_tally::NAME => &Queue::Beat.queue_name(&slug),
+            create_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),
+            send_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),
+            delete_election_event_t::NAME => &Queue::Short.queue_name(&slug),
+            export_ballot_publication::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_application::NAME => &Queue::ImportExport.queue_name(&slug),
+            import_applications::NAME => &Queue::ImportExport.queue_name(&slug),
+            enqueue_electoral_log_event::NAME => &Queue::ElectoralLogEvent.queue_name(&slug),
+            process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
+            electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
@@ -324,7 +327,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         broker_connection_max_retries = broker_connection_max_retries,
     )
     .await
-    .unwrap()
+    .map_err(|err| anyhow!("{:?}", err))
 }
 
 static CELERY_CONNECTION: OnceLock<Arc<Connection>> = OnceLock::new();
