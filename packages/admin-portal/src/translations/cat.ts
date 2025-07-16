@@ -99,6 +99,7 @@ const catalanTranslation: TranslationType = {
                 deleteError: "Error esborrant Àrea",
             },
             createAreaSuccess: "Àrea creada",
+            updateAreaSuccess: "Àrea actualizada",
             createAreaError: "Error creant àrea",
             sequent_backend_area_contest: "Preguntes de l'Àrea",
             empty: {
