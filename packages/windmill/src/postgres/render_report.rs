@@ -48,6 +48,7 @@ pub async fn render_report_task(
             &input.name,
             None,
             false,
+            false,
         )
         .await?;
     } else {
@@ -67,6 +68,7 @@ pub async fn render_report_task(
             Some(election_event_id),
             &input.name,
             None,
+            false,
             false,
         )
         .await?;

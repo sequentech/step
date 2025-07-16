@@ -164,6 +164,7 @@ async fn process_and_upload_document(
             output_type,
             None,
             false,
+            false,
         )
         .await?;
 
@@ -282,6 +283,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 "tally.tar.gz",
                 None,
                 false,
+                false,
             )
             .await?;
 
@@ -347,6 +349,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 Some(contest.election_event_id.to_string()),
                 "tally.tar.gz",
                 None,
+                false,
                 false,
             )
             .await?;

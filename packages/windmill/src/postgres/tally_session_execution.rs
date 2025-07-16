@@ -320,9 +320,7 @@ pub async fn insert_many_tally_session_executions(
             session_ids, status, results_event_id
         )
         SELECT
-            id, tenant_id, election_event_id, created_at, last_updated_at,
-            labels, annotations, current_message_id, tally_session_id,
-            session_ids, status, results_event_id
+            *
         FROM data
         RETURNING *;
     "#;

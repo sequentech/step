@@ -598,13 +598,7 @@ pub async fn insert_many_results_area_contests(
             documents, total_auditable_votes, total_auditable_votes_percent
         )
         SELECT
-            id, tenant_id, election_event_id, election_id, contest_id, area_id,
-            results_event_id, elegible_census, total_valid_votes, explicit_invalid_votes,
-            implicit_invalid_votes, blank_votes, created_at, last_updated_at,
-            labels, annotations, total_valid_votes_percent, total_invalid_votes,
-            total_invalid_votes_percent, explicit_invalid_votes_percent, blank_votes_percent,
-            implicit_invalid_votes_percent, total_votes, total_votes_percent,
-            documents, total_auditable_votes, total_auditable_votes_percent
+            *
         FROM data
         RETURNING *;
     "#;

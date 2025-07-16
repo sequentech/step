@@ -44,6 +44,7 @@ pub async fn write_export_document(
             &document_name,
             Some(document_id.to_string()),
             false,
+            false,
         )
         .await
         .map_err(|e| anyhow!("Error uploading and returning document to postgres: {e:?}"))?;

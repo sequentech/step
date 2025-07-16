@@ -326,7 +326,6 @@ pub async fn insert_ballot_publication(
             ],
         )
         .await?;
-    println!("Rows: {:?}", rows);
 
     let results: Vec<BallotPublication> = rows
         .into_iter()
