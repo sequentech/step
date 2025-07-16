@@ -64,7 +64,8 @@ pub async fn get_keys_ceremony_board(
                 keys_ceremony.id
             )
         })?;
-        let board = get_election_board(tenant_id, &election.id);
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board = get_election_board(tenant_id, &election.id, &slug);
         Ok((board, Some(election.id)))
     }
 }
