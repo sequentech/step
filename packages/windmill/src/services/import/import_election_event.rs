@@ -112,7 +112,8 @@ pub async fn upsert_b3_and_elog(
     election_ids: &Vec<String>,
     dont_auto_generate_keys: bool, // avoid creating protocol manager keys
 ) -> Result<Value> {
-    let board_name = get_event_board(tenant_id, election_event_id);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
     // FIXME must also create the electoral log board here
     let mut immudb_client = get_board_client().await?;
     immudb_client.upsert_electoral_log_db(&board_name).await?;
@@ -153,7 +154,7 @@ pub async fn upsert_b3_and_elog(
 
     for election_id in election_ids.clone() {
         // Create board and protocol manager keys for election (insert, not asssert)
-        let board_name = get_election_board(tenant_id, &election_id);
+        let board_name = get_election_board(tenant_id, &election_id, &slug);
 
         let existing: Option<b3::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
@@ -730,7 +731,8 @@ async fn process_activity_logs_file(
     election_event_id: &str,
     tenant_id: &str,
 ) -> Result<()> {
-    let board_name = get_event_board(tenant_id, election_event_id);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
     let electoral_log = ElectoralLog::new(
         hasura_transaction,

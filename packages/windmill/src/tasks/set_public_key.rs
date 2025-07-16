@@ -118,7 +118,10 @@ pub async fn set_public_key_impl(
     }
 
     // Timestamp since last update.
-    let next_timestamp = keys_ceremony.last_updated_at.unwrap().timestamp() as u64;
+    let next_timestamp = keys_ceremony
+        .last_updated_at
+        .with_context(|| "empty last_updated_at")?
+        .timestamp() as u64;
 
     let messages = protocol_manager::get_board_public_key_messages(&board_name).await?;
     let mut new_logs = generate_logs(&messages, next_timestamp, &vec![0])?;
