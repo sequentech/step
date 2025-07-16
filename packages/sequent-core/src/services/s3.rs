@@ -566,10 +566,10 @@ pub async fn get_files_from_s3(
 }
 
 #[instrument(err)]
-pub async fn get_files_bytes_from_s3(
+pub async fn get_files_names_bytes_from_s3(
     s3_bucket: String,
     prefix: String,
-) -> Result<Vec<Vec<u8>>> {
+) -> Result<Vec<(String, Vec<u8>)>> {
     // Load AWS/S3 config and create client
     let config = get_s3_aws_config(true)
         .await
@@ -578,7 +578,7 @@ pub async fn get_files_bytes_from_s3(
         .await
         .with_context(|| "Error creating S3 client")?;
 
-    let mut files_data = Vec::new();
+    let mut files_data: Vec<(String, Vec<u8>)> = Vec::new();
 
     // List objects under the given prefix
     let list_output = client
@@ -598,28 +598,28 @@ pub async fn get_files_bytes_from_s3(
     if let Some(contents) = list_output.contents {
         for object in contents {
             if let Some(key) = object.key {
-                if !key.contains("export") {
-                    let get_obj_output = client
-                        .get_object()
-                        .bucket(&s3_bucket)
-                        .key(&key)
-                        .send()
-                        .await
-                        .with_context(|| {
-                            format!("Error getting object `{}`", key)
-                        })?;
+                let file_name = key.split('/').last().unwrap();
 
-                    // ByteStream -> Bytes -> Vec<u8>
-                    let bytes = ByteStream::collect(get_obj_output.body)
-                        .await
-                        .with_context(|| {
-                            format!("Error streaming object `{}` body", key)
-                        })?
-                        .into_bytes()
-                        .to_vec();
+                let get_obj_output = client
+                    .get_object()
+                    .bucket(&s3_bucket)
+                    .key(&key)
+                    .send()
+                    .await
+                    .with_context(|| {
+                        format!("Error getting object `{}`", key)
+                    })?;
 
-                    files_data.push(bytes);
-                }
+                // ByteStream -> Bytes -> Vec<u8>
+                let bytes = ByteStream::collect(get_obj_output.body)
+                    .await
+                    .with_context(|| {
+                        format!("Error streaming object `{}` body", key)
+                    })?
+                    .into_bytes()
+                    .to_vec();
+
+                files_data.push((file_name.to_string(), bytes));
             }
         }
     }

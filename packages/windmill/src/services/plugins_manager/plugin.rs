@@ -11,12 +11,14 @@ use sequent_core::plugins_wit::lib::plugin_bindings::{
 };
 use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::
 transactions_manager::transaction::{add_to_linker as add_transaction_linker};
+use core::option::Option::None;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
 use wasmtime::{Engine, Store};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
 
+/// Represents a value that can be passed to or returned from a plugin hook.
 #[derive(Debug, Clone)]
 pub enum HookValue {
     S32(i32),
@@ -105,9 +107,16 @@ pub struct Plugin {
 }
 
 impl Plugin {
-    pub async fn init_plugin_from_wasm_bytes(engine: &Engine, wasm_bytes: Vec<u8>) -> Result<Self> {
+    /// Initializes a plugin from WASM bytes, setting up the necessary environment and returning a Plugin instance.
+    /// Read Manifest from the plugin's common interface.
+    pub async fn init_plugin_from_wasm_bytes(
+        engine: &Engine,
+        wasm_bytes: Vec<u8>,
+        wasm_file_name: String,
+    ) -> Result<Option<Self>> {
         let mut linker = Linker::<PluginStore>::new(&engine);
         let component = Component::new(&engine, wasm_bytes)?;
+
         let wasi: WasiCtx = WasiCtxBuilder::new().inherit_stdio().build();
         add_to_linker_sync(&mut linker)?;
 
@@ -131,28 +140,45 @@ impl Plugin {
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 
-        let plugin_common_instance =
-            PluginInterface::instantiate_async(&mut store, &component, &linker).await?;
+        let plugin_common_instance = match PluginInterface::instantiate_async(
+            &mut store, &component, &linker,
+        )
+        .await
+        {
+            Ok(instance) => instance,
+            Err(e) => {
+                println!(
+                "Component {} does not seem to implement the common plugin interface or failed to instantiate it: {}",
+                wasm_file_name, e
+            );
+                return Ok(None);
+            }
+        };
 
         let plugin_manifest = plugin_common_instance
             .plugins_manager_common_plugin_common()
             .call_get_manifest(&mut store)
             .await
+            .ok()
             .context("Failed to get plugin manifest")?;
 
-        Ok(Self {
+        Ok(Some(Self {
             name: plugin_manifest.plugin_name.clone(),
             component,
             instance: Arc::new(Mutex::new((store, instance))),
             manifest: plugin_manifest.clone(),
-        })
+        }))
     }
 
-    pub async fn call_hook_dynamic(
+    // Calls a hook dynamically with the provided arguments and expected result values.
+    // args: Vec<HookValue> - The arguments to pass to the hook.
+    // expected_result: Vec<HookValue> - The expected result values from the hook (call_async will fill these).
+    // Returns a Result containing a vector of HookValue results from the hook call.
+    pub async fn call_hook(
         &self,
         hook: &str,
         args: Vec<HookValue>,
-        expected_result_types: Vec<HookValue>,
+        expected_result: Vec<HookValue>,
     ) -> Result<Vec<HookValue>> {
         let mut guard = self.instance.lock().await;
         let (store, instance) = &mut *guard;
@@ -160,21 +186,21 @@ impl Plugin {
         let func_index = self
             .component
             .get_export_index(None, hook)
-            .context(format!("Export '{}' not found in component", hook))?;
+            .context(anyhow!("Export {hook} not found in component"))?;
 
         let func: Func = instance
             .get_func(&mut *store, &func_index)
-            .context(format!("Function '{}' not found in instance", hook))?;
+            .context(anyhow!("Function {hook} not found in instance"))?;
 
         let wasm_args: Vec<_> = args.into_iter().map(|arg| arg.to_val()).collect();
-        let mut results: Vec<Val> = expected_result_types
+        let mut results: Vec<Val> = expected_result
             .iter()
             .map(|expected| expected.to_val()) // These are placeholders, their *type* is important.
             .collect();
 
         func.call_async(&mut *store, &wasm_args, results.as_mut_slice())
             .await
-            .context(format!("Failed to call hook '{}'", hook))?;
+            .map_err(|e| anyhow!("Failed to call hook {hook}: {e}"))?;
 
         func.post_return_async(&mut *store).await?;
 

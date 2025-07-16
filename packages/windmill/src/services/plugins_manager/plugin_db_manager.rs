@@ -2,13 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use deadpool_postgres::{Object, Transaction};
+use deadpool_postgres::{GenericClient, Object, Transaction};
+use serde_json::{Value, Map};
+use tokio_postgres::types::ToSql;
+use tokio_postgres::Row;
+use core::result::Result::Err;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::transactions_manager::transaction::Host;
-
+use uuid::Uuid;
 #[ouroboros::self_referencing]
 pub struct PluginDbManager {
     client: Option<Object>,
@@ -43,8 +47,56 @@ impl PluginTransactionsManager {
     }
 }
 
+pub fn parse_any_valid_uuid(s: &str) -> Option<Uuid> {
+    Uuid::parse_str(s).ok()
+}
+
+fn parsed_transactions_query_results(
+    results: Vec<Row>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let mut rows_as_json_values: Vec<Value> = Vec::new();
+
+    for row in results {
+        let mut row_map = Map::new();
+
+        for (i, column) in row.columns().iter().enumerate() {
+            let column_name = column.name();
+            let value: Value = match column.type_().name() {
+                "int2" | "int4" | "int8" => row
+                    .get::<usize, Option<i64>>(i)
+                    .map_or(Value::Null, |val| val.into()),
+                "float4" | "float8" => row
+                    .get::<usize, Option<f64>>(i)
+                    .map_or(Value::Null, |val| val.into()),
+                "bool" => row
+                    .get::<usize, Option<bool>>(i)
+                    .map_or(Value::Null, |val| val.into()),
+                "text" | "varchar" | "char" | "name" | "bpchar" => row
+                    .get::<usize, Option<String>>(i)
+                    .map_or(Value::Null, |val| val.into()),
+                "json" | "jsonb" => row
+                    .get::<usize, Option<Value>>(i)
+                    .map_or(Value::Null, |val| val),
+                "uuid" => row
+                    .get::<usize, Option<Uuid>>(i)
+                    .map_or(Value::Null, |val| val.to_string().into()),
+                _ => Value::Null,
+            };
+            row_map.insert(column_name.to_string(), value);
+        }
+        rows_as_json_values.push(Value::Object(row_map));
+    }
+
+    // Serialize the vector of JSON objects (which represents a JSON array) to a String
+    let json_string = serde_json::to_string(&rows_as_json_values)
+        .map_err(|e| format!("Failed to serialize query results to JSON: {}", e))?;
+
+    Ok(json_string)
+}
+
+//Implementing the Host trait for PluginTransactionsManager to handle database transactions
 impl Host for PluginTransactionsManager {
-    async fn create_hasura_transaction(&mut self) -> Result<String, String> {
+    async fn create_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;
 
         println!("Creating Hasura transaction");
@@ -81,10 +133,10 @@ impl Host for PluginTransactionsManager {
                 >
         })
         .await
-        .map_err(|e| format!("{e}"))?;
+        .map_err(|e| format!("{}", e))?;
 
         *manager = new_self;
-        Ok("Hasura transaction created".to_string())
+        Ok(())
     }
 
     async fn create_keycloak_transaction(&mut self) -> Result<(), String> {
@@ -123,35 +175,96 @@ impl Host for PluginTransactionsManager {
                 >
         })
         .await
-        .map_err(|e| format!("{e}"))?;
+        .map_err(|e| format!("{}", e))?;
 
         *manager = new_self;
         Ok(())
     }
 
-    async fn execute_hasura_query(&mut self, sql: String) -> Result<String, String> {
+    async fn execute_hasura_query(
+        &mut self,
+        sql: String,
+        params: Vec<String>,
+    ) -> Result<String, String> {
         let mut manager = self.hasura_manager.lock().await;
+
+        let parsed_params: Vec<Box<dyn ToSql + Send + Sync>> = params
+            .iter()
+            .map(|p_ref| {
+                let param_str: &str = p_ref.as_ref();
+
+                if let Some(uuid) = parse_any_valid_uuid(param_str) {
+                    Box::new(uuid) as Box<dyn ToSql + Send + Sync>
+                } else {
+                    Box::new(param_str.to_string()) as Box<dyn ToSql + Send + Sync>
+                }
+            })
+            .collect();
 
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
-        hasura_transaction
-            .execute(&sql, &[])
+
+        let query_params: Vec<&(dyn ToSql + Sync)> = parsed_params
+            .iter()
+            .map(|param| {
+                let ref_p = param.as_ref();
+                ref_p as &(dyn ToSql + Sync)
+            })
+            .collect();
+
+        let results: Vec<Row> = hasura_transaction
+            .query(&sql, query_params.as_slice())
             .await
             .map_err(|e| format!("Hasura query failed: {}", e))?;
-        Ok("".to_string())
+
+        let json_string = parsed_transactions_query_results(results)
+            .map_err(|e| format!("Failed to parse query results: {}", e))?;
+
+        Ok(json_string)
     }
 
-    async fn execute_keycloak_query(&mut self, sql: String) -> Result<String, String> {
+    async fn execute_keycloak_query(
+        &mut self,
+        sql: String,
+        params: Vec<String>,
+    ) -> Result<String, String> {
         let mut manager = self.keycloak_manager.lock().await;
+
+        let parsed_params: Vec<Box<dyn ToSql + Send + Sync>> = params
+            .iter()
+            .map(|p_ref| {
+                let param_str: &str = p_ref.as_ref();
+
+                if let Some(uuid) = parse_any_valid_uuid(param_str) {
+                    Box::new(uuid) as Box<dyn ToSql + Send + Sync>
+                } else {
+                    Box::new(param_str.to_string()) as Box<dyn ToSql + Send + Sync>
+                }
+            })
+            .collect();
+
         let keycloak_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
-        keycloak_transaction
-            .execute(&sql, &[])
+
+        let query_params: Vec<&(dyn ToSql + Sync)> = parsed_params
+            .iter()
+            .map(|param| {
+                let ref_p = param.as_ref();
+                ref_p as &(dyn ToSql + Sync)
+            })
+            .collect();
+
+        let results: Vec<Row> = keycloak_transaction
+            .query(&sql, query_params.as_slice())
             .await
             .map_err(|e| format!("Keycloak query failed: {}", e))?;
-        Ok("".to_string())
+
+        let json_string = parsed_transactions_query_results(results)
+            .map_err(|e| format!("Failed to parse query results: {}", e))?;
+
+        Ok(json_string)
     }
 
     async fn commit_hasura_transaction(&mut self) -> Result<(), String> {

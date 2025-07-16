@@ -6,6 +6,8 @@ use crate::services::plugins_manager::plugin_manager::PluginManager;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 
+// This module defines the hooks implementation for the plugin system.
+// Each plugin hook is a method that can be called by the plugin manager to interact with plugins.
 #[async_trait]
 pub trait PluginHooks {
     //Add plugins hooks here

@@ -32,11 +32,11 @@ pub trait PluginHooks {
 #[async_trait]
 impl PluginHooks for PluginManager {
     async fn my_hook(&self, arg1: i32, arg2: String) -> Result<String> {
-        // Your implementation 
+        // Your implementation Here have to use self.call_hook_dynamic.
     }
 }
 ```
-**Example: Calling a Hook from the Plugin Manager**
+**Calling a Hook from the Plugin Manager**
 To call a hook (e.g., `my_hook`) from your application code, use the following pattern:
 
 ```rust
@@ -58,23 +58,33 @@ let res = plugin_manager.my_hook(42, "example input".to_string())
 
 When creating a new plugin under `packages/plugins`, you must:
 
-1. **Use WIT files from sequent-core**
-   - Reference the WIT files in `sequent-core` (e.g., for transactions, plugin-common, etc.).
-   - Example:
-     ```wit
-     import plugins-manager:transactions-manager/transaction;
-     export plugins-manager:common/plugin-common;
-     ```
-2. **Implement your plugin logic in Rust (or another supported language).**
-3. **Compile your plugin to the `wasm32-wasip2` target.**
-   - Example build command:
-     ```sh
-     cargo build --target wasm32-wasip2 --release
-     ```
-4. **Upload the resulting `.wasm` file to S3.**
-   - Use the provided script: `.devcontainer/scripts/upload_plugins_to_s3.sh`
-   - The script will upload all plugins in `packages/plugins/*/rust-local-target/wasm32-wasip2/debug/` to the S3 bucket under the `plugins/` prefix.
+1.  **Use WIT files from sequent-core**
+    * Reference the WIT files in `sequent-core` when `plugins-manager:common/plugin-common` is mendatory in order to add plugin to the system
+    * Example:
+      ```world wit
+      import plugins-manager:transactions-manager/transaction;
+      export plugins-manager:common/plugin-common; 
+      ```
+2.  **Implement your plugin logic in Rust (or another supported language).**
+    * **Generate Bindings:** After modifying your plugin's WIT files (`wit/world.wit` etc.) or if the `sequent-core` WIT files change, you **must** run `cargo component bindings` in your plugin's directory (`packages/plugins/my_plugin/`). This command generates/updates the Rust bindings in your `src/lib.rs` (or other designated output) file, allowing your Rust code to interact with the defined interfaces.
+## 3. Compile your plugin to the `wasm32-wasip2` target.
 
+* Example build command:
+    ```sh
+    cargo build --target wasm32-wasip2 --release
+    ```
+    * **Tip:** To simplify your build command, you can configure Cargo to always build for `wasm32-wasip2` by default for your plugin. Create a `.cargo` folder in your plugin's root directory (e.g., `packages/plugins/my_plugin/.cargo/`) and add a `config.toml` file with the following content:
+
+    ```toml
+    # packages/plugins/my_plugin/.cargo/config.toml
+    [build]
+    target = "wasm32-wasip2"
+    ```
+    With this configuration in place, you can simply run `cargo build` (or `cargo build --release`) and it will automatically compile for the `wasm32-wasip2` target.
+
+1.  **Upload the resulting `.wasm` file to S3.**
+    * Use the provided script: `.devcontainer/scripts/upload_plugins_to_s3.sh`
+    * The script will upload all plugins in `packages/plugins/*/rust-local-target/wasm32-wasip2/debug/{plugin_name}.wasm` to the S3 bucket under the `plugins/` prefix.
 ---
 
 ## 3. Plugin Loading and Invocation
@@ -90,6 +100,8 @@ When creating a new plugin under `packages/plugins`, you must:
 
 ```
 packages/plugins/my_plugin/
+├── .cargo/
+│   └── config.toml
 ├── Cargo.toml
 ├── src/
 │   └── lib.rs
@@ -100,16 +112,6 @@ packages/plugins/my_plugin/
         └── debug/
             └── my_plugin.wasm
 ```
-
----
-
-## 5. Summary Checklist
-
-- [ ] Create plugin in `packages/plugins/` using WIT files from sequent-core.
-- [ ] Implement new hooks in `plugins_hooks.rs` and `PluginHooks` trait.
-- [ ] Compile plugin to `wasm32-wasip2` target.
-- [ ] Upload `.wasm` file to S3 using the provided script.
-- [ ] Restart the host (windmill) to load new plugins.
 
 ---
 

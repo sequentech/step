@@ -4,10 +4,10 @@
 package plugins-manager:transactions-manager;
 
 interface transaction {
-    create-hasura-transaction: func() -> result<string, string>;
+    create-hasura-transaction: func() -> result<_, string>;
     create-keycloak-transaction: func() -> result<_, string>;
-    execute-hasura-query: func(sql: string) -> result<string, string>;
-    execute-keycloak-query: func(sql: string) -> result<string, string>;
+    execute-hasura-query: func(sql: string, params: list<string>) -> result<string, string>;
+    execute-keycloak-query: func(sql: string, params: list<string>) -> result<string, string>;
     commit-hasura-transaction: func() -> result<_, string>;
     commit-keycloak-transaction: func() -> result<_, string>;
 }
