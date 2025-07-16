@@ -61,7 +61,7 @@ jobs:
         with:
           pages-base-url: doc-previews.sequentech.io
           source-dir: ./docs/docusaurus/build/
-          preview-branch: pr-doc-previews
+          preview-branch: doc-previews
           token: ${{ secrets.PAT }}
           clean-exclude: |
             main-preview
@@ -72,7 +72,7 @@ jobs:
         if: github.event_name == 'push' && github.ref_name == 'main'
         with:
           folder: ./docs/docusaurus/build/
-          branch: pr-previews
+          branch: doc-previews
           target-folder: main-preview
           commit-message: "Deploy preview for ${{ github.ref_name }}"
           token: ${{ secrets.PAT }}
@@ -84,7 +84,7 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
         with:
           folder: ./docs/docusaurus/build/
-          branch: pr-previews
+          branch: doc-previews
           target-folder: "release-preview/${{ github.ref_name }}"
           commit-message: "Deploy preview for ${{ github.ref_name }}"
           token: ${{ secrets.PAT }}
