@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+-->
 # Windmill Plugin Manager Guide
 
 This document explains how to use the Plugin Manager system in Windmill, including how to implement hooks, compile plugins, and upload them to S3. It also covers the use of WIT files from sequent-core when creating new plugins.
