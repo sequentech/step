@@ -57,6 +57,14 @@ enum CeleryOpt {
             &*REPORTS_QUEUE_NAME,
             &*IMPORT_EXPORT_QUEUE_NAME,
             &*ELECTORAL_LOG_BATCH_QUEUE_NAME,
+            Queue::Short.as_ref(),
+            Queue::Beat.as_ref(),
+            Queue::ElectoralLogBeat.as_ref(),
+            Queue::Communication.as_ref(),
+            Queue::Tally.as_ref(),
+            Queue::Reports.as_ref(),
+            Queue::ImportExport.as_ref(),
+            Queue::ElectoralLogBatch.as_ref(),
         ], default_value = &*BEAT_QUEUE_NAME)]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]
@@ -125,10 +133,11 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
 
     let cpus = get_worker_threads();
     init_semaphore(cpus);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     match opt.clone() {
         CeleryOpt::Consume {
-            queues,
+            queues: queues_input,
             prefetch_count,
             acks_late,
             task_max_retries,
@@ -143,6 +152,17 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             set_heartbeat(heartbeat);
             let celery_app = get_celery_app().await;
             celery_app.display_pretty().await;
+            let queues: Vec<String> = queues_input
+                .iter()
+                .map(|queue_name| {
+                    if queue_name.starts_with(&slug) {
+                        queue_name.clone()
+                    } else {
+                        format!("{}_{}", slug, queue_name)
+                    }
+                })
+                .collect();
+
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             let duplicates = find_duplicates(vec_str.clone());
             if !duplicates.is_empty() {
