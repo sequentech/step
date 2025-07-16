@@ -155,12 +155,17 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         )));
     }
 
-    let contest_choices = decoded_contests
+    let contest_choices: Vec<_> = decoded_contests
         .iter()
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    let ballot_choices = BallotChoices::new(false, contest_choices);
+    let is_explicit_invalid = decoded_contests
+        .iter()
+        .any(|choice| choice.is_explicit_invalid);
+
+    let ballot_choices =
+        BallotChoices::new(is_explicit_invalid, contest_choices);
 
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
@@ -191,7 +196,11 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    let ballot = BallotChoices::new(false, contest_choices);
+    let is_explicit_invalid = decoded_contests
+        .iter()
+        .any(|choice| choice.is_explicit_invalid);
+
+    let ballot = BallotChoices::new(is_explicit_invalid, contest_choices);
 
     encrypt_multi_ballot(ctx, &ballot, config)
 }
