@@ -155,7 +155,7 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             let queues: Vec<String> = queues_input
                 .iter()
                 .map(|queue_name| {
-                    if queue_name.starts_with(slug) {
+                    if queue_name.starts_with(&slug) {
                         queue_name.clone()
                     } else {
                         format!("{}_{}", slug, queue_name)
