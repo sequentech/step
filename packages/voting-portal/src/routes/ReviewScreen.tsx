@@ -47,7 +47,7 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
-import {useMutation, useQuery} from "@apollo/client"
+import {useMutation, useQuery, ApolloError} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
@@ -281,13 +281,20 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     isDemo: true,
                     ballot: JSON.stringify("{}"),
                 }
-                sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
+                try {
+                    sessionStorage.setItem("ballotData", JSON.stringify(ballotData));
+                } catch (e) {
+                    console.error("Error saving ballotData to sessionStorage", e);
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_STORAGE_ERROR}`))
+                    return submit({error: errorType}, {method: "post"})
+                }
                 try {
                     const baseUrl = new URL(window.location.href)
                     await reauthWithGold(baseUrl.toString())
                     return submit(null, {method: "post"})
                 } catch (error) {
                     console.error("Re-authentication failed:", error)
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTHENTICATION_ERROR}`))
                     return submit({error: errorType}, {method: "post"})
                 }
             }
@@ -298,84 +305,106 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
         isCastingBallot.current = true
 
+        // Do a try catch for this refetch to set error if timeout ocurrs
+        const TIMEOUT_DURATION = 5000; // Timeout in milliseconds (e.g., 5000ms for 5 seconds)
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), TIMEOUT_DURATION)
+        );
+
+        let data: GetElectionEventQuery | undefined;
         try {
-            const {data} = await refetchElectionEvent()
+            const result = await Promise.race([
+                refetchElectionEvent(),
+                timeoutPromise
+            ]);
+            data = (result as { data: GetElectionEventQuery }).data;
 
-            if (!(data && data.sequent_backend_election_event.length > 0)) {
-                isCastingBallot.current = false
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
-                return submit({error: errorType}, {method: "post"})
-            }
-
-            const record = data?.sequent_backend_election_event?.[0]
-            const eventStatus = record?.status as IElectionEventStatus | undefined
-
-            if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
-                isCastingBallot.current = false
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
-                return submit({error: errorType.toString()}, {method: "post"})
-            }
-
-            const isMultiContest =
-                auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
-                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-
-            const hashableBallot = isMultiContest
-                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
-
-            if (isGoldenPolicy) {
-                // Save contests to session storage and perform reauthentication
-                const ballotData: SessionBallotData = {
-                    ballotId,
-                    electionId: ballotStyle.election_id,
-                    isDemo,
-                    ballot: JSON.stringify(hashableBallot),
-                }
-                sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
-                try {
-                    const baseUrl = new URL(window.location.href)
-                    await reauthWithGold(baseUrl.toString())
-                    return submit(null, {method: "post"})
-                } catch (error) {
-                    console.error("Re-authentication failed:", error)
-                    return submit({error: errorType}, {method: "post"})
-                }
-            }
-
-            let result = await insertCastVote({
-                variables: {
-                    electionId: ballotStyle.election_id,
-                    ballotId,
-                    content: JSON.stringify(hashableBallot),
-                },
-            })
-            if (result.errors) {
-                // As the exception occurs above this error is not set, leading
-                // to unknown error.
-                console.log(result.errors.map((e) => e.message))
-                isCastingBallot.current = false
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
-            }
-
-            let newCastVote = result.data?.insert_cast_vote
-            if (newCastVote) {
-                dispatch(addCastVotes([newCastVote]))
-            }
-
-            return submit(null, {method: "post"})
         } catch (error) {
-            isCastingBallot.current = false
-            let castError = error as IGraphQLActionError
-            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
-                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+            if (error instanceof Error && error.message === 'timeout') {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REFETCH_TIMEOUT_ERROR}`));
+            } else if (error instanceof ApolloError && error.networkError) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`));
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`));
             }
-            console.log(`error casting vote: ${ballotStyle.election_id}`)
+        }
+
+        if (!(data && data.sequent_backend_election_event.length > 0)) {
+            isCastingBallot.current = false
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
             return submit({error: errorType}, {method: "post"})
         }
+
+        const record = data?.sequent_backend_election_event?.[0]
+        const eventStatus = record?.status as IElectionEventStatus | undefined
+
+        if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
+            isCastingBallot.current = false
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
+            return submit({error: errorType.toString()}, {method: "post"})
+        }
+
+        const isMultiContest =
+            auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+        const hashableBallot = isMultiContest
+            ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
+            : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+
+        if (isGoldenPolicy) {
+            // Save contests to session storage and perform reauthentication
+            const ballotData: SessionBallotData = {
+                ballotId,
+                electionId: ballotStyle.election_id,
+                isDemo,
+                ballot: JSON.stringify(hashableBallot),
+            }
+            sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
+            try {
+                const baseUrl = new URL(window.location.href)
+                await reauthWithGold(baseUrl.toString())
+                return submit(null, {method: "post"})
+            } catch (error) {
+                console.error("Re-authentication failed:", error)
+                return submit({error: errorType}, {method: "post"})
+            }
+        }
+
+        let result = await insertCastVote({
+            variables: {
+                electionId: ballotStyle.election_id,
+                ballotId,
+                content: JSON.stringify(hashableBallot),
+            },
+        })
+        if (result.errors) {
+            // As the exception occurs above this error is not set, leading
+            // to unknown error.
+            console.log(result.errors.map((e) => e.message))
+            isCastingBallot.current = false
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+        }
+
+        let newCastVote = result.data?.insert_cast_vote
+        if (newCastVote) {
+            dispatch(addCastVotes([newCastVote]))
+        }
+
+        return submit(null, {method: "post"})
+
+        // } catch (error) {
+        //     isCastingBallot.current = false
+        //     let castError = error as IGraphQLActionError
+        //     if (castError?.graphQLErrors?.[0]?.extensions?.code) {
+        //         let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
+        //         setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+        //     } else {
+        //         setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+        //     }
+        //     console.log(`error casting vote: ${ballotStyle.election_id}`)
+        //     return submit({error: errorType}, {method: "post"})
+        // }
     }
 
     return (
