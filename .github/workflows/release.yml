@@ -281,7 +281,7 @@ jobs:
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
       with:
         repo: sequentech/gitops
-        ref: ${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }}
+        ref: main # always use main for now #${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }} 
         workflow: Deployer Workflow
         token: ${{ secrets.PAT }}
         inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}"}'
