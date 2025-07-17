@@ -83,3 +83,7 @@ export enum ETallyTypeCssClass {
     ELECTORAL_RESULTS = "electoral-results",
     INITIALIZATION_REPORT = "init-report",
 }
+
+export enum CreateKeysError {
+    PERMISSION_LABELS = "permission-labels",
+}

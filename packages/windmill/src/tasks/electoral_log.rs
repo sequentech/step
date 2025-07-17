@@ -16,8 +16,8 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::ElectoralLogMessage;
-use electoral_log::messages::message::Message;
 use immudb_rs::TxMode;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -117,7 +117,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
 
         let event_message = match input.message_type.as_str() {
             INTERNAL_MESSAGE_TYPE => {
-                let message: ElectoralLogMessage = serde_json::from_str(&input.body)
+                let message: ElectoralLogMessage = deserialize_str(&input.body)
                     .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
                 message
             }
