@@ -910,7 +910,7 @@ services:
       ENV_SLUG: ${ENV_SLUG}
 
   beat:
-    profiles: ["full"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
@@ -944,6 +944,7 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      ENV_SLUG: ${ENV_SLUG}
 
   postgres-b3:
     profiles: ["full", "base"]
