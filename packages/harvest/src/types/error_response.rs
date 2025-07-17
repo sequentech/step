@@ -30,6 +30,7 @@ pub enum ErrorCode {
     UuidParseFailed,
     UnknownError,
     InvalidEventProcessor,
+    BallotIdMismatch,
     // Add any other needed error codes
 }
 
