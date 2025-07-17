@@ -166,7 +166,14 @@ jobs:
       run: |
         # Only check for a pre-release if we are NOT creating a new release branch
         if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
-          latestTag=$(git describe --tags --abbrev=0)
+          # For patch releases, we need to consider if we're on main or a release branch
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            # On main branch, use global latest tag to determine the correct base version
+            latestTag=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" refs/tags/v[0-9]*.[0-9]*.[0-9]*)
+          else
+            # On release branches, use the latest tag reachable from current branch
+            latestTag=$(git describe --tags --abbrev=0)
+          fi
           if [[ $latestTag == *-* ]]; then
             echo "Latest tag is a pre-release, will increment pre-release version."
             echo "latestReleaseIsPreRelease=true" | tee -a $GITHUB_OUTPUT
