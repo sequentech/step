@@ -197,7 +197,30 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     )
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({
+
+    const addFakeCastVote = (tenantId: string | undefined, eventId: string | undefined) => {
+        const dispatch = useAppDispatch()
+        const submit = useSubmit()
+        const newCastVote : ICastVote = ({
+        id: eventId ?? "",
+        tenant_id: tenantId ?? "",
+        election_id: eventId,
+        area_id: eventId,
+        created_at: null,
+        last_updated_at: null,
+        annotations: null,
+        labels: null,
+        content: "",
+        cast_ballot_signature: "",
+        voter_id_string: null,
+        election_event_id: eventId ?? "",
+        })
+        console.log("faking casting demo vote")
+        dispatch(addCastVotes([newCastVote]))
+        return submit(null, {method: "post"})
+    }
+
+    const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
     auditButtonCfg,
@@ -252,20 +275,25 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
     }
 
-    const fakeCastVote = (): ICastVote => ({
-        id: eventId ?? "",
-        tenant_id: tenantId ?? "",
-        election_id: eventId,
-        area_id: eventId,
-        created_at: null,
-        last_updated_at: null,
-        annotations: null,
-        labels: null,
-        content: "",
-        cast_ballot_signature: "",
-        voter_id_string: null,
-        election_event_id: eventId ?? "",
-    })
+    const storeBallotDataAndReauth = async (ballotData: SessionBallotData) => {
+        const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
+        try {
+            sessionStorage.setItem("ballotData", JSON.stringify(ballotData));
+        } catch (e) {
+            console.error("Error saving ballotData to sessionStorage", e);
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_STORAGE_ERROR}`))
+            return submit({error: errorType}, {method: "post"})
+        }
+        try {
+            const baseUrl = new URL(window.location.href)
+            await reauthWithGold(baseUrl.toString())
+            return submit(null, {method: "post"})
+        } catch (error) {
+            console.error("Re-authentication failed:", error)
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTHENTICATION_ERROR}`))
+            return submit({error: errorType}, {method: "post"})
+        }
+    }
 
     const castBallotAction = async () => {
         const isGoldenPolicy =
@@ -281,46 +309,20 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     isDemo: true,
                     ballot: JSON.stringify("{}"),
                 }
-                try {
-                    sessionStorage.setItem("ballotData", JSON.stringify(ballotData));
-                } catch (e) {
-                    console.error("Error saving ballotData to sessionStorage", e);
-                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_STORAGE_ERROR}`))
-                    return submit({error: errorType}, {method: "post"})
-                }
-                try {
-                    const baseUrl = new URL(window.location.href)
-                    await reauthWithGold(baseUrl.toString())
-                    return submit(null, {method: "post"})
-                } catch (error) {
-                    console.error("Re-authentication failed:", error)
-                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTHENTICATION_ERROR}`))
-                    return submit({error: errorType}, {method: "post"})
-                }
+                return await storeBallotDataAndReauth(ballotData)
+            } else {
+                return addFakeCastVote(tenantId, eventId)
             }
-            console.log("faking casting demo vote")
-            const newCastVote = fakeCastVote()
-            dispatch(addCastVotes([newCastVote]))
-            return submit(null, {method: "post"})
         }
+
         isCastingBallot.current = true
-
-        // Do a try catch for this refetch to set error if timeout ocurrs
-        const TIMEOUT_DURATION = 5000; // Timeout in milliseconds (e.g., 5000ms for 5 seconds)
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), TIMEOUT_DURATION)
-        );
-
         let data: GetElectionEventQuery | undefined;
         try {
-            const result = await Promise.race([
-                refetchElectionEvent(),
-                timeoutPromise
-            ]);
+            const result = await refetchElectionEvent()
             data = (result as { data: GetElectionEventQuery }).data;
-
         } catch (error) {
-            if (error instanceof Error && error.message === 'timeout') {
+            console.log("Error fetching election event", error)
+            if (error instanceof Error && error.message === 'timeout') { // TODO: How to identify a timeout error?
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REFETCH_TIMEOUT_ERROR}`));
             } else if (error instanceof ApolloError && error.networkError) {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`));
@@ -360,15 +362,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 isDemo,
                 ballot: JSON.stringify(hashableBallot),
             }
-            sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
-            try {
-                const baseUrl = new URL(window.location.href)
-                await reauthWithGold(baseUrl.toString())
-                return submit(null, {method: "post"})
-            } catch (error) {
-                console.error("Re-authentication failed:", error)
-                return submit({error: errorType}, {method: "post"})
-            }
+            return await storeBallotDataAndReauth(ballotData)
         }
 
         let result = await insertCastVote({
@@ -494,21 +488,6 @@ export const ReviewScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
-    const fakeCastVote = (): ICastVote => ({
-        id: eventId ?? "",
-        tenant_id: tenantId ?? "",
-        election_id: eventId,
-        area_id: eventId,
-        created_at: null,
-        last_updated_at: null,
-        annotations: null,
-        labels: null,
-        content: "",
-        cast_ballot_signature: "",
-        voter_id_string: null,
-        election_event_id: eventId ?? "",
-    })
-
     const isGoldenPolicy = dataElections?.sequent_backend_election.some(
         (item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
     )
@@ -589,10 +568,7 @@ export const ReviewScreen: React.FC = () => {
         }
 
         if (ballotData?.isDemo) {
-            console.log("faking casting demo vote")
-            const newCastVote = fakeCastVote()
-            dispatch(addCastVotes([newCastVote]))
-            return submit(null, {method: "post"})
+            return addFakeCastVote(tenantId, eventId)
         }
 
         try {
