@@ -270,6 +270,44 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
         return true
     }
 
+    const tryInsertCastVote = async (electionId: string, ballotId: string, content: string, setErrorMsg: (msg: CastBallotsErrorType) => void) => {
+        const {t} = useTranslation()
+        const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
+        const dispatch = useAppDispatch()
+        try {
+            let result = await insertCastVote({
+                variables: {
+                    electionId,
+                    ballotId,
+                    content,
+                },
+            })
+            if (result.errors) {
+                // As the exception occurs above this error is not set, leading
+                // to unknown error.
+                console.log(result.errors.map((e) => e.message))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                return false
+            }
+
+            let newCastVote = result.data?.insert_cast_vote
+            if (newCastVote) {
+                dispatch(addCastVotes([newCastVote]))
+            }
+            return true
+        } catch (error) {
+            console.log(error)
+            let castError = error as IGraphQLActionError
+            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
+                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+            }
+            return false
+        }
+    }
+
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
@@ -278,8 +316,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotId,
     setErrorMsg,
 }) => {
-    const dispatch = useAppDispatch()
-    const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
@@ -382,40 +418,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return await storeBallotDataAndReauth(ballotData)
         }
 
-        try {
-            let result = await insertCastVote({
-                variables: {
-                    electionId: ballotStyle.election_id,
-                    ballotId,
-                    content: JSON.stringify(hashableBallot),
-                },
-            })
-            if (result.errors) {
-                // As the exception occurs above this error is not set, leading
-                // to unknown error.
-                console.log(result.errors.map((e) => e.message))
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
-                return submit({error: errorType}, {method: "post"})
-            }
-
-            let newCastVote = result.data?.insert_cast_vote
-            if (newCastVote) {
-                dispatch(addCastVotes([newCastVote]))
-            }
-            return submit(null, {method: "post"})
-        } catch (error) {
-            console.log(error)
-            let castError = error as IGraphQLActionError
-            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
-                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
-            }
-            return submit({error: errorType}, {method: "post"})
-        } finally {
+        if(!tryInsertCastVote(ballotStyle.election_id, ballotId, JSON.stringify(hashableBallot), setErrorMsg)) {
             isCastingBallot.current = false
+            return submit({error: errorType}, {method: "post"})
         }
+        return submit(null, {method: "post"})
     }
 
     return (
@@ -573,46 +580,16 @@ export const ReviewScreen: React.FC = () => {
             return addFakeCastVote(tenantId, eventId)
         }
 
-        try {
-            if (!await isEventStatusOpen(tenantId, eventId, setErrorMsg)) {
-                isCastingBallot.current = false
-                return submit({error: errorType.toString()}, {method: "post"})
-            }
-            let result = await insertCastVote({
-                variables: {
-                    electionId: ballotData.electionId,
-                    ballotId: ballotData.ballotId,
-                    content: ballotData.ballot,
-                },
-            })
-            // cause error for testing
-            if (result.errors) {
-                // As the exception occurs above this error is not set, leading
-                // to unknown error.
-                console.log(result.errors.map((e) => e.message))
-                isCastingBallot.current = false
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
-                return submit({error: errorType}, {method: "post"})
-            }
-
-            let newCastVote = result.data?.insert_cast_vote
-            if (newCastVote) {
-                dispatch(addCastVotes([newCastVote]))
-            }
-
-            return submit(null, {method: "post"})
-        } catch (error) {
+        if (!await isEventStatusOpen(tenantId, eventId, setErrorMsg)) {
             isCastingBallot.current = false
-            let castError = error as IGraphQLActionError
-            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
-                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
-            }
-            console.log(`error casting vote: ${electionId}`)
+            return submit({error: errorType.toString()}, {method: "post"})
+        }
+
+        if(!tryInsertCastVote(ballotData.electionId, ballotData.ballotId, ballotData.ballot, setErrorMsg)) {
+            isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
+        return submit(null, {method: "post"})
     }
 
     useEffect(() => {
