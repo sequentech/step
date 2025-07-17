@@ -220,7 +220,56 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
         return submit(null, {method: "post"})
     }
 
-    const ActionButtons: React.FC<ActionButtonProps> = ({
+    const isEventStatusOpen = async (tenantId: string | undefined, eventId: string | undefined, setErrorMsg: (msg: CastBallotsErrorType) => void) => {
+        const {t} = useTranslation()
+        const {globalSettings} = useContext(SettingsContext)  
+        const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
+            variables: {
+                electionEventId: eventId,
+                tenantId,
+            },
+            skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+            onError: (error) => {
+                if (error.networkError) {
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+                } else {
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+                }
+            },
+        })
+
+        let data: GetElectionEventQuery | undefined;
+        try {
+            const result = await refetchElectionEvent()
+            data = (result as { data: GetElectionEventQuery }).data;
+        } catch (error) {
+            console.log("Error fetching election event", error)
+            if (error instanceof Error && error.message === 'timeout') { // TODO: How to identify a timeout error?
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REFETCH_TIMEOUT_ERROR}`));
+            } else if (error instanceof ApolloError && error.networkError) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`));
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`));
+            }
+            return false
+        }
+
+        if (!(data && data.sequent_backend_election_event.length > 0)) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
+            return false
+        }
+
+        const record = data?.sequent_backend_election_event?.[0]
+        const eventStatus = record?.status as IElectionEventStatus | undefined
+
+        if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
+            return false
+        }
+        return true
+    }
+
+const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
     auditButtonCfg,
@@ -243,21 +292,6 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const authContext = useContext(AuthContext)
     const {isGoldUser, reauthWithGold} = authContext
-
-    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-        onError: (error) => {
-            if (error.networkError) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
-            }
-        },
-    })
 
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -316,33 +350,8 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
         }
 
         isCastingBallot.current = true
-        let data: GetElectionEventQuery | undefined;
-        try {
-            const result = await refetchElectionEvent()
-            data = (result as { data: GetElectionEventQuery }).data;
-        } catch (error) {
-            console.log("Error fetching election event", error)
-            if (error instanceof Error && error.message === 'timeout') { // TODO: How to identify a timeout error?
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REFETCH_TIMEOUT_ERROR}`));
-            } else if (error instanceof ApolloError && error.networkError) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`));
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`));
-            }
-        }
-
-        if (!(data && data.sequent_backend_election_event.length > 0)) {
+        if (!await isEventStatusOpen(tenantId, eventId, setErrorMsg)) {
             isCastingBallot.current = false
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
-            return submit({error: errorType}, {method: "post"})
-        }
-
-        const record = data?.sequent_backend_election_event?.[0]
-        const eventStatus = record?.status as IElectionEventStatus | undefined
-
-        if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
-            isCastingBallot.current = false
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
             return submit({error: errorType.toString()}, {method: "post"})
         }
 
@@ -466,21 +475,6 @@ export const ReviewScreen: React.FC = () => {
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
 
-    const {refetch: refetchElectionEvent} = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-        onError: (error) => {
-            if (error.networkError) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
-            }
-        },
-    })
-
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
         variables: {
             electionIds: electionId ? [electionId] : [],
@@ -572,20 +566,8 @@ export const ReviewScreen: React.FC = () => {
         }
 
         try {
-            const {data} = await refetchElectionEvent()
-
-            if (!(data && data.sequent_backend_election_event.length > 0)) {
+            if (!await isEventStatusOpen(tenantId, eventId, setErrorMsg)) {
                 isCastingBallot.current = false
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
-                return submit({error: errorType}, {method: "post"})
-            }
-
-            const record = data?.sequent_backend_election_event?.[0]
-            const eventStatus = record?.status as IElectionEventStatus | undefined
-
-            if (eventStatus?.voting_status !== EVotingStatus.OPEN) {
-                isCastingBallot.current = false
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.ELECTION_EVENT_NOT_OPEN}`))
                 return submit({error: errorType.toString()}, {method: "post"})
             }
             let result = await insertCastVote({
