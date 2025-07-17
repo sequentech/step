@@ -19,55 +19,60 @@ use futures::try_join;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
+#[instrument(err)]
 async fn delete_election_event_related_data(
     tenant_id: &str,
     election_event_id: &str,
     realm: &str,
 ) -> Result<()> {
     let immudb_future = delete_election_event_immudb(tenant_id, election_event_id);
-
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
-
     let keycloak_future = delete_keycloak_realm(realm);
-
-    let (_immudb_result, _documents_result, _keycloak_result) =
-        try_join!(immudb_future, documents_future, keycloak_future)?;
+    try_join!(immudb_future, documents_future, keycloak_future)?;
 
     Ok(())
 }
 
+#[instrument(err)]
 async fn delete_election_event(
     tenant_id: String,
     election_event_id: String,
     realm: String,
 ) -> AnyhowResult<()> {
-    let results = provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = tenant_id.clone();
-        let election_event_id = election_event_id.clone();
-        Box::pin(async move {
-            delete_event_b3(hasura_transaction, &tenant_id, &election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
+    let tenant_id_cloned = tenant_id.clone();
+    let election_event_id_cloned = election_event_id.clone();
+    let realm_cloned = realm.clone();
 
-            delete_election_event_postgres(&hasura_transaction, &tenant_id, &election_event_id)
-                .await
+    provide_hasura_transaction(|hasura_transaction| {
+        Box::pin(async move {
+            delete_event_b3(
+                hasura_transaction,
+                &tenant_id_cloned,
+                &election_event_id_cloned,
+            )
+            .await
+            .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
+
+            delete_election_event_postgres(
+                &hasura_transaction,
+                &tenant_id_cloned,
+                &election_event_id_cloned,
+            )
+            .await
+            .map_err(|err| anyhow!("Error deleting election event from postgres db: {err}"))?; // FIX APPLIED
+
+            delete_election_event_related_data(
+                &tenant_id_cloned,
+                &election_event_id_cloned,
+                &realm_cloned,
+            )
+            .await
+            .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
+
+            Ok(())
         })
     })
-    .await;
-
-    match &results {
-        Ok(_) => {
-            match delete_election_event_related_data(&tenant_id, &election_event_id, &realm).await {
-                Ok(_) => (),
-                Err(e) => return Err(anyhow!("Error deleting related data: {e}")),
-            }
-        }
-        Err(err) => {
-            let error = format!("Error deleting election event: {err}");
-            return Err(anyhow!(error));
-        }
-    }
-    Ok(())
+    .await
 }
 
 #[instrument(err)]
