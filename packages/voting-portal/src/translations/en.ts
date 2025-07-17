@@ -145,7 +145,7 @@ const englishTranslation = {
                 REAUTH_FAILED:
                     "Authentication failed. Please try again or contact support for assistance.",
                 SESSION_EXPIRED: "Your session has expired. Please try again from the beginning.",
-                CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the casted vote.",
+                CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
             },
         },
         confirmationScreen: {
