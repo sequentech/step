@@ -34,6 +34,7 @@ import {
     IAuditableMultiBallot,
     ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
+    IHashableBallot,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -65,7 +66,7 @@ import {IBallotError} from "../types/errors"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
-import {sortContestList, hashBallot, hashMultiBallot} from "@sequentech/ui-core"
+import {sortContestList, hashBallot, hashMultiBallot, IHashableSingleBallot, IHashableMultiBallot} from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useGetOne} from "react-admin"
@@ -238,7 +239,7 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
             },
         })
 
-        let data: GetElectionEventQuery | undefined;
+        let data: GetElectionEventQuery | undefined
         try {
             const result = await refetchElectionEvent()
             data = (result as { data: GetElectionEventQuery }).data;
@@ -359,9 +360,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
             EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-        const hashableBallot = isMultiContest
-            ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+        let hashableBallot: IHashableSingleBallot | IHashableMultiBallot | undefined
+        try {
+            hashableBallot = isMultiContest
+                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+        } catch (e) {
+            isCastingBallot.current = false
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.TO_HASHABLE_BALLOT_ERROR}`))
+            return submit({error: errorType}, {method: "post"})
+        }
 
         if (isGoldenPolicy) {
             // Save contests to session storage and perform reauthentication
@@ -374,40 +382,40 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return await storeBallotDataAndReauth(ballotData)
         }
 
-        let result = await insertCastVote({
-            variables: {
-                electionId: ballotStyle.election_id,
-                ballotId,
-                content: JSON.stringify(hashableBallot),
-            },
-        })
-        if (result.errors) {
-            // As the exception occurs above this error is not set, leading
-            // to unknown error.
-            console.log(result.errors.map((e) => e.message))
+        try {
+            let result = await insertCastVote({
+                variables: {
+                    electionId: ballotStyle.election_id,
+                    ballotId,
+                    content: JSON.stringify(hashableBallot),
+                },
+            })
+            if (result.errors) {
+                // As the exception occurs above this error is not set, leading
+                // to unknown error.
+                console.log(result.errors.map((e) => e.message))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                return submit({error: errorType}, {method: "post"})
+            }
+
+            let newCastVote = result.data?.insert_cast_vote
+            if (newCastVote) {
+                dispatch(addCastVotes([newCastVote]))
+            }
+            return submit(null, {method: "post"})
+        } catch (error) {
+            console.log(error)
+            let castError = error as IGraphQLActionError
+            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
+                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+            }
+            return submit({error: errorType}, {method: "post"})
+        } finally {
             isCastingBallot.current = false
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
         }
-
-        let newCastVote = result.data?.insert_cast_vote
-        if (newCastVote) {
-            dispatch(addCastVotes([newCastVote]))
-        }
-
-        return submit(null, {method: "post"})
-
-        // } catch (error) {
-        //     isCastingBallot.current = false
-        //     let castError = error as IGraphQLActionError
-        //     if (castError?.graphQLErrors?.[0]?.extensions?.code) {
-        //         let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
-        //         setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
-        //     } else {
-        //         setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
-        //     }
-        //     console.log(`error casting vote: ${ballotStyle.election_id}`)
-        //     return submit({error: errorType}, {method: "post"})
-        // }
     }
 
     return (
