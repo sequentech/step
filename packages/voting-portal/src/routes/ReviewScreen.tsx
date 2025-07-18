@@ -325,6 +325,8 @@ const useTryInsertCastVote = () => {
             if (castError?.graphQLErrors?.[0]?.extensions?.code) {
                 let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+            } else if (castError?.message?.includes("internal error")) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`))
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }

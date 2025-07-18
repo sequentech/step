@@ -154,6 +154,13 @@ const catalanTranslation: TranslationType = {
                     "La teva sessió ha caducat. Si us plau, torna a començar des del principi.",
                 CAST_VOTE_BallotIdMismatch:
                     "L'identificador de la papereta no coincideix amb el del vot emès.",
+                SESSION_STORAGE_ERROR: "Session storage is not available. Please try again or contact support.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
+                NOT_VALID_BALLOT_DATA_ERROR: "Ballot data is not valid. Please try again later or contact support for assistance.",
+                REFETCH_TIMEOUT_ERROR: "Timeout error to refetch the election event. Please try again later or contact support for assistance.",
+                TO_HASHABLE_BALLOT_ERROR: "Error converting to hashable ballot. Please try again later or contact support for assistance.",
+                INTERNAL_ERROR: "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
         },
         confirmationScreen: {

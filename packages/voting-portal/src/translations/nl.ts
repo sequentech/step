@@ -152,6 +152,13 @@ const dutchTranslation: TranslationType = {
                 SESSION_EXPIRED: "Uw sessie is verlopen. Begin opnieuw vanaf het begin.",
                 CAST_VOTE_BallotIdMismatch:
                     "De stembiljet-ID komt niet overeen met de uitgebrachte stem.",
+                SESSION_STORAGE_ERROR: "Session storage is not available. Please try again or contact support.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
+                NOT_VALID_BALLOT_DATA_ERROR: "Ballot data is not valid. Please try again later or contact support for assistance.",
+                REFETCH_TIMEOUT_ERROR: "Timeout error to refetch the election event. Please try again later or contact support for assistance.",
+                TO_HASHABLE_BALLOT_ERROR: "Error converting to hashable ballot. Please try again later or contact support for assistance.",
+                INTERNAL_ERROR: "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
         },
         confirmationScreen: {
