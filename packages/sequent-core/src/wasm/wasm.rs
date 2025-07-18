@@ -774,6 +774,7 @@ pub fn test_contest_reencoding_js(
 }
 
 #[wasm_bindgen]
+#[wasm_bindgen]
 pub fn test_multi_contest_reencoding_js(
     decoded_multi_contest_json: JsValue,
     ballot_style_json: JsValue,
@@ -799,45 +800,11 @@ pub fn test_multi_contest_reencoding_js(
         .map_err(|err| format!("Error parsing election: {}", err))
         .into_json()?;
 
-    // encode ballot
-    let (plaintext, ballot_choices) =
-        encode_to_plaintext_decoded_multi_contest(
-            &decoded_multi_contests,
-            &ballot_style,
-        )
-        .map_err(|err| format!("Error encoded decoded contests {:?}", err))
-        .into_json()?;
-
-    let decoded_ballot_choices =
-        BallotChoices::decode_from_30_bytes(&plaintext, &ballot_style)
-            .map_err(|err| format!("Error encoded decoded contests {:?}", err))
-            .into_json()?;
-
-    let output_decoded_contests =
-        map_decoded_ballot_choices_to_decoded_contests(
-            decoded_ballot_choices,
-            &ballot_style.contests,
-        )
-        .map_err(|err| format!("Error encoded decoded contests {:?}", err))
-        .into_json()?;
-
-    let input_compare =
-        normalize_election(&decoded_multi_contests, &ballot_style, true)
-            .map_err(|err| format!("Error encoded decoded contests {:?}", err))
-            .into_json()?;
-
-    let output_compare =
-        normalize_election(&output_decoded_contests, &ballot_style, true)
-            .map_err(|err| format!("Error encoded decoded contests {:?}", err))
-            .into_json()?;
-
-    if input_compare != output_compare {
-        return Err(format!(
-            "Consistency check failed. Input =! Output, {:?} != {:?}",
-            input_compare, output_compare
-        ))
-        .into_json();
-    }
+    let output_decoded_contests = encrypt::test_multi_contest_reencoding(
+        &decoded_multi_contests,
+        &ballot_style,
+    )
+    .map_err(|err| JsValue::from_str(&err))?;
 
     let serializer = Serializer::json_compatible();
     output_decoded_contests

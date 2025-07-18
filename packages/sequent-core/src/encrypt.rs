@@ -20,9 +20,11 @@ use crate::multi_ballot::{
     AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
     RawHashableMultiBallot,
 };
+use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
+use crate::util::normalize_vote::normalize_election;
 use base64::engine::general_purpose;
 use base64::Engine;
 use strand::serialization::StrandSerialize;
@@ -394,6 +396,8 @@ mod tests {
     use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
+    use crate::plaintext::DecodedVoteContest;
+    use crate::serialization::deserialize_with_path::deserialize_value;
     use crate::util::normalize_vote::normalize_vote_contest;
 
     use strand::backend::ristretto::RistrettoCtx;
@@ -526,4 +530,142 @@ mod tests {
         assert_eq!(format!("{:?}", auditable_ballot.unwrap_err()), "".to_string());
         //assert!(auditable_ballot.is_ok());
     }*/
+
+    #[test]
+    fn test_multi_contest_reencoding_with_explicit_invalid() {
+        use crate::ballot::*;
+        use serde_json::json;
+
+        // Create test data matching the scenario with explicit invalid
+        // candidates
+        let ballot_selection_json = json!([{
+            "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+            "is_explicit_invalid": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                }
+            ]
+        }]);
+
+        // Create a minimal ballot style for testing
+        let election_json = json!({
+            "id": "b48da6fd-f7e5-4868-9abb-e23452f373ad",
+            "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+            "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+            "public_key": {
+                "public_key": "xEH1M/iIdDkZg1ENaP7yPZWtaOcnYLTmK+sFYmuDJVk",
+                "is_demo": false
+            },
+            "area_id": "dcaf94aa-e2f8-460b-8da6-2a7907c04664",
+            "contests": [{
+                "id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": "plurality-at-large",
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "Null",
+                        "presentation": {
+                            "is_explicit_invalid": true
+                        }
+                    },
+                    {
+                        "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    }
+                ]
+            }],
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            }
+        });
+
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        // This test should pass now with the fix for explicit invalid
+        // candidates
+        let result = super::test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        assert!(result.is_ok(), "Multi-contest reencoding with explicit invalid candidate failed: {:?}", result.err());
+
+        // Verify the output maintains the explicit invalid flag
+        let output_contests = result.unwrap();
+        assert_eq!(output_contests.len(), 1);
+        assert_eq!(output_contests[0].is_explicit_invalid, true);
+    }
+}
+
+/// Test multi-contest reencoding functionality
+pub fn test_multi_contest_reencoding(
+    decoded_multi_contests: &Vec<DecodedVoteContest>,
+    ballot_style: &BallotStyle,
+) -> Result<Vec<DecodedVoteContest>, String> {
+    // encode ballot
+    let (plaintext, _ballot_choices) =
+        encode_to_plaintext_decoded_multi_contest(
+            decoded_multi_contests,
+            ballot_style,
+        )
+        .map_err(|err| format!("Error encoded decoded contests {:?}", err))?;
+
+    let decoded_ballot_choices =
+        BallotChoices::decode_from_30_bytes(&plaintext, ballot_style).map_err(
+            |err| format!("Error decoding ballot choices {:?}", err),
+        )?;
+
+    let output_decoded_contests =
+        map_decoded_ballot_choices_to_decoded_contests(
+            decoded_ballot_choices,
+            &ballot_style.contests,
+        )
+        .map_err(|err| format!("Error mapping decoded contests {:?}", err))?;
+
+    let input_compare =
+        normalize_election(decoded_multi_contests, ballot_style, true)
+            .map_err(|err| format!("Error normalizing input {:?}", err))?;
+
+    let output_compare =
+        normalize_election(&output_decoded_contests, ballot_style, true)
+            .map_err(|err| format!("Error normalizing output {:?}", err))?;
+
+    if input_compare != output_compare {
+        return Err(format!(
+            "Consistency check failed. Input != Output, {:?} != {:?}",
+            input_compare, output_compare
+        ));
+    }
+
+    Ok(output_decoded_contests)
 }
