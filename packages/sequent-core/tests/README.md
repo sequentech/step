@@ -1,10 +1,15 @@
+<!--
+SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 # Integration Tests
 
 This directory contains integration tests for the sequent-core crate.
 
 ## Test Organization
 
-- `encrypt_integration_tests.rs` - Integration tests for the encrypt module, including:
+- `encrypt.rs` - Integration tests for the encrypt module, including:
   - `test_multi_contest_reencoding_with_explicit_invalid` - Tests multi-contest reencoding with explicit invalid candidates
 
 ## Running Tests
