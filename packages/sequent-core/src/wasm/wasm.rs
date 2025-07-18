@@ -774,7 +774,6 @@ pub fn test_contest_reencoding_js(
 }
 
 #[wasm_bindgen]
-#[wasm_bindgen]
 pub fn test_multi_contest_reencoding_js(
     decoded_multi_contest_json: JsValue,
     ballot_style_json: JsValue,
