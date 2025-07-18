@@ -161,24 +161,25 @@ jobs:
       run: |
         npm install --global release-it@16.2.1
 
-    - name: Check if the latest tag is a pre-release
+    - name: Determine Release Increment
       id: CheckLatestRelease
       run: |
-        lastCommitSha=$(git rev-parse HEAD)
-        echo "$lastCommitSha" > .release-commit
-        git add .release-commit
-        git commit -m "Preparation for release"
-        git push origin HEAD
-
-        # Only check if the latest tag is a pre-release if NEW_RELEASE_BRANCH is empty
+        # Only check for a pre-release if we are NOT creating a new release branch
         if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
-          latestTag=$(git describe --tags --abbrev=0)
-          if [[ $latestTag == *-* ]]; then
-            echo "Latest tag is a pre-release"
-            echo "latestReleaseIsPreRelease=true" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+          # For patch releases, we need to consider if we're on main or a release branch
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            # On main branch, use global latest tag to determine the correct base version
+            latestTag=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" refs/tags/v[0-9]*.[0-9]*.[0-9]*)
           else
-            echo "Latest tag is not a pre-release"
-            echo "latestReleaseIsPreRelease=false" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+            # On release branches, use the latest tag reachable from current branch
+            latestTag=$(git describe --tags --abbrev=0)
+          fi
+          if [[ $latestTag == *-* ]]; then
+            echo "Latest tag is a pre-release, will increment pre-release version."
+            echo "latestReleaseIsPreRelease=true" | tee -a $GITHUB_OUTPUT
+          else
+            echo "Latest tag is a final release, will create a new pre-release."
+            echo "latestReleaseIsPreRelease=false" | tee -a $GITHUB_OUTPUT
           fi
         fi
 
@@ -188,43 +189,39 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # If the new release branch is not created, then increment the patch version
-        echo "Release 1.0.0"
         if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
-          echo "Release 1.1.0"
           if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-            echo "Release 1.1.1"
             # Check if the latest tag is a pre-release
             if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
-              echo "Release 1.1.1.1"
               # Then increment the pre-release version
-              release-it --ci --increment=pre --preRelease=rc  --verbose
+              release-it --ci --increment=pre --preRelease=rc --verbose
             else
-              echo "Release 1.1.1.2"
-              release-it --ci --increment=patch --preRelease=rc  --verbose
+              release-it --ci --increment=patch --preRelease=rc --verbose
             fi
           else
-            echo "Release 1.1.2"
-            release-it --ci --increment=patch  --verbose
+            release-it --ci --increment=patch --verbose
           fi
         else
-          echo "Release 1.2.0"
           # If the new release branch is created, then increment the minor or major version
           # Currently, no pre-release is supported for major or minor releases from the main branch
           if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
-            echo "Release 1.2.1"
-            release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs  --verbose
+            release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
           elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
-            echo "Release 1.2.2"
-            release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs  --verbose
+            release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
           fi
         fi
 
+        # Get the version from the newly created tag
         VERSION=$(git describe --tags --abbrev=0)
         echo VERSION=$VERSION | tee -a $GITHUB_ENV $GITHUB_OUTPUT
-        # Tags SHA are not inmutable, so we need to get the commit SHA that contains all the changes to be deployed of the tag/release
-        # Get the commit hash from the .release-commit file. Get the first 8 characters of the commit SHA
-        echo HASH=$(cat .release-commit | cut -c1-8) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+
+        # Get the short hash of the commit pointed to by the new tag
+        # This is the correct and reliable way to get the release hash.
+        HASH=$(git rev-parse --short $VERSION)
+        echo "HASH=$HASH" | tee -a $GITHUB_OUTPUT
+
         echo "Release Version (is prerelease: ${{ inputs.preRelease }}): $VERSION"
+        echo "Release Hash: $HASH"
 
   # Build & Push the images
 
@@ -281,7 +278,7 @@ jobs:
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
       with:
         repo: sequentech/gitops
-        ref: ${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }}
+        ref: main # always use main for now #${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }} 
         workflow: Deployer Workflow
         token: ${{ secrets.PAT }}
         inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}"}'

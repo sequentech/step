@@ -13,7 +13,7 @@ import {
 } from "react-router-dom"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {Box} from "@mui/material"
+import {Box, CircularProgress} from "@mui/material"
 import {
     PageLimit,
     Icon,
@@ -52,9 +52,8 @@ import {useMutation, useQuery, ApolloError} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
-import {CircularProgress} from "@mui/material"
 import {provideBallotService} from "../services/BallotService"
-import {ICastVote, addCastVotes, SessionBallotData} from "../store/castVotes/castVotesSlice"
+import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {
@@ -77,6 +76,13 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useGetOne} from "react-admin"
 import {TFunction} from "i18next"
+import {
+    SessionBallotData,
+    clearSessionStorageBallotData,
+    BALLOT_DATA_KEY,
+    BALLOT_DATA_EXPIRATION_KEY,
+} from "../store/castVotes/sessionBallotData"
+import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -267,7 +273,7 @@ const useIsEventStatusOpen = (
             return false
         }
 
-        if (!(data && data.sequent_backend_election_event.length > 0)) {
+        if (!(data?.sequent_backend_election_event.length > 0)) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.LOAD_ELECTION_EVENT}`))
             return false
         }
@@ -377,9 +383,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const storeBallotDataAndReauth = async (ballotData: SessionBallotData) => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         try {
-            sessionStorage.setItem("ballotData", JSON.stringify(ballotData))
+            // Set a 5-minute expiration for security
+            const FIVE_MINUTES = 5 * 60 * 1000
+            // Store the data with expiration info
+            sessionStorage.setItem(BALLOT_DATA_KEY, JSON.stringify(ballotData))
+            sessionStorage.setItem(
+                BALLOT_DATA_EXPIRATION_KEY,
+                (Date.now() + FIVE_MINUTES).toString()
+            )
         } catch (e) {
             console.error("Error saving ballotData to sessionStorage", e)
+            clearSessionStorageBallotData()
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_STORAGE_ERROR}`))
             return submit({error: errorType}, {method: "post"})
         }
@@ -389,7 +403,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return submit(null, {method: "post"})
         } catch (error) {
             console.error("Re-authentication failed:", error)
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTHENTICATION_ERROR}`))
+            clearSessionStorageBallotData()
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REAUTH_FAILED}`))
             return submit({error: errorType}, {method: "post"})
         }
     }
@@ -413,6 +428,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     electionId: ballotStyle.election_id,
                     isDemo: true,
                     ballot: JSON.stringify("{}"),
+                    timestamp: Date.now(), // Add timestamp for expiration check
                 }
                 return await storeBallotDataAndReauth(ballotData)
             } else {
@@ -436,6 +452,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             return submit({error: errorType}, {method: "post"})
         }
 
+        /**
+         * For high-security elections (golden policy):
+         * 1. Save ballot information to browser session storage
+         * 2. Perform secondary authentication ("reauthentication")
+         * 3. Submit ballot only after successful verification of voter's identity
+         */
         if (isGoldenPolicy) {
             // Save contests to session storage and perform reauthentication
             const ballotData: SessionBallotData = {
@@ -443,6 +465,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 electionId: ballotStyle.election_id,
                 isDemo,
                 ballot: JSON.stringify(hashableBallot),
+                timestamp: Date.now(), // Add timestamp for expiration check
             }
             return await storeBallotDataAndReauth(ballotData)
         }
@@ -561,7 +584,9 @@ export const ReviewScreen: React.FC = () => {
             : hashBallot(auditableBallot as IAuditableSingleBallot)
         : undefined
 
-    const ballotId = auditableBallot && hashableBallot
+    const ballotId = useMemo(() => {
+        return auditableBallot && hashableBallot ? hashableBallot : undefined
+    }, [auditableBallot, hashableBallot])
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -607,23 +632,62 @@ export const ReviewScreen: React.FC = () => {
             }
         }
     }
+    
+    const getBallotDataFromSessionStorage = () => {
+
+        let ballotData: SessionBallotData | undefined
+        let expirationTime: number | undefined
+        const storedExpirationTime = sessionStorage.getItem(BALLOT_DATA_EXPIRATION_KEY)
+        const storedData = sessionStorage.getItem(BALLOT_DATA_KEY)
+
+        if (!storedExpirationTime || !storedData) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_STORAGE_ERROR}`))
+            return undefined
+        }
+
+        expirationTime = parseInt(storedExpirationTime, 10)
+        if (expirationTime && Date.now() > expirationTime) {
+            // Data has expired, clean up and return error
+            console.error("Re-authentication failed: EXPIRED")
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.SESSION_EXPIRED}`))
+            return undefined
+        }
+
+        try {
+            ballotData = JSON.parse(storedData) as SessionBallotData
+        } catch (error) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.PARSE_BALLOT_DATA_ERROR}`))
+            return undefined
+        }
+
+        if (
+            !ballotData ||
+            !ballotData.ballotId ||
+            !ballotData.electionId ||
+            !ballotData.ballot
+        ) {
+            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR}`))
+            return undefined
+        }
+
+        return ballotData
+    }
 
     const automaticCastBallot = async () => {
         isCastingBallot.current = true
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
-        const ballotData = JSON.parse(sessionStorage.getItem("ballotData") ?? "{}") as
-            | SessionBallotData
-            | undefined
+        const ballotData = getBallotDataFromSessionStorage()
 
         if (!ballotData) {
-            console.log("No stored ballot found")
             isCastingBallot.current = false
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+            clearSessionStorageBallotData()
             return submit({error: errorType}, {method: "post"})
         }
 
         if (ballotData?.isDemo) {
             addFakeCastVote()
+            clearSessionStorageBallotData()
+            isCastingBallot.current = false
             return submit(null, {method: "post"})
         }
 
@@ -643,25 +707,38 @@ export const ReviewScreen: React.FC = () => {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
         }
+
+        // set ConfirmationScreenData (ballotId and isDemo) to a new object in redux state, so it can be read later on from the confirmation screen
+        dispatch(
+            setConfirmationScreenData({
+                electionId: ballotData.electionId,
+                confirmationScreenData: {
+                    ballotId: ballotData.ballotId,
+                    isDemo: ballotData.isDemo,
+                },
+            })
+        )
+        clearSessionStorageBallotData()
         return submit(null, {method: "post"})
     }
+
+    // Selectively clear ballot-related session data when component mounts
+    useEffect(() => {
+        // Only clear session data if we're not in the middle of a golden policy flow
+        if (!isGoldUser() && !ballotStyle && !auditableBallot && !selectionState) {
+            clearSessionStorageBallotData()
+        }
+    }, [])
 
     useEffect(() => {
         if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
             if (isGoldUser()) {
                 if (!isCastingBallot.current) {
-                    console.log("Gold user flow")
                     automaticCastBallot()
-                        .then(() => {
-                            console.log("automaticCastBallot succeeded. Navigating to confirmation")
-                        })
-                        .catch((error) => {
-                            sessionStorage.removeItem("ballotData")
-                            console.error("Error casting ballot:", error)
-                        })
+                    clearSessionStorageBallotData()
                 }
             } else {
-                console.log("Navigating to election-chooser")
+                // If not a gold user but golden policy is required, redirect to election chooser
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
             }
         } else {
