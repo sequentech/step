@@ -92,12 +92,6 @@ pub async fn insert_cast_vote(
         Err(e) => Err(e),
     };
 
-    return Err(ErrorResponse::new(
-        Status::NotFound,
-        "Area not found",
-        ErrorCode::AreaNotFound,
-    ));
-
     let inserted_cast_vote = insert_result
     .map_err(|cast_vote_err| {
         let duration = start.elapsed();

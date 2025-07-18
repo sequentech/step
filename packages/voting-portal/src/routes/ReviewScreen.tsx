@@ -448,12 +448,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         }
 
         if (
-            !tryInsertCastVote(
+            !(await tryInsertCastVote(
                 ballotStyle.election_id,
                 ballotId,
                 JSON.stringify(hashableBallot),
                 setErrorMsg
-            )
+            ))
         ) {
             isCastingBallot.current = false
             return submit({error: errorType}, {method: "post"})
