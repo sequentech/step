@@ -147,6 +147,11 @@ const frenchTranslation: TranslationType = {
                     "Une erreur est survenue lors de la sérialisation du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 UNKNOWN_ERROR:
                     "Une erreur est survenue. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                REAUTH_FAILED:
+                    "L'authentification a échoué. Veuillez réessayer ou contacter le support pour obtenir de l'aide.",
+                SESSION_EXPIRED: "Votre session a expiré. Veuillez recommencer depuis le début.",
+                CAST_VOTE_BallotIdMismatch:
+                    "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
             },
         },
         confirmationScreen: {

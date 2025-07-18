@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext, useCallback, useRef} from "react"
+import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
 import {
@@ -12,6 +12,7 @@ import {
     IAuditableMultiBallot,
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
+    IElection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -23,6 +24,7 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
@@ -41,7 +43,12 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
-import {SessionBallotData} from "../store/castVotes/castVotesSlice"
+import {
+    ConfirmationScreenData,
+    selectConfirmationScreenData,
+} from "../store/castVotes/confirmationScreenDataSlice"
+import {GetCastVotesQuery} from "../gql/graphql"
+import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 
 const StyledTitle = styled(Typography)`
@@ -124,9 +131,15 @@ interface ActionButtonsProps {
     electionId?: string
     ballotTrackerUrl?: string
     ballotId: string
+    isGoldenAuth: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, electionId, ballotId}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({
+    ballotTrackerUrl,
+    electionId,
+    ballotId,
+    isGoldenAuth,
+}) => {
     const {logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
@@ -150,7 +163,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
         variables: {
-            electionIds: ballotStyleElectionIds,
+            electionIds: ballotStyleElectionIds?.length ? ballotStyleElectionIds : [electionId],
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
@@ -172,8 +185,42 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
         (item) => item.status.voting_status === EVotingStatus.OPEN
     )
 
-    const onClickToScreen = useCallback(() => {
-        if ((isAnyVotingStatusOpen && canVote) || globalSettings.DISABLE_AUTH) {
+    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+        skip: globalSettings.DISABLE_AUTH || !isGoldenAuth,
+    })
+
+    function isAllowedToCastVote() {
+        if (isGoldenAuth) {
+            // Can´t use canVote when isGoldenAuth because the state in redux was removed at logout.
+            const election = dataElections?.sequent_backend_election.filter(
+                (item) => item.id === electionId
+            )[0]
+            const numAllowedRevotes = election?.num_allowed_revotes ?? 1
+            const electionCastVotes =
+                castVotes?.sequent_backend_cast_vote.filter(
+                    (castVote) => castVote.election_id === electionId
+                ) ?? []
+            console.log(numAllowedRevotes, electionCastVotes, election?.id, electionId, castVotes)
+            if (numAllowedRevotes === 0) {
+                return true
+            }
+
+            return electionCastVotes.length < numAllowedRevotes
+        } else {
+            return canVote
+        }
+    }
+
+    const onClickFinishButton = useCallback(() => {
+        console.log("isGoldenAuth: ", isGoldenAuth)
+        console.log(
+            "onClickFinishButton",
+            isAnyVotingStatusOpen,
+            isAllowedToCastVote(),
+            canVote,
+            globalSettings.DISABLE_AUTH
+        )
+        if ((isAnyVotingStatusOpen && isAllowedToCastVote()) || globalSettings.DISABLE_AUTH) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         } else {
             logout(presentation?.redirect_finish_url ?? undefined)
@@ -198,7 +245,6 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
             return
         }
         if (!documentId) {
-            console.log("createBallotReceipt")
             const res = await createBallotReceipt({
                 variables: {
                     ballot_id: ballotId,
@@ -268,7 +314,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotTrackerUrl, election
                 </StyledButton>
                 <StyledButton
                     className="finish-button"
-                    onClick={onClickToScreen}
+                    onClick={onClickFinishButton}
                     sx={{width: {xs: "100%", sm: "200px"}}}
                 >
                     <Box>{t("confirmationScreen.finishButton")}</Box>
@@ -301,32 +347,30 @@ const ConfirmationScreen: React.FC = () => {
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
+    const confirmationScreenData = useAppSelector(selectConfirmationScreenData(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
     const {hashBallot, hashMultiBallot} = provideBallotService()
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
+
     const getBallotId = (): {
         ballotIdStored: string | undefined
         isDemoStored: boolean | undefined
     } => {
         if (!auditableBallot) {
-            const ballotData = JSON.parse(
-                sessionStorage.getItem("ballotData") ?? "{}"
-            ) as SessionBallotData
-            if (Object.keys(ballotData).length === 0) {
-                console.log("ballotData not found in sessionStorage")
+            if (!confirmationScreenData) {
+                console.log("confirmationScreenData not found in redux")
                 return {ballotIdStored: undefined, isDemoStored: undefined}
             } else {
-                return {ballotIdStored: ballotData.ballotId, isDemoStored: ballotData.isDemo}
+                return {
+                    ballotIdStored: confirmationScreenData.ballotId,
+                    isDemoStored: confirmationScreenData.isDemo,
+                }
             }
         } else {
-            if (!auditableBallot) {
-                console.log("auditableBallot is not there")
-                return {ballotIdStored: undefined, isDemoStored: undefined}
-            }
-            console.log("auditableBallot is there")
+            console.log("auditableBallot normal flow")
             const isMultiContest =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
@@ -361,7 +405,6 @@ const ConfirmationScreen: React.FC = () => {
         if (!gotData.current) {
             gotData.current = true
             const {ballotIdStored, isDemoStored} = getBallotId()
-            sessionStorage.removeItem("ballotData")
             if (!ballotIdStored) {
                 console.log("No stored ballot found, navigating to the election-chooser page.")
                 navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)
@@ -496,6 +539,7 @@ const ConfirmationScreen: React.FC = () => {
                 ballotTrackerUrl={ballotTrackerUrl}
                 electionId={electionId}
                 ballotId={ballotId.current ?? ""}
+                isGoldenAuth={confirmationScreenData ? true : false}
             />
         </PageLimit>
     )

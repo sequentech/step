@@ -146,6 +146,11 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng error sa pag-serialize ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helodesk para sa tulong.",
                 UNKNOWN_ERROR:
                     "Nagkaroon ng error. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
+                REAUTH_FAILED:
+                    "Nabigo ang authentication. Pakisubukan muli o makipag-ugnayan sa helpdesk para sa tulong.",
+                SESSION_EXPIRED:
+                    "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
+                CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
             },
         },
         confirmationScreen: {
