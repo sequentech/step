@@ -632,9 +632,8 @@ export const ReviewScreen: React.FC = () => {
             }
         }
     }
-    
-    const getBallotDataFromSessionStorage = () => {
 
+    const getBallotDataFromSessionStorage = () => {
         let ballotData: SessionBallotData | undefined
         let expirationTime: number | undefined
         const storedExpirationTime = sessionStorage.getItem(BALLOT_DATA_EXPIRATION_KEY)
@@ -660,12 +659,7 @@ export const ReviewScreen: React.FC = () => {
             return undefined
         }
 
-        if (
-            !ballotData ||
-            !ballotData.ballotId ||
-            !ballotData.electionId ||
-            !ballotData.ballot
-        ) {
+        if (!ballotData || !ballotData.ballotId || !ballotData.electionId || !ballotData.ballot) {
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NOT_VALID_BALLOT_DATA_ERROR}`))
             return undefined
         }
