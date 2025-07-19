@@ -35,14 +35,17 @@ pub fn merge_join_csv(
     // Continue while both files still have records.
     while rec1_opt.is_some() && rec2_opt.is_some() {
         // Unwrap the current records.
-        let rec1 = rec1_opt
-            .as_ref()
-            .and_then(|res| res.as_ref().ok())
-            .ok_or(anyhow!("Could not unwrap record"))?;
-        let rec2 = rec2_opt
-            .as_ref()
-            .and_then(|res| res.as_ref().ok())
-            .ok_or(anyhow!("Could not unwrap record"))?;
+        let rec1_res = rec1_opt.as_ref().unwrap();
+        let Ok(rec1) = rec1_res else {
+            rec1_opt = iter1.next();
+            continue;
+        };
+
+        let rec2_res = rec2_opt.as_ref().unwrap();
+        let Ok(rec2) = rec2_res else {
+            rec2_opt = iter2.next();
+            continue;
+        };
 
         // Extract the join keys.
         let Some(key1) = rec1.get(file1_join_index) else {
@@ -50,6 +53,11 @@ pub fn merge_join_csv(
             rec1_opt = iter1.next();
             continue;
         };
+        // Ignore ballots with an empty key.
+        if key1.is_empty() {
+            rec1_opt = iter1.next();
+            continue;
+        }
 
         // Extract the join keys.
         let Some(key2) = rec2.get(file2_join_index) else {
@@ -57,6 +65,12 @@ pub fn merge_join_csv(
             rec2_opt = iter2.next();
             continue;
         };
+
+        // Ignore users with an empty key.
+        if key2.is_empty() {
+            rec2_opt = iter2.next();
+            continue;
+        }
 
         // Also ignore empty keys from the users file for robustness.
         if key2.is_empty() {
@@ -198,6 +212,12 @@ pub fn count_unique_csv(
             rec2_opt = iter2.next();
             continue;
         };
+
+        // Ignore records with an empty join key.
+        if key2.is_empty() {
+            rec2_opt = iter2.next();
+            continue;
+        }
 
         // Compare the join keys lexicographically.
         match key1.cmp(&key2) {
@@ -388,6 +408,122 @@ mod tests {
 
         // 3. The function should count exactly half the entries—the ones we omitted (the odds).
         assert_eq!(count, EXPECTED_AUDITABLE_COUNT);
+
+        Ok(())
+    }
+
+    /// Helper function to run tests for `merge_join_csv`.
+    fn run_merge_join_test(
+        ballots_csv: &str,
+        users_csv: &str,
+        election_id_to_check: &str,
+    ) -> Result<Vec<String>> {
+        let mut ballots_file = NamedTempFile::new()?;
+        write!(ballots_file, "{}", ballots_csv)?;
+        ballots_file.flush()?;
+
+        let mut users_file = NamedTempFile::new()?;
+        write!(users_file, "{}", users_csv)?;
+        users_file.flush()?;
+
+        let ballots_ro = ballots_file.reopen()?;
+        let users_ro = users_file.reopen()?;
+
+        // Assumes standard test indexes:
+        // join_index=0, output_index=2, election_id_index=1
+        merge_join_csv(&ballots_ro, &users_ro, 0, 0, 2, 1, election_id_to_check)
+    }
+
+    #[test]
+    fn test_merge_join_basic_join() -> Result<()> {
+        // Both ballots have a corresponding enabled user, so both contents should be returned.
+        let ballots = "user_A,election_1,content_A\nuser_B,election_1,content_B";
+        let users = "user_A\nuser_B";
+        let result = run_merge_join_test(ballots, users, "election_1")?;
+        assert_eq!(result, vec!["content_A", "content_B"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_join_partial_join() -> Result<()> {
+        // Only user_A exists in both files. user_C's ballot should be ignored.
+        let ballots = "user_A,election_1,content_A\nuser_C,election_1,content_C";
+        let users = "user_A\nuser_B";
+        let result = run_merge_join_test(ballots, users, "election_1")?;
+        assert_eq!(result, vec!["content_A"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_join_no_matches() -> Result<()> {
+        // No common users between the two files.
+        let ballots = "user_A,election_1,content_A";
+        let users = "user_B\nuser_C";
+        let result = run_merge_join_test(ballots, users, "election_1")?;
+        assert!(result.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_join_filters_by_election_id() -> Result<()> {
+        // The user matches, but the ballot is for a different election, so it should be filtered out.
+        let ballots = "user_A,election_2,content_A";
+        let users = "user_A";
+        let result = run_merge_join_test(ballots, users, "election_1")?;
+        assert!(result.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_join_ignores_empty_keys() -> Result<()> {
+        // *** CRITICAL TEST ***
+        // This confirms the fix for the empty key bug.
+        // The empty keys in both files should NOT result in a successful join.
+        let ballots = "user_A,election_1,content_A\n,election_1,bad_content";
+        let users = "user_A\n"; // Note the empty user record
+        let result = run_merge_join_test(ballots, users, "election_1")?;
+        assert_eq!(result, vec!["content_A"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_join_handles_malformed_csv() -> Result<()> {
+        // This confirms the function skips malformed rows gracefully.
+        // The "user_B" record is missing columns and should be ignored.
+        let ballots = "user_A,election_1,content_A\nuser_B\nuser_C,election_1,content_C";
+        let users = "user_A\nuser_C";
+        let result = run_merge_join_test(ballots, users, "election_1")?;
+        assert_eq!(result, vec!["content_A", "content_C"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_merge_join_large_scale() -> Result<()> {
+        // Stress test with a larger data set.
+        const TOTAL_ENTRIES: i32 = 500;
+        const EXPECTED_JOIN_COUNT: usize = (TOTAL_ENTRIES / 2) as usize;
+
+        let mut ballots_csv = String::new();
+        let mut users_csv = String::new();
+        let election_id = "large_election";
+
+        for i in 0..TOTAL_ENTRIES {
+            let user_id = format!("user-{:04}", i);
+            // Add a ballot for every user.
+            ballots_csv.push_str(&format!("{},{},content_{}\n", user_id, election_id, i));
+            // Add only even-indexed users to the enabled list.
+            if i % 2 == 0 {
+                users_csv.push_str(&format!("{}\n", user_id));
+            }
+        }
+
+        let result = run_merge_join_test(&ballots_csv, &users_csv, election_id)?;
+
+        // The function should join and return only the 250 ballots from the even users.
+        assert_eq!(result.len(), EXPECTED_JOIN_COUNT);
+        // Spot check the first and last expected content.
+        assert_eq!(result.first().unwrap(), "content_0");
+        assert_eq!(result.last().unwrap(), "content_498");
 
         Ok(())
     }
