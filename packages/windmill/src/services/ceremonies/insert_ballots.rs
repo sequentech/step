@@ -286,6 +286,10 @@ pub async fn count_auditable_ballots(
         ballots_temp_file.path()
     );
 
+    // The file `ballots_temp_file` will be a CSV of the cast_votes with these columns:
+    // - voter_id_string (user-id)
+    // - election_id
+    // - content
     find_area_ballots(
         &hasura_transaction,
         &tenant_id,
@@ -308,6 +312,7 @@ pub async fn count_auditable_ballots(
         users_temp_file.path()
     );
 
+    // create a csv file with a single column which is user-id
     list_keycloak_enabled_users_by_area_id(
         keycloak_transaction,
         &realm,

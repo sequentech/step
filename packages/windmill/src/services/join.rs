@@ -127,13 +127,9 @@ pub fn count_unique_csv(
     let mut rec2_opt = iter2.next();
 
     // Continue while both files still have records.
-    while rec1_opt.is_some() && rec2_opt.is_some() {
+    while rec1_opt.is_some() {
         // Unwrap the current records.
         let rec1 = rec1_opt
-            .as_ref()
-            .and_then(|res| res.as_ref().ok())
-            .ok_or(anyhow!("Could not unwrap record"))?;
-        let rec2 = rec2_opt
             .as_ref()
             .and_then(|res| res.as_ref().ok())
             .ok_or(anyhow!("Could not unwrap record"))?;
@@ -142,13 +138,6 @@ pub fn count_unique_csv(
         let Some(key1) = rec1.get(file1_join_index) else {
             // Advance file1.
             rec1_opt = iter1.next();
-            continue;
-        };
-
-        // Extract the join keys.
-        let Some(key2) = rec2.get(file2_join_index) else {
-            // Advance file1.
-            rec2_opt = iter2.next();
             continue;
         };
 
@@ -163,6 +152,25 @@ pub fn count_unique_csv(
             rec1_opt = iter1.next();
             continue;
         }
+
+        // If file2 is exhausted, all remaining valid ballots in file1 are auditable.
+        if rec2_opt.is_none() {
+            count += 1;
+            rec1_opt = iter1.next();
+            continue;
+        }
+
+        let rec2 = rec2_opt
+            .as_ref()
+            .and_then(|res| res.as_ref().ok())
+            .ok_or(anyhow!("Could not unwrap record"))?;
+
+        // Extract the join keys.
+        let Some(key2) = rec2.get(file2_join_index) else {
+            // Advance file1.
+            rec2_opt = iter2.next();
+            continue;
+        };
 
         // Compare the join keys lexicographically.
         match key1.cmp(&key2) {
