@@ -72,12 +72,6 @@ pub fn merge_join_csv(
             continue;
         }
 
-        // Also ignore empty keys from the users file for robustness.
-        if key2.is_empty() {
-            rec2_opt = iter2.next();
-            continue;
-        }
-
         let Some(ballot_election_id) = rec1.get(ballot_election_id_index) else {
             // Advance file1.
             rec1_opt = iter1.next();
