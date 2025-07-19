@@ -369,12 +369,16 @@ mod tests {
     }
 
     #[test]
-    fn test_handles_malformed_csv_records() -> Result<()> {
-        // The function should gracefully skip records that don't have enough columns.
-        // The first record is missing the election_id, second is missing the user_id.
-        // Only user_C's record is valid and should be counted as auditable.
-        let ballots = "user_A\n,election_1,content_B\nuser_C,election_1,content_C";
-        let users = "user_D";
+    fn test_handles_malformed_but_consistent_columns() -> Result<()> {
+        // This test has consistent column counts, but contains invalid data
+        // like empty strings for keys, which should be skipped by the function's logic.
+        //
+        // - Row 1: ``,election_1,content_A` -> Skipped (empty key1)
+        // - Row 2: `user_B,election_2,content_B` -> Skipped (wrong election_id)
+        // - Row 3: `user_C,election_1,content_C` -> VALID AUDITABLE BALLOT
+        // - Row 4: `user_D,election_1,content_D` -> Valid, but matches user_D, so not auditable.
+        let ballots = ",election_1,content_A\nuser_B,election_2,content_B\nuser_C,election_1,content_C\nuser_D,election_1,content_D";
+        let users = "user_A\nuser_D";
         let count = run_test(ballots, users, "election_1")?;
         assert_eq!(count, 1);
         Ok(())
