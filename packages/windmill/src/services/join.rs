@@ -11,177 +11,114 @@ use anyhow::{anyhow, Result};
 
 #[instrument(skip_all, err)]
 pub fn merge_join_csv(
-    file1: &File,
-    file2: &File,
-    file1_join_index: usize,
-    file2_join_index: usize,
-    file1_output_index: usize,
-    ballot_election_id_index: usize,
+    ballots_file: &File,
+    voters_file: &File,
+    ballots_voter_id_index: usize,
+    voters_id_index: usize,
+    ballots_content_index: usize,
+    ballots_election_id_index: usize,
     election_id: &str,
-) -> Result<Vec<String>> {
+) -> Result<(Vec<String>, u64, u64, u64)> {
+    info!("START merge_join_csv election_id: {election_id}");
+
     // Initialize the result vector
     let mut result = Vec::new();
+    let mut ballots_without_voter = 0;
+    let mut elegible_voters = 0;
+    let mut casted_ballots = 0;
 
     // Assume the CSV files do not have headers.
-    let mut rdr1 = ReaderBuilder::new().has_headers(false).from_reader(file1);
-    let mut rdr2 = ReaderBuilder::new().has_headers(false).from_reader(file2);
+    let mut ballots_reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(ballots_file);
+    let mut voters_reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(voters_file);
 
     // Create iterators over CSV records.
-    let mut iter1 = rdr1.records();
-    let mut iter2 = rdr2.records();
+    let mut ballots_iterator = ballots_reader.records();
+    let mut voters_iterator = voters_reader.records();
 
     // Read the first record from each file.
-    let mut rec1_opt = iter1.next();
-    let mut rec2_opt = iter2.next();
+    let mut ballots_record = ballots_iterator.next();
+    let mut voters_record = voters_iterator.next();
 
     // Continue while both files still have records.
-    while rec1_opt.is_some() && rec2_opt.is_some() {
+    while ballots_record.is_some() && voters_record.is_some() {
         // Unwrap the current records.
-        let rec1 = rec1_opt
+        let ballot = ballots_record
             .as_ref()
             .and_then(|res| res.as_ref().ok())
             .ok_or(anyhow!("Could not unwrap record"))?;
-        let rec2 = rec2_opt
+        let voter = voters_record
             .as_ref()
             .and_then(|res| res.as_ref().ok())
             .ok_or(anyhow!("Could not unwrap record"))?;
 
         // Extract the join keys.
-        let Some(key1) = rec1.get(file1_join_index) else {
+        let Some(ballot_voter_id) = ballot.get(ballots_voter_id_index) else {
             // Advance file1.
-            rec1_opt = iter1.next();
+            ballots_record = ballots_iterator.next();
             continue;
         };
 
         // Extract the join keys.
-        let Some(key2) = rec2.get(file2_join_index) else {
+        let Some(voter_id) = voter.get(voters_id_index) else {
+            elegible_voters = elegible_voters + 1;
             // Advance file1.
-            rec2_opt = iter2.next();
+            voters_record = voters_iterator.next();
             continue;
         };
 
-        let Some(ballot_election_id) = rec1.get(ballot_election_id_index) else {
+        let Some(ballot_election_id) = ballot.get(ballots_election_id_index) else {
             // Advance file1.
-            rec1_opt = iter1.next();
+            ballots_record = ballots_iterator.next();
             continue;
         };
 
-        if ballot_election_id != election_id {
+        if ballot_election_id == election_id {
+            casted_ballots = casted_ballots + 1;
+        } else {
             // Advance file1.
-            rec1_opt = iter1.next();
+            ballots_record = ballots_iterator.next();
             continue;
         }
 
         // Compare the join keys lexicographically.
-        match key1.cmp(&key2) {
+        match ballot_voter_id.cmp(&voter_id) {
             Ordering::Less => {
+                // If the ballot has no voter.
+                ballots_without_voter = ballots_without_voter + 1;
                 // Advance file1.
-                rec1_opt = iter1.next();
+                ballots_record = ballots_iterator.next();
             }
             Ordering::Greater => {
                 // Advance file2.
-                rec2_opt = iter2.next();
+                voters_record = voters_iterator.next();
             }
             Ordering::Equal => {
-                let value = rec1.get(file1_output_index).ok_or_else(|| {
+                let ballot_content = ballot.get(ballots_content_index).ok_or_else(|| {
                     anyhow!(
                         "Output column index {} out of bounds in file1",
-                        file1_output_index
+                        ballots_content_index
                     )
                 })?;
 
-                result.push(value.to_string());
+                result.push(ballot_content.to_string());
 
                 // Advance both iterators.
-                rec1_opt = iter1.next();
-                rec2_opt = iter2.next();
+                ballots_record = ballots_iterator.next();
+                voters_record = voters_iterator.next();
             }
         }
     }
 
-    Ok(result)
-}
+    info!("ballots_to_be_tallied: {}, elegible_voters: {}, ballots_without_voter: {}, casted_ballots: {}", result.len(), elegible_voters, ballots_without_voter, casted_ballots);
 
-#[instrument(skip_all, err)]
-pub fn count_unique_csv(
-    file1: &File,
-    file2: &File,
-    file1_join_index: usize,
-    file2_join_index: usize,
-    ballot_election_id_index: usize,
-    election_id: &str,
-) -> Result<usize> {
-    // Initialize the result vector
-    let mut count = 0;
-
-    // Assume the CSV files do not have headers.
-    let mut rdr1 = ReaderBuilder::new().has_headers(false).from_reader(file1);
-    let mut rdr2 = ReaderBuilder::new().has_headers(false).from_reader(file2);
-
-    // Create iterators over CSV records.
-    let mut iter1 = rdr1.records();
-    let mut iter2 = rdr2.records();
-
-    // Read the first record from each file.
-    let mut rec1_opt = iter1.next();
-    let mut rec2_opt = iter2.next();
-
-    // Continue while both files still have records.
-    while rec1_opt.is_some() && rec2_opt.is_some() {
-        // Unwrap the current records.
-        let rec1 = rec1_opt
-            .as_ref()
-            .and_then(|res| res.as_ref().ok())
-            .ok_or(anyhow!("Could not unwrap record"))?;
-        let rec2 = rec2_opt
-            .as_ref()
-            .and_then(|res| res.as_ref().ok())
-            .ok_or(anyhow!("Could not unwrap record"))?;
-
-        // Extract the join keys.
-        let Some(key1) = rec1.get(file1_join_index) else {
-            // Advance file1.
-            rec1_opt = iter1.next();
-            continue;
-        };
-
-        // Extract the join keys.
-        let Some(key2) = rec2.get(file2_join_index) else {
-            // Advance file1.
-            rec2_opt = iter2.next();
-            continue;
-        };
-
-        let Some(ballot_election_id) = rec1.get(ballot_election_id_index) else {
-            // Advance file1.
-            rec1_opt = iter1.next();
-            continue;
-        };
-
-        if ballot_election_id != election_id {
-            // Advance file1.
-            rec1_opt = iter1.next();
-            continue;
-        }
-
-        // Compare the join keys lexicographically.
-        match key1.cmp(&key2) {
-            Ordering::Less => {
-                count = count + 1;
-                // Advance file1.
-                rec1_opt = iter1.next();
-            }
-            Ordering::Greater => {
-                // Advance file2.
-                rec2_opt = iter2.next();
-            }
-            Ordering::Equal => {
-                // Advance both iterators.
-                rec1_opt = iter1.next();
-                rec2_opt = iter2.next();
-            }
-        }
-    }
-
-    Ok(count)
+    Ok((
+        result,
+        elegible_voters,
+        ballots_without_voter,
+        casted_ballots,
+    ))
 }

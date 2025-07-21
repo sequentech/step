@@ -68,6 +68,7 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
+    election_id: &str,
     output_file: &PathBuf,
 ) -> Result<()> {
     // COPY does not support parameters so we have to add them using format
@@ -81,7 +82,8 @@ pub async fn find_area_ballots(
                     WHERE
                         tenant_id = '{tenant_id}' AND
                         election_event_id = '{election_event_id}' AND
-                        area_id = '{area_id}'
+                        area_id = '{area_id}' AND
+                        election_id = '{election_id}'
                     ORDER BY election_id, voter_id_string, created_at DESC
                 "#
     );

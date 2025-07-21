@@ -6,10 +6,11 @@ use crate::postgres::election::get_elections;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::database::PgConfig;
-use crate::services::join::{count_unique_csv, merge_join_csv};
+use crate::services::election::get_election_event_elections;
+use crate::services::join::merge_join_csv;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::list_keycloak_enabled_users_by_area_id;
+use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
@@ -28,12 +29,14 @@ use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::hasura::core::TallySessionContest;
+use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
+use serde_json::json;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
+use tokio::task::JoinHandle;
 use tracing::{event, info, instrument, Level};
 
 #[instrument(skip_all, err)]
@@ -46,8 +49,10 @@ pub async fn insert_ballots_messages(
     trustee_names: Vec<String>,
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
-) -> Result<()> {
+) -> Result<Vec<TallySessionContest>> {
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
+
+    let mut tally_session_contests_updated: Vec<TallySessionContest> = vec![];
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
@@ -85,6 +90,13 @@ pub async fn insert_ballots_messages(
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
+    let election_ids_alias: HashMap<String, String> =
+        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .into_iter()
+            .filter_map(|election| election.alias.map(|x| (election.id.clone(), x)))
+            .collect();
+
     for tally_session_contest in tally_session_contests {
         event!(
             Level::INFO,
@@ -109,6 +121,7 @@ pub async fn insert_ballots_messages(
             &tenant_id,
             &election_event_id,
             &tally_session_contest.area_id,
+            &tally_session_contest.election_id,
             &ballots_temp_file.path().to_path_buf(),
         )
         .await?;
@@ -124,10 +137,17 @@ pub async fn insert_ballots_messages(
             users_temp_file.path()
         );
 
-        list_keycloak_enabled_users_by_area_id(
+        let election_alias = match election_ids_alias.get(&tally_session_contest.election_id) {
+            Some(alias) => alias,
+            None => "",
+        }
+        .to_string();
+
+        list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             keycloak_transaction,
             &realm,
             &tally_session_contest.area_id,
+            &election_alias,
             &users_temp_file.path().to_path_buf(),
         )
         .await?;
@@ -139,64 +159,102 @@ pub async fn insert_ballots_messages(
         let ballots_join_indexes = 0;
         let ballot_election_id_index = 1;
         let users_join_idexes = 0;
+        let election_id = tally_session_contest.election_id.clone();
+        let contest_id = tally_session_contest.contest_id.clone();
 
         let contest_encryption_policy = contest_encryption_policy.clone();
 
-        let handle = tokio::task::spawn_blocking({
+        let handle: JoinHandle<Result<_>> = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    merge_join_csv(
-                        &ballots_temp_file,
-                        &users_temp_file,
-                        ballots_join_indexes,
-                        users_join_idexes,
-                        ballots_output_index,
-                        ballot_election_id_index,
-                        &tally_session_contest.election_id,
-                    )?
-                    .into_iter()
-                    .map(|ballot_str| {
-                        info!("ballot_str: {ballot_str}");
-                        let ciphertext: Ciphertext<RistrettoCtx> =
-                            if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                == contest_encryption_policy
-                            {
-                                let hashable_multi_ballot: HashableMultiBallot =
-                                    deserialize_str(&ballot_str)?;
+                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
+                        merge_join_csv(
+                            &ballots_temp_file,
+                            &users_temp_file,
+                            ballots_join_indexes,
+                            users_join_idexes,
+                            ballots_output_index,
+                            ballot_election_id_index,
+                            &election_id,
+                        )?;
 
-                                let hashable_multi_ballot_contests = hashable_multi_ballot
-                                    .deserialize_contests()
-                                    .map_err(|err| anyhow!("{:?}", err))?;
-                                Some(hashable_multi_ballot_contests.ciphertext)
-                            } else {
-                                let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                                let contests = hashable_ballot
-                                    .deserialize_contests()
-                                    .map_err(|err| anyhow!("{:?}", err))?;
-                                contests
-                                    .iter()
-                                    .find(|contest| {
-                                        contest.contest_id
-                                            == tally_session_contest
-                                                .contest_id
-                                                .clone()
-                                                .unwrap_or_default()
-                                    })
-                                    .map(|contest| contest.ciphertext.clone())
-                            }
-                            .ok_or(anyhow!("Could not get ciphertext"))?;
-                        Ok(ciphertext)
-                    })
-                    .collect::<Result<Vec<_>>>()
+                    let ciphertexts = ballot_contents
+                        .into_iter()
+                        .map(|ballot_str| {
+                            info!("ballot_str: {ballot_str}");
+                            let ciphertext: Ciphertext<RistrettoCtx> =
+                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                    == contest_encryption_policy
+                                {
+                                    let hashable_multi_ballot: HashableMultiBallot =
+                                        deserialize_str(&ballot_str)?;
+
+                                    let hashable_multi_ballot_contests = hashable_multi_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    Some(hashable_multi_ballot_contests.ciphertext)
+                                } else {
+                                    let hashable_ballot: HashableBallot =
+                                        deserialize_str(&ballot_str)?;
+                                    let contests = hashable_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    contests
+                                        .iter()
+                                        .find(|contest| {
+                                            contest.contest_id
+                                                == contest_id.clone().unwrap_or_default()
+                                        })
+                                        .map(|contest| contest.ciphertext.clone())
+                                }
+                                .ok_or(anyhow!("Could not get ciphertext"))?;
+                            Ok(ciphertext)
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+
+                    Ok((
+                        ciphertexts,
+                        elegible_voters,
+                        ballots_without_voter,
+                        casted_ballots,
+                    ))
                 })
             }
         });
 
         // Await the result and handle JoinError explicitly
-        let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = match handle.await {
+        let (insertable_ballots, elegible_voters, ballots_without_voter, casted_ballots): (
+            Vec<Ciphertext<RistrettoCtx>>,
+            u64,
+            u64,
+            u64,
+        ) = match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| anyhow!(err.context("Task failed"))),
             Err(join_error) => Err(anyhow!("Task panicked: {}", join_error)),
         }?;
+
+        let annotations = TallySessionContestAnnotations {
+            elegible_voters,
+            ballots_without_voter,
+            casted_ballots,
+        };
+
+        let annotations = serde_json::to_value(&annotations)?;
+
+        tally_session_contests_updated.push(TallySessionContest {
+            id: tally_session_contest.id,
+            tenant_id: tally_session_contest.tenant_id,
+            election_event_id: tally_session_contest.election_event_id,
+            area_id: tally_session_contest.area_id,
+            contest_id: tally_session_contest.contest_id.clone(),
+            session_id: tally_session_contest.session_id,
+            created_at: tally_session_contest.created_at,
+            last_updated_at: tally_session_contest.last_updated_at,
+            labels: tally_session_contest.labels,
+            annotations: Some(annotations),
+            tally_session_id: tally_session_contest.tally_session_id,
+            election_id: tally_session_contest.election_id,
+        });
 
         event!(
             Level::INFO,
@@ -219,7 +277,7 @@ pub async fn insert_ballots_messages(
         )
         .await?
     }
-    Ok(())
+    Ok(tally_session_contests_updated)
 }
 
 #[instrument(skip_all, err)]
@@ -257,95 +315,4 @@ pub async fn get_elections_end_dates(
         .collect::<Result<HashMap<_, _>>>()
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
     Ok(elections_dates)
-}
-
-#[instrument(skip_all, err, ret)]
-pub async fn count_auditable_ballots(
-    elections_end_dates: &HashMap<String, Option<DateTime<Utc>>>,
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    contest_id: &str,
-    area_id: &str,
-) -> Result<usize> {
-    event!(
-        Level::INFO,
-        "Counting Auditable Ballots for election {election_id}, contest {contest_id} area {area_id}"
-    );
-
-    let realm = get_event_realm(tenant_id, election_event_id);
-
-    // Create a temporary file (auto-deleted when dropped)
-    let ballots_temp_file =
-        NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file {}", error))?;
-    event!(
-        Level::INFO,
-        "Creating temporary file for ballots with path {:?}",
-        ballots_temp_file.path()
-    );
-
-    find_area_ballots(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        area_id,
-        &ballots_temp_file.path().to_path_buf(),
-    )
-    .await?;
-
-    let ballots_temp_file = ballots_temp_file.reopen()?;
-
-    // Use pagination and write the contents to a file
-
-    // Create a temporary file (auto-deleted when dropped)
-    let users_temp_file =
-        NamedTempFile::new().map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
-    event!(
-        Level::INFO,
-        "Creating temporary file for users with path {:?}",
-        users_temp_file.path()
-    );
-
-    list_keycloak_enabled_users_by_area_id(
-        keycloak_transaction,
-        &realm,
-        &area_id,
-        &users_temp_file.path().to_path_buf(),
-    )
-    .await?;
-
-    let users_temp_file = users_temp_file.reopen()?;
-
-    // Use a unique function to filter and extract the ballot content
-    let ballots_join_indexes = 0;
-    let ballot_election_id_index = 1;
-    let users_join_idexes = 0;
-    let election_id = election_id.to_owned();
-
-    let handle = tokio::task::spawn_blocking({
-        move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                count_unique_csv(
-                    &ballots_temp_file,
-                    &users_temp_file,
-                    ballots_join_indexes,
-                    users_join_idexes,
-                    ballot_election_id_index,
-                    &election_id,
-                )
-            })
-        }
-    });
-
-    // Await the result and handle JoinError explicitly
-    let count = match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| anyhow!(err.context("Task failed"))),
-        Err(join_error) => Err(anyhow!("Task panicked: {}", join_error)),
-    }?;
-
-    event!(Level::INFO, "auditable votes count: {:?}", count);
-
-    Ok(count)
 }
