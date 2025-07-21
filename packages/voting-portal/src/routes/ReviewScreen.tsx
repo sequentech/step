@@ -342,8 +342,7 @@ const useTryInsertCastVote = () => {
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
                 }
 
-            } else if (error instanceof ApolloError /*  && error.networkError */) {
-                console.log("Error fetching election event", error as ApolloError)
+            } else if (error instanceof ApolloError  && error.networkError ) {
                 console.log(error.name, error.message, error.cause, error.networkError)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
 
