@@ -25,12 +25,11 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
-    EVotingStatus,
-    IElectionEventStatus,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
-    GRAPHQLRESPONSE_TIMEOUT_ERROR,
+    EGraphQLInternalErrorMessage,
+    EGraphQLErrorCode,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
     ECastVoteGoldLevelPolicy,
@@ -59,12 +58,10 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import {
     CastBallotsErrorType,
-    CastBallotsErrorCode,
     VotingPortalErrorType,
     WasmCastBallotsErrorType,
 } from "../services/VotingPortalError"
 import {IBallotError} from "../types/errors"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import Stepper from "../components/Stepper"
 import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
@@ -76,8 +73,6 @@ import {
 } from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useGetOne} from "react-admin"
-import {TFunction} from "i18next"
 import {
     SessionBallotData,
     clearSessionStorageBallotData,
@@ -85,7 +80,6 @@ import {
     BALLOT_DATA_EXPIRATION_KEY,
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
-import { TIMEOUT } from "dns"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -277,7 +271,7 @@ const useTryInsertCastVote = () => {
                 console.log(castError.name, castError.message)
                 let internalErrMessage = castError?.graphQLErrors?.[0]?.extensions?.internal?.error?.message
                 console.log(errorCode, internalErrMessage)
-                if ( errorCode === CastBallotsErrorCode.UNEXPECTED && internalErrMessage === GRAPHQLRESPONSE_TIMEOUT_ERROR ) {
+                if ( errorCode === EGraphQLErrorCode.UNEXPECTED && internalErrMessage === EGraphQLInternalErrorMessage.TIMEOUT_ERROR) {
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE_TIMEOUT}`))
                 } else {
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
@@ -398,8 +392,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
-        } catch (e) {
+        } catch (error) {
             isCastingBallot.current = false
+            console.error("Error hashing ballot:", error)
+            // if (error instanceof IBallotError && error.error_type) {
+            //     setErrorMsg(error.message)
+            // }
             setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.TO_HASHABLE_BALLOT_ERROR}`))
             return submit({error: errorType}, {method: "post"})
         }
@@ -498,7 +496,6 @@ export const ReviewScreen: React.FC = () => {
     const {isGoldUser, reauthWithGold} = authContext
     const isCastingBallot = useRef<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
-    const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const dispatch = useAppDispatch()
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
 

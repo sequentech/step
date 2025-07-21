@@ -26,10 +26,6 @@ export enum ElectionScreenMsgType {
     NO_ELECTIONS = "noElections",
 }
 
-export enum CastBallotsErrorCode {
-    UNEXPECTED = "unexpected",
-}
-
 export enum CastBallotsErrorType {
     NETWORK_ERROR = "NETWORK_ERROR",
     UNABLE_TO_FETCH_DATA = "UNABLE_TO_FETCH_DATA",
