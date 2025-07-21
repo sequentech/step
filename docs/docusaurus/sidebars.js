@@ -129,7 +129,7 @@ module.exports = {
         {
           type: 'category',
           label: 'Windmill',
-          items: ['developers/Velvet/developers_windmill'],
+          items: ['developers/Windmill/developers_windmill'],
         },
       ],
     },
