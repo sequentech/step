@@ -336,7 +336,7 @@ const useTryInsertCastVote = () => {
                 console.log(castError.name, castError.message)
                 let internalErrMessage = castError?.graphQLErrors?.[0]?.extensions?.internal?.error?.message
                 console.log(errorCode, internalErrMessage)
-                if ( internalErrMessage === GRAPHQLRESPONSE_TIMEOUT_ERROR ) {
+                if ( errorCode === "unexpected" && internalErrMessage === GRAPHQLRESPONSE_TIMEOUT_ERROR ) {
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE_TIMEOUT}`))
                 } else {
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
@@ -349,7 +349,7 @@ const useTryInsertCastVote = () => {
             } else if (castError?.message?.includes("internal error")) {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error
             }
             return false
         }

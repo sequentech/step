@@ -126,6 +126,12 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_timeout:
                     "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:

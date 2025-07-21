@@ -126,6 +126,12 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_timeout:
                     "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:

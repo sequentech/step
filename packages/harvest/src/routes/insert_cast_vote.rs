@@ -21,6 +21,9 @@ use windmill::services::insert_cast_vote::{
     InsertCastVoteOutput, InsertCastVoteResult,
 };
 
+// Create global variable with the count of cast_votes
+static mut CAST_VOTES_COUNT: u64 = 0; // For testing only
+
 /// API endpoint for inserting votes. POST coming from the
 /// frontend->Hasura->Harvest->Here.
 ///
@@ -54,8 +57,14 @@ pub async fn insert_cast_vote(
 
     info!("insert-cast-vote: starting");
 
-    // Wait for 35 seconds to force a timeout
-    tokio::time::sleep(Duration::from_secs(35)).await;
+    unsafe {
+        // For testing only
+        if CAST_VOTES_COUNT % 2 == 0 {
+            tokio::time::sleep(Duration::from_secs(31)).await;
+        }
+
+        CAST_VOTES_COUNT += 1;
+    }
 
     let insert_result_wrapped = retry_with_exponential_backoff(
         // The closure we want to call repeatedly
@@ -124,9 +133,9 @@ pub async fn insert_cast_vote(
                     ErrorCode::ElectoralLogNotFound,
                 )
             }
-            CastVoteError::CheckStatusFailed(_) => ErrorResponse::new(
+            CastVoteError::CheckStatusFailed(msg) => ErrorResponse::new(
                 Status::Unauthorized,
-                ErrorCode::CheckStatusFailed.to_string().as_str(),
+                &msg,
                 ErrorCode::CheckStatusFailed,
             ),
             CastVoteError::VotingChannelNotEnabled(_) => ErrorResponse::new(
@@ -139,17 +148,31 @@ pub async fn insert_cast_vote(
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,
             ),
-            CastVoteError::CheckPreviousVotesFailed(_) => {
+            CastVoteError::CheckPreviousVotesFailed(msg) => {
                 ErrorResponse::new(
                     Status::BadRequest,
-                    ErrorCode::CheckPreviousVotesFailed.to_string().as_str(),
+                    &msg,
                     ErrorCode::CheckPreviousVotesFailed,
+                )
+            }
+            CastVoteError::CheckRevotesFailed(msg) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &msg,
+                    ErrorCode::CheckRevotesFailed,
+                )
+            }
+            CastVoteError::CheckVotesInOtherAreasFailed(msg) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &msg,
+                    ErrorCode::CheckVotesInOtherAreasFailed,
                 )
             }
             CastVoteError::InsertFailedExceedsAllowedRevotes => ErrorResponse::new(
                 Status::BadRequest,
-                ErrorCode::CheckPreviousVotesFailed.to_string().as_str(),
-                ErrorCode::CheckPreviousVotesFailed,
+                ErrorCode::InsertFailedExceedsAllowedRevotes.to_string().as_str(),
+                ErrorCode::InsertFailedExceedsAllowedRevotes,
             ),
             CastVoteError::InsertFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,

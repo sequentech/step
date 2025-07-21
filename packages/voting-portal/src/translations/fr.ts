@@ -125,6 +125,12 @@ const frenchTranslation: TranslationType = {
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_timeout:
                     "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:

@@ -123,6 +123,12 @@ const englishTranslation = {
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_timeout:
                     "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:

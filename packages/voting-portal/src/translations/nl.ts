@@ -125,6 +125,12 @@ const dutchTranslation: TranslationType = {
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_timeout:
                     "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 NO_BALLOT_SELECTION:

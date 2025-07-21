@@ -127,6 +127,12 @@ const galegoTranslation: TranslationType = {
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 CAST_VOTE_timeout:
                     "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 NO_BALLOT_SELECTION:
