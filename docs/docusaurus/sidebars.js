@@ -126,6 +126,11 @@ module.exports = {
           label: 'Velvet',
           items: ['developers/Velvet/developers_velvet'],
         },
+        {
+          type: 'category',
+          label: 'Windmill',
+          items: ['developers/Windmill/developers_windmill'],
+        },
       ],
     },
     {
