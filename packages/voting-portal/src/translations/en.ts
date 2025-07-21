@@ -121,6 +121,8 @@ const englishTranslation = {
                     "An error occurred processing your request. Please try again later or contact support for assistance.",
                 CAST_VOTE_unexpected:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_timeout:
+                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:
@@ -150,7 +152,7 @@ const englishTranslation = {
                 PARSE_BALLOT_DATA_ERROR:
                     "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
                 NOT_VALID_BALLOT_DATA_ERROR: "Ballot data is not valid. Please try again later or contact support for assistance.",
-                REFETCH_TIMEOUT_ERROR: "Timeout error to refetch the election event. Please try again later or contact support for assistance.",
+                REFETCH_TIMEOUT_ERROR: "Timeout error to refetch the data. Please try again later or contact support for assistance.",
                 TO_HASHABLE_BALLOT_ERROR: "Error converting to hashable ballot. Please try again later or contact support for assistance.",
                 INTERNAL_ERROR: "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },

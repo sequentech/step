@@ -123,6 +123,8 @@ const dutchTranslation: TranslationType = {
                     "Er is een fout opgetreden bij het verwerken van uw verzoek. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_unexpected:
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
+                CAST_VOTE_timeout:
+                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 NO_BALLOT_SELECTION:

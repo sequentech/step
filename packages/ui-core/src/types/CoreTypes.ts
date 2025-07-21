@@ -204,8 +204,19 @@ export interface ITaskExecuted {
     type: string
 }
 
+export const GRAPHQLRESPONSE_TIMEOUT_ERROR = "Response timeout"
+
+export interface IExtensionErrorInternalError {
+    message?: string | null
+}
+
+export interface IExtensionErrorInternal {
+    error?: IExtensionErrorInternalError | null
+}
+
 export interface IExtensionError {
     code?: string | null
+    internal?: IExtensionErrorInternal | null
 }
 
 export interface IGraphQLError {

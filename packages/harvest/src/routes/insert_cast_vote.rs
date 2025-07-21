@@ -54,6 +54,9 @@ pub async fn insert_cast_vote(
 
     info!("insert-cast-vote: starting");
 
+    // Wait for 35 seconds to force a timeout
+    tokio::time::sleep(Duration::from_secs(35)).await;
+
     let insert_result_wrapped = retry_with_exponential_backoff(
         // The closure we want to call repeatedly
         || async {

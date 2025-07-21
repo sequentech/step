@@ -30,6 +30,7 @@ import {
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
+    GRAPHQLRESPONSE_TIMEOUT_ERROR,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
     ECastVoteGoldLevelPolicy,
@@ -83,6 +84,7 @@ import {
     BALLOT_DATA_EXPIRATION_KEY,
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
+import { TIMEOUT } from "dns"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -262,10 +264,14 @@ const useIsEventStatusOpen = (
             data = (result as {data: GetElectionEventQuery}).data
         } catch (error) {
             console.log("Error fetching election event", error)
-            if (error instanceof Error && error.message === "timeout") {
+            if (error instanceof Error /* && error.message === "timeout" */) {
                 // TODO: How to identify a timeout error?
+                console.log("Error fetching election event", error as Error)
+                console.log(error.name, error.message, error.cause)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.REFETCH_TIMEOUT_ERROR}`))
-            } else if (error instanceof ApolloError && error.networkError) {
+            } else if (error instanceof ApolloError /*  && error.networkError */) {
+                console.log("Error fetching election event", error as ApolloError)
+                console.log(error.name, error.message, error.cause, error.networkError)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
@@ -300,6 +306,7 @@ const useTryInsertCastVote = () => {
         content: string,
         setErrorMsg: (msg: CastBallotsErrorType) => void
     ) => {
+
         try {
             let result = await insertCastVote({
                 variables: {
@@ -307,7 +314,8 @@ const useTryInsertCastVote = () => {
                     ballotId,
                     content,
                 },
-            })
+            });
+
             if (result.errors) {
                 console.log(result.errors.map((e) => e.message))
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
@@ -322,11 +330,25 @@ const useTryInsertCastVote = () => {
         } catch (error) {
             console.log(error)
             let castError = error as IGraphQLActionError
-            if (castError?.graphQLErrors?.[0]?.extensions?.code) {
-                let errorCode = castError?.graphQLErrors?.[0]?.extensions?.code
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+            let errorExtensions = castError?.graphQLErrors?.[0]?.extensions
+            if (errorExtensions?.code) {
+                let errorCode = errorExtensions?.code
+                console.log(castError.name, castError.message)
+                let internalErrMessage = castError?.graphQLErrors?.[0]?.extensions?.internal?.error?.message
+                console.log(errorCode, internalErrMessage)
+                if ( internalErrMessage === GRAPHQLRESPONSE_TIMEOUT_ERROR ) {
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE_TIMEOUT}`))
+                } else {
+                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+                }
+
+            } else if (error instanceof ApolloError /*  && error.networkError */) {
+                console.log("Error fetching election event", error as ApolloError)
+                console.log(error.name, error.message, error.cause, error.networkError)
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+
             } else if (castError?.message?.includes("internal error")) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
             }
