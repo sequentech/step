@@ -130,7 +130,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             ra.name = '{realm}' AND
             u.enabled IS TRUE AND
             ua_area.value = '{area_id}' AND
-            ua_elections.value = '{election_alias}'
+            (ua_elections.value = '{election_alias}' OR ua_elections.value IS NULL)
         GROUP BY
             u.id
         ORDER BY
@@ -159,7 +159,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
-    debug!("bytes_copied: {bytes_copied}");
+    info!("voters bytes_copied: {bytes_copied}");
 
     writer.flush().await?;
 

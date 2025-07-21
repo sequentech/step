@@ -76,7 +76,6 @@ pub async fn find_area_ballots(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         voter_id_string,
-                        election_id,
                         content
                     FROM "sequent_backend".cast_vote
                     WHERE
@@ -84,7 +83,7 @@ pub async fn find_area_ballots(
                         election_event_id = '{election_event_id}' AND
                         area_id = '{area_id}' AND
                         election_id = '{election_id}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
+                    ORDER BY voter_id_string
                 "#
     );
 
@@ -109,7 +108,7 @@ pub async fn find_area_ballots(
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
-    debug!("bytes_copied: {bytes_copied}");
+    info!("ballot bytes_copied: {bytes_copied}");
 
     writer.flush().await?;
 

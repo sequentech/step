@@ -16,10 +16,8 @@ pub fn merge_join_csv(
     ballots_voter_id_index: usize,
     voters_id_index: usize,
     ballots_content_index: usize,
-    ballots_election_id_index: usize,
-    election_id: &str,
 ) -> Result<(Vec<String>, u64, u64, u64)> {
-    info!("START merge_join_csv election_id: {election_id}");
+    info!("START merge_join_csv");
 
     // Initialize the result vector
     let mut result = Vec::new();
@@ -64,37 +62,25 @@ pub fn merge_join_csv(
 
         // Extract the join keys.
         let Some(voter_id) = voter.get(voters_id_index) else {
-            elegible_voters = elegible_voters + 1;
             // Advance file1.
             voters_record = voters_iterator.next();
             continue;
         };
 
-        let Some(ballot_election_id) = ballot.get(ballots_election_id_index) else {
-            // Advance file1.
-            ballots_record = ballots_iterator.next();
-            continue;
-        };
-
-        if ballot_election_id == election_id {
-            casted_ballots = casted_ballots + 1;
-        } else {
-            // Advance file1.
-            ballots_record = ballots_iterator.next();
-            continue;
-        }
 
         // Compare the join keys lexicographically.
         match ballot_voter_id.cmp(&voter_id) {
             Ordering::Less => {
                 // If the ballot has no voter.
-                ballots_without_voter = ballots_without_voter + 1;
+                ballots_without_voter += 1;
                 // Advance file1.
                 ballots_record = ballots_iterator.next();
+                casted_ballots += 1;
             }
             Ordering::Greater => {
                 // Advance file2.
                 voters_record = voters_iterator.next();
+                elegible_voters += 1;
             }
             Ordering::Equal => {
                 let ballot_content = ballot.get(ballots_content_index).ok_or_else(|| {
@@ -108,9 +94,24 @@ pub fn merge_join_csv(
 
                 // Advance both iterators.
                 ballots_record = ballots_iterator.next();
+                casted_ballots += 1;
                 voters_record = voters_iterator.next();
+                elegible_voters += 1;
             }
         }
+    }
+
+    // Count the rest of the voters
+    while voters_record.is_some() {
+        elegible_voters += 1;
+        voters_record = voters_iterator.next();
+    }
+
+    // Count the rest of the ballots
+    while ballots_record.is_some() {
+        casted_ballots += 1;
+        ballots_without_voter += 1;
+        ballots_record = ballots_iterator.next();
     }
 
     info!("ballots_to_be_tallied: {}, elegible_voters: {}, ballots_without_voter: {}, casted_ballots: {}", result.len(), elegible_voters, ballots_without_voter, casted_ballots);

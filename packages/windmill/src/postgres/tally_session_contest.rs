@@ -52,15 +52,11 @@ pub async fn update_tally_session_contests_annotations(
         )
         .await?;
 
-    // Iterate through each contest in the provided slice
     for contest in contests {
         let rows_affected = hasura_transaction
             .execute(
                 &statement,
-                &[
-                    &contest.annotations, // Only annotations are updated
-                    &contest.id,          // Used in WHERE clause to identify the row
-                ],
+                &[&contest.annotations, &Uuid::parse_str(&contest.id)?],
             )
             .await?;
 
