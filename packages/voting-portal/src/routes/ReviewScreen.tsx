@@ -394,11 +394,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot)
         } catch (error) {
             isCastingBallot.current = false
-            console.error("Error hashing ballot:", error)
-            // if (error instanceof IBallotError && error.error_type) {
-            //     setErrorMsg(error.message)
-            // }
-            setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.TO_HASHABLE_BALLOT_ERROR}`))
+            console.error(error)
+            let ballotError = (error as IBallotError) || undefined
+            if ( ballotError?.error_type ) {
+                setErrorMsg(t(`reviewScreen.error.${ballotError.error_type}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.TO_HASHABLE_BALLOT_ERROR}`))
+            }
+
             return submit({error: errorType}, {method: "post"})
         }
 
