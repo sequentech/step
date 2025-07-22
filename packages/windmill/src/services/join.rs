@@ -158,14 +158,18 @@ mod tests {
         // join_index=0, output_index=2_index=1
         let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
             merge_join_csv(&ballots_ro, &users_ro, 0, 0, 1)?;
-        Ok((ballot_contents, elegible_voters, ballots_without_voter, casted_ballots))
+        Ok((
+            ballot_contents,
+            elegible_voters,
+            ballots_without_voter,
+            casted_ballots,
+        ))
     }
 
     #[test]
     fn test_basic_auditable_ballot() -> Result<()> {
         // user_C's ballot should be counted as auditable as they are not in the users file.
-        let ballots =
-            "user_A,content_A\nuser_B,content_B\nuser_C,content_C";
+        let ballots = "user_A,content_A\nuser_B,content_B\nuser_C,content_C";
         let users = "user_A\nuser_B";
         let (_, elegible_voters, ballots_without_voter, casted_ballots) =
             run_merge_join_test(ballots, users)?;
@@ -192,8 +196,7 @@ mod tests {
     fn test_auditable_ballots_at_end_of_file() -> Result<()> {
         // This specifically tests the bug fix. user_C and user_D's ballots are after
         // the last user in the users file. The old buggy code would miss these.
-        let ballots =
-            "user_A,content_A\nuser_C,content_C\nuser_D,content_D";
+        let ballots = "user_A,content_A\nuser_C,content_C\nuser_D,content_D";
         let users = "user_A\nuser_B";
         let (_, elegible_voters, ballots_without_voter, casted_ballots) =
             run_merge_join_test(ballots, users)?;
@@ -219,8 +222,7 @@ mod tests {
     #[test]
     fn test_empty_enabled_users_file() -> Result<()> {
         // If the enabled users list is empty, all ballots should be counted as auditable.
-        let ballots =
-            "user_A,content_A\nuser_B,content_B\nuser_C,content_C";
+        let ballots = "user_A,content_A\nuser_B,content_B\nuser_C,content_C";
         let users = "";
         let (_, elegible_voters, ballots_without_voter, casted_ballots) =
             run_merge_join_test(ballots, users)?;
