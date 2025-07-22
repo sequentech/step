@@ -80,6 +80,7 @@ import {
     BALLOT_DATA_EXPIRATION_KEY,
 } from "../store/castVotes/sessionBallotData"
 import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
+import {selectElectionById} from "../store/elections/electionsSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -168,14 +169,6 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
             {stringToHtml(t("reviewScreen.auditBallotHelpDialog.content"))}
         </Dialog>
     )
-}
-interface ActionButtonProps {
-    ballotStyle: IBallotStyle
-    auditableBallot: IAuditableBallot
-    auditButtonCfg: EVotingPortalAuditButtonCfg
-    castVoteConfirmModal: boolean
-    ballotId: string
-    setErrorMsg: (msg: CastBallotsErrorType) => void
 }
 
 interface LoadingOrCastButtonProps {
@@ -291,6 +284,16 @@ const useTryInsertCastVote = () => {
     }
 }
 
+interface ActionButtonProps {
+    ballotStyle: IBallotStyle
+    auditableBallot: IAuditableBallot
+    auditButtonCfg: EVotingPortalAuditButtonCfg
+    castVoteConfirmModal: boolean
+    ballotId: string
+    setErrorMsg: (msg: CastBallotsErrorType) => void
+    isGoldenPolicy: boolean
+}
+
 const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotStyle,
     auditableBallot,
@@ -298,6 +301,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     castVoteConfirmModal,
     ballotId,
     setErrorMsg,
+    isGoldenPolicy
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -363,9 +367,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const castBallotAction = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         isCastingBallot.current = true
-        const isGoldenPolicy =
-            ballotStyle?.ballot_eml.election_presentation?.cast_vote_gold_level ===
-            ECastVoteGoldLevelPolicy.GOLD_LEVEL
         if (isDemo || globalSettings.DISABLE_AUTH) {
             if (isGoldenPolicy) {
                 // Save contests to session storage and perform reauthentication
@@ -501,19 +502,22 @@ export const ReviewScreen: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const dispatch = useAppDispatch()
     const addFakeCastVote = useAddFakeCastVote(tenantId, eventId)
-
     const tryInsertCastVote = useTryInsertCastVote()
-
+    const electionFromRedux = useAppSelector(selectElectionById(String(electionId)))
     const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
         variables: {
             electionIds: electionId ? [electionId] : [],
         },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH || electionFromRedux !== undefined  , // Skip query if we can get the election from redux (golden user cant)
     })
 
-    const isGoldenPolicy = dataElections?.sequent_backend_election.some(
-        (item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
-    )
+    const isGoldenPolicy = useMemo(() => {
+        return electionFromRedux !== undefined ?
+            electionFromRedux?.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
+            : dataElections?.sequent_backend_election.some((item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL)
+    }, [electionFromRedux, dataElections])
+
+    console.log(electionFromRedux !== undefined)
 
     const auditButtonCfg =
         ballotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
@@ -613,7 +617,8 @@ export const ReviewScreen: React.FC = () => {
         return ballotData
     }
 
-    const automaticCastBallot = async () => {
+    // Cast the ballot automatically after reauth with golden user
+    const goldenUserCastBallotAction = async () => {
         isCastingBallot.current = true
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         const ballotData = getBallotDataFromSessionStorage()
@@ -669,7 +674,7 @@ export const ReviewScreen: React.FC = () => {
         if ((!ballotStyle || !auditableBallot || !selectionState) && isGoldenPolicy) {
             if (isGoldUser()) {
                 if (!isCastingBallot.current) {
-                    automaticCastBallot()
+                    goldenUserCastBallotAction()
                     clearSessionStorageBallotData()
                 }
             } else {
@@ -790,6 +795,7 @@ export const ReviewScreen: React.FC = () => {
                     castVoteConfirmModal={castVoteConfirmModal}
                     ballotId={ballotId ?? ""}
                     setErrorMsg={setErrorMsg}
+                    isGoldenPolicy={isGoldenPolicy ?? false}
                 />
             )}
         </PageLimit>
