@@ -234,7 +234,6 @@ const useTryInsertCastVote = () => {
         content: string,
         setErrorMsg: (msg: CastBallotsErrorType) => void
     ) => {
-
         try {
             let result = await insertCastVote({
                 variables: {
@@ -242,7 +241,7 @@ const useTryInsertCastVote = () => {
                     ballotId,
                     content,
                 },
-            });
+            })
 
             if (result.errors) {
                 console.log(result.errors.map((e) => e.message))
@@ -262,18 +261,22 @@ const useTryInsertCastVote = () => {
             if (errorExtensions?.code) {
                 let errorCode = errorExtensions?.code
                 console.log(castError.name, castError.message)
-                let internalErrMessage = castError?.graphQLErrors?.[0]?.extensions?.internal?.error?.message
+                let internalErrMessage =
+                    castError?.graphQLErrors?.[0]?.extensions?.internal?.error?.message
                 console.log(errorCode, internalErrMessage)
-                if ( errorCode === EGraphQLErrorCode.UNEXPECTED && internalErrMessage === EGraphQLInternalErrorMessage.TIMEOUT_ERROR) {
+                if (
+                    errorCode === EGraphQLErrorCode.UNEXPECTED &&
+                    internalErrMessage === EGraphQLInternalErrorMessage.TIMEOUT_ERROR
+                ) {
                     setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE_TIMEOUT}`))
                 } else {
-                    setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`))
+                    setErrorMsg(
+                        t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`)
+                    )
                 }
-
-            } else if (error instanceof ApolloError  && error.networkError ) {
+            } else if (error instanceof ApolloError && error.networkError) {
                 console.log(error.name, error.message, error.cause, error.networkError)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-
             } else if (castError?.message?.includes("internal error")) {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
             } else {
@@ -301,7 +304,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     castVoteConfirmModal,
     ballotId,
     setErrorMsg,
-    isGoldenPolicy
+    isGoldenPolicy,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -397,10 +400,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             isCastingBallot.current = false
             console.error(error)
             let ballotError = (error as IBallotError) || undefined
-            if ( ballotError?.error_type ) {
+            if (ballotError?.error_type) {
                 setErrorMsg(t(`reviewScreen.error.${ballotError.error_type}`))
             } else {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.TO_HASHABLE_BALLOT_ERROR}`))
+                setErrorMsg(
+                    t(`reviewScreen.error.${CastBallotsErrorType.TO_HASHABLE_BALLOT_ERROR}`)
+                )
             }
 
             return submit({error: errorType}, {method: "post"})
@@ -508,13 +513,18 @@ export const ReviewScreen: React.FC = () => {
         variables: {
             electionIds: electionId ? [electionId] : [],
         },
-        skip: globalSettings.DISABLE_AUTH || electionFromRedux !== undefined  , // Skip query if we can get the election from redux (golden user cant)
+        skip: globalSettings.DISABLE_AUTH || electionFromRedux !== undefined, // Skip query if we can get the election from redux (golden user cant)
     })
 
     const isGoldenPolicy = useMemo(() => {
-        return electionFromRedux !== undefined ?
-            electionFromRedux?.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL
-            : dataElections?.sequent_backend_election.some((item) => item.presentation?.cast_vote_gold_level === ECastVoteGoldLevelPolicy.GOLD_LEVEL)
+        return electionFromRedux !== undefined
+            ? electionFromRedux?.presentation?.cast_vote_gold_level ===
+                  ECastVoteGoldLevelPolicy.GOLD_LEVEL
+            : dataElections?.sequent_backend_election.some(
+                  (item) =>
+                      item.presentation?.cast_vote_gold_level ===
+                      ECastVoteGoldLevelPolicy.GOLD_LEVEL
+              )
     }, [electionFromRedux, dataElections])
 
     console.log(electionFromRedux !== undefined)
