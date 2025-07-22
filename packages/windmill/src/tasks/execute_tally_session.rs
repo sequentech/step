@@ -62,6 +62,7 @@ use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
@@ -207,18 +208,18 @@ async fn generate_area_contests_mc(
                 continue;
             };
 
-            let (eligible_voters, auditable_votes) =
-                if let Some(annotations) = session_election.annotations.clone() {
-                    let annotations: TallySessionContestAnnotations =
-                        serde_json::from_value(annotations)?;
+            let (eligible_voters, auditable_votes) = if let Some(annotations) =
+                session_election.annotations.clone()
+            {
+                let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
 
-                    (
-                        annotations.elegible_voters,
-                        annotations.ballots_without_voter,
-                    )
-                } else {
-                    (0u64, 0u64)
-                };
+                (
+                    annotations.elegible_voters,
+                    annotations.ballots_without_voter,
+                )
+            } else {
+                (0u64, 0u64)
+            };
 
             almost_vec.push(AreaContestDataType {
                 plaintexts,
@@ -306,7 +307,7 @@ fn generate_area_contests(
             let (eligible_voters, auditable_votes) =
             if let Some(annotations) = session_contest.annotations.clone() {
                 let annotations: TallySessionContestAnnotations =
-                    serde_json::from_value(annotations).ok()?;
+                    deserialize_value(annotations).ok()?;
 
                 (
                     annotations.elegible_voters,
@@ -452,7 +453,7 @@ pub async fn count_cast_votes_election_with_census(
             .clone()
             .ok_or(anyhow!("Missing annotations in tally session contest."))?;
 
-        let annotations: TallySessionContestAnnotations = serde_json::from_value(annotations)?;
+        let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
 
         let entry = cast_votes_map
             .entry(contest.election_id.clone())
