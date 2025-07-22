@@ -514,6 +514,13 @@ export const ReviewScreen: React.FC = () => {
             electionIds: electionId ? [electionId] : [],
         },
         skip: globalSettings.DISABLE_AUTH || electionFromRedux !== undefined, // Skip query if we can get the election from redux (golden user cant)
+        onError: (error) => {
+            if (error.networkError) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
+            } else {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
+            }
+        },
     })
 
     const isGoldenPolicy = useMemo(() => {

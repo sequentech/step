@@ -160,8 +160,8 @@ const englishTranslation = {
                     "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
                 NOT_VALID_BALLOT_DATA_ERROR:
                     "Ballot data is not valid. Please try again later or contact support for assistance.",
-                REFETCH_TIMEOUT_ERROR:
-                    "Timeout error to refetch the data. Please try again later or contact support for assistance.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Timeout error to fetch the data. Please try again later or contact support for assistance.",
                 TO_HASHABLE_BALLOT_ERROR:
                     "Error converting to hashable ballot. Please try again later or contact support for assistance.",
                 INTERNAL_ERROR:
