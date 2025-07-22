@@ -567,7 +567,7 @@ pub async fn get_eligible_voters(
             offset: None,
             user_ids: None,
             attributes: None,
-            enabled: None,
+            enabled: Some(true),
             email_verified: None,
             sort: None,
             has_voted: None,
