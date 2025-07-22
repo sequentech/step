@@ -21,9 +21,6 @@ use windmill::services::insert_cast_vote::{
     InsertCastVoteOutput, InsertCastVoteResult,
 };
 
-// Create global variable with the count of cast_votes
-static mut CAST_VOTES_COUNT: u64 = 0; // For testing only
-
 /// API endpoint for inserting votes. POST coming from the
 /// frontend->Hasura->Harvest->Here.
 ///
@@ -56,15 +53,6 @@ pub async fn insert_cast_vote(
     })?;
 
     info!("insert-cast-vote: starting");
-
-    unsafe {
-        // For testing only
-        if CAST_VOTES_COUNT % 2 == 0 {
-            tokio::time::sleep(Duration::from_secs(31)).await;
-        }
-
-        CAST_VOTES_COUNT += 1;
-    }
 
     let insert_result_wrapped = retry_with_exponential_backoff(
         // The closure we want to call repeatedly
