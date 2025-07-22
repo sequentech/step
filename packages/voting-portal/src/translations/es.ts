@@ -125,13 +125,13 @@ const spanishTranslation: TranslationType = {
                 CAST_VOTE_unexpected:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 CAST_VOTE_timeout:
-                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                    "Error de tiempo de espera para emitir el voto. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
                 CAST_VOTE_InsertFailedExceedsAllowedRevotes:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Has superado el límite de revotos. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
                 CAST_VOTE_CheckRevotesFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Has superado el número permitido de revotos. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
                 CAST_VOTE_CheckVotesInOtherAreasFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Ya has votado en otra área. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
                 CAST_VOTE_UnknownError:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 NO_BALLOT_SELECTION:
@@ -163,17 +163,17 @@ const spanishTranslation: TranslationType = {
                 CAST_VOTE_BallotIdMismatch:
                     "El identificador de la papeleta no coincide con el del voto emitido.",
                 SESSION_STORAGE_ERROR:
-                    "Session storage is not available. Please try again or contact support.",
+                    "El almacenamiento de sesión no está disponible. Por favor, inténtelo de nuevo o contacte con soporte.",
                 PARSE_BALLOT_DATA_ERROR:
-                    "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
+                    "Hubo un error al analizar los datos de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 NOT_VALID_BALLOT_DATA_ERROR:
-                    "Ballot data is not valid. Please try again later or contact support for assistance.",
+                    "Los datos de la papeleta no son válidos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Timeout error to refetch the election event. Please try again later or contact support for assistance.",
+                    "Error de tiempo de espera al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 TO_HASHABLE_BALLOT_ERROR:
-                    "Error converting to hashable ballot. Please try again later or contact support for assistance.",
+                    "Error al convertir a papeleta hashable. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 INTERNAL_ERROR:
-                    "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
+                    "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
         },
         confirmationScreen: {

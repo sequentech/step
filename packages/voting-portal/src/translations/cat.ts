@@ -125,13 +125,13 @@ const catalanTranslation: TranslationType = {
                 CAST_VOTE_unexpected:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_timeout:
-                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                    "Error de temps d'espera per emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
                 CAST_VOTE_InsertFailedExceedsAllowedRevotes:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Heu superat el límit de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
                 CAST_VOTE_CheckRevotesFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Heu superat el nombre permès de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
                 CAST_VOTE_CheckVotesInOtherAreasFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Ja heu votat en una altra àrea. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
                 CAST_VOTE_UnknownError:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:
@@ -163,17 +163,17 @@ const catalanTranslation: TranslationType = {
                 CAST_VOTE_BallotIdMismatch:
                     "L'identificador de la papereta no coincideix amb el del vot emès.",
                 SESSION_STORAGE_ERROR:
-                    "Session storage is not available. Please try again or contact support.",
+                    "L'emmagatzematge de sessió no està disponible. Si us plau, torneu-ho a provar o contacteu amb el suport.",
                 PARSE_BALLOT_DATA_ERROR:
-                    "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
+                    "S'ha produït un error en analitzar les dades de la papereta. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
                 NOT_VALID_BALLOT_DATA_ERROR:
-                    "Ballot data is not valid. Please try again later or contact support for assistance.",
+                    "Les dades de la papereta no són vàlides. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Timeout error to refetch the election event. Please try again later or contact support for assistance.",
+                    "Error de temps d'espera en obtenir les dades. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
                 TO_HASHABLE_BALLOT_ERROR:
-                    "Error converting to hashable ballot. Please try again later or contact support for assistance.",
+                    "Error en convertir a papereta hashable. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
                 INTERNAL_ERROR:
-                    "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
+                    "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
         },
         confirmationScreen: {

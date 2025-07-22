@@ -123,14 +123,14 @@ const frenchTranslation: TranslationType = {
                     "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_unexpected:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                CAST_VOTE_timeout:
-                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
-                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
-                CAST_VOTE_CheckRevotesFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
-                CAST_VOTE_CheckVotesInOtherAreasFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_timeout :
+                    "Erreur de délai pour voter. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes :
+                    "Vous avez dépassé la limite de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_CheckRevotesFailed :
+                    "Vous avez dépassé le nombre autorisé de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed :
+                    "Vous avez déjà voté dans une autre zone. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
                 CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
@@ -161,17 +161,17 @@ const frenchTranslation: TranslationType = {
                 CAST_VOTE_BallotIdMismatch:
                     "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
                 SESSION_STORAGE_ERROR:
-                    "Session storage is not available. Please try again or contact support.",
+                    "Saio-biltegia ez dago erabilgarri. Mesedez, saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin.",
                 PARSE_BALLOT_DATA_ERROR:
-                    "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
+                    "Errore bat gertatu da boto-datuen analisian. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
                 NOT_VALID_BALLOT_DATA_ERROR:
-                    "Ballot data is not valid. Please try again later or contact support for assistance.",
+                    "Boto-datuak ez dira baliozkoak. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Timeout error to refetch the election event. Please try again later or contact support for assistance.",
+                    "Denbora-muga gainditu da datuak eskuratzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
                 TO_HASHABLE_BALLOT_ERROR:
-                    "Error converting to hashable ballot. Please try again later or contact support for assistance.",
+                    "Errorea gertatu da hash bihurgarri bihurtzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
                 INTERNAL_ERROR:
-                    "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
+                    "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
         },
         confirmationScreen: {

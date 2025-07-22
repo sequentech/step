@@ -125,13 +125,13 @@ const tagalogTranslation: TranslationType = {
                 CAST_VOTE_unexpected:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_timeout:
-                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                    "May error sa timeout sa pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 CAST_VOTE_InsertFailedExceedsAllowedRevotes:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Lumampas ka na sa limitasyon ng muling pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 CAST_VOTE_CheckRevotesFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Lumampas ka na sa pinapayagang bilang ng muling pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 CAST_VOTE_CheckVotesInOtherAreasFailed:
-                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                    "Nakaboto ka na sa ibang lugar. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
@@ -160,17 +160,17 @@ const tagalogTranslation: TranslationType = {
                     "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
                 CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
                 SESSION_STORAGE_ERROR:
-                    "Session storage is not available. Please try again or contact support.",
+                    "Hindi magamit ang session storage. Pakisubukang muli o makipag-ugnayan sa support.",
                 PARSE_BALLOT_DATA_ERROR:
-                    "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
+                    "Nagkaroon ng error sa pag-parse ng data ng balota. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 NOT_VALID_BALLOT_DATA_ERROR:
-                    "Ballot data is not valid. Please try again later or contact support for assistance.",
+                    "Ang data ng balota ay hindi wasto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Timeout error to refetch the election event. Please try again later or contact support for assistance.",
+                    "May error sa timeout sa pagkuha ng data. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 TO_HASHABLE_BALLOT_ERROR:
-                    "Error converting to hashable ballot. Please try again later or contact support for assistance.",
+                    "May error sa pag-convert sa hashable na balota. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 INTERNAL_ERROR:
-                    "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
+                    "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
         },
         confirmationScreen: {
