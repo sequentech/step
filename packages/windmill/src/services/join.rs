@@ -138,12 +138,11 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
-    /// Helper function to create temporary CSV files and run the test.
-    /// This reduces boilerplate code in each test case.
-    fn run_test(
+    /// Helper function to run tests for `merge_join_csv`.
+    fn run_merge_join_test(
         ballots_csv: &str,
         users_csv: &str,
-    ) -> Result<(u64, u64, u64)> {
+    ) -> Result<(Vec<String>, u64, u64, u64)> {
         let mut ballots_file = NamedTempFile::new()?;
         write!(ballots_file, "{}", ballots_csv)?;
         ballots_file.flush()?;
@@ -152,14 +151,14 @@ mod tests {
         write!(users_file, "{}", users_csv)?;
         users_file.flush()?;
 
-        // Reopen files for reading, as the function expects a read-only handle
         let ballots_ro = ballots_file.reopen()?;
         let users_ro = users_file.reopen()?;
 
-        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+        // Assumes standard test indexes:
+        // join_index=0, output_index=2_index=1
+        let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
             merge_join_csv(&ballots_ro, &users_ro, 0, 0, 1)?;
-
-        Ok((elegible_voters, ballots_without_voter, casted_ballots))
+        Ok((ballot_contents, elegible_voters, ballots_without_voter, casted_ballots))
     }
 
     #[test]
@@ -168,9 +167,11 @@ mod tests {
         let ballots =
             "user_A,content_A\nuser_B,content_B\nuser_C,content_C";
         let users = "user_A\nuser_B";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 2);
         assert_eq!(ballots_without_voter, 1);
+        assert_eq!(casted_ballots, 3);
         Ok(())
     }
 
@@ -179,9 +180,11 @@ mod tests {
         // All users who voted are in the enabled users list.
         let ballots = "user_A,content_A\nuser_B,content_B";
         let users = "user_A\nuser_B";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 2);
         assert_eq!(ballots_without_voter, 0);
+        assert_eq!(casted_ballots, 2);
         Ok(())
     }
 
@@ -192,9 +195,11 @@ mod tests {
         let ballots =
             "user_A,content_A\nuser_C,content_C\nuser_D,content_D";
         let users = "user_A\nuser_B";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 2);
         assert_eq!(ballots_without_voter, 2);
+        assert_eq!(casted_ballots, 3);
         Ok(())
     }
 
@@ -203,9 +208,11 @@ mod tests {
         // If there are no ballots, the count must be 0.
         let ballots = "";
         let users = "user_A\nuser_B";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 2);
         assert_eq!(ballots_without_voter, 0);
+        assert_eq!(casted_ballots, 0);
         Ok(())
     }
 
@@ -215,9 +222,11 @@ mod tests {
         let ballots =
             "user_A,content_A\nuser_B,content_B\nuser_C,content_C";
         let users = "";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 0);
         assert_eq!(ballots_without_voter, 3);
+        assert_eq!(casted_ballots, 3);
         Ok(())
     }
 
@@ -226,9 +235,11 @@ mod tests {
         // If both files are empty, the count is 0.
         let ballots = "";
         let users = "";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 0);
         assert_eq!(ballots_without_voter, 0);
+        assert_eq!(casted_ballots, 0);
         Ok(())
     }
 
@@ -242,9 +253,11 @@ mod tests {
         // user_H: auditable
         let ballots = "user_A,content_A\nuser_C,content_C\nuser_E,content_E\nuser_F,content_F\nuser_H,content_H";
         let users = "user_A\nuser_B\nuser_D\nuser_E\nuser_G";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 5);
         assert_eq!(ballots_without_voter, 3);
+        assert_eq!(casted_ballots, 5);
         Ok(())
     }
 
@@ -259,9 +272,11 @@ mod tests {
         // - Row 4: `user_D,content_D` -> Valid, but matches user_D, so not auditable.
         let ballots = ",content_A\nuser_B,content_B\nuser_C,content_C\nuser_D,content_D";
         let users = "user_A\nuser_D";
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(ballots, users)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(ballots, users)?;
+        assert_eq!(elegible_voters, 2);
         assert_eq!(ballots_without_voter, 2);
+        assert_eq!(casted_ballots, 3);
         Ok(())
     }
 
@@ -288,36 +303,15 @@ mod tests {
         }
 
         // Run the test with the generated data.
-        let (elegible_voters, ballots_without_voter, casted_ballots) =
-            run_test(&ballots_csv, &users_csv)?;
+        let (_, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_test(&ballots_csv, &users_csv)?;
 
         // 3. The function should count exactly half the entries—the ones we omitted (the odds).
+        assert_eq!(elegible_voters, EXPECTED_AUDITABLE_COUNT);
         assert_eq!(ballots_without_voter, EXPECTED_AUDITABLE_COUNT);
+        assert_eq!(casted_ballots, TOTAL_ENTRIES);
 
         Ok(())
-    }
-
-    /// Helper function to run tests for `merge_join_csv`.
-    fn run_merge_join_test(
-        ballots_csv: &str,
-        users_csv: &str,
-    ) -> Result<Vec<String>> {
-        let mut ballots_file = NamedTempFile::new()?;
-        write!(ballots_file, "{}", ballots_csv)?;
-        ballots_file.flush()?;
-
-        let mut users_file = NamedTempFile::new()?;
-        write!(users_file, "{}", users_csv)?;
-        users_file.flush()?;
-
-        let ballots_ro = ballots_file.reopen()?;
-        let users_ro = users_file.reopen()?;
-
-        // Assumes standard test indexes:
-        // join_index=0, output_index=2_index=1
-        let (ballot_contents, _elegible_voters, _ballots_without_voter, _casted_ballots) =
-            merge_join_csv(&ballots_ro, &users_ro, 0, 0, 1)?;
-        Ok(ballot_contents)
     }
 
     #[test]
@@ -325,7 +319,7 @@ mod tests {
         // Both ballots have a corresponding enabled user, so both contents should be returned.
         let ballots = "user_A,content_A\nuser_B,content_B";
         let users = "user_A\nuser_B";
-        let result = run_merge_join_test(ballots, users)?;
+        let (result, _, _, _) = run_merge_join_test(ballots, users)?;
         assert_eq!(result, vec!["content_A", "content_B"]);
         Ok(())
     }
@@ -335,7 +329,7 @@ mod tests {
         // Only user_A exists in both files. user_C's ballot should be ignored.
         let ballots = "user_A,content_A\nuser_C,content_C";
         let users = "user_A\nuser_B";
-        let result = run_merge_join_test(ballots, users)?;
+        let (result, _, _, _) = run_merge_join_test(ballots, users)?;
         assert_eq!(result, vec!["content_A"]);
         Ok(())
     }
@@ -345,7 +339,7 @@ mod tests {
         // No common users between the two files.
         let ballots = "user_A,content_A";
         let users = "user_B\nuser_C";
-        let result = run_merge_join_test(ballots, users)?;
+        let (result, _, _, _) = run_merge_join_test(ballots, users)?;
         assert!(result.is_empty());
         Ok(())
     }
@@ -357,7 +351,7 @@ mod tests {
         // The empty keys in both files should NOT result in a successful join.
         let ballots = "user_A,content_A\n,bad_content";
         let users = "user_A\n"; // Note the empty user record
-        let result = run_merge_join_test(ballots, users)?;
+        let (result, _, _, _) = run_merge_join_test(ballots, users)?;
         assert_eq!(result, vec!["content_A"]);
         Ok(())
     }
@@ -368,7 +362,7 @@ mod tests {
         // The "user_B" record is missing columns and should be ignored.
         let ballots = "user_A,content_A\nuser_B\nuser_C,content_C";
         let users = "user_A\nuser_C";
-        let result = run_merge_join_test(ballots, users)?;
+        let (result, _, _, _) = run_merge_join_test(ballots, users)?;
         assert_eq!(result, vec!["content_A", "content_C"]);
         Ok(())
     }
@@ -381,7 +375,6 @@ mod tests {
 
         let mut ballots_csv = String::new();
         let mut users_csv = String::new();
-        let election_id = "large_election";
 
         for i in 0..TOTAL_ENTRIES {
             let user_id = format!("user-{:04}", i);
@@ -393,7 +386,7 @@ mod tests {
             }
         }
 
-        let result = run_merge_join_test(&ballots_csv, &users_csv)?;
+        let (result, _, _, _) = run_merge_join_test(&ballots_csv, &users_csv)?;
 
         // The function should join and return only the 250 ballots from the even users.
         assert_eq!(result.len(), EXPECTED_JOIN_COUNT);
