@@ -303,13 +303,26 @@ fn generate_area_contests(
                 return None;
             };
 
+            let (eligible_voters, auditable_votes) =
+            if let Some(annotations) = session_contest.annotations.clone() {
+                let annotations: TallySessionContestAnnotations =
+                    serde_json::from_value(annotations).ok()?;
+
+                (
+                    annotations.elegible_voters,
+                    annotations.ballots_without_voter,
+                )
+            } else {
+                (0u64, 0u64)
+            };
+
             Some(AreaContestDataType {
                 plaintexts,
                 last_tally_session_execution: session_contest.clone(),
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
-                eligible_voters: 0,
-                auditable_votes: 0,
+                eligible_voters,
+                auditable_votes,
                 area: area.clone(),
             })
         })
