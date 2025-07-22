@@ -123,13 +123,13 @@ const frenchTranslation: TranslationType = {
                     "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_unexpected:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
-                CAST_VOTE_timeout :
+                CAST_VOTE_timeout:
                     "Erreur de délai pour voter. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
-                CAST_VOTE_InsertFailedExceedsAllowedRevotes :
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
                     "Vous avez dépassé la limite de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
-                CAST_VOTE_CheckRevotesFailed :
+                CAST_VOTE_CheckRevotesFailed:
                     "Vous avez dépassé le nombre autorisé de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
-                CAST_VOTE_CheckVotesInOtherAreasFailed :
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
                     "Vous avez déjà voté dans une autre zone. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
                 CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
@@ -161,17 +161,17 @@ const frenchTranslation: TranslationType = {
                 CAST_VOTE_BallotIdMismatch:
                     "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
                 SESSION_STORAGE_ERROR:
-                    "Saio-biltegia ez dago erabilgarri. Mesedez, saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin.",
+                    "Le stockage de session n'est pas disponible. Veuillez réessayer ou contacter le support.",
                 PARSE_BALLOT_DATA_ERROR:
-                    "Errore bat gertatu da boto-datuen analisian. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                    "Une erreur s'est produite lors de l'analyse des données du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NOT_VALID_BALLOT_DATA_ERROR:
-                    "Boto-datuak ez dira baliozkoak. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                    "Les données du bulletin de vote ne sont pas valides. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Denbora-muga gainditu da datuak eskuratzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                    "Erreur de délai d'attente pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 TO_HASHABLE_BALLOT_ERROR:
-                    "Errorea gertatu da hash bihurgarri bihurtzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                    "Erreur lors de la conversion en bulletin de vote hashable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 INTERNAL_ERROR:
-                    "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                    "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
         },
         confirmationScreen: {
