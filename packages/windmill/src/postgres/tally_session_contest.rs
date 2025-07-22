@@ -48,7 +48,9 @@ pub async fn update_tally_session_contests_annotations(
              annotations = $1,
              last_updated_at = NOW()
          WHERE
-             id = $2;",
+             id = $2 AND
+             tenant_id = $3 AND
+             election_event_id = $4;",
         )
         .await?;
 
@@ -56,7 +58,12 @@ pub async fn update_tally_session_contests_annotations(
         let rows_affected = hasura_transaction
             .execute(
                 &statement,
-                &[&contest.annotations, &Uuid::parse_str(&contest.id)?],
+                &[
+                    &contest.annotations,
+                    &Uuid::parse_str(&contest.id)?,
+                    &Uuid::parse_str(&contest.tenant_id)?,
+                    &Uuid::parse_str(&contest.election_event_id)?,
+                ],
             )
             .await?;
 
