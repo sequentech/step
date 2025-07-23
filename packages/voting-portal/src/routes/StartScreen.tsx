@@ -5,7 +5,12 @@ import React, {useEffect} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
-import {IElection, stringToHtml, translateElection, EStartScreenTitlePolicy} from "@sequentech/ui-core"
+import {
+    IElection,
+    stringToHtml,
+    translateElection,
+    EStartScreenTitlePolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -17,7 +22,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
-import { selectElectionEventById } from "../store/electionEvents/electionEventsSlice"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -97,8 +102,10 @@ const StartScreen: React.FC = () => {
     useLanguage({ballotStyle})
 
     // TODO: Retrieve the real policy
+    // const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
     const startScreenTitlePolicy = EStartScreenTitlePolicy.ELECTION_EVENT
-    const titleObject = startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT ? electionEvent : election
+    const titleObject =
+        startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT ? electionEvent : election
 
     useEffect(() => {
         if (!election || !titleObject) {
@@ -120,7 +127,9 @@ const StartScreen: React.FC = () => {
             </StyledTitle>
             {titleObject.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(titleObject, "description", i18n.language) ?? "-")}
+                    {stringToHtml(
+                        translateElection(titleObject, "description", i18n.language) ?? "-"
+                    )}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
