@@ -10,12 +10,13 @@ use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
-    count_auditable_ballots, get_elections_end_dates, insert_ballots_messages,
+    get_elections_end_dates, insert_ballots_messages,
 };
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
@@ -61,6 +62,7 @@ use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
@@ -76,6 +78,7 @@ use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TallySessionContest;
+use sequent_core::types::hasura::core::TallySessionContestAnnotations;
 use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::PrintToPdfOptionsLocal;
@@ -205,13 +208,26 @@ async fn generate_area_contests_mc(
                 continue;
             };
 
+            let (eligible_voters, auditable_votes) = if let Some(annotations) =
+                session_election.annotations.clone()
+            {
+                let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
+
+                (
+                    annotations.elegible_voters,
+                    annotations.ballots_without_voter,
+                )
+            } else {
+                (0u64, 0u64)
+            };
+
             almost_vec.push(AreaContestDataType {
                 plaintexts,
                 last_tally_session_execution: session_election.clone(),
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
-                eligible_voters: 0,
-                auditable_votes: 0,
+                eligible_voters,
+                auditable_votes,
                 area: area.clone(),
             })
         }
@@ -288,13 +304,26 @@ fn generate_area_contests(
                 return None;
             };
 
+            let (eligible_voters, auditable_votes) =
+            if let Some(annotations) = session_contest.annotations.clone() {
+                let annotations: TallySessionContestAnnotations =
+                    deserialize_value(annotations).ok()?;
+
+                (
+                    annotations.elegible_voters,
+                    annotations.ballots_without_voter,
+                )
+            } else {
+                (0u64, 0u64)
+            };
+
             Some(AreaContestDataType {
                 plaintexts,
                 last_tally_session_execution: session_contest.clone(),
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
-                eligible_voters: 0,
-                auditable_votes: 0,
+                eligible_voters,
+                auditable_votes,
                 area: area.clone(),
             })
         })
@@ -306,7 +335,6 @@ fn generate_area_contests(
 #[instrument(skip_all, err)]
 async fn process_plaintexts(
     hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_contest: Vec<TallySessionContest>,
@@ -378,72 +406,7 @@ async fn process_plaintexts(
         filtered_area_contests.len()
     );
 
-    let elections_end_dates =
-        get_elections_end_dates(hasura_transaction, tenant_id, election_event_id)
-            .await
-            .with_context(|| "error getting elections end_date")?;
-
-    let mut data: Vec<AreaContestDataType> = vec![];
-
-    let election_ids_alias: HashMap<String, String> =
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .into_iter()
-            .filter_map(|election| election.alias.map(|x| (election.id.clone(), x)))
-            .collect();
-
-    // fill in the eligible voters data
-    // FIXME: For election level data
-    for almost in filtered_area_contests {
-        let mut area_contest = almost.clone();
-
-        let election_alias = match election_ids_alias.get(&area_contest.contest.election_id) {
-            Some(alias) => alias,
-            None => "",
-        }
-        .to_string();
-
-        let eligible_voters = get_eligible_voters(
-            &hasura_transaction,
-            &keycloak_transaction,
-            &area_contest.contest.tenant_id,
-            &area_contest.contest.election_event_id,
-            &area_contest.contest.election_id,
-            &area_contest.last_tally_session_execution.area_id,
-            &election_alias,
-        )
-        .await?;
-        let auditable_votes = count_auditable_ballots(
-            &elections_end_dates,
-            &hasura_transaction,
-            &keycloak_transaction,
-            &area_contest.contest.tenant_id,
-            &area_contest.contest.election_event_id,
-            &area_contest.contest.election_id,
-            &area_contest.contest.id,
-            &area_contest.last_tally_session_execution.area_id,
-        )
-        .await
-        .with_context(|| "Error counting auditable ballots")?;
-
-        let contest_name = &area_contest.contest.name;
-        let area_id = &area_contest.last_tally_session_execution.area_id;
-        info!(
-            r#"
-            Setting:
-                eligible_voters={eligible_voters},
-                auditable_votes={auditable_votes},
-            for area_contest with:
-                contest_name={contest_name:?} & and area_id={area_id}
-        "#
-        );
-        area_contest.eligible_voters = eligible_voters;
-        area_contest.auditable_votes = auditable_votes
-            .try_into()
-            .with_context(|| "Too many auditable ballots")?;
-        data.push(area_contest);
-    }
-    Ok(data)
+    Ok(filtered_area_contests)
 }
 
 #[instrument]
@@ -480,102 +443,31 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
+    tally_session_contest: &[TallySessionContest],
 ) -> Result<Vec<ElectionCastVotes>> {
-    let mut cast_votes =
-        count_cast_votes_election(&hasura_transaction, &tenant_id, &election_event_id, None)
-            .await?;
+    let mut cast_votes_map: HashMap<String, ElectionCastVotes> = HashMap::new();
 
-    let election_ids_alias: HashMap<String, String> =
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .into_iter()
-            .filter_map(|election| election.alias.map(|x| (election.id.clone(), x)))
-            .collect();
+    for contest in tally_session_contest {
+        let annotations: serde_json::Value = contest
+            .annotations
+            .clone()
+            .ok_or(anyhow!("Missing annotations in tally session contest."))?;
 
-    for cast_vote in &mut cast_votes {
-        let realm = get_event_realm(tenant_id, election_event_id);
+        let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
 
-        let election_alias = match election_ids_alias.get(&cast_vote.election_id) {
-            Some(alias) => alias,
-            None => "",
-        }
-        .to_string();
+        let entry = cast_votes_map
+            .entry(contest.election_id.clone())
+            .or_insert_with(|| ElectionCastVotes {
+                election_id: contest.election_id.clone(),
+                census: 0,
+                cast_votes: 0,
+            });
 
-        let (_users, census) = list_users(
-            &hasura_transaction,
-            &keycloak_transaction,
-            ListUsersFilter {
-                tenant_id: tenant_id.to_string(),
-                election_event_id: Some(election_event_id.to_string()),
-                election_id: Some(cast_vote.election_id.clone()),
-                area_id: None,
-                realm: realm.clone(),
-                search: None,
-                first_name: None,
-                last_name: None,
-                username: None,
-                email: None,
-                limit: Some(1),
-                offset: None,
-                user_ids: None,
-                attributes: None,
-                enabled: None,
-                email_verified: None,
-                sort: None,
-                has_voted: None,
-                authorized_to_election_alias: Some(election_alias.to_string()),
-            },
-        )
-        .await?;
-        cast_vote.census = census as i64;
+        entry.census += annotations.elegible_voters as i64;
+        entry.cast_votes += annotations.casted_ballots as i64;
     }
 
-    Ok(cast_votes)
-}
-
-#[instrument(skip_all, err)]
-pub async fn get_eligible_voters(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    area_id: &str,
-    election_alias: &str,
-) -> Result<u64> {
-    let realm = get_event_realm(tenant_id, election_event_id);
-
-    let (_users, census) = list_users(
-        &hasura_transaction,
-        &keycloak_transaction,
-        ListUsersFilter {
-            tenant_id: tenant_id.to_string(),
-            election_event_id: Some(election_event_id.to_string()),
-            election_id: Some(election_id.to_string()),
-            area_id: Some(area_id.to_string()),
-            realm: realm.clone(),
-            search: None,
-            first_name: None,
-            last_name: None,
-            username: None,
-            email: None,
-            limit: Some(1),
-            offset: None,
-            user_ids: None,
-            attributes: None,
-            enabled: Some(true),
-            email_verified: None,
-            sort: None,
-            has_voted: None,
-            authorized_to_election_alias: Some(election_alias.to_string()),
-        },
-    )
-    .await?;
-    Ok(census as u64)
+    Ok(cast_votes_map.into_values().collect())
 }
 
 #[instrument(skip_all, err)]
@@ -626,7 +518,8 @@ pub async fn upsert_ballots_messages(
         "missing_ballots_batches num: {}",
         missing_ballots_batches.len()
     );
-    if missing_ballots_batches.len() > 0 {
+
+    let tally_session_contests_updated = if missing_ballots_batches.len() > 0 {
         insert_ballots_messages(
             hasura_transaction,
             keycloak_transaction,
@@ -637,9 +530,12 @@ pub async fn upsert_ballots_messages(
             missing_ballots_batches.clone(),
             contest_encryption_policy,
         )
-        .await?;
-    }
-    Ok(missing_ballots_batches)
+        .await?
+    } else {
+        vec![]
+    };
+
+    Ok(tally_session_contests_updated)
 }
 
 fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> Result<i64> {
@@ -840,6 +736,9 @@ async fn map_plaintext_data(
     .await?;
 
     if !new_ballots_messages.is_empty() {
+        update_tally_session_contests_annotations(hasura_transaction, &new_ballots_messages)
+            .await?;
+
         event!(
             Level::INFO,
             "Ballots messages inserted: {} skipping iteration",
@@ -947,7 +846,6 @@ async fn map_plaintext_data(
         .get_contest_encryption_policy();
     let plaintexts_data: Vec<AreaContestDataType> = process_plaintexts(
         hasura_transaction,
-        keycloak_transaction,
         relevant_plaintexts,
         ballot_styles,
         tally_session_contest.clone(),
@@ -960,13 +858,7 @@ async fn map_plaintext_data(
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
     let tally_sheets = clean_tally_sheets(&tally_sheet_rows, &plaintexts_data)?;
 
-    let cast_votes_count = count_cast_votes_election_with_census(
-        hasura_transaction,
-        keycloak_transaction,
-        &tenant_id,
-        &election_event_id,
-    )
-    .await?;
+    let cast_votes_count = count_cast_votes_election_with_census(&tally_session_contest).await?;
     Ok(Some((
         plaintexts_data,
         newest_message_id,

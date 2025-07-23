@@ -106,10 +106,11 @@ async fn get_area_ids(
 
 // Paginate users
 #[instrument(skip(keycloak_transaction), err)]
-pub async fn list_keycloak_enabled_users_by_area_id(
+pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
+    election_alias: &str,
     output_file: &PathBuf,
 ) -> Result<()> {
     // COPY does not support parameters so we have to add them using format
@@ -119,17 +120,17 @@ pub async fn list_keycloak_enabled_users_by_area_id(
             u.id
         FROM
             user_entity AS u
-        INNER JOIN
-            realm AS ra ON ra.id = u.realm_id
-        INNER JOIN 
-            user_attribute AS area_attr ON u.id = area_attr.user_id
+        JOIN
+            realm ra ON u.realm_id = ra.id
+        LEFT JOIN
+            user_attribute ua_area ON u.id = ua_area.user_id AND ua_area.name = '{AREA_ID_ATTR_NAME}'
+        LEFT JOIN
+            user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
         WHERE
-            ra.name = '{realm}' AND 
+            ra.name = '{realm}' AND
             u.enabled IS TRUE AND
-            (
-                area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-                area_attr.value = '{area_id}'
-            )
+            ua_area.value = '{area_id}' AND
+            (ua_elections.value = '{election_alias}' OR ua_elections.value IS NULL)
         GROUP BY
             u.id
         ORDER BY
@@ -137,7 +138,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
     "#
     );
 
-    let mut tokio_temp_file = File::create(output_file)
+    let tokio_temp_file = File::create(output_file)
         .await
         .expect("Could not create/open temporary file for tokio");
 
@@ -158,7 +159,7 @@ pub async fn list_keycloak_enabled_users_by_area_id(
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
-    debug!("bytes_copied: {bytes_copied}");
+    info!("voters bytes_copied: {bytes_copied}");
 
     writer.flush().await?;
 
