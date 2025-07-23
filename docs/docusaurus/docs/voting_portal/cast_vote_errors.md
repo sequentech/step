@@ -25,6 +25,7 @@ This document provides a comprehensive overview of all error cases where `setErr
 
 **Triggering Functions/Queries**:
 - `ReviewScreen.onError()` - When GraphQL query `GET_ELECTIONS` fails without network error (e.g., GraphQL errors)
+- `useTryInsertCastVote()` - When `INSERT_CAST_VOTE` mutation returns errors in result.errors
 
 **Possible Reasons**:
 - GraphQL query syntax errors
@@ -39,8 +40,7 @@ This document provides a comprehensive overview of all error cases where `setErr
 **Translation**: "There was an unknown error while casting the vote. Please try again later or contact support for assistance."
 
 **Triggering Functions/Queries**:
-- `useTryInsertCastVote()` - When `INSERT_CAST_VOTE` mutation returns errors in result.errors
-- `useTryInsertCastVote()` - Generic fallback error when other specific error conditions don't match
+- `useTryInsertCastVote()` - Generic fallback error when other specific error conditions don't match, (see 3. More specific Cast Vote Error Codes).
 
 **Possible Reasons**:
 - General mutation execution failure
@@ -72,7 +72,80 @@ This document provides a comprehensive overview of all error cases where `setErr
 - Database internal errors
 - Memory or resource exhaustion on server
 
-### 3. Authentication and Session Errors
+
+### 3. More specific Cast Vote Error Codes
+
+The system also handles specific GraphQL error codes with dynamic error messages in the format `CAST_VOTE_${errorCode}`:
+
+**Triggering Functions/Queries**:
+- `useTryInsertCastVote()` - When GraphQL error has specific error code in extensions
+
+**Common Error Codes and Reasons**:
+- `CAST_VOTE_Unauthorized` - User not authorized to vote
+- `CAST_VOTE_ElectionEventNotFound` - Election event doesn't exist
+- `CAST_VOTE_CheckStatusFailed` - Election closed or outside voting period
+- `CAST_VOTE_InsertFailedExceedsAllowedRevotes` - Exceeded revote limits
+- `CAST_VOTE_BallotIdMismatch` - Ballot ID doesn't match cast vote
+- 
+
+
+### 4. Ballot Data Processing Errors
+
+#### PARSE_BALLOT_DATA_ERROR
+**Translation**: "There was an error parsing the ballot data. Please try again later or contact support for assistance."
+
+**Triggering Functions/Queries**:
+- `ReviewScreen.getBallotDataFromSessionStorage()` - When `JSON.parse()` fails on stored session data
+
+**Possible Reasons**:
+- Corrupted session storage data
+- Invalid JSON format in stored data
+- Data tampering or modification
+- Encoding/decoding issues
+- Browser storage corruption
+
+#### NOT_VALID_BALLOT_DATA_ERROR
+**Translation**: "Ballot data is not valid. Please try again later or contact support for assistance."
+
+**Triggering Functions/Queries**:
+- `ReviewScreen.getBallotDataFromSessionStorage()` - When parsed ballot data is missing required fields (ballotId, electionId, ballot)
+
+**Possible Reasons**:
+- Incomplete ballot data stored
+- Data structure changes between versions
+- Required fields missing from stored data
+- Data corruption during storage/retrieval
+- Programming errors in data structure
+
+#### TO_HASHABLE_BALLOT_ERROR
+**Translation**: "Error converting to hashable ballot. Please try again later or contact support for assistance."
+
+**Triggering Functions/Queries**:
+- `ActionButtons.castBallotAction()` - When `toHashableBallot()` or `toHashableMultiBallot()` throws an exception. This is a generic fallback error when other specific error conditions don't match (see 6. More specific ballot Error Types).
+
+**Possible Reasons**:
+- Invalid ballot structure for hashing
+- Missing required ballot fields
+- Ballot data format incompatibility
+- Cryptographic processing errors
+- Contest selection validation failures
+
+### 6. More specific ballot Error Types
+
+#### Dynamic Ballot Errors
+**Triggering Functions/Queries**:
+- `ActionButtons.castBallotAction()` - When ballot service throws `IBallotError` with specific error_type
+
+**Translation**: Uses the error_type from the ballot error directly
+
+**Possible Reasons**:
+- Ballot validation failures
+- Contest selection errors
+- Write-in candidate issues
+- Ballot structure problems
+- Encoding/decoding errors
+
+### 7. Authentication and Session Errors
 
 #### REAUTH_FAILED
 **Translation**: "Authentication failed. Please try again or contact support for assistance."
@@ -113,75 +186,6 @@ This document provides a comprehensive overview of all error cases where `setErr
 - Browser security settings blocking storage
 - Storage corruption or unavailability
 
-### 4. Ballot Data Processing Errors
-
-#### PARSE_BALLOT_DATA_ERROR
-**Translation**: "There was an error parsing the ballot data. Please try again later or contact support for assistance."
-
-**Triggering Functions/Queries**:
-- `ReviewScreen.getBallotDataFromSessionStorage()` - When `JSON.parse()` fails on stored session data
-
-**Possible Reasons**:
-- Corrupted session storage data
-- Invalid JSON format in stored data
-- Data tampering or modification
-- Encoding/decoding issues
-- Browser storage corruption
-
-#### NOT_VALID_BALLOT_DATA_ERROR
-**Translation**: "Ballot data is not valid. Please try again later or contact support for assistance."
-
-**Triggering Functions/Queries**:
-- `ReviewScreen.getBallotDataFromSessionStorage()` - When parsed ballot data is missing required fields (ballotId, electionId, ballot)
-
-**Possible Reasons**:
-- Incomplete ballot data stored
-- Data structure changes between versions
-- Required fields missing from stored data
-- Data corruption during storage/retrieval
-- Programming errors in data structure
-
-#### TO_HASHABLE_BALLOT_ERROR
-**Translation**: "Error converting to hashable ballot. Please try again later or contact support for assistance."
-
-**Triggering Functions/Queries**:
-- `ActionButtons.castBallotAction()` - When `toHashableBallot()` or `toHashableMultiBallot()` throws an exception
-
-**Possible Reasons**:
-- Invalid ballot structure for hashing
-- Missing required ballot fields
-- Ballot data format incompatibility
-- Cryptographic processing errors
-- Contest selection validation failures
-
-### 5. Specific Cast Vote Error Codes
-
-The system also handles specific GraphQL error codes with dynamic error messages in the format `CAST_VOTE_${errorCode}`:
-
-**Triggering Functions/Queries**:
-- `useTryInsertCastVote()` - When GraphQL error has specific error code in extensions
-
-**Common Error Codes and Reasons**:
-- `CAST_VOTE_Unauthorized` - User not authorized to vote
-- `CAST_VOTE_ElectionEventNotFound` - Election event doesn't exist
-- `CAST_VOTE_CheckStatusFailed` - Election closed or outside voting period
-- `CAST_VOTE_InsertFailedExceedsAllowedRevotes` - Exceeded revote limits
-- `CAST_VOTE_BallotIdMismatch` - Ballot ID doesn't match cast vote
-
-### 6. Ballot Error Types
-
-#### Dynamic Ballot Errors
-**Triggering Functions/Queries**:
-- `ActionButtons.castBallotAction()` - When ballot service throws `IBallotError` with specific error_type
-
-**Translation**: Uses the error_type from the ballot error directly
-
-**Possible Reasons**:
-- Ballot validation failures
-- Contest selection errors
-- Write-in candidate issues
-- Ballot structure problems
-- Encoding/decoding errors
 
 ## Error Handling Flow
 

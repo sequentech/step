@@ -245,7 +245,7 @@ const useTryInsertCastVote = () => {
 
             if (result.errors) {
                 console.log(result.errors.map((e) => e.message))
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`))
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.UNABLE_TO_FETCH_DATA}`))
                 return false
             }
 
