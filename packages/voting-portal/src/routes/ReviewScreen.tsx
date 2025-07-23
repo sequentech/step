@@ -295,6 +295,7 @@ interface ActionButtonProps {
     ballotId: string
     setErrorMsg: (msg: CastBallotsErrorType) => void
     isGoldenPolicy: boolean
+    isMultiContest: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -305,6 +306,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     ballotId,
     setErrorMsg,
     isGoldenPolicy,
+    isMultiContest,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -386,10 +388,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 return submit(null, {method: "post"})
             }
         }
-
-        const isMultiContest =
-            auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
-            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
         let hashableBallot: IHashableSingleBallot | IHashableMultiBallot | undefined
         try {
@@ -813,6 +811,7 @@ export const ReviewScreen: React.FC = () => {
                     ballotId={ballotId ?? ""}
                     setErrorMsg={setErrorMsg}
                     isGoldenPolicy={isGoldenPolicy ?? false}
+                    isMultiContest={isMultiContest}
                 />
             )}
         </PageLimit>
