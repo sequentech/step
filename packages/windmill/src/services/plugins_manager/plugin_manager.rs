@@ -97,9 +97,9 @@ impl PluginManager {
         expected_result: Vec<HookValue>,
     ) -> Result<Vec<Vec<HookValue>>> {
         let plugin_names = self
-            .hooks
-            .get(hook)
-            .context(anyhow!("Hook {hook} not registered by any plugin"))?;
+        .hooks
+        .get(hook)
+        .context(anyhow!("Hook {hook} not registered by any plugin"))?;
 
         let mut tasks = Vec::new();
 
@@ -120,12 +120,12 @@ impl PluginManager {
             let task = tokio::spawn(async move {
                 let results = plugin_arc_clone
                     .call_hook(&hook_clone, args_clone, expected_result_clone)
-                    .await
-                    .map_err(|e| {
-                        anyhow!(
+                .await
+                .map_err(|e| {
+                    anyhow!(
                             "Failed to call hook {hook_clone} in plugin {plugin_name_clone}: {e}",
-                        )
-                    })?;
+                    )
+                })?;
                 Ok(results)
             });
             tasks.push(task);

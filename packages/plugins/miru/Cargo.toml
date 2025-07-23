@@ -14,6 +14,8 @@ wit-bindgen-rt = { version = "0.42.1", features = ["bitflags"] }
 serde_json = "1.0.105"
 serde = "1.0.152"
 
+sequent-core = { path = "../../sequent-core", default-features = false, features = [] }
+
 [package.metadata.component]
 package = "plugins-manager:miru"
 
@@ -23,3 +25,5 @@ path = "./wit/world.wit"
 [package.metadata.component.target.dependencies]
 "plugins-manager:transactions-manager" = { path = "../../sequent-core/src/plugins_wit/transaction/transaction-world.wit" }
 "plugins-manager:common" = { path = "../../sequent-core/src/plugins_wit/plugin/plugin-world.wit" }
+"plugins-manager:jwt" = { path = "../../sequent-core/src/plugins_wit/jwt/jwt-world.wit" }
+"wasi:cli" = { version = "0.2.0" }

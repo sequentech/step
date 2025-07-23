@@ -1,0 +1,13 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package plugins-manager:jwt;
+
+
+interface authorization {
+    authorize: func(claims:string, allow-super-admin-auth:bool, tenant-id-opt: option<string>, permissions:list<string>) -> result<_, string>;
+}
+
+world jwt {
+    import authorization;
+}

@@ -5,18 +5,21 @@ use crate::services::plugins_manager::plugin_db_manager::{
     PluginDbManager, PluginTransactionsManager,
 };
 use anyhow::{anyhow, Context, Result};
-use sequent_core::plugins_wit::lib::plugin_bindings::{
+use lapin::auth;
+use sequent_core::{plugins_wit::lib::plugin_bindings::{
     plugins_manager::common::types::{Manifest, PluginRoute},
     Plugin as PluginInterface,
-};
+}, services::{authorization::authorize, jwt::JwtClaims}, types::permissions::Permissions};
 use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::
 transactions_manager::transaction::{add_to_linker as add_transaction_linker};
-use core::option::Option::None;
+use core::{option::Option::None, result::Result::Err};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
+use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, TypedFunc, Val};
 use wasmtime::{Engine, Store};
 use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
+use sequent_core::plugins_wit::lib::authorization_bindings::plugins_manager::jwt::authorization::{Host as HostAuth, add_to_linker as add_auth_to_linker};
+use std::str::FromStr;
 
 /// Represents a value that can be passed to or returned from a plugin hook.
 #[derive(Debug, Clone)]
@@ -25,6 +28,7 @@ pub enum HookValue {
     U32(u32),
     String(String),
     Bool(bool),
+    Result(core::result::Result<Option<Box<HookValue>>, Option<Box<HookValue>>>),
 }
 
 impl From<i32> for HookValue {
@@ -52,15 +56,27 @@ impl HookValue {
             HookValue::U32(v) => Val::U32(*v),
             HookValue::String(v) => Val::String(v.clone()),
             HookValue::Bool(v) => Val::Bool(*v),
+            HookValue::Result(Ok(opt)) => Val::Result(Ok(opt.as_ref().map(|v| Box::new(v.to_val())))),
+            HookValue::Result(Err(opt)) => Val::Result(Err(opt.as_ref().map(|v| Box::new(v.to_val())))),
         }
     }
 
     pub fn from_val(val: Val) -> Result<Self, anyhow::Error> {
+        println!("Converting Val to HookValue: {:?}", val);
         Ok(match val {
             Val::S32(v) => HookValue::S32(v),
             Val::U32(v) => HookValue::U32(v),
-            Val::String(s) => HookValue::String(s),
+            Val::String(s) => {
+                println!("Converting Val::String to HookValue::String: {:?}", s);
+                HookValue::String(s)
+            },
             Val::Bool(b) => HookValue::Bool(b),
+            Val::Result(Ok(Some(v))) => HookValue::Result(Ok(Some(Box::new(HookValue::from_val(*v)?)))),
+            Val::Result(Ok(None)) => HookValue::Result(Ok(None)),
+            Val::Result(Err(Some(err_box))) => {
+                let err_val = *err_box;
+                HookValue::Result(Err(Some(Box::new(HookValue::from_val(err_val)?))))
+            },
             _ => return Err(anyhow::anyhow!("Unsupported Val type: {:?}", val)),
         })
     }
@@ -79,11 +95,21 @@ impl HookValue {
             _ => None,
         }
     }
+
+    pub fn as_results(&self) -> core::result::Result<Option<Box<HookValue>>, Option<Box<HookValue>>> {
+        match self {
+            HookValue::Result(Ok(Some(v))) => Ok(Some(v.clone())),
+            HookValue::Result(Err(Some(v))) => Err(Some(v.clone())),
+            _ => Ok(None),
+        }
+    }
 }
+
 pub struct PluginStore {
     pub wasi: WasiCtx,
     pub resource_table: ResourceTable,
     pub transactions_manager: PluginTransactionsManager,
+    pub plugin_auth: PluginAuth,
 }
 
 impl WasiView for PluginStore {
@@ -130,6 +156,7 @@ impl Plugin {
             resource_table: ResourceTable::new(),
             wasi: wasi,
             transactions_manager,
+            plugin_auth: PluginAuth::new(),
         };
 
         let mut store = Store::new(engine, plugin_store);
@@ -137,6 +164,7 @@ impl Plugin {
         add_transaction_linker(&mut linker, |s: &mut PluginStore| {
             &mut s.transactions_manager
         })?;
+        add_auth_to_linker(&mut linker, |store: &mut PluginStore| {&mut store.plugin_auth})?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 
@@ -193,7 +221,7 @@ impl Plugin {
             .context(anyhow!("Function {hook} not found in instance"))?;
 
         let wasm_args: Vec<_> = args.into_iter().map(|arg| arg.to_val()).collect();
-        let mut results: Vec<Val> = expected_result
+        let mut results : Vec<Val> = expected_result
             .iter()
             .map(|expected| expected.to_val()) // These are placeholders, their *type* is important.
             .collect();
@@ -208,5 +236,54 @@ impl Plugin {
             .into_iter()
             .map(HookValue::from_val)
             .collect::<Result<Vec<_>>>()
+    }
+}
+
+
+ struct PluginAuth;
+
+ impl PluginAuth {
+    pub fn new() -> Self {
+        PluginAuth
+    }
+}
+
+impl HostAuth for PluginAuth {
+    async fn authorize(&mut self,
+        claims: String,
+        allow_super_admin_auth:bool,
+        tenant_id_opt:Option<String>,
+        permissions:Vec<String>) -> Result<(),String> {
+
+            let claims: JwtClaims = serde_json::from_str(&claims)
+                .map_err(|e| format!("Failed to parse claims: {e}"))?;
+
+            let parsed_permissions: Vec<Permissions> = permissions
+            .into_iter()
+            .filter_map(|p_str| {
+                match Permissions::from_str(&p_str) {
+                    Ok(perm_enum) => Some(perm_enum),
+                    Err(e) => {
+                        eprintln!("Warning: Failed to parse permission string '{}': {}", p_str, e);
+                        None
+                    }
+                }
+            })
+            .collect();
+        
+        match authorize(
+            &claims,
+            allow_super_admin_auth,
+            tenant_id_opt,
+            parsed_permissions,
+        ){
+        Ok(_) => {
+            Ok(())
+        }
+        Err((_status, message)) => {
+            Err(format!("Authorization failed: {}", message))
+        }
+    }
+    // Ok(())
     }
 }
