@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.7.0">
 <title data-rh="true">Cast Vote Errors in ReviewScreen.tsx | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/pr-preview/pr-1911/docs/voting_portal/cast_vote_errors"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Cast Vote Errors in ReviewScreen.tsx | Sequent Online Voting"><meta data-rh="true" name="description" content="This document provides a comprehensive overview of all error cases where setErrorMsg is used in the ReviewScreen.tsx component, explaining the possible reasons for each error and the functions/queries that could trigger them."><meta data-rh="true" property="og:description" content="This document provides a comprehensive overview of all error cases where setErrorMsg is used in the ReviewScreen.tsx component, explaining the possible reasons for each error and the functions/queries that could trigger them."><link data-rh="true" rel="icon" href="/pr-preview/pr-1911/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/pr-preview/pr-1911/docs/voting_portal/cast_vote_errors"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/pr-preview/pr-1911/docs/voting_portal/cast_vote_errors" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/pr-preview/pr-1911/docs/voting_portal/cast_vote_errors" hreflang="x-default"><link rel="stylesheet" href="/pr-preview/pr-1911/assets/css/styles.3daf8c7e.css">
-<script src="/pr-preview/pr-1911/assets/js/runtime~main.085bb44b.js" defer="defer"></script>
+<script src="/pr-preview/pr-1911/assets/js/runtime~main.0c17698e.js" defer="defer"></script>
 <script src="/pr-preview/pr-1911/assets/js/main.84f69814.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -32,6 +32,7 @@
 <p><strong>Triggering Functions/Queries</strong>:</p>
 <ul>
 <li><code>ReviewScreen.onError()</code> - When GraphQL query <code>GET_ELECTIONS</code> fails without network error (e.g., GraphQL errors)</li>
+<li><code>useTryInsertCastVote()</code> - When <code>INSERT_CAST_VOTE</code> mutation returns errors in result.errors</li>
 </ul>
 <p><strong>Possible Reasons</strong>:</p>
 <ul>
@@ -46,8 +47,7 @@
 <p><strong>Translation</strong>: &quot;There was an unknown error while casting the vote. Please try again later or contact support for assistance.&quot;</p>
 <p><strong>Triggering Functions/Queries</strong>:</p>
 <ul>
-<li><code>useTryInsertCastVote()</code> - When <code>INSERT_CAST_VOTE</code> mutation returns errors in result.errors</li>
-<li><code>useTryInsertCastVote()</code> - Generic fallback error when other specific error conditions don&#x27;t match</li>
+<li><code>useTryInsertCastVote()</code> - Generic fallback error when other specific error conditions don&#x27;t match, (see 3. More specific Cast Vote Error Codes).</li>
 </ul>
 <p><strong>Possible Reasons</strong>:</p>
 <ul>
@@ -82,7 +82,80 @@
 <li>Database internal errors</li>
 <li>Memory or resource exhaustion on server</li>
 </ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="3-authentication-and-session-errors">3. Authentication and Session Errors<a href="#3-authentication-and-session-errors" class="hash-link" aria-label="Direct link to 3. Authentication and Session Errors" title="Direct link to 3. Authentication and Session Errors">​</a></h3>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="3-more-specific-cast-vote-error-codes">3. More specific Cast Vote Error Codes<a href="#3-more-specific-cast-vote-error-codes" class="hash-link" aria-label="Direct link to 3. More specific Cast Vote Error Codes" title="Direct link to 3. More specific Cast Vote Error Codes">​</a></h3>
+<p>The system also handles specific GraphQL error codes with dynamic error messages in the format <code>CAST_VOTE_${errorCode}</code>:</p>
+<p><strong>Triggering Functions/Queries</strong>:</p>
+<ul>
+<li><code>useTryInsertCastVote()</code> - When GraphQL error has specific error code in extensions</li>
+</ul>
+<p><strong>Common Error Codes and Reasons</strong>:</p>
+<ul>
+<li><code>CAST_VOTE_Unauthorized</code> - User not authorized to vote</li>
+<li><code>CAST_VOTE_ElectionEventNotFound</code> - Election event doesn&#x27;t exist</li>
+<li><code>CAST_VOTE_CheckStatusFailed</code> - Election closed or outside voting period</li>
+<li><code>CAST_VOTE_InsertFailedExceedsAllowedRevotes</code> - Exceeded revote limits</li>
+<li><code>CAST_VOTE_BallotIdMismatch</code> - Ballot ID doesn&#x27;t match cast vote</li>
+<li></li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="4-ballot-data-processing-errors">4. Ballot Data Processing Errors<a href="#4-ballot-data-processing-errors" class="hash-link" aria-label="Direct link to 4. Ballot Data Processing Errors" title="Direct link to 4. Ballot Data Processing Errors">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="parse_ballot_data_error">PARSE_BALLOT_DATA_ERROR<a href="#parse_ballot_data_error" class="hash-link" aria-label="Direct link to PARSE_BALLOT_DATA_ERROR" title="Direct link to PARSE_BALLOT_DATA_ERROR">​</a></h4>
+<p><strong>Translation</strong>: &quot;There was an error parsing the ballot data. Please try again later or contact support for assistance.&quot;</p>
+<p><strong>Triggering Functions/Queries</strong>:</p>
+<ul>
+<li><code>ReviewScreen.getBallotDataFromSessionStorage()</code> - When <code>JSON.parse()</code> fails on stored session data</li>
+</ul>
+<p><strong>Possible Reasons</strong>:</p>
+<ul>
+<li>Corrupted session storage data</li>
+<li>Invalid JSON format in stored data</li>
+<li>Data tampering or modification</li>
+<li>Encoding/decoding issues</li>
+<li>Browser storage corruption</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="not_valid_ballot_data_error">NOT_VALID_BALLOT_DATA_ERROR<a href="#not_valid_ballot_data_error" class="hash-link" aria-label="Direct link to NOT_VALID_BALLOT_DATA_ERROR" title="Direct link to NOT_VALID_BALLOT_DATA_ERROR">​</a></h4>
+<p><strong>Translation</strong>: &quot;Ballot data is not valid. Please try again later or contact support for assistance.&quot;</p>
+<p><strong>Triggering Functions/Queries</strong>:</p>
+<ul>
+<li><code>ReviewScreen.getBallotDataFromSessionStorage()</code> - When parsed ballot data is missing required fields (ballotId, electionId, ballot)</li>
+</ul>
+<p><strong>Possible Reasons</strong>:</p>
+<ul>
+<li>Incomplete ballot data stored</li>
+<li>Data structure changes between versions</li>
+<li>Required fields missing from stored data</li>
+<li>Data corruption during storage/retrieval</li>
+<li>Programming errors in data structure</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="to_hashable_ballot_error">TO_HASHABLE_BALLOT_ERROR<a href="#to_hashable_ballot_error" class="hash-link" aria-label="Direct link to TO_HASHABLE_BALLOT_ERROR" title="Direct link to TO_HASHABLE_BALLOT_ERROR">​</a></h4>
+<p><strong>Translation</strong>: &quot;Error converting to hashable ballot. Please try again later or contact support for assistance.&quot;</p>
+<p><strong>Triggering Functions/Queries</strong>:</p>
+<ul>
+<li><code>ActionButtons.castBallotAction()</code> - When <code>toHashableBallot()</code> or <code>toHashableMultiBallot()</code> throws an exception. This is a generic fallback error when other specific error conditions don&#x27;t match (see 6. More specific ballot Error Types).</li>
+</ul>
+<p><strong>Possible Reasons</strong>:</p>
+<ul>
+<li>Invalid ballot structure for hashing</li>
+<li>Missing required ballot fields</li>
+<li>Ballot data format incompatibility</li>
+<li>Cryptographic processing errors</li>
+<li>Contest selection validation failures</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="6-more-specific-ballot-error-types">6. More specific ballot Error Types<a href="#6-more-specific-ballot-error-types" class="hash-link" aria-label="Direct link to 6. More specific ballot Error Types" title="Direct link to 6. More specific ballot Error Types">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="dynamic-ballot-errors">Dynamic Ballot Errors<a href="#dynamic-ballot-errors" class="hash-link" aria-label="Direct link to Dynamic Ballot Errors" title="Direct link to Dynamic Ballot Errors">​</a></h4>
+<p><strong>Triggering Functions/Queries</strong>:</p>
+<ul>
+<li><code>ActionButtons.castBallotAction()</code> - When ballot service throws <code>IBallotError</code> with specific error_type</li>
+</ul>
+<p><strong>Translation</strong>: Uses the error_type from the ballot error directly</p>
+<p><strong>Possible Reasons</strong>:</p>
+<ul>
+<li>Ballot validation failures</li>
+<li>Contest selection errors</li>
+<li>Write-in candidate issues</li>
+<li>Ballot structure problems</li>
+<li>Encoding/decoding errors</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="7-authentication-and-session-errors">7. Authentication and Session Errors<a href="#7-authentication-and-session-errors" class="hash-link" aria-label="Direct link to 7. Authentication and Session Errors" title="Direct link to 7. Authentication and Session Errors">​</a></h3>
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="reauth_failed">REAUTH_FAILED<a href="#reauth_failed" class="hash-link" aria-label="Direct link to REAUTH_FAILED" title="Direct link to REAUTH_FAILED">​</a></h4>
 <p><strong>Translation</strong>: &quot;Authentication failed. Please try again or contact support for assistance.&quot;</p>
 <p><strong>Triggering Functions/Queries</strong>:</p>
@@ -125,78 +198,6 @@
 <li>Browser security settings blocking storage</li>
 <li>Storage corruption or unavailability</li>
 </ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="4-ballot-data-processing-errors">4. Ballot Data Processing Errors<a href="#4-ballot-data-processing-errors" class="hash-link" aria-label="Direct link to 4. Ballot Data Processing Errors" title="Direct link to 4. Ballot Data Processing Errors">​</a></h3>
-<h4 class="anchor anchorWithStickyNavbar_LWe7" id="parse_ballot_data_error">PARSE_BALLOT_DATA_ERROR<a href="#parse_ballot_data_error" class="hash-link" aria-label="Direct link to PARSE_BALLOT_DATA_ERROR" title="Direct link to PARSE_BALLOT_DATA_ERROR">​</a></h4>
-<p><strong>Translation</strong>: &quot;There was an error parsing the ballot data. Please try again later or contact support for assistance.&quot;</p>
-<p><strong>Triggering Functions/Queries</strong>:</p>
-<ul>
-<li><code>ReviewScreen.getBallotDataFromSessionStorage()</code> - When <code>JSON.parse()</code> fails on stored session data</li>
-</ul>
-<p><strong>Possible Reasons</strong>:</p>
-<ul>
-<li>Corrupted session storage data</li>
-<li>Invalid JSON format in stored data</li>
-<li>Data tampering or modification</li>
-<li>Encoding/decoding issues</li>
-<li>Browser storage corruption</li>
-</ul>
-<h4 class="anchor anchorWithStickyNavbar_LWe7" id="not_valid_ballot_data_error">NOT_VALID_BALLOT_DATA_ERROR<a href="#not_valid_ballot_data_error" class="hash-link" aria-label="Direct link to NOT_VALID_BALLOT_DATA_ERROR" title="Direct link to NOT_VALID_BALLOT_DATA_ERROR">​</a></h4>
-<p><strong>Translation</strong>: &quot;Ballot data is not valid. Please try again later or contact support for assistance.&quot;</p>
-<p><strong>Triggering Functions/Queries</strong>:</p>
-<ul>
-<li><code>ReviewScreen.getBallotDataFromSessionStorage()</code> - When parsed ballot data is missing required fields (ballotId, electionId, ballot)</li>
-</ul>
-<p><strong>Possible Reasons</strong>:</p>
-<ul>
-<li>Incomplete ballot data stored</li>
-<li>Data structure changes between versions</li>
-<li>Required fields missing from stored data</li>
-<li>Data corruption during storage/retrieval</li>
-<li>Programming errors in data structure</li>
-</ul>
-<h4 class="anchor anchorWithStickyNavbar_LWe7" id="to_hashable_ballot_error">TO_HASHABLE_BALLOT_ERROR<a href="#to_hashable_ballot_error" class="hash-link" aria-label="Direct link to TO_HASHABLE_BALLOT_ERROR" title="Direct link to TO_HASHABLE_BALLOT_ERROR">​</a></h4>
-<p><strong>Translation</strong>: &quot;Error converting to hashable ballot. Please try again later or contact support for assistance.&quot;</p>
-<p><strong>Triggering Functions/Queries</strong>:</p>
-<ul>
-<li><code>ActionButtons.castBallotAction()</code> - When <code>toHashableBallot()</code> or <code>toHashableMultiBallot()</code> throws an exception</li>
-</ul>
-<p><strong>Possible Reasons</strong>:</p>
-<ul>
-<li>Invalid ballot structure for hashing</li>
-<li>Missing required ballot fields</li>
-<li>Ballot data format incompatibility</li>
-<li>Cryptographic processing errors</li>
-<li>Contest selection validation failures</li>
-</ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="5-specific-cast-vote-error-codes">5. Specific Cast Vote Error Codes<a href="#5-specific-cast-vote-error-codes" class="hash-link" aria-label="Direct link to 5. Specific Cast Vote Error Codes" title="Direct link to 5. Specific Cast Vote Error Codes">​</a></h3>
-<p>The system also handles specific GraphQL error codes with dynamic error messages in the format <code>CAST_VOTE_${errorCode}</code>:</p>
-<p><strong>Triggering Functions/Queries</strong>:</p>
-<ul>
-<li><code>useTryInsertCastVote()</code> - When GraphQL error has specific error code in extensions</li>
-</ul>
-<p><strong>Common Error Codes and Reasons</strong>:</p>
-<ul>
-<li><code>CAST_VOTE_Unauthorized</code> - User not authorized to vote</li>
-<li><code>CAST_VOTE_ElectionEventNotFound</code> - Election event doesn&#x27;t exist</li>
-<li><code>CAST_VOTE_CheckStatusFailed</code> - Election closed or outside voting period</li>
-<li><code>CAST_VOTE_InsertFailedExceedsAllowedRevotes</code> - Exceeded revote limits</li>
-<li><code>CAST_VOTE_BallotIdMismatch</code> - Ballot ID doesn&#x27;t match cast vote</li>
-</ul>
-<h3 class="anchor anchorWithStickyNavbar_LWe7" id="6-ballot-error-types">6. Ballot Error Types<a href="#6-ballot-error-types" class="hash-link" aria-label="Direct link to 6. Ballot Error Types" title="Direct link to 6. Ballot Error Types">​</a></h3>
-<h4 class="anchor anchorWithStickyNavbar_LWe7" id="dynamic-ballot-errors">Dynamic Ballot Errors<a href="#dynamic-ballot-errors" class="hash-link" aria-label="Direct link to Dynamic Ballot Errors" title="Direct link to Dynamic Ballot Errors">​</a></h4>
-<p><strong>Triggering Functions/Queries</strong>:</p>
-<ul>
-<li><code>ActionButtons.castBallotAction()</code> - When ballot service throws <code>IBallotError</code> with specific error_type</li>
-</ul>
-<p><strong>Translation</strong>: Uses the error_type from the ballot error directly</p>
-<p><strong>Possible Reasons</strong>:</p>
-<ul>
-<li>Ballot validation failures</li>
-<li>Contest selection errors</li>
-<li>Write-in candidate issues</li>
-<li>Ballot structure problems</li>
-<li>Encoding/decoding errors</li>
-</ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="error-handling-flow">Error Handling Flow<a href="#error-handling-flow" class="hash-link" aria-label="Direct link to Error Handling Flow" title="Direct link to Error Handling Flow">​</a></h2>
 <ol>
 <li><strong>Network Operations</strong>: Errors from GraphQL queries/mutations are caught and categorized</li>
@@ -220,6 +221,6 @@
 <li><code>packages/voting-portal/src/translations/en.ts</code> - Error message translations</li>
 <li><code>packages/voting-portal/src/queries/InsertCastVote.ts</code> - Cast vote mutation</li>
 <li><code>packages/voting-portal/src/services/VotingPortalError.ts</code> - Error type definitions</li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/docs/docusaurus/docs/voting_portal/cast_vote_errors.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#error-categories" class="table-of-contents__link toc-highlight">Error Categories</a><ul><li><a href="#1-network-and-data-fetching-errors" class="table-of-contents__link toc-highlight">1. Network and Data Fetching Errors</a></li><li><a href="#2-cast-vote-operation-errors" class="table-of-contents__link toc-highlight">2. Cast Vote Operation Errors</a></li><li><a href="#3-authentication-and-session-errors" class="table-of-contents__link toc-highlight">3. Authentication and Session Errors</a></li><li><a href="#4-ballot-data-processing-errors" class="table-of-contents__link toc-highlight">4. Ballot Data Processing Errors</a></li><li><a href="#5-specific-cast-vote-error-codes" class="table-of-contents__link toc-highlight">5. Specific Cast Vote Error Codes</a></li><li><a href="#6-ballot-error-types" class="table-of-contents__link toc-highlight">6. Ballot Error Types</a></li></ul></li><li><a href="#error-handling-flow" class="table-of-contents__link toc-highlight">Error Handling Flow</a></li><li><a href="#debugging-tips" class="table-of-contents__link toc-highlight">Debugging Tips</a></li><li><a href="#related-files" class="table-of-contents__link toc-highlight">Related Files</a></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/docs/docusaurus/docs/voting_portal/cast_vote_errors.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#error-categories" class="table-of-contents__link toc-highlight">Error Categories</a><ul><li><a href="#1-network-and-data-fetching-errors" class="table-of-contents__link toc-highlight">1. Network and Data Fetching Errors</a></li><li><a href="#2-cast-vote-operation-errors" class="table-of-contents__link toc-highlight">2. Cast Vote Operation Errors</a></li><li><a href="#3-more-specific-cast-vote-error-codes" class="table-of-contents__link toc-highlight">3. More specific Cast Vote Error Codes</a></li><li><a href="#4-ballot-data-processing-errors" class="table-of-contents__link toc-highlight">4. Ballot Data Processing Errors</a></li><li><a href="#6-more-specific-ballot-error-types" class="table-of-contents__link toc-highlight">6. More specific ballot Error Types</a></li><li><a href="#7-authentication-and-session-errors" class="table-of-contents__link toc-highlight">7. Authentication and Session Errors</a></li></ul></li><li><a href="#error-handling-flow" class="table-of-contents__link toc-highlight">Error Handling Flow</a></li><li><a href="#debugging-tips" class="table-of-contents__link toc-highlight">Debugging Tips</a></li><li><a href="#related-files" class="table-of-contents__link toc-highlight">Related Files</a></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
 </body>
 </html>
