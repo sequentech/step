@@ -20,6 +20,11 @@ export enum ECastVoteGoldLevelPolicy {
     NO_GOLD_LEVEL = "no-gold-level",
 }
 
+export enum EStartScreenTitlePolicy {
+    ELECTION = "election",
+    ELECTION_EVENT = "election-event",
+}
+
 export interface IScheduledEventDates {
     scheduled_at?: string
     stopped_at?: string

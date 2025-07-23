@@ -5,7 +5,7 @@ import React, {useEffect} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
-import {IElection, stringToHtml, translateElection} from "@sequentech/ui-core"
+import {IElection, stringToHtml, translateElection, EStartScreenTitlePolicy} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -17,6 +17,7 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
+import { selectElectionEventById } from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -88,18 +89,24 @@ const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
+    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     useLanguage({ballotStyle})
 
+    // TODO: Retrieve the real policy
+    const startScreenTitlePolicy = EStartScreenTitlePolicy.ELECTION_EVENT
+    const titleObject = startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT ? electionEvent : election
+
     useEffect(() => {
-        if (!election) {
+        if (!election || !titleObject) {
             navigate(backLink)
         }
     })
 
-    if (!election) {
+    if (!election || !titleObject) {
         return <CircularProgress />
     }
 
@@ -109,11 +116,11 @@ const StartScreen: React.FC = () => {
                 <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{translateElection(election, "name", i18n.language) ?? "-"}</span>
+                <span>{translateElection(titleObject, "name", i18n.language) ?? "-"}</span>
             </StyledTitle>
-            {election.description ? (
+            {titleObject.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
+                    {stringToHtml(translateElection(titleObject, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
