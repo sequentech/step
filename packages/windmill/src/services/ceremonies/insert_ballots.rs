@@ -5,6 +5,7 @@
 use crate::postgres::election::get_elections;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
@@ -103,24 +104,29 @@ pub async fn insert_ballots_messages(
             .collect();
 
     // Collect all futures for parallel execution
-    let mut tasks = Vec::new();
+    let mut tally_session_contests_updated = Vec::with_capacity(tally_session_contests.len());
 
-    for tally_session_contest in tally_session_contests {
-        // Clone necessary variables for each task. Arc::clone increments the ref count.
-        let tenant_id_clone = tenant_id.to_string();
-        let election_event_id_clone = election_event_id.to_string();
-        let board_name_clone = board_name.to_string();
-        let protocol_manager_arc_clone = Arc::clone(&protocol_manager); // Clone the Arc
-        let configuration_clone = configuration.clone(); // Assuming Configuration can be cloned
-        let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
-        let selected_trustees_clone = selected_trustees.clone();
-        let election_ids_alias_clone = election_ids_alias.clone();
-        let contest_encryption_policy_clone = contest_encryption_policy.clone();
-        let realm_clone = realm.clone();
-        let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
+    for tally_session_contest_batch in tally_session_contests.chunks(get_worker_threads()) {
+        let mut tasks = Vec::with_capacity(get_worker_threads());
+        let tally_session_contest_batch = tally_session_contest_batch.to_vec();
 
-        let task = tokio::task::spawn(async move {
-            event!(
+        for tally_session_contest in tally_session_contest_batch {
+            // Clone necessary variables for each task. Arc::clone increments the ref count.
+            let tenant_id_clone = tenant_id.to_string();
+            let election_event_id_clone = election_event_id.to_string();
+            let board_name_clone = board_name.to_string();
+            let protocol_manager_arc_clone = Arc::clone(&protocol_manager); // Clone the Arc
+            let configuration_clone = configuration.clone(); // Assuming Configuration can be cloned
+            let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
+            let selected_trustees_clone = selected_trustees.clone();
+            let election_ids_alias_clone = election_ids_alias.clone();
+            let contest_encryption_policy_clone = contest_encryption_policy.clone();
+            let realm_clone = realm.clone();
+            let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
+
+            let task = tokio::task::spawn_blocking(move || {
+                tokio::runtime::Handle::current().block_on(async move {
+                    event!(
                 Level::INFO,
                 "Inserting Ballots message for election {}, contest {}, area {} and batch num {}",
                 tally_session_contest.election_id,
@@ -129,175 +135,180 @@ pub async fn insert_ballots_messages(
                 tally_session_contest.session_id,
             );
 
-            let mut keycloak_db_client: DbClient = get_keycloak_pool()
-                .await
-                .get()
-                .await
-                .with_context(|| "Error acquiring keycloak connection pool")?;
-            let keycloak_transaction_clone = keycloak_db_client
-                .transaction()
-                .await
-                .with_context(|| "Error acquiring keycloak transaction")?;
-            let mut hasura_db_client: DbClient = get_hasura_pool()
-                .await
-                .get()
-                .await
-                .with_context(|| "Error acquiring hasura connection pool")?;
-            let hasura_transaction_clone = hasura_db_client
-                .transaction()
-                .await
-                .with_context(|| "Error acquiring hasura transaction")?;
+                    let mut keycloak_db_client: DbClient = get_keycloak_pool()
+                        .await
+                        .get()
+                        .await
+                        .with_context(|| "Error acquiring keycloak connection pool")?;
+                    let keycloak_transaction_clone = keycloak_db_client
+                        .transaction()
+                        .await
+                        .with_context(|| "Error acquiring keycloak transaction")?;
+                    let mut hasura_db_client: DbClient = get_hasura_pool()
+                        .await
+                        .get()
+                        .await
+                        .with_context(|| "Error acquiring hasura connection pool")?;
+                    let hasura_transaction_clone = hasura_db_client
+                        .transaction()
+                        .await
+                        .with_context(|| "Error acquiring hasura transaction")?;
 
-            // Create a temporary file (auto-deleted when dropped)
-            let ballots_temp_file = NamedTempFile::new()
-                .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
-            event!(
-                Level::INFO,
-                "Creating temporary file for ballots with path {:?}",
-                ballots_temp_file.path()
-            );
+                    // Create a temporary file (auto-deleted when dropped)
+                    let ballots_temp_file = NamedTempFile::new()
+                        .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
+                    event!(
+                        Level::INFO,
+                        "Creating temporary file for ballots with path {:?}",
+                        ballots_temp_file.path()
+                    );
 
-            find_area_ballots(
-                &hasura_transaction_clone,
-                &tenant_id_clone,
-                &election_event_id_clone,
-                &tally_session_contest.area_id,
-                &tally_session_contest.election_id,
-                &ballots_temp_file.path().to_path_buf(),
-            )
-            .await?;
+                    find_area_ballots(
+                        &hasura_transaction_clone,
+                        &tenant_id_clone,
+                        &election_event_id_clone,
+                        &tally_session_contest.area_id,
+                        &tally_session_contest.election_id,
+                        &ballots_temp_file.path().to_path_buf(),
+                    )
+                    .await?;
 
-            let ballots_temp_file = ballots_temp_file.reopen()?;
+                    let ballots_temp_file = ballots_temp_file.reopen()?;
 
-            // Create a temporary file (auto-deleted when dropped)
-            let users_temp_file = NamedTempFile::new()
-                .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
-            event!(
-                Level::INFO,
-                "Creating temporary file for users with path {:?}",
-                users_temp_file.path()
-            );
+                    // Create a temporary file (auto-deleted when dropped)
+                    let users_temp_file = NamedTempFile::new()
+                        .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
+                    event!(
+                        Level::INFO,
+                        "Creating temporary file for users with path {:?}",
+                        users_temp_file.path()
+                    );
 
-            let election_alias =
-                match election_ids_alias_clone.get(&tally_session_contest.election_id) {
-                    Some(alias) => alias,
-                    None => "",
-                }
-                .to_string();
-
-            list_keycloak_enabled_users_by_area_id_and_authorized_elections(
-                &keycloak_transaction_clone,
-                &realm_clone,
-                &tally_session_contest.area_id,
-                &election_alias,
-                &users_temp_file.path().to_path_buf(),
-            )
-            .await?;
-
-            let users_temp_file = users_temp_file.reopen()?;
-
-            // Use a join function to filter and extract the ballot content
-            let ballots_output_index = 1;
-            let ballots_join_indexes = 0;
-            let users_join_idexes = 0;
-            let contest_id = tally_session_contest.contest_id.clone();
-
-            let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-                merge_join_csv(
-                    &ballots_temp_file,
-                    &users_temp_file,
-                    ballots_join_indexes,
-                    users_join_idexes,
-                    ballots_output_index,
-                )?;
-
-            let ciphertexts = ballot_contents
-                .into_iter()
-                .map(|ballot_str| {
-                    info!("ballot_str: {ballot_str}");
-                    let ciphertext: Ciphertext<RistrettoCtx> =
-                        if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                            == contest_encryption_policy_clone
-                        {
-                            let hashable_multi_ballot: HashableMultiBallot =
-                                deserialize_str(&ballot_str)?;
-
-                            let hashable_multi_ballot_contests = hashable_multi_ballot
-                                .deserialize_contests()
-                                .map_err(|err| anyhow!("{:?}", err))?;
-                            Some(hashable_multi_ballot_contests.ciphertext)
-                        } else {
-                            let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                            let contests = hashable_ballot
-                                .deserialize_contests()
-                                .map_err(|err| anyhow!("{:?}", err))?;
-                            contests
-                                .iter()
-                                .find(|contest| {
-                                    contest.contest_id == contest_id.clone().unwrap_or_default()
-                                })
-                                .map(|contest| contest.ciphertext.clone())
+                    let election_alias =
+                        match election_ids_alias_clone.get(&tally_session_contest.election_id) {
+                            Some(alias) => alias,
+                            None => "",
                         }
-                        .ok_or(anyhow!("Could not get ciphertext"))?;
-                    Ok(ciphertext)
+                        .to_string();
+
+                    list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+                        &keycloak_transaction_clone,
+                        &realm_clone,
+                        &tally_session_contest.area_id,
+                        &election_alias,
+                        &users_temp_file.path().to_path_buf(),
+                    )
+                    .await?;
+
+                    let users_temp_file = users_temp_file.reopen()?;
+
+                    // Use a join function to filter and extract the ballot content
+                    let ballots_output_index = 1;
+                    let ballots_join_indexes = 0;
+                    let users_join_idexes = 0;
+                    let contest_id = tally_session_contest.contest_id.clone();
+
+                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
+                        merge_join_csv(
+                            &ballots_temp_file,
+                            &users_temp_file,
+                            ballots_join_indexes,
+                            users_join_idexes,
+                            ballots_output_index,
+                        )?;
+
+                    let ciphertexts = ballot_contents
+                        .into_iter()
+                        .map(|ballot_str| {
+                            info!("ballot_str: {ballot_str}");
+                            let ciphertext: Ciphertext<RistrettoCtx> =
+                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                    == contest_encryption_policy_clone
+                                {
+                                    let hashable_multi_ballot: HashableMultiBallot =
+                                        deserialize_str(&ballot_str)?;
+
+                                    let hashable_multi_ballot_contests = hashable_multi_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    Some(hashable_multi_ballot_contests.ciphertext)
+                                } else {
+                                    let hashable_ballot: HashableBallot =
+                                        deserialize_str(&ballot_str)?;
+                                    let contests = hashable_ballot
+                                        .deserialize_contests()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    contests
+                                        .iter()
+                                        .find(|contest| {
+                                            contest.contest_id
+                                                == contest_id.clone().unwrap_or_default()
+                                        })
+                                        .map(|contest| contest.ciphertext.clone())
+                                }
+                                .ok_or(anyhow!("Could not get ciphertext"))?;
+                            Ok(ciphertext)
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+
+                    let annotations = TallySessionContestAnnotations {
+                        elegible_voters,
+                        ballots_without_voter,
+                        casted_ballots,
+                    };
+
+                    let annotations = serde_json::to_value(&annotations)?;
+
+                    let updated_tally_session_contest = TallySessionContest {
+                        id: tally_session_contest.id.clone(),
+                        tenant_id: tally_session_contest.tenant_id.clone(),
+                        election_event_id: tally_session_contest.election_event_id.clone(),
+                        area_id: tally_session_contest.area_id.clone(),
+                        contest_id: tally_session_contest.contest_id.clone(),
+                        session_id: tally_session_contest.session_id.clone(),
+                        created_at: tally_session_contest.created_at.clone(),
+                        last_updated_at: tally_session_contest.last_updated_at.clone(),
+                        labels: tally_session_contest.labels.clone(),
+                        annotations: Some(annotations),
+                        tally_session_id: tally_session_contest.tally_session_id.clone(),
+                        election_id: tally_session_contest.election_id.clone(),
+                    };
+
+                    event!(
+                        Level::INFO,
+                        "insertable_ballots len: {:?}",
+                        ciphertexts.len()
+                    );
+
+                    let mut board = get_b3_pgsql_client().await?;
+                    let batch = tally_session_contest.session_id.clone() as BatchNumber;
+                    add_ballots_to_board(
+                        &protocol_manager_arc_clone, // Use the Arc clone here
+                        &mut board,
+                        &board_name_clone,
+                        &board_messages_clone, // Use the cloned board_messages
+                        &configuration_clone,
+                        public_key_hash_clone,
+                        selected_trustees_clone,
+                        ciphertexts,
+                        batch,
+                    )
+                    .await?;
+
+                    Ok(updated_tally_session_contest)
                 })
+            });
+            tasks.push(task);
+        }
+        // Await all tasks and collect results
+        let mut tally_session_contest_to_add: Vec<TallySessionContest> =
+            futures::future::try_join_all(tasks)
+                .await?
+                .into_iter()
                 .collect::<Result<Vec<_>>>()?;
 
-            let annotations = TallySessionContestAnnotations {
-                elegible_voters,
-                ballots_without_voter,
-                casted_ballots,
-            };
-
-            let annotations = serde_json::to_value(&annotations)?;
-
-            let updated_tally_session_contest = TallySessionContest {
-                id: tally_session_contest.id,
-                tenant_id: tally_session_contest.tenant_id,
-                election_event_id: tally_session_contest.election_event_id,
-                area_id: tally_session_contest.area_id,
-                contest_id: tally_session_contest.contest_id.clone(),
-                session_id: tally_session_contest.session_id,
-                created_at: tally_session_contest.created_at,
-                last_updated_at: tally_session_contest.last_updated_at,
-                labels: tally_session_contest.labels,
-                annotations: Some(annotations),
-                tally_session_id: tally_session_contest.tally_session_id,
-                election_id: tally_session_contest.election_id,
-            };
-
-            event!(
-                Level::INFO,
-                "insertable_ballots len: {:?}",
-                ciphertexts.len()
-            );
-
-            let mut board = get_b3_pgsql_client().await?;
-            let batch = tally_session_contest.session_id.clone() as BatchNumber;
-            add_ballots_to_board(
-                &protocol_manager_arc_clone, // Use the Arc clone here
-                &mut board,
-                &board_name_clone,
-                &board_messages_clone, // Use the cloned board_messages
-                &configuration_clone,
-                public_key_hash_clone,
-                selected_trustees_clone,
-                ciphertexts,
-                batch,
-            )
-            .await?;
-
-            Ok(updated_tally_session_contest)
-        });
-        tasks.push(task);
+        tally_session_contests_updated.append(&mut tally_session_contest_to_add);
     }
-
-    // Await all tasks and collect results
-    let tally_session_contests_updated: Vec<TallySessionContest> =
-        futures::future::try_join_all(tasks)
-            .await?
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
 
     Ok(tally_session_contests_updated)
 }
