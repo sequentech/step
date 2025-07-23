@@ -13,4 +13,4 @@ pub mod wasm_plaintext;
 pub mod areas;
 
 #[cfg(feature = "wasmtest")]
-pub mod test;
+pub mod wasm;

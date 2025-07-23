@@ -148,6 +148,12 @@ const spanishTranslation: TranslationType = {
                     "Hubo un error al serializar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
                 UNKNOWN_ERROR:
                     "Hubo un error. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                REAUTH_FAILED:
+                    "La autenticación ha fallado. Por favor, inténtalo de nuevo o contacta con el soporte para obtener ayuda.",
+                SESSION_EXPIRED:
+                    "Tu sesión ha expirado. Por favor, intenta de nuevo desde el principio.",
+                CAST_VOTE_BallotIdMismatch:
+                    "El identificador de la papeleta no coincide con el del voto emitido.",
             },
         },
         confirmationScreen: {

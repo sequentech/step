@@ -239,6 +239,11 @@ pub async fn insert_cast_vote(
                 ErrorCode::UnknownError.to_string().as_str(),
                 ErrorCode::UnknownError,
             ),
+            CastVoteError::BallotIdMismatch(msg) => ErrorResponse::new(
+                Status::BadRequest,
+                &msg,
+                ErrorCode::BallotIdMismatch,
+            ),
         }
     })?;
 
