@@ -142,6 +142,10 @@ const englishTranslation = {
                     "There was an error serializing the ballot. Please try again later or contact support for assistance.",
                 UNKNOWN_ERROR:
                     "There was an error. Please try again later or contact support for assistance.",
+                REAUTH_FAILED:
+                    "Authentication failed. Please try again or contact support for assistance.",
+                SESSION_EXPIRED: "Your session has expired. Please try again from the beginning.",
+                CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
             },
         },
         confirmationScreen: {

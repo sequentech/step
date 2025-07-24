@@ -148,6 +148,12 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 UNKNOWN_ERROR:
                     "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                REAUTH_FAILED:
+                    "L'autenticació ha fallat. Si us plau, torna-ho a intentar o contacta amb el servei d'assistència.",
+                SESSION_EXPIRED:
+                    "La teva sessió ha caducat. Si us plau, torna a començar des del principi.",
+                CAST_VOTE_BallotIdMismatch:
+                    "L'identificador de la papereta no coincideix amb el del vot emès.",
             },
         },
         confirmationScreen: {

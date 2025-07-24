@@ -60,6 +60,10 @@ use strum_macros::Display;
 use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
+// Added imports
+use sequent_core::encrypt::hash_ballot;
+use sequent_core::encrypt::hash_multi_ballot;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
     pub ballot_id: String,
@@ -171,6 +175,9 @@ pub enum CastVoteError {
     BallotVoterSignatureFailed(String),
     #[serde(rename = "uuid_parse_failed")]
     UuidParseFailed(String, String),
+    #[serde(rename = "ballot_id_mismatch")]
+    #[strum(to_string = "ballot_id_mismatch")]
+    BallotIdMismatch(String),
     #[serde(rename = "unknown_error")]
     UnknownError(String),
 }
@@ -239,6 +246,13 @@ pub async fn try_insert_cast_vote(
     } else {
         false
     };
+
+    match verify_ballot_id_matches_content(&input, is_multi_contest).map_err(|e| e) {
+        Ok(()) => {}
+        Err(cv_err) => {
+            return Ok(InsertCastVoteResult::SkipRetryFailure(cv_err));
+        }
+    }
 
     let (pseudonym_h, vote_h) = if is_multi_contest {
         deserialize_and_check_multi_ballot(&input.content, voter_id)?
@@ -953,6 +967,39 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
             "Popk validation failed for contest ids {:?}",
             ballot_contest.contest_ids
         ));
+    }
+
+    Ok(())
+}
+
+/// Verifies that the ballot_id corresponds to the hash of the ballot content
+/// The function serves as a security check to ensure that
+/// a ballot's content matches its claimed ID.
+/// This is crucial for maintaining the integrity of the voting system
+/// by preventing ballot tampering or substitution.
+pub fn verify_ballot_id_matches_content(
+    input: &InsertCastVoteInput,
+    is_multi_contest: bool,
+) -> Result<(), CastVoteError> {
+    let computed_hash = if is_multi_contest {
+        let hashable_ballot: HashableMultiBallot = deserialize_str(&input.content)
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+        hash_multi_ballot(&hashable_ballot)
+            .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
+    } else {
+        let hashable_ballot: HashableBallot = deserialize_str(&input.content)
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+        hash_ballot(&hashable_ballot)
+            .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?
+    };
+
+    if computed_hash != input.ballot_id {
+        return Err(CastVoteError::BallotIdMismatch(format!(
+            "Expected {} but got {}",
+            computed_hash, input.ballot_id
+        )));
     }
 
     Ok(())
