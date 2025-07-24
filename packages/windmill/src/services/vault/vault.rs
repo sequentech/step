@@ -78,7 +78,7 @@ pub trait Vault: Send {
 
 #[instrument(err)]
 pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
-    let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("HashiCorpVault".to_string());
+    let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("EnvVarMasterSecret".to_string());
 
     info!("Vault: vault_name={vault_name}");
 
