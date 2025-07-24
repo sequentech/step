@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::jwt::JwtClaims;
+use crate::ballot::{VotingStatus, VotingStatusChannel};
+use crate::types::permissions::{Permissions, VoterPermissions};
 use anyhow::Context;
 use rocket::http::Status;
 use rocket::response::status::Unauthorized;
-use crate::ballot::{VotingStatus, VotingStatusChannel};
-use super::jwt::JwtClaims;
-use crate::types::permissions::{Permissions, VoterPermissions};
 use std::collections::HashSet;
 use std::env;
 use tracing::{error, info, instrument};

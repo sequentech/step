@@ -17,8 +17,6 @@ pub mod transactions_manager_bindings {
     });
 }
 
-
-
 pub mod authorization_bindings {
     wasmtime::component::bindgen!({
         path: "src/plugins_wit/jwt/jwt-world.wit",

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::plugins_manager::plugin::{HookValue, Plugin};
 use anyhow::{anyhow, Context, Result};
-use chrono::format;
-use core::convert::Into;
 use dashmap::DashMap;
 use futures::future;
 use once_cell::sync::OnceCell;
@@ -12,6 +10,7 @@ use sequent_core::plugins_wit::lib::plugin_bindings::plugins_manager::common::ty
     Manifest, PluginRoute,
 };
 use sequent_core::services::s3::{get_files_names_bytes_from_s3, get_public_bucket};
+use serde_json::Value;
 use std::sync::Arc;
 use wasmtime::{Config, Engine};
 
@@ -97,9 +96,9 @@ impl PluginManager {
         expected_result: Vec<HookValue>,
     ) -> Result<Vec<Vec<HookValue>>> {
         let plugin_names = self
-        .hooks
-        .get(hook)
-        .context(anyhow!("Hook {hook} not registered by any plugin"))?;
+            .hooks
+            .get(hook)
+            .context(anyhow!("Hook {hook} not registered by any plugin"))?;
 
         let mut tasks = Vec::new();
 
@@ -120,12 +119,12 @@ impl PluginManager {
             let task = tokio::spawn(async move {
                 let results = plugin_arc_clone
                     .call_hook(&hook_clone, args_clone, expected_result_clone)
-                .await
-                .map_err(|e| {
-                    anyhow!(
+                    .await
+                    .map_err(|e| {
+                        anyhow!(
                             "Failed to call hook {hook_clone} in plugin {plugin_name_clone}: {e}",
-                    )
-                })?;
+                        )
+                    })?;
                 Ok(results)
             });
             tasks.push(task);
@@ -148,8 +147,8 @@ impl PluginManager {
         Ok(all_results)
     }
 
-    /// Calls a registered route handler by path, passing a JSON string as input, and returns the JSON string result.
-    pub async fn call_route(&self, path: &str, input_json: String) -> Result<String> {
+    /// Calls a registered route handler by path, passing a JSON string as input, and returns the JSON value.
+    pub async fn call_route(&self, path: &str, input_json: String) -> Result<Value> {
         if let Some(route_entry) = self.routes.get(path) {
             let (handler, plugin_name) = route_entry.value();
 
@@ -158,20 +157,22 @@ impl PluginManager {
                 .get(plugin_name)
                 .context(anyhow!("Plugin {plugin_name} not found for route"))?;
 
-            // Call the route handler, routes should always receive and return a string of json response
+            // Call the route handler, routes should always receive string of json response
+            // Return value should be a Result<String,String>.
             let results: Vec<HookValue> = plugin
                 .value()
                 .call_hook(
                     handler,
                     vec![HookValue::String(input_json)],
-                    vec![HookValue::String("".to_string())],
+                    vec![HookValue::Result(core::result::Result::Ok(None))],
                 )
                 .await
                 .map_err(|e| anyhow!("Failed to call hook {handler}: {e}"))?;
-            let cal_res = results[0].as_str();
-
-            if let Some(res) = cal_res {
-                Ok(res.to_string())
+            if let Some(result_hook_value) = results.get(0) {
+                let results_json = result_hook_value
+                    .as_results_json()
+                    .map_err(|e| anyhow!("Failed to convert hook return value to JSON: {e}"))?;
+                Ok(results_json)
             } else {
                 Err(anyhow!("Route {path} handler did not return a string"))
             }

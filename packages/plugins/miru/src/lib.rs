@@ -4,19 +4,23 @@
 #[allow(warnings)]
 mod bindings;
 
-use crate::bindings::plugins_manager::common::types::Manifest;
+use crate::bindings::plugins_manager::common::types::{Manifest, PluginRoute};
 use bindings::exports::plugins_manager::common::plugin_common::Guest as PluginCommonGuest;
 use bindings::plugins_manager::jwt::authorization::authorize;
 use bindings::Guest;
-use sequent_core::types::permissions::Permissions;
-use serde_json::Value;
 use core::result::Result;
-use std::fmt::Display;
-
+use sequent_core::types::permissions::Permissions;
+use serde::Serialize;
+use serde_json::Value;
 struct Component;
 
+#[derive(Serialize)]
+struct CreateTransmissionPacakeOutput {
+    pub data: String,
+}
+
 impl Guest for Component {
-    fn create_transmission_package(input: String) -> Result<(), String> {
+    fn create_transmission_package(input: String) -> Result<String, String> {
         let parsed_data: Value = match serde_json::from_str(&input) {
             Ok(value) => value,
             Err(e) => {
@@ -27,7 +31,7 @@ impl Guest for Component {
         let claims_value: &Value = match parsed_data.get("claims") {
             Some(value) => value,
             None => {
-                return Err("Error get claims".to_string())  ;
+                return Err("Error get claims".to_string());
             }
         };
 
@@ -38,7 +42,7 @@ impl Guest for Component {
             }
         };
 
-        let original_perms: Vec<Permissions> = vec![Permissions::TRUSTEE_CEREMONY];
+        let original_perms: Vec<Permissions> = vec![Permissions::ADMIN_USER];
 
         let perm_strings: Vec<String> = original_perms.iter().map(|p| p.to_string()).collect();
         let res = authorize(
@@ -48,7 +52,12 @@ impl Guest for Component {
             perm_strings.as_slice(),
         );
         match res {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                let output = CreateTransmissionPacakeOutput {
+                    data: "Transmission package created successfully".to_string(),
+                };
+                Ok(serde_json::to_string(&output).unwrap())
+            }
             Err(e) => Err(format!("Error creating transmission package: {}", e)),
         }
     }
@@ -59,7 +68,10 @@ impl PluginCommonGuest for Component {
         Manifest {
             plugin_name: "miru".to_string(),
             hooks: vec!["create-transmission-package".to_string()],
-            routes: vec![],
+            routes: vec![PluginRoute {
+                path: "/miru/create-transmission-package".to_string(),
+                handler: "create-transmission-package".to_string(),
+            }],
             tasks: vec![],
         }
     }

@@ -8,9 +8,7 @@ use sequent_core::services::jwt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
-use windmill::services::plugins_manager::plugin_manager::{
-    self, PluginManager,
-};
+use windmill::services::plugins_manager::plugin_manager;
 
 #[derive(Deserialize, Debug)]
 pub struct PluginsRouteInput {
@@ -37,17 +35,13 @@ pub async fn plugin_routes(
     let mut route_data = input.data;
 
     let claims_json_string: String = serde_json::to_string(&claims)
-    .expect("Failed to serialize JwtClaims to string");
+        .expect("Failed to serialize JwtClaims to string");
 
     route_data["claims"] = serde_json::Value::String(claims_json_string);
 
-    let res: Value = plugin_manager
+    let res = plugin_manager
         .call_route(&input.path, route_data.to_string())
         .await
-        .and_then(|result_str| {
-            serde_json::from_str::<Value>(&result_str)
-                .map_err(|e| anyhow::anyhow!(e))
-        })
         .map_err(|e| (Status::InternalServerError, e.to_string()))?;
 
     Ok(Json(PluginsRouteOutput { data: res }))
