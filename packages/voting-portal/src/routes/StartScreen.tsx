@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect} from "react"
+import React, {useEffect, useMemo} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
@@ -23,6 +23,7 @@ import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import { start } from "repl"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -101,11 +102,10 @@ const StartScreen: React.FC = () => {
     const navigate = useNavigate()
     useLanguage({ballotStyle})
 
-    // TODO: Retrieve the real policy
-    // const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
-    const startScreenTitlePolicy = EStartScreenTitlePolicy.ELECTION_EVENT
-    const titleObject =
-        startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT ? electionEvent : election
+    const titleObject = useMemo(() => {
+        const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
+        return startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT ? electionEvent : election
+    }, [election, electionEvent])
 
     useEffect(() => {
         if (!election || !titleObject) {

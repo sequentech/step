@@ -47,6 +47,7 @@ export interface IElectionPresentation {
     sort_order?: number
     cast_vote_confirm?: boolean
     cast_vote_gold_level?: ECastVoteGoldLevelPolicy
+    start_screen_title_policy?: EStartScreenTitlePolicy
     audit_button_cfg?: EVotingPortalAuditButtonCfg
     is_grace_priod?: boolean
     grace_period_policy?: EGracePeriodPolicy
