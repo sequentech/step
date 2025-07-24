@@ -517,6 +517,7 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      ENV_SLUG: ${ENV_SLUG}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -910,7 +911,7 @@ services:
       ENV_SLUG: ${ENV_SLUG}
 
   beat:
-    profiles: ["full"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
@@ -944,6 +945,7 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      ENV_SLUG: ${ENV_SLUG}
 
   postgres-b3:
     profiles: ["full", "base"]
