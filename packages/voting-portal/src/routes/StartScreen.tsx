@@ -23,7 +23,6 @@ import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
-import { start } from "repl"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -104,7 +103,9 @@ const StartScreen: React.FC = () => {
 
     const titleObject = useMemo(() => {
         const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
-        return startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT ? electionEvent : election
+        return startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT
+            ? electionEvent
+            : election
     }, [election, electionEvent])
 
     useEffect(() => {
