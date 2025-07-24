@@ -14,3 +14,10 @@ jobs:
     secrets: inherit
     with:
       push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+  # Build and push images to the root ECR repository
+  build-and-push-root:
+    uses: ./.github/workflows/reusable_build_push_root.yml
+    secrets: inherit
+    with:
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
