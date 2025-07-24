@@ -65,9 +65,9 @@ jobs:
             context: packages
             file: packages/Dockerfile.immudb
 
-          - service: mock_server
-            context: packages/e2e/src/mock_server
-            file: packages/e2e/src/mock_server/Dockerfile.prod
+          # - service: mock_server
+          #   context: packages/e2e/src/mock_server
+          #   file: packages/e2e/src/mock_server/Dockerfile.prod
 
       fail-fast: false
 
