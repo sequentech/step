@@ -21,4 +21,4 @@ title: Data
 
 #### 6.1.1 Start Screen Title Policy
 
-Set the title of the Start Screen to either the election title or the Election Event Title. The default value is the Election title.
+Set the title of the Start Screen (Voting Portal) to either the election title or the Election Event Title. The default value is the Election title.
