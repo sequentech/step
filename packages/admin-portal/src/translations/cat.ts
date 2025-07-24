@@ -575,6 +575,13 @@ const catalanTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            startScreenTitlePolicy: {
+                label: "Política de títol de la pantalla d'inici",
+                options: {
+                    "election": "Títol de l'elecció",
+                    "election-event": "Títol de l'esdeveniment electoral",
+                },
+            },
         },
         tenantScreen: {
             common: {

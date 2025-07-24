@@ -572,6 +572,13 @@ const dutchTranslation: TranslationType = {
                     "no-gold-level": "Geen 'Gold level' Authenticatie",
                 },
             },
+            startScreenTitlePolicy: {
+                label: "Titelbeleid startscherm",
+                options: {
+                    "election": "Verkiezingstitel",
+                    "election-event": "Verkiezingsevenementtitel",
+                },
+            },
         },
         tenantScreen: {
             common: {

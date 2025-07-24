@@ -576,6 +576,13 @@ const basqueTranslation: TranslationType = {
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
                 },
             },
+            startScreenTitlePolicy: {
+                label: "Hasierako pantailaren titulu politika",
+                options: {
+                    "election": "Hauteskundearen titulua",
+                    "election-event": "Hauteskunde-ekitaldiaren titulua",
+                },
+            },
         },
         tenantScreen: {
             common: {

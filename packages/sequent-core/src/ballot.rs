@@ -435,6 +435,30 @@ pub enum CastVoteGoldLevelPolicy {
     NoGoldLevel,
 }
 
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum StartScreenTitlePolicy {
+    #[strum(serialize = "election")]
+    #[serde(rename = "election")]
+    #[default]
+    Election,
+    #[strum(serialize = "election-event")]
+    #[serde(rename = "election-event")]
+    ElectionEvent,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
@@ -923,6 +947,7 @@ pub struct ElectionPresentation {
     pub sort_order: Option<i64>,
     pub cast_vote_confirm: Option<bool>,
     pub cast_vote_gold_level: Option<CastVoteGoldLevelPolicy>,
+    pub start_screen_title_policy: Option<StartScreenTitlePolicy>,
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
@@ -960,6 +985,7 @@ impl Default for ElectionPresentation {
             sort_order: None,
             cast_vote_confirm: None,
             cast_vote_gold_level: Some(CastVoteGoldLevelPolicy::NoGoldLevel),
+            start_screen_title_policy: Some(StartScreenTitlePolicy::Election),
             is_grace_priod: None,
             grace_period_policy: None,
             grace_period_secs: None,

@@ -571,6 +571,13 @@ const englishTranslation = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            startScreenTitlePolicy: {
+                label: "Start Screen Title Policy",
+                options: {
+                    "election": "Election title",
+                    "election-event": "Election event title",
+                },
+            },
         },
         tenantScreen: {
             common: {

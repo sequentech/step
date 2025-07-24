@@ -55,6 +55,7 @@ import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
     ContestsOrder,
     ECastVoteGoldLevelPolicy,
+    EStartScreenTitlePolicy,
     EGracePeriodPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
@@ -493,6 +494,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const startScreenTitleChoices = (): Array<EnumChoice<EStartScreenTitlePolicy>> => {
+        return Object.values(EStartScreenTitlePolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.startScreenTitlePolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const goldLevelChoices = (): Array<EnumChoice<ECastVoteGoldLevelPolicy>> => {
         return Object.values(ECastVoteGoldLevelPolicy).map((value) => ({
             id: value,
@@ -768,6 +776,13 @@ export const ElectionDataForm: React.FC = () => {
                                     source="presentation.cast_vote_gold_level"
                                     choices={goldLevelChoices()}
                                     defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
+                                    validate={required()}
+                                />
+                                <SelectInput
+                                    label={t("electionScreen.startScreenTitlePolicy.label")}
+                                    source="presentation.start_screen_title_policy"
+                                    choices={startScreenTitleChoices()}
+                                    defaultValue={EStartScreenTitlePolicy.ELECTION}
                                     validate={required()}
                                 />
                                 {canEditPermissionLabel && (
