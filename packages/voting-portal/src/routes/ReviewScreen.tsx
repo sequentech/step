@@ -258,7 +258,9 @@ const useTryInsertCastVote = () => {
             console.log(error)
             let castError = error as IGraphQLActionError
             let errorExtensions = castError?.graphQLErrors?.[0]?.extensions
-            if (errorExtensions?.code) {
+            if (castError?.message?.includes("internal error")) {
+                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
+            } else if (errorExtensions?.code) {
                 let errorCode = errorExtensions?.code
                 console.log(castError.name, castError.message)
                 let internalErrMessage =
@@ -277,8 +279,6 @@ const useTryInsertCastVote = () => {
             } else if (error instanceof ApolloError && error.networkError) {
                 console.log(error.name, error.message, error.cause, error.networkError)
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
-            } else if (castError?.message?.includes("internal error")) {
-                setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error
             }
