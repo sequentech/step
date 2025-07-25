@@ -525,10 +525,11 @@ export const ReviewScreen: React.FC = () => {
         return electionFromRedux !== undefined
             ? electionFromRedux?.presentation?.cast_vote_gold_level ===
                   ECastVoteGoldLevelPolicy.GOLD_LEVEL
-            : dataElections?.sequent_backend_election.some(
+            : dataElections?.sequent_backend_election?.some(
                   (item) =>
+                      item.id === electionId &&
                       item.presentation?.cast_vote_gold_level ===
-                      ECastVoteGoldLevelPolicy.GOLD_LEVEL
+                          ECastVoteGoldLevelPolicy.GOLD_LEVEL
               )
     }, [electionFromRedux, dataElections])
 
