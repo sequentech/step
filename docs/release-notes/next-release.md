@@ -15,3 +15,10 @@ Also keycloak no longer needs to import realms at
  `/opt/keycloak/data/import`. Furthermore the file `certs.json` doesn't
  need to exist initially, as windmill-beat will automatically create it
  along with the first tenant.
+
+ ## ✨ Add support retrieving master secret in an env variable
+
+ A new environment variable `MASTER_SECRET` has been added to use in DEV evironment instead of hashicorp.
+ `SECRETS_BACKEND` was updated to `SECRETS_BACKEND=EnvVarMasterSecret` accordingly.
+
+ This change should no affect in production, there the value should be `SECRETS_BACKEND=AwsSecretManager`, more info in `.devcontainer/.env.development`.
