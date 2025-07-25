@@ -15,3 +15,12 @@ Also keycloak no longer needs to import realms at
  `/opt/keycloak/data/import`. Furthermore the file `certs.json` doesn't
  need to exist initially, as windmill-beat will automatically create it
  along with the first tenant.
+
+## ✨ Voting Portal > Start Screen: Allow Showing Election Event Title instead of Election Title
+
+The title of the Start Screen (Voting Portal) can be to either the election title or the Election Event Title. 
+The default value is the Election title, so there is no action required by the admin.
+
+This an be changed at election level > Data > Advanced Configuration.
+
+
