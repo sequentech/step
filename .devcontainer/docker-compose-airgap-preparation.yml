@@ -407,6 +407,9 @@ services:
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
 
     depends_on:
       immudb:
@@ -429,7 +432,9 @@ services:
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
-
+        SECRETS_BACKEND: ${SECRETS_BACKEND}
+        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+        VAULT_TOKEN: ${VAULT_TOKEN}
 
   # trustee3:
   #   profiles: ["full"]
@@ -447,7 +452,9 @@ services:
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
-
+  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
+  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+  #       VAULT_TOKEN: ${VAULT_TOKEN}
 
   # Create collection in immudb
   immudb-log-audit-init:

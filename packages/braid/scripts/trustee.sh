@@ -63,11 +63,15 @@ handle_trustee_config() {
 
     if [ -f $TRUSTEE_CONFIG_PATH ]; then
         TRUSTEE_CONFIG_DATA=$(<$TRUSTEE_CONFIG_PATH);
+        config_content=$TRUSTEE_CONFIG_DATA
     fi
 
+    # Fetch config if awsSecretsManager or hashicorpVault
     if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
         config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || true
-    else
+    fi
+
+    if [ "$SECRETS_BACKEND" = "hashicorpVault" ]; then
         config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || true
     fi
 
