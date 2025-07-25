@@ -88,7 +88,7 @@ module.exports = {
           items: [
             'voting_portal/Tutorials/voting_guide',
             'voting_portal/Tutorials/voter_locate_ballot',
-            'voting_portal/Tutorials/voter_audit_ballot',
+            'voting_portal/Tutorials/voter_audit_ballot'
           ],
         },
       ],
@@ -114,6 +114,14 @@ module.exports = {
           items: [
             'developers/Admin-Portal/developers_admin_portal',
             'developers/Admin-Portal/load-test_admin-portal',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Voting Portal',
+          items: [
+            'developers/Voting-Portal/developers_voting_portal',
+            'developers/Voting-Portal/cast_vote_errors',
           ],
         },
         {

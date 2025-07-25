@@ -124,6 +124,14 @@ const basqueTranslation: TranslationType = {
                     "Errorea izan da zure eskaria prozesatzerakoan. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 CAST_VOTE_unexpected:
                     "Errore ezezaguna izan da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
+                CAST_VOTE_timeout:
+                    "Botoa emateko denbora-muga errorea. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Berriro botoen muga gainditu duzu. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Baimendutako berriro boto kopurua gainditu duzu. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Beste eremu batean bozkatu duzu dagoeneko. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
                 CAST_VOTE_UnknownError:
                     "Errore ezezaguna izan da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 NO_BALLOT_SELECTION:
@@ -152,6 +160,18 @@ const basqueTranslation: TranslationType = {
                     "Autentifikazioak huts egin du. Saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
                 SESSION_EXPIRED: "Zure saioa iraungi da. Saiatu berriro hasieratik.",
                 CAST_VOTE_BallotIdMismatch: "Boto-paperaren IDa ez dator bat emandako botoarekin.",
+                SESSION_STORAGE_ERROR:
+                    "Saio-biltegia ez dago erabilgarri. Mesedez, saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Errore bat gertatu da boto-datuen analisian. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Boto-datuak ez dira baliozkoak. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Denbora-muga gainditu da datuak eskuratzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Errorea gertatu da hash bihurgarri bihurtzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                INTERNAL_ERROR:
+                    "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
         },
         confirmationScreen: {
