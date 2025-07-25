@@ -20,9 +20,11 @@ use crate::multi_ballot::{
     AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
     RawHashableMultiBallot,
 };
+use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
+use crate::util::normalize_vote::normalize_election;
 use base64::engine::general_purpose;
 use base64::Engine;
 use strand::serialization::StrandSerialize;
@@ -394,6 +396,8 @@ mod tests {
     use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
+    use crate::plaintext::DecodedVoteContest;
+    use crate::serialization::deserialize_with_path::deserialize_value;
     use crate::util::normalize_vote::normalize_vote_contest;
 
     use strand::backend::ristretto::RistrettoCtx;
@@ -526,4 +530,47 @@ mod tests {
         assert_eq!(format!("{:?}", auditable_ballot.unwrap_err()), "".to_string());
         //assert!(auditable_ballot.is_ok());
     }*/
+}
+
+/// Test multi-contest reencoding functionality
+pub fn test_multi_contest_reencoding(
+    decoded_multi_contests: &Vec<DecodedVoteContest>,
+    ballot_style: &BallotStyle,
+) -> Result<Vec<DecodedVoteContest>, String> {
+    // encode ballot
+    let (plaintext, _ballot_choices) =
+        encode_to_plaintext_decoded_multi_contest(
+            decoded_multi_contests,
+            ballot_style,
+        )
+        .map_err(|err| format!("Error encoded decoded contests {:?}", err))?;
+
+    let decoded_ballot_choices =
+        BallotChoices::decode_from_30_bytes(&plaintext, ballot_style).map_err(
+            |err| format!("Error decoding ballot choices {:?}", err),
+        )?;
+
+    let output_decoded_contests =
+        map_decoded_ballot_choices_to_decoded_contests(
+            decoded_ballot_choices,
+            &ballot_style.contests,
+        )
+        .map_err(|err| format!("Error mapping decoded contests {:?}", err))?;
+
+    let input_compare =
+        normalize_election(decoded_multi_contests, ballot_style, true)
+            .map_err(|err| format!("Error normalizing input {:?}", err))?;
+
+    let output_compare =
+        normalize_election(&output_decoded_contests, ballot_style, true)
+            .map_err(|err| format!("Error normalizing output {:?}", err))?;
+
+    if input_compare != output_compare {
+        return Err(format!(
+            "Consistency check failed. Input != Output, {:?} != {:?}",
+            input_compare, output_compare
+        ));
+    }
+
+    Ok(output_decoded_contests)
 }

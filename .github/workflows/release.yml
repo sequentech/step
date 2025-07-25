@@ -233,6 +233,14 @@ jobs:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
 
+  build-and-push-root-account:
+    uses: ./.github/workflows/reusable_build_push_root.yml
+    needs: release
+    secrets: inherit
+    with:
+      tag: ${{ needs.release.outputs.VERSION }}
+      push: true
+
   trigger-beyond-release:
     needs: [release, build-and-push]
     runs-on:

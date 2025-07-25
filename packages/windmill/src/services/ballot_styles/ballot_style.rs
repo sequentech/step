@@ -296,12 +296,3 @@ pub async fn update_election_event_ballot_styles(
     lock.release().await?;
     Ok(())
 }
-
-#[instrument(err)]
-pub async fn get_ballot_styles_for_authorized_elections(
-    tenant_id: &str,
-    election_event_id: &str,
-    authorized_election_ids: &Vec<String>,
-) -> AnyhowResult<Vec<BallotStyle>> {
-    todo!()
-}

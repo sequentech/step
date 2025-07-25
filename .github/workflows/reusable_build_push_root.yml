@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-name: Reusable Build and Push
+name: Reusable Build and Push (Root ECR)
 
 on:
   workflow_call:
@@ -18,10 +18,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
@@ -87,9 +84,9 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_GLOBALDOT }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_GLOBALDOT }}
-        aws-region: eu-west-1
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -102,8 +99,8 @@ jobs:
         file: ${{ matrix.file }}
         push: ${{ inputs.push }}
         tags: |
-          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
-          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
+          ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
+          ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: |
