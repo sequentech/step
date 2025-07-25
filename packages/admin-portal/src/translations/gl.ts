@@ -987,6 +987,8 @@ const galegoTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración do cifrado do informe realizada con éxito",
+                encryptError: "Erro ao configurar o cifrado do informe",    
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
