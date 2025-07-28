@@ -63,7 +63,7 @@ pub async fn publish_tally_sheet(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    if let None = found {
+    if found.is_none() {
         return Ok(Json(PublishTallySheetOutput {
             tally_sheet_id: None,
         }));
