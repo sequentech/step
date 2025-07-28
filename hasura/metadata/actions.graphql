@@ -598,6 +598,21 @@ type Mutation {
 }
 
 type Mutation {
+    upsert_area(
+        id: String
+        name: String!
+        description: String
+        election_event_id: String!
+        tenant_id: String!
+        parent_id: String
+        area_contest_ids: [String]
+        annotations: jsonb
+        labels: jsonb
+        type: String
+    ): UpsertAreaOutput
+}
+
+type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
@@ -939,6 +954,7 @@ type GetManualVerificationOutput {
 
 type CreateKeysCeremonyOutput {
     keys_ceremony_id: String!
+    error_message: String
 }
 
 type GetPrivateKeyOutput {
@@ -1585,4 +1601,8 @@ type CountUsersOutput {
 type RenderDocumentPDFOutput {
     document_id: String
     task_execution: tasks_execution_type
+}
+
+type UpsertAreaOutput {
+    id: String!
 }

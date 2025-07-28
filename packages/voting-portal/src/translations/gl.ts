@@ -125,6 +125,14 @@ const galegoTranslation: TranslationType = {
                     "Produciuse un erro ao procesar a túa solicitude. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 CAST_VOTE_unexpected:
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
+                CAST_VOTE_timeout:
+                    "Erro de tempo de espera ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Superou o límite de renovacións de voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Superou o número permitido de renovacións de voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Xa votou noutra área. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
                 CAST_VOTE_UnknownError:
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 NO_BALLOT_SELECTION:
@@ -146,6 +154,24 @@ const galegoTranslation: TranslationType = {
                     "Houbo un erro ao serializar a papeleta. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 UNKNOWN_ERROR:
                     "Houbo un erro. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
+                REAUTH_FAILED:
+                    "A autenticación fallou. Inténtao de novo ou contacta co soporte para obter axuda.",
+                SESSION_EXPIRED:
+                    "A túa sesión expirou. Por favor, comeza de novo dende o principio.",
+                CAST_VOTE_BallotIdMismatch:
+                    "O identificador da papeleta non coincide co do voto emitido.",
+                SESSION_STORAGE_ERROR:
+                    "O almacenamento de sesión non está dispoñible. Por favor, inténteo de novo ou contacte co soporte.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Houbo un erro ao analizar os datos da papeleta. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Os datos da papeleta non son válidos. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Erro de tempo de espera ao obter os datos. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Erro ao converter a papeleta hashable. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                INTERNAL_ERROR:
+                    "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
         },
         confirmationScreen: {

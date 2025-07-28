@@ -368,6 +368,12 @@ pub struct TallySession {
     pub tally_type: Option<String>,
     pub permission_label: Option<Vec<String>>,
 }
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionContestAnnotations {
+    pub elegible_voters: u64,
+    pub ballots_without_voter: u64,
+    pub casted_ballots: u64,
+}
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TallySessionContest {

@@ -133,6 +133,28 @@ interface AuthContextProviderProps {
     children: JSX.Element
 }
 
+const generateTokenStorage = (newKeycloak: Keycloak): string => {
+    let nowInSeconds = Math.floor(Date.now() / 1000)
+    let token = [newKeycloak.token ?? "", newKeycloak.refreshTokenParsed?.exp ?? nowInSeconds].join(
+        ":"
+    )
+    return token
+}
+
+const readTokenStorage = (): string | null => {
+    let token = localStorage.getItem("token")
+    if (!token) {
+        return null
+    }
+    let [tokenStr, expStr] = token.split(":")
+    let exp = parseInt(expStr)
+    let nowInSeconds = Math.floor(Date.now() / 1000)
+    if (exp < nowInSeconds) {
+        return null
+    }
+    return tokenStr
+}
+
 /**
  * AuthContextProvider is responsible for managing the authentication state of the current user.
  *
@@ -142,7 +164,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const {loaded: loadedGlobalSettings, globalSettings} = useContext(SettingsContext)
     const [keycloak, setKeycloak] = useState<Keycloak | null>(null)
     const [isKeycloakInitialized, setIsKeycloakInitialized] = useState<boolean>(false)
-    const [isGetTenantChecked, setIsGetTenantChecked] = useState<boolean>(false)
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
@@ -154,7 +175,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
-    const [isTenantSelected, setIsTenantSelected] = useState<boolean>(false) // New state
 
     const [openModal, setOpenModal] = React.useState(false)
     const {t, i18n} = useTranslation()
@@ -182,22 +202,27 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const operation = `
         query GetAllTenants {
-        sequent_backend_tenant {
-            id
-            slug
+            sequent_backend_tenant {
+                id
+                slug
+            }
         }
-    }
-`
+    `
 
     useEffect(() => {
         if (location.pathname.endsWith("/tenant")) {
-            if (localStorage.getItem("token")) {
+            if (readTokenStorage()) {
                 setOpenModal(true)
             } else {
+                setOpenModal(false)
                 localStorage.removeItem("selected-tenant-id")
             }
         }
-    }, [])
+    }, [
+        location.pathname.endsWith("/tenant"),
+        localStorage.getItem("token"),
+        localStorage.getItem("selected-tenant-id"),
+    ])
 
     /**
      * Initializes the Keycloak instance for the specified tenant and handles authentication.
@@ -246,7 +271,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setKeycloak(newKeycloak)
 
                 // User should be authenticated now due to login-required
-                localStorage.setItem("token", newKeycloak.token || "")
+                localStorage.setItem("token", generateTokenStorage(newKeycloak))
                 setAuthenticated(true)
                 setIsKeycloakInitialized(true)
                 setTimeout(updateTokenPeriodically, 4e3)
@@ -266,7 +291,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 if (fallbackResponse) {
                     // User is authenticated
-                    localStorage.setItem("token", newKeycloak.token || "")
+                    localStorage.setItem("token", generateTokenStorage(newKeycloak))
                     setAuthenticated(true)
                     setIsKeycloakInitialized(true)
                     setTimeout(updateTokenPeriodically, 4e3)
@@ -356,7 +381,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // Configure that Keycloak will check if a user is already authenticated (when
                 // opening the app or reloading the page). If not authenticated, we'll handle
                 // this in the App component by showing the SelectTenant screen.
-                onLoad: "login-required",
+                onLoad: location.pathname.endsWith("/tenant") ? "check-sso" : "login-required",
                 checkLoginIframe: false,
                 flow: "standard", // Use standard flow instead of implicit
                 responseMode: "fragment", // Use fragment response mode
@@ -368,6 +393,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             if (!isAuthenticatedResponse) {
                 setAuthenticated(false)
                 setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
+                localStorage.removeItem("token")
+                if (
+                    location.pathname.endsWith("/tenant") &&
+                    localStorage.getItem("selected-tenant-id")
+                ) {
+                    localStorage.removeItem("selected-tenant-id")
+                }
                 return
             }
             if (!keycloak.token) {
@@ -376,13 +408,20 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 return
             }
             // If we get here the user is authenticated and we can update the state accordingly
-            localStorage.setItem("token", keycloak.token)
+            localStorage.setItem("token", generateTokenStorage(keycloak))
             setAuthenticated(true)
             setTimeout(updateTokenPeriodically, 4e3)
             setIsKeycloakInitialized(true)
         } catch (error) {
             setAuthenticated(false)
             setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
+            localStorage.removeItem("token")
+            if (
+                location.pathname.endsWith("/tenant") &&
+                localStorage.getItem("selected-tenant-id")
+            ) {
+                localStorage.removeItem("selected-tenant-id")
+            }
         }
     }
 
@@ -406,7 +445,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 return
             }
             if (refreshed) {
-                localStorage.setItem("token", keycloak.token)
+                localStorage.setItem("token", generateTokenStorage(keycloak))
             }
         }
         await sleep(sleepSecs * 1e3)

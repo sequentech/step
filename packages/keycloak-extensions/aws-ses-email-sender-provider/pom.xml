@@ -80,6 +80,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</exclusion>
 			</exclusions>
 		</dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>${aws.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
