@@ -71,6 +71,7 @@ impl PluginCommonGuest for Component {
             routes: vec![PluginRoute {
                 path: "/miru/create-transmission-package".to_string(),
                 handler: "create-transmission-package".to_string(),
+                process_as_task: true,
             }],
             tasks: vec![],
         }

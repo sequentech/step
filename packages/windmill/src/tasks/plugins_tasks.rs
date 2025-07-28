@@ -26,13 +26,13 @@ pub async fn execute_plugin_task(
 
     let mut task_data = data;
 
-    task_data["task_execution"] = serde_json::to_value(&task_execution)
-        .context("Failed to serialize task_execution for plugin data")
-        .map_err(Error::from)?;
+    let task_execution_str: String = serde_json::to_string(&task_execution)
+        .expect("Failed to serialize task_execution to string");
+
+    task_data["task_execution"] = serde_json::Value::String(task_execution_str);
+
     if let Some(doc_id) = document_id {
-        task_data["document_id"] = serde_json::to_value(doc_id)
-            .context("Failed to serialize document_id for plugin data")
-            .map_err(Error::from)?;
+        task_data["document_id"] = serde_json::Value::String(doc_id);
     }
 
     let plugin_manager: &'static plugin_manager::PluginManager =

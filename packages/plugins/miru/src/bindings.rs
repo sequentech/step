@@ -105,6 +105,7 @@ pub mod plugins_manager {
             pub struct PluginRoute {
                 pub path: _rt::String,
                 pub handler: _rt::String,
+                pub process_as_task: bool,
             }
             impl ::core::fmt::Debug for PluginRoute {
                 fn fmt(
@@ -114,6 +115,7 @@ pub mod plugins_manager {
                     f.debug_struct("PluginRoute")
                         .field("path", &self.path)
                         .field("handler", &self.handler)
+                        .field("process-as-task", &self.process_as_task)
                         .finish()
                 }
             }
@@ -830,7 +832,7 @@ pub mod exports {
                     let vec9 = routes2;
                     let len9 = vec9.len();
                     let layout9 = _rt::alloc::Layout::from_size_align_unchecked(
-                        vec9.len() * (4 * ::core::mem::size_of::<*const u8>()),
+                        vec9.len() * (5 * ::core::mem::size_of::<*const u8>()),
                         ::core::mem::size_of::<*const u8>(),
                     );
                     let result9 = if layout9.size() != 0 {
@@ -844,11 +846,12 @@ pub mod exports {
                     };
                     for (i, e) in vec9.into_iter().enumerate() {
                         let base = result9
-                            .add(i * (4 * ::core::mem::size_of::<*const u8>()));
+                            .add(i * (5 * ::core::mem::size_of::<*const u8>()));
                         {
                             let super::super::super::super::plugins_manager::common::types::PluginRoute {
                                 path: path6,
                                 handler: handler6,
+                                process_as_task: process_as_task6,
                             } = e;
                             let vec7 = (path6.into_bytes()).into_boxed_slice();
                             let ptr7 = vec7.as_ptr().cast::<u8>();
@@ -868,6 +871,12 @@ pub mod exports {
                             *base
                                 .add(2 * ::core::mem::size_of::<*const u8>())
                                 .cast::<*mut u8>() = ptr8.cast_mut();
+                            *base
+                                .add(4 * ::core::mem::size_of::<*const u8>())
+                                .cast::<u8>() = (match process_as_task6 {
+                                true => 1,
+                                false => 0,
+                            }) as u8;
                         }
                     }
                     *ptr1.add(5 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len9;
@@ -951,7 +960,7 @@ pub mod exports {
                     let len13 = l8;
                     for i in 0..len13 {
                         let base = base13
-                            .add(i * (4 * ::core::mem::size_of::<*const u8>()));
+                            .add(i * (5 * ::core::mem::size_of::<*const u8>()));
                         {
                             let l9 = *base.add(0).cast::<*mut u8>();
                             let l10 = *base
@@ -969,7 +978,7 @@ pub mod exports {
                     }
                     _rt::cabi_dealloc(
                         base13,
-                        len13 * (4 * ::core::mem::size_of::<*const u8>()),
+                        len13 * (5 * ::core::mem::size_of::<*const u8>()),
                         ::core::mem::size_of::<*const u8>(),
                     );
                     let l14 = *arg0
@@ -1100,8 +1109,8 @@ pub(crate) use __export_miru_plugin_impl as export;
 #[unsafe(link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 897] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xff\x05\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 914] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x90\x06\x01A\x02\x01\
 A\x0d\x01B\x0b\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
 \x04\0\x1bcreate-keycloak-transaction\x01\x01\x01ps\x01j\x01s\x01s\x01@\x02\x03s\
 qls\x06params\x02\0\x03\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-k\
@@ -1109,16 +1118,17 @@ eycloak-query\x01\x04\x04\0\x19commit-hasura-transaction\x01\x01\x04\0\x1bcommit
 -keycloak-transaction\x01\x01\x03\00plugins-manager:transactions-manager/transac\
 tion\x05\0\x01B\x05\x01ks\x01ps\x01j\0\x01s\x01@\x04\x06claimss\x16allow-super-a\
 dmin-auth\x7f\x0dtenant-id-opt\0\x0bpermissions\x01\0\x02\x04\0\x09authorize\x01\
-\x03\x03\0!plugins-manager:jwt/authorization\x05\x01\x01B\x06\x01r\x02\x04paths\x07\
-handlers\x04\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01r\x04\x0bplugin-names\x05\
-hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08manifest\x03\0\x04\x03\0\x1cplugin\
-s-manager:common/types\x05\x02\x01j\x01s\x01s\x01@\x01\x04datas\0\x03\x04\0\x1bc\
-reate-transmission-package\x01\x04\x02\x03\0\x02\x08manifest\x02\x03\0\x02\x0cpl\
-ugin-route\x01B\x06\x02\x03\x02\x01\x05\x04\0\x08manifest\x03\0\0\x02\x03\x02\x01\
-\x06\x04\0\x0cplugin-route\x03\0\x02\x01@\0\0\x01\x04\0\x0cget-manifest\x01\x04\x04\
-\0$plugins-manager:common/plugin-common\x05\x07\x04\0'plugins-manager:miru-plugi\
-n/miru-plugin\x04\0\x0b\x11\x01\0\x0bmiru-plugin\x03\0\0\0G\x09producers\x01\x0c\
-processed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+\x03\x03\0!plugins-manager:jwt/authorization\x05\x01\x01B\x06\x01r\x03\x04paths\x07\
+handlers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01\
+r\x04\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08manifest\x03\
+\0\x04\x03\0\x1cplugins-manager:common/types\x05\x02\x01j\x01s\x01s\x01@\x01\x04\
+datas\0\x03\x04\0\x1bcreate-transmission-package\x01\x04\x02\x03\0\x02\x08manife\
+st\x02\x03\0\x02\x0cplugin-route\x01B\x06\x02\x03\x02\x01\x05\x04\0\x08manifest\x03\
+\0\0\x02\x03\x02\x01\x06\x04\0\x0cplugin-route\x03\0\x02\x01@\0\0\x01\x04\0\x0cg\
+et-manifest\x01\x04\x04\0$plugins-manager:common/plugin-common\x05\x07\x04\0'plu\
+gins-manager:miru-plugin/miru-plugin\x04\0\x0b\x11\x01\0\x0bmiru-plugin\x03\0\0\0\
+G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindge\
+n-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

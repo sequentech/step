@@ -7,6 +7,7 @@ interface types {
     record plugin-route {
         path: string,
         handler: string,
+        process-as-task: bool,
     }
 
     record manifest {

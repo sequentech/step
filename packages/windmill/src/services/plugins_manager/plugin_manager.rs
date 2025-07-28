@@ -55,6 +55,8 @@ impl PluginManager {
             let plugin_manifest: Manifest = plugin.manifest.clone();
 
             let plugin_hooks = &plugin_manifest.hooks;
+            let plugin_routes: &Vec<PluginRoute> = &plugin_manifest.routes;
+            let plugin_tasks: &Vec<String> = &plugin_manifest.tasks;
 
             for hook in plugin_hooks {
                 self.hooks
@@ -63,17 +65,20 @@ impl PluginManager {
                     .push(plugin_name.clone());
             }
 
-            let plugin_routes: &Vec<PluginRoute> = &plugin_manifest.routes;
-
             for route in plugin_routes {
                 let path = route.path.clone();
                 if path.starts_with(format!("/{}", plugin_name).as_str()) {
                     let handler = route.handler.clone();
-                    self.routes.insert(path, (handler, plugin_name.clone()));
+                    self.routes
+                        .insert(path, (handler.clone(), plugin_name.clone()));
+                    if route.process_as_task {
+                        self.tasks
+                            .entry(handler.clone())
+                            .or_default()
+                            .push(plugin_name.clone());
+                    }
                 }
             }
-
-            let plugin_tasks: &Vec<String> = &plugin_manifest.tasks;
             for task in plugin_tasks {
                 self.tasks
                     .entry(task.clone())
@@ -202,6 +207,16 @@ impl PluginManager {
         }
 
         Ok(())
+    }
+
+    pub fn get_route_task_handler(&self, path: &str) -> Option<String> {
+        if let Some(route_entry) = self.routes.get(path) {
+            let (handler, _plugin_name) = route_entry.value();
+            if self.tasks.get(&handler.clone()).is_some() {
+                return Some(handler.clone());
+            }
+        }
+        None
     }
 }
 
