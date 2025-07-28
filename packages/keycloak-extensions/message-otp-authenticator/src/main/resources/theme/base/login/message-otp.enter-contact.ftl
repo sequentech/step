@@ -54,7 +54,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         </label>
                     </div>
                     <div class="${properties.kcInputWrapperClass!}">
-                      <@renderIntlTelInput id="contact" name="mobile-num" value=contact validCountryCodes=validCountryCodes/>
+                      <@renderIntlTelInput id="contact" name="mobile-num" value=contact />
                       <div
                         class="help-message ${properties.kcInputHelperTextAfterClass!}"
                         style="margin: 8px 0 16px 0; color: #555;"

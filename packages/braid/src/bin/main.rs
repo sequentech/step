@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use braid::protocol::board::grpc_m::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
+use braid::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
@@ -152,11 +153,18 @@ async fn main() -> Result<()> {
             match result {
                 Ok(_) => (),
                 Err(error) => {
-                    error!(
-                        "Error executing step for board '{}': '{:?}'",
-                        board_name.clone(),
-                        error
-                    );
+                    let mut show_error = true;
+                    let error_msg = format!("{:?}", error);
+                    if let ProtocolError::BootstrapError(msg) = error {
+                        show_error = !msg.starts_with("Zero messages received");
+                    }
+                    if show_error {
+                        error!(
+                            "Error executing step for board '{}': '{}'",
+                            board_name.clone(),
+                            error_msg
+                        );
+                    }
                     step_error = true;
                 }
             };

@@ -69,7 +69,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         if (eventTrustees !== newTrustees) {
             setEventTrustees(newTrustees)
         }
-    }, [keyCeremony, eventTrustees, setEventTrustees])
+    }, [keyCeremony])
 
     useEffect(() => {
         if (!tallySessionExecutions?.[0].status || !trustees) {

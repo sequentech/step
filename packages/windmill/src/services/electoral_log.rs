@@ -29,7 +29,7 @@ use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
-use sequent_core::serialization::deserialize_with_path;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
@@ -972,13 +972,12 @@ impl ElectoralLogRow {
     }
 
     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
-        let message: serde_json::Value = deserialize_with_path::deserialize_str(&self.message)
-            .map_err(|err| {
-                anyhow!(format!(
-                    "{:?}, Failed to parse message: {}",
-                    err, self.message
-                ))
-            })?;
+        let message: serde_json::Value = deserialize_str(&self.message).map_err(|err| {
+            anyhow!(format!(
+                "{:?}, Failed to parse message: {}",
+                err, self.message
+            ))
+        })?;
 
         let Some(statement) = message.get("statement") else {
             return Err(anyhow!(
@@ -994,7 +993,7 @@ impl ElectoralLogRow {
             ));
         };
 
-        let data: StatementHeadDataString = deserialize_with_path::deserialize_value(head.clone())
+        let data: StatementHeadDataString = deserialize_value(head.clone())
             .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
 
         Ok(data)
@@ -1071,7 +1070,12 @@ pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     let mut client: Client = get_immudb_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
 
     event!(Level::INFO, "database name = {board_name}");
     info!("input = {:?}", input);
@@ -1143,7 +1147,12 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 #[instrument(err)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let mut client = get_immudb_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
 
     info!("board name: {board_name}");
     client.open_session(&board_name).await?;
