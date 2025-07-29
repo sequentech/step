@@ -11,6 +11,9 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,11 +50,56 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     initializeRabbitMQConnection();
   }
 
+  /**
+   * Parses a raw AMQP URI string and returns a new URI string with the user info (user and
+   * password) percent-encoded.
+   *
+   * @param rawAmqpUri The raw AMQP URI from environment variables.
+   * @return A URI string safe to be used with ConnectionFactory.setUri().
+   */
+  private String createEncodedAmqpUri(String rawAmqpUri) {
+    if (rawAmqpUri == null || !rawAmqpUri.startsWith("amqp://")) {
+      return rawAmqpUri; // Return as-is or throw an exception for invalid format
+    }
+
+    try {
+      // Extract the part after "amqp://"
+      String afterScheme = rawAmqpUri.substring("amqp://".length());
+      int atIndex = afterScheme.indexOf('@');
+      if (atIndex == -1) {
+        log.info("encoding Amqp Uri: No user info present");
+        return rawAmqpUri; // No user info present
+      }
+
+      // Split into user info and the rest (host:port/path)
+      String userInfo = afterScheme.substring(0, atIndex);
+      String afterUserInfo = afterScheme.substring(atIndex + 1);
+
+      // Split user info into user and password
+      String[] userPass = userInfo.split(":", 2);
+      String user = userPass[0];
+      String password = userPass.length > 1 ? userPass[1] : "";
+
+      // Percent-encode user and password
+      String encodedUser = URLEncoder.encode(user, StandardCharsets.UTF_8.name());
+      String encodedPassword = URLEncoder.encode(password, StandardCharsets.UTF_8.name());
+      String encodedUserInfo = encodedUser + (password.isEmpty() ? "" : ":" + encodedPassword);
+
+      // Reconstruct the URI
+      return "amqp://" + encodedUserInfo + "@" + afterUserInfo;
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException("UTF-8 encoding not supported", e);
+    }
+  }
+
   /** Initializes (or reinitializes) the RabbitMQ connection and channel using AMQP_ADDR. */
   private synchronized void initializeRabbitMQConnection() {
     try {
+      log.debug("initializeRabbitMQConnection");
       rabbitFactory = new ConnectionFactory();
-      rabbitFactory.setUri(AMQP_URI);
+      String amqpUri = createEncodedAmqpUri(AMQP_URI);
+      log.debug("Encoded Amqp Uri: " + amqpUri);
+      rabbitFactory.setUri(amqpUri);
       rabbitConnection = rabbitFactory.newConnection();
       rabbitChannel = rabbitConnection.createChannel();
       rabbitChannel.queueDeclare(QUEUE_NAME, true, false, false, null);
