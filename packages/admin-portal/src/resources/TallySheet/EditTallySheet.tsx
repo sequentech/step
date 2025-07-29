@@ -39,6 +39,13 @@ import {
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
 import {createTree, getContestMatches} from "@/services/AreaService"
+import {styled} from "@mui/material/styles"
+
+const StyledError = styled(Typography)`
+    position: absolute;
+    margin-top: -12px;
+    color: ${({theme}) => theme.palette.red.main};
+`
 
 const votingChannels = [
     {id: "PAPER", name: "PAPER"},
@@ -63,7 +70,7 @@ interface IArea {
     label?: Maybe<string> | undefined
 }
 
-const numbers = /^[0-9]+$/
+const numbersRegExp = /^[0-9]+$/
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const {tallySheet, contest, doCreatedTalySheet, submitRef} = props
@@ -82,6 +89,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
     const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
     const [areaIds, setAreaIds] = useState<Array<string>>([])
+    const [censusError, setCensusError] = useState<boolean>(false)
 
     const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
         "sequent_backend_area_contest",
@@ -276,15 +284,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     const recalculateTotals = () => {
         let newResults = {...results}
-        let totalValidVotes = Math.max(
-            newResults.total_blank_votes ?? 0,
-            newResults.total_valid_votes ?? 0
-        )
-        let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0)
+        let totalValidVotes = newResults.total_valid_votes ?? 0
+        let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0) + (newResults.total_blank_votes ?? 0)
+
         newResults.total_valid_votes = totalValidVotes
         newResults.total_votes = totalVotes
-        let currentTotalVotes = newResults.total_votes ?? 0
-        newResults.census = Math.max(newResults.census ?? 0, currentTotalVotes)
+        // Census must be entered manually, we do not calculate it.
         if (JSON.stringify(newResults) !== JSON.stringify(results)) {
             setResults(newResults)
         }
@@ -320,6 +325,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }
 
     const handleNumberChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log(results)
+        console.log(event.target.name)
+        console.log(event.target.value)
         if (event.target.value === "") {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,
@@ -328,21 +336,31 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         } else if (event.target.value === "0") {
             setResults((prev: IAreaContestResults) => ({...prev, [event.target.name as string]: 0}))
         } else {
-            if (event.target.value.match(numbers)) {
+            if (event.target.value.match(numbersRegExp)) {
                 setResults((prev: IAreaContestResults) => ({
                     ...prev,
                     [event.target.name as string]: +event.target.value,
                 }))
             }
         }
+
+        console.log(results)
     }
     const handleCensusChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        console.log(event.target.value)
+        console.log(results.total_votes ?? 0)
         let census = 0
-        if (event.target.value.match(numbers)) {
+        if (event.target.value.match(numbersRegExp)) {
             census = Number(event.target.value)
         }
+
         let currentTotalVotes = results.total_votes ?? 0
-        census = Math.max(census, currentTotalVotes)
+        if (census < currentTotalVotes) {
+            setCensusError(true)
+        } else {
+            setCensusError(false)
+        }
+
         setResults({
             ...results,
             census,
@@ -354,7 +372,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         let key: "explicit_invalid" | "implicit_invalid" = event.target.name as any
         if (event.target.value === "") {
             newInvalid[key] = 0
-        } else if (event.target.value.match(numbers)) {
+        } else if (event.target.value.match(numbersRegExp)) {
             newInvalid[key] = Number(event.target.value)
         }
         newInvalid.total_invalid =
@@ -373,7 +391,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             if (!event.target.value) {
                 delete candidateTemp.total_votes
             } else {
-                if (event.target.value.match(numbers)) {
+                if (event.target.value.match(numbersRegExp)) {
                     candidateTemp.total_votes = +event.target.value
                 } else {
                     candidateTemp.total_votes = +(candidateTemp?.total_votes || 0)
@@ -576,15 +594,19 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     size="small"
                     required
                 />
-                <TextField
-                    label={t("tallysheet.label.census")}
-                    name="census"
-                    value={typeof results.census === "number" ? results.census : ""}
-                    onChange={handleCensusChange}
-                    size="small"
-                    required
-                />
-
+                <>
+                    <TextField
+                        label={t("tallysheet.label.census")}
+                        name="census"
+                        value={typeof results.census === "number" ? results.census : ""}
+                        onChange={handleCensusChange}
+                        size="small"
+                        required
+                    />
+                    {censusError && (
+                        <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+                    )}
+                </>
                 <PageHeaderStyles.Wrapper>
                     <PageHeaderStyles.Title>
                         {t("tallysheet.common.candidates")}
