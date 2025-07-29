@@ -1691,7 +1691,7 @@ const englishTranslation = {
                 back: "Back",
             },
             inputError: {
-                totalValidDoesNotMatch: "Total valid votes does not match the sum of the candidate votes",
+                totalValidDoesNotMatch: "Total valid votes does not match the sum of the candidate votes plus blank votes",
                 censusTooSmall: "Census must be greater or equal than the total votes",
             },
             label: {

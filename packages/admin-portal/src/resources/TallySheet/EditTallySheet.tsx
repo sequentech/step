@@ -287,14 +287,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const recalculateTotals = () => {
         let newResults = {...results}
         let totalValidVotes = newResults.total_valid_votes ?? 0
-        let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0) + (newResults.total_blank_votes ?? 0)
+        let totalBlankVotes = newResults.total_blank_votes ?? 0
+        let totalVotes = totalValidVotes + (invalids?.total_invalid ?? 0)
 
         newResults.total_valid_votes = totalValidVotes
         newResults.total_votes = totalVotes
 
         // Census must be entered manually, we do not recalculate it.
         // Notify error if census is too small.
-
         let disableNextButton = false
         if ( newResults.census && newResults.census < newResults.total_votes) {
             disableNextButton = true
@@ -313,7 +313,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             canditatesVotesSum += candidateResult.total_votes
         }
         
-        if ( allCanditateResultsEntered && canditatesVotesSum !== totalValidVotes ) {
+        if ( allCanditateResultsEntered && (canditatesVotesSum + totalBlankVotes) !== totalValidVotes ) {
             disableNextButton = true
             setTotalValidError(true)
         } else {

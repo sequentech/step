@@ -34,7 +34,7 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
     let total_votes = content.total_votes.unwrap_or(0);
     let total_valid_votes = content.total_valid_votes.unwrap_or(0);
     let total_blank_votes = content.total_blank_votes.unwrap_or(0);
-    if total_invalid_votes + total_valid_votes + total_blank_votes != total_votes {
+    if total_invalid_votes + total_valid_votes != total_votes {
         return Err(anyhow!(
             "Invalid tally sheet {:?}, inconsistent total votes",
             tally_sheet
@@ -47,19 +47,21 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         .map(|candidate_result| -> u64 { candidate_result.total_votes.clone().unwrap_or(0) })
         .sum();
 
-    /*if total_valid_votes != total_valid_votes_calc + total_blank_votes {
+    if total_valid_votes != total_valid_votes_calc + total_blank_votes {
         return Err(anyhow!(
             "Invalid tally sheet {:?}, inconsistent total valid votes",
             tally_sheet
         )
         .into());
-    }*/
+    }
+
     let candidates_map: HashMap<String, Candidate> = contest
         .candidates
         .clone()
         .into_iter()
         .map(|candidate| (candidate.id.clone(), candidate.clone()))
         .collect();
+
     for (candidate_id, candidate_data) in content.candidate_results.iter() {
         if *candidate_id != candidate_data.candidate_id {
             return Err(anyhow!(

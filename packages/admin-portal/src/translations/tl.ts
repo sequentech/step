@@ -1710,7 +1710,7 @@ const tagalogTranslation: TranslationType = {
                 back: "Bumalik",
             },
             inputError: {
-                totalValidDoesNotMatch: "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato",
+                totalValidDoesNotMatch: "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato at mga blangkong boto",
                 censusTooSmall: "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
             },
             label: {

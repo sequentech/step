@@ -1717,7 +1717,7 @@ const catalanTranslation: TranslationType = {
                 back: "Enrere",
             },
             inputError: {
-                totalValidDoesNotMatch: "El total de vots vàlids no coincideix amb la suma dels vots dels candidats",
+                totalValidDoesNotMatch: "El total de vots vàlids no coincideix amb la suma dels vots dels candidats més els vots en blanc",
                 censusTooSmall: "El cens ha de ser major o igual al total de vots",
             },
             label: {

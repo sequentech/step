@@ -1700,7 +1700,7 @@ const basqueTranslation: TranslationType = {
                 back: "Atzera",
             },
             inputError: {
-                totalValidDoesNotMatch: "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen baturarekin",
+                totalValidDoesNotMatch: "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
                 censusTooSmall: "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
             },
             label: {
