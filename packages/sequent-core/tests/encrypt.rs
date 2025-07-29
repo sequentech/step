@@ -15,6 +15,7 @@ use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde_json::json;
 
+#[cfg(feature = "default_features")]
 #[test]
 fn test_multi_contest_reencoding_with_explicit_invalid() {
     // Create test data matching the scenario with explicit invalid candidates
