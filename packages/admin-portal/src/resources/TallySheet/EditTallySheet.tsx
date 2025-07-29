@@ -82,7 +82,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: "",
-        contest_id: "-",
+        contest_id: contest.id,
         invalid_votes: {},
         candidate_results: {},
     })

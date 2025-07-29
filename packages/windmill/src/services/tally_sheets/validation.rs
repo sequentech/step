@@ -34,7 +34,7 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
     let total_votes = content.total_votes.unwrap_or(0);
     let total_valid_votes = content.total_valid_votes.unwrap_or(0);
     let total_blank_votes = content.total_blank_votes.unwrap_or(0);
-    if total_invalid_votes + total_valid_votes != total_votes {
+    if total_invalid_votes + total_valid_votes + total_blank_votes != total_votes {
         return Err(anyhow!(
             "Invalid tally sheet {:?}, inconsistent total votes",
             tally_sheet
