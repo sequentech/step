@@ -93,6 +93,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }
 
+    console.log("page: ", page)
     return (
         <>
             <WizardStyles.WizardWrapper>
@@ -121,6 +122,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                                 setCreatedTallySheet(tallySheet)
                             }}
                             submitRef={submitRef}
+                            setIsButtonDisabled={setIsButtonDisabled}
                         />
                     </>
                 )}
@@ -136,6 +138,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                                 setCreatedTallySheet(tallySheet)
                             }}
                             submitRef={submitRef}
+                            setIsButtonDisabled={setIsButtonDisabled}
                         />
                     </>
                 )}

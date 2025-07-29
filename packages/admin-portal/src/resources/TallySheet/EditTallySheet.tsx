@@ -59,6 +59,7 @@ interface EditTallySheetProps {
     doCreatedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input) => void
     doEditedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet) => void
     submitRef: LegacyRef<HTMLButtonElement> | undefined
+    setIsButtonDisabled: (disabled: boolean) => void
 }
 
 interface ICandidateResultsExtended extends ICandidateResults {
@@ -73,7 +74,7 @@ interface IArea {
 const numbersRegExp = /^[0-9]+$/
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
-    const {tallySheet, contest, doCreatedTalySheet, submitRef} = props
+    const {tallySheet, contest, doCreatedTalySheet, submitRef, setIsButtonDisabled} = props
 
     const {t} = useTranslation()
 
@@ -293,7 +294,10 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
         // Census must be entered manually, we do not recalculate it.
         // Notify error if census is too small.
+
+        let disableNextButton = false
         if ( newResults.census && newResults.census < newResults.total_votes) {
+            disableNextButton = true
             setCensusError(true)
         } else {
             setCensusError(false)
@@ -310,11 +314,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
         
         if ( allCanditateResultsEntered && canditatesVotesSum !== totalValidVotes ) {
+            disableNextButton = true
             setTotalValidError(true)
         } else {
             setTotalValidError(false)
         }
 
+        setIsButtonDisabled(disableNextButton)
 
         if (JSON.stringify(newResults) !== JSON.stringify(results)) {
             setResults(newResults)
