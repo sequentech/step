@@ -1706,6 +1706,10 @@ const spanishTranslation: TranslationType = {
                 publish: "Publish Changes",
                 back: "Back",
             },
+            inputError: {
+                totalValidDoesNotMatch: "El total de votos válidos no coincide con la suma de los votos de los candidatos",
+                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+            },
             label: {
                 area: "Area",
                 channel: "Channel",

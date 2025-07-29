@@ -1703,6 +1703,10 @@ const dutchTranslation: TranslationType = {
                 publish: "Wijzigingen Publiceren",
                 back: "Terug",
             },
+            inputError: {
+                totalValidDoesNotMatch: "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten",
+                censusTooSmall: "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
+            },
             label: {
                 area: "Gebied",
                 channel: "Kanaal",

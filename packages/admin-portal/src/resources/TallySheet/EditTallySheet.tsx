@@ -42,9 +42,9 @@ import {createTree, getContestMatches} from "@/services/AreaService"
 import {styled} from "@mui/material/styles"
 
 const StyledError = styled(Typography)`
-    position: absolute;
-    margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};
+    margin-top: 3px;
+    font-size: 0.85rem;
 `
 
 const votingChannels = [
@@ -89,6 +89,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
     const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
     const [areaIds, setAreaIds] = useState<Array<string>>([])
+    const [totalValidError, setTotalValidError] = useState<boolean>(false)
     const [censusError, setCensusError] = useState<boolean>(false)
 
     const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
@@ -289,7 +290,32 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
         newResults.total_valid_votes = totalValidVotes
         newResults.total_votes = totalVotes
-        // Census must be entered manually, we do not calculate it.
+
+        // Census must be entered manually, we do not recalculate it.
+        // Notify error if census is too small.
+        if ( newResults.census && newResults.census < newResults.total_votes) {
+            setCensusError(true)
+        } else {
+            setCensusError(false)
+        }
+
+        let allCanditateResultsEntered = true
+        let canditatesVotesSum = 0
+        for (const candidateResult of candidatesResults) {
+            if ( !candidateResult.total_votes ) {
+                allCanditateResultsEntered = false
+                break
+            }
+            canditatesVotesSum += candidateResult.total_votes
+        }
+        
+        if ( allCanditateResultsEntered && canditatesVotesSum !== totalValidVotes ) {
+            setTotalValidError(true)
+        } else {
+            setTotalValidError(false)
+        }
+
+
         if (JSON.stringify(newResults) !== JSON.stringify(results)) {
             setResults(newResults)
         }
@@ -353,14 +379,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if (event.target.value.match(numbersRegExp)) {
             census = Number(event.target.value)
         }
-
-        let currentTotalVotes = results.total_votes ?? 0
-        if (census < currentTotalVotes) {
-            setCensusError(true)
-        } else {
-            setCensusError(false)
-        }
-
         setResults({
             ...results,
             census,
@@ -522,19 +540,23 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     required
                     disabled
                 />
-                <TextField
-                    label={t("tallysheet.label.total_valid_votes")}
-                    name="total_valid_votes"
-                    value={
-                        typeof results.total_valid_votes === "number"
-                            ? results.total_valid_votes
-                            : ""
-                    }
-                    onChange={handleNumberChange}
-                    size="small"
-                    required
-                />
-
+                <>
+                    <TextField
+                        label={t("tallysheet.label.total_valid_votes")}
+                        name="total_valid_votes"
+                        value={
+                            typeof results.total_valid_votes === "number"
+                                ? results.total_valid_votes
+                                : ""
+                        }
+                        onChange={handleNumberChange}
+                        size="small"
+                        required
+                    />
+                    {totalValidError && (
+                        <StyledError>{t("tallysheet.inputError.totalValidDoesNotMatch")}</StyledError>
+                    )}
+                </>
                 <Box
                     sx={{
                         width: "100%",
@@ -604,7 +626,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         required
                     />
                     {censusError && (
-                        <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+                        <StyledError>{t("tallysheet.inputError.censusTooSmall")}</StyledError>
                     )}
                 </>
                 <PageHeaderStyles.Wrapper>

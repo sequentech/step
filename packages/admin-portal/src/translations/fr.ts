@@ -1718,6 +1718,10 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier Changements",
                 back: "Arrière",
             },
+            inputError: {
+                totalValidDoesNotMatch: "Le total des votes valides ne correspond pas à la somme des votes des candidats",
+                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+            },
             label: {
                 area: "Zone",
                 channel: "Canal",

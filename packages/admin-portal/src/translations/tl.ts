@@ -1709,6 +1709,10 @@ const tagalogTranslation: TranslationType = {
                 publish: "I-publish ang mga Pagbabago",
                 back: "Bumalik",
             },
+            inputError: {
+                totalValidDoesNotMatch: "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato",
+                censusTooSmall: "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
+            },
             label: {
                 area: "Lugar",
                 channel: "Channel",

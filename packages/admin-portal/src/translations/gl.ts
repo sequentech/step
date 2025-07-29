@@ -1708,6 +1708,10 @@ const galegoTranslation: TranslationType = {
                 publish: "Publicar Cambios",
                 back: "Atrás",
             },
+            inputError: {
+                totalValidDoesNotMatch: "O total de votos válidos non coincide coa suma dos votos dos candidatos",
+                censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
+            },
             label: {
                 area: "Área",
                 channel: "Canle",

@@ -1699,6 +1699,10 @@ const basqueTranslation: TranslationType = {
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",
             },
+            inputError: {
+                totalValidDoesNotMatch: "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen baturarekin",
+                censusTooSmall: "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+            },
             label: {
                 area: "Eremua",
                 channel: "Kanala",

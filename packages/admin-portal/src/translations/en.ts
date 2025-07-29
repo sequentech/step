@@ -1690,6 +1690,10 @@ const englishTranslation = {
                 publish: "Publish Changes",
                 back: "Back",
             },
+            inputError: {
+                totalValidDoesNotMatch: "Total valid votes does not match the sum of the candidate votes",
+                censusTooSmall: "Census must be greater or equal than the total votes",
+            },
             label: {
                 area: "Area",
                 channel: "Channel",
