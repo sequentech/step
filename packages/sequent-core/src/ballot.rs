@@ -333,6 +333,14 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    pub fn is_explicit_blank(&self) -> bool {
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_explicit_blank)
+            .flatten()
+            .unwrap_or(false)
+    }
+
     pub fn is_disabled(&self) -> bool {
         self.presentation
             .as_ref()
