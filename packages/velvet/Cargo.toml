@@ -41,6 +41,10 @@ criterion = "0.5.1"
 # serializing
 hex = "0.4"
 
+# sqlite
+rusqlite = { version = "0.32", features = ["bundled"] }
+tempfile = "3.15.0"
+
 [dev-dependencies]
 anyhow = "1"
 walkdir = "2"

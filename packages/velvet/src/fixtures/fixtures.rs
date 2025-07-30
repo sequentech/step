@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::config::generate_reports::PipeConfigGenerateReports;
 use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::config::{self, Config};
 use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
@@ -29,21 +30,24 @@ pub struct TestFixture {
 impl TestFixture {
     #[instrument]
     pub fn new() -> Result<Self> {
-        let config_path = PathBuf::from(format!("test-velvet-config-{}.json", Uuid::new_v4()));
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(&config_path)?;
-
-        writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
-
-        let root_dir = PathBuf::from(format!("./tests-input__{}", Uuid::new_v4()));
+        let root_dir = PathBuf::from(format!("/tmp/velvet/tests-input__{}", Uuid::new_v4()));
         let input_dir = root_dir.join("tests").join("input-dir").join("default");
         let input_dir_configs = input_dir.join("configs");
         let input_dir_ballots = input_dir.join("ballots");
 
         fs::create_dir_all(&input_dir_configs)?;
         fs::create_dir_all(&input_dir_ballots)?;
+
+        let config_path = PathBuf::from(format!(
+            "/tmp/velvet/test-velvet-config-{}.json",
+            Uuid::new_v4()
+        ));
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&config_path)?;
+
+        writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
 
         Ok(Self {
             config_path,
@@ -55,21 +59,24 @@ impl TestFixture {
 
     #[instrument]
     pub fn new_mc() -> Result<Self> {
-        let config_path = PathBuf::from(format!("test-velvet-config-{}.json", Uuid::new_v4()));
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(&config_path)?;
-
-        writeln!(file, "{}", serde_json::to_string(&get_config_mcballots()?)?)?;
-
-        let root_dir = PathBuf::from(format!("./tests-input__{}", Uuid::new_v4()));
+        let root_dir = PathBuf::from(format!("/tmp/velvet/tests-input__{}", Uuid::new_v4()));
         let input_dir = root_dir.join("tests").join("input-dir").join("default");
         let input_dir_configs = input_dir.join("configs");
         let input_dir_ballots = input_dir.join("ballots");
 
         fs::create_dir_all(&input_dir_configs)?;
         fs::create_dir_all(&input_dir_ballots)?;
+
+        let config_path = PathBuf::from(format!(
+            "/tmp/velvet/test-velvet-config-{}.json",
+            Uuid::new_v4()
+        ));
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&config_path)?;
+
+        writeln!(file, "{}", serde_json::to_string(&get_config_mcballots()?)?)?;
 
         Ok(Self {
             config_path,
@@ -255,6 +262,11 @@ pub fn get_config() -> Result<Config> {
                         pipe: PipeName::GenerateReports,
                         config: Some(serde_json::Value::Null),
                     },
+                    config::PipeConfig {
+                        id: "gen-db".to_string(),
+                        pipe: PipeName::GenerateDatabase,
+                        config: Some(serde_json::Value::Null),
+                    },
                 ],
             },
         );
@@ -316,6 +328,11 @@ pub fn get_config_mcballots() -> Result<Config> {
                     config::PipeConfig {
                         id: "gen-report".to_string(),
                         pipe: PipeName::GenerateReports,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "gen-db".to_string(),
+                        pipe: PipeName::GenerateDatabase,
                         config: Some(serde_json::Value::Null),
                     },
                 ],
