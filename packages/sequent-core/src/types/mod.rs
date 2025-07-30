@@ -5,7 +5,6 @@
 pub mod ceremonies;
 pub mod date_time;
 pub mod error;
-#[cfg(feature = "default_features")]
 pub mod hasura;
 pub mod keycloak;
 pub mod permissions;

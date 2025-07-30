@@ -7,6 +7,7 @@ extern crate quick_error;
 extern crate cfg_if;
 
 #[cfg(feature = "default_features")]
+pub mod auditable_ballot;
 pub mod ballot;
 #[cfg(feature = "default_features")]
 pub mod ballot_style;
@@ -32,11 +33,10 @@ pub mod plaintext;
 #[cfg(feature = "plugins_wit")]
 pub mod plugins_wit;
 
-#[cfg(feature = "default_features")]
 pub mod serialization;
 #[cfg(feature = "default_features")]
 pub mod services;
-#[cfg(feature = "default_features")]
+// #[cfg(feature = "default_features")]
 pub mod util;
 
 #[cfg(all(feature = "reports", feature = "default_features"))]

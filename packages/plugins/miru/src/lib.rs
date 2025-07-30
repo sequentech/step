@@ -3,20 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #[allow(warnings)]
 mod bindings;
+mod services;
 
-use crate::bindings::plugins_manager::common::types::{Manifest, PluginRoute};
+use crate::bindings::plugins_manager::{
+    common::types::{Manifest, PluginRoute},
+    transactions_manager::transaction::create_hasura_transaction,
+};
 use bindings::exports::plugins_manager::common::plugin_common::Guest as PluginCommonGuest;
 use bindings::plugins_manager::jwt::authorization::authorize;
 use bindings::Guest;
 use core::result::Result;
 use sequent_core::types::permissions::Permissions;
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{to_string, Value};
+
 struct Component;
 
 #[derive(Serialize)]
-struct CreateTransmissionPacakeOutput {
+struct CreateTransmissionPackageOutput {
     pub data: String,
+}
+
+async fn test_test() -> Result<String, String> {
+    Ok("{}".to_string())
 }
 
 impl Guest for Component {
@@ -51,15 +60,45 @@ impl Guest for Component {
             Some("90505c8a-23a9-4cdf-a26b-4e19f6a097d5"),
             perm_strings.as_slice(),
         );
-        match res {
-            Ok(_) => {
-                let output = CreateTransmissionPacakeOutput {
-                    data: "Transmission package created successfully".to_string(),
-                };
-                Ok(serde_json::to_string(&output).unwrap())
-            }
-            Err(e) => Err(format!("Error creating transmission package: {}", e)),
+        if let Err(e) = res {
+            return Err(format!("Error authorizing: {}", e));
         }
+
+        // match create_hasura_transaction() {
+        //     Ok(hasura_transaction) => {
+        //         let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+        //         let election_id = "election-id";
+        //         let area_id = "area-id";
+        //         let tally_session_id = "tally-session-id";
+        //         let force = false;
+
+        //         create_transmission_package_service(
+        //             tenant_id,
+        //             election_id,
+        //             area_id,
+        //             tally_session_id,
+        //             force,
+        //         )
+        //     }
+        //     Err(e) => Err(format!("Error creating hasura transaction: {}", e)),
+        // }
+        Ok("".to_string())
+    }
+
+    fn test() -> Result<String, String> {
+        wit_bindgen_rt::async_support::block_on(async {
+            let transmission_package_bytes = std::fs::read("transmission_package_path")
+                .map_err(|e| format!("Error reading transmission package: {}", e))?;
+
+            let _res = test_test()
+                .await
+                .map_err(|e| format!("Error testing transmission package: {}", e))?;
+
+            let output = CreateTransmissionPackageOutput {
+                data: "Test function executed successfully".to_string(),
+            };
+            Ok(serde_json::to_string(&output).unwrap())
+        })
     }
 }
 

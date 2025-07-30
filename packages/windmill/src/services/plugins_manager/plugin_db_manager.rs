@@ -1,17 +1,20 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election_event::get_election_event_by_election_area as get_election_event_by_election_area_postgres;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
-use core::result::Result::Err;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::transactions_manager::transaction::Host;
+use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::transactions_manager::{
+    transaction::{Host as TransactionHost},
+    postgres_queries::{Host as PostgresHost}
+};
 use uuid::Uuid;
 #[ouroboros::self_referencing]
 pub struct PluginDbManager {
@@ -95,7 +98,7 @@ fn parsed_transactions_query_results(
 }
 
 //Implementing the Host trait for PluginTransactionsManager to handle database transactions
-impl Host for PluginTransactionsManager {
+impl TransactionHost for PluginTransactionsManager {
     async fn create_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;
 
@@ -289,5 +292,57 @@ impl Host for PluginTransactionsManager {
             .await
             .map_err(|e| format!("Keycloak commit failed: {}", e))?;
         Ok(())
+    }
+}
+
+impl PostgresHost for PluginTransactionsManager {
+    async fn get_election_event_by_election_area(
+        &mut self,
+        tenant_id: String,
+        election_id: String,
+        area_id: String,
+    ) -> Result<String, String> {
+        let mut manager = self.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        let res = get_election_event_by_election_area_postgres(
+            hasura_transaction,
+            &tenant_id,
+            &election_id,
+            &area_id,
+        )
+        .await
+        .map_err(|e| format!("Failed to get election event by election area: {}", e))?;
+        let str = serde_json::to_string(&res)
+            .map_err(|e| format!("Failed to serialize election event: {}", e))?;
+        Ok(str)
+    }
+    async fn get_election_by_id(
+        &mut self,
+        tenant_id: String,
+        election_event_id: String,
+        election_id: String,
+    ) -> Result<Option<String>, String> {
+        //TODO: Implement
+        Ok(None)
+    }
+    async fn get_tally_session_by_id(
+        &mut self,
+        tenant_id: String,
+        election_event_id: String,
+        tally_session_id: String,
+    ) -> Result<String, String> {
+        //TODO: Implement
+        Ok("".to_string())
+    }
+    async fn get_document(
+        &mut self,
+        tenant_id: String,
+        election_event_id: Option<String>,
+        document_id: String,
+    ) -> Result<String, String> {
+        //TODO: Implement
+        Ok("".to_string())
     }
 }
