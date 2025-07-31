@@ -38,6 +38,7 @@ jobs:
         with:
           node-version: '>= 18.0'
       - name: Build Preview (PR)
+        if: github.event_name == 'pull_request'
         working-directory: ./docs/docusaurus
         run: |
           export BASE_URL=/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
