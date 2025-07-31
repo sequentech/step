@@ -443,12 +443,14 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
-    tally_session_contest: &[TallySessionContest],
+    tally_session_area_contest: &[TallySessionContest],
 ) -> Result<Vec<ElectionCastVotes>> {
     let mut cast_votes_map: HashMap<String, ElectionCastVotes> = HashMap::new();
 
-    for contest in tally_session_contest {
-        let annotations: serde_json::Value = contest
+    // (election_id, (area_ids))
+    let mut election_areas_map: HashMap<String, HashSet<String>> = HashMap::new();
+    for area_contest in tally_session_area_contest {
+        let annotations: serde_json::Value = area_contest
             .annotations
             .clone()
             .ok_or(anyhow!("Missing annotations in tally session contest."))?;
@@ -456,15 +458,25 @@ pub async fn count_cast_votes_election_with_census(
         let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
 
         let entry = cast_votes_map
-            .entry(contest.election_id.clone())
+            .entry(area_contest.election_id.clone())
             .or_insert_with(|| ElectionCastVotes {
-                election_id: contest.election_id.clone(),
+                election_id: area_contest.election_id.clone(),
                 census: 0,
                 cast_votes: 0,
             });
 
+        let areas_set = election_areas_map
+            .entry(area_contest.election_id.clone())
+            .or_insert_with(|| HashSet::new());
+
+        if areas_set.contains(&area_contest.area_id) {
+            continue;
+        }
+
         entry.census += annotations.elegible_voters as i64;
         entry.cast_votes += annotations.casted_ballots as i64;
+
+        areas_set.insert(area_contest.area_id.clone());
     }
 
     Ok(cast_votes_map.into_values().collect())
