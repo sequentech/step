@@ -45,12 +45,14 @@ jobs:
           yarn build
       - name: Build Preview (main)
         if: github.event_name == 'push' && github.ref_name == 'main'
+        working-directory: ./docs/docusaurus
         run: |
           export BASE_URL=/main-preview
           yarn install --frozen-lockfile
           yarn build
       - name: Build Preview (release)
         if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
+        working-directory: ./docs/docusaurus
         run: |
           export BASE_URL=/release-preview/${{ github.ref_name }}
           yarn install --frozen-lockfile
