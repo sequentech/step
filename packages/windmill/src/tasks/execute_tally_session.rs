@@ -441,7 +441,7 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
     Some(execution_status)
 }
 
-#[instrument(skip_all, err)]
+#[instrument(err)]
 pub async fn count_cast_votes_election_with_census(
     tally_session_area_contest: &[TallySessionContest],
 ) -> Result<Vec<ElectionCastVotes>> {
@@ -1301,4 +1301,151 @@ pub async fn execute_tally_session(
     };
     lock.release().await?;
     res
+}
+
+mod tests {
+
+    use sequent_core::types::hasura::core::TallySessionContest;
+
+    #[test]
+    async fn test_count_cast_votes_election_with_census() {
+        let tally_session_contest: Vec<TallySessionContest> = vec![
+            TallySessionContest {
+                id: "da77960c-2982-4ee1-ae31-d78d9fccec5a",
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503",
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2",
+                contest_id: Some("6b3bff7c-e272-4f34-bbaf-2f27a1fad2d0"),
+                session_id: 11,
+                created_at: Some("2025-07-31T15:54:01.826283+00:00".into()),
+                last_updated_at: Some("2025-07-31T15:56:56.469525+00:00".into()),
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f",
+                election_id: "7c261aae-5918-439a-a298-f4e89d30b5e9",
+            },
+            TallySessionContest {
+                id: "3ae7714d-76d5-4302-98d3-92d77e7162b8",
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503",
+                area_id: "7903cfd5-b782-4584-abff-0674b8507d9b",
+                contest_id: Some("b8bcd18f-7b1f-4c85-bcee-2ab0bf75e022"),
+                session_id: 27,
+                created_at: Some("2025-07-31T15:54:01.826283+00:00".into()),
+                last_updated_at: Some("2025-07-31T15:56:56.469525+00:00".into()),
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 2,
+                    "elegible_voters": 2,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f",
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8",
+            },
+            TallySessionContest {
+                id: "338485c9-9aad-48c0-bf7c-9ed42da927a0",
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503",
+                area_id: "7903cfd5-b782-4584-abff-0674b8507d9b",
+                contest_id: Some("2d22e285-d9bf-45d0-a42f-86adbae3035f"),
+                session_id: 33,
+                created_at: Some("2025-07-31T15:54:01.826283+00:00".into()),
+                last_updated_at: Some("2025-07-31T15:56:56.469525+00:00".into()),
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 2,
+                    "elegible_voters": 2,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f",
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8",
+            },
+            TallySessionContest {
+                id: "fa96870c-fc44-42ef-8a3c-b7d31a5a22cb",
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503",
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2",
+                contest_id: Some("b8bcd18f-7b1f-4c85-bcee-2ab0bf75e022"),
+                session_id: 42,
+                created_at: Some("2025-07-31T15:54:01.826283+00:00".into()),
+                last_updated_at: Some("2025-07-31T15:56:56.469525+00:00".into()),
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f",
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8",
+            },
+            TallySessionContest {
+                id: "1605576f-c35e-4af0-8a2b-f98e4295ac17",
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503",
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2",
+                contest_id: Some("438089fa-2d40-487b-be71-824ba5376212"),
+                session_id: 47,
+                created_at: Some("2025-07-31T15:54:01.826283+00:00".into()),
+                last_updated_at: Some("2025-07-31T15:56:56.469525+00:00".into()),
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f",
+                election_id: "7c261aae-5918-439a-a298-f4e89d30b5e9",
+            },
+            TallySessionContest {
+                id: "527fa899-290c-460d-a76b-326babec03cd",
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503",
+                area_id: "7903cfd5-b782-4584-abff-0674b8507d9b",
+                contest_id: Some("6b3bff7c-e272-4f34-bbaf-2f27a1fad2d0"),
+                session_id: 48,
+                created_at: Some("2025-07-31T15:54:01.826283+00:00".into()),
+                last_updated_at: Some("2025-07-31T15:56:56.469525+00:00".into()),
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 2,
+                    "elegible_voters": 2,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f",
+                election_id: "7c261aae-5918-439a-a298-f4e89d30b5e9",
+            },
+            TallySessionContest {
+                id: "547fac16-5af7-4084-ad39-b9b72ea83613",
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503",
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2",
+                contest_id: Some("2d22e285-d9bf-45d0-a42f-86adbae3035f"),
+                session_id: 49,
+                created_at: Some("2025-07-31T15:54:01.826283+00:00".into()),
+                last_updated_at: Some("2025-07-31T15:56:56.469525+00:00".into()),
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f",
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8",
+            },
+        ];
+
+        let cast_votes_count =
+            count_cast_votes_election_with_census(&tally_session_contest).await?;
+        let election_ee1e1 = cast_votes_count.get(0).unwrap();
+        let election_ee1e2 = cast_votes_count.get(1).unwrap();
+
+        assert_eq!(election_ee1e1.census, 3);
+        assert_eq!(election_ee1e1.cast_votes, 3);
+        assert_eq!(election_ee1e2.census, 3);
+        assert_eq!(election_ee1e2.cast_votes, 3);
+    }
 }
