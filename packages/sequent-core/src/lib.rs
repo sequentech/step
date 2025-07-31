@@ -20,6 +20,7 @@ pub mod mixed_radix;
 pub mod plaintext;
 pub mod serialization;
 pub mod services;
+pub mod sqlite;
 pub mod util;
 
 #[cfg(feature = "reports")]

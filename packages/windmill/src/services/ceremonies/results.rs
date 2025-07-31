@@ -16,23 +16,23 @@ use crate::postgres::results_election::insert_results_elections;
 use crate::postgres::results_event::insert_results_event;
 use crate::services::ceremonies::result_documents::save_result_documents;
 use crate::services::documents::upload_and_return_document;
-use crate::sqlite::area::create_area_sqlite;
-use crate::sqlite::area_contest::create_area_contest_sqlite;
-use crate::sqlite::candidate::create_candidate_sqlite;
-use crate::sqlite::contests::create_contest_sqlite;
-use crate::sqlite::election::create_election_sqlite;
-use crate::sqlite::election_event::create_election_event_sqlite;
-use crate::sqlite::results_area_contest::create_results_area_contests_sqlite;
-use crate::sqlite::results_area_contest_candidate::create_results_area_contest_candidates_sqlite;
-use crate::sqlite::results_contest::create_results_contest_sqlite;
-use crate::sqlite::results_contest_candidate::create_results_contest_candidates_sqlite;
-use crate::sqlite::results_election::create_results_election_sqlite;
-use crate::sqlite::results_event::create_results_event_sqlite;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::Connection;
 use rusqlite::Transaction as SqliteTransaction;
 use sequent_core::services::connection;
+use sequent_core::sqlite::area::create_area_sqlite;
+use sequent_core::sqlite::area_contest::create_area_contest_sqlite;
+use sequent_core::sqlite::candidate::create_candidate_sqlite;
+use sequent_core::sqlite::contests::create_contest_sqlite;
+use sequent_core::sqlite::election::create_election_sqlite;
+use sequent_core::sqlite::election_event::create_election_event_sqlite;
+use sequent_core::sqlite::results_area_contest::create_results_area_contests_sqlite;
+use sequent_core::sqlite::results_area_contest_candidate::create_results_area_contest_candidates_sqlite;
+use sequent_core::sqlite::results_contest::create_results_contest_sqlite;
+use sequent_core::sqlite::results_contest_candidate::create_results_contest_candidates_sqlite;
+use sequent_core::sqlite::results_election::create_results_election_sqlite;
+use sequent_core::sqlite::results_event::create_results_event_sqlite;
 use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
 use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::hasura::core::{Area, TallySession};
@@ -403,15 +403,17 @@ async fn populate_election_event_data(
 
     let contests_ids: Vec<String> = contests.iter().map(|c| c.id.clone()).collect();
 
-    create_candidate_sqlite(
-        hasura_transaction,
-        sqlite_transaction,
-        &contests_ids,
-        tenant_id,
-        election_event_id,
-    )
-    .await
-    .context("Failed to create candidate table")?;
+    // TODO Create csv with candidates
+
+    // create_candidate_sqlite(
+    //     hasura_transaction,
+    //     sqlite_transaction,
+    //     &contests_ids,
+    //     tenant_id,
+    //     election_event_id,
+    // )
+    // .await
+    // .context("Failed to create candidate table")?;
 
     let areas = match areas_ids.clone() {
         Some(ids) => get_areas_by_ids(hasura_transaction, tenant_id, election_event_id, &ids)

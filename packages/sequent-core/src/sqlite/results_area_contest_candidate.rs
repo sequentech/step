@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::opt_f64;
+use crate::types::results::ResultsAreaContestCandidate;
 use anyhow::Result;
 use rusqlite::{params, Transaction};
-use sequent_core::types::results::ResultsAreaContestCandidate;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]

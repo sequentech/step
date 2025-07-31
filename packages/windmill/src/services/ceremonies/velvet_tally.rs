@@ -48,6 +48,9 @@ use velvet::cli::CliRun;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
+use velvet::pipes::pipe_inputs::{
+    DEFAULT_DIR_BALLOTS, DEFAULT_DIR_CONFIGS, DEFAULT_DIR_DATABASE, DEFAULT_DIR_TALLY_SHEETS,
+};
 use velvet::pipes::pipe_name::PipeName;
 
 #[derive(Debug, Clone)]
@@ -126,7 +129,7 @@ pub fn prepare_tally_for_area_contest(
 
     //// create ballots
     let ballots_path = velvet_input_dir.join(format!(
-        "default/ballots/election__{election_id}/contest__{contest_id}/area__{area_id}"
+        "{DEFAULT_DIR_BALLOTS}/election__{election_id}/contest__{contest_id}/area__{area_id}"
     ));
     fs::create_dir_all(&ballots_path)?;
 
@@ -139,7 +142,7 @@ pub fn prepare_tally_for_area_contest(
     } else if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
         // For multiple contests, we store ballots in a more aggregated location
         let election_ballots_path = velvet_input_dir.join(format!(
-            "default/ballots/election__{election_id}/area__{area_id}"
+            "{DEFAULT_DIR_BALLOTS}/election__{election_id}/area__{area_id}"
         ));
 
         fs::create_dir_all(&election_ballots_path)?;
@@ -158,12 +161,12 @@ pub fn prepare_tally_for_area_contest(
 
     //// create area folder
     let area_path: PathBuf = velvet_input_dir.join(format!(
-        "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}"
+        "{DEFAULT_DIR_CONFIGS}/election__{election_id}/contest__{contest_id}/area__{area_id}"
     ));
     fs::create_dir_all(&area_path)?;
     // create area config
     let area_config_path: PathBuf = velvet_input_dir.join(format!(
-        "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}/area-config.json"
+        "{DEFAULT_DIR_CONFIGS}/election__{election_id}/contest__{contest_id}/area__{area_id}/area-config.json"
     ));
 
     let area_config = AreaConfig {
@@ -186,7 +189,7 @@ pub fn prepare_tally_for_area_contest(
 
     //// create contest config file
     let contest_config_path: PathBuf = velvet_input_dir.join(format!(
-        "default/configs/election__{election_id}/contest__{contest_id}/contest-config.json"
+        "{DEFAULT_DIR_CONFIGS}/election__{election_id}/contest__{contest_id}/contest-config.json"
     ));
     let mut contest_config_file = fs::File::create(contest_config_path)?;
     writeln!(
@@ -203,7 +206,7 @@ pub fn prepare_tally_for_area_contest(
             };
             //// create tally sheets folder
             let tally_sheet_path: PathBuf = velvet_input_dir.join(format!(
-                "default/tally_sheets/election__{}/contest__{}/area__{}/tally_sheet__{}",
+                "{DEFAULT_DIR_TALLY_SHEETS}/election__{}/contest__{}/area__{}/tally_sheet__{}",
                 election_id, content.contest_id, content.area_id, tally_sheet.id
             ));
             fs::create_dir_all(&tally_sheet_path)?;

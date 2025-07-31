@@ -15,23 +15,23 @@ use uuid::Uuid;
 
 // use crate::cli::state::State;
 // use crate::pipes::do_tally::tally::TallyType;
-// use crate::pipes::generate_db::sqlite::area::create_area_sqlite;
-// use crate::pipes::generate_db::sqlite::area_contest::create_area_contest_sqlite;
-// use crate::pipes::generate_db::sqlite::candidate::create_candidate_sqlite;
-// use crate::pipes::generate_db::sqlite::contests::create_contest_sqlite;
-// use crate::pipes::generate_db::sqlite::election::create_election_sqlite;
-// use crate::pipes::generate_db::sqlite::election_event::create_election_event_sqlite;
-use crate::pipes::generate_db::sqlite::results_area_contest::create_results_area_contests_sqlite;
-use crate::pipes::generate_db::sqlite::results_area_contest_candidate::create_results_area_contest_candidates_sqlite;
-use crate::pipes::generate_db::sqlite::results_contest::create_results_contest_sqlite;
-use crate::pipes::generate_db::sqlite::results_contest_candidate::create_results_contest_candidates_sqlite;
-use crate::pipes::generate_db::sqlite::results_election::create_results_election_sqlite;
-use crate::pipes::generate_db::sqlite::results_event::create_results_event_sqlite;
+// use sequent_core::sqlite::area::create_area_sqlite;
+// use sequent_core::sqlite::area_contest::create_area_contest_sqlite;
+// use sequent_core::sqlite::candidate::create_candidate_sqlite;
+// use sequent_core::sqlite::contests::create_contest_sqlite;
+// use sequent_core::sqlite::election::create_election_sqlite;
+// use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
 use crate::pipes::pipe_inputs::{self, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use core::cmp;
+use sequent_core::sqlite::results_area_contest::create_results_area_contests_sqlite;
+use sequent_core::sqlite::results_area_contest_candidate::create_results_area_contest_candidates_sqlite;
+use sequent_core::sqlite::results_contest::create_results_contest_sqlite;
+use sequent_core::sqlite::results_contest_candidate::create_results_contest_candidates_sqlite;
+use sequent_core::sqlite::results_election::create_results_election_sqlite;
+use sequent_core::sqlite::results_event::create_results_event_sqlite;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -42,8 +42,8 @@ use crate::{
     utils::parse_file,
 };
 
-use anyhow::Context;
 use anyhow::anyhow;
+use anyhow::Context;
 use rusqlite::Transaction as SqliteTransaction;
 
 #[derive(Debug)]
@@ -78,6 +78,7 @@ impl GenerateDatabase {
 impl Pipe for GenerateDatabase {
     #[instrument(err, skip_all, name = "GenerateDatabase::exec")]
     fn exec(&self) -> crate::pipes::error::Result<()> {
+        // TODO Get tenant_id and election_id
         let tenant_id = "";
         let election_event_id = "";
 
@@ -117,29 +118,28 @@ pub fn populate_results_tables(
 
     let rt = Runtime::new()?;
 
-    let _ =
-        tokio::task::block_in_place(|| -> anyhow::Result<String> {
-            let mut sqlite_connection = Connection::open(&database_path)?;
-            let sqlite_transaction = sqlite_connection.transaction()?;
-            let process_result = rt.block_on(async {
-                process_results_tables(
-                    // base_tally_path,
-                    state_opt,
-                    tenant_id,
-                    election_event_id,
-                    // session_ids,
-                    // previous_execution,
-                    // areas,
-                    // default_language,
-                    // tally_type_enum,
-                    &sqlite_transaction,
-                    // tally_session,
-                )
-                .await
-            })?;
-            sqlite_transaction.commit()?;
-            Ok(process_result)
+    let _ = tokio::task::block_in_place(|| -> anyhow::Result<String> {
+        let mut sqlite_connection = Connection::open(&database_path)?;
+        let sqlite_transaction = sqlite_connection.transaction()?;
+        let process_result = rt.block_on(async {
+            process_results_tables(
+                // base_tally_path,
+                state_opt,
+                tenant_id,
+                election_event_id,
+                // session_ids,
+                // previous_execution,
+                // areas,
+                // default_language,
+                // tally_type_enum,
+                &sqlite_transaction,
+                // tally_session,
+            )
+            .await
         })?;
+        sqlite_transaction.commit()?;
+        Ok(process_result)
+    })?;
 
     // if let Some(ref results_event_id) = results_event_id_opt {
     //     let file_name = format!("results-{}.db", results_event_id);
@@ -203,26 +203,26 @@ pub async fn process_results_tables(
 
     // if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
     // if let Ok(results) = state_opt.get_results(false) {
-        save_results(
-            sqlite_transaction,
-            results.clone(),
-            tenant_id,
-            election_event_id,
-            &results_event_id,
-        )
-        .await?;
-        // save_result_documents(
-        //     results.clone(),
-        //     tenant_id,
-        //     election_event_id,
-        //     &results_event_id,
-        //     base_tally_path,
-        //     areas,
-        //     default_language,
-        //     tally_type_enum,
-        //     sqlite_transaction,
-        // )
-        // .await?;
+    save_results(
+        sqlite_transaction,
+        results.clone(),
+        tenant_id,
+        election_event_id,
+        &results_event_id,
+    )
+    .await?;
+    // save_result_documents(
+    //     results.clone(),
+    //     tenant_id,
+    //     election_event_id,
+    //     &results_event_id,
+    //     base_tally_path,
+    //     areas,
+    //     default_language,
+    //     tally_type_enum,
+    //     sqlite_transaction,
+    // )
+    // .await?;
     // }
     Ok(results_event_id)
     // } else {

@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::types::results::ResultDocuments;
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Transaction};
-use sequent_core::types::results::ResultDocuments;
 use serde_json::to_string;
 use tracing::instrument;
 
@@ -37,7 +37,11 @@ pub async fn create_results_event_sqlite(
             )",
     )?;
 
-    statement.execute(params![results_event_id, tenant_id, election_event_id,])?;
+    statement.execute(params![
+        results_event_id,
+        tenant_id,
+        election_event_id,
+    ])?;
 
     Ok(results_event_id.to_string())
 }
