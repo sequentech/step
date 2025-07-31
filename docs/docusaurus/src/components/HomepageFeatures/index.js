@@ -29,34 +29,34 @@ function Feature({Svg, title, description, link}) {
 
 const FeatureList = [
   {
-    title: 'Election Creation',
+    title: 'Election Creation - test 1',
     Svg: ElectionSvg,
     link: '/docs/admin_portal/Tutorials/admin_portal_tutorials_setting-up-your-first-election',
     description: (
       <>
-        Learn how election managers configure and launch elections, 
+        Learn how election managers configure and launch elections,
         from creating contests and candidates to publishing results.
       </>
     ),
   },
   {
-    title: 'Voting Process',
+    title: 'Voting Process - test 2',
     Svg: VotersSvg,
     link: 'docs/voting_portal/voting_portal.md',
     description: (
       <>
-        Explore the complete voting experience from the voter's perspective, 
+        Explore the complete voting experience from the voter's perspective,
         including ballot navigation, submission steps, and verification tools.
       </>
     ),
   },
   {
-    title: 'Election Audit',
+    title: 'Election Audit - test 3',
     Svg: AuditorsSvg,
     link: 'docs/election_verifier/election_verifier.md',
     description: (
       <>
-        Understand how auditors - whether public observers or officials use tools 
+        Understand how auditors - whether public observers or officials use tools
         such as the Ballot Verifier, Ballot Auditor, and Election Verifier to ensure election transparency and integrity.
       </>
     ),
