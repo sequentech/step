@@ -44,6 +44,7 @@ hex = "0.4"
 # sqlite
 rusqlite = { version = "0.32", features = ["bundled"] }
 tempfile = "3.15.0"
+ordered-float = { version = "4.4.0", features = ["serde"] }
 
 [dev-dependencies]
 anyhow = "1"

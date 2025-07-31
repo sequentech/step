@@ -13,26 +13,29 @@ use tempfile::{NamedTempFile, TempPath};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::cli::state::State;
-use crate::pipes::do_tally::tally::TallyType;
-use crate::pipes::generate_db::sqlite::area::create_area_sqlite;
-use crate::pipes::generate_db::sqlite::area_contest::create_area_contest_sqlite;
-use crate::pipes::generate_db::sqlite::candidate::create_candidate_sqlite;
-use crate::pipes::generate_db::sqlite::contests::create_contest_sqlite;
-use crate::pipes::generate_db::sqlite::election::create_election_sqlite;
-use crate::pipes::generate_db::sqlite::election_event::create_election_event_sqlite;
+// use crate::cli::state::State;
+// use crate::pipes::do_tally::tally::TallyType;
+// use crate::pipes::generate_db::sqlite::area::create_area_sqlite;
+// use crate::pipes::generate_db::sqlite::area_contest::create_area_contest_sqlite;
+// use crate::pipes::generate_db::sqlite::candidate::create_candidate_sqlite;
+// use crate::pipes::generate_db::sqlite::contests::create_contest_sqlite;
+// use crate::pipes::generate_db::sqlite::election::create_election_sqlite;
+// use crate::pipes::generate_db::sqlite::election_event::create_election_event_sqlite;
 use crate::pipes::generate_db::sqlite::results_area_contest::create_results_area_contests_sqlite;
 use crate::pipes::generate_db::sqlite::results_area_contest_candidate::create_results_area_contest_candidates_sqlite;
 use crate::pipes::generate_db::sqlite::results_contest::create_results_contest_sqlite;
 use crate::pipes::generate_db::sqlite::results_contest_candidate::create_results_contest_candidates_sqlite;
 use crate::pipes::generate_db::sqlite::results_election::create_results_election_sqlite;
 use crate::pipes::generate_db::sqlite::results_event::create_results_event_sqlite;
-use crate::pipes::generate_reports::ElectionReportDataComputed;
-use crate::pipes::pipe_inputs::PipeInputs;
-use crate::pipes::pipe_name::PipeNameOutputDir;
+use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
+use crate::pipes::pipe_inputs::{self, PipeInputs};
+use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use core::cmp;
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use tokio::runtime::Runtime;
 
 use crate::{
     pipes::error::{Error, Result},
@@ -75,59 +78,62 @@ impl GenerateDatabase {
 impl Pipe for GenerateDatabase {
     #[instrument(err, skip_all, name = "GenerateDatabase::exec")]
     fn exec(&self) -> crate::pipes::error::Result<()> {
-        let generate_reports_dir = self
-            .pipe_inputs
-            .cli
-            .output_dir
-            .as_path()
-            .join(PipeNameOutputDir::GenerateReports.as_ref());
+        let tenant_id = "";
+        let election_event_id = "";
 
-        self.pipe_inputs
-            .election_list
-            .iter()
-            .try_for_each(|election_input| Ok(()));
+        // TODO review this figure out a better way to get reports
+        let mut stage = self.pipe_inputs.stage.clone();
+        stage.current_pipe = Some(PipeName::GenerateReports);
+        let cli = self.pipe_inputs.cli.clone();
+        let pipe_inputs = PipeInputs::new(cli, stage.clone())?;
 
-        // let config = self.get_config()?;
+        let gen_reports = GenerateReports::new(pipe_inputs);
+        let reports = gen_reports.read_reports()?;
 
-        todo!();
+        populate_results_tables(&self.output_dir, reports, tenant_id, election_event_id)?;
+
+        Ok(())
     }
 }
 
 #[instrument(skip_all)]
-pub async fn populate_results_tables(
-    base_tally_path: &PathBuf,
-    state_opt: Option<State>,
+pub fn populate_results_tables(
+    base_tally_path: &Path,
+    state_opt: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
-    session_ids: Option<Vec<i64>>,
-    previous_execution: TallySessionExecution,
-    areas: &Vec<Area>,
-    default_language: &str,
-    tally_type_enum: TallyType,
-    tally_session: &TallySession,
+    // session_ids: Option<Vec<i64>>,
+    // previous_execution: TallySessionExecution,
+    // areas: &Vec<Area>,
+    // default_language: &str,
+    // tally_type_enum: TallyType,
+    // tally_session: &TallySession,
 ) -> Result<()> {
-    let temp_file = NamedTempFile::new()
-        .with_context("Failed to create temporary file for verifiable bulletin board")?;
-    let temp_path: TempPath = temp_file.into_temp_path();
     let document_id = Uuid::new_v4().to_string();
+    let database_path = base_tally_path.join(format!("{}.sqlite", document_id));
 
-    let results_event_id_opt =
-        tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
-            let mut sqlite_connection = Connection::open(&temp_path)?;
+    // Make sure the directory exists
+    fs::create_dir_all(&base_tally_path)?;
+
+    let rt = Runtime::new()?;
+
+    let _ =
+        tokio::task::block_in_place(|| -> anyhow::Result<String> {
+            let mut sqlite_connection = Connection::open(&database_path)?;
             let sqlite_transaction = sqlite_connection.transaction()?;
-            let process_result = tokio::runtime::Handle::current().block_on(async {
+            let process_result = rt.block_on(async {
                 process_results_tables(
-                    base_tally_path,
+                    // base_tally_path,
                     state_opt,
                     tenant_id,
                     election_event_id,
-                    session_ids,
-                    previous_execution,
-                    areas,
-                    default_language,
-                    tally_type_enum,
+                    // session_ids,
+                    // previous_execution,
+                    // areas,
+                    // default_language,
+                    // tally_type_enum,
                     &sqlite_transaction,
-                    tally_session,
+                    // tally_session,
                 )
                 .await
             })?;
@@ -167,17 +173,17 @@ pub async fn populate_results_tables(
 
 #[instrument(skip_all)]
 pub async fn process_results_tables(
-    base_tally_path: &PathBuf,
-    state_opt: Option<State>,
+    // base_tally_path: &PathBuf,
+    results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
     // session_ids: Option<Vec<i64>>,
     // previous_execution: TallySessionExecution,
     // areas: &Vec<Area>,
-    default_language: &str,
-    tally_type_enum: TallyType,
+    // default_language: &str,
+    // tally_type_enum: TallyType,
     sqlite_transaction: &SqliteTransaction<'_>,
-    tally_session: &TallySession,
+    // tally_session: &TallySession,
 ) -> Result<String> {
     // let elections_ids = tally_session.election_ids.clone();
     // let areas_ids = tally_session.area_ids.clone();
@@ -196,7 +202,7 @@ pub async fn process_results_tables(
         generate_results_id_if_necessary(sqlite_transaction, tenant_id, election_event_id).await?;
 
     // if let (Some(results_event_id), Some(state)) = (results_event_id_opt.clone(), state_opt) {
-    if let Ok(results) = state_opt.ok_or(anyhow!("Could not get state"))?.get_results(false) {
+    // if let Ok(results) = state_opt.get_results(false) {
         save_results(
             sqlite_transaction,
             results.clone(),
@@ -217,7 +223,7 @@ pub async fn process_results_tables(
         //     sqlite_transaction,
         // )
         // .await?;
-    }
+    // }
     Ok(results_event_id)
     // } else {
     //     Ok(previous_execution.results_event_id)
@@ -335,8 +341,8 @@ pub async fn generate_results_id_if_necessary(
     // let results_event =
     //     insert_results_event(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    // TODO this should be autogenerated
-    let results_event_id = "";
+    // TODO this should be autogenerated before it was generated by hasura postgresql query
+    let results_event_id = Uuid::new_v4().to_string();
 
     let results_event_id = create_results_event_sqlite(
         sqlite_transaction,
@@ -356,7 +362,7 @@ pub async fn save_results(
     tenant_id: &str,
     election_event_id: &str,
     results_event_id: &str,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     let mut results_contests: Vec<ResultsContest> = Vec::new();
     let mut results_area_contests: Vec<ResultsAreaContest> = Vec::new();
     let mut results_elections: Vec<ResultsElection> = Vec::new();
