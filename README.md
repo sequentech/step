@@ -1,3 +1,3 @@
 # Documentation previews
 
-This branch contains main, PR and release documentation previews.
+This branch contains documentation previews for the main branch, pull requests and release branches.
