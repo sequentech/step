@@ -441,7 +441,7 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
     Some(execution_status)
 }
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
     tally_session_area_contest: &[TallySessionContest],
 ) -> Result<Vec<ElectionCastVotes>> {
