@@ -1,5 +1,3 @@
-# PR documentation previews
+# Documentation previews
 
-This branch contains PR documentation previews.
-
-Each directory contains built documentation for that specific PR.
+This branch contains main, PR and release documentation previews.
