@@ -46,6 +46,16 @@ use anyhow::anyhow;
 use anyhow::Context;
 use rusqlite::Transaction as SqliteTransaction;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct PipeConfigGenerateDatabase {
+    pub enable_decoded_ballots: bool,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub document_id: String,
+}
+
 #[derive(Debug)]
 pub struct GenerateDatabase {
     pub pipe_inputs: PipeInputs,
@@ -73,15 +83,24 @@ impl GenerateDatabase {
             output_dir,
         }
     }
+
+    #[instrument(skip_all)]
+    pub fn get_config(&self) -> Result<PipeConfigGenerateDatabase> {
+        let pipe_config: PipeConfigGenerateDatabase = self
+            .pipe_inputs
+            .stage
+            .pipe_config(self.pipe_inputs.stage.current_pipe)
+            .and_then(|pc| pc.config)
+            .map(|value| serde_json::from_value(value))
+            .transpose()?
+            .unwrap_or_default();
+        Ok(pipe_config)
+    }
 }
 
 impl Pipe for GenerateDatabase {
     #[instrument(err, skip_all, name = "GenerateDatabase::exec")]
     fn exec(&self) -> crate::pipes::error::Result<()> {
-        // TODO Get tenant_id and election_id
-        let tenant_id = "";
-        let election_event_id = "";
-
         // TODO review this figure out a better way to get reports
         let mut stage = self.pipe_inputs.stage.clone();
         stage.current_pipe = Some(PipeName::GenerateReports);
@@ -91,7 +110,9 @@ impl Pipe for GenerateDatabase {
         let gen_reports = GenerateReports::new(pipe_inputs);
         let reports = gen_reports.read_reports()?;
 
-        populate_results_tables(&self.output_dir, reports, tenant_id, election_event_id)?;
+        let config = self.get_config()?;
+
+        populate_results_tables(&self.pipe_inputs.root_path_database, reports, &config)?;
 
         Ok(())
     }
@@ -99,10 +120,9 @@ impl Pipe for GenerateDatabase {
 
 #[instrument(skip_all)]
 pub fn populate_results_tables(
-    base_tally_path: &Path,
+    base_database_path: &Path,
     state_opt: Vec<ElectionReportDataComputed>,
-    tenant_id: &str,
-    election_event_id: &str,
+    config: &PipeConfigGenerateDatabase,
     // session_ids: Option<Vec<i64>>,
     // previous_execution: TallySessionExecution,
     // areas: &Vec<Area>,
@@ -110,11 +130,7 @@ pub fn populate_results_tables(
     // tally_type_enum: TallyType,
     // tally_session: &TallySession,
 ) -> Result<()> {
-    let document_id = Uuid::new_v4().to_string();
-    let database_path = base_tally_path.join(format!("{}.sqlite", document_id));
-
-    // Make sure the directory exists
-    fs::create_dir_all(&base_tally_path)?;
+    let database_path = base_database_path.join(format!("/{}.sqlite", &config.document_id));
 
     let rt = Runtime::new()?;
 
@@ -122,11 +138,14 @@ pub fn populate_results_tables(
         let mut sqlite_connection = Connection::open(&database_path)?;
         let sqlite_transaction = sqlite_connection.transaction()?;
         let process_result = rt.block_on(async {
+            // Make sure the directory exists
+            fs::create_dir_all(&base_database_path)?;
+
             process_results_tables(
                 // base_tally_path,
                 state_opt,
-                tenant_id,
-                election_event_id,
+                &config.tenant_id,
+                &config.election_event_id,
                 // session_ids,
                 // previous_execution,
                 // areas,
