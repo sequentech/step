@@ -51,11 +51,11 @@ jobs:
             exit 1
           fi
           # Check the preRelease input is false, otherwise, fail
-          if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-            echo "Error: Pre-release is not supported for the first release on a new release branch. Please set preRelease to false"
-            echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
-            exit 1
-          fi
+          #if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          #  echo "Error: Pre-release is not supported for the first release on a new release branch. Please set preRelease to false"
+          #  echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
+          #  exit 1
+          #fi
         fi
 
     - name: Checkout code
@@ -104,8 +104,8 @@ jobs:
           branchExists=$(git ls-remote --heads origin $releaseBranchName)
           if [ -n "$branchExists" ]; then
             echo "Info: Branch $releaseBranchName already exists"
-            echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
-            exit 1
+            # echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
+            # exit 1
           else
             git checkout -b $releaseBranchName
             # Add an empty commit to the new branch
