@@ -84,10 +84,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
-        area_id: "",
+        area_id: tallySheet?.area_id || "",
         contest_id: contest.id,
-        invalid_votes: {},
-        candidate_results: {},
+        total_votes: tallySheet?.annotations?.total_votes || 0,
+        total_valid_votes: tallySheet?.annotations?.total_valid_votes || 0,
+        invalid_votes: tallySheet?.annotations?.invalid_votes || {},
+        total_blank_votes: tallySheet?.annotations?.total_blank_votes || 0,
+        census: tallySheet?.annotations?.census || 0,
+        candidate_results: tallySheet?.annotations?.candidate_results || {},
     })
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
@@ -95,7 +99,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [areaIds, setAreaIds] = useState<Array<string>>([])
     const [totalValidError, setTotalValidError] = useState<boolean>(false)
     const [censusError, setCensusError] = useState<boolean>(false)
-
     const {data: areaContests} = useGetList<Sequent_Backend_Area_Contest>(
         "sequent_backend_area_contest",
         {
@@ -288,6 +291,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [candidates, tallySheet])
 
     const recalculateTotals = () => {
+        console.log("recalculateTotals")
         let newResults = {...results}
         let totalValidVotes = newResults.total_valid_votes ?? 0
         let totalBlankVotes = newResults.total_blank_votes ?? 0
