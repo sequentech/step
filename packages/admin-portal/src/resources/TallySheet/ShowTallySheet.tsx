@@ -281,6 +281,15 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         }
     }
 
+    function CustomTextField({ InputLabelProps = {}, ...props }) {
+        return (
+            <TextField
+            InputLabelProps={{ ...InputLabelProps, shrink: true }}
+            {...props}
+            />
+        );
+    }
+
     return (
         <SimpleForm toolbar={false} onSubmit={onSubmit}>
             <>
@@ -337,7 +346,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     style={{display: "none"}}
                 />
 
-                <TextField
+                <CustomTextField
+                    label={t("tallysheet.label.total_votes")}
                     name="total_votes"
                     value={results.total_votes}
                     onChange={handleTextChange}
@@ -345,7 +355,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     disabled
                     type="number"
                 />
-                <TextField
+                <CustomTextField
+                    label={t("tallysheet.label.total_valid_votes")}
                     name="total_valid_votes"
                     value={results.total_valid_votes}
                     onChange={handleTextChange}
@@ -364,7 +375,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         gap: "1rem",
                     }}
                 >
-                    <TextField
+                    <CustomTextField
+                        label={t("tallysheet.label.total_invalid")}
                         name="total_invalid"
                         value={invalids.total_invalid}
                         onChange={handleInvalidChange}
@@ -372,7 +384,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         disabled
                         type="number"
                     />
-                    <TextField
+                    <CustomTextField
+                        label={t("tallysheet.label.implicit_invalid")}
                         name="implicit_invalid"
                         value={invalids.implicit_invalid}
                         onChange={handleInvalidChange}
@@ -380,7 +393,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         disabled
                         type="number"
                     />
-                    <TextField
+                    <CustomTextField
+                        label={t("tallysheet.label.explicit_invalid")}
                         name="explicit_invalid"
                         value={invalids.explicit_invalid}
                         onChange={handleInvalidChange}
@@ -390,7 +404,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     />
                 </Box>
 
-                <TextField
+                <CustomTextField
+                    label={t("tallysheet.label.total_blank_votes")}
                     name="total_blank_votes"
                     value={results.total_blank_votes}
                     onChange={handleTextChange}
@@ -398,7 +413,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     disabled
                     type="number"
                 />
-                <TextField
+                <CustomTextField
+                    label={t("tallysheet.label.total_votes")}
                     name="census"
                     value={results.census}
                     onChange={handleTextChange}
