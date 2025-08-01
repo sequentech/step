@@ -48,6 +48,7 @@ use sequent_core::types::templates::{
 pub use sequent_core::util::date_time::get_date_and_time;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
+use velvet::pipes::generate_db::PipeConfigGenerateDatabase;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -678,6 +679,7 @@ pub async fn create_config_file(
     tally_session: &TallySession,
     hasura_transaction: &Transaction<'_>,
     tally_type: TallyType,
+    database_document_id: String,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -698,6 +700,13 @@ pub async fn create_config_file(
         tally_type,
     )
     .await?;
+
+    let gen_db_pipe_config = PipeConfigGenerateDatabase {
+        enable_decoded_ballots: false,
+        tenant_id: tally_session.tenant_id.clone(),
+        election_event_id: tally_session.election_event_id.clone(),
+        document_id: database_document_id.clone(),
+    };
 
     info!("FFF enable pdfs: {}", gen_report_pipe_config.enable_pdfs);
 
@@ -733,7 +742,7 @@ pub async fn create_config_file(
                     velvet::config::PipeConfig {
                         id: "gen-db".to_string(),
                         pipe: PipeName::GenerateDatabase,
-                        config: Some(serde_json::Value::Null),
+                        config: Some(serde_json::to_value(gen_db_pipe_config)?),
                     },
                 ],
             },
@@ -766,7 +775,7 @@ async fn populate_sqlite_election_event_data(
     base_tempdir: &Path,
     hasura_transaction: &Transaction<'_>,
     tally_session: &TallySession,
-) -> Result<PathBuf> {
+) -> Result<String> {
     let document_id = Uuid::new_v4().to_string();
     let velvet_input_dir = base_tempdir.join("input");
 
@@ -898,7 +907,7 @@ async fn populate_sqlite_election_event_data(
         })
     })?;
 
-    Ok(database_path)
+    Ok(document_id)
 }
 
 #[instrument(skip_all, err)]
@@ -936,7 +945,7 @@ pub async fn run_velvet_tally(
     )
     .await?;
 
-    populate_sqlite_election_event_data(
+    let database_document_id = populate_sqlite_election_event_data(
         base_tally_path.as_path(),
         hasura_transaction,
         tally_session,
@@ -951,6 +960,7 @@ pub async fn run_velvet_tally(
         tally_session,
         hasura_transaction,
         tally_type,
+        database_document_id,
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await
