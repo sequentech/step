@@ -9,18 +9,18 @@ use csv::ReaderBuilder;
 // use deadpool_postgres::Transaction;
 // use futures::{pin_mut, StreamExt};
 use rusqlite::{params, Transaction as SqliteTransaction};
-use tempfile::NamedTempFile;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
+// use tempfile::NamedTempFile;
+// use tokio::fs::File;
+// use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
 pub async fn create_candidate_sqlite(
     // hasura_transaction: &Transaction<'_>,
     sqlite_transaction: &SqliteTransaction<'_>,
-    contest_ids: &Vec<String>,
-    tenant_id: &str,
-    election_event_id: &str,
+    // contest_ids: &Vec<String>,
+    // tenant_id: &str,
+    // election_event_id: &str,
 ) -> Result<()> {
     sqlite_transaction.execute_batch(
         "
@@ -54,58 +54,6 @@ pub async fn import_candidate_sqlite(
     // tenant_id: &str,
     // election_event_id: &str,
 ) -> Result<()> {
-    // let contests_csv = contest_ids
-    //     .iter()
-    //     .map(|id| format!("\"{}\"", id))
-    //     .collect::<Vec<_>>()
-    //     .join(",");
-
-    // let copy_sql = format!(
-    //     r#"COPY (
-    //         SELECT
-    //             id::text,
-    //             tenant_id,
-    //             election_event_id::text,
-    //             contest_id::text,
-    //             created_at::text,
-    //             last_updated_at::text,
-    //             labels::text,
-    //             annotations::text,
-    //             name,
-    //             alias,
-    //             description,
-    //             type,
-    //             presentation::text,
-    //             is_public::text,
-    //             image_document_id::text
-    //         FROM sequent_backend.candidate
-    //         WHERE
-    //             tenant_id = '{}'
-    //             AND election_event_id = '{}'
-    //             AND contest_id = ANY('{{{}}}')
-    //     ) TO STDOUT WITH CSV HEADER"#,
-    //     tenant_id, election_event_id, contests_csv
-    // );
-
-    // let mut tmp = NamedTempFile::new().context("creating temp CSV file")?;
-    // let mut file = File::from_std(tmp.reopen()?);
-
-    // let mut stream = hasura_transaction
-    //     .copy_out(&copy_sql)
-    //     .await
-    //     .map_err(|e| anyhow!("COPY OUT failed: {}", e))?;
-    // pin_mut!(stream);
-
-    // while let Some(chunk) = stream.next().await {
-    //     let data = chunk.context("Error reading COPY OUT stream")?;
-    //     file.write_all(&data)
-    //         .await
-    //         .context("Error writing CSV data to temp file")?;
-    // }
-    // file.flush().await?;
-    // drop(file);
-
-    // let tmp_path = tmp.into_temp_path();
     tokio::task::block_in_place(|| -> anyhow::Result<()> {
         let mut insert = sqlite_transaction.prepare(
             "INSERT INTO candidate (

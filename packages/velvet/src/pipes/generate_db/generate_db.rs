@@ -56,6 +56,13 @@ pub struct PipeConfigGenerateDatabase {
     pub document_id: String,
 }
 
+impl PipeConfigGenerateDatabase {
+    #[instrument(skip_all, name = "PipeConfigGenerateDatabase::new")]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 #[derive(Debug)]
 pub struct GenerateDatabase {
     pub pipe_inputs: PipeInputs,
@@ -112,6 +119,11 @@ impl Pipe for GenerateDatabase {
 
         let config = self.get_config()?;
 
+        println!(
+            "-------- &self.pipe_inputs.root_path_database: {:?}",
+            &self.pipe_inputs.root_path_database
+        );
+
         populate_results_tables(&self.pipe_inputs.root_path_database, reports, &config)?;
 
         Ok(())
@@ -130,18 +142,22 @@ pub fn populate_results_tables(
     // tally_type_enum: TallyType,
     // tally_session: &TallySession,
 ) -> Result<()> {
-    let database_path = base_database_path.join(format!("/{}.sqlite", &config.document_id));
+    let database_path = base_database_path.join(format!("{}.sqlite", &config.document_id));
 
     let rt = Runtime::new()?;
 
     let _ = tokio::task::block_in_place(|| -> anyhow::Result<String> {
-        let mut sqlite_connection = Connection::open(&database_path)?;
-        let sqlite_transaction = sqlite_connection.transaction()?;
         let process_result = rt.block_on(async {
             // Make sure the directory exists
             fs::create_dir_all(&base_database_path)?;
 
-            process_results_tables(
+            let mut sqlite_connection = Connection::open(&database_path)
+                .map_err(|error| anyhow!("Error opening sqlite database: {error}"))?;
+            let sqlite_transaction = sqlite_connection
+                .transaction()
+                .map_err(|error| anyhow!("Error starting sqlite database transaction: {error}"))?;
+
+            let result = process_results_tables(
                 // base_tally_path,
                 state_opt,
                 &config.tenant_id,
@@ -154,9 +170,15 @@ pub fn populate_results_tables(
                 &sqlite_transaction,
                 // tally_session,
             )
-            .await
+            .await;
+
+            sqlite_transaction
+                .commit()
+                .map_err(|error| anyhow!("Error commiting sqlite database transaction: {error}"))?;
+
+            result
         })?;
-        sqlite_transaction.commit()?;
+
         Ok(process_result)
     })?;
 

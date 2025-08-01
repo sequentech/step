@@ -1,7 +1,12 @@
+use crate::postgres::area::{get_areas_by_ids, get_event_areas};
+use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
+use crate::postgres::candidate::export_candidate_csv;
+use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::export_elections;
+use crate::postgres::election::{export_elections, get_elections, get_elections_by_ids};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
@@ -18,6 +23,7 @@ use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use rusqlite::Connection;
 use sequent_core::ballot::{Annotations, BallotStyle, Contest, ContestEncryptionPolicy};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -25,6 +31,12 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::s3;
 use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
+use sequent_core::sqlite::area::create_area_sqlite;
+use sequent_core::sqlite::area_contest::create_area_contest_sqlite;
+use sequent_core::sqlite::candidate::{create_candidate_sqlite, import_candidate_sqlite};
+use sequent_core::sqlite::contests::create_contest_sqlite;
+use sequent_core::sqlite::election::create_election_sqlite;
+use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{
     Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
@@ -39,8 +51,11 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
+use tempfile::{NamedTempFile, TempPath};
+use tokio::runtime::Handle;
+use tokio::task;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
@@ -715,6 +730,11 @@ pub async fn create_config_file(
                         pipe: PipeName::GenerateReports,
                         config: Some(serde_json::to_value(gen_report_pipe_config)?),
                     },
+                    velvet::config::PipeConfig {
+                        id: "gen-db".to_string(),
+                        pipe: PipeName::GenerateDatabase,
+                        config: Some(serde_json::Value::Null),
+                    },
                 ],
             },
         );
@@ -740,6 +760,145 @@ pub async fn create_config_file(
     writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
 
     Ok(())
+}
+
+async fn populate_sqlite_election_event_data(
+    base_tempdir: &Path,
+    hasura_transaction: &Transaction<'_>,
+    tally_session: &TallySession,
+) -> Result<PathBuf> {
+    let document_id = Uuid::new_v4().to_string();
+    let velvet_input_dir = base_tempdir.join("input");
+
+    //// create ballots
+    let base_database_path = velvet_input_dir.join(format!("{DEFAULT_DIR_DATABASE}/"));
+
+    let database_path = base_database_path.join(format!("{document_id}.sqlite"));
+
+    let tenant_id = &tally_session.tenant_id;
+    let election_event_id = &tally_session.election_event_id;
+    let election_ids = tally_session.election_ids.clone();
+    let areas_ids = tally_session.area_ids.clone();
+
+    let database_path_ref = &database_path;
+
+    task::block_in_place(move || -> anyhow::Result<()> {
+        Handle::current().block_on(async move {
+            // Make sure the directory exists
+            fs::create_dir_all(&base_database_path)?;
+
+            let mut sqlite_connection = Connection::open(database_path_ref)?;
+            let sqlite_transaction = sqlite_connection.transaction()?;
+
+            let election_event =
+                get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+                    .await
+                    .context("Failed to get election event by ID")?;
+            create_election_event_sqlite(&sqlite_transaction, election_event)
+                .await
+                .context("Failed to create election event table")?;
+
+            let elections = match election_ids.clone() {
+                Some(ids) => {
+                    get_elections_by_ids(hasura_transaction, tenant_id, election_event_id, &ids)
+                        .await
+                }
+                None => get_elections(hasura_transaction, tenant_id, election_event_id, None).await,
+            }
+            .context("Failed to get elections")?;
+
+            create_election_sqlite(&sqlite_transaction, elections)
+                .await
+                .context("Failed to create election table")?;
+
+            let contests = match election_ids {
+                Some(ids) => get_contest_by_election_ids(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &ids,
+                )
+                .await
+                .context("Failed to export contests")?,
+                None => export_contests(hasura_transaction, tenant_id, election_event_id)
+                    .await
+                    .context("Failed to export contests")?,
+            };
+
+            create_contest_sqlite(&sqlite_transaction, contests.clone())
+                .await
+                .context("Failed to create contest table")?;
+
+            let contests_ids: Vec<String> = contests.iter().map(|c| c.id.clone()).collect();
+
+            // TODO Create csv with candidates
+
+            create_candidate_sqlite(&sqlite_transaction)
+                .await
+                .context("Failed to create candidate table")?;
+
+            let contests_csv_temp = NamedTempFile::new()
+                .context("Failed to create temporary file for candidates csv")?;
+
+            let contests_csv = contests_csv_temp.path();
+
+            export_candidate_csv(
+                hasura_transaction,
+                contests_csv,
+                &contests_ids,
+                tenant_id,
+                election_event_id,
+            )
+            .await
+            .context("Failed exporting candidates to csv")?;
+
+            import_candidate_sqlite(&sqlite_transaction, contests_csv)
+                .await
+                .context("Failed importing candidates to sqlite database")?;
+
+            let areas = match areas_ids.clone() {
+                Some(ids) => {
+                    get_areas_by_ids(hasura_transaction, tenant_id, election_event_id, &ids)
+                        .await
+                        .context("Failed to get event areas by IDs")?
+                }
+                None => get_event_areas(hasura_transaction, tenant_id, election_event_id)
+                    .await
+                    .context("Failed to get event areas")?,
+            };
+
+            create_area_sqlite(&sqlite_transaction, areas)
+                .await
+                .context("Failed to create area table")?;
+
+            let area_contests = match areas_ids {
+                Some(ids) => get_area_contests_by_area_contest_ids(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    &ids,
+                    &contests_ids,
+                )
+                .await
+                .context("Failed to get areas contestby IDs")?,
+                None => export_area_contests(hasura_transaction, tenant_id, election_event_id)
+                    .await
+                    .context("Failed to export area contests")?,
+            };
+
+            create_area_contest_sqlite(
+                &sqlite_transaction,
+                tenant_id,
+                election_event_id,
+                area_contests,
+            )
+            .await
+            .context("Failed to create area contest table")?;
+            Ok(())
+        })
+    })?;
+
+    Ok(database_path)
 }
 
 #[instrument(skip_all, err)]
@@ -776,6 +935,14 @@ pub async fn run_velvet_tally(
         election_event,
     )
     .await?;
+
+    populate_sqlite_election_event_data(
+        base_tally_path.as_path(),
+        hasura_transaction,
+        tally_session,
+    )
+    .await?;
+
     create_config_file(
         base_tally_path.clone(),
         report_content_template,

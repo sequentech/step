@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::config::generate_reports::PipeConfigGenerateReports;
 use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::config::{self, Config};
+use crate::pipes::generate_db::PipeConfigGenerateDatabase;
 use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use crate::pipes::pipe_name::PipeName;
 
@@ -230,6 +231,12 @@ impl Drop for TestFixture {
 #[instrument]
 pub fn get_config() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
+    let database_pipe_config = PipeConfigGenerateDatabase {
+        enable_decoded_ballots: true,
+        tenant_id: Uuid::new_v4().to_string(),
+        election_event_id: Uuid::new_v4().to_string(),
+        document_id: Uuid::new_v4().to_string(),
+    };
 
     let stages_def = {
         let mut map = HashMap::new();
@@ -265,7 +272,7 @@ pub fn get_config() -> Result<Config> {
                     config::PipeConfig {
                         id: "gen-db".to_string(),
                         pipe: PipeName::GenerateDatabase,
-                        config: Some(serde_json::Value::Null),
+                        config: Some(serde_json::to_value(database_pipe_config)?),
                     },
                 ],
             },
@@ -288,6 +295,12 @@ pub fn get_config() -> Result<Config> {
 pub fn get_config_mcballots() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
     let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot(None);
+    let database_pipe_config = PipeConfigGenerateDatabase {
+        enable_decoded_ballots: true,
+        tenant_id: Uuid::new_v4().to_string(),
+        election_event_id: Uuid::new_v4().to_string(),
+        document_id: Uuid::new_v4().to_string(),
+    };
 
     let stages_def = {
         let mut map = HashMap::new();
@@ -333,7 +346,7 @@ pub fn get_config_mcballots() -> Result<Config> {
                     config::PipeConfig {
                         id: "gen-db".to_string(),
                         pipe: PipeName::GenerateDatabase,
-                        config: Some(serde_json::Value::Null),
+                        config: Some(serde_json::to_value(database_pipe_config)?),
                     },
                 ],
             },
