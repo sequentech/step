@@ -206,13 +206,13 @@ jobs:
           # Currently, no pre-release is supported for major or minor releases from the main branch
           if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
             if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-              release-it --ci --increment=premajor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+              release-it --ci --increment=premajor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
             else
               release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
             fi
           elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
             if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-              release-it --ci --increment=preminor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+              release-it --ci --increment=preminor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
             else
               release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
             fi
