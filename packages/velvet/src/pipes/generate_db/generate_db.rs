@@ -12,6 +12,7 @@ use serde_json::json;
 use tempfile::{NamedTempFile, TempPath};
 // use tracing::instrument;
 use uuid::Uuid;
+use walkdir::WalkDir;
 
 // use crate::cli::state::State;
 // use crate::pipes::do_tally::tally::TallyType;
@@ -51,7 +52,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PipeConfigGenerateDatabase {
-    pub enable_decoded_ballots: bool,
+    pub include_decoded_ballots: bool,
     pub tenant_id: String,
     pub election_event_id: String,
     pub database_filename: String,
@@ -166,6 +167,16 @@ pub fn populate_results_tables(
                 .transaction()
                 .map_err(|error| anyhow!("Error starting sqlite database transaction: {error}"))?;
 
+            if config.include_decoded_ballots {
+                let parent_output_path = output_database_path.parent().ok_or(anyhow!("Invalid parent folder"))?;
+                let decoded_ballots_path = parent_output_path.join(PipeNameOutputDir::DecodeBallots.as_ref());
+
+                process_decoded_ballots(
+                    &sqlite_transaction,
+                    &decoded_ballots_path,
+                ).await?;
+            }
+
             let result = process_results_tables(
                 // base_tally_path,
                 state_opt,
@@ -219,6 +230,147 @@ pub fn populate_results_tables(
     // }
 
     Ok(())
+}
+
+/// Processes decoded ballot files found within the specified path.
+///
+/// This function recursively traverses the `decoded_ballots_path` to find all
+/// `decoded_ballots.json` files. For each file found, it extracts the
+/// `election_id`, `contest_id`, and `area_id` from the directory structure
+/// (e.g., `election__<id>/contest__<id>/area__<id>/decoded_ballots.json`).
+///
+/// The content of each `decoded_ballots.json` file is then read and inserted
+/// into the `ballot` table in the provided SQLite transaction.
+///
+/// The `ballot` table is created if it does not already exist with the schema:
+/// `(election_id TEXT NOT NULL, contest_id TEXT NOT NULL, area_id TEXT NOT NULL, decoded_ballot_json BLOB, PRIMARY KEY (election_id, contest_id, area_id))`
+///
+/// If a row with the same `(election_id, contest_id, area_id)` already exists,
+/// it will be replaced (`INSERT OR REPLACE`).
+///
+/// # Arguments
+/// * `sqlite_transaction` - A mutable reference to an active `rusqlite::Transaction`.
+/// * `decoded_ballots_path` - The root path from which to start searching for ballot files.
+///
+/// # Returns
+/// `Result<()>` - Returns `Ok(())` on success, or an `anyhow::Error` if any operation fails.
+#[instrument(skip_all)]
+pub async fn process_decoded_ballots(
+    sqlite_transaction: &SqliteTransaction<'_>,
+    decoded_ballots_path: &Path,
+) -> anyhow::Result<()> {
+    print!("-------------- {decoded_ballots_path:?}");
+
+    // 1. Create the 'ballot' table if it does not already exist.
+    // The table stores election, contest, and area IDs as text, and the JSON content as a BLOB.
+    // The primary key ensures uniqueness for each combination of election, contest, and area.
+    sqlite_transaction
+        .execute(
+            "CREATE TABLE IF NOT EXISTS ballot (
+            election_id TEXT NOT NULL,
+            contest_id TEXT NOT NULL,
+            area_id TEXT NOT NULL,
+            decoded_ballot_json BLOB,
+            PRIMARY KEY (election_id, contest_id, area_id)
+        );",
+            [], // No parameters for table creation
+        )
+        .context("Failed to create 'ballot' table")?;
+
+    // 2. Iterate through the directory structure to find 'decoded_ballots.json' files.
+    // WalkDir provides an iterator that recursively goes through directories.
+    for entry in WalkDir::new(decoded_ballots_path)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    // Filter out any errors during directory traversal
+    {
+        let path = entry.path();
+
+        // Check if the current entry is a file and its name is "decoded_ballots.json".
+        if path.is_file()
+            && path
+                .file_name()
+                .map_or(false, |name| name == "decoded_ballots.json")
+        {
+            // A 'decoded_ballots.json' file has been found.
+            tracing::info!("Found decoded_ballots.json at: {:?}", path);
+
+            // Extract the election, contest, and area IDs from the file's path.
+            // This helper function parses the directory names to get the required IDs.
+            let (election_id, contest_id, area_id) = extract_ids_from_path(path)
+                .with_context(|| format!("Failed to extract IDs from path: {:?}", path))?;
+
+            // Read the entire content of the decoded_ballots.json file asynchronously.
+            // The content will be stored as a byte vector (Vec<u8>), suitable for BLOB.
+            let decoded_ballot_json_content = fs::read(path)
+                .with_context(|| format!("Failed to read file content: {:?}", path))?;
+
+            // Insert or replace the data into the 'ballot' table.
+            // `INSERT OR REPLACE` is used to handle cases where the same ballot might be
+            // processed multiple times, ensuring the latest content is always stored.
+            sqlite_transaction.execute(
+                "INSERT OR REPLACE INTO ballot (election_id, contest_id, area_id, decoded_ballot_json) VALUES (?, ?, ?, ?)",
+                rusqlite::params![
+                    election_id,                  // Parameter for election_id
+                    contest_id,                   // Parameter for contest_id
+                    area_id,                      // Parameter for area_id
+                    decoded_ballot_json_content   // Parameter for decoded_ballot_json BLOB
+                ],
+            ).with_context(|| format!(
+                "Failed to insert/replace ballot data for election: {}, contest: {}, area: {}",
+                election_id, contest_id, area_id
+            ))?;
+
+            tracing::info!(
+                "Successfully processed ballot for election: {}, contest: {}, area: {}",
+                election_id,
+                contest_id,
+                area_id
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Helper function to extract election, contest, and area IDs from a file path.
+///
+/// This function iterates through the components of a given `Path` and looks for
+/// segments that start with "election__", "contest__", or "area__". It then
+/// extracts the UUID part following these prefixes.
+///
+/// # Arguments
+/// * `path` - A reference to the `Path` from which to extract IDs.
+///
+/// # Returns
+/// `Result<(String, String, String)>` - A tuple containing (election_id, contest_id, area_id)
+///                                      as Strings on success, or an `anyhow::Error` if any
+///                                      of the required IDs cannot be found.
+#[instrument(skip_all)]
+fn extract_ids_from_path(path: &Path) -> anyhow::Result<(String, String, String)> {
+    let mut election_id: Option<String> = None;
+    let mut contest_id: Option<String> = None;
+    let mut area_id: Option<String> = None;
+
+    // Iterate over the components of the path (e.g., "election__uuid", "contest__uuid", etc.)
+    for component in path.iter().map(|c| c.to_string_lossy()) {
+        if let Some(id) = component.strip_prefix("election__") {
+            election_id = Some(id.to_string());
+        } else if let Some(id) = component.strip_prefix("contest__") {
+            contest_id = Some(id.to_string());
+        } else if let Some(id) = component.strip_prefix("area__") {
+            area_id = Some(id.to_string());
+        }
+    }
+
+    // Check if all three IDs were successfully extracted.
+    match (election_id, contest_id, area_id) {
+        (Some(e), Some(c), Some(a)) => Ok((e, c, a)),
+        _ => Err(anyhow::anyhow!(
+            "Could not extract all required IDs (election, contest, area) from path: {:?}",
+            path
+        )),
+    }
 }
 
 #[instrument(skip_all)]

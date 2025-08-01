@@ -702,7 +702,7 @@ pub async fn create_config_file(
     .await?;
 
     let gen_db_pipe_config = PipeConfigGenerateDatabase {
-        enable_decoded_ballots: false,
+        include_decoded_ballots: false,
         tenant_id: tally_session.tenant_id.clone(),
         election_event_id: tally_session.election_event_id.clone(),
         database_filename: format!("results-{}.db", database_document_id),

@@ -232,7 +232,7 @@ impl Drop for TestFixture {
 pub fn get_config() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
     let database_pipe_config = PipeConfigGenerateDatabase {
-        enable_decoded_ballots: true,
+        include_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
         election_event_id: Uuid::new_v4().to_string(),
         database_filename: "results.db".to_string(),
@@ -296,7 +296,7 @@ pub fn get_config_mcballots() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
     let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot(None);
     let database_pipe_config = PipeConfigGenerateDatabase {
-        enable_decoded_ballots: true,
+        include_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
         election_event_id: Uuid::new_v4().to_string(),
         database_filename: "results.db".to_string(),

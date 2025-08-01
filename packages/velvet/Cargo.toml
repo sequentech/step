@@ -32,6 +32,7 @@ anyhow = "1" # FIXME: To be removed
 strand = { path="../strand" }
 csv = "1.3.0"
 tokio = { version = "1.32.0", features = ["full"] }
+walkdir = "2"
 
 # logging
 tracing = "0.1"
@@ -48,7 +49,6 @@ ordered-float = { version = "4.4.0", features = ["serde"] }
 
 [dev-dependencies]
 anyhow = "1"
-walkdir = "2"
 
 [[bench]]
 name = "pdf_generation"
