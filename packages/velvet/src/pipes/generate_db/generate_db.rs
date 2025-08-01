@@ -10,7 +10,7 @@ use sequent_core::types::results::{
 };
 use serde_json::json;
 use tempfile::{NamedTempFile, TempPath};
-use tracing::instrument;
+// use tracing::instrument;
 use uuid::Uuid;
 
 // use crate::cli::state::State;
@@ -34,6 +34,7 @@ use sequent_core::sqlite::results_election::create_results_election_sqlite;
 use sequent_core::sqlite::results_event::create_results_event_sqlite;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tracing::{instrument, warn};
 
 use tokio::runtime::Runtime;
 
@@ -53,7 +54,7 @@ pub struct PipeConfigGenerateDatabase {
     pub enable_decoded_ballots: bool,
     pub tenant_id: String,
     pub election_event_id: String,
-    pub document_id: String,
+    pub database_filename: String,
 }
 
 impl PipeConfigGenerateDatabase {
@@ -119,12 +120,12 @@ impl Pipe for GenerateDatabase {
 
         let config = self.get_config()?;
 
-        println!(
-            "-------- &self.pipe_inputs.root_path_database: {:?}",
-            &self.pipe_inputs.root_path_database
-        );
-
-        populate_results_tables(&self.pipe_inputs.root_path_database, reports, &config)?;
+        populate_results_tables(
+            &self.pipe_inputs.root_path_database,
+            &self.output_dir,
+            reports,
+            &config,
+        )?;
 
         Ok(())
     }
@@ -132,7 +133,8 @@ impl Pipe for GenerateDatabase {
 
 #[instrument(skip_all)]
 pub fn populate_results_tables(
-    base_database_path: &Path,
+    input_database_path: &Path,
+    output_database_path: &Path,
     state_opt: Vec<ElectionReportDataComputed>,
     config: &PipeConfigGenerateDatabase,
     // session_ids: Option<Vec<i64>>,
@@ -142,14 +144,21 @@ pub fn populate_results_tables(
     // tally_type_enum: TallyType,
     // tally_session: &TallySession,
 ) -> Result<()> {
-    let database_path = base_database_path.join(format!("{}.sqlite", &config.document_id));
+    let input_database_path = input_database_path.join(&config.database_filename);
+    let database_path = output_database_path.join(&config.database_filename);
 
     let rt = Runtime::new()?;
 
     let _ = tokio::task::block_in_place(|| -> anyhow::Result<String> {
         let process_result = rt.block_on(async {
             // Make sure the directory exists
-            fs::create_dir_all(&base_database_path)?;
+            fs::create_dir_all(&output_database_path)?;
+
+            if fs::exists(&input_database_path)? {
+                fs::copy(input_database_path, &database_path).map_err(|error| anyhow!("Could not copy file: {error}"))?;
+            } else {
+                warn!("No input database found. A new database will be created only with result tables.")
+            }
 
             let mut sqlite_connection = Connection::open(&database_path)
                 .map_err(|error| anyhow!("Error opening sqlite database: {error}"))?;

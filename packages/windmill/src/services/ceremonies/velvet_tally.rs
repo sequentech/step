@@ -48,7 +48,6 @@ use sequent_core::types::templates::{
 pub use sequent_core::util::date_time::get_date_and_time;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
-use velvet::pipes::generate_db::PipeConfigGenerateDatabase;
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -63,6 +62,7 @@ use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
+use velvet::pipes::generate_db::PipeConfigGenerateDatabase;
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_inputs::{
     DEFAULT_DIR_BALLOTS, DEFAULT_DIR_CONFIGS, DEFAULT_DIR_DATABASE, DEFAULT_DIR_TALLY_SHEETS,
@@ -705,7 +705,7 @@ pub async fn create_config_file(
         enable_decoded_ballots: false,
         tenant_id: tally_session.tenant_id.clone(),
         election_event_id: tally_session.election_event_id.clone(),
-        document_id: database_document_id.clone(),
+        database_filename: format!("results-{}.db", database_document_id),
     };
 
     info!("FFF enable pdfs: {}", gen_report_pipe_config.enable_pdfs);
@@ -779,10 +779,8 @@ async fn populate_sqlite_election_event_data(
     let document_id = Uuid::new_v4().to_string();
     let velvet_input_dir = base_tempdir.join("input");
 
-    //// create ballots
     let base_database_path = velvet_input_dir.join(format!("{DEFAULT_DIR_DATABASE}/"));
-
-    let database_path = base_database_path.join(format!("{document_id}.sqlite"));
+    let database_path = base_database_path.join(format!("results-{document_id}.db"));
 
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;

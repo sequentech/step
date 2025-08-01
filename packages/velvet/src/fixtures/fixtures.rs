@@ -31,7 +31,9 @@ pub struct TestFixture {
 impl TestFixture {
     #[instrument]
     pub fn new() -> Result<Self> {
-        let root_dir = PathBuf::from(format!("/tmp/velvet/tests-input__{}", Uuid::new_v4()));
+        let temp_folder = env::temp_dir();
+
+        let root_dir = temp_folder.join(format!("velvet/tests-input__{}", Uuid::new_v4()));
         let input_dir = root_dir.join("tests").join("input-dir").join("default");
         let input_dir_configs = input_dir.join("configs");
         let input_dir_ballots = input_dir.join("ballots");
@@ -39,10 +41,8 @@ impl TestFixture {
         fs::create_dir_all(&input_dir_configs)?;
         fs::create_dir_all(&input_dir_ballots)?;
 
-        let config_path = PathBuf::from(format!(
-            "/tmp/velvet/test-velvet-config-{}.json",
-            Uuid::new_v4()
-        ));
+        let config_path =
+            temp_folder.join(format!("velvet/test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
             .write(true)
             .create(true)
@@ -235,7 +235,7 @@ pub fn get_config() -> Result<Config> {
         enable_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
         election_event_id: Uuid::new_v4().to_string(),
-        document_id: Uuid::new_v4().to_string(),
+        database_filename: "results.db".to_string(),
     };
 
     let stages_def = {
@@ -299,7 +299,7 @@ pub fn get_config_mcballots() -> Result<Config> {
         enable_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
         election_event_id: Uuid::new_v4().to_string(),
-        document_id: Uuid::new_v4().to_string(),
+        database_filename: "results.db".to_string(),
     };
 
     let stages_def = {

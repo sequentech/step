@@ -46,11 +46,12 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
+use velvet::pipes::pipe_inputs::DEFAULT_DIR_DATABASE;
 
 #[instrument(skip_all)]
 pub async fn save_results(
     hasura_transaction: &Transaction<'_>,
-    sqlite_transaction: &SqliteTransaction<'_>,
+    // sqlite_transaction: &SqliteTransaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
@@ -272,7 +273,7 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_contest_sqlite(sqlite_transaction, results_contests).await?;
+    // create_results_contest_sqlite(sqlite_transaction, results_contests).await?;
 
     insert_results_area_contests(
         hasura_transaction,
@@ -283,7 +284,7 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_area_contests_sqlite(sqlite_transaction, results_area_contests).await?;
+    // create_results_area_contests_sqlite(sqlite_transaction, results_area_contests).await?;
 
     insert_results_elections(
         hasura_transaction,
@@ -294,7 +295,7 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_election_sqlite(sqlite_transaction, results_elections).await?;
+    // create_results_election_sqlite(sqlite_transaction, results_elections).await?;
 
     insert_results_contest_candidates(
         hasura_transaction,
@@ -305,8 +306,8 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_contest_candidates_sqlite(sqlite_transaction, results_contest_candidates)
-        .await?;
+    // create_results_contest_candidates_sqlite(sqlite_transaction, results_contest_candidates)
+    //     .await?;
 
     insert_results_area_contest_candidates(
         hasura_transaction,
@@ -317,11 +318,11 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_area_contest_candidates_sqlite(
-        sqlite_transaction,
-        results_area_contest_candidates,
-    )
-    .await?;
+    // create_results_area_contest_candidates_sqlite(
+    //     sqlite_transaction,
+    //     results_area_contest_candidates,
+    // )
+    // .await?;
 
     Ok(())
 }
@@ -402,7 +403,7 @@ pub async fn process_results_tables(
         if let Ok(results) = state.get_results(false) {
             save_results(
                 hasura_transaction,
-                sqlite_transaction,
+                // sqlite_transaction,
                 results.clone(),
                 tenant_id,
                 election_event_id,
@@ -441,16 +442,17 @@ pub async fn populate_results_tables(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
-    tally_session: &TallySession,
+    // tally_session: &TallySession,
 ) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
-    let temp_file = NamedTempFile::new()
-        .context("Failed to create temporary file for verifiable bulletin board")?;
-    let temp_path: TempPath = temp_file.into_temp_path();
+    let velvet_output_dir = base_tally_path.join("output");
+    let base_database_path = velvet_output_dir.join(format!("{DEFAULT_DIR_DATABASE}/"));
+    let database_path = base_database_path.join("results.db");
+
     let document_id = Uuid::new_v4().to_string();
 
     let results_event_id_opt =
         tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
-            let mut sqlite_connection = Connection::open(&temp_path)?;
+            let mut sqlite_connection = Connection::open(&database_path)?;
             let sqlite_transaction = sqlite_connection.transaction()?;
             let process_result = tokio::runtime::Handle::current().block_on(async {
                 process_results_tables(
@@ -475,7 +477,7 @@ pub async fn populate_results_tables(
 
     if let Some(ref results_event_id) = results_event_id_opt {
         let file_name = format!("results-{}.db", results_event_id);
-        let file_path = temp_path.to_str().ok_or(anyhow!("Empty upload path"))?;
+        let file_path = database_path.to_str().ok_or(anyhow!("Empty upload path"))?;
         let file_size = get_file_size(file_path)?;
 
         let _document = upload_and_return_document(
