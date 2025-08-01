@@ -293,9 +293,9 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
-    volumes:
+    #volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import:z
+      #- ./keycloak/import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -517,6 +517,7 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      ENV_SLUG: ${ENV_SLUG}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -686,7 +687,6 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init-keycloak
-
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -908,9 +908,10 @@ services:
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
       BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+      ENV_SLUG: ${ENV_SLUG}
 
   beat:
-    profiles: ["full"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
@@ -944,6 +945,7 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      ENV_SLUG: ${ENV_SLUG}
 
   postgres-b3:
     profiles: ["full", "base"]

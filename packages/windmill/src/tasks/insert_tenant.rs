@@ -12,8 +12,6 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core;
-use sequent_core::services::connection;
-use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use std::{env, fs};

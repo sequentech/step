@@ -311,7 +311,7 @@ pub trait TemplateRenderer: Debug {
             .get_default_extra_config_file()
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error to get the extra config data {e:?}")))?;
-        let data: ReportExtraConfig = serde_json::from_str(&json_data)?;
+        let data: ReportExtraConfig = deserialize_str(&json_data)?;
 
         Ok(data)
     }
