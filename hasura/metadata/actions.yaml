@@ -1264,6 +1264,19 @@ actions:
           - role: area-create
           - role: area-write
       comment: upsert_areas
+    - name: upsert_tally_sheet
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/upsert-tally-sheet
+          forward_client_headers: true
+          request_transform:
+              body:
+              action: transform
+              template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+          permissions:
+              - role: tally-sheet-create
 custom_types:
     enums:
         - name: ReportEncryptionPolicy

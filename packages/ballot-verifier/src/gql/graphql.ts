@@ -901,6 +901,26 @@ export type String_Comparison_Exp = {
     _similar?: InputMaybe<Scalars["String"]["input"]>
 }
 
+export type TallySheetOutput = {
+    __typename?: "TallySheetOutput"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    area_id: Scalars["String"]["output"]
+    channel?: Maybe<Scalars["String"]["output"]>
+    content?: Maybe<Scalars["jsonb"]["output"]>
+    contest_id: Scalars["String"]["output"]
+    created_at?: Maybe<Scalars["String"]["output"]>
+    created_by_user_id?: Maybe<Scalars["String"]["output"]>
+    deleted_at?: Maybe<Scalars["String"]["output"]>
+    election_event_id: Scalars["String"]["output"]
+    election_id: Scalars["String"]["output"]
+    id: Scalars["String"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    last_updated_at?: Maybe<Scalars["String"]["output"]>
+    published_at?: Maybe<Scalars["String"]["output"]>
+    published_by_user_id?: Maybe<Scalars["String"]["output"]>
+    tenant_id: Scalars["String"]["output"]
+}
+
 export type TotalAggregate = {
     __typename?: "TotalAggregate"
     aggregate: Aggregate
@@ -1720,6 +1740,7 @@ export type Mutation_Root = {
     upsert_area?: Maybe<UpsertAreaOutput>
     /** upsert_areas */
     upsert_areas?: Maybe<OptionalId>
+    upsert_tally_sheet?: Maybe<TallySheetOutput>
 }
 
 /** mutation root */
@@ -4027,6 +4048,15 @@ export type Mutation_RootUpsert_AreaArgs = {
 /** mutation root */
 export type Mutation_RootUpsert_AreasArgs = {
     document_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootUpsert_Tally_SheetArgs = {
+    area_id: Scalars["String"]["input"]
+    channel: Scalars["String"]["input"]
+    content: Scalars["jsonb"]["input"]
+    contest_id: Scalars["String"]["input"]
     election_event_id: Scalars["String"]["input"]
 }
 

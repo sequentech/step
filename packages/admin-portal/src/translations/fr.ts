@@ -1719,7 +1719,8 @@ const frenchTranslation: TranslationType = {
                 back: "Arrière",
             },
             inputError: {
-                totalValidDoesNotMatch: "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
+                totalValidDoesNotMatch:
+                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
                 censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
             },
             label: {

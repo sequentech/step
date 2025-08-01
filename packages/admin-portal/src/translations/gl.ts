@@ -1709,7 +1709,8 @@ const galegoTranslation: TranslationType = {
                 back: "Atrás",
             },
             inputError: {
-                totalValidDoesNotMatch: "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
+                totalValidDoesNotMatch:
+                    "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
                 censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
             },
             label: {

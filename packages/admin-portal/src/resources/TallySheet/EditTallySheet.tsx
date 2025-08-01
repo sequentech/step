@@ -299,7 +299,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         // Census must be entered manually, we do not recalculate it.
         // Notify error if census is too small.
         let disableNextButton = false
-        if ( newResults.census && newResults.census < newResults.total_votes) {
+        if (newResults.census && newResults.census < newResults.total_votes) {
             disableNextButton = true
             setCensusError(true)
         } else {
@@ -309,14 +309,17 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         let allCanditateResultsEntered = true
         let canditatesVotesSum = 0
         for (const candidateResult of candidatesResults) {
-            if ( !candidateResult.total_votes ) {
+            if (!candidateResult.total_votes) {
                 allCanditateResultsEntered = false
                 break
             }
             canditatesVotesSum += candidateResult.total_votes
         }
-        
-        if ( allCanditateResultsEntered && (canditatesVotesSum + totalBlankVotes) !== totalValidVotes ) {
+
+        if (
+            allCanditateResultsEntered &&
+            canditatesVotesSum + totalBlankVotes !== totalValidVotes
+        ) {
             disableNextButton = true
             setTotalValidError(true)
         } else {
@@ -443,12 +446,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
         const candidatesResultsTemp: {[id: string]: ICandidateResults} = {}
-        for (const candidate  of candidatesResults) {
+        for (const candidate of candidatesResults) {
             const candidateTemp: ICandidateResults = {
-                candidate_id: candidate .candidate_id,
-                total_votes: candidate .total_votes,
+                candidate_id: candidate.candidate_id,
+                total_votes: candidate.total_votes,
             }
-            candidatesResultsTemp[candidate .candidate_id] = candidateTemp
+            candidatesResultsTemp[candidate.candidate_id] = candidateTemp
         }
         resultsTemp.invalid_votes = invalidsTemp
         resultsTemp.candidate_results = candidatesResultsTemp
@@ -562,7 +565,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         required
                     />
                     {totalValidError && (
-                        <StyledError>{t("tallysheet.inputError.totalValidDoesNotMatch")}</StyledError>
+                        <StyledError>
+                            {t("tallysheet.inputError.totalValidDoesNotMatch")}
+                        </StyledError>
                     )}
                 </>
                 <Box
