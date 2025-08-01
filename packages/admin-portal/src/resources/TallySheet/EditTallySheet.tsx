@@ -379,8 +379,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         console.log(results)
     }
     const handleCensusChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log(event.target.value)
-        console.log(results.total_votes ?? 0)
         let census = 0
         if (event.target.value.match(numbersRegExp)) {
             census = Number(event.target.value)
