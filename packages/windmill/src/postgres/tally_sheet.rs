@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::anyhow;
-use anyhow::{Context, Result};
-use deadpool_postgres::Transaction;
+use anyhow::{anyhow, Context, Result};
+use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::hasura::core::TallySheet;
+use sequent_core::types::hasura::core::VotingChannels;
 use sequent_core::types::tally_sheets::AreaContestResults;
+use sequent_core::types::{hasura::core::TallySheet, tally_sheets::VotingChannel};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 pub struct TallySheetWrapper(pub TallySheet);
@@ -137,4 +137,85 @@ pub async fn publish_tally_sheet(
         return Ok(None);
     }
     Ok(Some(()))
+}
+
+#[instrument(skip(hasura_transaction, content), err)]
+pub async fn upsert_tally_sheet(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    contest_id: &str,
+    area_id: &str,
+    content: &AreaContestResults,
+    channel: &VotingChannel,
+    created_by_user_id: &str,
+) -> Result<TallySheet> {
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let contest_uuid: uuid::Uuid = Uuid::parse_str(contest_id)
+        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let content_value = serde_json::to_value(content)?;
+    let channel_str = channel.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO
+                    sequent_backend.tally_sheet
+                (tenant_id, election_event_id, election_id, contest_id, area_id, content, channel, created_by_user_id)
+                VALUES(
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    $5,
+                    $6,
+                    $7,
+                    $8
+                )
+                ON CONFLICT (tenant_id, election_event_id, election_id, contest_id, area_id, channel)
+                DO UPDATE SET
+                    content = EXCLUDED.content,
+                    last_updated_at = NOW()
+                RETURNING
+                    *;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &tenant_uuid,
+                &election_event_uuid,
+                &election_uuid,
+                &contest_uuid,
+                &area_uuid,
+                &content_value,
+                &channel_str,
+                &created_by_user_id.to_string(),
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error inserting tally sheet: {}", err))?;
+
+    let elements: Vec<TallySheet> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySheet> {
+            row.try_into()
+                .map(|res: TallySheetWrapper| -> TallySheet { res.0 })
+        })
+        .collect::<Result<Vec<TallySheet>>>()?;
+
+    if 1 == elements.len() {
+        Ok(elements[0].clone())
+    } else {
+        Err(anyhow!("Unexpected rows affected {}", elements.len()))
+    }
 }

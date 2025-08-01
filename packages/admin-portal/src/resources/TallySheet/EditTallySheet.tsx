@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {LegacyRef, useEffect, useMemo, useState} from "react"
 import {Identifier, SimpleForm, useGetList, useInfiniteGetList} from "react-admin"
-import {useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {
@@ -14,6 +14,7 @@ import {
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
+    UpsertTallySheetMutation,
 } from "@/gql/graphql"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {
@@ -40,6 +41,8 @@ import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
 import {createTree, getContestMatches} from "@/services/AreaService"
 import {styled} from "@mui/material/styles"
+import {IPermissions} from "@/types/keycloak"
+import {UPSERT_TALLY_SHEET} from "@/queries/UpsertTallySheet"
 
 const StyledError = styled(Typography)`
     color: ${({theme}) => theme.palette.red.main};
@@ -440,12 +443,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
         const candidatesResultsTemp: {[id: string]: ICandidateResults} = {}
-        for (const candiate of candidatesResults) {
-            const candiateTemp: ICandidateResults = {
-                candidate_id: candiate.candidate_id,
-                total_votes: candiate.total_votes,
+        for (const candidate  of candidatesResults) {
+            const candidateTemp: ICandidateResults = {
+                candidate_id: candidate .candidate_id,
+                total_votes: candidate .total_votes,
             }
-            candidatesResultsTemp[candiate.candidate_id] = candiateTemp
+            candidatesResultsTemp[candidate .candidate_id] = candidateTemp
         }
         resultsTemp.invalid_votes = invalidsTemp
         resultsTemp.candidate_results = candidatesResultsTemp
@@ -497,6 +500,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                                 label="Search Area"
                                 onChange={debouncedSearchArea}
                                 value={areaNameFilter}
+                                required
                             />
                         )}
                         value={currentArea}

@@ -12,10 +12,14 @@ import {
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
+    UpsertTallySheetMutation,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {EditTallySheet} from "./EditTallySheet"
 import {ShowTallySheet} from "./ShowTallySheet"
+import {useMutation} from "@apollo/client"
+import {UPSERT_TALLY_SHEET} from "@/queries/UpsertTallySheet"
+import {IPermissions} from "@/types/keycloak"
 
 export const WizardSteps = {
     List: -1,
@@ -49,13 +53,53 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     >()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false)
 
-    const {data: tallySheet} = useGetOne("sequent_backend_tally_sheet", {id: tallySheetId})
+    const {data: tallySheet} = useGetOne<Sequent_Backend_Tally_Sheet>(
+        "sequent_backend_tally_sheet",
+        {id: tallySheetId}
+    )
+
+    const [upsertTallySheet] = useMutation<UpsertTallySheetMutation>(UPSERT_TALLY_SHEET, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TALLY_SHEET_CREATE,
+            },
+        },
+    })
 
     useEffect(() => {
         if (action) {
             setPage(action)
         }
     }, [action])
+
+    const upsertTallySheetAction = async () => {
+        try {
+            const tallySheetString = localStorage.getItem("tallySheetData")
+            if (!tallySheetString) {
+                return
+            }
+            const tallySheetData: Sequent_Backend_Tally_Sheet_Insert_Input =
+                JSON.parse(tallySheetString)
+            let {errors} = await upsertTallySheet({
+                variables: {
+                    electionEventId: tallySheetData.election_event_id,
+                    channel: tallySheetData.channel,
+                    content: tallySheetData.content,
+                    contestId: tallySheetData.contest_id,
+                    areaId: tallySheetData.area_id,
+                },
+            })
+            if (errors) {
+                notify(t("tallysheet.createTallyError"), {type: "error"})
+                console.log(`Error creating tally sheet: ${errors}`)
+            } else {
+                notify(t("tallysheet.createTallySuccess"), {type: "success"})
+            }
+        } catch (error) {
+            notify(t("tallysheet.createTallyError"), {type: "error"})
+            console.log(`Error creating tally sheet: ${error}`)
+        }
+    }
 
     const handleNext = () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
@@ -70,7 +114,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 }
             }, 400)
         } else if (page === WizardSteps.Confirm) {
-            submitRef.current?.click()
+            upsertTallySheetAction()
             doAction(WizardSteps.List)
         }
     }
