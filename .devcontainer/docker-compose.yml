@@ -339,9 +339,10 @@ services:
   #   ports:
   #     - 3002:3000
   #   stdin_open: true
-  #   entrypoint: ["./init.sh", "start:admin:container"]
-  #   volumes:
-  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  #   entrypoint: ["/workspaces/step/packages/init.sh", "start:admin-portal"]
+  #   working_dir: /workspaces/step/packages
+  #   volumes_from:
+  #     - devcontainer
   #   environment:
   #       MAX_DIFF_LINES: ${MAX_DIFF_LINES}
   #       SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}

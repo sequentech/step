@@ -272,6 +272,8 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
+    const resultsSQLiteDocumentId = tallySessionExecutions?.[0]?.documents?.sqlite ?? null
+
     const tallySessionData = useMemo(() => {
         try {
             let strData = tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
@@ -744,6 +746,7 @@ export const TallyCeremony: React.FC = () => {
                             isTallyCompleted={isTallyCompleted}
                             contests={contests ?? []}
                             electionIds={tallySession?.election_ids ?? []}
+                            databaseName={resultsSQLiteDocumentId}
                         />
                     ) : null}
                     {page === WizardSteps.Start && (

@@ -27,3 +27,9 @@ Area, Internal Server Error.
 This fixes the issue where a service account appears in the voters list.
 In order to deploy this in production, the configmap for the default
 election event configuration needs to be changed.
+
+## ✨ Read tally in frontend from Sqlite3
+
+With this change, the admin portal starts reading the results directly
+from the Sqlite3 file produced by the Tally. This makes it faster and
+more scalable.
