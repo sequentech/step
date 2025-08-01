@@ -27,7 +27,6 @@ module.exports = {
                 ...webpackConfig.resolve.modules,
                 // Add the correct path where sequent-core actually is
                 path.resolve(__dirname, "../node_modules"),
-                path.resolve("/workspaces/step/packages/node_modules"),
             ]
 
             // Enable WebAssembly support

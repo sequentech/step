@@ -40,11 +40,8 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     electionIds,
     databaseName,
 }) => {
-    console.log("[ResultsDataLoader] Start")
     const [tenantId] = useTenantStore()
     const setTallyQueryData = useSetAtom(tallyQueryData)
-    const {globalSettings} = useContext(SettingsContext)
-    const [isPolling, setIsPolling] = useState(false)
 
     const contestIds = useMemo(() => contests.map((c) => c.id), [contests])
 

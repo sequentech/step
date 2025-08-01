@@ -201,7 +201,7 @@ export function useManagedDatabase(documentId?: string, electionEventId?: string
             setInitError(null)
             try {
                 const sql = await initSqlJs({
-                    locateFile: (file) => `https://sql.js.org/dist/${file}`,
+                    locateFile: (file) => `/${file}`,
                 })
                 const db = new sql.Database(dbData)
                 addDatabase(documentId, db)
