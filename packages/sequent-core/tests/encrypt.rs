@@ -3,14 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Integration tests for the encrypt module
-
+#[cfg(feature = "default_features")]
 use sequent_core::ballot::*;
+#[cfg(feature = "default_features")]
 use sequent_core::ballot_codec::multi_ballot::*;
+#[cfg(feature = "default_features")]
 use sequent_core::encrypt::*;
+#[cfg(feature = "default_features")]
 use sequent_core::plaintext::DecodedVoteContest;
+#[cfg(feature = "default_features")]
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde_json::json;
 
+#[cfg(feature = "default_features")]
 #[test]
 fn test_multi_contest_reencoding_with_explicit_invalid() {
     // Create test data matching the scenario with explicit invalid candidates
