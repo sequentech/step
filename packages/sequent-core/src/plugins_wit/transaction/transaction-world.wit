@@ -17,6 +17,7 @@ interface postgres-queries {
     get-election-by-id: func(tenant-id:string,election-event-id:string,election-id:string) -> result<option<string>, string>;
     get-tally-session-by-id: func(tenant-id: string,election-event-id:string,tally-session-id:string) -> result<string, string>;
     get-document: func(tenant-id: string, election-event-id: option<string>, document-id: string) -> result<string, string>;
+    get-area-by-id: func(tenant-id:string, area-id:string) -> result<option<string>, string>;
 }
 
 world transactions-manager {

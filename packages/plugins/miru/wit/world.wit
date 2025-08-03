@@ -6,5 +6,4 @@ world miru-plugin {
     import plugins-manager:jwt/authorization;
     export plugins-manager:common/plugin-common;
     export create-transmission-package: func(data: string) -> result<string,string>;
-    export test: func() -> result<string,string>;
 }

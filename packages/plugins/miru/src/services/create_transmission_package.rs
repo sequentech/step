@@ -5,20 +5,14 @@
 use std::collections::HashMap;
 
 use crate::{
-    bindings::{
-        self,
-        plugins_manager::transactions_manager::postgres_queries::{
-            get_election_by_id, get_election_event_by_election_area, get_tally_session_by_id,
-        },
-    },
-    services::miru_plugin_types::MiruTallySessionData,
+    bindings::plugins_manager::transactions_manager::postgres_queries::{get_area_by_id, get_election_by_id, get_election_event_by_election_area, get_tally_session_by_id}, services::miru_plugin_types::MiruTallySessionData,
 };
-use anyhow::{anyhow, Context, Result};
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::deserialize_value,
-    types::hasura::core::{Election, ElectionEvent, TallySession},
+    types::hasura::core::{Area, Election, ElectionEvent, TallySession},
 };
+use tracing::instrument;
 
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, MiruAreaAnnotations, MiruElectionAnnotations,
@@ -26,64 +20,77 @@ use super::eml_generator::{
     MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 
-pub async fn create_transmission_package_service(
+use super::miru_plugin_types::{
+    MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
+};
+
+#[instrument(skip_all, err)]
+pub fn create_transmission_package_service(
     tenant_id: &str,
     election_id: &str,
     area_id: &str,
     tally_session_id: &str,
     force: bool,
-) -> Result<()> {
+) -> Result<String, String> {
     let election_event_json = get_election_event_by_election_area(tenant_id, election_id, area_id)
-        .map_err(anyhow::Error::msg)?;
-    let election_event: ElectionEvent = serde_json::from_str(&election_event_json)
-        .map_err(|e| anyhow!("Failed to deserialize ElectionEvent: {}", e))?;
+        .map_err(|e| e.to_string())?;
 
-    let tally_session_json =
-        get_tally_session_by_id(tenant_id, &election_event.id, tally_session_id)
-            .map_err(|e| anyhow!("Failed to get tally session by id: {}", e))?;
-    let tally_session: TallySession = serde_json::from_str(&tally_session_json)
-        .map_err(|e| anyhow!("Failed to deserialize TallySession: {}", e))?;
+    let election_event: ElectionEvent = serde_json::from_str::<ElectionEvent>(&election_event_json)
+        .map_err(|e| e.to_string())?;
 
-    let tally_annotations: Annotations = tally_session
-        .annotations
-        .clone()
-        .map(|value| deserialize_value(value))
-        .transpose()?
-        .unwrap_or_default();
+    // let tally_session_json =
+    //     get_tally_session_by_id(tenant_id, &election_event.id, tally_session_id)
+    //         .map_err(|e| format!("Failed to get tally session by id: {}", e))?;
+    // let tally_session: TallySession = serde_json::from_str(&tally_session_json)
+    //     .map_err(|e| format!("Failed to deserialize TallySession: {}", e))?;
 
-    let transmission_data: MiruTallySessionData = tally_session.get_annotations().unwrap_or(vec![]);
+    // let tally_annotations: Annotations = tally_session
+    //         .annotations
+    //         .clone()
+    //         .map(|value| deserialize_value(value))
+    //         .transpose()
+    //         .map_err(|e| e.to_string())?
+    //         .unwrap_or_default();
 
-    let found_package = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    });
+    // let transmission_data = tally_session.get_annotations().unwrap_or(vec![]);
 
-    if found_package.is_some() && !force {
-        // info!("transmission package already found, skipping");
-        return Ok(());
-    }
+    // let found_package = transmission_data.clone().into_iter().find(|data| {
+    //     data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
+    // });
+
+    // if found_package.is_some() && !force {
+    //     // info!("transmission package already found, skipping");
+    //     return Ok(());
+    // }
 
     let Some(election_str) =
-        get_election_by_id(tenant_id, election_id, area_id).map_err(anyhow::Error::msg)?
+        get_election_by_id(tenant_id, &election_event.id, election_id).map_err(|e| e.to_string())?
     else {
         // info!("Election not found");
-        return Ok(());
+        return Err("Election not found".to_string());
     };
 
-    let election: Election = serde_json::from_str(&election_str)
-        .map_err(|e| anyhow!("Failed to deserialize ElectionEvent: {}", e))?;
-    let election_annotations = election.get_annotations()?;
+    let election: Election = serde_json::from_str::<Election>(&election_str)
+        .map_err(|e| format!("Failed to deserialize ElectionEvent: {}", e))?;
+    let election_annotations = election.get_annotations().map_err(|e| e.to_string())?;
 
-    // let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
-    //     .await
-    //     .with_context(|| format!("Error fetching area {}", area_id))?
-    //     .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
-    // let area_annotations = area.get_annotations()?;
+    let Some(area_str) =
+        get_area_by_id(tenant_id, area_id).map_err(|e| e.to_string())?
+    else {
+        // info!("Area not found");
+        return Err("Area not found".to_string());
+    };
 
-    // let area_station_id = area_annotations.station_id.clone();
+    let area: Area = serde_json::from_str::<Area>(&area_str)
+        .map_err(|e| format!("Failed to deserialize Area: {}", e))?;
 
-    // let threshold = area_annotations.threshold.clone();
+    let area_annotations = area.get_annotations().map_err(|e| e.to_string())?;
 
-    // let ccs_servers = area_annotations.ccs_servers.clone();
+    let area_station_id = area_annotations.station_id.clone();
+
+    let threshold = area_annotations.threshold.clone();
+
+    let ccs_servers = area_annotations.ccs_servers.clone();
 
     // let tar_gz_file = download_tally_tar_gz_to_file(
     //     &hasura_transaction,
@@ -241,5 +248,8 @@ pub async fn create_transmission_package_service(
     //     .commit()
     //     .await
     //     .with_context(|| "error comitting transaction")?;
-    Ok(())
+    Ok(format!(
+        "Transmission package created for tenant: {}, election: {}, area: {}, tally session: {}, area_station_id: {:?}",
+        tenant_id, election_id, area_id, tally_session_id, area_station_id
+    ))
 }

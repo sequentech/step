@@ -13,6 +13,7 @@ use sequent_core::{
         },
         plugin_bindings::{plugins_manager::common::types::Manifest, Plugin as PluginInterface},
         transactions_manager_bindings::plugins_manager::transactions_manager::transaction::add_to_linker as add_transaction_linker,
+        transactions_manager_bindings::plugins_manager::transactions_manager::postgres_queries::add_to_linker as add_postgres_queries_to_linker,
     },
     services::{authorization::authorize, jwt::JwtClaims},
     types::permissions::Permissions,
@@ -165,8 +166,17 @@ impl Plugin {
         wasm_bytes: Vec<u8>,
         wasm_file_name: String,
     ) -> Result<Option<Self>> {
+
         let mut linker = Linker::<PluginStore>::new(&engine);
-        let component = Component::new(&engine, wasm_bytes)?;
+
+        let component = Component::from_binary(&engine, &wasm_bytes)?;
+        //  {
+        //     Ok(c) => c,
+        //     Err(e) => {
+        //         println!("Failed to load component from file {}: {}", wasm_file_name, e);
+        //         return Ok(None);
+        //     }
+        // };
 
         let wasi: WasiCtx = WasiCtxBuilder::new().inherit_stdio().build();
         add_to_linker_sync(&mut linker)?;
@@ -189,6 +199,11 @@ impl Plugin {
         add_transaction_linker(&mut linker, |s: &mut PluginStore| {
             &mut s.transactions_manager
         })?;
+
+        add_postgres_queries_to_linker(&mut linker, |s: &mut PluginStore| {
+            &mut s.transactions_manager
+        })?;
+
         add_auth_to_linker(&mut linker, |store: &mut PluginStore| {
             &mut store.plugin_auth
         })?;

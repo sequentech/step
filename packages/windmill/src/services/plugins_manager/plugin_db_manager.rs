@@ -1,7 +1,10 @@
+use crate::postgres::area::get_area_by_id;
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::{get_election_by_id as get_election_by_id_postgres};
 use crate::postgres::election_event::get_election_event_by_election_area as get_election_event_by_election_area_postgres;
+use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
@@ -302,6 +305,10 @@ impl PostgresHost for PluginTransactionsManager {
         election_id: String,
         area_id: String,
     ) -> Result<String, String> {
+        println!(
+            "Getting election event by election area: tenant_id={}, election_id={}, area_id={}",
+            tenant_id, election_id, area_id
+        );
         let mut manager = self.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
@@ -324,8 +331,24 @@ impl PostgresHost for PluginTransactionsManager {
         election_event_id: String,
         election_id: String,
     ) -> Result<Option<String>, String> {
-        //TODO: Implement
-        Ok(None)
+        println!(
+            "Getting election by id: tenant_id={}, election_event_id={}, election_id={}",
+            tenant_id, election_event_id, election_id
+        );
+        let mut manager = self.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        let res = get_election_by_id_postgres(hasura_transaction, &tenant_id, &election_event_id, &election_id)
+            .await
+            .map_err(|e| format!("Failed to get election by id: {}", e))?;
+        if let Some(election) = res {
+            let str = serde_json::to_string(&election)
+                .map_err(|e| format!("Failed to serialize election: {}", e))?;
+            Ok(Some(str))
+        } else {
+            Ok(None)
+        }
     }
     async fn get_tally_session_by_id(
         &mut self,
@@ -333,8 +356,16 @@ impl PostgresHost for PluginTransactionsManager {
         election_event_id: String,
         tally_session_id: String,
     ) -> Result<String, String> {
-        //TODO: Implement
-        Ok("".to_string())
+        let mut manager = self.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        let res = get_tally_session_by_id(hasura_transaction, &tenant_id, &election_event_id, &tally_session_id)
+            .await
+            .map_err(|e| format!("Failed to get tally session by id: {}", e))?;
+        let str = serde_json::to_string(&res)
+            .map_err(|e| format!("Failed to serialize tally session: {}", e))?;
+        Ok(str)
     }
     async fn get_document(
         &mut self,
@@ -342,7 +373,27 @@ impl PostgresHost for PluginTransactionsManager {
         election_event_id: Option<String>,
         document_id: String,
     ) -> Result<String, String> {
-        //TODO: Implement
         Ok("".to_string())
+    }
+
+     async fn get_area_by_id(
+        &mut self,
+        tenant_id: String,
+        area_id: String,
+    ) -> Result<Option<String>, String> {
+        let mut manager = self.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        let res = get_area_by_id(hasura_transaction, &tenant_id, &area_id)
+            .await
+            .map_err(|e| format!("Failed to get area by id: {}", e))?;
+        if let Some(area) = res {
+            let str = serde_json::to_string(&area)
+                .map_err(|e| format!("Failed to serialize area: {}", e))?;
+            Ok(Some(str))
+        } else {
+            Ok(None)
+        }
     }
 }
