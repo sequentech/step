@@ -49,4 +49,7 @@ export const selectBallotStyleElectionIds = (state: RootState) => Object.keys(st
 export const selectFirstBallotStyle = (state: RootState): IBallotStyle | undefined =>
     Object.values(state.ballotStyles)?.[0]
 
+export const selectAllBallotStyles = (state: RootState): Array<IBallotStyle> =>
+    state.ballotStyles? Object.values(state.ballotStyles).filter(bs => bs).map(bs => bs as IBallotStyle) : []
+
 export default ballotStylesSlice.reducer
