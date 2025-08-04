@@ -147,7 +147,7 @@ const StartScreen: React.FC = () => {
                 </Box>
             </Box>
             <ActionButtons election={election} />
-            
+
             <Dialog
                 variant="warning"
                 open={showDemoDialog}
@@ -158,7 +158,8 @@ const StartScreen: React.FC = () => {
                 }}
                 fullWidth
             >
-                You are entering a demo voting booth. Your vote will NOT be cast. This voting booth is for demonstration purposes only.
+                You are entering a demo voting booth. Your vote will NOT be cast. This voting booth
+                is for demonstration purposes only.
             </Dialog>
         </PageLimit>
     )

@@ -5,11 +5,15 @@
 import React, {useCallback, useMemo} from "react"
 import demoBanner from "./assets/demo-banner.png"
 import {useAppSelector} from "../../store/hooks"
-import {selectAllBallotStyles, selectFirstBallotStyle, showDemo} from "../../store/ballotStyles/ballotStylesSlice"
+import {
+    selectAllBallotStyles,
+    selectFirstBallotStyle,
+    showDemo,
+} from "../../store/ballotStyles/ballotStylesSlice"
 import styled from "@emotion/styled"
 import {Box} from "@mui/material"
 import {SystemProps} from "@mui/system"
-import { useParams } from "react-router-dom"
+import {useParams} from "react-router-dom"
 
 interface BackgroundProps extends SystemProps {
     imageUrl: string | undefined
