@@ -1692,6 +1692,7 @@ const spanishTranslation: TranslationType = {
         tallysheet: {
             createTallySuccess: "Hoja de Recuento creada",
             createTallyError: "Error creando Hoja de Recuento",
+            createTallyErrorSameKindExists: "La hoja de recuento ya existe para esta contienda con el mismo canal y área",
             allFieldsRequired: "Todos los campos son obligatorios",
             header: {
                 change: "Changes to be Published",

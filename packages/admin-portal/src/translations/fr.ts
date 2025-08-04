@@ -1704,6 +1704,7 @@ const frenchTranslation: TranslationType = {
         tallysheet: {
             createTallySuccess: "Feuille de Comptage créée",
             createTallyError: "Erreur lors de la création de la Feuille de Comptage",
+            createTallyErrorSameKindExists: "La feuille de décompte existe déjà pour ce scrutin avec le même canal et la même zone",
             allFieldsRequired: "Tous les champs sont obligatoires",
             header: {
                 change: "Changements à Publier",

@@ -6,7 +6,7 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {Identifier, Notification, useGetOne, useNotify} from "react-admin"
+import {Identifier, Notification, useGetList, useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {
     Sequent_Backend_Contest,
@@ -55,7 +55,14 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
 
     const {data: tallySheet} = useGetOne<Sequent_Backend_Tally_Sheet>(
         "sequent_backend_tally_sheet",
-        {id: tallySheetId}
+        {id: tallySheetId},
+        {enabled: !!tallySheetId},
+    )
+
+    const {data: listTallySheets} = useGetList<Sequent_Backend_Tally_Sheet>(
+        "sequent_backend_tally_sheet",
+        {filter: {contest_id: contest.id}},
+        {enabled: !!contest.id},
     )
 
     const [upsertTallySheet] = useMutation<UpsertTallySheetMutation>(UPSERT_TALLY_SHEET, {
@@ -101,6 +108,16 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }
 
+    const sameKindOfTallySheetExists = (tallySheet: string) => {
+        const tallySheetData: Sequent_Backend_Tally_Sheet_Insert_Input = JSON.parse(tallySheet)
+        return listTallySheets?.find(
+            (tallySheet) =>
+                tallySheet.area_id === tallySheetData.area_id &&
+                tallySheet.contest_id === tallySheetData.contest_id &&
+                tallySheet.channel === tallySheetData.channel,
+        )
+    }
+
     const handleNext = () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
             submitRef.current?.click()
@@ -108,6 +125,11 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
             setTimeout(() => {
                 const tallySheet = localStorage.getItem("tallySheetData")
                 if (tallySheet) {
+                    // Do not allow creating a new tally sheet if one with the same channel and area already exists
+                    if (page === WizardSteps.Start && sameKindOfTallySheetExists(tallySheet)) {
+                        notify(t("tallysheet.createTallyErrorSameKindExists"), {type: "error"})
+                        return
+                    }
                     doAction(WizardSteps.Confirm)
                 } else {
                     notify(t("tallysheet.allFieldsRequired"), {type: "error"})

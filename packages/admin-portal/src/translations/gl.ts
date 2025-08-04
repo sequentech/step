@@ -1694,6 +1694,7 @@ const galegoTranslation: TranslationType = {
         tallysheet: {
             createTallySuccess: "Acta de Escrutinio gardada",
             createTallyError: "Erro ao gardar a Acta de Escrutinio",
+            createTallyErrorSameKindExists: "A folla de reconto xa existe para este concurso co mesmo canal e área",
             allFieldsRequired: "Todos os campos son obrigatorios",
             header: {
                 change: "Cambios a Publicar",
