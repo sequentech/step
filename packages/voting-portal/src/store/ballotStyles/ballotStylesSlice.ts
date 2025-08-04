@@ -52,4 +52,16 @@ export const selectFirstBallotStyle = (state: RootState): IBallotStyle | undefin
 export const selectAllBallotStyles = (state: RootState): Array<IBallotStyle> =>
     state.ballotStyles? Object.values(state.ballotStyles).filter(bs => bs).map(bs => bs as IBallotStyle) : []
 
+export const showDemo = (electionId: string | undefined) => (state: RootState) => {
+    const isPreview = sessionStorage.getItem("isDemo")
+    if (isPreview) {
+        return isPreview === "true"
+    }
+    const ballotStyles = selectAllBallotStyles(state)
+    let filteredBallotStyles = ballotStyles
+        .filter(bs => electionId? bs.election_id === electionId: true)
+    return filteredBallotStyles
+        .some(bs => bs?.ballot_eml.public_key?.is_demo)
+}
+
 export default ballotStylesSlice.reducer

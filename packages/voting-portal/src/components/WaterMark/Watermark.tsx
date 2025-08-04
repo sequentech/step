@@ -5,7 +5,7 @@
 import React, {useCallback, useMemo} from "react"
 import demoBanner from "./assets/demo-banner.png"
 import {useAppSelector} from "../../store/hooks"
-import {selectAllBallotStyles, selectFirstBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import {selectAllBallotStyles, selectFirstBallotStyle, showDemo} from "../../store/ballotStyles/ballotStylesSlice"
 import styled from "@emotion/styled"
 import {Box} from "@mui/material"
 import {SystemProps} from "@mui/system"
@@ -40,18 +40,7 @@ const DEMO_URL_PATH = "/demo-banner.png"
 
 const WatermarkBackground: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const ballotStyles = useAppSelector(selectAllBallotStyles)
-
-    const isDemo = useMemo(() => {
-        const isDemoSessionStorage = sessionStorage.getItem("isDemo")
-        if (isDemoSessionStorage) {
-            return isDemoSessionStorage === "true"
-        }
-        let filteredBallotStyles = ballotStyles
-            .filter(bs => electionId? bs.election_id === electionId: true)
-        return filteredBallotStyles
-            .some(bs => bs?.ballot_eml.public_key?.is_demo)
-    }, [ballotStyles])
+    const isDemo = useAppSelector(showDemo(electionId))
 
     return isDemo ? <Background imageUrl={DEMO_URL_PATH} /> : null
 }
