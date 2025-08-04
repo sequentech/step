@@ -1740,6 +1740,7 @@ export type Mutation_Root = {
     upsert_area?: Maybe<UpsertAreaOutput>
     /** upsert_areas */
     upsert_areas?: Maybe<OptionalId>
+    /** upsert_tally_sheet */
     upsert_tally_sheet?: Maybe<TallySheetOutput>
 }
 

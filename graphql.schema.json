@@ -26215,7 +26215,7 @@
           },
           {
             "name": "upsert_tally_sheet",
-            "description": null,
+            "description": "upsert_tally_sheet",
             "args": [
               {
                 "name": "area_id",

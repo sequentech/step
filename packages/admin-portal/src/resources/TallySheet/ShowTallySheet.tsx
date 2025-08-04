@@ -281,13 +281,8 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
         }
     }
 
-    function CustomTextField({ InputLabelProps = {}, ...props }) {
-        return (
-            <TextField
-            InputLabelProps={{ ...InputLabelProps, shrink: true }}
-            {...props}
-            />
-        );
+    function CustomTextField({InputLabelProps = {}, ...props}) {
+        return <TextField InputLabelProps={{...InputLabelProps, shrink: true}} {...props} />
     }
 
     return (
