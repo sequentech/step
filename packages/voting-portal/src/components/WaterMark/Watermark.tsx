@@ -38,7 +38,8 @@ const Background = styled(Box)<{imageUrl: string | undefined}>`
 const WatermarkBackground: React.FC = () => {
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const isDemo = useMemo(() => {
-        return oneBallotStyle?.ballot_eml.public_key?.is_demo
+        const isDemo = sessionStorage.getItem("isDemo")
+        return oneBallotStyle?.ballot_eml.public_key?.is_demo || isDemo
     }, [oneBallotStyle])
     const imageUrlPath = useCallback(() => {
         if (isDemo) {
