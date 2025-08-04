@@ -1277,6 +1277,8 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+          - role: tally-sheet-create
+      comment: upsert_tally_sheet
 custom_types:
     enums:
         - name: ReportEncryptionPolicy
