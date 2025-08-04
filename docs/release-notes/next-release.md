@@ -21,3 +21,9 @@ Also keycloak no longer needs to import realms at
 Improve error handling on the Voting Portal when casting a vote. This
 includes handling a Timeout, Excess Allowed Revotes, Voting in another
 Area, Internal Server Error.
+
+## 🐞 service-account-realm-management shouldn't appear as a voter
+
+This fixes the issue where a service account appears in the voters list.
+In order to deploy this in production, the configmap for the default
+election event configuration needs to be changed.
