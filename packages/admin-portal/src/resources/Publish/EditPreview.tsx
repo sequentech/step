@@ -39,14 +39,14 @@ enum ActionType {
     Open,
 }
 interface EditPreviewProps {
-    id?: string | Identifier | null
+    publishId?: string | Identifier | null
     electionEventId: Identifier | undefined
     close?: () => void
     ballotData: GetBallotPublicationChangesOutput | null
 }
 
 export const EditPreview: React.FC<EditPreviewProps> = (props) => {
-    const {id, close, electionEventId, ballotData} = props
+    const {publishId, close, electionEventId, ballotData} = props
     const {t} = useTranslation()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
@@ -150,7 +150,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     }, [areas, areaIds])
 
     // If there already is such a document, get it to re-use it
-    useEffect(() => {
+    /*useEffect(() => {
         const fetchDocumentId = async (documentName: string) => {
             try {
                 const {data, error} = await getDocumentByName({
@@ -174,14 +174,14 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         const getDocumentId = async () => {
-            const docId = await fetchDocumentId(`${id}.json`)
+            const docId = await fetchDocumentId(`${publishId}.json`)
             setDocumentId(docId)
         }
 
         if (!documentId) {
             getDocumentId()
         }
-    }, [])
+    }, [documentId, publishId, isUploading])*/
 
     // This useEffect handles file upload
     useEffect(() => {
@@ -207,7 +207,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                     },
                 })
 
-                if (!data?.get_upload_url?.url) {
+                if (!data?.get_upload_url?.url || !data?.get_upload_url?.document_id) {
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
                     return
                 }
@@ -254,26 +254,34 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         const startUpload = async () => {
             const fileData = prepareFileData()
             const dataStr = JSON.stringify(fileData, null, 2)
-            const file = new File([dataStr], `${id}.json`, {type: "application/json"})
+            const file = new File([dataStr], `${publishId}.json`, {type: "application/json"})
             const docId = await uploadFileToS3(file)
             setDocumentId(docId)
         }
 
         const handleDocumentProcess = async () => {
-            await startUpload()
+            try {
+                await startUpload()
+            } catch (error) {
+                console.log("Error uploading preview data:\n" + error)
+                setIsUploading(false)
+            }
         }
 
         if (
-            isUploading &&
+            !isUploading &&
+            !documentId &&
+            publishId &&
             electionEvent &&
             elections &&
             areaId &&
             undefined !== supportMaterials &&
             undefined !== documents
         ) {
+            setIsUploading(true)
             handleDocumentProcess()
         }
-    }, [isUploading, electionEvent, elections, areaId, supportMaterials, documents])
+    }, [isUploading, documentId, electionEvent, elections, areaId, supportMaterials, documents])
 
     // This useEffect handles logic for action (open or copy)
     useEffect(() => {
@@ -310,27 +318,23 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     // Create preview url from data
     const previewUrlTemplate = useMemo(() => {
         return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`
-    }, [globalSettings.VOTING_PORTAL_URL, id])
+    }, [globalSettings.VOTING_PORTAL_URL, publishId])
 
     const getPreviewUrl = useCallback(
         (documentId: string | undefined | null) => {
-            if (!documentId || !areaId || !id) {
+            if (!documentId || !areaId || !publishId) {
                 return null
             }
-            return `${previewUrlTemplate}/${documentId}/${areaId}/${id}`
+            return `${previewUrlTemplate}/${documentId}/${areaId}/${publishId}`
         },
-        [previewUrlTemplate, areaId, id]
+        [previewUrlTemplate, areaId, publishId]
     )
 
     const onPreviewClick = async (res: any) => {
-        setIsUploading(true)
         setAction(ActionType.Open)
     }
 
     const onCopyPreviewLinkClick = async () => {
-        if (!documentId) {
-            setIsUploading(true)
-        }
         setAction(ActionType.Copy)
     }
 
