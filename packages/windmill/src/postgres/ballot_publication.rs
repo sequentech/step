@@ -50,10 +50,17 @@ pub async fn get_ballot_publication_by_id(
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication_id: &str,
+    should_be_latest: bool,
 ) -> Result<Option<BallotPublication>> {
+    let deleted_at_filter = if should_be_latest {
+        "AND deleted_at IS NULL"
+    } else {
+        ""
+    };
     let query = hasura_transaction
         .prepare(
-            r#"
+            format!(
+                r#"
             SELECT
                 *
             FROM
@@ -61,8 +68,11 @@ pub async fn get_ballot_publication_by_id(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2 AND
-                id = $3;
-            "#,
+                id = $3
+                {deleted_at_filter}
+            "#
+            )
+            .as_str(),
         )
         .await?;
 
