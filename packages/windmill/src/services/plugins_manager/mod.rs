@@ -4,5 +4,6 @@
 
 pub mod plugin;
 pub mod plugin_db_manager;
+pub mod plugin_documents_manager;
 pub mod plugin_manager;
 pub mod plugins_hooks;

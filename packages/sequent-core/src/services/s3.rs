@@ -7,7 +7,8 @@ use crate::util::aws::{
     get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
 };
 use crate::util::temp_path::{
-    generate_temp_file, get_public_assets_path_env_var,
+    generate_temp_file, generate_temp_file_at_dir,
+    get_public_assets_path_env_var,
 };
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
@@ -168,6 +169,7 @@ pub async fn get_object_into_temp_file(
     key: &str,
     prefix: &str,
     suffix: &str,
+    path_dir: Option<&PathBuf>,
 ) -> anyhow::Result<NamedTempFile> {
     let config = get_s3_aws_config(/* private = */ true)
         .await
@@ -184,9 +186,17 @@ pub async fn get_object_into_temp_file(
             anyhow!("Error getting the object from S3: {:?}", err.source())
         })?;
 
+    let mut temp_file = match path_dir {
+        Some(dir) => generate_temp_file_at_dir(prefix, suffix, dir)
+            .with_context(|| {
+                "Error generating temp file at specified directory"
+            })?,
+        None => generate_temp_file(prefix, suffix)
+            .with_context(|| "Error generating temp file")?,
+    };
     // Stream the data into a temporary file
-    let mut temp_file = generate_temp_file(prefix, suffix)
-        .with_context(|| "Error creating temp file")?;
+    // let mut temp_file = generate_temp_file(prefix, suffix)
+    //     .with_context(|| "Error creating temp file")?;
     let mut stream = response.body.into_async_read();
     let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
 

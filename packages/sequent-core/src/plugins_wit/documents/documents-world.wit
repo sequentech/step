@@ -1,0 +1,13 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package plugins-manager:documents-manager;
+
+interface documents {
+
+    create-document-as-temp-file: func(tenant-id: string, document: string) -> result<_, string>;
+}
+
+world documents-manager {
+    import documents;
+}

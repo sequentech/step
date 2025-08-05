@@ -24,3 +24,10 @@ pub mod authorization_bindings {
         async: true,
     });
 }
+pub mod documents_bindings {
+    wasmtime::component::bindgen!({
+        path: "src/plugins_wit/documents/documents-world.wit",
+        world: "documents-manager",
+        async: true,
+    });
+}

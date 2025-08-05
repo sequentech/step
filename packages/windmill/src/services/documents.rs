@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::path::PathBuf;
+
 use crate::postgres::document::insert_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -182,6 +184,39 @@ pub async fn get_document_as_temp_file(
         document_s3_key.as_str(),
         &document_name,
         ".tmp",
+        None,
+    )
+    .await
+    .with_context(|| "Failed to get S3 object into temporary file")?;
+
+    // Return the temporary file and the separator as a tuple
+    Ok(file)
+}
+
+#[instrument(err)]
+pub async fn get_document_as_temp_file_at_dir(
+    tenant_id: &str,
+    document: &Document,
+    path_dir: &PathBuf,
+) -> anyhow::Result<NamedTempFile> {
+    let s3_bucket = s3::get_private_bucket()?;
+    let document_name = document.name.clone().unwrap_or_default();
+    let election_event_id = document.election_event_id.clone();
+
+    // Obtain the key for the document in S3
+    let document_s3_key = s3::get_document_key(
+        tenant_id,
+        election_event_id.as_deref(),
+        &document.id,
+        &document_name,
+    );
+
+    let file = s3::get_object_into_temp_file(
+        s3_bucket.as_str(),
+        document_s3_key.as_str(),
+        &document_name,
+        ".tmp",
+        Some(path_dir),
     )
     .await
     .with_context(|| "Failed to get S3 object into temporary file")?;

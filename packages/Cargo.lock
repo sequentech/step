@@ -5482,12 +5482,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "flate2",
+ "rand 0.8.5",
  "reqwest 0.12.7",
  "sequent-core",
  "serde",
  "serde_json",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tar",
  "tracing",
  "wit-bindgen",
  "wit-bindgen-rt 0.43.0",
@@ -8153,6 +8156,8 @@ dependencies = [
  "wasmtime",
  "wasmtime-wasi",
  "web-sys",
+ "wit-bindgen",
+ "wit-bindgen-rt 0.43.0",
 ]
 
 [[package]]

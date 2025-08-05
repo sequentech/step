@@ -7,7 +7,8 @@ pub unsafe fn _export_create_transmission_package_cabi<T: Guest>(
     arg0: *mut u8,
     arg1: usize,
 ) -> *mut u8 {
-    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
+    #[cfg(target_arch = "wasm32")]
+    _rt::run_ctors_once();
     let len0 = arg1;
     let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
     let result1 = T::create_transmission_package(_rt::string_lift(bytes0));
@@ -19,9 +20,12 @@ pub unsafe fn _export_create_transmission_package_cabi<T: Guest>(
             let ptr3 = vec3.as_ptr().cast::<u8>();
             let len3 = vec3.len();
             ::core::mem::forget(vec3);
-            *ptr2.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len3;
-            *ptr2.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>() = ptr3
-                .cast_mut();
+            *ptr2
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>() = len3;
+            *ptr2
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>() = ptr3.cast_mut();
         }
         Err(e) => {
             *ptr2.add(0).cast::<u8>() = (1i32) as u8;
@@ -29,9 +33,12 @@ pub unsafe fn _export_create_transmission_package_cabi<T: Guest>(
             let ptr4 = vec4.as_ptr().cast::<u8>();
             let len4 = vec4.len();
             ::core::mem::forget(vec4);
-            *ptr2.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len4;
-            *ptr2.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>() = ptr4
-                .cast_mut();
+            *ptr2
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>() = len4;
+            *ptr2
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>() = ptr4.cast_mut();
         }
     };
     ptr2
@@ -42,21 +49,27 @@ pub unsafe fn __post_return_create_transmission_package<T: Guest>(arg0: *mut u8)
     let l0 = i32::from(*arg0.add(0).cast::<u8>());
     match l0 {
         0 => {
-            let l1 = *arg0.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>();
-            let l2 = *arg0.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>();
+            let l1 = *arg0
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>();
+            let l2 = *arg0
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>();
             _rt::cabi_dealloc(l1, l2, 1);
         }
         _ => {
-            let l3 = *arg0.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>();
-            let l4 = *arg0.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>();
+            let l3 = *arg0
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>();
+            let l4 = *arg0
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>();
             _rt::cabi_dealloc(l3, l4, 1);
         }
     }
 }
 pub trait Guest {
-    fn create_transmission_package(
-        data: _rt::String,
-    ) -> Result<_rt::String, _rt::String>;
+    fn create_transmission_package(data: _rt::String) -> Result<_rt::String, _rt::String>;
 }
 #[doc(hidden)]
 macro_rules! __export_world_miru_plugin_cabi {
@@ -76,9 +89,8 @@ pub(crate) use __export_world_miru_plugin_cabi;
 #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
 #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
 struct _RetArea([::core::mem::MaybeUninit<u8>; 3 * ::core::mem::size_of::<*const u8>()]);
-static mut _RET_AREA: _RetArea = _RetArea(
-    [::core::mem::MaybeUninit::uninit(); 3 * ::core::mem::size_of::<*const u8>()],
-);
+static mut _RET_AREA: _RetArea =
+    _RetArea([::core::mem::MaybeUninit::uninit(); 3 * ::core::mem::size_of::<*const u8>()]);
 #[rustfmt::skip]
 #[allow(dead_code, clippy::all)]
 pub mod plugins_manager {
@@ -1325,6 +1337,238 @@ pub mod plugins_manager {
                     result12
                 }
             }
+            #[allow(unused_unsafe, clippy::all)]
+            pub fn get_last_tally_session_execution(
+                tenant_id: &str,
+                election_event_id: &str,
+                tally_session_id: &str,
+            ) -> Result<Option<_rt::String>, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 4 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 4
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = tenant_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = election_event_id;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = tally_session_id;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:transactions-manager/postgres-queries"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "get-last-tally-session-execution"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result13 = match l5 {
+                        0 => {
+                            let e = {
+                                let l6 = i32::from(
+                                    *ptr3.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
+                                );
+                                match l6 {
+                                    0 => None,
+                                    1 => {
+                                        let e = {
+                                            let l7 = *ptr3
+                                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>();
+                                            let l8 = *ptr3
+                                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>();
+                                            let len9 = l8;
+                                            let bytes9 = _rt::Vec::from_raw_parts(
+                                                l7.cast(),
+                                                len9,
+                                                len9,
+                                            );
+                                            _rt::string_lift(bytes9)
+                                        };
+                                        Some(e)
+                                    }
+                                    _ => _rt::invalid_enum_discriminant(),
+                                }
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l10 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l11 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len12 = l11;
+                                let bytes12 = _rt::Vec::from_raw_parts(
+                                    l10.cast(),
+                                    len12,
+                                    len12,
+                                );
+                                _rt::string_lift(bytes12)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result13
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            pub fn get_results_event_by_id(
+                tenant_id: &str,
+                election_event_id: &str,
+                results_event_id: &str,
+            ) -> Result<_rt::String, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = tenant_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = election_event_id;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = results_event_id;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:transactions-manager/postgres-queries"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "get-results-event-by-id"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result12 = match l5 {
+                        0 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l9 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l10 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len11 = l10;
+                                let bytes11 = _rt::Vec::from_raw_parts(
+                                    l9.cast(),
+                                    len11,
+                                    len11,
+                                );
+                                _rt::string_lift(bytes11)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result12
+                }
+            }
         }
     }
 }
@@ -1668,38 +1912,39 @@ macro_rules! __export_miru_plugin_impl {
 #[doc(inline)]
 pub(crate) use __export_miru_plugin_impl as export;
 #[cfg(target_arch = "wasm32")]
-#[unsafe(
-    link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world"
-)]
+#[unsafe(link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1329] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xaf\x09\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1500] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xda\x0a\x01A\x02\x01\
 A\x0f\x01B\x0b\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
 \x04\0\x1bcreate-keycloak-transaction\x01\x01\x01ps\x01j\x01s\x01s\x01@\x02\x03s\
 qls\x06params\x02\0\x03\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-k\
 eycloak-query\x01\x04\x04\0\x19commit-hasura-transaction\x01\x01\x04\0\x1bcommit\
 -keycloak-transaction\x01\x01\x03\00plugins-manager:transactions-manager/transac\
-tion\x05\0\x01B\x0d\x01j\x01s\x01s\x01@\x03\x09tenant-ids\x0belection-ids\x07are\
+tion\x05\0\x01B\x11\x01j\x01s\x01s\x01@\x03\x09tenant-ids\x0belection-ids\x07are\
 a-ids\0\0\x04\0#get-election-event-by-election-area\x01\x01\x01ks\x01j\x01\x02\x01\
 s\x01@\x03\x09tenant-ids\x11election-event-ids\x0belection-ids\0\x03\x04\0\x12ge\
 t-election-by-id\x01\x04\x01@\x03\x09tenant-ids\x11election-event-ids\x10tally-s\
 ession-ids\0\0\x04\0\x17get-tally-session-by-id\x01\x05\x01@\x03\x09tenant-ids\x11\
 election-event-id\x02\x0bdocument-ids\0\0\x04\0\x0cget-document\x01\x06\x01@\x02\
-\x09tenant-ids\x07area-ids\0\x03\x04\0\x0eget-area-by-id\x01\x07\x03\05plugins-m\
-anager:transactions-manager/postgres-queries\x05\x01\x01B\x05\x01ks\x01ps\x01j\0\
-\x01s\x01@\x04\x06claimss\x16allow-super-admin-auth\x7f\x0dtenant-id-opt\0\x0bpe\
-rmissions\x01\0\x02\x04\0\x09authorize\x01\x03\x03\0!plugins-manager:jwt/authori\
-zation\x05\x02\x01B\x06\x01r\x03\x04paths\x07handlers\x0fprocess-as-task\x7f\x04\
-\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01r\x04\x0bplugin-names\x05hooks\x02\x06\
-routes\x03\x05tasks\x02\x04\0\x08manifest\x03\0\x04\x03\0\x1cplugins-manager:com\
-mon/types\x05\x03\x01j\x01s\x01s\x01@\x01\x04datas\0\x04\x04\0\x1bcreate-transmi\
-ssion-package\x01\x05\x02\x03\0\x03\x08manifest\x02\x03\0\x03\x0cplugin-route\x01\
-B\x06\x02\x03\x02\x01\x06\x04\0\x08manifest\x03\0\0\x02\x03\x02\x01\x07\x04\0\x0c\
-plugin-route\x03\0\x02\x01@\0\0\x01\x04\0\x0cget-manifest\x01\x04\x04\0$plugins-\
-manager:common/plugin-common\x05\x08\x04\0'plugins-manager:miru-plugin/miru-plug\
-in\x04\0\x0b\x11\x01\0\x0bmiru-plugin\x03\0\0\0G\x09producers\x01\x0cprocessed-b\
-y\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+\x09tenant-ids\x07area-ids\0\x03\x04\0\x0eget-area-by-id\x01\x07\x01@\x03\x09ten\
+ant-ids\x11election-event-ids\x10tally-session-ids\0\x03\x04\0\x20get-last-tally\
+-session-execution\x01\x08\x01@\x03\x09tenant-ids\x11election-event-ids\x10resul\
+ts-event-ids\0\0\x04\0\x17get-results-event-by-id\x01\x09\x03\05plugins-manager:\
+transactions-manager/postgres-queries\x05\x01\x01B\x05\x01ks\x01ps\x01j\0\x01s\x01\
+@\x04\x06claimss\x16allow-super-admin-auth\x7f\x0dtenant-id-opt\0\x0bpermissions\
+\x01\0\x02\x04\0\x09authorize\x01\x03\x03\0!plugins-manager:jwt/authorization\x05\
+\x02\x01B\x06\x01r\x03\x04paths\x07handlers\x0fprocess-as-task\x7f\x04\0\x0cplug\
+in-route\x03\0\0\x01ps\x01p\x01\x01r\x04\x0bplugin-names\x05hooks\x02\x06routes\x03\
+\x05tasks\x02\x04\0\x08manifest\x03\0\x04\x03\0\x1cplugins-manager:common/types\x05\
+\x03\x01j\x01s\x01s\x01@\x01\x04datas\0\x04\x04\0\x1bcreate-transmission-package\
+\x01\x05\x02\x03\0\x03\x08manifest\x02\x03\0\x03\x0cplugin-route\x01B\x06\x02\x03\
+\x02\x01\x06\x04\0\x08manifest\x03\0\0\x02\x03\x02\x01\x07\x04\0\x0cplugin-route\
+\x03\0\x02\x01@\0\0\x01\x04\0\x0cget-manifest\x01\x04\x04\0$plugins-manager:comm\
+on/plugin-common\x05\x08\x04\0'plugins-manager:miru-plugin/miru-plugin\x04\0\x0b\
+\x11\x01\0\x0bmiru-plugin\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit\
+-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

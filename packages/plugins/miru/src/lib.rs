@@ -5,11 +5,13 @@
 mod bindings;
 mod services;
 
-
-use crate::{bindings::plugins_manager::{
-    common::types::{Manifest, PluginRoute},
-    transactions_manager::transaction::create_hasura_transaction,
-}, services::create_transmission_package::create_transmission_package_service};
+use crate::{
+    bindings::plugins_manager::{
+        common::types::{Manifest, PluginRoute},
+        transactions_manager::transaction::create_hasura_transaction,
+    },
+    services::create_transmission_package::create_transmission_package_service,
+};
 use bindings::exports::plugins_manager::common::plugin_common::Guest as PluginCommonGuest;
 use bindings::plugins_manager::jwt::authorization::authorize;
 use bindings::Guest;
@@ -74,7 +76,6 @@ impl Guest for Component {
             Err(e) => Err(format!("Error creating hasura transaction: {}", e)),
         }
     }
-
 }
 
 impl PluginCommonGuest for Component {

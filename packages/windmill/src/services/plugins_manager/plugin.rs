@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::plugins_manager::plugin_db_manager::{
-    PluginDbManager, PluginTransactionsManager,
+use crate::services::plugins_manager::{
+    plugin_db_manager::{PluginDbManager, PluginTransactionsManager},
+    plugin_documents_manager::PluginDocumentsManager,
 };
 use anyhow::{anyhow, Context, Result};
 use core::{option::Option::None, result::Result::Err};
@@ -11,16 +12,18 @@ use sequent_core::{
         authorization_bindings::plugins_manager::jwt::authorization::{
             add_to_linker as add_auth_to_linker, Host as HostAuth,
         },
+        documents_bindings::plugins_manager::documents_manager::documents::add_to_linker as add_documents_to_linker,
         plugin_bindings::{plugins_manager::common::types::Manifest, Plugin as PluginInterface},
-        transactions_manager_bindings::plugins_manager::transactions_manager::transaction::add_to_linker as add_transaction_linker,
         transactions_manager_bindings::plugins_manager::transactions_manager::postgres_queries::add_to_linker as add_postgres_queries_to_linker,
+        transactions_manager_bindings::plugins_manager::transactions_manager::transaction::add_to_linker as add_transaction_linker,
     },
     services::{authorization::authorize, jwt::JwtClaims},
     types::permissions::Permissions,
 };
 use serde_json::Value;
-use std::str::FromStr;
 use std::sync::Arc;
+use std::{path::PathBuf, str::FromStr};
+use tempfile::tempdir;
 use tokio::sync::Mutex;
 use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
 use wasmtime::{Engine, Store};
@@ -136,6 +139,7 @@ pub struct PluginStore {
     pub resource_table: ResourceTable,
     pub transactions_manager: PluginTransactionsManager,
     pub plugin_auth: PluginAuth,
+    pub documents_manager: PluginDocumentsManager,
 }
 
 impl WasiView for PluginStore {
@@ -165,8 +169,8 @@ impl Plugin {
         engine: &Engine,
         wasm_bytes: Vec<u8>,
         wasm_file_name: String,
+        files_temp_dir: &PathBuf,
     ) -> Result<Option<Self>> {
-
         let mut linker = Linker::<PluginStore>::new(&engine);
 
         let component = Component::from_binary(&engine, &wasm_bytes)?;
@@ -176,9 +180,22 @@ impl Plugin {
         //         println!("Failed to load component from file {}: {}", wasm_file_name, e);
         //         return Ok(None);
         //     }
-        // };
+        // };]
 
-        let wasi: WasiCtx = WasiCtxBuilder::new().inherit_stdio().build();
+        let host_temp_path = files_temp_dir.as_path().to_owned();
+
+        let mut builder = WasiCtxBuilder::new();
+        builder
+            .preopened_dir(
+                host_temp_path,
+                "plugin_temp_files_path",
+                wasmtime_wasi::DirPerms::all(),
+                wasmtime_wasi::FilePerms::all(),
+            )?
+            .inherit_stdout()
+            .inherit_stdin();
+
+        let mut wasi: WasiCtx = builder.inherit_stdio().build();
         add_to_linker_sync(&mut linker)?;
 
         let hasura_manager = Arc::new(Mutex::new(PluginDbManager::init()));
@@ -187,11 +204,14 @@ impl Plugin {
         let transactions_manager =
             PluginTransactionsManager::new(hasura_manager.clone(), keycloak_manager.clone());
 
+        let documents_manager = PluginDocumentsManager::new(files_temp_dir.clone());
+
         let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),
             wasi: wasi,
             transactions_manager,
             plugin_auth: PluginAuth::new(),
+            documents_manager,
         };
 
         let mut store = Store::new(engine, plugin_store);
@@ -206,6 +226,10 @@ impl Plugin {
 
         add_auth_to_linker(&mut linker, |store: &mut PluginStore| {
             &mut store.plugin_auth
+        })?;
+
+        add_documents_to_linker(&mut linker, |store: &mut PluginStore| {
+            &mut store.documents_manager
         })?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;

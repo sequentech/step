@@ -11,9 +11,10 @@ use sequent_core::plugins_wit::lib::plugin_bindings::plugins_manager::common::ty
 };
 use sequent_core::services::s3::{get_files_names_bytes_from_s3, get_public_bucket};
 use serde_json::Value;
+use std::env;
 use std::sync::Arc;
+use tempfile::tempdir;
 use wasmtime::{Config, Engine};
-
 pub struct PluginManager {
     pub plugins: DashMap<String, Arc<Plugin>>,
     pub hooks: DashMap<String, Vec<String>>, // (hook, list of plugin names)
@@ -44,9 +45,19 @@ impl PluginManager {
         let wasms_files: Vec<(String, Vec<u8>)> =
             get_files_names_bytes_from_s3(bucket, "plugins/".to_string()).await?;
 
+        let temp_dir = env::temp_dir();
+
         for (file_name, wasm) in wasms_files {
-            let plugin: Option<Plugin> =
-                Plugin::init_plugin_from_wasm_bytes(&self.engine, wasm, file_name).await?;
+            let plugin_tmpdir = temp_dir.join(&file_name);
+            let plugin_tmpdir_path = plugin_tmpdir.to_path_buf();
+
+            let plugin: Option<Plugin> = Plugin::init_plugin_from_wasm_bytes(
+                &self.engine,
+                wasm,
+                file_name,
+                &plugin_tmpdir_path,
+            )
+            .await?;
             if plugin.is_none() {
                 continue;
             }

@@ -5,12 +5,19 @@
 use std::collections::HashMap;
 
 use crate::{
-    bindings::plugins_manager::transactions_manager::postgres_queries::{get_area_by_id, get_election_by_id, get_election_event_by_election_area, get_tally_session_by_id}, services::miru_plugin_types::MiruTallySessionData,
+    bindings::plugins_manager::transactions_manager::postgres_queries::{
+        get_area_by_id, get_document, get_election_by_id, get_election_event_by_election_area,
+        get_last_tally_session_execution, get_results_event_by_id, get_tally_session_by_id,
+    },
+    services::miru_plugin_types::MiruTallySessionData,
 };
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::deserialize_value,
-    types::hasura::core::{Area, Election, ElectionEvent, TallySession},
+    types::{
+        hasura::core::{Area, Election, ElectionEvent, TallySession, TallySessionExecution},
+        results::{ResultDocumentType, ResultsEvent},
+    },
 };
 use tracing::instrument;
 
@@ -23,6 +30,91 @@ use super::eml_generator::{
 use super::miru_plugin_types::{
     MiruCcsServer, MiruDocument, MiruDocumentIds, MiruTransmissionPackageData,
 };
+use flate2::read::GzDecoder;
+use std::fs::File;
+use std::io::{self, Write};
+use std::path::{Path, PathBuf};
+use tar::Archive;
+
+pub fn decompress_file(input_file_name: &str) -> Result<PathBuf, String> {
+    // 1. We no longer create a temporary directory. Instead, we use the
+    //    pre-opened "output" directory provided by the host.
+    //    The name "output" must match what the host configures.
+    let output_dir = PathBuf::from("output");
+
+    // We assume the host has ensured this directory exists.
+    // You could also create it if needed.
+    // std::fs::create_dir_all(&output_dir)?;
+
+    // 2. Open the .tar.gz file from the pre-opened "input" directory.
+    let input_dir = PathBuf::from("input");
+    let input_path = input_dir.join(input_file_name);
+
+    println!("Plugin opening file: {}", input_path.display());
+
+    let file = File::open(&input_path).map_err(|e| e.to_string())?;
+
+    // 3. Create a GzDecoder and tar archive reader.
+    let dec = GzDecoder::new(file);
+    let mut archive = Archive::new(dec);
+
+    // 4. Unpack the archive into the pre-opened "output" directory.
+    println!("Plugin unpacking archive to: {}", output_dir.display());
+
+    archive
+        .unpack(&output_dir)
+        .map_err(|e| format!("Error unpacking the tar archive: {}", e))?;
+
+    println!(
+        "Decompressed successfully into directory: {}",
+        output_dir.display()
+    );
+
+    Ok(output_dir)
+}
+pub fn download_tally_tar_gz_to_file(
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<String, String> {
+    let Some(tally_session_execution_json) =
+        get_last_tally_session_execution(tenant_id, election_event_id, tally_session_id)
+            .map_err(|e| e.to_string())?
+    else {
+        return Err("Tally session execution not found".to_string());
+    };
+
+    let tally_session_execution: TallySessionExecution =
+        serde_json::from_str::<TallySessionExecution>(&tally_session_execution_json)
+            .map_err(|e| e.to_string())?;
+
+    let results_event_id = tally_session_execution
+        .results_event_id
+        .clone()
+        .ok_or_else(|| format!("Missing results_event_id in tally session execution"))?;
+
+    let result_event_json =
+        get_results_event_by_id(tenant_id, election_event_id, &results_event_id)
+            .map_err(|e| e.to_string())?;
+
+    let result_event: ResultsEvent =
+        serde_json::from_str::<ResultsEvent>(&result_event_json).map_err(|e| e.to_string())?;
+
+    let document_type = ResultDocumentType::TarGzOriginal;
+    let document_id = result_event
+        .documents
+        .ok_or_else(|| format!("Missing documents in results_event"))?
+        .get_document_by_type(&document_type)
+        .ok_or_else(|| format!("Missing {:?} in results_event", document_type))?;
+
+    let document = get_document(tenant_id, Some(election_event_id), &document_id)
+        .map_err(|e| e.to_string())?;
+
+    //TODO: create temp file in the host and read it
+
+    Ok("".to_string())
+    // get_document_as_temp_file(tenant_id, &document).await
+}
 
 #[instrument(skip_all, err)]
 pub fn create_transmission_package_service(
@@ -35,8 +127,8 @@ pub fn create_transmission_package_service(
     let election_event_json = get_election_event_by_election_area(tenant_id, election_id, area_id)
         .map_err(|e| e.to_string())?;
 
-    let election_event: ElectionEvent = serde_json::from_str::<ElectionEvent>(&election_event_json)
-        .map_err(|e| e.to_string())?;
+    let election_event: ElectionEvent =
+        serde_json::from_str::<ElectionEvent>(&election_event_json).map_err(|e| e.to_string())?;
 
     // let tally_session_json =
     //     get_tally_session_by_id(tenant_id, &election_event.id, tally_session_id)
@@ -63,8 +155,8 @@ pub fn create_transmission_package_service(
     //     return Ok(());
     // }
 
-    let Some(election_str) =
-        get_election_by_id(tenant_id, &election_event.id, election_id).map_err(|e| e.to_string())?
+    let Some(election_str) = get_election_by_id(tenant_id, &election_event.id, election_id)
+        .map_err(|e| e.to_string())?
     else {
         // info!("Election not found");
         return Err("Election not found".to_string());
@@ -74,9 +166,7 @@ pub fn create_transmission_package_service(
         .map_err(|e| format!("Failed to deserialize ElectionEvent: {}", e))?;
     let election_annotations = election.get_annotations().map_err(|e| e.to_string())?;
 
-    let Some(area_str) =
-        get_area_by_id(tenant_id, area_id).map_err(|e| e.to_string())?
-    else {
+    let Some(area_str) = get_area_by_id(tenant_id, area_id).map_err(|e| e.to_string())? else {
         // info!("Area not found");
         return Err("Area not found".to_string());
     };

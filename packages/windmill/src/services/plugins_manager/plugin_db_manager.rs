@@ -4,7 +4,9 @@ use crate::postgres::area::get_area_by_id;
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{get_election_by_id as get_election_by_id_postgres};
 use crate::postgres::election_event::get_election_event_by_election_area as get_election_event_by_election_area_postgres;
+use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
@@ -339,9 +341,14 @@ impl PostgresHost for PluginTransactionsManager {
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
-        let res = get_election_by_id_postgres(hasura_transaction, &tenant_id, &election_event_id, &election_id)
-            .await
-            .map_err(|e| format!("Failed to get election by id: {}", e))?;
+        let res = get_election_by_id_postgres(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &election_id,
+        )
+        .await
+        .map_err(|e| format!("Failed to get election by id: {}", e))?;
         if let Some(election) = res {
             let str = serde_json::to_string(&election)
                 .map_err(|e| format!("Failed to serialize election: {}", e))?;
@@ -360,9 +367,14 @@ impl PostgresHost for PluginTransactionsManager {
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
-        let res = get_tally_session_by_id(hasura_transaction, &tenant_id, &election_event_id, &tally_session_id)
-            .await
-            .map_err(|e| format!("Failed to get tally session by id: {}", e))?;
+        let res = get_tally_session_by_id(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await
+        .map_err(|e| format!("Failed to get tally session by id: {}", e))?;
         let str = serde_json::to_string(&res)
             .map_err(|e| format!("Failed to serialize tally session: {}", e))?;
         Ok(str)
@@ -376,7 +388,7 @@ impl PostgresHost for PluginTransactionsManager {
         Ok("".to_string())
     }
 
-     async fn get_area_by_id(
+    async fn get_area_by_id(
         &mut self,
         tenant_id: String,
         area_id: String,
@@ -395,5 +407,55 @@ impl PostgresHost for PluginTransactionsManager {
         } else {
             Ok(None)
         }
+    }
+
+    async fn get_last_tally_session_execution(
+        &mut self,
+        tenant_id: String,
+        election_event_id: String,
+        tally_session_id: String,
+    ) -> Result<Option<String>, String> {
+        let mut manager = self.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        let res = get_last_tally_session_execution(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await
+        .map_err(|e| format!("Failed to get last tally session execution: {}", e))?;
+        if let Some(execution) = res {
+            let str = serde_json::to_string(&execution)
+                .map_err(|e| format!("Failed to serialize last tally session execution: {}", e))?;
+            Ok(Some(str))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn get_results_event_by_id(
+        &mut self,
+        tenant_id: String,
+        election_event_id: String,
+        results_event_id: String,
+    ) -> Result<String, String> {
+        let mut manager = self.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        let res = get_results_event_by_id(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &results_event_id,
+        )
+        .await
+        .map_err(|e| format!("Failed to get results event by id: {}", e))?;
+        let str = serde_json::to_string(&res)
+            .map_err(|e| format!("Failed to serialize results event: {}", e))?;
+        Ok(str)
     }
 }
