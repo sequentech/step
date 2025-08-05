@@ -112,7 +112,8 @@ pub async fn upsert_b3_and_elog(
     election_ids: &Vec<String>,
     dont_auto_generate_keys: bool, // avoid creating protocol manager keys
 ) -> Result<Value> {
-    let board_name = get_event_board(tenant_id, election_event_id);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
     // FIXME must also create the electoral log board here
     let mut immudb_client = get_board_client().await?;
     immudb_client.upsert_electoral_log_db(&board_name).await?;
@@ -153,7 +154,7 @@ pub async fn upsert_b3_and_elog(
 
     for election_id in election_ids.clone() {
         // Create board and protocol manager keys for election (insert, not asssert)
-        let board_name = get_election_board(tenant_id, &election_id);
+        let board_name = get_election_board(tenant_id, &election_id, &slug);
 
         let existing: Option<b3::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
@@ -491,6 +492,10 @@ pub async fn process_election_event_file(
         .await
         .with_context(|| "Error inserting election event")?;
 
+    manage_dates(&data, hasura_transaction)
+        .await
+        .with_context(|| "Error managing dates")?;
+
     // Upsert immutable board
     let board = upsert_b3_and_elog(hasura_transaction, tenant_id.as_str(), &election_event_id, &election_ids, is_importing_keys)
         .await
@@ -726,7 +731,8 @@ async fn process_activity_logs_file(
     election_event_id: &str,
     tenant_id: &str,
 ) -> Result<()> {
-    let board_name = get_event_board(tenant_id, election_event_id);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
     let electoral_log = ElectoralLog::new(
         hasura_transaction,
@@ -1108,6 +1114,114 @@ pub async fn process_document(
             }
         }
     };
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn manage_dates(
+    data: &ImportElectionEventSchema,
+    hasura_transaction: &Transaction<'_>,
+) -> Result<()> {
+    let Some(scheduled_events) = data.scheduled_events.clone() else {
+        return Ok(());
+    };
+
+    //Manage election event
+    let election_event_dates = generate_voting_period_dates(
+        scheduled_events.clone(),
+        data.tenant_id.to_string().as_str(),
+        &data.election_event.id,
+        None,
+    )?;
+    if let Some(start_date) = election_event_dates.start_date {
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            EventProcessors::START_VOTING_PERIOD,
+            start_date,
+            None,
+        )
+        .await?;
+    }
+    if let Some(end_date) = election_event_dates.end_date {
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            EventProcessors::END_VOTING_PERIOD,
+            end_date,
+            None,
+        )
+        .await?;
+    }
+    //Manage elections
+    let elections = &data.elections;
+    for election in elections {
+        let dates = generate_voting_period_dates(
+            scheduled_events.clone(),
+            data.tenant_id.to_string().as_str(),
+            &data.election_event.id,
+            Some(&election.id),
+        )?;
+        if let Some(start_date) = dates.start_date {
+            maybe_create_scheduled_event(
+                hasura_transaction,
+                data.tenant_id.to_string().as_str(),
+                &data.election_event.id,
+                EventProcessors::START_VOTING_PERIOD,
+                start_date,
+                Some(&election.id),
+            )
+            .await?;
+        }
+        if let Some(end_date) = dates.end_date {
+            maybe_create_scheduled_event(
+                hasura_transaction,
+                data.tenant_id.to_string().as_str(),
+                &data.election_event.id,
+                EventProcessors::END_VOTING_PERIOD,
+                end_date,
+                Some(&election.id),
+            )
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn maybe_create_scheduled_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    event_processor: EventProcessors,
+    start_date: String,
+    election_id: Option<&str>,
+) -> Result<()> {
+    let start_task_id =
+        generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
+    let payload = ManageElectionDatePayload {
+        election_id: match election_id {
+            Some(id) => Some(id.to_string()),
+            None => None,
+        },
+    };
+    let cron_config = CronConfig {
+        cron: None,
+        scheduled_date: Some(start_date.to_string()),
+    };
+    insert_scheduled_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        event_processor,
+        &start_task_id,
+        cron_config,
+        serde_json::to_value(payload)?,
+    )
+    .await?;
 
     Ok(())
 }
