@@ -28,6 +28,7 @@ use std::{
 };
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
+use std::sync::Arc;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER: &str = "aggregate";
@@ -114,10 +115,8 @@ impl Pipe for DoTally {
             // Parallelize the processing of each contest
             election_input
                 .contest_list
-                .par_iter() // Process contests in parallel
+                .par_iter()
                 .map(|contest_input| {
-                    // Clone data that will be used by each parallel contest task.
-                    // PathBufs are cheap to clone.
                     let input_dir = input_dir_base.clone();
                     let output_dir = output_dir_base.clone();
                     let tally_sheets_dir = tally_sheets_dir_base.clone();
@@ -125,7 +124,7 @@ impl Pipe for DoTally {
                     // These are specific to the contest and need to be cloned for use in area processing.
                     let election_id_for_contest = contest_input.election_id.clone();
                     let contest_id_for_contest = contest_input.id.clone();
-                    let contest_object_for_contest = contest_input.contest.clone(); // Ensure ContestType is Clone + Send + Sync
+                    let contest_object_for_contest = contest_input.contest.clone();
 
                     // --- Start of logic for a single contest ---
                     let _areas_info: Vec<TreeNodeArea> = contest_input // Renamed, original `areas` was unused after info
@@ -138,16 +137,13 @@ impl Pipe for DoTally {
                         contest_id_for_contest, _areas_info
                     );
 
-                    // Ensure TreeNode is Sync. If it's large and construction is costly,
-                    // consider Arc<TreeNode> if it needs to be shared by reference across threads.
-                    // Here, it's created per contest, then referenced by parallel area tasks.
-                    let areas_tree = TreeNode::<()>::from_areas(election_input.areas.clone())
+                    let areas_tree = Arc::new(TreeNode::<()>::from_areas(election_input.areas.clone())
                         .map_err(|err| {
                             Error::UnexpectedError(format!(
                                 "Error building area tree for contest {}: {:?}",
                                 contest_id_for_contest, err
                             ))
-                        })?;
+                        })?);
 
                     let census_map: HashMap<String, u64> = contest_input
                         .area_list
@@ -165,15 +161,13 @@ impl Pipe for DoTally {
                     // Parallelize processing for each area within this contest
                     let area_processing_results: Result<Vec<_>, Error> = contest_input
                         .area_list
-                        .par_iter() // Process areas in parallel
+                        .par_iter()
                         .map(|area_input| {
                             // Clone data needed per area task.
                             let area_id = area_input.id.clone();
                             let election_id = election_id_for_contest.clone();
                             let contest_id = contest_id_for_contest.clone();
                             let contest_object = contest_object_for_contest.clone();
-                            // These are captured by reference and must be Sync:
-                            // input_dir, output_dir, tally_sheets_dir, areas_tree, census_map, auditable_votes_map
 
                             let base_input_path = PipeInputs::build_path(
                                 &input_dir,
@@ -194,7 +188,7 @@ impl Pipe for DoTally {
 
                             // Create aggregate tally from children areas
                             let Some(area_tree_node) =
-                                areas_tree.find_area(&area_input.id.to_string())
+                                areas_tree.as_ref().find_area(&area_input.id.to_string())
                             else {
                                 return Err(Error::UnexpectedError(format!(
                                     "Error finding area {} in areas tree for contest {}",
@@ -235,8 +229,7 @@ impl Pipe for DoTally {
                                             Some(&Uuid::parse_str(&child_area.id).map_err(
                                                 |err| {
                                                     Error::UnexpectedError(format!(
-                                                        "Uuid parse error: {:?}",
-                                                        err
+                                                        "Uuid parse error: {err:?}"
                                                     ))
                                                 },
                                             )?),
@@ -360,7 +353,7 @@ impl Pipe for DoTally {
                     }
 
                     // Create contest-level output path (directory for the contest)
-                    let mut contest_output_dir_path = PipeInputs::build_path(
+                    let contest_output_dir_path = PipeInputs::build_path(
                         &output_dir, // This is the output_dir cloned for this contest task
                         &election_id_for_contest,
                         Some(&contest_id_for_contest),
@@ -368,9 +361,6 @@ impl Pipe for DoTally {
                     );
                     fs::create_dir_all(&contest_output_dir_path)?; // Ensure contest directory exists
 
-                    // self.save_tally_sheets_breakdown must be thread-safe if called from parallel contest tasks.
-                    // It takes &self. If it modifies shared state in self, care is needed.
-                    // If it only uses self.pipe_inputs (read-only config) and writes to the path, it's likely fine.
                     self.save_tally_sheets_breakdown(
                         &tally_sheet_results_for_contest,
                         &contest_output_dir_path,
@@ -379,7 +369,7 @@ impl Pipe for DoTally {
                     let final_only_sheet_results: Vec<ContestResult> =
                         tally_sheet_results_for_contest
                             .iter()
-                            .map(|(res, _)| res.clone()) // Assuming ContestResult is Clone
+                            .map(|(res, _)| res.clone())
                             .collect();
 
                     // Create final contest tally
@@ -400,7 +390,6 @@ impl Pipe for DoTally {
                     let final_file = fs::File::create(final_contest_result_file_path)?;
                     serde_json::to_writer_pretty(final_file, &final_res)?; // Using pretty
 
-                    // --- End of logic for a single contest ---
                     Ok(()) // Result for this contest's processing
                 })
                 .collect::<Result<Vec<()>, Error>>()?; // Collect results from parallel contest processing
