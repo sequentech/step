@@ -19,11 +19,11 @@ You need:
 
 ## Creating an election
 
-## Cast votes using chromium headless
+## Cast votes using chromium headless
 
-## Duplicating votes
+## Duplicating votes
 
-### 1. Access and Configuration
+### 1. Access and Configuration
 
 First we will set the path to the kubeconfig file so that we can use it for all
 our `kubectl` plugins:
@@ -58,7 +58,7 @@ kubectl exec -it testing-pod-6ff8c58cbc-5ps6t -n dev-apps -- /bin/bash
 This should give you a prompt very much like this:
 
 ```bash
-root@testing-pod-6ff8c58cbc-5ps6t:/# 
+root@testing-pod-6ff8c58cbc-5ps6t:/#
 ```
 
 Good! Now we are inside our windmill pod, let's install our load tool:

@@ -74,7 +74,7 @@ module.exports = {
           'admin_portal/Tutorials/Reports-and-Templates/value_to_template_association',
           ],
         },
-        
+
       ],
     },
     {
@@ -139,6 +139,7 @@ module.exports = {
           label: 'Windmill',
           items: ['developers/Windmill/developers_windmill'],
         },
+        'cli/Tutorials/Load-Testing/load_testing'
       ],
     },
     {
@@ -181,7 +182,7 @@ module.exports = {
               items: [
                 'reference/cryptography_security/cryptography/mixnet',
                 'reference/cryptography_security/cryptography/proofs',
-                
+
               ],
             },
             {
