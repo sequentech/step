@@ -326,7 +326,7 @@ impl Pipe for DoTally {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InvalidVotes {
     pub explicit: u64,
     pub implicit: u64,
@@ -380,7 +380,7 @@ pub struct ExtendedMetricsElection {
     pub abstentions: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ContestResult {
     pub contest: Contest,
     pub census: u64,

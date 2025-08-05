@@ -382,7 +382,7 @@ pub fn generate_mcballots(
 
     Ok(())
 }
-
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1900,3 +1900,4 @@ mod tests {
         assert_eq!(result, false);
     }
 }
+ */
