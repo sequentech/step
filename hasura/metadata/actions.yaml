@@ -482,6 +482,19 @@ actions:
           - role: admin-user
           - role: voter-read
           - role: user-read
+    - name: prepare_ballot_publication_preview
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/prepare-ballot-publication-preview
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: fetchDocument
       definition:
           kind: ""
@@ -1399,6 +1412,7 @@ custom_types:
         - name: OptionalId
         - name: TallySheetOutput
         - name: ExportUsersOutput
+        - name: PrepareBallotPublicationPreviewOutput
         - name: SetUserRoleOutput
         - name: CreateTallyOutput
         - name: StartTallyOutput

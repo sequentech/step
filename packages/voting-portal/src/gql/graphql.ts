@@ -785,6 +785,13 @@ export enum PgAuditTable {
   PgauditKeycloak = 'pgaudit_keycloak'
 }
 
+export type PrepareBallotPublicationPreviewOutput = {
+  __typename?: 'PrepareBallotPublicationPreviewOutput';
+  document_id: Scalars['String']['output'];
+  error_msg?: Maybe<Scalars['String']['output']>;
+  task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
 export type PublishBallotOutput = {
   __typename?: 'PublishBallotOutput';
   ballot_publication_id: Scalars['uuid']['output'];
@@ -1437,6 +1444,7 @@ export type Mutation_Root = {
   insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
   limit_access_by_countries?: Maybe<LimitAccessByCountriesOutput>;
   manage_election_dates?: Maybe<ManageElectionDatesOutput>;
+  prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>;
   publish_ballot?: Maybe<PublishBallotOutput>;
   /** publish_tally_sheet */
   publish_tally_sheet?: Maybe<PublishTallyOutput>;
@@ -3077,6 +3085,13 @@ export type Mutation_RootManage_Election_DatesArgs = {
   election_id?: InputMaybe<Scalars['String']['input']>;
   event_processor: Scalars['String']['input'];
   scheduled_date?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootPrepare_Ballot_Publication_PreviewArgs = {
+  ballot_publication_id: Scalars['String']['input'];
+  election_event_id: Scalars['String']['input'];
 };
 
 
