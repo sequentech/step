@@ -4,7 +4,7 @@
 
 use crate::services::area_tree::*;
 use crate::types::hasura::core::AreaContest;
-use crate::wasm::test::IntoResult;
+use crate::wasm::wasm::IntoResult;
 use std::collections::HashSet;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;

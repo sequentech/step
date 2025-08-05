@@ -34,13 +34,14 @@ pub async fn delete_event_b3(
     election_event_id: &str,
 ) -> Result<()> {
     let mut board_client = get_b3_pgsql_client().await?;
-    let board_name = get_event_board(tenant_id, election_event_id);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
     let elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None).await?;
     board_client.delete_board(board_name.as_str()).await?;
 
     for election in elections {
-        let board_name = get_election_board(tenant_id, &election.id);
+        let board_name = get_election_board(tenant_id, &election.id, &slug);
         board_client.delete_board(board_name.as_str()).await?;
     }
 
@@ -50,7 +51,8 @@ pub async fn delete_event_b3(
 #[instrument(err)]
 pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &str) -> Result<()> {
     let mut client = get_immudb_client().await?;
-    let board_name = get_event_board(tenant_id, election_event_id);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
     event!(Level::INFO, "database name = {board_name}");
     client

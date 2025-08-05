@@ -99,6 +99,7 @@ const galegoTranslation: TranslationType = {
                 deleteError: "Erro ao eliminar a área",
             },
             createAreaSuccess: "Área creada",
+            updateAreaSuccess: "Área actualizada",
             createAreaError: "Non se puido crear a área",
             sequent_backend_area_contest: "Concursos",
             empty: {

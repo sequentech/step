@@ -99,6 +99,7 @@ const frenchTranslation: TranslationType = {
                 deleteError: "Erreur lors de la suppression de la Zone",
             },
             createAreaSuccess: "Zone créée",
+            updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
             sequent_backend_area_contest: "Questions de la Zone",
             empty: {

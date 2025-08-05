@@ -14,8 +14,13 @@ import {MiruExportWizard} from "@/components/MiruExportWizard"
 
 export const EditElectionEventTally: React.FC = () => {
     const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
-    const {tallyId, isTrustee, isCreatingType, isCreated, selectedTallySessionData} =
-        useElectionEventTallyStore()
+    const {
+        tallyId,
+        isTrustee,
+        creatingType: isCreatingType,
+        isCreated,
+        selectedTallySessionData,
+    } = useElectionEventTallyStore()
 
     return (
         <Box>
