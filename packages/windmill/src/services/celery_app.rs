@@ -321,7 +321,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event::NAME => &Queue::ElectoralLogEvent.queue_name(&slug),
             process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
-            prepare_publication_preview::NAME => Queue::Beat.as_ref(),
+            prepare_publication_preview::NAME => Queue::Beat.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
