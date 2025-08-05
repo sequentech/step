@@ -47,6 +47,12 @@ const tagalogTranslation: TranslationType = {
             step3Title: "3. I-submit ang iyong balota",
             step3Description:
                 "I-submit ang iyong balota: Sa wakas, maaari mo nang i-submit ang iyong balota upang ito ay tamang maitala. Maaari mo ring piliing i-audit at tiyakin na ang iyong balota ay tama ang pagkakalista at pagkaka-encrypt.",
+            demoDialog: {
+                ok: "Tinatanggap ko na ang aking boto ay HINDI maibibilang",
+                title: "Demo portal para sa pagboto",
+                content:
+                    "Ikaw ay pumapasok sa isang demo portal para sa pagboto. Ang iyong boto ay HINDI maibibilang. Ang portal na ito ay para sa mga layuning pang-demonstrasyon lamang.",
+            },
         },
         reviewScreen: {
             title: "Suriin ang iyong balota",

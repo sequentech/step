@@ -151,15 +151,14 @@ const StartScreen: React.FC = () => {
             <Dialog
                 variant="warning"
                 open={showDemoDialog}
-                ok={"I accept my vote will NOT be cast"}
-                title={"Demo voting booth"}
+                ok={t("startScreen.demoDialog.ok")}
+                title={t("startScreen.demoDialog.title")}
                 handleClose={(result: boolean) => {
                     setShowDemoDialog(false)
                 }}
                 fullWidth
             >
-                You are entering a demo voting booth. Your vote will NOT be cast. This voting booth
-                is for demonstration purposes only.
+                {t("startScreen.demoDialog.content")}
             </Dialog>
         </PageLimit>
     )

@@ -45,6 +45,12 @@ const englishTranslation = {
             step3Title: "3. Cast your ballot",
             step3Description:
                 "Cast your ballot: Finally, you can cast your ballot so it is properly registered. Alternatively, you can opt to audit and confirm that your ballot was correctly captured and encrypted.",
+            demoDialog: {
+                ok: "I accept my vote will NOT be cast",
+                title: "Demo voting portal",
+                content:
+                    "You are entering a demo voting portal. Your vote will NOT be cast. This voting portal is for demonstration purposes only.",
+            },
         },
         reviewScreen: {
             title: "Review your ballot",

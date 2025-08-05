@@ -47,6 +47,12 @@ const catalanTranslation: TranslationType = {
             step3Title: "3. Envieu el vostre vot",
             step3Description:
                 "Envia la teva papereta: Finalment, pots enviar la teva papereta perquè es registri correctament. Alternativament, pots optar per auditar i confirmar que la teva papereta va ser capturada i xifrada correctament.",
+            demoDialog: {
+                ok: "Accepto que el meu vot NO serà emès",
+                title: "Portal de votació de demostració",
+                content:
+                    "Estàs entrant a un portal de votació de demostració. El teu vot NO serà emès. Aquest portal de votació és només per a finalitats de demostració.",
+            },
         },
         reviewScreen: {
             title: "Revisa el teu vot",

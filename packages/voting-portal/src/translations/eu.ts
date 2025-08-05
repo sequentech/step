@@ -47,6 +47,12 @@ const basqueTranslation: TranslationType = {
             step3Title: "3. Eman zure bozketa",
             step3Description:
                 "Eman zure bozketa: Azkenik, zure bozketa eman dezakezu behar bezala erregistratu izan dadin. Bestela, zure bozketa zuzen hartu eta zifratu izan dela egiaztatu eta berresteko aukera duzu.",
+            demoDialog: {
+                ok: "Onartzen dut nire botoa EZ dela emango",
+                title: "Erakustaldirako bozketa ataria",
+                content:
+                    "Erakustaldirako bozketa atari batean sartzen ari zara. Zure botoa EZ da emango. Bozketa atari hau erakustaldirako baino ez da.",
+            },
         },
         reviewScreen: {
             title: "Berrikusi zure bozketa",
