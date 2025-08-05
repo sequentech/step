@@ -83,7 +83,7 @@ impl DoTally {
         for (channel, contest_result) in breakdown_map {
             let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
             fs::create_dir_all(&breakdown_folder_path)?;
-            let breakdown_file_path = breakdown_folder_path.join((OUTPUT_CONTEST_RESULT_FILE));
+            let breakdown_file_path = breakdown_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
             let contest_result_file = fs::File::create(&breakdown_file_path)?;
             serde_json::to_writer(contest_result_file, &contest_result)?;
         }

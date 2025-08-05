@@ -30,16 +30,6 @@ pub struct MarkWinners {
     pub pipe_inputs: PipeInputs,
 }
 
-fn get_candidate_count(contest_result: &ContestResult, candidate_result: &CandidateResult) -> u64 {
-    if candidate_result.candidate.is_explicit_blank() {
-        contest_result.total_blank_votes
-    } else if candidate_result.candidate.is_explicit_invalid() {
-        contest_result.invalid_votes.explicit
-    } else {
-        candidate_result.total_count
-    }
-}
-
 impl MarkWinners {
     #[instrument(skip_all, name = "MarkWinners::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
@@ -50,30 +40,13 @@ impl MarkWinners {
     pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut winners = contest_result.candidate_result.clone();
 
-        winners.sort_by(|a, b| {
-            let is_a_blank_or_invalid =
-                a.candidate.is_explicit_blank() || a.candidate.is_explicit_invalid();
-            let is_b_blank_or_invalid =
-                b.candidate.is_explicit_blank() || b.candidate.is_explicit_invalid();
+        winners.retain(|w| !w.candidate.is_explicit_blank() && !w.candidate.is_explicit_invalid());
 
-            if !is_a_blank_or_invalid && is_b_blank_or_invalid {
-                match b.total_count.cmp(&a.total_count) {
-                    // ties resolution
-                    Ordering::Equal => a.candidate.name.cmp(&b.candidate.name),
-                    other => other,
-                }
-            } else if is_a_blank_or_invalid && is_b_blank_or_invalid {
-                match get_candidate_count(contest_result, b)
-                    .cmp(&get_candidate_count(contest_result, a))
-                {
-                    // ties resolution
-                    Ordering::Equal => a.candidate.name.cmp(&b.candidate.name),
-                    other => other,
-                }
-            } else if !is_a_blank_or_invalid {
-                Ordering::Greater
-            } else {
-                Ordering::Less
+        winners.sort_by(|a, b| {
+            match b.total_count.cmp(&a.total_count) {
+                // ties resolution
+                Ordering::Equal => a.candidate.name.cmp(&b.candidate.name),
+                other => other,
             }
         });
 

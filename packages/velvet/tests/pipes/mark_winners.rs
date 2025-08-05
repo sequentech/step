@@ -1,7 +1,6 @@
-
-use velvet::pipes::mark_winners::*;
+use sequent_core::ballot::{Candidate, CandidatePresentation, Contest};
 use velvet::pipes::do_tally::{CandidateResult, ContestResult, InvalidVotes};
-use sequent_core::ballot::{Candidate, Contest, CandidatePresentation};
+use velvet::pipes::mark_winners::*;
 
 #[test]
 fn test_get_winners() {
@@ -9,7 +8,7 @@ fn test_get_winners() {
     let election_event_id = "9f48606b-3159-4c6a-9c3f-f7f49badfd8b".to_string();
     let election_id = "09af46e9-a40e-4ad5-a209-90654d3aecc2".to_string();
     let contest_id = "1dea377d-4ec0-4436-aa2c-0c8f5ec7a5be".to_string();
-    
+
     let candidate_a = Candidate {
         id: "ca39ad00-2927-4279-a0fc-1d9010900b76".to_string(),
         tenant_id: tenant_id.clone(),
@@ -19,7 +18,7 @@ fn test_get_winners() {
         name: Some("A".to_string()),
         ..Default::default()
     };
-    
+
     let candidate_b = Candidate {
         id: "bb39ad00-2927-4279-a0fc-1d9010900b77".to_string(),
         tenant_id: tenant_id.clone(),
@@ -29,7 +28,7 @@ fn test_get_winners() {
         name: Some("B".to_string()),
         ..Default::default()
     };
-    
+
     let candidate_invalid = Candidate {
         id: "cc39ad00-2927-4279-a0fc-1d9010900b78".to_string(),
         tenant_id: tenant_id.clone(),
@@ -43,7 +42,7 @@ fn test_get_winners() {
         }),
         ..Default::default()
     };
-    
+
     let candidate_blank = Candidate {
         id: "dd39ad00-2927-4279-a0fc-1d9010900b79".to_string(),
         tenant_id: tenant_id.clone(),
@@ -57,7 +56,7 @@ fn test_get_winners() {
         }),
         ..Default::default()
     };
-    
+
     let contest_result = ContestResult {
         contest: Contest {
             id: contest_id.clone(),
@@ -66,7 +65,12 @@ fn test_get_winners() {
             election_id: election_id.clone(),
             name: Some("Event".to_string()),
             winning_candidates_num: 2,
-            candidates: vec![candidate_a.clone(), candidate_b.clone(), candidate_invalid.clone(), candidate_blank.clone()],
+            candidates: vec![
+                candidate_a.clone(),
+                candidate_b.clone(),
+                candidate_invalid.clone(),
+                candidate_blank.clone(),
+            ],
             ..Default::default()
         },
         total_votes: 20,
@@ -112,10 +116,9 @@ fn test_get_winners() {
             candidate: candidate_a.clone(),
             total_count: 2,
             winning_position: 2,
-        }
+        },
     ];
 
     let winners = MarkWinners::get_winners(&contest_result);
     assert_eq!(winners, expected_winners);
 }
-

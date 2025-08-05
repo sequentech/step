@@ -612,10 +612,10 @@ impl GenerateReports {
         let contest_base_breakdown_path = contest_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let winners_base_breakdown_path = winners_base_path.join(OUTPUT_BREAKDOWNS_FOLDER);
 
-        if (!contest_base_breakdown_path.exists()
+        if !contest_base_breakdown_path.exists()
             || !contest_base_breakdown_path.is_dir()
             || !winners_base_breakdown_path.exists()
-            || !winners_base_breakdown_path.is_dir())
+            || !winners_base_breakdown_path.is_dir()
         {
             return Ok(vec![]);
         }
