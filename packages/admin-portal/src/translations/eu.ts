@@ -1685,7 +1685,8 @@ const basqueTranslation: TranslationType = {
         tallysheet: {
             createTallySuccess: "Zenbaketa Orria gordea",
             createTallyError: "Errorea Zenbaketa Orria gordetzerakoan",
-            createTallyErrorSameKindExists: "Kontaketa-orria dagoeneko existitzen da lehiaketa honetarako kanal eta eremu berarekin",
+            createTallyErrorSameKindExists:
+                "Kontaketa-orria dagoeneko existitzen da lehiaketa honetarako kanal eta eremu berarekin",
             allFieldsRequired: "Eremu guztiak beharrezkoak dira",
             header: {
                 change: "Argitaratzeko Aldaketak",

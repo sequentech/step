@@ -1702,7 +1702,8 @@ const catalanTranslation: TranslationType = {
         tallysheet: {
             createTallySuccess: "Acta de Recompte creada",
             createTallyError: "Error creant Acta de Recompte",
-            createTallyErrorSameKindExists: "El full de recompte ja existeix per a aquest concurs amb el mateix canal i àrea",
+            createTallyErrorSameKindExists:
+                "El full de recompte ja existeix per a aquest concurs amb el mateix canal i àrea",
             allFieldsRequired: "Tots els camps són obligatoris",
             header: {
                 change: "Canvis a Publicar",

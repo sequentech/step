@@ -1676,7 +1676,8 @@ const englishTranslation = {
         tallysheet: {
             createTallySuccess: "Tally Sheet saved",
             createTallyError: "Error saving Tally Sheet",
-            createTallyErrorSameKindExists: "Tally Sheet already exists for this contest with the same channel and area",
+            createTallyErrorSameKindExists:
+                "Tally Sheet already exists for this contest with the same channel and area",
             allFieldsRequired: "All fields are required",
             header: {
                 change: "Changes to be Published",

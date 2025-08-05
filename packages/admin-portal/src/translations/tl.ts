@@ -1695,7 +1695,8 @@ const tagalogTranslation: TranslationType = {
         tallysheet: {
             createTallySuccess: "Na-save ang Tally Sheet",
             createTallyError: "Error sa pag-save ng Tally Sheet",
-            createTallyErrorSameKindExists: "Ang Tally Sheet ay umiiral na para sa paligsahang ito na may parehong channel at lugar",
+            createTallyErrorSameKindExists:
+                "Ang Tally Sheet ay umiiral na para sa paligsahang ito na may parehong channel at lugar",
             allFieldsRequired: "Lahat ng mga patlang ay kinakailangan",
             header: {
                 change: "Mga Pagbabago na Ipinapublish",

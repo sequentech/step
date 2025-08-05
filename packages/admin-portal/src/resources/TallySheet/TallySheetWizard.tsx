@@ -56,13 +56,13 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const {data: tallySheet} = useGetOne<Sequent_Backend_Tally_Sheet>(
         "sequent_backend_tally_sheet",
         {id: tallySheetId},
-        {enabled: !!tallySheetId},
+        {enabled: !!tallySheetId}
     )
 
     const {data: listTallySheets} = useGetList<Sequent_Backend_Tally_Sheet>(
         "sequent_backend_tally_sheet",
         {filter: {contest_id: contest.id}},
-        {enabled: !!contest.id},
+        {enabled: !!contest.id}
     )
 
     const [upsertTallySheet] = useMutation<UpsertTallySheetMutation>(UPSERT_TALLY_SHEET, {
@@ -114,7 +114,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
             (tallySheet) =>
                 tallySheet.area_id === tallySheetData.area_id &&
                 tallySheet.contest_id === tallySheetData.contest_id &&
-                tallySheet.channel === tallySheetData.channel,
+                tallySheet.channel === tallySheetData.channel
         )
     }
 

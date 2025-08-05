@@ -1689,7 +1689,8 @@ const dutchTranslation: TranslationType = {
         tallysheet: {
             createTallySuccess: "Telblad opgeslagen",
             createTallyError: "Fout bij opslaan telblad",
-            createTallyErrorSameKindExists: "Telformulier bestaat al voor deze wedstrijd met hetzelfde kanaal en gebied",
+            createTallyErrorSameKindExists:
+                "Telformulier bestaat al voor deze wedstrijd met hetzelfde kanaal en gebied",
             allFieldsRequired: "Alle velden zijn verplicht",
             header: {
                 change: "Te Publiceren Wijzigingen",
