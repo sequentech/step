@@ -787,6 +787,13 @@ export enum PgAuditTable {
     PgauditKeycloak = "pgaudit_keycloak",
 }
 
+export type PrepareBallotPublicationPreviewOutput = {
+    __typename?: "PrepareBallotPublicationPreviewOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type PublishBallotOutput = {
     __typename?: "PublishBallotOutput"
     ballot_publication_id: Scalars["uuid"]["output"]
@@ -914,6 +921,11 @@ export type UpdateElectionVotingStatusOutput = {
 export type UpdateEventVotingStatusOutput = {
     __typename?: "UpdateEventVotingStatusOutput"
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+export type UpsertAreaOutput = {
+    __typename?: "UpsertAreaOutput"
+    id: Scalars["String"]["output"]
 }
 
 export type UserProfileAttribute = {
@@ -1414,6 +1426,7 @@ export type Mutation_Root = {
     insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>
     limit_access_by_countries?: Maybe<LimitAccessByCountriesOutput>
     manage_election_dates?: Maybe<ManageElectionDatesOutput>
+    prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>
     publish_ballot?: Maybe<PublishBallotOutput>
     /** publish_tally_sheet */
     publish_tally_sheet?: Maybe<PublishTallyOutput>
@@ -1712,6 +1725,7 @@ export type Mutation_Root = {
     >
     update_tally_ceremony?: Maybe<StartTallyOutput>
     upload_signature?: Maybe<OptionalId>
+    upsert_area?: Maybe<UpsertAreaOutput>
     /** upsert_areas */
     upsert_areas?: Maybe<OptionalId>
 }
@@ -2924,6 +2938,12 @@ export type Mutation_RootManage_Election_DatesArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootPrepare_Ballot_Publication_PreviewArgs = {
+    ballot_publication_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootPublish_BallotArgs = {
     ballot_publication_id: Scalars["uuid"]["input"]
     election_event_id: Scalars["uuid"]["input"]
@@ -4002,6 +4022,20 @@ export type Mutation_RootUpload_SignatureArgs = {
     election_id: Scalars["uuid"]["input"]
     password: Scalars["String"]["input"]
     tally_session_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootUpsert_AreaArgs = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    area_contest_ids?: InputMaybe<Array<InputMaybe<Scalars["String"]["input"]>>>
+    description?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
+    id?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    name: Scalars["String"]["input"]
+    parent_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+    type?: InputMaybe<Scalars["String"]["input"]>
 }
 
 /** mutation root */

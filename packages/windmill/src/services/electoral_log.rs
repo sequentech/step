@@ -1070,7 +1070,12 @@ pub const IMMUDB_ROWS_LIMIT: usize = 25_000;
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     let mut client: Client = get_immudb_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
 
     event!(Level::INFO, "database name = {board_name}");
     info!("input = {:?}", input);
@@ -1142,7 +1147,12 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 #[instrument(err)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let mut client = get_immudb_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
 
     info!("board name: {board_name}");
     client.open_session(&board_name).await?;

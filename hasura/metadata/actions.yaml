@@ -482,6 +482,19 @@ actions:
           - role: admin-user
           - role: voter-read
           - role: user-read
+    - name: prepare_ballot_publication_preview
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/prepare-ballot-publication-preview
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: fetchDocument
       definition:
           kind: ""
@@ -1234,6 +1247,19 @@ actions:
       permissions:
           - role: miru-sign
           - role: admin-user
+    - name: upsert_area
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/upsert-area
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: upsert_areas
       definition:
           kind: synchronous
@@ -1246,6 +1272,9 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: area-read
+          - role: area-upsert
+          - role: area-create
           - role: area-write
       comment: upsert_areas
 custom_types:
@@ -1367,6 +1396,7 @@ custom_types:
         - name: SetRolePermissionOutput
         - name: OptionalId
         - name: ExportUsersOutput
+        - name: PrepareBallotPublicationPreviewOutput
         - name: SetUserRoleOutput
         - name: CreateTallyOutput
         - name: StartTallyOutput
@@ -1434,4 +1464,5 @@ custom_types:
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
         - name: RenderDocumentPDFOutput
+        - name: UpsertAreaOutput
     scalars: []

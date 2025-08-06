@@ -99,6 +99,7 @@ const tagalogTranslation: TranslationType = {
                 deleteError: "Error sa pagtanggal ng lugar",
             },
             createAreaSuccess: "Lugar na nalikha",
+            updateAreaSuccess: "Na-update ang lugar",
             createAreaError: "Hindi makalikha ng Lugar",
             sequent_backend_area_contest: "Mga Paligsahan",
             empty: {

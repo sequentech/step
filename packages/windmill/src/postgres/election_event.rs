@@ -467,7 +467,7 @@ pub async fn delete_election_event(
     ];
 
     for table in related_tables {
-        let query = format!(
+        let query: String = format!(
             r#"
             DELETE FROM sequent_backend.{}
             WHERE tenant_id = $1 AND election_event_id = $2;
