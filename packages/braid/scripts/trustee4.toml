@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+signing_key_sk = "MC4CAQAwBQYDK2VwBCIEIJPCqPkyROeqU7tIBkk5OzNsvzZhDDUV3GlVjW78FZDO"
+signing_key_pk = "MCowBQYDK2VwAyEAjzeUNkSdY1Sm62nIemLFSLg1Tk5rPFmcibknce6CjDw="
+encryption_key = "X6n/3BS0LEgGAqdPFEci/4+6GmCZS3Vn1q6nhA4vK+o"
