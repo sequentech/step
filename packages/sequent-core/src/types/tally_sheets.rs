@@ -25,6 +25,24 @@ pub enum VotingChannel {
     IN_PERSON,
 }
 
+#[derive(
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Clone,
+    Eq,
+    PartialEq,
+    Display,
+    EnumString,
+)]
+pub enum TallySheetStatus {
+    #[default]
+    PENDING,
+    APPROVED,
+    DISAPPROVED,
+}
+
 impl Default for VotingChannel {
     fn default() -> Self {
         VotingChannel::PAPER

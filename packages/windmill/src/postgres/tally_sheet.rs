@@ -6,12 +6,17 @@ use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transactio
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::VotingChannels;
 use sequent_core::types::tally_sheets::AreaContestResults;
-use sequent_core::types::{hasura::core::TallySheet, tally_sheets::VotingChannel};
+use sequent_core::types::{
+    hasura::core::TallySheet,
+    tally_sheets::{TallySheetStatus, VotingChannel},
+};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+use crate::services::reports::status;
 
 pub struct TallySheetWrapper(pub TallySheet);
 
@@ -32,8 +37,10 @@ impl TryFrom<Row> for TallySheetWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            published_at: item.get("published_at"),
-            published_by_user_id: item.try_get("published_by_user_id")?,
+            reviewed_at: item.get("reviewed_at"),
+            reviewed_by_user_id: item.try_get("reviewed_by_user_id")?,
+            status: item.try_get("status")?,
+            version: item.try_get("version")?,
             content: content,
             channel: item.try_get("channel")?,
             deleted_at: item.get("deleted_at"),
@@ -43,7 +50,7 @@ impl TryFrom<Row> for TallySheetWrapper {
 }
 
 #[instrument(err, skip_all)]
-pub async fn get_published_tally_sheets_by_event(
+pub async fn get_approved_tally_sheets_by_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -58,7 +65,9 @@ pub async fn get_published_tally_sheets_by_event(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2 AND
-                    published_at IS NOT NULL AND
+                    reviewed_at IS NOT NULL AND
+                    reviewed_by_user_id IS NOT NULL AND
+                    status = 'APPROVED' AND
                     deleted_at IS NULL;
             "#,
         )
@@ -86,30 +95,28 @@ pub async fn get_published_tally_sheets_by_event(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn publish_tally_sheet(
+pub async fn review_tally_sheet(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_sheet_id: &str,
     user_id: &str,
-    publish: bool,
+    status: TallySheetStatus,
 ) -> Result<Option<()>> {
-    let set_published_at = if publish { "now()" } else { "NULL" };
-    let filter_published_at = if publish { "NULL" } else { "NOT NULL" };
-    let publish_statement = hasura_transaction
+    let review_statement = hasura_transaction
         .prepare(
             format!(
                 r#"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
-            published_at = {set_published_at},
-            published_by_user_id = $4
+            reviewed_at = NOW(),
+            reviewed_by_user_id = $4,
+            status = $5
         WHERE
             tally_sheet.tenant_id = $1 AND
             tally_sheet.election_event_id = $2 AND
             tally_sheet.id = $3 AND
-            tally_sheet.deleted_at IS NULL AND
-            tally_sheet.published_at IS {filter_published_at}
+            tally_sheet.deleted_at IS NULL
         RETURNING *
     "#
             )
@@ -123,14 +130,16 @@ pub async fn publish_tally_sheet(
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let tally_sheet_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet_id)
         .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
+    let status_str = status.to_string();
     let publish_params: Vec<&(dyn ToSql + Sync)> = vec![
         &tenant_uuid,
         &election_event_uuid,
         &tally_sheet_uuid,
         &user_id,
+        &status_str,
     ];
     let publish_rows: Vec<Row> = hasura_transaction
-        .query(&publish_statement, &publish_params.as_slice())
+        .query(&review_statement, &publish_params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
     if publish_rows.len() != 1 {

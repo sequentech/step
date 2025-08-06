@@ -12,7 +12,7 @@ use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
-use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
+use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::ceremonies::insert_ballots::{
@@ -848,7 +848,7 @@ async fn map_plaintext_data(
     let areas = get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let tally_sheet_rows =
-        get_published_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
+        get_approved_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
 
     let contest_encryption_policy = tally_session

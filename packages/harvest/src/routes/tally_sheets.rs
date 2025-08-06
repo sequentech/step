@@ -10,17 +10,19 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::permissions::Permissions;
-use sequent_core::types::tally_sheets::{AreaContestResults, VotingChannel};
+use sequent_core::types::tally_sheets::{
+    AreaContestResults, TallySheetStatus, VotingChannel,
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::postgres::{contest::get_contest_by_id, tally_sheet};
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PublishTallySheetInput {
+pub struct ReviewTallySheetInput {
     election_event_id: String,
     tally_sheet_id: String,
-    publish: bool,
+    status: TallySheetStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,9 +32,9 @@ pub struct PublishTallySheetOutput {
 
 // The main function to start a key ceremony
 #[instrument(skip(claims))]
-#[post("/publish-tally-sheet", format = "json", data = "<body>")]
-pub async fn publish_tally_sheet(
-    body: Json<PublishTallySheetInput>,
+#[post("/review-tally-sheet", format = "json", data = "<body>")]
+pub async fn review_tally_sheet(
+    body: Json<ReviewTallySheetInput>,
     claims: JwtClaims,
 ) -> Result<Json<PublishTallySheetOutput>, (Status, String)> {
     authorize(
@@ -54,13 +56,13 @@ pub async fn publish_tally_sheet(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let found = tally_sheet::publish_tally_sheet(
+    let found = tally_sheet::review_tally_sheet(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
         &input.tally_sheet_id,
         &claims.hasura_claims.user_id,
-        input.publish,
+        input.status,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
