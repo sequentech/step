@@ -38,9 +38,7 @@ testing.
 - **Numbering**: YY.MM format (e.g., 25.09 for September 2025)
 - **Breaking Changes**: May include API changes, database schema updates, or
   architectural modifications
-- **Standard Release Support (SRS)**: 2 months from release date
-- **Extended Release Support (ERS)**: Additional 2 months after standard support ends
-- **Legacy Release Support (LRS)**: Additional 4 months after extended support ends
+- **Long Term Support (LTS)**: 8 months from release date
 - **Total Major Release Lifecycle**: 8 months
 - **Currently Supported Major Releases**: None
 - **Next Major Release**: Version 25.09 (September 1st, 2025)
@@ -66,28 +64,28 @@ and do not contain breaking changes.
 
 ## Release Schedule Table
 
-| Version    | Release Date | Release Type | Standard Support Until | Extended Support Until | Legacy Support Until | Total Support |
+| Version    | Release Date | Release Type | Long Term Support Until | Extended Support Until | Legacy Support Until | Total Support |
 |------------|-------------|---------|-----------------------|------------------------|---------------------|---------------|
 | 25.08      | Aug 1, 2025 | Minor   | Oct 1, 2025           | Dec 1, 2025            | -                   | 4 months      |
-| **25.09**  | Sep 1, 2025 | **Major** | Nov 1, 2025           | Jan 1, 2026            | May 1, 2026         | **8 months** |
+| **25.09**  | Sep 1, 2025 | **Major** | May 1, 2026           | -                      | -                   | **8 months** |
 | 25.10      | Oct 1, 2025 | Minor   | Dec 1, 2025           | Feb 1, 2026            | -                   | 4 months      |
 | 25.11      | Nov 1, 2025 | Minor   | Jan 1, 2026           | Mar 1, 2026            | -                   | 4 months      |
 | 25.12      | Dec 1, 2025 | Minor   | Feb 1, 2026           | Apr 1, 2026            | -                   | 4 months      |
 | 26.01      | Jan 1, 2026 | Minor   | Mar 1, 2026           | May 1, 2026            | -                   | 4 months      |
 | 26.02      | Feb 1, 2026 | Minor   | Apr 1, 2026           | Jun 1, 2026            | -                   | 4 months      |
-| **26.03**  | Mar 1, 2026 | **Major** | May 1, 2026           | Jul 1, 2026            | Nov 1, 2026         | **8 months** |
+| **26.03**  | Mar 1, 2026 | **Major** | Nov 1, 2026           | -                      | -                   | **8 months** |
 | 26.04      | Apr 1, 2026 | Minor   | Jun 1, 2026           | Aug 1, 2026            | -                   | 4 months      |
 | 26.05      | May 1, 2026 | Minor   | Jul 1, 2026           | Sep 1, 2026            | -                   | 4 months      |
 | 26.06      | Jun 1, 2026 | Minor   | Aug 1, 2026           | Oct 1, 2026            | -                   | 4 months      |
 | 26.07      | Jul 1, 2026 | Minor   | Sep 1, 2026           | Nov 1, 2026            | -                   | 4 months      |
 | 26.08      | Aug 1, 2026 | Minor   | Oct 1, 2026           | Dec 1, 2026            | -                   | 4 months      |
-| **26.09**  | Sep 1, 2026 | **Major** | Nov 1, 2026           | Jan 1, 2027            | May 1, 2027         | **8 months** |
+| **26.09**  | Sep 1, 2026 | **Major** | May 1, 2027           | -                      | -                   | **8 months** |
 | 26.10      | Oct 1, 2026 | Minor   | Dec 1, 2026           | Feb 1, 2027            | -                   | 4 months      |
 | 26.11      | Nov 1, 2026 | Minor   | Jan 1, 2027           | Mar 1, 2027            | -                   | 4 months      |
 | 26.12      | Dec 1, 2026 | Minor   | Feb 1, 2027           | Apr 1, 2027            | -                   | 4 months      |
 | 27.01      | Jan 1, 2027 | Minor   | Mar 1, 2027           | May 1, 2027            | -                   | 4 months      |
 | 27.02      | Feb 1, 2027 | Minor   | Apr 1, 2027           | Jun 1, 2027            | -                   | 4 months      |
-| **27.03**  | Mar 1, 2027 | **Major** | May 1, 2027           | Jul 1, 2027            | Nov 1, 2027         | **8 months** |
+| **27.03**  | Mar 1, 2027 | **Major** | Nov 1, 2027           | -                      | -                   | **8 months** |
 
 ## Support Levels
 
@@ -101,21 +99,22 @@ with no SLA guarantees and absolutely no warranty.
 Enterprise customers receive:
 - Dedicated support channels
 - Security patches and critical bug fixes
-- Standard, Extended and Legacy support options
+- Standard, Extended and Legacy support options for Minor releases
+- Long Term Support (LTS) for Major releases
 - Migration assistance between major and minor versions
 - Custom support agreements for extended lifecycles
 - Documentation updates
 
 Enterprise Support Plans:
 - **Standard Support** (SRS):
-  - Available for all releases
+  - Available for Minor releases
   - 2 months from release date
 - **Extended Support** (ERS):
-  - Available for all releases
+  - Available for Minor releases
   - Additional 2 months after Standard Support ends
-- **Legacy Support** (LRS):
+- **Long Term Support** (LTS):
   - Available for Major releases only
-  - Additional 2 months after Extended Support ends
+  - 8 months from release date
 
 ## Release Timeline Visualization
 
@@ -164,8 +163,8 @@ config:
         text[id^=srs_] { fill: white !important; font-size: 24px; }
         rect[id^=ers_] { fill: #2de8b9; stroke-width: 4px; }
         text[id^=ers_] { fill: #0f054c !important; font-size: 24px; }
-        rect[id^=lrs_] { fill: #bec7ff; stroke-width: 4px; }
-        text[id^=lrs_] { fill: #0f054c !important; font-size: 24px; }
+        rect[id^=lts_] { fill: #bec7ff; stroke-width: 4px; }
+        text[id^=lts_] { fill: #0f054c !important; font-size: 24px; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
         g[class=tick] text { font-size: 24px; height: 50px; }
         .vertText {  transform: translate(-133px, -900px); font-size: 24px; fill: red !important; }
@@ -185,12 +184,12 @@ config:
         #srs_2512 { stroke: #0f054c; }
 
         /* out of support: */
-        #ers_2508, #ers_2509 { opacity: 0.2; }
-        #srs_2508, #srs_2509, #srs_2510, #srs_2511 { stroke: red; fill: #0f054c; opacity: 0.2; }
-        #srs_2508-text, #srs_2509-text, #srs_2510-text, #srs_2511-text { fill: #0f054c !important; }
+        #ers_2508 { opacity: 0.2; }
+        #srs_2508, #srs_2510, #srs_2511 { stroke: red; fill: #0f054c; opacity: 0.2; }
+        #srs_2508-text, #srs_2510-text, #srs_2511-text { fill: #0f054c !important; }
 
         /* under legacy or extended support: */
-        #ers_2509, #lrs_2509, #ers_2510, #ers_2511, #ers_2512, #ers_2601 { stroke: #0f054c; }
+        #lts_2509, #ers_2510, #ers_2511, #ers_2512, #ers_2601 { stroke: #0f054c; }
 
         /* unreleased: */
         #srs_2602, #ers_2602 { opacity: 0.3; }
@@ -218,9 +217,7 @@ gantt
         Extended :done, ers_2508, after srs_2508, 61d
 
     section 25.09 Major
-        Standard :done, srs_2509, 2025-09-01, 61d
-        Extended :done, ers_2509, after srs_2509, 61d
-        Legacy   :active, lrs_2509, after ers_2509, 122d
+        Long Term Support :active, lts_2509, 2025-09-01, 243d
 
     section 25.10
         Standard :done, srs_2510, 2025-10-01, 61d
@@ -250,10 +247,8 @@ In the example shown in the diagram (with `Example Current Date` set to January 
 **Major Releases:**
 - **Version 25.09 Major** (released September 1, 2025): Currently in <span
   style={{color: "#0f054c",  backgroundColor: "#bec7ff", borderRadius: "10px",
-  padding: "3px 10px"}}>Legacy Release Support</span> phase, having completed
-  its 2-month standard support in November 1, 2025, and having also completed
-  its 2-month extended support in January 1, 2026. Legacy support continues
-  until May 1, 2026.
+  padding: "3px 10px"}}>Long Term Support</span> phase, with full support
+  continuing until May 1, 2026.
 
 **Minor Releases:**
 - **Version 25.08 Minor** (released August 1, 2025): <span
@@ -281,8 +276,8 @@ In the example shown in the diagram (with `Example Current Date` set to January 
 - **Version 26.02 Minor** (to be released February 1, 2026): Unreleased.
 
 The diagram illustrates the overlapping support windows that provide enterprise
-customers with migration flexibility. Major releases have a three-tier support
-model (Standard → Extended → Legacy) with 8 months of total support coverage,
+customers with migration flexibility. Major releases have a single Long Term Support (LTS)
+model with 8 months of total support coverage,
 while Minor releases have a two-tier model (Standard → Extended) with 4 months
 of total support coverage.
 
@@ -367,19 +362,12 @@ gantt
     Release Candidate 2     :done, rc_2, after rc_1, 15d
     Final Release           :done, final_release, after rc_2, 7d
 
-    section Standard Support Phase
+    section Long Term Support Phase
     Version 25.09.0         :milestone, 2025-09-02, 0d
     Bugfix Release 25.09.1  :done, patch_1, 2025-10-15, 1d
-    Final Standard Patch 25.09.2 :active, patch_2, 2025-10-30, 1d
-    
-    section Extended Support Phase
-    Security Release 25.09.3 :crit, sec3, 2025-12-15, 1d
-    Final Extended Patch 25.09.4 :active, patch_4, 2025-12-30, 1d
-    
-    section Legacy Support Phase
-    Security Only 25.09.5    :crit, sec5, 2026-02-01, 1d
-    Legacy Security 25.09.6   :crit, sec6, 2026-03-15, 1d
-    EOL Security 25.09.7     :crit, sec7, 2026-04-30, 1d
+    Security Release 25.09.2 :crit, sec2, 2025-12-15, 1d
+    Security Release 25.09.3 :crit, sec3, 2026-02-01, 1d
+    Final LTS Patch 25.09.4 :active, patch_4, 2026-04-30, 1d
 ```
 
 ### Release Details Table (Example)
@@ -391,13 +379,10 @@ gantt
 | **25.09.0-rc.1** | Aug 1, 2025 | Release Candidate | **Feature Freeze Phase**: Second release candidate addressing critical bugs found in rc.0. Database migration optimizations and API refinements. |
 | **25.09.0-rc.2** | Aug 15, 2025 | Release Candidate | **Feature Freeze Phase**: Third release candidate for final testing. Documentation finalization and UI/UX polish. Performance benchmarking completed. |
 | **25.09.0** | Sep 1, 2025 | **Major Final** | **Official Major release**. All quality gates passed. Production-ready with full documentation and often, a security audit is also completed too. |
-| **25.09.1** | Oct 15, 2025 | Bugfix Patch | **Standard Support Phase**: Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies. |
-| **25.09.2** | Oct 30, 2025 | Final Standard Patch | **Standard Support Phase**: Last scheduled patch during standard support. Includes final compatibility updates and minor stability enhancements before transitioning to Extended Support. |
-| **25.09.3** | Dec 15, 2025 | Security Patch | **Extended Support Phase**: Critical security update addressing privilege escalation vulnerability. Updated cryptographic libraries and enhanced input validation. |
-| **25.09.4** | Dec 30, 2025 | Final Extended Patch | **Extended Support Phase**: Last scheduled patch during extended support. Final compatibility updates and documentation improvements before transitioning to Legacy Support. |
-| **25.09.5** | Feb 1, 2026 | Legacy Security | **Legacy Support Phase**: Security-only patch addressing newly discovered authentication bypass vulnerability. Limited support scope, security patches only. |
-| **25.09.6** | Mar 15, 2026 | Legacy Security | **Legacy Support Phase**: Critical security fix for zero-day vulnerability affecting authentication systems. Enterprise migration assistance provided. |
-| **25.09.7** | Apr 30, 2026 | End-of-Life Security | **Legacy Support Phase**: Final security patch before end-of-life. Last critical security fix. End of support announced for May 1, 2026. |
+| **25.09.1** | Oct 15, 2025 | Bugfix Patch | **Long Term Support Phase**: Address non-critical bugs reported in production: memory leak in vote processing, timezone handling issues, minor UI inconsistencies. |
+| **25.09.2** | Dec 15, 2025 | Security Patch | **Long Term Support Phase**: Critical security update addressing privilege escalation vulnerability. Updated cryptographic libraries and enhanced input validation. |
+| **25.09.3** | Feb 1, 2026 | Security Patch | **Long Term Support Phase**: Security-only patch addressing newly discovered authentication bypass vulnerability. |
+| **25.09.4** | Apr 30, 2026 | Final LTS Patch | **Long Term Support Phase**: Final security patch before end-of-life. Last critical security fix. End of support announced for May 1, 2026. |
 
 ### Release Process Timeline
 
