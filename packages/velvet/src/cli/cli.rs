@@ -68,7 +68,7 @@ impl CliRun {
         Ok(config)
     }
 }
-/*
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -153,4 +153,3 @@ mod tests {
         let _ = cli.validate().unwrap();
     }
 }
-*/
