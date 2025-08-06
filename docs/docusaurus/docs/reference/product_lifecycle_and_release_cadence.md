@@ -167,7 +167,7 @@ config:
         text[id^=lts_] { fill: #0f054c !important; font-size: 24px; }
         .sectionTitle { stroke: white; paint-order: stroke fill; fill: #0f054c; stroke-width: 8px; }
         g[class=tick] text { font-size: 24px; height: 50px; }
-        .vertText {  transform: translate(-133px, -900px); font-size: 24px; fill: red !important; }
+        .vertText {  transform: translate(-133px, -740px); font-size: 24px; fill: red !important; }
         .task.vert { stroke: red; fill: red !important; }
 
         /*** section backgrounds: ***/
