@@ -69,7 +69,7 @@ pub struct CandidateResults {
     pub total_votes: Option<u64>,
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone, Default)]
 pub struct AreaContestResults {
     pub area_id: String,
     pub contest_id: String,

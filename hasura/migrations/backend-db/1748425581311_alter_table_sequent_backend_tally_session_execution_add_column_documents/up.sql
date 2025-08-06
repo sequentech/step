@@ -1449,7 +1449,7 @@ alter table "sequent_backend"."tally_sheet" alter column "status" set not null;
 alter table "sequent_backend"."tally_sheet" alter column "status" text
  null;
 
-alter table "sequent_backend"."tally_sheet" alter column "version" numeric
+alter table "sequent_backend"."tally_sheet" alter column "version" integer
  null;
 alter table "sequent_backend"."tally_sheet" alter column "version" set not null;
 

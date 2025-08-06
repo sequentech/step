@@ -299,8 +299,8 @@ pub struct TallySheet {
     pub deleted_at: Option<DateTime<Local>>, /* Mark as deleted when a new
                                               * version is created. */
     pub created_by_user_id: String,
-    pub version: i64,
     pub status: String,
+    pub version: i64,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

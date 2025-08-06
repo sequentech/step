@@ -95,28 +95,94 @@ pub async fn get_approved_tally_sheets_by_event(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn review_tally_sheet(
+pub async fn soft_delete_tally_sheet(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_sheet_id: &str,
+    user_id: &str,
+    version: i64,
+) -> Result<Option<TallySheet>> {
+    let statement = hasura_transaction
+        .prepare(
+            format!(
+                r#"
+        UPDATE sequent_backend.tally_sheet tally_sheet
+        SET
+            deleted_at = NOW(),
+            last_updated_at = NOW()
+        WHERE
+            tally_sheet.tenant_id = $1 AND
+            tally_sheet.election_event_id = $2 AND
+            tally_sheet.id = $3 AND
+            tally_sheet.deleted_at IS NULL AND
+            tally_sheet.version = $4
+        RETURNING *
+    "#
+            )
+            .as_str(),
+        )
+        .await?;
+
+    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let tally_sheet_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet_id)
+        .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
+    let params: Vec<&(dyn ToSql + Sync)> = vec![
+        &tenant_uuid,
+        &election_event_uuid,
+        &tally_sheet_uuid,
+        &user_id,
+        &version,
+    ];
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let elements: Vec<TallySheet> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySheet> {
+            row.try_into()
+                .map(|res: TallySheetWrapper| -> TallySheet { res.0 })
+        })
+        .collect::<Result<Vec<TallySheet>>>()?;
+
+    match elements.len() {
+        0 => Err(anyhow!("No rows affected")),
+        1 => Ok(Some(elements[0].clone())),
+        _ => Err(anyhow!("Unexpected rows affected {}", elements.len())),
+    }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn review_tally_sheet_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     tally_sheet_id: &str,
     user_id: &str,
     status: TallySheetStatus,
-) -> Result<Option<()>> {
-    let review_statement = hasura_transaction
+    version: i64,
+) -> Result<Option<TallySheet>> {
+    let statement = hasura_transaction
         .prepare(
             format!(
                 r#"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
+            status = $5,
             reviewed_at = NOW(),
-            reviewed_by_user_id = $4,
-            status = $5
+            reviewed_by_user_id = $6,
+            last_updated_at = NOW()
         WHERE
             tally_sheet.tenant_id = $1 AND
             tally_sheet.election_event_id = $2 AND
             tally_sheet.id = $3 AND
-            tally_sheet.deleted_at IS NULL
+            tally_sheet.deleted_at IS NULL AND
+            tally_sheet.version = $4
         RETURNING *
     "#
             )
@@ -131,25 +197,36 @@ pub async fn review_tally_sheet(
     let tally_sheet_uuid: uuid::Uuid = Uuid::parse_str(tally_sheet_id)
         .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
     let status_str = status.to_string();
-    let publish_params: Vec<&(dyn ToSql + Sync)> = vec![
+    let params: Vec<&(dyn ToSql + Sync)> = vec![
         &tenant_uuid,
         &election_event_uuid,
         &tally_sheet_uuid,
-        &user_id,
+        &version,
         &status_str,
+        &user_id,
     ];
-    let publish_rows: Vec<Row> = hasura_transaction
-        .query(&review_statement, &publish_params.as_slice())
+    let rows: Vec<Row> = hasura_transaction
+        .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
-    if publish_rows.len() != 1 {
-        return Ok(None);
+
+    let elements: Vec<TallySheet> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySheet> {
+            row.try_into()
+                .map(|res: TallySheetWrapper| -> TallySheet { res.0 })
+        })
+        .collect::<Result<Vec<TallySheet>>>()?;
+
+    match elements.len() {
+        0 => Err(anyhow!("No rows affected")),
+        1 => Ok(Some(elements[0].clone())),
+        _ => Err(anyhow!("Unexpected rows affected {}", elements.len())),
     }
-    Ok(Some(()))
 }
 
 #[instrument(skip(hasura_transaction, content), err)]
-pub async fn upsert_tally_sheet(
+pub async fn insert_tally_sheet(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -159,6 +236,8 @@ pub async fn upsert_tally_sheet(
     content: &AreaContestResults,
     channel: &VotingChannel,
     created_by_user_id: &str,
+    status: TallySheetStatus,
+    version: i64,
 ) -> Result<TallySheet> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
@@ -172,26 +251,28 @@ pub async fn upsert_tally_sheet(
         .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
     let content_value = serde_json::to_value(content)?;
     let channel_str = channel.to_string();
+    let status_str = status.to_string();
+
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.tally_sheet
-                (tenant_id, election_event_id, election_id, contest_id, area_id, content, channel, created_by_user_id)
+                (tenant_id, election_event_id, election_id, contest_id, area_id, created_at, last_updated_at, content, channel, created_by_user_id, status, version)
                 VALUES(
                     $1,
                     $2,
                     $3,
                     $4,
                     $5,
+                    NOW(),
+                    NOW(),
                     $6,
                     $7,
-                    $8
+                    $8,
+                    $9,
+                    $10
                 )
-                ON CONFLICT (tenant_id, election_event_id, election_id, contest_id, area_id, channel)
-                DO UPDATE SET
-                    content = EXCLUDED.content,
-                    last_updated_at = NOW()
                 RETURNING
                     *;
             "#,
@@ -209,6 +290,8 @@ pub async fn upsert_tally_sheet(
                 &content_value,
                 &channel_str,
                 &created_by_user_id.to_string(),
+                &status_str,
+                &version,
             ],
         )
         .await
