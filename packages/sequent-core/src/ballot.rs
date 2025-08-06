@@ -298,6 +298,7 @@ impl CandidatePresentation {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct Candidate {
     pub id: String,
@@ -1091,6 +1092,7 @@ impl Default for ContestPresentation {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct Contest {
     pub id: String,
