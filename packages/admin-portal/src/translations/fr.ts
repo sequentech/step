@@ -992,6 +992,8 @@ const frenchTranslation: TranslationType = {
                 decryptFileTitle: "Déchiffrer le fichier",
                 decryptInstructions:
                     "1. '-in' : Le chemin vers le fichier chiffré. \n2. '-out' : Le chemin où le fichier déchiffré sera enregistré. \n3. '-pass' : Le mot de passe utilisé pour chiffrer le fichier. \n",
+                encryptSuccess: "Configuration du chiffrement du rapport réussie",
+                encryptError: "Erreur lors de la configuration du chiffrement du rapport",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",

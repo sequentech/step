@@ -10,8 +10,6 @@ import {
     SaveButton,
     SimpleForm,
     Toolbar,
-    useGetList,
-    useGetOne,
     useNotify,
 } from "react-admin"
 import {Preview, ContentCopy} from "@mui/icons-material"
@@ -19,116 +17,52 @@ import {useTranslation} from "react-i18next"
 import {
     GetBallotPublicationChangesOutput,
     GetDocumentByNameQuery,
-    GetUploadUrlMutation,
-    Sequent_Backend_Document,
-    Sequent_Backend_Election,
-    Sequent_Backend_Election_Event,
-    Sequent_Backend_Support_Material,
+    PrepareBallotPublicationPreviewMutation,
+    Sequent_Backend_Support_Material_Select_Column,
 } from "@/gql/graphql"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
+import {PREPARE_BALLOT_PUBLICATION_PREVIEW} from "@/queries/PrepareBallotPublicationPreview"
 import {GET_AREAS} from "@/queries/GetAreas"
-import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {GET_DOCUMENT_BY_NAME} from "@/queries/GetDocumentByName"
-import {ElectionEventStatus} from "./EPublishStatus"
 import {CircularProgress} from "@mui/material"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 enum ActionType {
     Copy,
     Open,
 }
 interface EditPreviewProps {
-    publishId?: string | Identifier | null
+    publicationId?: string | Identifier | null
     electionEventId: Identifier | undefined
     close?: () => void
     ballotData: GetBallotPublicationChangesOutput | null
 }
 
 export const EditPreview: React.FC<EditPreviewProps> = (props) => {
-    const {publishId, close, electionEventId, ballotData} = props
+    const {publicationId: publicationId, close, electionEventId, ballotData} = props
     const {t} = useTranslation()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [sourceAreas, setSourceAreas] = useState([])
-    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+    const [preparePreview] = useMutation<PrepareBallotPublicationPreviewMutation>(
+        PREPARE_BALLOT_PUBLICATION_PREVIEW
+    )
     const [isUploading, setIsUploading] = React.useState<boolean>(false)
     const {tenantId} = useContext(TenantContext)
     const [areaId, setAreaId] = useState<string | null>(null)
     const [documentId, setDocumentId] = useState<string | null | undefined>(null)
     const [action, setAction] = useState<ActionType | null>(null)
     const [getDocumentByName] = useLazyQuery<GetDocumentByNameQuery>(GET_DOCUMENT_BY_NAME)
-
     const {data: areas} = useQuery(GET_AREAS, {
         variables: {
             electionEventId,
         },
     })
-
-    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
-        "sequent_backend_election_event",
-        {
-            id: electionEventId,
-        },
-        {
-            refetchIntervalInBackground: true,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: elections} = useGetList<Sequent_Backend_Election>(
-        "sequent_backend_election",
-        {
-            pagination: {page: 1, perPage: 9999},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                election_event_id: electionEventId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: supportMaterials} = useGetList<Sequent_Backend_Support_Material>(
-        "sequent_backend_support_material",
-        {
-            pagination: {page: 1, perPage: 9999},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                is_hidden: false,
-                election_event_id: electionEventId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: documents} = useGetList<Sequent_Backend_Document>(
-        "sequent_backend_document",
-        {
-            pagination: {page: 1, perPage: 9999},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                election_event_id: electionEventId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
 
     //Show only relevant areas in dropdown
     const areaIds = useMemo(() => {
@@ -165,8 +99,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                     console.error("Error fetching document:", error)
                     return false
                 }
-
-                return data?.sequent_backend_document[0]?.id
+                const length = data?.sequent_backend_document?.length || 0
+                if (length === 0) {
+                    return false
+                }
+                const last = length > 0 ? length - 1 : 0
+                return data?.sequent_backend_document[last]?.id
             } catch (err) {
                 console.error("Exception in fetchDocumentId:", err)
                 return false
@@ -174,7 +112,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
 
         const getDocumentId = async () => {
-            const docId = await fetchDocumentId(`${publishId}.json`)
+            const docId = await fetchDocumentId(`${publicationId}.json`)
             setDocumentId(docId)
         }
 
@@ -185,103 +123,71 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
 
     // This useEffect handles file upload
     useEffect(() => {
-        const uploadFile = async (url: string, file: File) => {
-            await fetch(url, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": file.type,
-                },
-                body: file,
-            })
-            setIsUploading(false)
-        }
-
-        const uploadFileToS3 = async (theFile: File) => {
+        const preparePreviewData = async () => {
+            let currWidget: WidgetProps = addWidget(ETasksExecution.PREPARE_PUBLICATION_PREVIEW)
             try {
-                let {data} = await getUploadUrl({
+                let {data} = await preparePreview({
                     variables: {
-                        name: theFile.name,
-                        media_type: theFile.type,
-                        size: theFile.size,
-                        is_public: true,
+                        electionEventId: electionEventId,
+                        ballotPublicationId: publicationId,
                     },
                 })
-
-                if (!data?.get_upload_url?.url || !data?.get_upload_url?.document_id) {
-                    notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                if (!data?.prepare_ballot_publication_preview?.document_id) {
+                    console.log(data?.prepare_ballot_publication_preview?.error_msg)
+                    updateWidgetFail(currWidget.identifier)
+                    notifyActionError()
                     return
                 }
 
-                await uploadFile(data.get_upload_url.url, theFile)
-                return data.get_upload_url.document_id
+                const task_id = data?.prepare_ballot_publication_preview?.task_execution?.id
+                task_id
+                    ? setWidgetTaskId(currWidget.identifier, task_id, () =>
+                          onSuccessPreparePreview()
+                      )
+                    : updateWidgetFail(currWidget.identifier)
+                return data?.prepare_ballot_publication_preview?.document_id
             } catch (_error) {
                 setIsUploading(false)
-                notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+                currWidget && updateWidgetFail(currWidget.identifier)
+                notifyActionError()
+                return
             }
-        }
-
-        const updateElectionStatus = (elections: Array<Sequent_Backend_Election> | undefined) => {
-            return elections?.map((election) => {
-                if (election?.status) {
-                    return {
-                        ...election,
-                        status: {
-                            ...election.status,
-                            voting_status: ElectionEventStatus.Open,
-                        },
-                    }
-                }
-                return election
-            })
-        }
-
-        const prepareFileData = () => {
-            const openElections = updateElectionStatus(elections)
-
-            if (electionEvent?.status) {
-                electionEvent.status.voting_status = ElectionEventStatus.Open
-            }
-
-            return {
-                ballot_styles: ballotData?.current?.ballot_styles,
-                election_event: electionEvent,
-                elections: openElections,
-                support_materials: supportMaterials,
-                documents: documents,
-            }
-        }
-
-        const startUpload = async () => {
-            const fileData = prepareFileData()
-            const dataStr = JSON.stringify(fileData, null, 2)
-            const file = new File([dataStr], `${publishId}.json`, {type: "application/json"})
-            const docId = await uploadFileToS3(file)
-            setDocumentId(docId)
         }
 
         const handleDocumentProcess = async () => {
-            try {
-                await startUpload()
-            } catch (error) {
-                console.log("Error uploading preview data:\n" + error)
-                setIsUploading(false)
-            }
+            const docId = await preparePreviewData()
+            setDocumentId(docId)
         }
 
-        if (
-            !isUploading &&
-            !documentId &&
-            publishId &&
-            electionEvent &&
-            elections &&
-            areaId &&
-            undefined !== supportMaterials &&
-            undefined !== documents
-        ) {
-            setIsUploading(true)
+        if (isUploading && areaId && undefined !== Sequent_Backend_Support_Material_Select_Column) {
             handleDocumentProcess()
         }
-    }, [isUploading, documentId, electionEvent, elections, areaId, supportMaterials, documents])
+    }, [isUploading, areaId])
+
+    const onSuccessPreparePreview = () => {
+        setIsUploading(false) // This will trigger and validate the condition in useEffect for action (open or copy)
+    }
+    const onPreviewClick = async (res: any) => {
+        if (!documentId) {
+            setIsUploading(true)
+        }
+        setAction(ActionType.Open)
+    }
+
+    const onCopyPreviewLinkClick = async () => {
+        if (!documentId) {
+            setIsUploading(true)
+        }
+        setAction(ActionType.Copy)
+    }
+
+    const notifyActionError = () => {
+        if (action === ActionType.Copy) {
+            notify(t("publish.preview.copy_error"), {type: "error"})
+        } else if (action === ActionType.Open) {
+            notify(t("publish.dialog.error_preview"), {type: "error"})
+        }
+    }
 
     // This useEffect handles logic for action (open or copy)
     useEffect(() => {
@@ -305,7 +211,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             }
         }
 
-        if (documentId) {
+        if (documentId && !isUploading) {
             const previewUrl = getPreviewUrl(documentId)
             if (previewUrl && action === ActionType.Copy) {
                 copyPreviewLink(previewUrl)
@@ -313,30 +219,22 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 openPreview(previewUrl)
             }
         }
-    }, [documentId, action])
+    }, [documentId, action, isUploading])
 
     // Create preview url from data
     const previewUrlTemplate = useMemo(() => {
         return `${globalSettings.VOTING_PORTAL_URL}/preview/${tenantId}`
-    }, [globalSettings.VOTING_PORTAL_URL, publishId])
+    }, [globalSettings.VOTING_PORTAL_URL, publicationId])
 
     const getPreviewUrl = useCallback(
         (documentId: string | undefined | null) => {
-            if (!documentId || !areaId || !publishId) {
+            if (!documentId || !areaId || !publicationId) {
                 return null
             }
-            return `${previewUrlTemplate}/${documentId}/${areaId}/${publishId}`
+            return `${previewUrlTemplate}/${documentId}/${areaId}/${publicationId}`
         },
-        [previewUrlTemplate, areaId, publishId]
+        [previewUrlTemplate, areaId, publicationId]
     )
-
-    const onPreviewClick = async (res: any) => {
-        setAction(ActionType.Open)
-    }
-
-    const onCopyPreviewLinkClick = async () => {
-        setAction(ActionType.Copy)
-    }
 
     return (
         <SimpleForm toolbar={false} onSubmit={onPreviewClick}>

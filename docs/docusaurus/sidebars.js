@@ -139,6 +139,11 @@ module.exports = {
           label: 'Windmill',
           items: ['developers/Windmill/developers_windmill'],
         },
+        {
+          type: 'category',
+          label: 'Braid',
+          items: ['developers/Braid/braid_trustees_configuration'],
+        },
       ],
     },
     {
@@ -150,6 +155,7 @@ module.exports = {
       },
       items:[
         'reference/glossary',
+        'reference/product_lifecycle_and_release_cadence',
         {
           type: 'category',
           label: 'Tally Deep Dive',
