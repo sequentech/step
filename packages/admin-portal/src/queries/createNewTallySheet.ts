@@ -29,12 +29,14 @@ export const CREATE_NEW_TALLY_SHEET = gql`
             last_updated_at
             labels
             annotations
-            published_at
-            published_by_user_id
+            reviewed_at
+            reviewed_by_user_id
             content
             channel
             deleted_at
             created_by_user_id
+            status
+            version
         }
     }
 `

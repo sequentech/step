@@ -26,6 +26,11 @@ export type Scalars = {
     uuid: {input: any; output: any}
 }
 
+export type AddTallySheetOutput = {
+    __typename?: "AddTallySheetOutput"
+    tally_sheet_id: Scalars["String"]["output"]
+}
+
 export type Aggregate = {
     __typename?: "Aggregate"
     count: Scalars["Int"]["output"]
@@ -923,9 +928,11 @@ export type TallySheetOutput = {
     id: Scalars["String"]["output"]
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["String"]["output"]>
-    published_at?: Maybe<Scalars["String"]["output"]>
-    published_by_user_id?: Maybe<Scalars["String"]["output"]>
+    reviewed_at?: Maybe<Scalars["String"]["output"]>
+    reviewed_by_user_id?: Maybe<Scalars["String"]["output"]>
+    status: Scalars["String"]["output"]
     tenant_id: Scalars["String"]["output"]
+    version: Scalars["Int"]["output"]
 }
 
 export type TotalAggregate = {
@@ -1097,6 +1104,8 @@ export type Mutation_Root = {
     ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>
     /** Verify User Registration Application */
     VerifyApplication: Scalars["String"]["output"]
+    /** add_tally_sheet_version */
+    add_tally_sheet_version?: Maybe<AddTallySheetOutput>
     /** check private key */
     check_private_key?: Maybe<CheckPrivateKeyOutput>
     /** create scheduled event */
@@ -1106,6 +1115,8 @@ export type Mutation_Root = {
     create_election?: Maybe<CreateElectionOutput>
     /** create keys ceremony */
     create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>
+    /** create_new_tally_sheet */
+    create_new_tally_sheet?: Maybe<TallySheetOutput>
     create_permission?: Maybe<KeycloakPermission>
     create_role: KeycloakRole
     create_tally_ceremony?: Maybe<CreateTallyOutput>
@@ -1748,8 +1759,6 @@ export type Mutation_Root = {
     upsert_area?: Maybe<UpsertAreaOutput>
     /** upsert_areas */
     upsert_areas?: Maybe<OptionalId>
-    /** upsert_tally_sheet */
-    upsert_tally_sheet?: Maybe<TallySheetOutput>
 }
 
 /** mutation root */
@@ -1760,6 +1769,13 @@ export type Mutation_RootApplicationChangeStatusArgs = {
 /** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
     body: ApplicationVerifyBody
+}
+
+/** mutation root */
+export type Mutation_RootAdd_Tally_Sheet_VersionArgs = {
+    election_event_id: Scalars["String"]["input"]
+    old_version: Scalars["Int"]["input"]
+    tally_sheet_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -1797,6 +1813,15 @@ export type Mutation_RootCreate_ElectionArgs = {
 /** mutation root */
 export type Mutation_RootCreate_Keys_CeremonyArgs = {
     object: CreateKeysCeremonyInput
+}
+
+/** mutation root */
+export type Mutation_RootCreate_New_Tally_SheetArgs = {
+    area_id: Scalars["String"]["input"]
+    channel: Scalars["String"]["input"]
+    content: Scalars["jsonb"]["input"]
+    contest_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -4063,15 +4088,6 @@ export type Mutation_RootUpsert_AreaArgs = {
 /** mutation root */
 export type Mutation_RootUpsert_AreasArgs = {
     document_id: Scalars["String"]["input"]
-    election_event_id: Scalars["String"]["input"]
-}
-
-/** mutation root */
-export type Mutation_RootUpsert_Tally_SheetArgs = {
-    area_id: Scalars["String"]["input"]
-    channel: Scalars["String"]["input"]
-    content: Scalars["jsonb"]["input"]
-    contest_id: Scalars["String"]["input"]
     election_event_id: Scalars["String"]["input"]
 }
 

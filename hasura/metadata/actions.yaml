@@ -1426,6 +1426,7 @@ custom_types:
         - name: SetRolePermissionOutput
         - name: OptionalId
         - name: TallySheetOutput
+        - name: AddTallySheetOutput
         - name: ExportUsersOutput
         - name: PrepareBallotPublicationPreviewOutput
         - name: SetUserRoleOutput
