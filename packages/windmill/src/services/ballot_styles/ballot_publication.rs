@@ -205,7 +205,7 @@ pub async fn update_publish_ballot(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-async fn get_publication_json(
+pub async fn get_publication_json(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,

@@ -16,6 +16,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::{Application, Area};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use serde::{Deserialize, Serialize};
@@ -125,7 +126,7 @@ pub async fn get_enrolled_voters(
                 .unwrap_or_default()
                 .get("verified_by_role")
                 .and_then(|v| v.as_str())
-                .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok());
+                .and_then(|s| deserialize_str::<Vec<String>>(s).ok());
 
             let mut role: Option<String> = None;
 

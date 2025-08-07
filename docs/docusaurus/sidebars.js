@@ -88,7 +88,7 @@ module.exports = {
           items: [
             'voting_portal/Tutorials/voting_guide',
             'voting_portal/Tutorials/voter_locate_ballot',
-            'voting_portal/Tutorials/voter_audit_ballot',
+            'voting_portal/Tutorials/voter_audit_ballot'
           ],
         },
       ],
@@ -118,6 +118,14 @@ module.exports = {
         },
         {
           type: 'category',
+          label: 'Voting Portal',
+          items: [
+            'developers/Voting-Portal/developers_voting_portal',
+            'developers/Voting-Portal/cast_vote_errors',
+          ],
+        },
+        {
+          type: 'category',
           label: 'Keycloak',
           items: ['developers/Keycloak/developers_keycloak'],
         },
@@ -125,6 +133,11 @@ module.exports = {
           type: 'category',
           label: 'Velvet',
           items: ['developers/Velvet/developers_velvet'],
+        },
+        {
+          type: 'category',
+          label: 'Windmill',
+          items: ['developers/Windmill/developers_windmill'],
         },
       ],
     },
@@ -137,6 +150,7 @@ module.exports = {
       },
       items:[
         'reference/glossary',
+        'reference/product_lifecycle_and_release_cadence',
         {
           type: 'category',
           label: 'Tally Deep Dive',

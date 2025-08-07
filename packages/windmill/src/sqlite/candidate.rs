@@ -128,21 +128,28 @@ pub async fn create_candidate_sqlite(
             };
 
             insert.execute(params![
-                rec.get(0).unwrap(),
-                rec.get(1).unwrap(),
-                rec.get(2).unwrap(),
-                opt(rec.get(3).unwrap()),
-                opt(rec.get(4).unwrap()),
-                opt(rec.get(5).unwrap()),
-                opt(rec.get(6).unwrap()),
-                opt(rec.get(7).unwrap()),
-                rec.get(8).unwrap(),
-                opt(rec.get(9).unwrap()),
-                opt(rec.get(10).unwrap()),
-                rec.get(11).unwrap(),
-                opt(rec.get(12).unwrap()),
+                rec.get(0).with_context(|| "Error fetching String record")?,
+                rec.get(1).with_context(|| "Error fetching String record")?,
+                rec.get(2).with_context(|| "Error fetching String record")?,
+                opt(rec.get(3).with_context(|| "Error fetching String record")?),
+                opt(rec.get(4).with_context(|| "Error fetching String record")?),
+                opt(rec.get(5).with_context(|| "Error fetching String record")?),
+                opt(rec.get(6).with_context(|| "Error fetching String record")?),
+                opt(rec.get(7).with_context(|| "Error fetching String record")?),
+                rec.get(8).with_context(|| "Error fetching String record")?,
+                opt(rec.get(9).with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(10)
+                    .with_context(|| "Error fetching String record")?),
+                rec.get(11)
+                    .with_context(|| "Error fetching String record")?,
+                opt(rec
+                    .get(12)
+                    .with_context(|| "Error fetching String record")?),
                 is_public,
-                opt(rec.get(14).unwrap()),
+                opt(rec
+                    .get(14)
+                    .with_context(|| "Error fetching String record")?),
             ])?;
         }
         Ok(())

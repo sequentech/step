@@ -98,6 +98,7 @@ const dutchTranslation: TranslationType = {
                 deleteError: "Fout bij verwijderen van gebied",
             },
             createAreaSuccess: "Gebied aangemaakt",
+            updateAreaSuccess: "Gebied bijgewerkt",
             createAreaError: "Kon gebied niet aanmaken",
             sequent_backend_area_contest: "Verkiezingen",
             empty: {
@@ -1318,6 +1319,8 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt een Sleutelceremonie aan te maken. Deze actie zal de Trustees informeren om deel te nemen aan de aanmaak en distributie van de Sleutels van het Verkiezingsevenement.",
                 },
                 filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Sleutelceremonie kan niet worden aangemaakt: een of meer toestemmingslabels ontbreken.",
             },
             ceremonyStep: {
                 cancel: "Sleutelceremonie Annuleren",

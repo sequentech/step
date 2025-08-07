@@ -124,6 +124,14 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error en processar la seva sol·licitud. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_unexpected:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_timeout:
+                    "Error de temps d'espera per emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Heu superat el límit de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Heu superat el nombre permès de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Ja heu votat en una altra àrea. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
                 CAST_VOTE_UnknownError:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:
@@ -148,6 +156,24 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 UNKNOWN_ERROR:
                     "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                REAUTH_FAILED:
+                    "L'autenticació ha fallat. Si us plau, torna-ho a intentar o contacta amb el servei d'assistència.",
+                SESSION_EXPIRED:
+                    "La teva sessió ha caducat. Si us plau, torna a començar des del principi.",
+                CAST_VOTE_BallotIdMismatch:
+                    "L'identificador de la papereta no coincideix amb el del vot emès.",
+                SESSION_STORAGE_ERROR:
+                    "L'emmagatzematge de sessió no està disponible. Si us plau, torneu-ho a provar o contacteu amb el suport.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "S'ha produït un error en analitzar les dades de la papereta. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Les dades de la papereta no són vàlides. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Error de temps d'espera en obtenir les dades. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Error en convertir a papereta hashable. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                INTERNAL_ERROR:
+                    "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
         },
         confirmationScreen: {
