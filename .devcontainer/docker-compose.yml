@@ -536,7 +536,7 @@ services:
       dockerfile: ./braid/Dockerfile
     environment:
         TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -561,7 +561,7 @@ services:
       - immudb
     environment:
         TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -583,7 +583,7 @@ services:
   #     - immudb
   #   environment:
   #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+  #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
