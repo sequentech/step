@@ -68,6 +68,10 @@ handle_trustee_config() {
     local config_content
     log "Querying secrets service for config..."
 
+    if [ -f "$TRUSTEE_CONFIG_PATH" ] && [ "$SECRETS_BACKEND" = "EnvVarMasterSecret" ]; then
+        rm "$TRUSTEE_CONFIG_PATH"
+    fi
+
     if [ -f "$TRUSTEE_CONFIG_PATH" ]; then
         config_content=$(<"$TRUSTEE_CONFIG_PATH")
         log "Using existing config from $TRUSTEE_CONFIG_PATH"
@@ -78,7 +82,7 @@ handle_trustee_config() {
                     log "TRUSTEE_CONFIG empty, generating ephemeral config"
                     config_content=$(gen_trustee_config)
                 else
-                    config_content="$TRUSTEE_CONFIG"
+                    config_content=$(echo -e "$TRUSTEE_CONFIG")
                 fi
                 ;;
             "AwsSecretManager")
@@ -111,7 +115,7 @@ handle_trustee_config() {
     fi
 
     if [ ! -f "$TRUSTEE_CONFIG_PATH" ] || [ "$(cat "$TRUSTEE_CONFIG_PATH")" != "$config_content" ]; then
-        echo "$config_content" > "$TRUSTEE_CONFIG_PATH"
+        printf "%b" "$config_content" > "$TRUSTEE_CONFIG_PATH"
         log "Wrote config to $TRUSTEE_CONFIG_PATH"
     fi
     cat "$TRUSTEE_CONFIG_PATH"
