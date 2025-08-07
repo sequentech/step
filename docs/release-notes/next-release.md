@@ -16,12 +16,6 @@ Also keycloak no longer needs to import realms at
  need to exist initially, as windmill-beat will automatically create it
  along with the first tenant.
 
- ## ✨ Add support retrieving master secret in an env variable
-
- A new environment variable `MASTER_SECRET` has been added to use in DEV evironment instead of hashicorp.
- `SECRETS_BACKEND` was updated to `SECRETS_BACKEND=EnvVarMasterSecret` accordingly.
-
- This change should no affect in production, there the value should be `SECRETS_BACKEND=AwsSecretManager`, more info in `.devcontainer/.env.development`.
 ## 🐞 Uncategorized error while casting ballot
 
 Improve error handling on the Voting Portal when casting a vote. This
@@ -33,3 +27,12 @@ Area, Internal Server Error.
 This fixes the issue where a service account appears in the voters list.
 In order to deploy this in production, the configmap for the default
 election event configuration needs to be changed.
+
+## ✨ Add support retrieving master secret in an env variable
+
+A new environment variable `MASTER_SECRET` has been added to use in DEV evironment instead of hashicorp.
+`SECRETS_BACKEND` was updated to `SECRETS_BACKEND=EnvVarMasterSecret` accordingly.
+
+This change should not affect production, there the value should be `SECRETS_BACKEND=AwsSecretManager`, more info in `.devcontainer/.env.development`.
+
+The Braid Trustee service and its initialization script (`trustee.sh`) have been updated also support the env vars secrets backends.
