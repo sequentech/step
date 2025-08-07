@@ -1242,7 +1242,12 @@ pub async fn list_cast_vote_messages(
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
     info!("database name = {board_name}");
     let order_by = input.order_by.clone();
     let election_id = input.election_id.clone().unwrap_or_default();
