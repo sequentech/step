@@ -550,6 +550,7 @@ const spanishTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Logs",
                 approvals: "Aprobaciones",
+                tallySheets: "Hojas de Recuento",
             },
             gracePeriodPolicy: {
                 "label": "Política de período de gracia",

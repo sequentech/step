@@ -552,6 +552,7 @@ const basqueTranslation: TranslationType = {
                 publish: "Argitaratu",
                 logs: "Egunkariak",
                 approvals: "Onespenak",
+                tallySheets: "Kontaketa orriak",
             },
             gracePeriodPolicy: {
                 "label": "Grazia Aldi Politika",

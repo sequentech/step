@@ -5,7 +5,7 @@
 import React, {Suspense, useContext, useEffect, useState} from "react"
 
 import {useTranslation} from "react-i18next"
-import {TabbedShowLayout, useRecordContext, useSidebarState} from "react-admin"
+import {TabbedShowLayout, useRecordContext, useSidebarState, Identifier} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -24,18 +24,32 @@ import {Box, Typography} from "@mui/material"
 import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
+import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
+import {Sequent_Backend_Contest} from "../../gql/graphql"
+import {ListTallySheet} from "../TallySheet/ListTallySheet"
 
 export const ElectionTabs: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election>()
+    const electionRecord = useRecordContext<Sequent_Backend_Election>()
     const {t} = useTranslation()
     const [tabKey, setTabKey] = React.useState<string>(uuidv4())
     const authContext = useContext(AuthContext)
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
-
+    const [action, setAction] = useState<number>(WizardSteps.List)
+    const [refresh, setRefresh] = useState<string | null>(null)
+    const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
+    // const contestRecord = useRecordContext<Sequent_Backend_Contest>()
+    
+    const handleAction = (action: number, id?: Identifier) => {
+        setAction(action)
+        setRefresh(new Date().getTime().toString())
+        if (id) {
+            setTallySheetId(id)
+        }
+    }
     const isElectionEventLocked =
-        record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
+        electionRecord?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
 
     const showDashboard = authContext.isAuthorized(
         true,
@@ -70,14 +84,14 @@ export const ElectionTabs: React.FC = () => {
     useEffect(() => {
         if (
             usersPermissionLabels &&
-            record?.permission_label &&
-            !usersPermissionLabels.includes(record.permission_label)
+            electionRecord?.permission_label &&
+            !usersPermissionLabels.includes(electionRecord.permission_label)
         ) {
             setHasPermissionToViewElection(false)
         } else {
             setHasPermissionToViewElection(true)
         }
-    }, [record])
+    }, [electionRecord])
 
     if (!hasPermissionToViewElection) {
         return (
@@ -95,10 +109,10 @@ export const ElectionTabs: React.FC = () => {
         >
             <ElectionHeader
                 title={
-                    translateElection(record, "alias", i18n?.language) ||
-                    translateElection(record, "name", i18n?.language) ||
-                    record?.alias ||
-                    record?.name ||
+                    translateElection(electionRecord, "alias", i18n?.language) ||
+                    translateElection(electionRecord, "name", i18n?.language) ||
+                    electionRecord?.alias ||
+                    electionRecord?.name ||
                     "-"
                 }
                 subtitle="electionScreen.common.subtitle"
@@ -148,8 +162,8 @@ export const ElectionTabs: React.FC = () => {
                                   component: () => (
                                       <Suspense fallback={<div>Loading Voters...</div>}>
                                           <EditElectionEventUsers
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
+                                              electionEventId={electionRecord?.election_event_id}
+                                              electionId={electionRecord?.id}
                                           />
                                       </Suspense>
                                   ),
@@ -164,8 +178,8 @@ export const ElectionTabs: React.FC = () => {
                                       <Suspense fallback={<div>Loading Publish...</div>}>
                                           <Publish
                                               key={tabKey}
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
+                                              electionEventId={electionRecord?.election_event_id}
+                                              electionId={electionRecord?.id}
                                               type={EPublishType.Election}
                                           />
                                       </Suspense>
@@ -186,14 +200,56 @@ export const ElectionTabs: React.FC = () => {
                                   component: () => (
                                       <Suspense fallback={<div>Loading Approvals...</div>}>
                                           <EditElectionEventApprovals
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
+                                              electionEventId={electionRecord?.election_event_id}
+                                              electionId={electionRecord?.id}
                                           />
                                       </Suspense>
                                   ),
                               },
                           ]
                         : []),
+                    ...(
+                        [
+                            {
+                                label: t("electionScreen.tabs.tallySheets"),
+                                component: () => (
+                                    <Suspense fallback={<div>Loading {t("electionScreen.tabs.tallySheets")} ...</div>}>
+                                        {action === WizardSteps.List ? (
+                                            <ListTallySheet election={electionRecord} doAction={handleAction} reload={refresh} />
+                                        ) : action === WizardSteps.Start ? (
+                                            <TallySheetWizard
+                                                election={electionRecord}
+                                                action={action}
+                                                doAction={handleAction}
+                                            />
+                                        ) : action === WizardSteps.Edit ? (
+                                            <TallySheetWizard
+                                                tallySheetId={tallySheetId}
+                                                election={electionRecord}
+                                                action={action}
+                                                doAction={handleAction}
+                                            />
+                                        ) : action === WizardSteps.Confirm ? (
+                                            <TallySheetWizard
+                                                tallySheetId={tallySheetId}
+                                                election={electionRecord}
+                                                action={action}
+                                                doAction={handleAction}
+                                            />
+                                        ) : action === WizardSteps.View ? (
+                                            <TallySheetWizard
+                                                tallySheetId={tallySheetId}
+                                                election={electionRecord}
+                                                action={action}
+                                                doAction={handleAction}
+                                            />
+                                        ) : null}
+                                    </Suspense>
+                                ),
+                            },
+                        ]
+                        
+                    ),
                 ]}
             />
         </Box>

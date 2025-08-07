@@ -550,6 +550,7 @@ const tagalogTranslation: TranslationType = {
                 publish: "I-publish",
                 logs: "Mga Log",
                 approvals: "Approvals",
+                tallySheets: "Mga Talaksahan",
             },
             gracePeriodPolicy: {
                 "label": "Patakaran sa Palugit",

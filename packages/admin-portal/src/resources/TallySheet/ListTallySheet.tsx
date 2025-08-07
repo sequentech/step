@@ -19,6 +19,7 @@ import {Button, Tooltip, Typography} from "@mui/material"
 import {
     PublishTallySheetMutation,
     Sequent_Backend_Contest,
+    Sequent_Backend_Election,
     Sequent_Backend_Tally_Sheet,
 } from "../../gql/graphql"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
@@ -53,13 +54,13 @@ const Filters: Array<ReactElement> = [
 ]
 
 interface TTallySheetList {
-    contest: Sequent_Backend_Contest
+    election: Sequent_Backend_Election
     doAction: (action: number, id?: Identifier) => void
     reload: string | null
 }
 
 export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
-    const {contest, doAction, reload} = props
+    const {election: election, doAction, reload} = props
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -81,6 +82,12 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
     const canPublish = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_PUBLISH)
     const canDelete = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_DELETE)
+
+    /// For the tally sheets table: The columns should include the approved version and the latest version instead of "Published".
+    /// This table is at election level. It should list the ballot boxes (area, contest, channel).
+
+    /// For the versions Sreen table - List all tally sheet versions for that box, which means related to the same (area, contest, channel).
+    // get_tally_sheet_versions variables(area, election_id, contest_id, channel)
 
     useEffect(() => {
         localStorage.removeItem("tallySheetData")
@@ -159,7 +166,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const confirmPublishAction = async (isPublished: boolean) => {
         const {data, errors} = await publishTallySheet({
             variables: {
-                electionEventId: contest.election_event_id,
+                electionEventId: election.election_event_id,
                 tallySheetId: deleteId,
                 publish: isPublished,
             },
@@ -224,10 +231,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 }
                 sx={{flexGrow: 2}}
                 filter={{
-                    tenant_id: contest.tenant_id || undefined,
-                    election_event_id: contest.election_event_id || undefined,
-                    contest_id: contest.id || undefined,
-                    election_id: contest.election_id || undefined,
+                    tenant_id: election.tenant_id || undefined,
+                    election_event_id: election.election_event_id || undefined,
+                    election_id: election.id || undefined,
                     deleted_at: {
                         format: "hasura-raw-query",
                         value: {_is_null: true},
@@ -242,7 +248,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
                     <FunctionField
                         label={t("tallysheet.table.contest")}
-                        render={(record: any) => <ContestItem record={contest.id} />}
+                        render={(record: any) => <ContestItem record={election.id} />}
                     />
 
                     <FunctionField

@@ -547,6 +547,7 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 approvals: "Approvals",
+                tallySheets: "Tally Sheets",
             },
             gracePeriodPolicy: {
                 "label": "Grace Period Policy",

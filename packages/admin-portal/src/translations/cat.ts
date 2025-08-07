@@ -551,6 +551,7 @@ const catalanTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Registres",
                 approvals: "Aprovacions",
+                tallySheets: "Fulls de recompte",
             },
             gracePeriodPolicy: {
                 "label": "Política de període de gràcia",

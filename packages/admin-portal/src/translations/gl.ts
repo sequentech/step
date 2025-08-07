@@ -551,6 +551,7 @@ const galegoTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Rexistros",
                 approvals: "Aprobacións",
+                tallySheets: "Follas de recuento",
             },
             gracePeriodPolicy: {
                 "label": "Política de Período de Gracia",

@@ -552,6 +552,7 @@ const frenchTranslation: TranslationType = {
                 publish: "Publier",
                 logs: "Journaux",
                 approvals: "Approvals",
+                tallySheets: "Feuilles de Comptage",
             },
             gracePeriodPolicy: {
                 "label": "Politique de période de grâce",

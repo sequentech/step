@@ -548,6 +548,7 @@ const dutchTranslation: TranslationType = {
                 publish: "Publiceren",
                 logs: "Logs",
                 approvals: "Goedkeuringen",
+                tallySheets: "Tellerschema's",
             },
             gracePeriodPolicy: {
                 "label": "Respijttermijnbeleid",
