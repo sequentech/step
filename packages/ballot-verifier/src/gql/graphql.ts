@@ -804,11 +804,6 @@ export type PublishBallotOutput = {
     ballot_publication_id: Scalars["uuid"]["output"]
 }
 
-export type PublishTallyOutput = {
-    __typename?: "PublishTallyOutput"
-    tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
-}
-
 export type RenderDocumentPdfOutput = {
     __typename?: "RenderDocumentPDFOutput"
     document_id?: Maybe<Scalars["String"]["output"]>
@@ -1459,10 +1454,10 @@ export type Mutation_Root = {
     manage_election_dates?: Maybe<ManageElectionDatesOutput>
     prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>
     publish_ballot?: Maybe<PublishBallotOutput>
-    /** publish_tally_sheet */
-    publish_tally_sheet?: Maybe<PublishTallyOutput>
     render_document_pdf?: Maybe<RenderDocumentPdfOutput>
     restore_private_key?: Maybe<RestorePrivateKeyOutput>
+    /** review_tally_sheet */
+    review_tally_sheet?: Maybe<TallySheetOutput>
     send_transmission_package?: Maybe<OptionalId>
     set_custom_urls?: Maybe<SetCustomUrlsOutput>
     set_role_permission?: Maybe<SetRolePermissionOutput>
@@ -2997,13 +2992,6 @@ export type Mutation_RootPublish_BallotArgs = {
 }
 
 /** mutation root */
-export type Mutation_RootPublish_Tally_SheetArgs = {
-    election_event_id: Scalars["uuid"]["input"]
-    publish?: InputMaybe<Scalars["Boolean"]["input"]>
-    tally_sheet_id: Scalars["uuid"]["input"]
-}
-
-/** mutation root */
 export type Mutation_RootRender_Document_PdfArgs = {
     document_id: Scalars["uuid"]["input"]
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -3013,6 +3001,14 @@ export type Mutation_RootRender_Document_PdfArgs = {
 /** mutation root */
 export type Mutation_RootRestore_Private_KeyArgs = {
     object: RestorePrivateKeyInput
+}
+
+/** mutation root */
+export type Mutation_RootReview_Tally_SheetArgs = {
+    election_event_id: Scalars["String"]["input"]
+    new_status: Scalars["String"]["input"]
+    tally_sheet_id: Scalars["String"]["input"]
+    version: Scalars["Int"]["input"]
 }
 
 /** mutation root */
