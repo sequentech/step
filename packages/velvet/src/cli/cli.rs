@@ -68,6 +68,7 @@ impl CliRun {
         Ok(config)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::fs;

@@ -468,7 +468,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     title={t("publish.dialog.title")}
                 >
                     <EditPreview
-                        id={ballotPublicationId}
+                        publicationId={ballotPublicationId}
                         electionEventId={electionEventId}
                         close={handleCloseEditDrawer}
                         ballotData={generateData}

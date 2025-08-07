@@ -51,11 +51,11 @@ jobs:
             exit 1
           fi
           # Check the preRelease input is false, otherwise, fail
-          if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-            echo "Error: Pre-release is not supported for the first release on a new release branch. Please set preRelease to false"
-            echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
-            exit 1
-          fi
+          #if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          #  echo "Error: Pre-release is not supported for the first release on a new release branch. Please set preRelease to false"
+          #  echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
+          #  exit 1
+          #fi
         fi
 
     - name: Checkout code
@@ -104,8 +104,8 @@ jobs:
           branchExists=$(git ls-remote --heads origin $releaseBranchName)
           if [ -n "$branchExists" ]; then
             echo "Info: Branch $releaseBranchName already exists"
-            echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
-            exit 1
+            # echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
+            # exit 1
           else
             git checkout -b $releaseBranchName
             # Add an empty commit to the new branch
@@ -205,9 +205,17 @@ jobs:
           # If the new release branch is created, then increment the minor or major version
           # Currently, no pre-release is supported for major or minor releases from the main branch
           if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
-            release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+              release-it --ci --increment=premajor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            else
+              release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            fi
           elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
-            release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+              release-it --ci --increment=preminor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            else
+              release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            fi
           fi
         fi
 
