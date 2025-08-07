@@ -248,7 +248,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
                     <FunctionField
                         label={t("tallysheet.table.contest")}
-                        render={(record: any) => <ContestItem record={election.id} />}
+                        render={(record: any) => <ContestItem record={record.contest_id} />}
                     />
 
                     <FunctionField
