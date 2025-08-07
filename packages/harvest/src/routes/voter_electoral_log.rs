@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -35,7 +35,7 @@ pub struct CastVoteMessagesInput {
 }
 
 #[instrument]
-#[post("/immudb/list-cast-vote-messages", format = "json", data = "<body>")]
+#[post("/list-cast-vote-messages", format = "json", data = "<body>")]
 pub async fn list_cast_vote_messages(
     body: Json<CastVoteMessagesInput>,
     claims: JwtClaims,

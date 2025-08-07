@@ -283,8 +283,8 @@ const spanishTranslation: TranslationType = {
                 showCastVoteLogs: {
                     policyLabel: "Mostrar logs de votación",
                     options: {
-                        "show-logs-tab": "",
-                        "hide-logs-tab": "",
+                        "show-logs-tab": "Mostrar Tab de logs de votación",
+                        "hide-logs-tab": "Ocultar Tab de logs de votación",
                     },
                 },
                 lockdownState: {

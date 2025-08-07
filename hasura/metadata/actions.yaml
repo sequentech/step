@@ -964,7 +964,7 @@ actions:
     - name: list_cast_vote_messages
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/voting-portal/immudb/list-cast-vote-messages
+          handler: http://{{HARVEST_DOMAIN}}/list-cast-vote-messages
           forward_client_headers: true
           request_transform:
               body:
