@@ -982,6 +982,8 @@ const dutchTranslation: TranslationType = {
                 incorectPassword: "Incorrect wachtwoord",
                 decryptFileTitle: "Hoe het bestand te ontsleutelen",
                 decryptInstructions: `1. '-in': Het pad naar het versleutelde bestand.\n2. '-out': Het pad waar het ontsleutelde bestand wordt opgeslagen.\n3. '-pass': Het wachtwoord dat is gebruikt om het bestand te versleutelen.\n`,
+                encryptSuccess: "Rapportversleuteling succesvol ingesteld",
+                encryptError: "Fout bij het instellen van rapportversleuteling",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
