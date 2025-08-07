@@ -214,6 +214,7 @@ export const ElectionTabs: React.FC = () => {
                                 label: t("electionScreen.tabs.tallySheets"),
                                 component: () => (
                                     <Suspense fallback={<div>Loading {t("electionScreen.tabs.tallySheets")} ...</div>}>
+                                        <ElectionHeader title={t("tasksScreen.title")} subtitle="tasksScreen.subtitle" />
                                         {action === WizardSteps.List ? (
                                             <ListTallySheet election={electionRecord} doAction={handleAction} reload={refresh} />
                                         ) : action === WizardSteps.Start ? (

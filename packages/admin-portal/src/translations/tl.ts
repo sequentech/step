@@ -1694,6 +1694,8 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Mga Kahon ng Balota",
+            subtitle: "Digitalized na mga kahon ng balota ayon sa channel",
             createTallySuccess: "Na-save ang Tally Sheet",
             createTallyError: "Error sa pag-save ng Tally Sheet",
             createTallyErrorSameKindExists:

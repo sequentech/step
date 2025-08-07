@@ -1684,6 +1684,8 @@ const basqueTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Bozka-ontziak",
+            subtitle: "Bozka-ontzi digitalizatuak kanalean",
             createTallySuccess: "Zenbaketa Orria gordea",
             createTallyError: "Errorea Zenbaketa Orria gordetzerakoan",
             createTallyErrorSameKindExists:

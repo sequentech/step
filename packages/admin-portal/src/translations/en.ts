@@ -1675,6 +1675,8 @@ const englishTranslation = {
             },
         },
         tallysheet: {
+            title: "Ballot boxes",
+            subtitle: "Digitalized ballot boxes by channel",
             createTallySuccess: "Tally Sheet saved",
             createTallyError: "Error saving Tally Sheet",
             createTallyErrorSameKindExists:

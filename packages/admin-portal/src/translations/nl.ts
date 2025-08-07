@@ -1688,6 +1688,8 @@ const dutchTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Stembussen",
+            subtitle: "Digitaal gestemde stembussen per kanaal",
             createTallySuccess: "Telblad opgeslagen",
             createTallyError: "Fout bij opslaan telblad",
             createTallyErrorSameKindExists:

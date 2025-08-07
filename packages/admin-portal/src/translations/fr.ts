@@ -1703,6 +1703,8 @@ const frenchTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnes",
+            subtitle: "Urnes numérisées par canal",
             createTallySuccess: "Feuille de Comptage créée",
             createTallyError: "Erreur lors de la création de la Feuille de Comptage",
             createTallyErrorSameKindExists:

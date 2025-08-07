@@ -1691,6 +1691,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnas",
+            subtitle: "Urnas digitalizadas por canal",
             createTallySuccess: "Hoja de Recuento creada",
             createTallyError: "Error creando Hoja de Recuento",
             createTallyErrorSameKindExists:
