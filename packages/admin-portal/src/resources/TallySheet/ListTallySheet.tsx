@@ -17,7 +17,7 @@ import {
 import {ListActions} from "../../components/ListActions"
 import {Button, Tooltip, Typography} from "@mui/material"
 import {
-    PublishTallySheetMutation,
+    ReviewTallySheetMutation,
     Sequent_Backend_Contest,
     Sequent_Backend_Election,
     Sequent_Backend_Tally_Sheet,
@@ -35,7 +35,7 @@ import UnpublishedIcon from "@mui/icons-material/Unpublished"
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges"
 import {WizardSteps} from "./TallySheetWizard"
 import {useMutation} from "@apollo/client"
-import {REVIEW_TALLY_SHEET} from "@/queries/ReviewTallySheet"
+import {REVIEW_TALLY_SHEET} from "@/queries/reviewTallySheet"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add} from "@mui/icons-material"
@@ -74,7 +74,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [openUnpublishDialog, setOpenUnpublishDialog] = React.useState(false)
     const [openPublishDialog, setOpenPublishDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [reviewTallySheet] = useMutation<PublishTallySheetMutation>(REVIEW_TALLY_SHEET)
+    const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
     const [publish, setPublish] = React.useState(false)
 
     const authContext = useContext(AuthContext)
@@ -170,9 +170,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 publish: isPublished,
             },
         })
-        if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
-            console.log("(unpublished) tally sheet not found, probably it's already published")
-        }
+        // if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
+        //     console.log("(unpublished) tally sheet not found, probably it's already published")
+        // }
         if (errors) {
             // add error notification
             notify(t("tallysheet.message.publishError"), {type: "error"})
@@ -257,9 +257,16 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     />
 
                     <FunctionField
-                        label={t("tallysheet.table.published")}
+                        label={"Approved version"}
                         render={(record: any) =>
-                            record.published_at ? <CheckCircleOutlineIcon color="success" /> : null
+                            record.status === "APPROVED" ? <TextField source="version" /> : "TODO:get approved version"
+                        }
+                    />
+
+                    <FunctionField
+                        label={"Latest version"}
+                        render={(record: any) =>
+                            <TextField source="version" />
                         }
                     />
 
