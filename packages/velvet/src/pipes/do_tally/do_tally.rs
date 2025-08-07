@@ -83,7 +83,7 @@ impl DoTally {
         for (channel, contest_result) in breakdown_map {
             let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
             fs::create_dir_all(&breakdown_folder_path)?;
-            let breakdown_file_path = breakdown_folder_path.join((OUTPUT_CONTEST_RESULT_FILE));
+            let breakdown_file_path = breakdown_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
             info!("breakdown_file_path: {}", breakdown_file_path.display());
             let contest_result_file = fs::File::create(&breakdown_file_path)?;
             serde_json::to_writer(contest_result_file, &contest_result)?;
@@ -327,7 +327,7 @@ impl Pipe for DoTally {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct InvalidVotes {
     pub explicit: u64,
     pub implicit: u64,
@@ -381,7 +381,7 @@ pub struct ExtendedMetricsElection {
     pub abstentions: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ContestResult {
     pub contest: Contest,
     pub census: u64,

@@ -634,7 +634,7 @@ impl Pipe for MCBallotReceipts {
                         )?;
 
                         // Write the CSV file of file names and hashes ONLY for `ballot` type
-                        if (pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE) {
+                        if pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE {
                             let csv_filename = format!("ballots_files.csv");
                             let csv_path = path.join(csv_filename);
                             let files_lock = files.lock().map_err(|e| {
