@@ -42,7 +42,7 @@ import {uniq} from "lodash"
 import {createTree, getContestMatches} from "@/services/AreaService"
 import {styled} from "@mui/material/styles"
 import {IPermissions} from "@/types/keycloak"
-import {UPSERT_TALLY_SHEET} from "@/queries/UpsertTallySheet"
+import {CREATE_NEW_TALLY_SHEET} from "@/queries/createNewTallySheet"
 
 const StyledError = styled(Typography)`
     color: ${({theme}) => theme.palette.red.main};

@@ -617,13 +617,21 @@ type Mutation {
 }
 
 type Mutation {
-    upsert_tally_sheet(
+    create_new_tally_sheet(
         election_event_id: String!
         channel: String!
         content: jsonb!
         contest_id: String!
         area_id: String!
     ): TallySheetOutput
+}
+
+type Mutation {
+    add_tally_sheet_version(
+        election_event_id: String!
+        tally_sheet_id: String!
+        old_version: Int!
+    ): AddTallySheetOutput
 }
 
 enum ReportEncryptionPolicy {
@@ -1254,6 +1262,10 @@ type ExportLogsOutput {
     task_execution: tasks_execution_type
 }
 
+type AddTallySheetOutput {
+    tally_sheet_id: String!
+}
+
 type TallySheetOutput {
     id: String!
     tenant_id: String!
@@ -1265,12 +1277,14 @@ type TallySheetOutput {
     last_updated_at: String
     labels: jsonb
     annotations: jsonb
-    published_at: String
-    published_by_user_id: String
+    reviewed_at: String
+    reviewed_by_user_id: String
     content: jsonb
     channel: String
     deleted_at: String
     created_by_user_id: String
+    status: String!
+    version: Int!
 }
 
 type ExportAllUsersOutput {

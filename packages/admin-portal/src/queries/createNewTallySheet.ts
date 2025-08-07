@@ -4,15 +4,15 @@
 
 import {gql} from "@apollo/client"
 
-export const UPSERT_TALLY_SHEET = gql`
-    mutation UpsertTallySheet(
+export const CREATE_NEW_TALLY_SHEET = gql`
+    mutation CreateNewtTallySheet(
         $electionEventId: String!
         $channel: String!
         $content: jsonb!
         $contestId: String!
         $areaId: String!
     ) {
-        upsert_tally_sheet(
+        create_new_tally_sheet(
             election_event_id: $electionEventId
             channel: $channel
             content: $content

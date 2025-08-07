@@ -40,7 +40,7 @@ export const ElectionTabs: React.FC = () => {
     const [refresh, setRefresh] = useState<string | null>(null)
     const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
     // const contestRecord = useRecordContext<Sequent_Backend_Contest>()
-    
+
     const handleAction = (action: number, id?: Identifier) => {
         setAction(action)
         setRefresh(new Date().getTime().toString())
@@ -208,49 +208,59 @@ export const ElectionTabs: React.FC = () => {
                               },
                           ]
                         : []),
-                    ...(
-                        [
-                            {
-                                label: t("electionScreen.tabs.tallySheets"),
-                                component: () => (
-                                    <Suspense fallback={<div>Loading {t("electionScreen.tabs.tallySheets")} ...</div>}>
-                                        <ElectionHeader title={t("tallysheet.title")} subtitle="tallysheet.subtitle" />
-                                        {action === WizardSteps.List ? (
-                                            <ListTallySheet election={electionRecord} doAction={handleAction} reload={refresh} />
-                                        ) : action === WizardSteps.Start ? (
-                                            <TallySheetWizard
-                                                election={electionRecord}
-                                                action={action}
-                                                doAction={handleAction}
-                                            />
-                                        ) : action === WizardSteps.Edit ? (
-                                            <TallySheetWizard
-                                                tallySheetId={tallySheetId}
-                                                election={electionRecord}
-                                                action={action}
-                                                doAction={handleAction}
-                                            />
-                                        ) : action === WizardSteps.Confirm ? (
-                                            <TallySheetWizard
-                                                tallySheetId={tallySheetId}
-                                                election={electionRecord}
-                                                action={action}
-                                                doAction={handleAction}
-                                            />
-                                        ) : action === WizardSteps.View ? (
-                                            <TallySheetWizard
-                                                tallySheetId={tallySheetId}
-                                                election={electionRecord}
-                                                action={action}
-                                                doAction={handleAction}
-                                            />
-                                        ) : null}
-                                    </Suspense>
-                                ),
-                            },
-                        ]
-                        
-                    ),
+                    ...[
+                        {
+                            label: t("electionScreen.tabs.tallySheets"),
+                            component: () => (
+                                <Suspense
+                                    fallback={
+                                        <div>
+                                            Loading {t("electionScreen.tabs.tallySheets")} ...
+                                        </div>
+                                    }
+                                >
+                                    <ElectionHeader
+                                        title={t("tallysheet.title")}
+                                        subtitle="tallysheet.subtitle"
+                                    />
+                                    {action === WizardSteps.List ? (
+                                        <ListTallySheet
+                                            election={electionRecord}
+                                            doAction={handleAction}
+                                            reload={refresh}
+                                        />
+                                    ) : action === WizardSteps.Start ? (
+                                        <TallySheetWizard
+                                            election={electionRecord}
+                                            action={action}
+                                            doAction={handleAction}
+                                        />
+                                    ) : action === WizardSteps.Edit ? (
+                                        <TallySheetWizard
+                                            tallySheetId={tallySheetId}
+                                            election={electionRecord}
+                                            action={action}
+                                            doAction={handleAction}
+                                        />
+                                    ) : action === WizardSteps.Confirm ? (
+                                        <TallySheetWizard
+                                            tallySheetId={tallySheetId}
+                                            election={electionRecord}
+                                            action={action}
+                                            doAction={handleAction}
+                                        />
+                                    ) : action === WizardSteps.View ? (
+                                        <TallySheetWizard
+                                            tallySheetId={tallySheetId}
+                                            election={electionRecord}
+                                            action={action}
+                                            doAction={handleAction}
+                                        />
+                                    ) : null}
+                                </Suspense>
+                            ),
+                        },
+                    ],
                 ]}
             />
         </Box>

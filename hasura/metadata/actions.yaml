@@ -1277,10 +1277,10 @@ actions:
           - role: area-create
           - role: area-write
       comment: upsert_areas
-    - name: upsert_tally_sheet
+    - name: create_new_tally_sheet
       definition:
           kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/upsert-tally-sheet
+          handler: http://{{HARVEST_DOMAIN}}/create-new-tally-sheet
           forward_client_headers: true
           request_transform:
               body:
@@ -1291,7 +1291,22 @@ actions:
       permissions:
           - role: admin-user
           - role: tally-sheet-create
-      comment: upsert_tally_sheet
+      comment: create_new_tally_sheet
+    - name: add_tally_sheet_version
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/add-tally-sheet-version
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-sheet-create
+      comment: add_tally_sheet_version
 custom_types:
     enums:
         - name: ReportEncryptionPolicy

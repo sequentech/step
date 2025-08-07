@@ -107,77 +107,6 @@ pub async fn add_tally_sheet_version(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ReviewTallySheetInput {
-    election_event_id: String,
-    tally_sheet_id: String,
-    new_status: TallySheetStatus,
-    version: u32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ReviewTallySheetOutput {
-    tally_sheet_id: Option<String>,
-}
-
-// The main function to start a key ceremony
-#[instrument(skip(claims))]
-#[post("/review-tally-sheet", format = "json", data = "<body>")]
-pub async fn review_tally_sheet(
-    body: Json<ReviewTallySheetInput>,
-    claims: JwtClaims,
-) -> Result<Json<ReviewTallySheetOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_SHEET_PUBLISH],
-    )?;
-    let input = body.into_inner();
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let tally_sheet_opt = tally_sheet::review_tally_sheet_status(
-        &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
-        &input.election_event_id,
-        &input.tally_sheet_id,
-        &claims.hasura_claims.user_id,
-        input.new_status,
-        input.version as i64,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let tally_sheet = match tally_sheet_opt {
-        Some(t) => t,
-        None => {
-            return Err((
-                Status::NotFound,
-                "Tally sheet not found".to_string(),
-            ));
-        }
-    };
-
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    Ok(Json(ReviewTallySheetOutput {
-        tally_sheet_id: Some(tally_sheet.id.clone()),
-    }))
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct CreateNewTallySheetInput {
     election_event_id: String,
     channel: VotingChannel,
@@ -251,4 +180,75 @@ pub async fn create_new_tally_sheet(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(new_tally_sheet.clone()))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReviewTallySheetInput {
+    election_event_id: String,
+    tally_sheet_id: String,
+    new_status: TallySheetStatus,
+    version: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReviewTallySheetOutput {
+    tally_sheet_id: Option<String>,
+}
+
+// The main function to start a key ceremony
+#[instrument(skip(claims))]
+#[post("/review-tally-sheet", format = "json", data = "<body>")]
+pub async fn review_tally_sheet(
+    body: Json<ReviewTallySheetInput>,
+    claims: JwtClaims,
+) -> Result<Json<ReviewTallySheetOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::TALLY_SHEET_PUBLISH],
+    )?;
+    let input = body.into_inner();
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let tally_sheet_opt = tally_sheet::review_tally_sheet_status(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+        &input.tally_sheet_id,
+        &claims.hasura_claims.user_id,
+        input.new_status,
+        input.version as i64,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let tally_sheet = match tally_sheet_opt {
+        Some(t) => t,
+        None => {
+            return Err((
+                Status::NotFound,
+                "Tally sheet not found".to_string(),
+            ));
+        }
+    };
+
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(ReviewTallySheetOutput {
+        tally_sheet_id: Some(tally_sheet.id.clone()),
+    }))
 }
