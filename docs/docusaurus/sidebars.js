@@ -139,6 +139,11 @@ module.exports = {
           label: 'Windmill',
           items: ['developers/Windmill/developers_windmill'],
         },
+        {
+          type: 'category',
+          label: 'Braid',
+          items: ['developers/Braid/braid_trustees_configuration'],
+        },
       ],
     },
     {

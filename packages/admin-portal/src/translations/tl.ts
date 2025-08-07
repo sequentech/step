@@ -987,6 +987,8 @@ const tagalogTranslation: TranslationType = {
                 decryptFileTitle: "Decrypt File",
                 decryptInstructions:
                     "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
+                encryptSuccess: "Matagumpay na na-setup ang pag-encrypt ng ulat",
+                encryptError: "Error sa pag-setup ng pag-encrypt ng ulat",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
