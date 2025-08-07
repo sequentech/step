@@ -139,30 +139,30 @@ services:
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
-  vault:
-    profiles: ["full", "base"]
-    container_name: vault
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
-    restart: on-failure:10
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - "8201:8201"
-      - "8200:8200"
-    environment:
-      VAULT_API_ADDR: 'http://0.0.0.0:8200'
-      VAULT_ADDR: 'http://0.0.0.0:8201'
-      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
-      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-volume:/vault
-    healthcheck:
-      retries: 5
-    entrypoint: /opt/vault/entrypoint.sh
+  # vault:
+  #   profiles: ["full", "base"]
+  #   container_name: vault
+  #   build:
+  #     context: ./vault
+  #     dockerfile: Dockerfile
+  #   restart: on-failure:10
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - "8201:8201"
+  #     - "8200:8200"
+  #   environment:
+  #     VAULT_API_ADDR: 'http://0.0.0.0:8200'
+  #     VAULT_ADDR: 'http://0.0.0.0:8201'
+  #     VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+  #     VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
+  #   cap_add:
+  #     - IPC_LOCK
+  #   volumes:
+  #     - vault-volume:/vault
+  #   healthcheck:
+  #     retries: 5
+  #   entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
     profiles: ["full", "base"]
@@ -1025,6 +1025,5 @@ volumes:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-  vault-volume:
   b3_db_logs:
   b3_db_data:

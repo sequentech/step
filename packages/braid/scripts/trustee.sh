@@ -68,7 +68,7 @@ handle_trustee_config() {
     local config_content
     log "Querying secrets service for config..."
 
-    if [ -f "$TRUSTEE_CONFIG_PATH" ] && [ "$SECRETS_BACKEND" = "EnvVarMasterSecret" ]; then
+    if [ -f "$TRUSTEE_CONFIG_PATH" ] && [ "$SECRETS_BACKEND" = "EnvVarMasterSecret" ] && ! [ -z "$TRUSTEE_CONFIG" ]; then
         rm "$TRUSTEE_CONFIG_PATH"
     fi
 
