@@ -35,7 +35,7 @@ import UnpublishedIcon from "@mui/icons-material/Unpublished"
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges"
 import {WizardSteps} from "./TallySheetWizard"
 import {useMutation} from "@apollo/client"
-import {PUBLISH_TALLY_SHEET} from "@/queries/PublishTallySheet"
+import {REVIEW_TALLY_SHEET} from "@/queries/ReviewTallySheet"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add} from "@mui/icons-material"
@@ -74,14 +74,13 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [openUnpublishDialog, setOpenUnpublishDialog] = React.useState(false)
     const [openPublishDialog, setOpenPublishDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [publishTallySheet] = useMutation<PublishTallySheetMutation>(PUBLISH_TALLY_SHEET)
+    const [reviewTallySheet] = useMutation<PublishTallySheetMutation>(REVIEW_TALLY_SHEET)
     const [publish, setPublish] = React.useState(false)
 
     const authContext = useContext(AuthContext)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_CREATE)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
-    const canPublish = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_PUBLISH)
-    const canDelete = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_DELETE)
+    const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
 
     /// For the tally sheets table: The columns should include the approved version and the latest version instead of "Published".
     /// This table is at election level. It should list the ballot boxes (area, contest, channel).
@@ -164,7 +163,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const confirmPublishAction = async (isPublished: boolean) => {
-        const {data, errors} = await publishTallySheet({
+        const {data, errors} = await reviewTallySheet({
             variables: {
                 electionEventId: election.election_event_id,
                 tallySheetId: deleteId,
@@ -193,7 +192,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: publishAction,
-            showAction: () => canPublish && record.published_at === null,
+            showAction: () => canReview && record.published_at === null,
         },
         {
             icon: (
@@ -202,9 +201,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: unpublishAction,
-            showAction: () => canPublish && record.published_at !== null,
+            showAction: () => canReview && record.published_at !== null,
         },
-        {icon: <DeleteIcon />, action: deleteAction, showAction: () => canDelete},
     ]
 
     return (

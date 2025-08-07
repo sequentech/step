@@ -190,18 +190,13 @@ pub struct ReviewTallySheetInput {
     version: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ReviewTallySheetOutput {
-    tally_sheet_id: Option<String>,
-}
-
 // The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/review-tally-sheet", format = "json", data = "<body>")]
 pub async fn review_tally_sheet(
     body: Json<ReviewTallySheetInput>,
     claims: JwtClaims,
-) -> Result<Json<ReviewTallySheetOutput>, (Status, String)> {
+) -> Result<Json<TallySheet>, (Status, String)> {
     authorize(
         &claims,
         true,
@@ -248,7 +243,5 @@ pub async fn review_tally_sheet(
         .with_context(|| "error comitting transaction")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    Ok(Json(ReviewTallySheetOutput {
-        tally_sheet_id: Some(tally_sheet.id.clone()),
-    }))
+    Ok(Json(tally_sheet.clone()))
 }

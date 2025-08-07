@@ -499,14 +499,6 @@ type Mutation {
 }
 
 type Mutation {
-    publish_tally_sheet(
-        election_event_id: uuid!
-        tally_sheet_id: uuid!
-        publish: Boolean
-    ): PublishTallyOutput
-}
-
-type Mutation {
     render_document_pdf(
         document_id: uuid!
         election_event_id: uuid
@@ -632,6 +624,15 @@ type Mutation {
         tally_sheet_id: String!
         old_version: Int!
     ): AddTallySheetOutput
+}
+
+type Mutation {
+    review_tally_sheet(
+        election_event_id: String!
+        tally_sheet_id: String!
+        new_status: String!
+        version: Int!
+    ): TallySheetOutput
 }
 
 enum ReportEncryptionPolicy {
@@ -1218,10 +1219,6 @@ type GetBallotPublicationChangesOutput {
 
 type RestorePrivateKeyOutput {
     is_valid: Boolean!
-}
-
-type PublishTallyOutput {
-    tally_sheet_id: uuid
 }
 
 type InsertCastVoteOutput {

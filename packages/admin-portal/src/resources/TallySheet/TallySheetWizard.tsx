@@ -14,6 +14,7 @@ import {
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
     CreateNewTallySheetMutation,
+    ReviewTallySheetMutation,
     AddTallySheetVersionMutation,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
@@ -22,6 +23,7 @@ import {ShowTallySheet} from "./ShowTallySheet"
 import {useMutation} from "@apollo/client"
 import {CREATE_NEW_TALLY_SHEET} from "@/queries/createNewTallySheet"
 import {ADD_TALLY_SHEET_VERSION} from "@/queries/addTallySheetVersion"
+import {REVIEW_TALLY_SHEET} from "@/queries/reviewTallySheet"
 import {IPermissions} from "@/types/keycloak"
 
 export const WizardSteps = {

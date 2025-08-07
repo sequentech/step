@@ -1080,21 +1080,6 @@ actions:
       permissions:
           - role: publish-write
           - role: admin-user
-    - name: publish_tally_sheet
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/publish-tally-sheet
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: tally-sheet-publish
-          - role: admin-user
-      comment: publish_tally_sheet
     - name: render_document_pdf
       definition:
           kind: synchronous
@@ -1307,6 +1292,21 @@ actions:
           - role: admin-user
           - role: tally-sheet-create
       comment: add_tally_sheet_version
+    - name: review_tally_sheet
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/review-tally-sheet
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: tally-sheet-create
+      comment: review_tally_sheet
 custom_types:
     enums:
         - name: ReportEncryptionPolicy
@@ -1438,7 +1438,6 @@ custom_types:
         - name: BallotPublicationStyles
         - name: GetBallotPublicationChangesOutput
         - name: RestorePrivateKeyOutput
-        - name: PublishTallyOutput
         - name: InsertCastVoteOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent
