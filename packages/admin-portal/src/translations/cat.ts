@@ -287,6 +287,11 @@ const catalanTranslation: TranslationType = {
                         "not-locked-down": "No Confinat",
                     },
                 },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclou les paperetes descodificades a la base de dades de resultats",
+                    options: {"included": "Inclou", "not-included": "No incloguis"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Concurs únic",

@@ -24,7 +24,7 @@ use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rusqlite::Connection;
-use sequent_core::ballot::{Annotations, BallotStyle, Contest, ContestEncryptionPolicy};
+use sequent_core::ballot::{Annotations, BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
@@ -677,7 +677,6 @@ pub async fn create_config_file(
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
-    hasura_transaction: &Transaction<'_>,
     tally_type: TallyType,
     database_document_id: String,
 ) -> Result<()> {
@@ -686,6 +685,11 @@ pub async fn create_config_file(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+    let decoded_ballots_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_decoded_ballots_policy();
     let public_asset_path = get_public_assets_path_env_var()?;
 
     let minio_endpoint_base = s3::get_minio_url()?;
@@ -702,7 +706,7 @@ pub async fn create_config_file(
     .await?;
 
     let gen_db_pipe_config = PipeConfigGenerateDatabase {
-        include_decoded_ballots: false,
+        include_decoded_ballots: decoded_ballots_policy == DecodedBallotsInclusionPolicy::INCLUDED,
         tenant_id: tally_session.tenant_id.clone(),
         election_event_id: tally_session.election_event_id.clone(),
         database_filename: format!("results-{}.db", database_document_id),
@@ -956,7 +960,6 @@ pub async fn run_velvet_tally(
         report_system_template,
         pdf_options,
         tally_session,
-        hasura_transaction,
         tally_type,
         database_document_id,
     )

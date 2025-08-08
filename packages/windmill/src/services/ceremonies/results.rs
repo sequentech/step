@@ -47,6 +47,7 @@ use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
 use velvet::pipes::pipe_inputs::DEFAULT_DIR_DATABASE;
+use std::fs;
 
 #[instrument(skip_all)]
 pub async fn save_results(
@@ -452,6 +453,9 @@ pub async fn populate_results_tables(
 
     let results_event_id_opt =
         tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+            // Make sure the directory exists
+            fs::create_dir_all(&base_database_path)?;
+
             let mut sqlite_connection = Connection::open(&database_path)?;
             let sqlite_transaction = sqlite_connection.transaction()?;
             let process_result = tokio::runtime::Handle::current().block_on(async {

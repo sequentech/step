@@ -288,6 +288,10 @@ const basqueTranslation: TranslationType = {
                         "not-locked-down": "Blokeatu gabe",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
+                    options: {"included": "Sartu", "not-included": "Ez sartu"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Lehiaketa Bakarra",

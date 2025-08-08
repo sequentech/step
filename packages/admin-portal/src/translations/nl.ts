@@ -287,6 +287,10 @@ const dutchTranslation: TranslationType = {
                         "not-locked-down": "Niet vergrendeld",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
+                    options: {"included": "Opnemen", "not-included": "Niet opnemen"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Enkele Verkiezing",

@@ -288,6 +288,10 @@ const galegoTranslation: TranslationType = {
                         "not-locked-down": "Non Bloqueado",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
+                    options: {"included": "Incluír", "not-included": "Non incluír"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Concurso único",

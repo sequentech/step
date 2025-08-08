@@ -286,6 +286,13 @@ const englishTranslation = {
                         "not-locked-down": "Not Locked Down",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Include decoded ballots to results database",
+                    options: {
+                        "included": "Include",
+                        "not-included": "Don't include",
+                    },
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Single Contest",

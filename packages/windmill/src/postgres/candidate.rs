@@ -180,12 +180,12 @@ pub async fn get_candidates_by_contest_id(
 #[instrument(err, skip_all)]
 pub async fn export_candidate_csv(
     hasura_transaction: &Transaction<'_>,
-    contests_csv: &Path,
+    contests_csv_path: &Path,
     contest_ids: &Vec<String>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let mut file = File::open(contests_csv).await?;
+    let mut file = File::create(contests_csv_path).await.context("Error opening CSV data to temp file")?;
 
     let contests_csv = contest_ids
         .iter()
