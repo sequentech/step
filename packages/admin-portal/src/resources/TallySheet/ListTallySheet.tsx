@@ -13,6 +13,7 @@ import {
     FunctionField,
     useRefresh,
     useNotify,
+    useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Button, Tooltip, Typography} from "@mui/material"
@@ -84,6 +85,33 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     /// For the tally sheets table: The columns should include the approved version and the latest version instead of "Published".
     /// This table is at election level. It should list the ballot boxes (area, contest, channel).
+    const {data: approvedVersions} = useGetList<Sequent_Backend_Tally_Sheet>(
+        "sequent_backend.tally_sheet",
+        {
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: election.election_event_id,
+                election_id: election.id,
+                status: "APPROVED",
+            },
+            pagination: {
+                page: 1,
+                perPage: 100,
+            },
+            sort: {
+                field: "version",
+                order: "DESC",
+            },
+        }
+    )
+
+    const getLatestApprovedVersion = (area_id: string, contest_id: string, channel: string) => {
+        const approvedVersion = approvedVersions?.find(
+            (sheet) => sheet.area_id === area_id && sheet.contest_id === contest_id && sheet.channel === channel
+        )
+        return approvedVersion?.version ?? "-"
+    }
+
 
     /// For the versions Sreen table - List all tally sheet versions for that box, which means related to the same (area, contest, channel).
     // get_tally_sheet_versions variables(area, election_id, contest_id, channel)
@@ -262,7 +290,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                             record.status === "APPROVED" ? (
                                 <TextField source="version" />
                             ) : (
-                                "TODO:get approved version"
+                                getLatestApprovedVersion(record.area_id, record.contest_id, record.channel)
                             )
                         }
                     />
