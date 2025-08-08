@@ -107,11 +107,13 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const getLatestApprovedVersion = (area_id: string, contest_id: string, channel: string) => {
         const approvedVersion = approvedVersions?.find(
-            (sheet) => sheet.area_id === area_id && sheet.contest_id === contest_id && sheet.channel === channel
+            (sheet) =>
+                sheet.area_id === area_id &&
+                sheet.contest_id === contest_id &&
+                sheet.channel === channel
         )
         return approvedVersion?.version ?? "-"
     }
-
 
     /// For the versions Sreen table - List all tally sheet versions for that box, which means related to the same (area, contest, channel).
     // get_tally_sheet_versions variables(area, election_id, contest_id, channel)
@@ -290,7 +292,11 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                             record.status === "APPROVED" ? (
                                 <TextField source="version" />
                             ) : (
-                                getLatestApprovedVersion(record.area_id, record.contest_id, record.channel)
+                                getLatestApprovedVersion(
+                                    record.area_id,
+                                    record.contest_id,
+                                    record.channel
+                                )
                             )
                         }
                     />

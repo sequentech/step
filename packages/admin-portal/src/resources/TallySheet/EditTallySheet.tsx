@@ -12,6 +12,7 @@ import {
     Sequent_Backend_Area_Contest,
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
+    Sequent_Backend_Election,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
 } from "@/gql/graphql"
@@ -55,7 +56,9 @@ const votingChannels = [
 ]
 
 interface EditTallySheetProps {
-    contest: Sequent_Backend_Contest
+    election: Sequent_Backend_Election
+    choosenContest?: Sequent_Backend_Contest
+    setChoosenContest: (contest: Sequent_Backend_Contest) => void
     tallySheet?: Sequent_Backend_Tally_Sheet | undefined
     doSelectArea?: (areaId: Identifier) => void
     doCreatedTalySheet?: (tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input) => void
@@ -76,15 +79,16 @@ interface IArea {
 const numbersRegExp = /^[0-9]+$/
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
-    const {tallySheet, contest, doCreatedTalySheet, submitRef, setIsButtonDisabled} = props
+    const {tallySheet, election: election, doCreatedTalySheet, submitRef, setIsButtonDisabled, choosenContest, setChoosenContest} = props
 
     const {t} = useTranslation()
 
     const [areasList, setAreasList] = useState<IArea[]>([])
+    const [contestList, setContestList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: tallySheet?.area_id || "",
-        contest_id: contest.id,
+        contest_id: choosenContest?.id,
         total_votes: tallySheet?.annotations?.total_votes || 0,
         total_valid_votes: tallySheet?.annotations?.total_valid_votes || 0,
         invalid_votes: tallySheet?.annotations?.invalid_votes || {},
@@ -95,6 +99,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
     const [candidatesResults, setCandidatesResults] = useState<ICandidateResultsExtended[]>([])
     const [areaNameFilter, setAreaNameFilter] = useState<string | null>(null)
+    const [contestNameFilter, setContestNameFilter] = useState<string | null>(null)
     const [areaIds, setAreaIds] = useState<Array<string>>([])
     const [totalValidError, setTotalValidError] = useState<boolean>(false)
     const [censusError, setCensusError] = useState<boolean>(false)
@@ -102,21 +107,36 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         "sequent_backend_area_contest",
         {
             filter: {
-                tenant_id: contest.tenant_id,
-                election_event_id: contest.election_event_id,
-                contest_id: contest.id,
+                tenant_id: election.tenant_id,
+                election_event_id: election.election_event_id,
+                election_id: election.id,
+                contest_id: choosenContest?.id,
             },
             pagination: {
                 perPage: 10000, // Setting initial larger records size of areas
                 page: 1,
             },
-        }
+        },
+        {enabled: !!choosenContest}
     )
+
+    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
+        filter: {
+            tenant_id: election.tenant_id,
+            election_event_id: election.election_event_id,
+            election_id: election.id,
+        },
+        pagination: {
+            perPage: 10000, // Setting initial larger records size of areas
+            page: 1,
+        },
+    })
 
     const {data: allAreas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
-            tenant_id: contest.tenant_id,
-            election_event_id: contest.election_event_id,
+            tenant_id: election.tenant_id,
+            election_event_id: election.election_event_id,
+            election_id: election.id,
         },
         pagination: {
             perPage: 10000, // Setting initial larger records size of areas
@@ -126,8 +146,9 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
     const {data: areas, refetch} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
-            tenant_id: contest.tenant_id,
-            election_event_id: contest.election_event_id,
+            tenant_id: election.tenant_id,
+            election_event_id: election.election_event_id,
+            election_id: election.id,
             name: areaNameFilter ?? "",
             id: {
                 format: "hasura-raw-query",
@@ -150,17 +171,18 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         fetchNextPage,
     } = useInfiniteGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         filter: {
-            contest_id: contest.id,
-            tenant_id: contest.tenant_id,
-            election_event_id: contest.election_event_id,
+            contest_id: choosenContest?.id,
+            tenant_id: election.tenant_id,
+            election_event_id: election.election_event_id,
+            election_id: election.id,
         },
         pagination: {page: 1, perPage: 50},
-    })
+    }, {enabled: !!choosenContest})
 
     const checkableLists = useMemo(() => {
-        let presentation = contest.presentation as IContestPresentation | undefined
+        let presentation = election.presentation as IContestPresentation | undefined
         return presentation?.enable_checkable_lists ?? EEnableCheckableLists.CANDIDATES_AND_LISTS
-    }, [contest.presentation])
+    }, [election.presentation])
 
     const candidates = useMemo(() => {
         //force fetch all records
@@ -198,7 +220,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
 
         const tree = createTree(treeNodeAreas, treeAreaContests)
 
-        const matchedAreaContests = getContestMatches(tree, contest.id)
+        const matchedAreaContests = getContestMatches(tree, election.id)
         const matchedAreas = matchedAreaContests.map((area) => area.area_id)
         const uniqueAreas: Array<string> = uniqueElements(matchedAreas)
 
@@ -244,13 +266,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [tallySheet, candidates])
 
     useEffect(() => {
-        if (contest) {
+        if (election) {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,
-                contest_id: contest.id,
+                contest_id: choosenContest?.id,
             }))
         }
-    }, [contest])
+    }, [election])
 
     useEffect(() => {
         if (areas) {
@@ -263,6 +285,18 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             setAreasList(areatListTemp)
         }
     }, [areas])
+
+    useEffect(() => {
+        if (contests) {
+            const contestsListTemp: IArea[] = contests?.map((item) => {
+                return {
+                    id: item.id,
+                    label: item.name,
+                }
+            })
+            setContestList(contestsListTemp)
+        }
+    }, [contests])
 
     useEffect(() => {
         window.scrollTo(0, 0)
@@ -445,6 +479,15 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }, 350)
     }
 
+    const debouncedSearchContest = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const {value} = event.target
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => {
+            setContestNameFilter(value ? value.trim() : null)
+            refetch()
+        }, 350)
+    }
+
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const resultsTemp = {...results}
         const invalidsTemp = {...invalids}
@@ -462,10 +505,10 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         const tallySheetData:
             | Sequent_Backend_Tally_Sheet
             | Sequent_Backend_Tally_Sheet_Insert_Input = {
-            tenant_id: contest.tenant_id,
-            election_event_id: contest.election_event_id,
-            election_id: contest.election_id,
-            contest_id: contest.id,
+            tenant_id: election.tenant_id,
+            election_event_id: election.election_event_id,
+            election_id: election.id,
+            contest_id: choosenContest?.id,
             area_id: resultsTemp.area_id,
             channel: channel || "",
             content: resultsTemp,
@@ -506,6 +549,27 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                                 label="Search Area"
                                 onChange={debouncedSearchArea}
                                 value={areaNameFilter}
+                                required
+                            />
+                        )}
+                        value={currentArea}
+                        isOptionEqualToValue={(a, b) => a.id === b.id}
+                    />
+                </FormControl>
+
+                <FormControl fullWidth size="small">
+                    <Autocomplete
+                        sx={{width: 300}}
+                        onChange= {(event: any) => {
+                            setChoosenContest(event.target.value)
+                        }}
+                        options={contestList ?? []}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Search Contest"
+                                onChange={debouncedSearchContest}
+                                value={contestNameFilter}
                                 required
                             />
                         )}

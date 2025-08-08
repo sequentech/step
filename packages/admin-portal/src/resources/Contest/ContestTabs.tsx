@@ -7,7 +7,6 @@ import {Identifier, TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
-import {ListTallySheet} from "../TallySheet/ListTallySheet"
 
 export const ContestTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()

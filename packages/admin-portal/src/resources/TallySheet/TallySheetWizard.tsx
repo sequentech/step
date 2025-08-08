@@ -183,11 +183,12 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     />
                 </TallyStyles.StyledHeader>
 
-                {page === WizardSteps.Start &&
-                    choosenContest /* TODO: check if this is necessary*/ && (
+                {page === WizardSteps.Start && (
                         <>
                             <EditTallySheet
-                                contest={choosenContest}
+                                election={election}
+                                choosenContest={choosenContest}
+                                setChoosenContest={setChoosenContest}
                                 doSelectArea={(id: Identifier) => setAreaId(id)}
                                 doCreatedTalySheet={(
                                     tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
@@ -204,7 +205,9 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         <>
                             <EditTallySheet // TODO: EditTallySheet will keep the business logic for entering the results and calculations. But the area/contest/channel selection should be done on a separate component
                                 tallySheet={tallySheet}
-                                contest={choosenContest}
+                                election={election}
+                                choosenContest={choosenContest}
+                                setChoosenContest={setChoosenContest}
                                 doCreatedTalySheet={(
                                     tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
                                 ) => {
