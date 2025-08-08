@@ -214,10 +214,10 @@ const ElectionSelectionScreen: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     useUpdateTranslation({electionEvent}) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
     const [testElectionId, setTestElectionId] = useState<string | null>(null)
@@ -226,10 +226,6 @@ const ElectionSelectionScreen: React.FC = () => {
     )
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
-    const [openDemoModal, setOpenDemoModal] = useState<boolean | undefined>(undefined)
-    const isDemo = useMemo(() => {
-        return oneBallotStyle?.ballot_eml.public_key?.is_demo
-    }, [oneBallotStyle])
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
@@ -446,12 +442,6 @@ const ElectionSelectionScreen: React.FC = () => {
         oneBallotStyle,
     ])
 
-    useEffect(() => {
-        if (isDemo && openDemoModal === undefined) {
-            setOpenDemoModal(true)
-        }
-    }, [isDemo])
-
     if (loadingElectionEvent || loadingElections || loadingBallotStyles) return <CircularProgress />
 
     return (
@@ -486,15 +476,6 @@ const ElectionSelectionScreen: React.FC = () => {
                             variant="info"
                         >
                             {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
-                        </Dialog>
-                        <Dialog
-                            handleClose={() => setOpenDemoModal(false)}
-                            open={openDemoModal ? openDemoModal : false}
-                            title={t("electionSelectionScreen.demoDialog.title")}
-                            ok={t("electionSelectionScreen.demoDialog.ok")}
-                            variant="warning"
-                        >
-                            {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
                         </Dialog>
                     </StyledTitle>
                     {errorMsg || alertMsg ? (
