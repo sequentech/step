@@ -123,6 +123,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         (electionStatus?.voting_status === EVotingStatus.OPEN ||
             (isKiosk && electionStatus?.kiosk_voting_status === EVotingStatus.OPEN)) &&
         isElectionEventOpen(electionEvent)
+
+    const isPreview = sessionStorage.getItem("isDemo") === "true"
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
             return false
@@ -132,12 +134,15 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             return true
         }
 
-        return castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen
+        return (
+            isPreview ||
+            (castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen)
+        )
     }
 
     const onClickToVote = () => {
         console.log("onClickToVote")
-        if (!canVote() || !isElectionEventOpen(electionEvent)) {
+        if (!canVote() || (!isPreview && !isElectionEventOpen(electionEvent))) {
             console.log("cannot vote")
             return
         }
