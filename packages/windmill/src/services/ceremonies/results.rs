@@ -446,16 +446,13 @@ pub async fn populate_results_tables(
     // tally_session: &TallySession,
 ) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
     let velvet_output_dir = base_tally_path.join("output");
-    let base_database_path = velvet_output_dir.join(format!("{DEFAULT_DIR_DATABASE}/"));
+    let base_database_path = velvet_output_dir.join("velvet-generate-database");
     let database_path = base_database_path.join("results.db");
 
     let document_id = Uuid::new_v4().to_string();
 
     let results_event_id_opt =
         tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
-            // Make sure the directory exists
-            fs::create_dir_all(&base_database_path)?;
-
             let mut sqlite_connection = Connection::open(&database_path)?;
             let sqlite_transaction = sqlite_connection.transaction()?;
             let process_result = tokio::runtime::Handle::current().block_on(async {

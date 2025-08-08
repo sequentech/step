@@ -11,11 +11,11 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
 use crate::services::ceremonies::renamer::*;
-// use crate::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
-// use crate::sqlite::results_contest::update_results_contest_documents_sqlite;
-// use crate::sqlite::results_election::update_results_election_documents_sqlite;
-// use crate::sqlite::results_election_area::create_results_election_area_sqlite;
-// use crate::sqlite::results_event::update_results_event_documents_sqlite;
+use sequent_core::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
+use sequent_core::sqlite::results_contest::update_results_contest_documents_sqlite;
+use sequent_core::sqlite::results_election::update_results_election_documents_sqlite;
+use sequent_core::sqlite::results_election_area::create_results_election_area_sqlite;
+use sequent_core::sqlite::results_event::update_results_event_documents_sqlite;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -369,14 +369,14 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             )
             .await?;
 
-            // update_results_event_documents_sqlite(
-            //     sqlite_transaction,
-            //     &contest.tenant_id,
-            //     results_event_id,
-            //     &contest.election_event_id,
-            //     &documents,
-            // )
-            // .await?;
+            update_results_event_documents_sqlite(
+                sqlite_transaction,
+                &contest.tenant_id,
+                results_event_id,
+                &contest.election_event_id,
+                &documents,
+            )
+            .await?;
 
             Ok(documents)
         } else {
@@ -481,16 +481,16 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         )
         .await?;
 
-        // update_results_election_documents_sqlite(
-        //     sqlite_transaction,
-        //     &contest.tenant_id,
-        //     results_event_id,
-        //     &contest.election_event_id,
-        //     &contest.election_id,
-        //     &documents,
-        //     &json_hash,
-        // )
-        // .await?;
+        update_results_election_documents_sqlite(
+            sqlite_transaction,
+            &contest.tenant_id,
+            results_event_id,
+            &contest.election_event_id,
+            &contest.election_id,
+            &documents,
+            &json_hash,
+        )
+        .await?;
 
         Ok(documents)
     }
@@ -588,17 +588,17 @@ impl GenerateResultDocuments for ReportDataComputed {
             )
             .await?;
 
-            // update_results_area_contest_documents_sqlite(
-            //     sqlite_transaction,
-            //     &self.contest.tenant_id,
-            //     results_event_id,
-            //     &self.contest.election_event_id,
-            //     &self.contest.election_id,
-            //     &self.contest.id,
-            //     &area.id,
-            //     &documents,
-            // )
-            // .await?;
+            update_results_area_contest_documents_sqlite(
+                sqlite_transaction,
+                &self.contest.tenant_id,
+                results_event_id,
+                &self.contest.election_event_id,
+                &self.contest.election_id,
+                &self.contest.id,
+                &area.id,
+                &documents,
+            )
+            .await?;
         } else {
             update_results_contest_documents(
                 hasura_transaction,
@@ -611,16 +611,16 @@ impl GenerateResultDocuments for ReportDataComputed {
             )
             .await?;
 
-            // update_results_contest_documents_sqlite(
-            //     sqlite_transaction,
-            //     &self.contest.tenant_id,
-            //     results_event_id,
-            //     &self.contest.election_event_id,
-            //     &self.contest.election_id,
-            //     &self.contest.id,
-            //     &documents,
-            // )
-            // .await?;
+            update_results_contest_documents_sqlite(
+                sqlite_transaction,
+                &self.contest.tenant_id,
+                results_event_id,
+                &self.contest.election_event_id,
+                &self.contest.election_id,
+                &self.contest.id,
+                &documents,
+            )
+            .await?;
         }
 
         Ok(documents)
@@ -845,17 +845,17 @@ async fn save_area_documents(
     )
     .await?;
 
-    // create_results_election_area_sqlite(
-    //     sqlite_transaction,
-    //     &tenant_id,
-    //     &results_event_id,
-    //     &election_event_id,
-    //     &election_id,
-    //     &area.id,
-    //     &area.name,
-    //     &documents,
-    // )
-    // .await?;
+    create_results_election_area_sqlite(
+        sqlite_transaction,
+        &tenant_id,
+        &results_event_id,
+        &election_event_id,
+        &election_id,
+        &area.id,
+        &area.name,
+        &documents,
+    )
+    .await?;
 
     Ok(documents)
 }

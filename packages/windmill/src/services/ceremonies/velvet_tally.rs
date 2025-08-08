@@ -709,7 +709,7 @@ pub async fn create_config_file(
         include_decoded_ballots: decoded_ballots_policy == DecodedBallotsInclusionPolicy::INCLUDED,
         tenant_id: tally_session.tenant_id.clone(),
         election_event_id: tally_session.election_event_id.clone(),
-        database_filename: format!("results-{}.db", database_document_id),
+        database_filename: format!("results.db"),
     };
 
     info!("FFF enable pdfs: {}", gen_report_pipe_config.enable_pdfs);
