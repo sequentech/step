@@ -122,6 +122,7 @@ module.exports = {
           items: [
             'developers/Voting-Portal/developers_voting_portal',
             'developers/Voting-Portal/cast_vote_errors',
+            'developers/Voting-Portal/demo_mode',
           ],
         },
         {
