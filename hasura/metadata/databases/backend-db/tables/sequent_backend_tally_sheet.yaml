@@ -13,17 +13,19 @@ insert_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           set:
               created_by_user_id: x-hasura-User-Id
       role: admin-user
@@ -36,17 +38,19 @@ insert_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
       role: service-account
     - comment: ""
       permission:
@@ -59,17 +63,19 @@ insert_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           set:
               created_by_user_id: x-hasura-User-Id
       role: tally-sheet-create
@@ -83,17 +89,19 @@ select_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -107,17 +115,19 @@ select_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           filter: {}
       role: service-account
     - comment: ""
@@ -129,17 +139,19 @@ select_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -153,17 +165,19 @@ select_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -180,17 +194,19 @@ update_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -204,17 +220,19 @@ update_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           filter: {}
       role: service-account
     - comment: ""
@@ -228,17 +246,19 @@ update_permissions:
               - labels
               - channel
               - created_by_user_id
-              - published_by_user_id
+              - reviewed_by_user_id
               - created_at
               - deleted_at
               - last_updated_at
-              - published_at
+              - reviewed_at
               - area_id
               - contest_id
               - election_event_id
               - election_id
               - id
               - tenant_id
+              - status
+              - version
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id

@@ -192,7 +192,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: publishAction,
-            showAction: () => canReview && record.published_at === null,
+            showAction: () => canReview && record.reviewed_at === null,
         },
         {
             icon: (
@@ -201,7 +201,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: unpublishAction,
-            showAction: () => canReview && record.published_at !== null,
+            showAction: () => canReview && record.reviewed_at !== null,
         },
     ]
 
@@ -259,15 +259,17 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <FunctionField
                         label={"Approved version"}
                         render={(record: any) =>
-                            record.status === "APPROVED" ? <TextField source="version" /> : "TODO:get approved version"
+                            record.status === "APPROVED" ? (
+                                <TextField source="version" />
+                            ) : (
+                                "TODO:get approved version"
+                            )
                         }
                     />
 
                     <FunctionField
                         label={"Latest version"}
-                        render={(record: any) =>
-                            <TextField source="version" />
-                        }
+                        render={(record: any) => <TextField source="version" />}
                     />
 
                     <WrapperField source="actions" label="Actions">

@@ -88,9 +88,11 @@ export const sequent_backend_tally_sheet: Sequent_Backend_Tally_Sheet = {
     id: "",
     labels: undefined,
     last_updated_at: undefined,
-    published_at: undefined,
-    published_by_user_id: undefined,
+    reviewed_at: undefined,
+    reviewed_by_user_id: "",
     tenant_id: "",
+    version: undefined,
+    status: undefined,
 }
 
 export const sequent_backend_tally_session_execution: Sequent_Backend_Tally_Session_Execution = {

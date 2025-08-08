@@ -14,7 +14,6 @@ import {
     Sequent_Backend_Contest,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
-    UpsertTallySheetMutation,
 } from "@/gql/graphql"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {
