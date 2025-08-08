@@ -991,6 +991,8 @@ const spanishTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración de cifrado del informe exitosa",
+                encryptError: "Error al configurar el cifrado del informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
