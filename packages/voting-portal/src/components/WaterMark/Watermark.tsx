@@ -46,7 +46,7 @@ const WatermarkBackground: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const isDemo = useAppSelector(showDemo(electionId))
 
-    return isDemo ? <Background imageUrl={DEMO_URL_PATH} /> : null
+    return isDemo ? <Background imageUrl={DEMO_URL_PATH} className="watermark-background" /> : null
 }
 
 export default WatermarkBackground

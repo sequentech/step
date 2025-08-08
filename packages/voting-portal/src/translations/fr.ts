@@ -47,12 +47,6 @@ const frenchTranslation: TranslationType = {
             step3Title: "3. Envoyez votre vote",
             step3Description:
                 "Envoyez votre bulletin : Enfin, vous pouvez envoyer votre bulletin pour qu'il soit correctement enregistré. Alternativement, vous pouvez opter pour auditer et confirmer que votre bulletin a été capturé et chiffré correctement.",
-            demoDialog: {
-                ok: "J'accepte que mon vote NE sera PAS exprimé",
-                title: "Portail de vote de démonstration",
-                content:
-                    "Vous entrez dans un portail de vote de démonstration. Votre vote NE sera PAS exprimé. Ce portail de vote est à des fins de démonstration uniquement.",
-            },
         },
         reviewScreen: {
             title: "Révisez votre vote",

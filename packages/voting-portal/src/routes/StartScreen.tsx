@@ -151,14 +151,15 @@ const StartScreen: React.FC = () => {
             <Dialog
                 variant="warning"
                 open={showDemoDialog}
-                ok={t("startScreen.demoDialog.ok")}
-                title={t("startScreen.demoDialog.title")}
+                ok={t("electionSelectionScreen.demoDialog.ok")}
+                title={t("electionSelectionScreen.demoDialog.title")}
                 handleClose={(result: boolean) => {
                     setShowDemoDialog(false)
                 }}
                 fullWidth
+                className="demo-dialog"
             >
-                {t("startScreen.demoDialog.content")}
+                {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
             </Dialog>
         </PageLimit>
     )

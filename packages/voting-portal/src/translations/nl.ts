@@ -47,12 +47,6 @@ const dutchTranslation: TranslationType = {
             step3Title: "3. Breng uw stem uit",
             step3Description:
                 "Breng uw stem uit: Tot slot kunt u uw stem uitbrengen zodat deze correct wordt geregistreerd. Als alternatief kunt u kiezen voor een audit om te bevestigen dat uw stembiljet correct is vastgelegd en versleuteld.",
-            demoDialog: {
-                ok: "Ik accepteer dat mijn stem NIET zal worden uitgebracht",
-                title: "Demo stemplatform",
-                content:
-                    "U betreedt een demo stemplatform. Uw stem wordt NIET uitgebracht. Dit stemplatform is uitsluitend voor demonstratiedoeleinden.",
-            },
         },
         reviewScreen: {
             title: "Controleer uw stembiljet",

@@ -48,12 +48,6 @@ const galegoTranslation: TranslationType = {
             step3Title: "3. Emite a túa papeleta",
             step3Description:
                 "Emite a túa papeleta: finalmente, podes emitir a túa papeleta para que quede rexistrada correctamente. Alternativamente, podes optar por auditala e confirmar que a túa papeleta foi correctamente capturada e encriptada.",
-            demoDialog: {
-                ok: "Acepto que o meu voto NON será emitido",
-                title: "Portal de votación de demostración",
-                content:
-                    "Estás a entrar nun portal de votación de demostración. O teu voto NON será emitido. Este portal de votación é só para fins de demostración.",
-            },
         },
         reviewScreen: {
             title: "Revisa a túa papeleta",

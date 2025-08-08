@@ -47,12 +47,6 @@ const spanishTranslation: TranslationType = {
             step3Title: "3. Envíe su voto",
             step3Description:
                 "Envía tu papeleta: Finalmente, puedes enviar tu papeleta para que se registre correctamente. Alternativamente, puedes optar por auditar y confirmar que tu papeleta fue capturada y cifrada correctamente.",
-            demoDialog: {
-                ok: "Acepto que mi voto NO será emitido",
-                title: "Portal de votación de demostración",
-                content:
-                    "Estás entrando a un portal de votación de demostración. Tu voto NO será emitido. Este portal de votación es solo para fines de demostración.",
-            },
         },
         reviewScreen: {
             title: "Revisa tu voto",
