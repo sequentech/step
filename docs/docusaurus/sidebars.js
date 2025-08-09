@@ -122,6 +122,7 @@ module.exports = {
           items: [
             'developers/Voting-Portal/developers_voting_portal',
             'developers/Voting-Portal/cast_vote_errors',
+            'developers/Voting-Portal/demo_mode',
           ],
         },
         {
@@ -139,6 +140,11 @@ module.exports = {
           label: 'Windmill',
           items: ['developers/Windmill/developers_windmill'],
         },
+        {
+          type: 'category',
+          label: 'Braid',
+          items: ['developers/Braid/braid_trustees_configuration'],
+        },
       ],
     },
     {
@@ -150,6 +156,7 @@ module.exports = {
       },
       items:[
         'reference/glossary',
+        'reference/product_lifecycle_and_release_cadence',
         {
           type: 'category',
           label: 'Tally Deep Dive',

@@ -982,6 +982,8 @@ const basqueTranslation: TranslationType = {
                 incorectPassword: "Pasahitz okerra",
                 decryptFileTitle: "Nola deszifratzen den fitxategia",
                 decryptInstructions: `1. '-in' :Zifratutako fitxategiaren bidea. \n2. '-out' :Deszifratutako fitxategia gordeko den bidea. \n3. '-pass' :Fitxategia zifratzeko erabilitako pasahitza. \n`,
+                encryptSuccess: "Txostenaren enkriptatzea behar bezala konfiguratu da",
+                encryptError: "Errorea txostenaren enkriptatzea konfiguratzean",
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",

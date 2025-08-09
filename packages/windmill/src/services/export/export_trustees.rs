@@ -40,6 +40,7 @@ pub async fn read_trustees_config_base(
     let secret_prefix: String = match vault_type {
         VaultManagerType::HashiCorpVault => "".to_string(),
         VaultManagerType::AwsSecretManager => "secrets/".to_string(),
+        VaultManagerType::EnvVarMasterSecret => "".to_string(),
     };
 
     for trustee in trustees {
