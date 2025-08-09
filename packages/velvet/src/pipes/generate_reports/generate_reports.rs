@@ -835,79 +835,57 @@ impl Pipe for GenerateReports {
             .as_path()
             .join(PipeNameOutputDir::MarkWinners.as_ref());
 
-        let config = self.get_config()?;
+        let config = self.get_config()?; // Assuming config is shareable (Sync+Clone) or created/cloned per thread if needed
 
+        // 1. Parallelize processing of each election_input
         self.pipe_inputs
             .election_list
-            .iter()
-            .try_for_each(|election_input| {
+            .par_iter() // <- PARALLELIZED
+            .try_for_each(|election_input| -> Result<()> {
+                // Added Result<()> for try_for_each
                 let areas_map: HashMap<String, TreeNodeArea> = election_input
                     .areas
                     .iter()
                     .map(|area| (area.id.clone(), area.clone()))
                     .collect();
-                let contest_reports: Result<Vec<_>> = election_input
-                    .contest_list
-                    .iter()
-                    .map(|contest_input| {
-                        let chunks = contest_input
-                            .area_list
-                            .chunks(PARALLEL_CHUNK_SIZE)
-                            .enumerate();
-                        for (index, area_list_chunk) in chunks {
-                            area_list_chunk
-                                .par_iter()
-                                .map(|area_input| -> Result<ReportData> {
-                                    // process tally sheets
-                                    let base_tally_sheet_path = PipeInputs::build_path(
-                                        &mark_winners_dir,
-                                        &area_input.election_id,
-                                        Some(&area_input.contest_id),
-                                        Some(&area_input.id),
-                                    );
-                                    let tally_sheet_paths =
-                                        list_tally_sheet_subfolders(&base_tally_sheet_path);
-                                    let tally_sheet_ids =
-                                        tally_sheet_paths
-                                            .iter()
-                                            .map(|tally_sheet_path| -> Result<String> {
-                                                PipeInputs::get_tally_sheet_id_from_path(
-                                                    &tally_sheet_path,
-                                                )
-                                                .ok_or(Error::UnexpectedError(
-                                                    "Can't read tally sheet id from path".into(),
-                                                ))
-                                            })
-                                            .collect::<Result<Vec<String>>>()?;
-                                    if tally_sheet_ids.len() > 0 {
-                                        for tally_sheet_id in tally_sheet_ids {
-                                            self.make_report(
-                                                &election_input.id,
-                                                &election_input.name,
-                                                &election_input.description,
-                                                &election_input.dates,
-                                                &election_input.annotations,
-                                                &election_input.election_event_annotations,
-                                                Some(&contest_input.id),
-                                                Some(area_input.area.clone().into()),
-                                                contest_input.contest.clone(),
-                                                false,
-                                                Some(tally_sheet_id),
-                                                config.enable_pdfs,
-                                                true,
-                                                None,
-                                                &areas_map,
-                                            )?;
-                                        }
-                                    }
 
-                                    // area aggregates if it has children
-                                    let has_aggregate = self.has_aggregate(
-                                        &election_input.id,
-                                        Some(&contest_input.id),
-                                        &area_input.id,
-                                    );
-                                    if has_aggregate {
+                // 2. Parallelize processing of contest_list for generating initial contest_reports
+                let contest_reports: Vec<ReportData> = election_input // Ensure ReportData is Send
+                    .contest_list
+                    .par_iter() // <- PARALLELIZED
+                    .map(|contest_input| {
+                        // OPTIMIZATION/CLARIFICATION for inner area processing:
+                        // The original code collected ReportData from area_list_chunk.par_iter().map()
+                        // but then discarded the Vec<ReportData>. If the goal is side-effects
+                        // (calling self.make_report) and error propagation, try_for_each is clearer.
+                        // If ReportData from these calls IS needed, this part needs to be reworked
+                        // to properly collect all generated ReportData items.
+
+                        // Assuming make_report is primarily for side-effects (e.g., writing files)
+                        // and its Result is for error checking.
+                        contest_input.area_list.par_iter().try_for_each(
+                            |area_input| -> Result<()> {
+                                let base_tally_sheet_path = PipeInputs::build_path(
+                                    &mark_winners_dir,
+                                    &area_input.election_id,
+                                    Some(&area_input.contest_id),
+                                    Some(&area_input.id),
+                                );
+                                let tally_sheet_paths =
+                                    list_tally_sheet_subfolders(&base_tally_sheet_path);
+                                let tally_sheet_ids = tally_sheet_paths
+                                    .iter()
+                                    .map(|tally_sheet_path| -> Result<String> {
+                                        PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_path)
+                                            .ok_or(Error::UnexpectedError(
+                                                "Can't read tally sheet id from path".into(),
+                                            ))
+                                    })
+                                    .collect::<Result<Vec<String>>>()?;
+
+                                if !tally_sheet_ids.is_empty() {
+                                    // Changed from tally_sheet_ids.len() > 0
+                                    for tally_sheet_id in tally_sheet_ids {
                                         self.make_report(
                                             &election_input.id,
                                             &election_input.name,
@@ -918,14 +896,22 @@ impl Pipe for GenerateReports {
                                             Some(&contest_input.id),
                                             Some(area_input.area.clone().into()),
                                             contest_input.contest.clone(),
-                                            true,
-                                            None,
+                                            false,
+                                            Some(tally_sheet_id), // Note: This was &tally_sheet_id, ensure make_report expects String or &str
                                             config.enable_pdfs,
                                             true,
                                             None,
                                             &areas_map,
-                                        )?;
+                                        )?; // Propagate error
                                     }
+                                }
+
+                                let has_aggregate = self.has_aggregate(
+                                    &election_input.id,
+                                    Some(&contest_input.id),
+                                    &area_input.id,
+                                );
+                                if has_aggregate {
                                     self.make_report(
                                         &election_input.id,
                                         &election_input.name,
@@ -936,17 +922,36 @@ impl Pipe for GenerateReports {
                                         Some(&contest_input.id),
                                         Some(area_input.area.clone().into()),
                                         contest_input.contest.clone(),
-                                        false,
+                                        true,
                                         None,
                                         config.enable_pdfs,
                                         true,
                                         None,
                                         &areas_map,
-                                    )
-                                })
-                                .collect::<Result<Vec<ReportData>>>()?;
-                        }
+                                    )?; // Propagate error
+                                }
+                                self.make_report(
+                                    &election_input.id,
+                                    &election_input.name,
+                                    &election_input.description,
+                                    &election_input.dates,
+                                    &election_input.annotations,
+                                    &election_input.election_event_annotations,
+                                    Some(&contest_input.id),
+                                    Some(area_input.area.clone().into()),
+                                    contest_input.contest.clone(),
+                                    false,
+                                    None,
+                                    config.enable_pdfs,
+                                    true,
+                                    None,
+                                    &areas_map,
+                                )?; // Propagate error (Original code implicitly returned this)
+                                Ok(())
+                            },
+                        )?; // End of par_iter().try_for_each over area_list for a contest_input
 
+                        // This report is for the contest itself, after its areas are processed
                         let contest_report = self.make_report(
                             &election_input.id,
                             &election_input.name,
@@ -964,17 +969,16 @@ impl Pipe for GenerateReports {
                             None,
                             &areas_map,
                         )?;
-
                         Ok(contest_report)
                     })
-                    .collect();
+                    .collect::<Result<Vec<ReportData>>>()?; // Collect contest-level reports
 
-                // write report for the current election
+                // write report for the current election (remains sequential for this election_input task)
                 let result_hash = self.write_report(
                     &election_input.id,
                     None,
                     None,
-                    contest_reports?,
+                    contest_reports, // Now correctly using the collected contest_reports
                     false,
                     None,
                     config.enable_pdfs,
@@ -984,69 +988,81 @@ impl Pipe for GenerateReports {
                 )?;
 
                 // make area reports with all contests related to each area
+                // Construction of area_contests_map remains sequential for simplicity here.
+                // If election_input.contest_list is very large, this part could also be a candidate
+                // for more complex parallel collection if it becomes a bottleneck.
                 let mut area_contests_map: HashMap<String, InputConfigAreaContest> = HashMap::new();
                 election_input.contest_list.iter().for_each(|contest| {
                     contest.area_list.iter().for_each(|area| {
                         area_contests_map
                             .entry(area.id.to_string())
-                            .and_modify(|entry| entry.contests.push(contest))
+                            .and_modify(|entry| entry.contests.push(contest)) // Ensure contest is cloneable or references are fine
                             .or_insert_with(|| InputConfigAreaContest {
-                                area: &area,
+                                area: area, // Ensure lifetime of area is suitable or it's cloned
                                 contests: vec![contest],
                             });
                     });
                 });
 
-                for (area_id, area_contests) in area_contests_map.iter() {
-                    let matching_area_contests = area_contests.contests.clone();
-                    let area: &InputAreaConfig = area_contests.area;
-                    let chunks = matching_area_contests
-                        .chunks(PARALLEL_CHUNK_SIZE)
-                        .enumerate();
+                // 3. Parallelize processing of each area in area_contests_map
+                area_contests_map
+                    .par_iter() // <- PARALLELIZED iteration over areas
+                    .try_for_each(|(_area_id, area_contests)| -> Result<()> {
+                        // area_id is from map key
+                        let matching_area_contests = area_contests.contests.clone(); // Clone if needed for parallel tasks
+                        let area_config: &InputAreaConfig = area_contests.area; // area_config is a more descriptive name
 
-                    let mut contests_report: Vec<ReportData> = vec![];
-                    for (_chunk_index, contest_list_chunk) in chunks {
-                        let contests_repot_data = contest_list_chunk
-                            .par_iter()
-                            .map(|contest_input| -> Result<ReportData> {
-                                self.make_report(
-                                    &election_input.id,
-                                    &election_input.name,
-                                    &election_input.description,
-                                    &election_input.dates,
-                                    &election_input.annotations,
-                                    &election_input.election_event_annotations,
-                                    Some(&contest_input.id),
-                                    Some(area.area.clone().into()),
-                                    contest_input.contest.clone(),
-                                    false,
-                                    None,
-                                    config.enable_pdfs,
-                                    false,
-                                    Some(result_hash.clone()),
-                                    &areas_map,
-                                )
+                        // The chunking logic here is kept, but you could also flatten and par_iter directly
+                        // if intermediate Vec allocation is not an issue.
+                        // This collects reports for all contests related to the current area.
+                        let contests_report: Vec<ReportData> = matching_area_contests
+                            .chunks(PARALLEL_CHUNK_SIZE) // This chunks the contests for the current area
+                            .map(|contest_list_chunk| {
+                                contest_list_chunk
+                                    .par_iter() // Parallel processing of contests within this chunk for this area
+                                    .map(|contest_input| {
+                                        self.make_report(
+                                            &election_input.id,
+                                            &election_input.name,
+                                            &election_input.description,
+                                            &election_input.dates,
+                                            &election_input.annotations,
+                                            &election_input.election_event_annotations,
+                                            Some(&contest_input.id),
+                                            Some(area_config.area.clone().into()),
+                                            contest_input.contest.clone(),
+                                            false,
+                                            None,
+                                            config.enable_pdfs,
+                                            false,
+                                            Some(result_hash.clone()),
+                                            &areas_map,
+                                        )
+                                    })
+                                    .collect::<Result<Vec<ReportData>>>() // Collect ReportData for this chunk
                             })
-                            .collect::<Result<Vec<ReportData>>>()?;
-                        contests_report.extend(contests_repot_data);
-                    }
+                            .collect::<Result<Vec<Vec<ReportData>>>>()? // Collect results from all chunks
+                            .into_iter()
+                            .flatten() // Flatten Vec<Vec<ReportData>> to Vec<ReportData>
+                            .collect();
 
-                    self.write_report(
-                        &election_input.id,
-                        None,
-                        Some(&area.id),
-                        contests_report,
-                        false,
-                        None,
-                        config.enable_pdfs,
-                        true,
-                        Some(result_hash.clone()),
-                        &areas_map,
-                    )?;
-                }
+                        self.write_report(
+                            &election_input.id,
+                            None,
+                            Some(&area_config.id), // Use area_config.id
+                            contests_report,
+                            false,
+                            None,
+                            config.enable_pdfs,
+                            true,
+                            Some(result_hash.clone()),
+                            &areas_map,
+                        )?;
+                        Ok(())
+                    })?; // End of par_iter().try_for_each over area_contests_map
 
                 Ok(())
-            })
+            }) // End of par_iter().try_for_each over election_list
     }
 }
 
