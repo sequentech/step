@@ -78,9 +78,10 @@ impl Pipe for DecodeBallots {
                     .contest_list
                     .iter()
                     .flat_map(move |contest_input| {
-                        contest_input.area_list.iter().map(move |area_input| {
-                            (election_input, contest_input, area_input)
-                        })
+                        contest_input
+                            .area_list
+                            .iter()
+                            .map(move |area_input| (election_input, contest_input, area_input))
                     })
             })
             .collect();

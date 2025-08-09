@@ -21,6 +21,7 @@ use sequent_core::{
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
 use std::cmp;
+use std::sync::Arc;
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -28,7 +29,6 @@ use std::{
 };
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
-use std::sync::Arc;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER: &str = "aggregate";
@@ -137,13 +137,16 @@ impl Pipe for DoTally {
                         contest_id_for_contest, _areas_info
                     );
 
-                    let areas_tree = Arc::new(TreeNode::<()>::from_areas(election_input.areas.clone())
-                        .map_err(|err| {
-                            Error::UnexpectedError(format!(
-                                "Error building area tree for contest {}: {:?}",
-                                contest_id_for_contest, err
-                            ))
-                        })?);
+                    let areas_tree = Arc::new(
+                        TreeNode::<()>::from_areas(election_input.areas.clone()).map_err(
+                            |err| {
+                                Error::UnexpectedError(format!(
+                                    "Error building area tree for contest {}: {:?}",
+                                    contest_id_for_contest, err
+                                ))
+                            },
+                        )?,
+                    );
 
                     let census_map: HashMap<String, u64> = contest_input
                         .area_list
