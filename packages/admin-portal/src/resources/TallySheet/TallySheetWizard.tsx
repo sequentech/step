@@ -184,22 +184,22 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 </TallyStyles.StyledHeader>
 
                 {page === WizardSteps.Start && (
-                        <>
-                            <EditTallySheet
-                                election={election}
-                                choosenContest={choosenContest}
-                                setChoosenContest={setChoosenContest}
-                                doSelectArea={(id: Identifier) => setAreaId(id)}
-                                doCreatedTalySheet={(
-                                    tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
-                                ) => {
-                                    setCreatedTallySheet(tallySheet)
-                                }}
-                                submitRef={submitRef}
-                                setIsButtonDisabled={setIsButtonDisabled}
-                            />
-                        </>
-                    )}
+                    <>
+                        <EditTallySheet
+                            election={election}
+                            choosenContest={choosenContest}
+                            setChoosenContest={setChoosenContest}
+                            doSelectArea={(id: Identifier) => setAreaId(id)}
+                            doCreatedTalySheet={(
+                                tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
+                            ) => {
+                                setCreatedTallySheet(tallySheet)
+                            }}
+                            submitRef={submitRef}
+                            setIsButtonDisabled={setIsButtonDisabled}
+                        />
+                    </>
+                )}
                 {page === WizardSteps.Edit &&
                     choosenContest /* TODO: check if this is necessary*/ && (
                         <>

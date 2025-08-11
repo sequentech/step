@@ -1758,7 +1758,7 @@ const basqueTranslation: TranslationType = {
                 area: "Eremua",
                 contest: "Lehiaketa",
                 approvedVersion: "Onartutako bertsioa",
-                latestVersion: "Azken bertsioa",            
+                latestVersion: "Azken bertsioa",
             },
             message: {
                 publishError: "Errorea zenbaketa orria argitaratzerakoan",

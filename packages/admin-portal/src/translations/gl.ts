@@ -1767,7 +1767,7 @@ const galegoTranslation: TranslationType = {
                 area: "Área",
                 contest: "Concurso",
                 approvedVersion: "Versión aprobada",
-                latestVersion: "Última versión",            
+                latestVersion: "Última versión",
             },
             message: {
                 publishError: "Erro ao publicar a acta de escrutinio",

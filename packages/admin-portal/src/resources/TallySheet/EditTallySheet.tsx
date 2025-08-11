@@ -84,7 +84,15 @@ interface IContest {
 const numbersRegExp = /^[0-9]+$/
 
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
-    const {tallySheet, election: election, doCreatedTalySheet, submitRef, setIsButtonDisabled, choosenContest, setChoosenContest} = props
+    const {
+        tallySheet,
+        election: election,
+        doCreatedTalySheet,
+        submitRef,
+        setIsButtonDisabled,
+        choosenContest,
+        setChoosenContest,
+    } = props
 
     const {t} = useTranslation()
 
@@ -121,21 +129,24 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 perPage: 10000, // Setting initial larger records size of areas
                 page: 1,
             },
-        },
+        }
         // {enabled: !!choosenContest}
     )
 
-    const {data: contests, refetch: refetchContests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
-        filter: {
-            tenant_id: election.tenant_id,
-            election_event_id: election.election_event_id,
-            election_id: election.id,
-        },
-        pagination: {
-            perPage: 10000, // Setting initial larger records size of areas
-            page: 1,
-        },
-    })
+    const {data: contests, refetch: refetchContests} = useGetList<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {
+            filter: {
+                tenant_id: election.tenant_id,
+                election_event_id: election.election_event_id,
+                election_id: election.id,
+            },
+            pagination: {
+                perPage: 10000, // Setting initial larger records size of areas
+                page: 1,
+            },
+        }
+    )
 
     const {data: allAreas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         filter: {
@@ -149,40 +160,47 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         },
     })
 
-    const {data: areas, refetch: refetchAreas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
-        filter: {
-            tenant_id: election.tenant_id,
-            election_event_id: election.election_event_id,
-            election_id: election.id,
-            name: areaNameFilter ?? "",
-            id: {
-                format: "hasura-raw-query",
-                value: {_in: areaIds},
-            },
-            /*parent_id: {
+    const {data: areas, refetch: refetchAreas} = useGetList<Sequent_Backend_Area>(
+        "sequent_backend_area",
+        {
+            filter: {
+                tenant_id: election.tenant_id,
+                election_event_id: election.election_event_id,
+                election_id: election.id,
+                name: areaNameFilter ?? "",
+                id: {
+                    format: "hasura-raw-query",
+                    value: {_in: areaIds},
+                },
+                /*parent_id: {
                 format: "hasura-raw-query",
                 value: {_is_null: true},
             },*/
-        },
-        pagination: {
-            perPage: 10000, // Setting initial larger records size of areas
-            page: 1,
-        },
-    })
+            },
+            pagination: {
+                perPage: 10000, // Setting initial larger records size of areas
+                page: 1,
+            },
+        }
+    )
 
     const {
         data: fetchedCandidates,
         hasNextPage,
         fetchNextPage,
         refetch: refetchCandidates,
-    } = useInfiniteGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
-        filter: {
-            contest_id: choosenContest?.id,
-            tenant_id: election.tenant_id,
-            election_event_id: election.election_event_id,
+    } = useInfiniteGetList<Sequent_Backend_Candidate>(
+        "sequent_backend_candidate",
+        {
+            filter: {
+                contest_id: choosenContest?.id,
+                tenant_id: election.tenant_id,
+                election_event_id: election.election_event_id,
+            },
+            pagination: {page: 1, perPage: 50},
         },
-        pagination: {page: 1, perPage: 50},
-    }, {enabled: !!choosenContest})
+        {enabled: !!choosenContest}
+    )
 
     const checkableLists = useMemo(() => {
         let presentation = election.presentation as IContestPresentation | undefined
@@ -591,9 +609,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 <FormControl fullWidth size="small">
                     <Autocomplete
                         sx={{width: 300}}
-                        onChange={
-                            handleContestChange as any
-                        }
+                        onChange={handleContestChange as any}
                         options={contestList ?? []}
                         renderInput={(params) => (
                             <TextField
