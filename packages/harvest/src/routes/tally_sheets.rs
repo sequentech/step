@@ -55,7 +55,7 @@ pub async fn add_tally_sheet_version(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let old_version = input.old_version as i64;
+    let old_version = input.old_version as i32;
     let tally_sheet_opt = tally_sheet::soft_delete_tally_sheet(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
@@ -222,7 +222,7 @@ pub async fn review_tally_sheet(
         &input.tally_sheet_id,
         &claims.hasura_claims.user_id,
         input.new_status,
-        input.version as i64,
+        input.version as i32,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

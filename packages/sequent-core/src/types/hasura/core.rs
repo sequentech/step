@@ -300,7 +300,7 @@ pub struct TallySheet {
                                               * version is created. */
     pub created_by_user_id: String,
     pub status: String,
-    pub version: i64,
+    pub version: i32,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

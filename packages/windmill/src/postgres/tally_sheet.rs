@@ -101,7 +101,7 @@ pub async fn soft_delete_tally_sheet(
     election_event_id: &str,
     tally_sheet_id: &str,
     user_id: &str,
-    version: i64,
+    version: i32,
 ) -> Result<Option<TallySheet>> {
     let statement = hasura_transaction
         .prepare(
@@ -165,7 +165,7 @@ pub async fn review_tally_sheet_status(
     tally_sheet_id: &str,
     user_id: &str,
     status: TallySheetStatus,
-    version: i64,
+    version: i32,
 ) -> Result<Option<TallySheet>> {
     let statement = hasura_transaction
         .prepare(
@@ -237,7 +237,7 @@ pub async fn insert_tally_sheet(
     channel: &VotingChannel,
     created_by_user_id: &str,
     status: TallySheetStatus,
-    version: i64,
+    version: i32,
 ) -> Result<TallySheet> {
     let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
