@@ -28,7 +28,7 @@ pub struct JwksOutput {
 }
 
 pub fn get_jwks_secret_path() -> String {
-    "certs.json".to_string()
+    env::var("AWS_S3_JWKS_CERTS_PATH").unwrap_or("certs.json".to_string())
 }
 
 pub fn get_cache_policy() -> Result<String> {
@@ -89,7 +89,7 @@ pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey
 pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
     let realm_jwks = download_realm_jwks_from_keycloak(realm)
         .await
-        .map_err(|err| anyhow!("Error downloading realm JWKS: {err:?}"))?;
+        .unwrap_or(vec![]);
     let mut existing_jwks = get_jwks().await?;
     let existing_kids: Vec<String> = existing_jwks
         .iter()
@@ -141,7 +141,9 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
 
 #[instrument(err)]
 pub async fn remove_realm_jwks(realm: &str) -> Result<()> {
-    let realm_jwks = download_realm_jwks_from_keycloak(realm).await?;
+    let realm_jwks = download_realm_jwks_from_keycloak(realm)
+        .await
+        .unwrap_or(vec![]);
     let existing_jwks = get_jwks().await?;
 
     let realm_kids: Vec<String> = realm_jwks.iter().map(|realm| realm.kid.clone()).collect();

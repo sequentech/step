@@ -14,13 +14,15 @@ pub type JsonError = Custom<Json<ErrorResponse>>;
 #[derive(Serialize, AsRefStr, Display, Debug)]
 pub enum ErrorCode {
     InternalServerError,
-    QueueError,
     Unauthorized,
     CheckStatusFailed,
     AreaNotFound,
     ElectionEventNotFound,
     ElectoralLogNotFound,
     CheckPreviousVotesFailed,
+    CheckRevotesFailed,
+    CheckVotesInOtherAreasFailed,
+    InsertFailedExceedsAllowedRevotes,
     GetClientCredentialsFailed,
     GetAreaIdFailed,
     GetTransactionFailed,
@@ -30,6 +32,7 @@ pub enum ErrorCode {
     UuidParseFailed,
     UnknownError,
     InvalidEventProcessor,
+    BallotIdMismatch,
     // Add any other needed error codes
 }
 

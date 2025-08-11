@@ -12,7 +12,7 @@ const config = {
   title: 'Sequent Online Voting',
   tagline: 'End-to-end verifiable and transparent online voting',
   url: 'https://your-docusaurus-site.example.com',
-  baseUrl: '/',
+  baseUrl: process.env.BASE_URL || '/',
   favicon: 'img/favicon.ico',
 
   onBrokenLinks: 'throw',
@@ -44,6 +44,11 @@ const config = {
     ],
   ],
 
+  themes: ['@docusaurus/theme-mermaid'],
+  markdown: {
+    mermaid: true,
+  },
+
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
@@ -74,6 +79,9 @@ const config = {
       scripts: [
         '/js/custom-home-highlight.js',
       ],
+      mermaid: {
+        theme: {light: 'neutral', dark: 'dark'},
+      },
     }),
 };
 

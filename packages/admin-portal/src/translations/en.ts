@@ -98,6 +98,7 @@ const englishTranslation = {
                 deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
+            updateAreaSuccess: "Area updated",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
             empty: {
@@ -972,6 +973,8 @@ const englishTranslation = {
                 incorectPassword: "Incorrect password",
                 decryptFileTitle: "How to decrypt the file",
                 decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
+                encryptSuccess: "Successfully set up report encryption",
+                encryptError: "Error setting up report encryption",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
@@ -1299,6 +1302,8 @@ const englishTranslation = {
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
                 filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Cannot create keys ceremony: one or more permission labels are missing.",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -1861,6 +1866,10 @@ const englishTranslation = {
             fields: {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
+            },
+            empty: {
+                header: "No support material yet",
+                action: "Generate support material  ",
             },
         },
         widget: {

@@ -91,13 +91,15 @@ import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 
-const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
+const DataGridContainerStyle = styled(DatagridConfigurable, {
+    shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
+})<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflow-x: auto;
+        overflowx: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
-            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
-        &  > div:first-child {
+            `maxWidth: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+        &  > div:first-of-type {
             position: absolute;
             width: 100%;
         }
@@ -794,7 +796,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const resetMenuItem = () => {
         // renders the reset custom menu item
         return (
-            <MenuItem onClick={() => handleApplyCustomMenu(null, null)}>
+            <MenuItem key="reset-menu-item" onClick={() => handleApplyCustomMenu(null, null)}>
                 <Stack direction="row" alignItems="center">
                     <span style={{width: "32px"}} />
                     <span>{t("electionEventScreen.common.reset")} </span>
@@ -814,7 +816,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             customFiltersList = customFilters.map((item: any, index: number) => {
                 const {label, filter} = item
                 return (
-                    <MenuItem key={index} onClick={() => handleApplyCustomMenu(filter, index + 1)}>
+                    <MenuItem
+                        key={`custom-filter-${index}`}
+                        onClick={() => handleApplyCustomMenu(filter, index + 1)}
+                    >
                         <Stack direction="row" alignItems="center">
                             <span style={{width: "32px"}}>
                                 {selectedCustomItemMenu && selectedCustomItemMenu === index + 1 ? (

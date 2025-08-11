@@ -98,6 +98,7 @@ const dutchTranslation: TranslationType = {
                 deleteError: "Fout bij verwijderen van gebied",
             },
             createAreaSuccess: "Gebied aangemaakt",
+            updateAreaSuccess: "Gebied bijgewerkt",
             createAreaError: "Kon gebied niet aanmaken",
             sequent_backend_area_contest: "Verkiezingen",
             empty: {
@@ -981,6 +982,8 @@ const dutchTranslation: TranslationType = {
                 incorectPassword: "Incorrect wachtwoord",
                 decryptFileTitle: "Hoe het bestand te ontsleutelen",
                 decryptInstructions: `1. '-in': Het pad naar het versleutelde bestand.\n2. '-out': Het pad waar het ontsleutelde bestand wordt opgeslagen.\n3. '-pass': Het wachtwoord dat is gebruikt om het bestand te versleutelen.\n`,
+                encryptSuccess: "Rapportversleuteling succesvol ingesteld",
+                encryptError: "Fout bij het instellen van rapportversleuteling",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
@@ -1311,6 +1314,8 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt een Sleutelceremonie aan te maken. Deze actie zal de Trustees informeren om deel te nemen aan de aanmaak en distributie van de Sleutels van het Verkiezingsevenement.",
                 },
                 filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Sleutelceremonie kan niet worden aangemaakt: een of meer toestemmingslabels ontbreken.",
             },
             ceremonyStep: {
                 cancel: "Sleutelceremonie Annuleren",
@@ -1879,6 +1884,10 @@ const dutchTranslation: TranslationType = {
             fields: {
                 isHidden: "Is Verborgen",
                 publicUrl: "Publieke URL",
+            },
+            empty: {
+                header: "Nog geen ondersteunend materiaal",
+                action: "Ondersteunend materiaal genereren",
             },
         },
         widget: {

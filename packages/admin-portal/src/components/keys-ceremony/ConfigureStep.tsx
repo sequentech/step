@@ -49,6 +49,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
 import {Clear} from "@mui/icons-material"
+import {CreateKeysError} from "@/types/ceremonies"
 
 const ITEM_HEIGHT = 48
 const ITEM_PADDING_TOP = 8
@@ -148,6 +149,18 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         Sequent_Backend_Trustee[] | undefined
     >()
 
+    const filteredTrusteesSorted = useMemo(
+        () =>
+            [...(filteredTrustees ?? [])]?.sort((a, b) =>
+                (a.name ?? "").localeCompare(b.name ?? "")
+            ),
+        [filteredTrustees]
+    )
+    const trusteeListSorted = useMemo(
+        () => [...(trusteeList ?? [])]?.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")),
+        [trusteeList]
+    )
+
     useEffect(() => {
         setFilteredTrustees(
             trusteeList?.filter((trustee: Sequent_Backend_Trustee) =>
@@ -198,6 +211,14 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 name: name ?? t("keysGeneration.configureStep.name"),
             },
         })
+
+        let error_message = data?.create_keys_ceremony?.error_message
+        if (error_message) {
+            let error = error_message as CreateKeysError
+            if (error == CreateKeysError.PERMISSION_LABELS) {
+                setErrors(t("keysGeneration.configureStep.errorPermisionLabels"))
+            }
+        }
         if (errors) {
             setErrors(t("keysGeneration.configureStep.errorCreatingCeremony", {code: error + ""}))
             return null
@@ -375,7 +396,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                     validate={validateTrusteeList}
                                     label=""
                                     source="trusteeNames"
-                                    choices={filteredTrustees || trusteeList}
+                                    choices={filteredTrusteesSorted || trusteeListSorted}
                                     translateChoice={false}
                                     optionText="name"
                                     optionValue="name"

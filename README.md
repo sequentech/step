@@ -679,6 +679,8 @@ Requires running both codespace instance as well as local instance at least for 
  ### Running Nightwatch(Voting-Portal)
  refer to voting-portal/test/readme
  
+ ### Adding Galician language support
+ Galician is now configurable in admin portal, voting portal and keycloak
 
  ## Use devcontainers in Google Cloud
 

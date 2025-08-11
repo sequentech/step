@@ -10,7 +10,7 @@ use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::ceremonies::velvet_tally::build_vote_receipe_pipe_config;
 use crate::services::ceremonies::velvet_tally::call_velvet;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
-use crate::services::compress::decompress_file;
+use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
@@ -203,7 +203,7 @@ async fn generate_template_document(
     )
     .await?;
 
-    let tally_path = decompress_file(tar_gz_file.path())?;
+    let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
     let tally_path_path = tally_path.into_path();
 
