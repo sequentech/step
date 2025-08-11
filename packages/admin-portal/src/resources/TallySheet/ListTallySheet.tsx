@@ -67,8 +67,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
-    const [openUnpublishDialog, setOpenUnpublishDialog] = React.useState(false)
-    const [openPublishDialog, setOpenPublishDialog] = React.useState(false)
+    const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
+    const [openApproveDialog, setOpenAproveDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
     const [publish, setPublish] = React.useState(false)
@@ -157,15 +157,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const publishAction = (id: Identifier) => {
         setDeleteId(id)
-        setOpenPublishDialog(true)
+        setOpenAproveDialog(true)
     }
 
     const unpublishAction = (id: Identifier) => {
         setDeleteId(id)
-        setOpenUnpublishDialog(true)
+        setOpenDisapproveDialog(true)
     }
 
-    const confirmPublishAction = async (isPublished: boolean) => {
+    const confirmApproveAction = async (isPublished: boolean) => {
         const {data, errors} = await reviewTallySheet({
             variables: {
                 electionEventId: election.election_event_id,
@@ -308,15 +308,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
             <Dialog
                 variant="warning"
-                open={openUnpublishDialog}
+                open={openDisapproveDialog}
                 ok={t("tallysheet.common.disapprove")}
                 cancel={t("common.label.cancel")}
                 title={t("tallysheet.common.disapprove")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmPublishAction(false)
+                        confirmApproveAction(false)
                     }
-                    setOpenUnpublishDialog(false)
+                    setOpenDisapproveDialog(false)
                 }}
             >
                 {t("tallysheet.common.warningDisapprove")}
@@ -324,15 +324,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
             <Dialog
                 variant="info"
-                open={openPublishDialog}
+                open={openApproveDialog}
                 ok={t("tallysheet.common.approve")}
                 cancel={t("common.label.cancel")}
                 title={t("tallysheet.common.disapprove")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmPublishAction(true)
+                        confirmApproveAction(true)
                     }
-                    setOpenPublishDialog(false)
+                    setOpenAproveDialog(false)
                 }}
             >
                 {t("tallysheet.common.warningApprove")}
