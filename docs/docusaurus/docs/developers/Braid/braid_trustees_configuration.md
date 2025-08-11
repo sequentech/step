@@ -153,4 +153,4 @@ The trustee startup script logs important events with timestamps. Monitor these 
 
 ## Related Documentation
 
-- [Admin Portal Trustees Settings](/docs/admin_portal/Reference/User-Manual/Settings/Trustees/admin_portal_reference_user_manual_settings_trustees)
+- [Admin Portal Trustees Settings](docs/admin_portal/Reference/User-Manual/Settings/settings_trustees.md)
