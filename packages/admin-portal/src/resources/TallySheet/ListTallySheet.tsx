@@ -16,6 +16,7 @@ import {
     useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
+import {ListActionsMenu} from "../../components/ListActionsMenu"
 import {Button, Tooltip, Typography} from "@mui/material"
 import {
     ReviewTallySheetMutation,
@@ -282,10 +283,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         <FunctionField
                             label={t("tallysheet.table.area")}
                             render={(record: Sequent_Backend_Tally_Sheet) => (
-                                <ActionsColumn actions={actions(record)} />
+                                <ListActionsMenu actions={actions(record)} />
                             )}
                         />
-                        {/* <ActionsColumn actions={actions} /> */}
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
