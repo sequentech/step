@@ -770,7 +770,7 @@ const tagalogTranslation: TranslationType = {
                 "document-download": "I-download ang Mga Dokumento",
                 "tally-sheet-create": "Lumikha ng Tally Sheet",
                 "trustee-ceremony": "Seremonya ng Tagapangasiwa",
-                "tally-sheet-publish": "I-publish ang Tally Sheet",
+                "tally-sheet-review": "Suriin ang Tally Sheet",
                 "tally-sheet-view": "Tingnan ang Tally Sheet",
                 "admin-ceremony": "Seremonya ng Admin",
                 "tally-sheet-delete": "Tanggalin ang Tally Sheet",

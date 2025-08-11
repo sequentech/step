@@ -772,7 +772,7 @@ const frenchTranslation: TranslationType = {
                 "document-download": "Télécharger Documents",
                 "tally-sheet-create": "Créer Acte de Comptage",
                 "trustee-ceremony": "Cérémonie de Fideicomisario",
-                "tally-sheet-publish": "Publier Acte de Comptage",
+                "tally-sheet-review": "Examiner la feuille de décompte",
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",

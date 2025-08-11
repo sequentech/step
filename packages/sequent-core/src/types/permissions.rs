@@ -123,10 +123,8 @@ pub enum Permissions {
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
     TALLY_SHEET_CREATE,
-    #[strum(serialize = "tally-sheet-publish")]
-    TALLY_SHEET_PUBLISH,
-    #[strum(serialize = "tally-sheet-delete")]
-    TALLY_SHEET_DELETE,
+    #[strum(serialize = "tally-sheet-review")]
+    TALLY_SHEET_REVIEW,
     #[strum(serialize = "cast-vote-read")]
     CAST_VOTE_READ,
     #[strum(serialize = "document-read")]

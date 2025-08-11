@@ -769,7 +769,7 @@ const dutchTranslation: TranslationType = {
                 "document-download": "Documenten Downloaden",
                 "tally-sheet-create": "Telblad Aanmaken",
                 "trustee-ceremony": "Trustee Ceremonie",
-                "tally-sheet-publish": "Telblad Publiceren",
+                "tally-sheet-review": "Telformulier beoordelen",
                 "tally-sheet-view": "Telblad Bekijken",
                 "admin-ceremony": "Beheerdersceremonie",
                 "tally-sheet-delete": "Telblad Verwijderen",

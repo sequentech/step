@@ -1305,7 +1305,7 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-          - role: tally-sheet-create
+          - role: tally-sheet-review
       comment: review_tally_sheet
 custom_types:
     enums:

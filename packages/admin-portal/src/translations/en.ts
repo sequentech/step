@@ -765,7 +765,7 @@ const englishTranslation = {
                 "document-download": "Download Documents",
                 "tally-sheet-create": "Create Tally Sheet",
                 "trustee-ceremony": "Trustee Ceremony",
-                "tally-sheet-publish": "Publish Tally Sheet",
+                "tally-sheet-review": "Review Tally Sheet",
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",

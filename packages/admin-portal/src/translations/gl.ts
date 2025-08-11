@@ -770,7 +770,7 @@ const galegoTranslation: TranslationType = {
                 "document-download": "Descargar Documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "trustee-ceremony": "Ceremonia de Fideicomisario",
-                "tally-sheet-publish": "Publicar Acta de Recuento",
+                "tally-sheet-review": "Revisar folla de reconto",
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",

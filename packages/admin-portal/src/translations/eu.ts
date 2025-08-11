@@ -769,7 +769,7 @@ const basqueTranslation: TranslationType = {
                 "document-download": "Deskargatu Dokumentuak",
                 "tally-sheet-create": "Sortu Zenbaketa Orria",
                 "trustee-ceremony": "Fideikomisario Zeremonia",
-                "tally-sheet-publish": "Argitaratu Zenbaketa Orria",
+                "tally-sheet-review": "Zenbaketa-orria berrikusi",
                 "tally-sheet-view": "Ikusi Zenbaketa Orria",
                 "admin-ceremony": "Admin Zeremonia",
                 "tally-sheet-delete": "Ezabatu Zenbaketa Orria",

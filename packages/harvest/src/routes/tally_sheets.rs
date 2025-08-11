@@ -41,7 +41,7 @@ pub async fn add_tally_sheet_version(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_SHEET_PUBLISH],
+        vec![Permissions::TALLY_SHEET_CREATE],
     )?;
     let input = body.into_inner();
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -201,7 +201,7 @@ pub async fn review_tally_sheet(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_SHEET_PUBLISH],
+        vec![Permissions::TALLY_SHEET_REVIEW],
     )?;
     let input = body.into_inner();
     let mut hasura_db_client: DbClient = get_hasura_pool()
