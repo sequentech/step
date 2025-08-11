@@ -90,7 +90,6 @@ module.exports = {
           'admin_portal/Tutorials/Reports-and-Templates/value_to_template_association',
           ],
         },
-        
       ],
     },
     {
