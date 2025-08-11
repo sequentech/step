@@ -23,11 +23,10 @@ use sequent_core::{
 use serde_json::Value;
 use std::sync::Arc;
 use std::{path::PathBuf, str::FromStr};
-use tempfile::tempdir;
 use tokio::sync::Mutex;
 use wasmtime::component::{Component, Func, Instance, Linker, ResourceTable, Val};
 use wasmtime::{Engine, Store};
-use wasmtime_wasi::p2::{add_to_linker_sync, IoView, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::p2::{add_to_linker_async, IoView, WasiCtx, WasiCtxBuilder, WasiView};
 
 /// Represents a value that can be passed to or returned from a plugin hook.
 #[derive(Debug, Clone)]
@@ -173,6 +172,7 @@ impl Plugin {
     ) -> Result<Option<Self>> {
         let mut linker = Linker::<PluginStore>::new(&engine);
 
+        println!("Loading plugin from file: {}", wasm_file_name);
         let component = Component::from_binary(&engine, &wasm_bytes)?;
         //  {
         //     Ok(c) => c,
@@ -182,21 +182,47 @@ impl Plugin {
         //     }
         // };]
 
-        let host_temp_path = files_temp_dir.as_path().to_owned();
+        println!(
+            "Successfully loaded component for plugin: {}",
+            wasm_file_name
+        );
+        // let host_temp_path = files_temp_dir.as_path().to_owned();
 
         let mut builder = WasiCtxBuilder::new();
+        let host_temp_path = files_temp_dir.as_path();
+
+        std::fs::create_dir_all(&host_temp_path).map_err(|e| {
+            anyhow!(
+                "Failed to create host temporary directory for plugin {}: {}",
+                wasm_file_name,
+                e
+            )
+        })?;
+
+        println!(
+            "Preopening temp directory for plugin: {}",
+            host_temp_path.display()
+        );
+
+        let plugin_temp_dir = format!("/temp/{}", wasm_file_name);
         builder
             .preopened_dir(
-                host_temp_path,
-                "plugin_temp_files_path",
+                host_temp_path.clone(),
+                plugin_temp_dir,
                 wasmtime_wasi::DirPerms::all(),
                 wasmtime_wasi::FilePerms::all(),
-            )?
-            .inherit_stdout()
-            .inherit_stdin();
+            )
+            .map_err(|e| {
+                println!(
+                    "Failed to preopen directory for plugin {}: {}",
+                    wasm_file_name, e
+                );
+                e
+            })?;
 
+        println!("Building WASI context for plugin: {}", wasm_file_name);
         let mut wasi: WasiCtx = builder.inherit_stdio().build();
-        add_to_linker_sync(&mut linker)?;
+        add_to_linker_async(&mut linker)?;
 
         let hasura_manager = Arc::new(Mutex::new(PluginDbManager::init()));
         let keycloak_manager = Arc::new(Mutex::new(PluginDbManager::init()));
@@ -204,7 +230,7 @@ impl Plugin {
         let transactions_manager =
             PluginTransactionsManager::new(hasura_manager.clone(), keycloak_manager.clone());
 
-        let documents_manager = PluginDocumentsManager::new(files_temp_dir.clone());
+        let documents_manager = PluginDocumentsManager::new(host_temp_path.clone().to_path_buf());
 
         let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),

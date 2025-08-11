@@ -1,7 +1,8 @@
-use crate::postgres::area::get_area_by_id;
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::area::get_area_by_id;
+use crate::postgres::document::get_document;
 use crate::postgres::election::{get_election_by_id as get_election_by_id_postgres};
 use crate::postgres::election_event::get_election_event_by_election_area as get_election_event_by_election_area_postgres;
 use crate::postgres::results_event::get_results_event_by_id;
@@ -384,8 +385,26 @@ impl PostgresHost for PluginTransactionsManager {
         tenant_id: String,
         election_event_id: Option<String>,
         document_id: String,
-    ) -> Result<String, String> {
-        Ok("".to_string())
+    ) -> Result<Option<String>, String> {
+        let mut manager = self.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        let res = get_document(
+            hasura_transaction,
+            &tenant_id,
+            election_event_id,
+            &document_id,
+        )
+        .await
+        .map_err(|e| format!("Failed to get document: {}", e))?;
+        if let Some(document) = res {
+            let str = serde_json::to_string(&document)
+                .map_err(|e| format!("Failed to serialize area: {}", e))?;
+            Ok(Some(str))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn get_area_by_id(

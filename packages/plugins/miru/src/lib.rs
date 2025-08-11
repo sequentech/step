@@ -6,23 +6,26 @@ mod bindings;
 mod services;
 
 use crate::{
-    bindings::plugins_manager::{
-        common::types::{Manifest, PluginRoute},
-        transactions_manager::transaction::create_hasura_transaction,
+    bindings::{
+        export,
+        plugins_manager::{
+            common::types::{Manifest, PluginRoute},
+            transactions_manager::transaction::create_hasura_transaction,
+        },
+        Guest,
     },
     services::create_transmission_package::create_transmission_package_service,
 };
 use bindings::exports::plugins_manager::common::plugin_common::Guest as PluginCommonGuest;
 use bindings::plugins_manager::jwt::authorization::authorize;
-use bindings::Guest;
-use core::result::Result;
+use core::result::Result::{self, Ok};
 use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 
 struct Component;
 
 impl Guest for Component {
-    fn create_transmission_package(input: String) -> Result<String, String> {
+    fn create_transmission_package(input: String) -> Result<(), String> {
         // let parsed_data: Value = match serde_json::from_str(&input) {
         //     Ok(value) => value,
         //     Err(e) => {
@@ -60,21 +63,23 @@ impl Guest for Component {
         match create_hasura_transaction() {
             Ok(_) => {
                 let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-                let election_id = "c3e573de-2c77-4824-b279-278346b5a154";
-                let area_id = "b8af9d09-7e5c-443a-8491-4793a74c91d5";
-                let tally_session_id = "tally-session-id";
+                let election_id = "d51212b7-512c-4d40-aa3a-fcc61ba03573";
+                let area_id = "4f3e8fd3-5ab4-4142-92ad-8ed8cfedac98";
+                let tally_session_id = "fab7fbe6-2fc6-4c73-a896-139b949efa7a";
                 let force = false;
 
-                create_transmission_package_service(
+                let _ = create_transmission_package_service(
                     tenant_id,
                     election_id,
                     area_id,
                     tally_session_id,
                     force,
-                )
+                );
             }
-            Err(e) => Err(format!("Error creating hasura transaction: {}", e)),
-        }
+            Err(e) => return Err(format!("Error creating hasura transaction: {}", e)),
+        };
+
+        Ok(())
     }
 }
 
@@ -88,9 +93,9 @@ impl PluginCommonGuest for Component {
                 handler: "create-transmission-package".to_string(),
                 process_as_task: true,
             }],
-            tasks: vec![],
+            tasks: vec!["create-transmission-package".to_string()],
         }
     }
 }
 
-bindings::export!(Component with_types_in bindings);
+export!(Component with_types_in bindings);

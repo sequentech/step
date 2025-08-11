@@ -4,8 +4,8 @@
 package plugins-manager:documents-manager;
 
 interface documents {
-
-    create-document-as-temp-file: func(tenant-id: string, document: string) -> result<_, string>;
+    create-document-as-temp-file: func(tenant-id: string, document: string) -> result<string, string>;
+    print-data: func(data:string);
 }
 
 world documents-manager {

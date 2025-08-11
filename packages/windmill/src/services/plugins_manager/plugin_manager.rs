@@ -15,6 +15,7 @@ use std::env;
 use std::sync::Arc;
 use tempfile::tempdir;
 use wasmtime::{Config, Engine};
+
 pub struct PluginManager {
     pub plugins: DashMap<String, Arc<Plugin>>,
     pub hooks: DashMap<String, Vec<String>>, // (hook, list of plugin names)
@@ -48,6 +49,7 @@ impl PluginManager {
         let temp_dir = env::temp_dir();
 
         for (file_name, wasm) in wasms_files {
+            let file_name = file_name.trim_end_matches(".wasm").to_string();
             let plugin_tmpdir = temp_dir.join(&file_name);
             let plugin_tmpdir_path = plugin_tmpdir.to_path_buf();
 
@@ -212,7 +214,11 @@ impl PluginManager {
 
             let _ = plugin
                 .value()
-                .call_hook(task, vec![HookValue::String(input_json.clone())], vec![])
+                .call_hook(
+                    task,
+                    vec![HookValue::String(input_json.clone())],
+                    vec![HookValue::Result(core::result::Result::Ok(None))],
+                )
                 .await
                 .map_err(|e| anyhow!("Failed to call task {task} in plugin {plugin_name}: {e}"))?;
         }
