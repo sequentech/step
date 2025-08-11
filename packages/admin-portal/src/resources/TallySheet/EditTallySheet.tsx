@@ -98,7 +98,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         total_valid_votes: tallySheet?.annotations?.total_valid_votes || 0,
         invalid_votes: tallySheet?.annotations?.invalid_votes || {},
         total_blank_votes: tallySheet?.annotations?.total_blank_votes || 0,
-        census: tallySheet?.annotations?.census || 0,
+        census: tallySheet?.annotations?.census,
         candidate_results: tallySheet?.annotations?.candidate_results || {},
     })
     const [invalids, setInvalids] = useState<IInvalidVotes>({})
@@ -341,7 +341,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         // Census must be entered manually, we do not recalculate it.
         // Notify error if census is too small.
         let disableNextButton = false
-        if (newResults.census && newResults.census < newResults.total_votes) {
+        if (newResults.census !== undefined && newResults.census < newResults.total_votes) {
             disableNextButton = true
             setCensusError(true)
         } else {

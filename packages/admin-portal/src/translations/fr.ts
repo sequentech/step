@@ -1775,8 +1775,8 @@ const frenchTranslation: TranslationType = {
             table: {
                 area: "Zone",
                 contest: "Cotienda",
-                published: "Publié",
-            },
+                approvedVersion: "Version approuvée",
+                latestVersion: "Dernière version",            },
             message: {
                 publishError: "Erreur lors de la publication de la Feuille de Comptage",
                 publishSuccess: "Feuille de Comptage publiée",

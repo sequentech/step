@@ -1762,7 +1762,8 @@ const dutchTranslation: TranslationType = {
             table: {
                 area: "Gebied",
                 contest: "Verkiezing",
-                published: "Gepubliceerd",
+                approvedVersion: "Goedgekeurde versie",
+                latestVersion: "Nieuwste versie",
             },
             message: {
                 publishError: "Fout bij publiceren telblad",

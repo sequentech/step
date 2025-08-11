@@ -1773,7 +1773,8 @@ const catalanTranslation: TranslationType = {
             table: {
                 area: "Àrea",
                 contest: "Contesa",
-                published: "Publicat",
+                approvedVersion: "Versió aprovada",
+                latestVersion: "Última versió",
             },
             message: {
                 publishError: "Error publicant l'Acta de Recompte",

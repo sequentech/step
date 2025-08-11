@@ -66,10 +66,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
-
-    const [deleteOne] = useDelete()
-
-    const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openUnpublishDialog, setOpenUnpublishDialog] = React.useState(false)
     const [openPublishDialog, setOpenPublishDialog] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
@@ -262,7 +258,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     />
 
                     <FunctionField
-                        label={"Approved version"}
+                        label={t("tallysheet.table.approvedVersion")}
                         render={(record: any) =>
                             record.status === "APPROVED" ? (
                                 <TextField source="version" />
@@ -277,7 +273,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     />
 
                     <FunctionField
-                        label={"Latest version"}
+                        key={"latestVersion"}
+                        label={t("tallysheet.table.latestVersion")}
                         render={(record: any) => <TextField source="version" />}
                     />
 

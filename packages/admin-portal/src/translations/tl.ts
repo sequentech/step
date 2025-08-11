@@ -1767,7 +1767,8 @@ const tagalogTranslation: TranslationType = {
             table: {
                 area: "Lugar",
                 contest: "Paligsahan",
-                published: "Na-publish",
+                approvedVersion: "Inaprubahang bersyon",
+                latestVersion: "Pinakabagong bersyon",
             },
             message: {
                 publishError: "Error sa pag-publish ng tally sheet",

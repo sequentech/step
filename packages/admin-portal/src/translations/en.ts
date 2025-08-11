@@ -1747,7 +1747,8 @@ const englishTranslation = {
             table: {
                 area: "Area",
                 contest: "Contest",
-                published: "Published",
+                approvedVersion: "Approved version",
+                latestVersion: "Latest version",
             },
             message: {
                 publishError: "Error publishing tally sheet",

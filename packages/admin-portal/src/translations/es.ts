@@ -1763,7 +1763,8 @@ const spanishTranslation: TranslationType = {
             table: {
                 area: "Area",
                 contest: "Cotienda",
-                published: "Publicado",
+                approvedVersion: "Versión aprobada",
+                latestVersion: "Última versión",
             },
             message: {
                 publishError: "Error publicando la Hoja de Recuento",
