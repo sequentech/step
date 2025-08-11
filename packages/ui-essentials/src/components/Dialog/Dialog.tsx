@@ -46,6 +46,7 @@ export interface DialogProps extends PropsWithChildren {
     maxWidth?: Breakpoint | false
     errorMessage?: string
     hasCloseButton?: boolean
+    className?: string
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -62,6 +63,7 @@ const Dialog: React.FC<DialogProps> = ({
     maxWidth = "xs",
     errorMessage,
     hasCloseButton,
+    className,
 }) => {
     const okVariant =
         "info" === variant ? "primary" : "softwarning" === variant ? "softWarning" : "solidWarning"
@@ -81,6 +83,8 @@ const Dialog: React.FC<DialogProps> = ({
         okButtonRef.current = false
     }, [open])
 
+    let fullClass = className ? `${className} dialog` : "dialog"
+
     return (
         <MaterialDialog
             onClose={closeDialog}
@@ -88,7 +92,7 @@ const Dialog: React.FC<DialogProps> = ({
             slots={{backdrop: StyledBackdrop}}
             fullWidth={fullWidth}
             maxWidth={maxWidth}
-            className="dialog"
+            className={fullClass}
         >
             <DialogTitle className="dialog-title">
                 <Icon

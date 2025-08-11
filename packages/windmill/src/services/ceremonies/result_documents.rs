@@ -24,7 +24,8 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::compress_folder, documents::upload_and_return_document, folders::copy_to_temp_dir,
+        compress::create_archive_from_folder, documents::upload_and_return_document,
+        folders::copy_to_temp_dir,
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -241,7 +242,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let tar_gz_path_clone = tar_gz_path.clone();
             let original_handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path_clone);
-                compress_folder(&path)
+                create_archive_from_folder(&path, false)
             });
 
             // Await the result
@@ -314,7 +315,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                     Ok::<_, anyhow::Error>(())
                 })?;
 
-                compress_folder(&temp_dir_path)
+                create_archive_from_folder(&temp_dir_path, false)
             });
 
             // Await the result
