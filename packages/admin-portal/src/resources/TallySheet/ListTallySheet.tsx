@@ -25,8 +25,6 @@ import {
 } from "../../gql/graphql"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
-import EditIcon from "@mui/icons-material/Edit"
-import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
@@ -156,10 +154,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         return <Empty />
     }
 
-    const editAction = (id: Identifier) => {
-        doAction(WizardSteps.Edit, id)
-    }
-
     const viewAction = (id: Identifier) => {
         doAction(WizardSteps.View, id)
     }
@@ -172,24 +166,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const unpublishAction = (id: Identifier) => {
         setDeleteId(id)
         setOpenUnpublishDialog(true)
-    }
-
-    const deleteAction = (id: Identifier) => {
-        setOpenDeleteModal(true)
-        setDeleteId(id)
-    }
-
-    const confirmDeleteAction = () => {
-        deleteOne(
-            "sequent_backend_tally_sheet",
-            {id: deleteId},
-            {
-                onSuccess() {
-                    refresh()
-                },
-            }
-        )
-        setDeleteId(undefined)
     }
 
     const confirmPublishAction = async (isPublished: boolean) => {
@@ -213,7 +189,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
-        {icon: <EditIcon />, action: editAction, showAction: () => canCreate},
         {icon: <VisibilityIcon />, action: viewAction, showAction: () => canView},
         {
             icon: (
@@ -317,22 +292,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-
-            <Dialog
-                variant="warning"
-                open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmDeleteAction()
-                    }
-                    setOpenDeleteModal(false)
-                }}
-            >
-                {t("common.message.delete")}
-            </Dialog>
 
             <Dialog
                 variant="warning"
