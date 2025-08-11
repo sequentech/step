@@ -65,7 +65,7 @@ impl Guest for Component {
                 let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
                 let election_id = "d51212b7-512c-4d40-aa3a-fcc61ba03573";
                 let area_id = "4f3e8fd3-5ab4-4142-92ad-8ed8cfedac98";
-                let tally_session_id = "fab7fbe6-2fc6-4c73-a896-139b949efa7a";
+                let tally_session_id = "c4c5a920-d6cb-4da5-8b50-ec9a593f04ae";
                 let force = false;
 
                 let _ = create_transmission_package_service(

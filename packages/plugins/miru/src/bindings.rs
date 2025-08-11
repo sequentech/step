@@ -225,6 +225,82 @@ pub mod plugins_manager {
                 }
             }
             #[allow(unused_unsafe, clippy::all)]
+            pub fn get_tally_results(
+                tally_base_path: &str,
+            ) -> Result<_rt::String, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = tally_base_path;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:documents-manager/documents"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "get-tally-results"]
+                        fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import2(_: *mut u8, _: usize, _: *mut u8) {
+                        unreachable!()
+                    }
+                    unsafe { wit_import2(ptr0.cast_mut(), len0, ptr1) };
+                    let l3 = i32::from(*ptr1.add(0).cast::<u8>());
+                    let result10 = match l3 {
+                        0 => {
+                            let e = {
+                                let l4 = *ptr1
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l5 = *ptr1
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len6 = l5;
+                                let bytes6 = _rt::Vec::from_raw_parts(
+                                    l4.cast(),
+                                    len6,
+                                    len6,
+                                );
+                                _rt::string_lift(bytes6)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l7 = *ptr1
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l8 = *ptr1
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len9 = l8;
+                                let bytes9 = _rt::Vec::from_raw_parts(
+                                    l7.cast(),
+                                    len9,
+                                    len9,
+                                );
+                                _rt::string_lift(bytes9)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result10
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
             pub fn print_data(data: &str) -> () {
                 unsafe {
                     let vec0 = data;
@@ -2033,8 +2109,8 @@ pub(crate) use __export_miru_plugin_impl as export;
 #[unsafe(link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1641] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xe7\x0b\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1685] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x93\x0c\x01A\x02\x01\
 A\x11\x01B\x0b\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
 \x04\0\x1bcreate-keycloak-transaction\x01\x01\x01ps\x01j\x01s\x01s\x01@\x02\x03s\
 qls\x06params\x02\0\x03\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-k\
@@ -2053,19 +2129,20 @@ ts-event-ids\0\0\x04\0\x17get-results-event-by-id\x01\x09\x03\05plugins-manager:
 transactions-manager/postgres-queries\x05\x01\x01B\x05\x01ks\x01ps\x01j\0\x01s\x01\
 @\x04\x06claimss\x16allow-super-admin-auth\x7f\x0dtenant-id-opt\0\x0bpermissions\
 \x01\0\x02\x04\0\x09authorize\x01\x03\x03\0!plugins-manager:jwt/authorization\x05\
-\x02\x01B\x05\x01j\x01s\x01s\x01@\x02\x09tenant-ids\x08documents\0\0\x04\0\x1ccr\
-eate-document-as-temp-file\x01\x01\x01@\x01\x04datas\x01\0\x04\0\x0aprint-data\x01\
-\x02\x03\0+plugins-manager:documents-manager/documents\x05\x03\x01B\x06\x01r\x03\
-\x04paths\x07handlers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\
-\x01p\x01\x01r\x04\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\
-\x08manifest\x03\0\x04\x03\0\x1cplugins-manager:common/types\x05\x04\x01j\0\x01s\
-\x01@\x01\x04datas\0\x05\x04\0\x1bcreate-transmission-package\x01\x06\x02\x03\0\x04\
-\x08manifest\x02\x03\0\x04\x0cplugin-route\x01B\x06\x02\x03\x02\x01\x07\x04\0\x08\
-manifest\x03\0\0\x02\x03\x02\x01\x08\x04\0\x0cplugin-route\x03\0\x02\x01@\0\0\x01\
-\x04\0\x0cget-manifest\x01\x04\x04\0$plugins-manager:common/plugin-common\x05\x09\
-\x04\0'plugins-manager:miru-plugin/miru-plugin\x04\0\x0b\x11\x01\0\x0bmiru-plugi\
-n\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10\
-wit-bindgen-rust\x060.41.0";
+\x02\x01B\x07\x01j\x01s\x01s\x01@\x02\x09tenant-ids\x08documents\0\0\x04\0\x1ccr\
+eate-document-as-temp-file\x01\x01\x01@\x01\x0ftally-base-paths\0\0\x04\0\x11get\
+-tally-results\x01\x02\x01@\x01\x04datas\x01\0\x04\0\x0aprint-data\x01\x03\x03\0\
++plugins-manager:documents-manager/documents\x05\x03\x01B\x06\x01r\x03\x04paths\x07\
+handlers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01\
+r\x04\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08manifest\x03\
+\0\x04\x03\0\x1cplugins-manager:common/types\x05\x04\x01j\0\x01s\x01@\x01\x04dat\
+as\0\x05\x04\0\x1bcreate-transmission-package\x01\x06\x02\x03\0\x04\x08manifest\x02\
+\x03\0\x04\x0cplugin-route\x01B\x06\x02\x03\x02\x01\x07\x04\0\x08manifest\x03\0\0\
+\x02\x03\x02\x01\x08\x04\0\x0cplugin-route\x03\0\x02\x01@\0\0\x01\x04\0\x0cget-m\
+anifest\x01\x04\x04\0$plugins-manager:common/plugin-common\x05\x09\x04\0'plugins\
+-manager:miru-plugin/miru-plugin\x04\0\x0b\x11\x01\0\x0bmiru-plugin\x03\0\0\0G\x09\
+producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rus\
+t\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

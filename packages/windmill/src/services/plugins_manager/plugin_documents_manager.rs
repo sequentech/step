@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use core::convert::From;
 use sequent_core::types::hasura::core::Document;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
 use sequent_core::plugins_wit::lib::documents_bindings::plugins_manager::documents_manager::documents::Host;
-use crate::services::documents::get_document_as_temp_file_at_dir;
+use crate::services::{ceremonies::velvet_tally::generate_initial_state, documents::get_document_as_temp_file_at_dir, folders::list_files};
 
 // A struct to hold the host's state, including a map to manage the temporary files.
 pub struct PluginDocumentsManager {
@@ -57,5 +58,27 @@ impl Host for PluginDocumentsManager {
 
     async fn print_data(&mut self, data: String) {
         println!("Data to print: {}", data);
+    }
+
+    async fn get_tally_results(&mut self, tally_base_path: String) -> Result<String, String> {
+        println!("Getting tally results from: {}", tally_base_path);
+
+        let file = &self.path_dir;
+        let path = PathBuf::from(file).join(tally_base_path);
+
+        list_files(path.as_path()).map_err(|e| format!("Error listing files: {:?}", e))?;
+
+        let state = generate_initial_state(&path, "decode-ballots")
+            .map_err(|e| format!("Error in generate_initial_state: {:?}", e))?;
+
+        let results = state
+            .get_results(true)
+            .map_err(|e| format!("Error in get results from velvet state: {:?}", e))?;
+
+        let tally_res = serde_json::to_string(&results)
+            .map_err(|e| format!("Failed to serialize results event: {}", e))?;
+        // println!("Host Tally results: {}", tally_res);
+
+        Ok(tally_res)
     }
 }

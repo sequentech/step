@@ -5,6 +5,7 @@ package plugins-manager:documents-manager;
 
 interface documents {
     create-document-as-temp-file: func(tenant-id: string, document: string) -> result<string, string>;
+    get-tally-results: func(tally-base-path:string) -> result<string, string>;
     print-data: func(data:string);
 }
 

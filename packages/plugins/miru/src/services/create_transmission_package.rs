@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use core::{any::Any, convert::Into};
 use std::fs;
 
 use crate::bindings::plugins_manager::{
-    documents_manager::documents::{create_document_as_temp_file, print_data},
+    documents_manager::documents::{create_document_as_temp_file, get_tally_results, print_data},
     transactions_manager::postgres_queries::{
         get_area_by_id, get_document, get_election_by_id, get_election_event_by_election_area,
         get_last_tally_session_execution, get_results_event_by_id, get_tally_session_by_id,
@@ -34,14 +35,33 @@ use flate2::read::GzDecoder;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use tar::Archive;
+use tar::{Archive, Entries};
+use uuid::Uuid;
 
-pub fn decompress_file(input_file_name: &str) -> Result<PathBuf, String> {
-    let output_dir = PathBuf::from("/temp/miru").join("decompressed");
-    let output_path = output_dir.as_path();
-    println!("[Guest Plugin] Output path: {}", output_path.display());
-    std::fs::create_dir_all(&output_path).map_err(|e| e.to_string())?;
+pub fn decompress_file(input_file_name: &str) -> Result<String, String> {
+    let unique_dir_name = format!("temp-{}", Uuid::new_v4());
+    println!(
+        "[Guest Plugin] Creating temporary directory with unique name: {}",
+        unique_dir_name
+    );
 
+    // 2. Define the path for the new directory.
+    // WASI applications operate within a sandboxed environment,
+    // so you'll be creating this directory relative to the plugin's
+    // working directory.
+    let temp_dir_path = Path::new("/temp/miru").join(&unique_dir_name);
+
+    // 3. Create the directory. `create_dir_all` will also create
+    // any parent directories if they don't exist.
+    fs::create_dir_all(&temp_dir_path)
+        .map_err(|e| format!("Failed to create temporary directory: {}", e))?;
+
+    println!(
+        "Created temporary directory at: {}",
+        temp_dir_path.display()
+    );
+
+    let output_path = temp_dir_path.as_path();
     let input_dir = PathBuf::from("/temp/miru");
     let input_path = input_dir.join(input_file_name);
 
@@ -52,9 +72,11 @@ pub fn decompress_file(input_file_name: &str) -> Result<PathBuf, String> {
 
     let file = File::open(&input_path).map_err(|e| e.to_string())?;
 
+    println!("[Guest Plugin] Plugin opened file: {:?}", file);
+
     // 3. Create a GzDecoder and tar archive reader.
     let dec = GzDecoder::new(file);
-    let mut archive = Archive::new(dec);
+    let mut archive: Archive<GzDecoder<std::fs::File>> = Archive::new(dec);
 
     // 4. Unpack the archive into the pre-opened "output" directory.
     println!(
@@ -62,60 +84,102 @@ pub fn decompress_file(input_file_name: &str) -> Result<PathBuf, String> {
         output_path.display()
     );
 
-    archive
-        .unpack(&output_path)
-        .map_err(|e| format!("Error unpacking the tar archive: {}", e))?;
+    let output_path = temp_dir_path.clone(); // Clone the PathBuf
 
+    for entry_result in archive
+        .entries()
+        .map_err(|e| format!("Error getting archive entries: {}", e))?
+    {
+        let mut entry = entry_result.map_err(|e| format!("Error reading archive entry: {}", e))?;
+
+        // Get the entry's path and join it with your output directory.
+        // The tar crate returns a clean, relative path for the entry.
+        let entry_path = entry.path().map_err(|e| e.to_string())?;
+        let full_path = output_path.join(&entry_path);
+
+        // Get the entry's header to check if it's a file or directory
+        let header = entry.header();
+        let file_type = header.entry_type();
+
+        if file_type.is_dir() {
+            // Create the directory
+            fs::create_dir_all(&full_path)
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
+        } else if file_type.is_file() {
+            // Create parent directories if they don't exist
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| format!("Failed to create parent directories: {}", e))?;
+            }
+
+            // Create the file and copy the contents
+            let mut file = fs::File::create(&full_path)
+                .map_err(|e| format!("Failed to create file: {}", e))?;
+            std::io::copy(&mut entry, &mut file)
+                .map_err(|e| format!("Failed to copy file contents: {}", e))?;
+        } else {
+            println!("Skipping unsupported entry type: {:?}", file_type);
+        }
+    }
     println!(
         "[Guest Plugin] Decompressed successfully into directory: {}",
         output_path.display()
     );
 
-    Ok(output_path.to_path_buf())
+    Ok(unique_dir_name)
 }
 
 fn list_all_temp_files_directly(dir: &PathBuf) -> Result<(), String> {
     println!(
-        "[Guest Plugin] Listing all files in directory: {:?}",
+        "[Guest Plugin] Listing all files recursively in directory: {:?}",
         dir.display()
     );
+
     let mut file_names = Vec::new();
-    match fs::read_dir(dir) {
-        Ok(entries) => {
-            for entry in entries {
-                match entry {
-                    Ok(entry) => {
-                        let path = entry.path();
-                        if path.is_file() {
-                            // Only include files
-                            if let Some(file_name) = path.file_name() {
-                                file_names.push(file_name.to_string_lossy().into_owned());
-                            }
+    let mut dirs_to_visit = vec![dir.clone()];
+
+    while let Some(current_dir) = dirs_to_visit.pop() {
+        match fs::read_dir(&current_dir) {
+            Ok(entries) => {
+                for entry in entries {
+                    let entry = match entry {
+                        Ok(e) => e,
+                        Err(e) => {
+                            return Err(format!(
+                                "[Guest Plugin] Error reading directory entry: {}",
+                                e
+                            ))
                         }
-                    }
-                    Err(e) => {
-                        return Err(format!(
-                            "[Guest Plugin] Error reading directory entry: {}",
-                            e
-                        ))
+                    };
+
+                    let path = entry.path();
+                    if path.is_file() {
+                        if let Some(file_name) = path.file_name() {
+                            file_names.push(path.to_string_lossy().into_owned());
+                        }
+                    } else if path.is_dir() {
+                        dirs_to_visit.push(path);
                     }
                 }
             }
-            println!("[Guest Plugin] Listed files directly: {:?}", file_names);
-            Ok(())
+            Err(e) => {
+                return Err(format!(
+                    "[Guest Plugin] Failed to read directory {:?}: {}",
+                    current_dir, e
+                ))
+            }
         }
-        Err(e) => Err(format!(
-            "[Guest Plugin] Failed to read directory {:?}: {}",
-            dir, e
-        )),
     }
+
+    println!("[Guest Plugin] Listed files directly: {:?}", file_names);
+    Ok(())
 }
 
 pub fn download_tally_tar_gz_to_file(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-) -> Result<PathBuf, String> {
+) -> Result<String, String> {
     let Some(tally_session_execution_json) =
         get_last_tally_session_execution(tenant_id, election_event_id, tally_session_id)
             .map_err(|e| e.to_string())?
@@ -161,16 +225,25 @@ pub fn download_tally_tar_gz_to_file(
         "[Guest Plugin] Document created at: {}",
         tally_tr_gz_file_name
     );
-    let tally_path = decompress_file(&tally_tr_gz_file_name)?;
+
+    let tally_file_name = decompress_file(&tally_tr_gz_file_name)?;
 
     println!(
-        "[Guest Plugin] After decompression, tally path: {}",
-        tally_path.display()
+        "[Guest Plugin] After decompression, tally file name: {}",
+        tally_file_name
     );
 
-    list_all_temp_files_directly(&tally_path)?;
+    // list_all_temp_files_directly(&tally_path)?;
 
-    Ok(tally_path)
+    let tally_results_str = get_tally_results(&tally_file_name)
+        .map_err(|e| format!("Error getting tally results: {:?}", e))?;
+
+    println!("[Guest Plugin] Tally results string: {}", tally_results_str);
+
+    let tally_results = serde_json::from_str(&tally_results_str).map_err(|e| e.to_string())?;
+    println!("[Guest Plugin] Tally results len: {}", tally_results.len());
+
+    Ok(tally_file_name.to_string())
 }
 
 #[instrument(skip_all, err)]
