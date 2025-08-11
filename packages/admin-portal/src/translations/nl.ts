@@ -1742,11 +1742,13 @@ const dutchTranslation: TranslationType = {
                 subtitle: "Configuratie telblad.",
                 candidates: "Kandidaten",
                 save: "Opslaan",
-                publish: "Publiceren",
-                unpublish: "Publicatie Intrekken",
-                warningUnPublish:
-                    "Weet u zeker dat u de publicatie van dit telblad wilt intrekken?",
-                warningPublish: "Weet u zeker dat u dit telblad wilt publiceren?",
+                approve: "Goedkeuren",
+                disapprove: "Afkeuren",
+                show: "Tonen",
+                add: "Toevoegen",
+                versions: "Versies",
+                warningDisapprove: "Weet u zeker dat u dit Telformulier wilt afkeuren?",
+                warningApprove: "Weet u zeker dat u dit Telformulier wilt goedkeuren?",
             },
             empty: {
                 header: "Nog geen telblad.",

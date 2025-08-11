@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import { Show } from "react-admin"
+
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",
@@ -1728,10 +1730,13 @@ const englishTranslation = {
                 subtitle: "Tally Sheet configuration.",
                 candidates: "Candidates",
                 save: "Save",
-                publish: "Publish",
-                unpublish: "Unpublish",
-                warningUnPublish: "Are you sure tu unpublish this Tally Sheet?",
-                warningPublish: "Are you sure tu publish this Tally Sheet?",
+                approve: "Approve",
+                disapprove: "Disapprove",
+                show: "Show",
+                add: "Add",
+                versions: "Versions",
+                warningDisapprove: "Are you sure to disapprove this Tally Sheet?",
+                warningApprove: "Are you sure to approve this Tally Sheet?",
             },
             empty: {
                 header: "No Tally Sheet Yet.",

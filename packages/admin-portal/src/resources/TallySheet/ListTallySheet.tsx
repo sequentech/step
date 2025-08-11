@@ -38,7 +38,7 @@ import {useMutation} from "@apollo/client"
 import {REVIEW_TALLY_SHEET} from "@/queries/reviewTallySheet"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
-import {Add} from "@mui/icons-material"
+import {Add, WorkHistory} from "@mui/icons-material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -186,7 +186,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     }
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
-        {icon: <VisibilityIcon />, action: viewAction, showAction: () => canView},
+        {icon: <VisibilityIcon />, action: viewAction, showAction: () => canView, 
+            label: t("tallysheet.common.show"),
+        },
         {
             icon: (
                 <Tooltip title={t("tallysheet.common.publish")}>
@@ -195,6 +197,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             ),
             action: publishAction,
             showAction: () => canReview && record.reviewed_at === null,
+            label: t("tallysheet.common.approve"),
         },
         {
             icon: (
@@ -203,7 +206,20 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 </Tooltip>
             ),
             action: unpublishAction,
-            showAction: () => canReview && record.reviewed_at !== null,
+            showAction: () => canReview && record.reviewed_at === null,
+            label: t("tallysheet.common.disapprove"),
+        },
+        {
+            icon: <Add />,
+            action: createAction,
+            showAction: () => canCreate,
+            label: t("tallysheet.common.add"),
+        },
+        {
+            icon: <WorkHistory />,
+            action: viewAction,
+            showAction: () => canView,
+            label: t("tallysheet.common.versions"),
         },
     ]
 
@@ -293,9 +309,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             <Dialog
                 variant="warning"
                 open={openUnpublishDialog}
-                ok={t("tallysheet.common.unpublish")}
+                ok={t("tallysheet.common.disapprove")}
                 cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.unpublish")}
+                title={t("tallysheet.common.disapprove")}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmPublishAction(false)
@@ -303,15 +319,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     setOpenUnpublishDialog(false)
                 }}
             >
-                {t("tallysheet.common.warningUnPublish")}
+                {t("tallysheet.common.warningDisapprove")}
             </Dialog>
 
             <Dialog
                 variant="info"
                 open={openPublishDialog}
-                ok={t("tallysheet.common.publish")}
+                ok={t("tallysheet.common.approve")}
                 cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.publish")}
+                title={t("tallysheet.common.disapprove")}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmPublishAction(true)
@@ -319,7 +335,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     setOpenPublishDialog(false)
                 }}
             >
-                {t("tallysheet.common.warningPublish")}
+                {t("tallysheet.common.warningApprove")}
             </Dialog>
         </>
     )

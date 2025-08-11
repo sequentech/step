@@ -1746,11 +1746,13 @@ const galegoTranslation: TranslationType = {
                 subtitle: "Configuración da Acta de Escrutinio.",
                 candidates: "Candidatos",
                 save: "Gardar",
-                publish: "Publicar",
-                unpublish: "Despublicar",
-                warningUnPublish:
-                    "¿Estás seguro de que queres despublicar esta Acta de Escrutinio?",
-                warningPublish: "¿Estás seguro de que queres publicar esta Acta de Escrutinio?",
+                approve: "Aprobar",
+                disapprove: "Desaprobar",
+                show: "Amosar",
+                add: "Engadir",
+                versions: "Versións",
+                warningDisapprove: "Está seguro de desaprobar esta Folla de Reconto?",
+                warningApprove: "Está seguro de aprobar esta Folla de Reconto?",
             },
             empty: {
                 header: "Aínda non hai Acta de Escrutinio.",
