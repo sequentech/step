@@ -88,3 +88,16 @@ Copyright:
   2012-2016 Dan Wheeler and Dropbox, Inc.
 License: MIT
 
+Files:
+  packages/admin-portal/public/sql-wasm.js
+Copyright:
+  2025 Sequent Tech <legal@sequentech.io>
+License: MIT
+
+Files:
+  packages/admin-portal/public/sql-wasm.wasm
+Copyright:
+  2025 Sequent Tech <legal@sequentech.io>
+License: MIT
+
+
