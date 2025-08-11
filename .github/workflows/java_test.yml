@@ -27,10 +27,7 @@ jobs:
         distribution: 'adopt'
 
     - name: Install Maven
-      command:
-        - /bin/sh
-        - -c
-        - |
+      run: |
           set -eux
           apt update
           # create man folder, otherwise maven doesn't install. it's not there
