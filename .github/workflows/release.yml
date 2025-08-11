@@ -30,6 +30,7 @@ permissions:
 jobs:
   create-release-branch:
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
@@ -119,6 +120,7 @@ jobs:
 
   release:
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
@@ -252,6 +254,7 @@ jobs:
   trigger-beyond-release:
     needs: [release, build-and-push]
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
@@ -269,6 +272,7 @@ jobs:
   trigger-gitops-release:
     needs: [release, build-and-push]
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
@@ -286,6 +290,7 @@ jobs:
   trigger-deployer:
     needs: [release, create-release-branch, build-and-push, trigger-beyond-release, trigger-gitops-release]
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
@@ -304,6 +309,7 @@ jobs:
     # Here define the depenency jobs
     needs: [release,build-and-push]
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
@@ -323,6 +329,7 @@ jobs:
   slack-report:
     needs: [release, build-and-push, trigger-deployer, cleanup]
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
