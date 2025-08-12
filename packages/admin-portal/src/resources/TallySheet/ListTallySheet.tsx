@@ -71,7 +71,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
     const [showVersionsTable, setShowVersionsTable] = React.useState(false)
-    const [selectedTallySheet, setSelectedTallySheet] = React.useState<Sequent_Backend_Tally_Sheet | undefined>(undefined)
+    const [selectedTallySheet, setSelectedTallySheet] = React.useState<
+        Sequent_Backend_Tally_Sheet | undefined
+    >(undefined)
     const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
     const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
     const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
@@ -222,7 +224,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     return (
         <>
-            { showVersionsTable && selectedTallySheet && (
+            {showVersionsTable && selectedTallySheet && (
                 <ListTallySheetVersions
                     tallySheet={selectedTallySheet}
                     approveAction={approveAction}
@@ -231,7 +233,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     reload={reload}
                 />
             )}
-            { !showVersionsTable && (
+            {!showVersionsTable && (
                 <List
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
@@ -278,22 +280,18 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         <FunctionField
                             label={t("tallysheet.table.latestVersion")}
                             render={(record: any) =>
-                                getLatestVersion(
-                                        record.area_id,
-                                        record.contest_id,
-                                        record.channel
-                                    )
+                                getLatestVersion(record.area_id, record.contest_id, record.channel)
                             }
                         />
-                        
+
                         <FunctionField
                             label={t("tallysheet.table.approvedVersion")}
                             render={(record: any) =>
                                 getLatestApprovedVersion(
-                                        record.area_id,
-                                        record.contest_id,
-                                        record.channel
-                                    )
+                                    record.area_id,
+                                    record.contest_id,
+                                    record.channel
+                                )
                             }
                         />
 

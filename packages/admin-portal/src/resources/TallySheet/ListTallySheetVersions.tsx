@@ -167,7 +167,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     <FunctionField
                         key={"Created by"}
                         label={t("tallysheet.versionsTable.createdBy")}
-                        render={(record: any) => <TextField source="created_by_user_id" /> }
+                        render={(record: any) => <TextField source="created_by_user_id" />}
                     />
                     <DateField source="created_at" />
 
