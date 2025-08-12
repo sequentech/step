@@ -231,3 +231,5 @@ insert_failed_exceeds_allowed_revotes
 Migration files in the folder:
 _1744797160789_add_check_revote_limit_at_trigger_to_cast_vote_
 
+#Add Keycloak permission:
+   - export-verifiable-bulletin-board
