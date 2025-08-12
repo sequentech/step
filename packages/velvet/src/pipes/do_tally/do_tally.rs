@@ -11,6 +11,7 @@ use crate::pipes::{
     Pipe,
 };
 use crate::utils::HasId;
+use rayon::prelude::*;
 use sequent_core::{
     ballot::Candidate,
     services::area_tree::TreeNodeArea,
@@ -20,6 +21,7 @@ use sequent_core::{
 use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
 use std::cmp;
+use std::sync::Arc;
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -93,235 +95,308 @@ impl DoTally {
 }
 
 impl Pipe for DoTally {
-    #[instrument(err, skip_all, name = "DoTally::new")]
+    #[instrument(err, skip_all, name = "DoTally::exec")]
     fn exec(&self) -> Result<()> {
-        let input_dir = self
+        let input_dir_base = self
             .pipe_inputs
             .cli
             .output_dir
             .as_path()
             .join(PipeNameOutputDir::DecodeBallots.as_ref());
-        let output_dir = self
+        let output_dir_base = self
             .pipe_inputs
             .cli
             .output_dir
             .as_path()
             .join(PipeNameOutputDir::DoTally.as_ref());
-
-        let tally_sheets_dir = self.pipe_inputs.root_path_tally_sheets.clone();
+        let tally_sheets_dir_base = self.pipe_inputs.root_path_tally_sheets.clone();
 
         for election_input in &self.pipe_inputs.election_list {
-            for contest_input in &election_input.contest_list {
-                let mut contest_ballot_files = vec![];
-                let mut sum_census: u64 = 0;
-                let mut sum_auditable_votes: u64 = 0;
+            // Parallelize the processing of each contest
+            election_input
+                .contest_list
+                .par_iter()
+                .map(|contest_input| {
+                    let input_dir = input_dir_base.clone();
+                    let output_dir = output_dir_base.clone();
+                    let tally_sheets_dir = tally_sheets_dir_base.clone();
 
-                let areas: Vec<TreeNodeArea> = contest_input
-                    .area_list
-                    .iter()
-                    .map(|area| (&area.area).into())
-                    .collect();
-                info!("areas: {:?}", areas);
-                let all_areas = election_input.areas.clone();
+                    // These are specific to the contest and need to be cloned for use in area processing.
+                    let election_id_for_contest = contest_input.election_id.clone();
+                    let contest_id_for_contest = contest_input.id.clone();
+                    let contest_object_for_contest = contest_input.contest.clone();
 
-                let areas_tree = TreeNode::<()>::from_areas(all_areas).map_err(|err| {
-                    Error::UnexpectedError(format!("Error building area tree {:?}", err))
-                })?;
-                let census_map: HashMap<String, u64> = contest_input
-                    .area_list
-                    .iter()
-                    .map(|area_input| (area_input.area.id.to_string(), area_input.census))
-                    .collect();
-                let auditable_votes_map: HashMap<String, u64> = contest_input
-                    .area_list
-                    .iter()
-                    .map(|area_input| (area_input.area.id.to_string(), area_input.auditable_votes))
-                    .collect();
-
-                let mut tally_sheet_results: Vec<(ContestResult, TallySheet)> = vec![];
-
-                for area_input in &contest_input.area_list {
-                    let base_input_path = PipeInputs::build_path(
-                        &input_dir,
-                        &contest_input.election_id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                    );
-
-                    let base_output_path = PipeInputs::build_path(
-                        &output_dir,
-                        &contest_input.election_id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                    );
-
-                    let decoded_ballots_file = base_input_path.join(OUTPUT_DECODED_BALLOTS_FILE);
-
-                    // create aggregate tally from children areas
-                    let Some(area_tree) = areas_tree.find_area(&area_input.id.to_string()) else {
-                        return Err(Error::UnexpectedError(format!(
-                            "Error finding area {} in areas tree {:?}",
-                            area_input.id, areas_tree
-                        )));
-                    };
-                    // Note: children areas includes itself
-                    let children_areas = area_tree.get_all_children();
-
-                    let num_children_areas = children_areas
-                        .clone()
+                    // --- Start of logic for a single contest ---
+                    let _areas_info: Vec<TreeNodeArea> = contest_input // Renamed, original `areas` was unused after info
+                        .area_list
                         .iter()
-                        .filter(|child| child.id != area_input.id.to_string())
-                        .count();
+                        .map(|area| (&area.area).into())
+                        .collect();
+                    info!(
+                        "areas for contest {}: {:?}",
+                        contest_id_for_contest, _areas_info
+                    );
 
-                    if num_children_areas > 0usize {
-                        let base_aggregate_path = base_output_path
-                            .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
-                        fs::create_dir_all(&base_aggregate_path)?;
+                    let areas_tree = Arc::new(
+                        TreeNode::<()>::from_areas(election_input.areas.clone()).map_err(
+                            |err| {
+                                Error::UnexpectedError(format!(
+                                    "Error building area tree for contest {}: {:?}",
+                                    contest_id_for_contest, err
+                                ))
+                            },
+                        )?,
+                    );
 
-                        let census_size: u64 = children_areas
-                            .iter()
-                            .map(|child_area| census_map.get(&child_area.id))
-                            .filter_map(|census| census.clone())
-                            .sum();
+                    let census_map: HashMap<String, u64> = contest_input
+                        .area_list
+                        .iter()
+                        .map(|area_input| (area_input.area.id.to_string(), area_input.census))
+                        .collect();
+                    let auditable_votes_map: HashMap<String, u64> = contest_input
+                        .area_list
+                        .iter()
+                        .map(|area_input| {
+                            (area_input.area.id.to_string(), area_input.auditable_votes)
+                        })
+                        .collect();
 
-                        let auditable_votes_size: u64 = children_areas
-                            .iter()
-                            .map(|child_area| auditable_votes_map.get(&child_area.id))
-                            .filter_map(|auditable_votes: Option<&u64>| auditable_votes.clone())
-                            .sum();
+                    // Parallelize processing for each area within this contest
+                    let area_processing_results: Result<Vec<_>, Error> = contest_input
+                        .area_list
+                        .par_iter()
+                        .map(|area_input| {
+                            // Clone data needed per area task.
+                            let area_id = area_input.id.clone();
+                            let election_id = election_id_for_contest.clone();
+                            let contest_id = contest_id_for_contest.clone();
+                            let contest_object = contest_object_for_contest.clone();
 
-                        let children_area_paths: Vec<PathBuf> = children_areas
-                            .iter()
-                            .map(|child_area| -> Result<PathBuf> {
-                                Ok(PipeInputs::build_path(
-                                    &input_dir,
-                                    &contest_input.election_id,
-                                    Some(&contest_input.id),
-                                    Some(&Uuid::parse_str(&child_area.id).map_err(|err| {
-                                        Error::UnexpectedError(format!("{:?}", err))
-                                    })?),
+                            let base_input_path = PipeInputs::build_path(
+                                &input_dir,
+                                &election_id,
+                                Some(&contest_id),
+                                Some(&area_id),
+                            );
+
+                            let base_output_path = PipeInputs::build_path(
+                                &output_dir,
+                                &election_id,
+                                Some(&contest_id),
+                                Some(&area_id),
+                            );
+
+                            let decoded_ballots_file =
+                                base_input_path.join(OUTPUT_DECODED_BALLOTS_FILE);
+
+                            // Create aggregate tally from children areas
+                            let Some(area_tree_node) =
+                                areas_tree.as_ref().find_area(&area_input.id.to_string())
+                            else {
+                                return Err(Error::UnexpectedError(format!(
+                                    "Error finding area {} in areas tree for contest {}",
+                                    area_input.id, contest_id
+                                )));
+                            };
+                            let children_areas = area_tree_node.get_all_children();
+                            let num_children_areas = children_areas
+                                .iter()
+                                .filter(|child| child.id != area_input.id.to_string())
+                                .count();
+
+                            if num_children_areas > 0usize {
+                                let base_aggregate_path = base_output_path
+                                    .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
+                                fs::create_dir_all(&base_aggregate_path)?;
+
+                                let census_size: u64 = children_areas
+                                    .iter()
+                                    .filter_map(|child_area| {
+                                        census_map.get(&child_area.id).copied()
+                                    })
+                                    .sum();
+                                let auditable_votes_size: u64 = children_areas
+                                    .iter()
+                                    .filter_map(|child_area| {
+                                        auditable_votes_map.get(&child_area.id).copied()
+                                    })
+                                    .sum();
+
+                                let children_area_paths: Vec<PathBuf> = children_areas
+                                    .iter()
+                                    .map(|child_area| -> Result<PathBuf, Error> {
+                                        Ok(PipeInputs::build_path(
+                                            &input_dir,
+                                            &election_id,
+                                            Some(&contest_id),
+                                            Some(&Uuid::parse_str(&child_area.id).map_err(
+                                                |err| {
+                                                    Error::UnexpectedError(format!(
+                                                        "Uuid parse error: {err:?}"
+                                                    ))
+                                                },
+                                            )?),
+                                        )
+                                        .join(OUTPUT_DECODED_BALLOTS_FILE))
+                                    })
+                                    .collect::<Result<Vec<PathBuf>, Error>>()?;
+
+                                let counting_algorithm = tally::create_tally(
+                                    &contest_object,
+                                    children_area_paths,
+                                    census_size,
+                                    auditable_votes_size,
+                                    vec![],
                                 )
-                                .join(OUTPUT_DECODED_BALLOTS_FILE))
-                            })
-                            .collect::<Result<Vec<PathBuf>>>()?;
+                                .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                let res: ContestResult = counting_algorithm
+                                    .tally()
+                                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                let file_path =
+                                    base_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
+                                let file = fs::File::create(file_path)?;
+                                serde_json::to_writer_pretty(file, &res)?; // Using pretty for readability
+                            }
 
-                        let counting_algorithm = tally::create_tally(
-                            &contest_input.contest,
-                            children_area_paths,
-                            census_size,
-                            auditable_votes_size,
-                            vec![],
-                        )
-                        .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                        let res: ContestResult = counting_algorithm
-                            .tally()
+                            // Create area tally
+                            let counting_algorithm_area = tally::create_tally(
+                                &contest_object,
+                                vec![decoded_ballots_file.clone()],
+                                area_input.census,
+                                area_input.auditable_votes,
+                                vec![],
+                            )
                             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                        let file_path = base_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
+                            let res_area = counting_algorithm_area
+                                .tally()
+                                .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                        let file = fs::File::create(file_path)?;
+                            fs::create_dir_all(&base_output_path)?;
+                            let file_path_area = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
+                            let file_area = fs::File::create(file_path_area)?;
+                            serde_json::to_writer_pretty(file_area, &res_area)?; // Using pretty
 
-                        serde_json::to_writer(file, &res)?;
+                            // Tally sheets tally for this area
+                            let mut area_specific_tally_sheet_results: Vec<(
+                                ContestResult,
+                                TallySheet,
+                            )> = vec![];
+                            let input_tally_sheets_dir_path = PipeInputs::build_path(
+                                &tally_sheets_dir,
+                                &election_id,
+                                Some(&contest_id),
+                                Some(&area_id),
+                            );
+
+                            if input_tally_sheets_dir_path.exists()
+                                && input_tally_sheets_dir_path.is_dir()
+                            {
+                                let tally_sheet_folders =
+                                    list_tally_sheet_subfolders(&input_tally_sheets_dir_path);
+                                for tally_sheet_folder in tally_sheet_folders {
+                                    let tally_sheets_file_path =
+                                        tally_sheet_folder.join(INPUT_TALLY_SHEET_FILE);
+                                    let tally_sheet_str = fs::read_to_string(
+                                        &tally_sheets_file_path,
+                                    )
+                                    .map_err(|e| {
+                                        Error::FileAccess(tally_sheets_file_path.to_path_buf(), e)
+                                    })?;
+                                    let tally_sheet: TallySheet =
+                                        serde_json::from_str(&tally_sheet_str)?;
+                                    let output_tally_sheets_folder_path =
+                                        PipeInputs::build_tally_sheet_path(
+                                            &base_output_path,
+                                            &tally_sheet.id, // Assuming TallySheet has an id field
+                                        );
+                                    fs::create_dir_all(&output_tally_sheets_folder_path)?;
+                                    let contest_result_sheet =
+                                        tally::process_tally_sheet(&tally_sheet, &contest_object)
+                                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+                                    let output_tally_sheets_file_path =
+                                        output_tally_sheets_folder_path
+                                            .join(OUTPUT_CONTEST_RESULT_FILE);
+                                    let contest_result_file_sheet =
+                                        fs::File::create(&output_tally_sheets_file_path)?;
+                                    serde_json::to_writer_pretty(
+                                        contest_result_file_sheet,
+                                        &contest_result_sheet,
+                                    )?; // Using pretty
+                                    area_specific_tally_sheet_results
+                                        .push((contest_result_sheet, tally_sheet));
+                                }
+                            }
+                            // Return data needed for final aggregation for the contest
+                            Ok((
+                                decoded_ballots_file,
+                                area_input.census,
+                                area_input.auditable_votes,
+                                area_specific_tally_sheet_results,
+                            ))
+                        })
+                        .collect(); // Collects Result<Vec<(PathBuf, u64, u64, Vec<_>)>, Error>
+
+                    let collected_area_outputs = area_processing_results?; // Propagate error if any area failed
+
+                    // Aggregate results from parallel area processing
+                    let mut contest_ballot_files: Vec<PathBuf> = vec![];
+                    let mut sum_census: u64 = 0;
+                    let mut sum_auditable_votes: u64 = 0;
+                    let mut tally_sheet_results_for_contest: Vec<(ContestResult, TallySheet)> =
+                        vec![];
+
+                    for (ballot_file, census, auditable_votes_val, sheet_results) in
+                        collected_area_outputs
+                    {
+                        contest_ballot_files.push(ballot_file);
+                        sum_census += census;
+                        sum_auditable_votes += auditable_votes_val;
+                        tally_sheet_results_for_contest.extend(sheet_results);
                     }
 
-                    // create area tally
-                    let counting_algorithm = tally::create_tally(
-                        &contest_input.contest,
-                        vec![decoded_ballots_file.clone()],
-                        area_input.census,
-                        area_input.auditable_votes,
-                        vec![],
+                    // Create contest-level output path (directory for the contest)
+                    let contest_output_dir_path = PipeInputs::build_path(
+                        &output_dir, // This is the output_dir cloned for this contest task
+                        &election_id_for_contest,
+                        Some(&contest_id_for_contest),
+                        None, // No area_id for contest-level summary
+                    );
+                    fs::create_dir_all(&contest_output_dir_path)?; // Ensure contest directory exists
+
+                    self.save_tally_sheets_breakdown(
+                        &tally_sheet_results_for_contest,
+                        &contest_output_dir_path,
+                    )?;
+
+                    let final_only_sheet_results: Vec<ContestResult> =
+                        tally_sheet_results_for_contest
+                            .iter()
+                            .map(|(res, _)| res.clone())
+                            .collect();
+
+                    // Create final contest tally
+                    let final_counting_algorithm = tally::create_tally(
+                        &contest_object_for_contest,
+                        contest_ballot_files,
+                        sum_census,
+                        sum_auditable_votes,
+                        final_only_sheet_results,
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                    let res = counting_algorithm
+                    let final_res = final_counting_algorithm
                         .tally()
                         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
-                    fs::create_dir_all(&base_output_path)?;
-                    let file_path = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
+                    let final_contest_result_file_path =
+                        contest_output_dir_path.join(OUTPUT_CONTEST_RESULT_FILE);
+                    let final_file = fs::File::create(final_contest_result_file_path)?;
+                    serde_json::to_writer_pretty(final_file, &final_res)?; // Using pretty
 
-                    let file = fs::File::create(file_path)?;
-
-                    serde_json::to_writer(file, &res)?;
-
-                    contest_ballot_files.push(decoded_ballots_file);
-
-                    sum_census += area_input.census;
-                    sum_auditable_votes += area_input.auditable_votes;
-
-                    // tally sheets tally
-                    let input_tally_sheets_dir = PipeInputs::build_path(
-                        &tally_sheets_dir,
-                        &contest_input.election_id,
-                        Some(&contest_input.id),
-                        Some(&area_input.id),
-                    );
-                    if input_tally_sheets_dir.exists() && input_tally_sheets_dir.is_dir() {
-                        let tally_sheet_folders =
-                            list_tally_sheet_subfolders(&input_tally_sheets_dir);
-                        for tally_sheet_folder in tally_sheet_folders {
-                            // read tally sheet
-                            let tally_sheets_file_path =
-                                tally_sheet_folder.join(INPUT_TALLY_SHEET_FILE);
-                            let tally_sheet_str = fs::read_to_string(&tally_sheets_file_path)
-                                .map_err(|e| {
-                                    Error::FileAccess(tally_sheets_file_path.to_path_buf(), e)
-                                })?;
-                            let tally_sheet: TallySheet = serde_json::from_str(&tally_sheet_str)?;
-                            let output_tally_sheets_folder_path =
-                                PipeInputs::build_tally_sheet_path(
-                                    &base_output_path,
-                                    &tally_sheet.id,
-                                );
-                            fs::create_dir_all(&output_tally_sheets_folder_path)?;
-                            let contest_result =
-                                tally::process_tally_sheet(&tally_sheet, &contest_input.contest)
-                                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-
-                            let output_tally_sheets_file_path =
-                                output_tally_sheets_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
-                            let contest_result_file =
-                                fs::File::create(&output_tally_sheets_file_path)?;
-                            serde_json::to_writer(contest_result_file, &contest_result)?;
-
-                            tally_sheet_results.push((contest_result, tally_sheet));
-                        }
-                    }
-                }
-                let mut file_path = PipeInputs::build_path(
-                    &output_dir,
-                    &contest_input.election_id,
-                    Some(&contest_input.id),
-                    None,
-                );
-
-                self.save_tally_sheets_breakdown(&tally_sheet_results, &file_path)?;
-
-                let only_sheet_results = tally_sheet_results
-                    .iter()
-                    .map(|val| val.0.clone())
-                    .collect();
-
-                // create contest tally
-                let counting_algorithm = tally::create_tally(
-                    &contest_input.contest,
-                    contest_ballot_files,
-                    sum_census,
-                    sum_auditable_votes,
-                    only_sheet_results,
-                )
-                .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                let res = counting_algorithm
-                    .tally()
-                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-
-                file_path.push(OUTPUT_CONTEST_RESULT_FILE);
-
-                let file = fs::File::create(file_path)?;
-
-                serde_json::to_writer(file, &res)?;
-            }
+                    Ok(()) // Result for this contest's processing
+                })
+                .collect::<Result<Vec<()>, Error>>()?; // Collect results from parallel contest processing
         }
-
         Ok(())
     }
 }

@@ -83,44 +83,6 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         }
     }, [areas, areaIds])
 
-    // If there already is such a document, get it to re-use it
-    useEffect(() => {
-        const fetchDocumentId = async (documentName: string) => {
-            try {
-                const {data, error} = await getDocumentByName({
-                    variables: {
-                        name: documentName,
-                        tenantId,
-                    },
-                    fetchPolicy: "network-only",
-                })
-
-                if (error) {
-                    console.error("Error fetching document:", error)
-                    return false
-                }
-                const length = data?.sequent_backend_document?.length || 0
-                if (length === 0) {
-                    return false
-                }
-                const last = length > 0 ? length - 1 : 0
-                return data?.sequent_backend_document[last]?.id
-            } catch (err) {
-                console.error("Exception in fetchDocumentId:", err)
-                return false
-            }
-        }
-
-        const getDocumentId = async () => {
-            const docId = await fetchDocumentId(`${publicationId}.json`)
-            setDocumentId(docId)
-        }
-
-        if (!documentId) {
-            getDocumentId()
-        }
-    }, [])
-
     // This useEffect handles file upload
     useEffect(() => {
         const preparePreviewData = async () => {
