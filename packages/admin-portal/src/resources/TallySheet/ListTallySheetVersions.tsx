@@ -70,7 +70,14 @@ interface TTallySheetListVersions {
 }
 
 export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props) => {
-    const {tallySheet: tallySheet, doAction, reload, approveAction, disapproveAction, setShowVersionsTable} = props
+    const {
+        tallySheet: tallySheet,
+        doAction,
+        reload,
+        approveAction,
+        disapproveAction,
+        setShowVersionsTable,
+    } = props
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
