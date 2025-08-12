@@ -38,6 +38,7 @@ pub mod manage_election_init_report;
 pub mod manage_election_voting_period_end;
 pub mod manual_verification_report;
 pub mod miru_plugin_tasks;
+pub mod prepare_publication_preview;
 pub mod process_board;
 pub mod render_document_pdf;
 pub mod render_report;

@@ -10,15 +10,22 @@ set -x
 # Set default values
 cd /opt/braid
 #bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-board-db -l debug
-TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG is set
-SECRETS_BACKEND=${SECRETS_BACKEND:-"awsSecretsManager"} # Default to awsSecretsManager if not set
+TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
+SECRETS_BACKEND=${SECRETS_BACKEND:-"AwsSecretManager"} # Default to AwsSecretManager if not set
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
     echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
     exit 1
 fi
+
+# Check if the binary exists
+if ! command -v gen_trustee_config &> /dev/null; then
+    echo "Error: gen_trustee_config binary not found in PATH"
+    exit 1
+fi
+
 SECRET_KEY_NAME="secrets/${TRUSTEE_NAME}_config"
 
-if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
+if [ "$SECRETS_BACKEND" = "AwsSecretManager" ]; then
     if [ -z "$AWS_SM_KEY_PREFIX" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]
     then
         echo "Error: AWS_SM_KEY_PREFIX must be set." #Avoid secrets overwriting
@@ -61,34 +68,55 @@ handle_trustee_config() {
     local config_content
     log "Querying secrets service for config..."
 
-    if [ -f $TRUSTEE_CONFIG_PATH ]; then
-        TRUSTEE_CONFIG_DATA=$(<$TRUSTEE_CONFIG_PATH);
+    if [ -f "$TRUSTEE_CONFIG_PATH" ] && [ "$SECRETS_BACKEND" = "EnvVarMasterSecret" ] && ! [ -z "$TRUSTEE_CONFIG" ]; then
+        rm "$TRUSTEE_CONFIG_PATH"
     fi
 
-    if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
-        config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || true
+    if [ -f "$TRUSTEE_CONFIG_PATH" ]; then
+        config_content=$(<"$TRUSTEE_CONFIG_PATH")
+        log "Using existing config from $TRUSTEE_CONFIG_PATH"
     else
-        config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || true
-    fi
+        case "$SECRETS_BACKEND" in
+            "EnvVarMasterSecret")
+                if [ -z "$TRUSTEE_CONFIG" ]; then
+                    log "TRUSTEE_CONFIG empty, generating ephemeral config"
+                    config_content=$(gen_trustee_config)
+                else
+                    config_content=$(echo -e "$TRUSTEE_CONFIG")
+                fi
+                ;;
+            "AwsSecretManager")
+                config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || {
+                    log "Failed to fetch from AWS Secrets Manager"
+                    config_content=""
+                }
+                ;;
+            "HashiCorpVault")
+                config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || {
+                    log "Failed to fetch from HashiCorp Vault"
+                    config_content=""
+                }
+                ;;
+            *)
+                echo "Error: Unsupported SECRETS_BACKEND: $SECRETS_BACKEND"
+                exit 1
+                ;;
+        esac
 
-    if [ -z "$config_content" ]; then
-        log "Config does not exist, generating..."
-        if [ -z "$TRUSTEE_CONFIG_DATA" ]; then
+        if [ -z "$config_content" ]; then
+            log "Config does not exist, generating..."
             config_content=$(gen_trustee_config)
-        else
-            config_content=$TRUSTEE_CONFIG_DATA
+            if [ "$SECRETS_BACKEND" = "AwsSecretManager" ]; then
+                store_secret_aws "$SECRET_KEY_NAME" "$config_content"
+            elif [ "$SECRETS_BACKEND" = "HashiCorpVault" ]; then
+                store_secret_vault "$SECRET_KEY_NAME" "$config_content"
+            fi
         fi
-        
-        if [ "$SECRETS_BACKEND" = "awsSecretsManager" ]; then
-            store_secret_aws "$SECRET_KEY_NAME" "$config_content"
-        else
-            store_secret_vault "$SECRET_KEY_NAME" "$config_content"
-        fi
-    else
-        log "Config exists, using existing configuration"
     fi
-    if [ -z "$TRUSTEE_CONFIG_DATA" ]; then
-        echo "$config_content" > "$TRUSTEE_CONFIG_PATH"
+
+    if [ ! -f "$TRUSTEE_CONFIG_PATH" ] || [ "$(cat "$TRUSTEE_CONFIG_PATH")" != "$config_content" ]; then
+        printf "%b" "$config_content" > "$TRUSTEE_CONFIG_PATH"
+        log "Wrote config to $TRUSTEE_CONFIG_PATH"
     fi
     cat "$TRUSTEE_CONFIG_PATH"
 }

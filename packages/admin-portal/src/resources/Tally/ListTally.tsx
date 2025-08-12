@@ -130,6 +130,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     ])
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
+    const [isCreatingTally, setIsCreatingTally] = React.useState<boolean>(false)
 
     const isPublished = electionEventRecord?.status && electionEventRecord.status.is_published
 
@@ -227,8 +228,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const CreateTallyButton = () => (
         <Button
             label={t("electionEventScreen.tally.create.createTallyButton")}
-            onClick={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
-            disabled={!isKeyCeremonyFinished || !isPublished}
+            onClick={() => {
+                setIsCreatingTally(true)
+                setCreatingFlag(ETallyType.ELECTORAL_RESULTS)
+            }}
+            disabled={!isKeyCeremonyFinished || !isPublished || isCreatingTally}
             style={{height: "10px"}}
             sx={{marginBottom: "10px"}}
         >
@@ -431,7 +435,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             withExport={false}
                             withFilter={false}
                             withAction={canCreateCeremony}
-                            doAction={() => setCreatingFlag(ETallyType.ELECTORAL_RESULTS)}
+                            doAction={() => {
+                                setIsCreatingTally(true)
+                                setCreatingFlag(ETallyType.ELECTORAL_RESULTS)
+                            }}
                             actionLabel="electionEventScreen.tally.create.createTallyButton"
                             extraActions={
                                 canAdminCeremony

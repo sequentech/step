@@ -9,3 +9,4 @@ build/
 src/gql/
 public/tinymce/
 public/intl-tel-input/
+public/sql-wasm.js

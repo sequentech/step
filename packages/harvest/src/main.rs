@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+#![recursion_limit = "256"]
 #[macro_use]
 extern crate rocket;
 
@@ -52,9 +52,11 @@ async fn rocket() -> _ {
                 routes::ballot_publication::get_ballot_publication_changes,
                 routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
+                routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
                 routes::elections::create_election,
+                routes::areas::upsert_area,
                 routes::election_event_stats::get_election_event_stats,
                 routes::election_stats::get_election_stats,
                 routes::scheduled_event::create_scheduled_event,

@@ -100,6 +100,7 @@ const tagalogTranslation: TranslationType = {
                 deleteError: "Error sa pagtanggal ng lugar",
             },
             createAreaSuccess: "Lugar na nalikha",
+            updateAreaSuccess: "Na-update ang lugar",
             createAreaError: "Hindi makalikha ng Lugar",
             sequent_backend_area_contest: "Mga Paligsahan",
             empty: {
@@ -987,6 +988,8 @@ const tagalogTranslation: TranslationType = {
                 decryptFileTitle: "Decrypt File",
                 decryptInstructions:
                     "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
+                encryptSuccess: "Matagumpay na na-setup ang pag-encrypt ng ulat",
+                encryptError: "Error sa pag-setup ng pag-encrypt ng ulat",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
@@ -1085,6 +1088,11 @@ const tagalogTranslation: TranslationType = {
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
                 approve: "Aprubahan",
+                continue: "Magpatuloy",
+                logout: "Mag-logout",
+                selectTenant: "Pumili ng Tenant",
+                processing: "Nagpro-process...",
+                tenantName: "Pangalan ng Tenant",
             },
             language: {
                 es: "Espanyol",
@@ -1094,6 +1102,7 @@ const tagalogTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -1101,6 +1110,7 @@ const tagalogTranslation: TranslationType = {
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
+                continueOrLogout: "Gusto mo bang magpatuloy o mag-logout?",
             },
         },
         createResource: {
@@ -1310,6 +1320,8 @@ const tagalogTranslation: TranslationType = {
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
                 },
                 filterTrustees: "I-filter ang mga trustee",
+                errorPermisionLabels:
+                    "Hindi maipagawa ang keys ceremony: may nawawala sa isa o higit pang permission label.",
             },
             ceremonyStep: {
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
@@ -1876,6 +1888,10 @@ const tagalogTranslation: TranslationType = {
             fields: {
                 isHidden: "Nakatago",
                 publicUrl: "Publikong URL",
+            },
+            empty: {
+                header: "Wala pang support material",
+                action: "Gumawa ng support material",
             },
         },
         widget: {

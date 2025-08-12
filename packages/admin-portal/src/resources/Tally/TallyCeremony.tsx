@@ -112,7 +112,7 @@ export const TallyCeremony: React.FC = () => {
     const {
         tallyId,
         setTallyId,
-        isCreatingType,
+        creatingType,
         setCreatingFlag,
         setElectionEventIdFlag,
         setMiruAreaId,
@@ -138,13 +138,13 @@ export const TallyCeremony: React.FC = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
-    const [selectedElections, setSelectedElections] = useState<string[]>([])
+    const [selectedElections, setSelectedElections] = useState<string[] | undefined>(undefined)
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
-
+    const allowTallyCeremonyCreation = useRef<boolean>(true)
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
@@ -272,6 +272,8 @@ export const TallyCeremony: React.FC = () => {
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
 
+    const resultsSQLiteDocumentId = tallySessionExecutions?.[0]?.documents?.sqlite ?? null
+
     const tallySessionData = useMemo(() => {
         try {
             let strData = tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
@@ -374,13 +376,13 @@ export const TallyCeremony: React.FC = () => {
     }, [tallySession])
 
     useEffect(() => {
-        if (page === WizardSteps.Start) {
+        if (page === WizardSteps.Start && creatingType !== ETallyType.INITIALIZATION_REPORT) {
             let is_published = elections?.every(
                 (election) =>
-                    !selectedElections.includes(election.id) || election.status?.is_published
+                    !selectedElections?.includes(election.id) || election.status?.is_published
             )
             let newIsButtonDisabled =
-                (page === WizardSteps.Start && selectedElections.length === 0 ? true : false) ||
+                (page === WizardSteps.Start && selectedElections?.length === 0 ? true : false) ||
                 !is_published
             setIsButtonDisabled(newIsButtonDisabled)
         }
@@ -432,9 +434,6 @@ export const TallyCeremony: React.FC = () => {
                     : isInitAllowed
             let newIsButtonDisabled =
                 tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
-            console.log(
-                `setIsButtonDisabled = ${newIsButtonDisabled}, tallySession?.tally_type = ${tallySession?.tally_type}`
-            )
             if (newIsButtonDisabled !== isButtonDisabled) {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
@@ -442,12 +441,11 @@ export const TallyCeremony: React.FC = () => {
 
         if (page === WizardSteps.Tally) {
             let newIsButtonDisabled = tally?.execution_status !== ITallyExecutionStatus.SUCCESS
-
             if (newIsButtonDisabled !== isButtonDisabled) {
                 setIsButtonDisabled(newIsButtonDisabled)
             }
         }
-    }, [tally, page, elections, isButtonDisabled, isTallyAllowed])
+    }, [tally, page, elections, isTallyAllowed])
 
     useEffect(() => {
         let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
@@ -458,7 +456,13 @@ export const TallyCeremony: React.FC = () => {
     }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
 
     useEffect(() => {
-        if (isCreatingType === ETallyType.INITIALIZATION_REPORT) {
+        if (
+            creatingType === ETallyType.INITIALIZATION_REPORT &&
+            page === WizardSteps.Start &&
+            selectedElections &&
+            elections &&
+            allTallySessions
+        ) {
             // An initialization report is considered succesfully created if:
             // 1. It's not in CANCELLED status.
             // 2. It's in a cancellable status or successful. Cancellable status
@@ -484,9 +488,9 @@ export const TallyCeremony: React.FC = () => {
             // or if the initialization report is either not allowed or already generated when allowed,
             // then `newStatus` will be `true`, and the button will be disabled.
             const newStatus =
-                selectedElections.length == 0 ||
+                selectedElections?.length == 0 ||
                 elections
-                    ?.filter((election) => selectedElections.includes(election.id))
+                    ?.filter((election) => selectedElections?.includes(election.id))
                     .some(
                         (election) =>
                             !election.status?.is_published ||
@@ -497,13 +501,13 @@ export const TallyCeremony: React.FC = () => {
                             election.initialization_report_generated
                     ) ||
                 false
-            console.log(`InitReport: setIsButtonDisabled = ${newStatus}`)
             setIsButtonDisabled(newStatus)
         }
     }, [selectedElections, elections, allTallySessions])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
+            setIsButtonDisabled(true)
             setOpenModal(true)
         } else if (page === WizardSteps.Ceremony) {
             setIsButtonDisabled(true)
@@ -517,15 +521,14 @@ export const TallyCeremony: React.FC = () => {
 
     const confirmStartAction = async () => {
         try {
-            setIsButtonDisabled(true)
             setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
                 variables: {
                     tenant_id: record?.tenant_id,
                     election_event_id: record?.id,
                     keys_ceremony_id: keysCeremonyId,
-                    election_ids: selectedElections,
-                    tally_type: isCreatingType,
+                    election_ids: selectedElections ?? [],
+                    tally_type: creatingType,
                 },
             })
 
@@ -542,13 +545,12 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
         } finally {
+            allowTallyCeremonyCreation.current = true
             refetch()
-            setIsButtonDisabled(false)
         }
     }
 
     const confirmCeremonyAction = async () => {
-        setIsButtonDisabled(true)
         setIsConfirming(true)
         try {
             const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
@@ -562,7 +564,6 @@ export const TallyCeremony: React.FC = () => {
             if (errors) {
                 notify(t("tally.startTallyError"), {type: "error"})
                 setIsConfirming(false)
-                setIsButtonDisabled(false)
                 return
             }
 
@@ -570,12 +571,10 @@ export const TallyCeremony: React.FC = () => {
                 notify(t("tally.startTallySuccess"), {type: "success"})
                 refetchTallySession()
                 setIsConfirming(false)
-                setIsButtonDisabled(false)
                 setCreatingFlag(null)
             }
         } catch (error) {
             setIsConfirming(false)
-            setIsButtonDisabled(false)
             notify(t("tally.startTallyError"), {type: "error"})
         }
     }
@@ -747,6 +746,7 @@ export const TallyCeremony: React.FC = () => {
                             isTallyCompleted={isTallyCompleted}
                             contests={contests ?? []}
                             electionIds={tallySession?.election_ids ?? []}
+                            databaseName={resultsSQLiteDocumentId}
                         />
                     ) : null}
                     {page === WizardSteps.Start && (
@@ -764,7 +764,7 @@ export const TallyCeremony: React.FC = () => {
                             )}
                             <ElectionHeader
                                 title={
-                                    isCreatingType === ETallyType.ELECTORAL_RESULTS
+                                    creatingType === ETallyType.ELECTORAL_RESULTS
                                         ? "tally.ceremonyTitle"
                                         : "tally.initializationTitle"
                                 }
@@ -1094,13 +1094,14 @@ export const TallyCeremony: React.FC = () => {
                     {page < WizardSteps.Results &&
                         tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
                             <NextButton
+                                key="tally-next-button"
                                 color="primary"
                                 onClick={handleNext}
                                 disabled={isButtonDisabled}
                             >
                                 <>
                                     {page === WizardSteps.Start
-                                        ? isCreatingType === ETallyType.ELECTORAL_RESULTS
+                                        ? creatingType === ETallyType.ELECTORAL_RESULTS
                                             ? t("tally.common.ceremony")
                                             : t("tally.common.initialization")
                                         : page === WizardSteps.Ceremony
@@ -1109,9 +1110,13 @@ export const TallyCeremony: React.FC = () => {
                                         ? t("tally.common.results")
                                         : t("tally.common.next")}
                                     {isConfirming ? (
-                                        <StyledCircularProgress color="inherit" />
+                                        <StyledCircularProgress
+                                            key="progress-tally-next"
+                                            color="inherit"
+                                        />
                                     ) : (
                                         <ChevronRightIcon
+                                            key="icon-tally-next"
                                             style={{
                                                 transform:
                                                     i18n.dir(i18n.language) === "rtl"
@@ -1127,34 +1132,48 @@ export const TallyCeremony: React.FC = () => {
             </TallyStyles.FooterContainer>
 
             <Dialog
+                key="tally-create-dialog"
                 variant="info"
                 open={openModal}
                 ok={t("tally.common.dialog.ok")}
                 cancel={t("tally.common.dialog.cancel")}
                 title={t("tally.common.dialog.title")}
                 handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmStartAction()
-                    }
                     setOpenModal(false)
+                    if (result) {
+                        if (allowTallyCeremonyCreation.current) {
+                            allowTallyCeremonyCreation.current = false
+                            confirmStartAction() // Creates the ceremony
+                        }
+                    } else {
+                        setIsButtonDisabled(false)
+                    }
+                    // Don't enable the button again because it is handled in the effect when the page changes
                 }}
             >
                 {t("tally.common.dialog.message")}
             </Dialog>
 
             <Dialog
+                key="tally-start-dialog"
                 variant="info"
                 open={openCeremonyModal}
                 ok={t("tally.common.dialog.okTally")}
                 cancel={t("tally.common.dialog.cancel")}
                 title={t("tally.common.dialog.tallyTitle")}
                 handleClose={(result: boolean) => {
+                    setOpenCeremonyModal(false)
+                    // isButtonDisabled should be true at this point, set in handleNext
                     if (result) {
-                        confirmCeremonyAction()
+                        confirmCeremonyAction() // Starts the tally by setting the status to IN_PROGRESS
+                        // Either if start tally is successful or not, the button stays disabled.
+                        // The next page "Results" doesn't have next button anyhow, and the execution status
+                        // cannot be failed. Then while it is IN_PROGRESS the button remains disabled.
                     } else {
                         setIsButtonDisabled(false)
+                        // enables the button again because the user cancelled the dialog
+                        // so the user can try again.
                     }
-                    setOpenCeremonyModal(false)
                 }}
             >
                 {t("tally.common.dialog.ceremony")}

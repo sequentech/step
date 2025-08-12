@@ -159,3 +159,8 @@ pub enum TallyType {
     #[strum(serialize = "INITIALIZATION_REPORT")]
     INITIALIZATION_REPORT,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+pub struct TallySessionDocuments {
+    pub sqlite: Option<String>,
+}
