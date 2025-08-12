@@ -1876,5 +1876,5 @@ ALTER TABLE "sequent_backend"."document" ALTER COLUMN "size" TYPE int8;
 alter table "sequent_backend"."tally_session_execution" add column "documents" JSONB
  null;
 
-CREATE UNIQUE INDEX "tally_sheet_uniq_channel" on
-  "sequent_backend"."tally_sheet" using btree ("tenant_id", "election_event_id", "election_id", "contest_id", "area_id", "channel");
+CREATE UNIQUE INDEX "tally_sheet_uniq_version" on
+  "sequent_backend"."tally_sheet" using btree ("tenant_id", "election_event_id", "election_id", "contest_id", "area_id", "channel", "version");

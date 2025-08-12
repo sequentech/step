@@ -153,7 +153,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
             }, 400)
         } else if (page === WizardSteps.Confirm) {
             console.log("confirmed: ", tallySheetId, tallySheet) // ITs undefined when adding a new one.
-            // insertTallySheetAction()
+            insertTallySheetAction()
             doAction(WizardSteps.List)
         }
     }

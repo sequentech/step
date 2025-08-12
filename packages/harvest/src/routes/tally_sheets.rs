@@ -19,94 +19,6 @@ use windmill::postgres::{contest::get_contest_by_id, tally_sheet};
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AddTallySheetVersionInput {
-    election_event_id: String,
-    tally_sheet_id: String,
-    old_version: u32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct AddTallySheetVersionOutput {
-    tally_sheet_id: Option<String>,
-}
-
-// The main function to start a key ceremony
-#[instrument(skip(claims))]
-#[post("/add-tally-sheet-version", format = "json", data = "<body>")]
-pub async fn add_tally_sheet_version(
-    body: Json<AddTallySheetVersionInput>,
-    claims: JwtClaims,
-) -> Result<Json<AddTallySheetVersionOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TALLY_SHEET_CREATE],
-    )?;
-    let input = body.into_inner();
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let old_version = input.old_version as i32;
-    let tally_sheet_opt = tally_sheet::soft_delete_tally_sheet(
-        &hasura_transaction,
-        &claims.hasura_claims.tenant_id,
-        &input.election_event_id,
-        &input.tally_sheet_id,
-        &claims.hasura_claims.user_id,
-        old_version,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    let tally_sheet = match tally_sheet_opt {
-        Some(t) => t,
-        None => {
-            return Err((
-                Status::NotFound,
-                "Tally sheet not found".to_string(),
-            ));
-        }
-    };
-
-    let content = tally_sheet.content.clone().unwrap_or_default();
-    let channel = VotingChannel::from(tally_sheet.channel.clone());
-    let new_tally_sheet_version = tally_sheet::insert_tally_sheet(
-        &hasura_transaction,
-        &tally_sheet.tenant_id,
-        &tally_sheet.election_event_id,
-        &tally_sheet.election_id,
-        &tally_sheet.contest_id,
-        &tally_sheet.area_id,
-        &content,
-        &channel,
-        &claims.hasura_claims.user_id,
-        TallySheetStatus::PENDING,
-        old_version + 1,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-
-    Ok(Json(AddTallySheetVersionOutput {
-        tally_sheet_id: Some(new_tally_sheet_version.id.clone()),
-    }))
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct CreateNewTallySheetInput {
     election_event_id: String,
     channel: VotingChannel,
@@ -157,6 +69,19 @@ pub async fn create_new_tally_sheet(
         ));
     };
 
+    // let version = tally_sheet::get_latest_ballot_box_version(
+    //     &hasura_transaction,
+    //     &claims.hasura_claims.tenant_id,
+    //     &input.election_event_id,
+    //     &contest.election_id,
+    //     &input.area_id,
+    //     &input.contest_id,
+    //     &input.channel,
+    // )
+    // .await
+    // .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let version = 1;
     let new_tally_sheet = tally_sheet::insert_tally_sheet(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
@@ -168,7 +93,7 @@ pub async fn create_new_tally_sheet(
         &input.channel,
         &claims.hasura_claims.user_id,
         TallySheetStatus::PENDING,
-        1,
+        version + 1,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -223,7 +148,7 @@ pub async fn review_tally_sheet(
         input.new_status,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let tally_sheet = match tally_sheet_opt {
         Some(t) => t,
@@ -235,11 +160,15 @@ pub async fn review_tally_sheet(
         }
     };
 
+    tally_sheet::soft_delete_tally_sheet(&hasura_transaction, &tally_sheet)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(tally_sheet.clone()))
 }

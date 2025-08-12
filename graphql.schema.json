@@ -113842,8 +113842,8 @@
             "deprecationReason": null
           },
           {
-            "name": "tally_sheet_uniq_channel",
-            "description": "unique or primary key constraint on columns \"election_id\", \"contest_id\", \"area_id\", \"channel\", \"tenant_id\", \"election_event_id\"",
+            "name": "tally_sheet_uniq_version",
+            "description": "unique or primary key constraint on columns \"election_id\", \"contest_id\", \"area_id\", \"channel\", \"tenant_id\", \"election_event_id\", \"version\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
