@@ -46,3 +46,4 @@ result
 #rust/pkg
 
 /public/tinymce/
+/public/sql-wasm.js

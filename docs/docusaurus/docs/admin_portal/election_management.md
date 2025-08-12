@@ -3,6 +3,13 @@ id: election_management
 title: Election Management
 ---
 
+<!--
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+
+
 # Election Management
 
 Welcome to the Election Management section of the Online Voting System documentation. This section is designed to guide election managers through the process of creating, configuring, and supervising elections using the Admin Portal or other tools provided by the system.
