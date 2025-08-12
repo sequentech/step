@@ -976,6 +976,8 @@ const englishTranslation = {
                 incorectPassword: "Incorrect password",
                 decryptFileTitle: "How to decrypt the file",
                 decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
+                encryptSuccess: "Successfully set up report encryption",
+                encryptError: "Error setting up report encryption",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",

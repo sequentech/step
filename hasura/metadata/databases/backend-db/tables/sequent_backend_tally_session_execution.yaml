@@ -20,6 +20,7 @@ insert_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
       role: admin-user
     - comment: ""
       permission:
@@ -37,22 +38,24 @@ insert_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
       role: service-account
 select_permissions:
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
-              - session_ids
-              - current_message_id
               - annotations
-              - labels
-              - status
               - created_at
-              - last_updated_at
+              - current_message_id
+              - documents
               - election_event_id
               - id
+              - labels
+              - last_updated_at
               - results_event_id
+              - session_ids
+              - status
               - tally_session_id
               - tenant_id
           filter:
@@ -75,6 +78,7 @@ select_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -95,22 +99,24 @@ select_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter: {}
       role: service-account
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
-              - session_ids
-              - current_message_id
               - annotations
-              - labels
-              - status
               - created_at
-              - last_updated_at
+              - current_message_id
+              - documents
               - election_event_id
               - id
+              - labels
+              - last_updated_at
               - results_event_id
+              - session_ids
+              - status
               - tally_session_id
               - tenant_id
           filter:
@@ -136,6 +142,7 @@ update_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
@@ -156,6 +163,7 @@ update_permissions:
               - status
               - tally_session_id
               - tenant_id
+              - documents
           filter: {}
       role: service-account
 delete_permissions:

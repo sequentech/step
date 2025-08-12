@@ -25,6 +25,7 @@ import {
     ApolloWrapper,
     defaultApolloContextValues,
 } from "./providers/ApolloContextProvider"
+import {DatabaseProvider} from "./providers/DatabaseProvider"
 import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
 import {BrowserRouter as Router} from "react-router-dom"
 
@@ -50,9 +51,11 @@ root.render(
                                                             role={defaultApolloContextValues.role}
                                                         >
                                                             <ApolloWrapper>
-                                                                <WidgetsContextProvider>
-                                                                    <App />
-                                                                </WidgetsContextProvider>
+                                                                <DatabaseProvider>
+                                                                    <WidgetsContextProvider>
+                                                                        <App />
+                                                                    </WidgetsContextProvider>
+                                                                </DatabaseProvider>
                                                             </ApolloWrapper>
                                                         </ApolloContextProvider>
                                                     </PublishContextProvider>
