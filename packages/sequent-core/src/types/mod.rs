@@ -16,3 +16,5 @@ pub mod tally_sheets;
 pub mod templates;
 
 pub mod to_map;
+
+pub mod velvet;

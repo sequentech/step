@@ -18,6 +18,7 @@ use sequent_core::{
     types::{
         hasura::core::{Area, Election, ElectionEvent, TallySession, TallySessionExecution},
         results::{ResultDocumentType, ResultsEvent},
+        velvet::ElectionReportDataComputed,
     },
 };
 use tracing::instrument;
@@ -226,24 +227,7 @@ pub fn download_tally_tar_gz_to_file(
         tally_tr_gz_file_name
     );
 
-    let tally_file_name = decompress_file(&tally_tr_gz_file_name)?;
-
-    println!(
-        "[Guest Plugin] After decompression, tally file name: {}",
-        tally_file_name
-    );
-
-    // list_all_temp_files_directly(&tally_path)?;
-
-    let tally_results_str = get_tally_results(&tally_file_name)
-        .map_err(|e| format!("Error getting tally results: {:?}", e))?;
-
-    println!("[Guest Plugin] Tally results string: {}", tally_results_str);
-
-    let tally_results = serde_json::from_str(&tally_results_str).map_err(|e| e.to_string())?;
-    println!("[Guest Plugin] Tally results len: {}", tally_results.len());
-
-    Ok(tally_file_name.to_string())
+    Ok(tally_tr_gz_file_name)
 }
 
 #[instrument(skip_all, err)]
@@ -312,20 +296,32 @@ pub fn create_transmission_package_service(
 
     let ccs_servers = area_annotations.ccs_servers.clone();
 
-    let res = download_tally_tar_gz_to_file(tenant_id, &election_event.id, &tally_session.id)
-        .map_err(|e| e.to_string())?;
+    let tally_tr_gz_file_name =
+        download_tally_tar_gz_to_file(tenant_id, &election_event.id, &tally_session.id)
+            .map_err(|e| e.to_string())?;
 
-    // print_data(&res);
+    let tally_file_name = decompress_file(&tally_tr_gz_file_name)?;
 
-    // let tally_path = decompress_file(tar_gz_file.path())?;
+    println!(
+        "[Guest Plugin] After decompression, tally file name: {}",
+        tally_file_name
+    );
 
-    // let tally_path_path = tally_path.into_path();
+    // list_all_temp_files_directly(&tally_path)?;
 
-    // list_files(&tally_path_path)?;
+    let tally_results_str = get_tally_results(&tally_file_name)
+        .map_err(|e| format!("Error getting tally results: {:?}", e))?;
 
-    // let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
+    println!("[Guest Plugin] Tally results string: {}", tally_results_str);
 
-    // let results = state.get_results(true)?;
+    let tally_results: Vec<ElectionReportDataComputed> =
+        serde_json::from_str::<Vec<ElectionReportDataComputed>>(&tally_results_str)
+            .map_err(|e| e.to_string())?;
+
+    println!(
+        "[Guest Plugin] Tally results deserialized: {:?}",
+        tally_results
+    );
 
     // let tally_id = tally_session_id;
     // let transaction_id = generate_transaction_id().to_string();
@@ -334,12 +330,12 @@ pub fn create_transmission_package_service(
     // let now_local = now_utc.with_timezone(&Local);
 
     // let election_event_annotations = election_event.get_annotations()?;
-    // let Some(result) = results
+    // let Some(result) = tally_results
     //     .into_iter()
     //     .find(|result| result.election_id == election_id)
     // else {
-    //     info!("Can't find election report for election {}", election_id);
-    //     return Ok(());
+    //     println!("[Guest Plugin] Tally result not found for election_id: {}", election_id);
+    //     return Ok("".to_string())
     // };
     // let reports: Vec<ReportData> = result
     //     .reports
