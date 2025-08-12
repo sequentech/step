@@ -43,7 +43,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
-import { channel } from "diagnostics_channel"
+import {channel} from "diagnostics_channel"
 
 const OMIT_FIELDS = ["id, area_id"]
 
@@ -128,12 +128,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
                 }}
                 resource="sequent_backend_tally_sheet"
-                actions={
-                    <ListActions
-                        withImport={false}
-                        withExport={false}
-                    />
-                }
+                actions={<ListActions withImport={false} withExport={false} />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tallySheet.tenant_id || undefined,

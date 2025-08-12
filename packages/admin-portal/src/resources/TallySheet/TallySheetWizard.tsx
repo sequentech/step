@@ -211,24 +211,23 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         />
                     </>
                 )}
-                {page === WizardSteps.Edit &&
-                    (choosenContest || tallySheet) && (
-                        <>
-                            <EditTallySheet // TODO: EditTallySheet will keep the business logic for entering the results and calculations. But the area/contest/channel selection should be done on a separate component
-                                tallySheet={tallySheet}
-                                election={election}
-                                choosenContest={choosenContest}
-                                setChoosenContest={setChoosenContest}
-                                doCreatedTalySheet={(
-                                    tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
-                                ) => {
-                                    setCreatedTallySheet(tallySheet)
-                                }}
-                                submitRef={submitRef}
-                                setIsButtonDisabled={setIsButtonDisabled}
-                            />
-                        </>
-                    )}
+                {page === WizardSteps.Edit && (choosenContest || tallySheet) && (
+                    <>
+                        <EditTallySheet // TODO: EditTallySheet will keep the business logic for entering the results and calculations. But the area/contest/channel selection should be done on a separate component
+                            tallySheet={tallySheet}
+                            election={election}
+                            choosenContest={choosenContest}
+                            setChoosenContest={setChoosenContest}
+                            doCreatedTalySheet={(
+                                tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
+                            ) => {
+                                setCreatedTallySheet(tallySheet)
+                            }}
+                            submitRef={submitRef}
+                            setIsButtonDisabled={setIsButtonDisabled}
+                        />
+                    </>
+                )}
 
                 {page === WizardSteps.Confirm &&
                     choosenContest /* TODO: check if this is necessary*/ && (
