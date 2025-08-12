@@ -80,7 +80,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
 
     const {data: approvedVersions} = useGetList<Sequent_Backend_Tally_Sheet>(
-        "sequent_backend.tally_sheet",
+        "sequent_backend_tally_sheet",
         {
             filter: {
                 tenant_id: tenantId,

@@ -140,7 +140,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 }
             }, 400)
         } else if (page === WizardSteps.Confirm) {
-            console.log("confirmed: ", tallySheetId, tallySheet)
+            console.log("confirmed: ", tallySheetId, tallySheet) // ITs undefined when adding a new one.
             // insertTallySheetAction()
             doAction(WizardSteps.List)
         }
@@ -200,7 +200,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     </>
                 )}
                 {page === WizardSteps.Edit &&
-                    choosenContest /* TODO: check if this is necessary*/ && (
+                    (choosenContest || tallySheet) && (
                         <>
                             <EditTallySheet // TODO: EditTallySheet will keep the business logic for entering the results and calculations. But the area/contest/channel selection should be done on a separate component
                                 tallySheet={tallySheet}
