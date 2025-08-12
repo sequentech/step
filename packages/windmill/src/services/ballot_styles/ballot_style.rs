@@ -212,6 +212,7 @@ pub async fn update_election_event_ballot_styles(
         tenant_id,
         election_event_id,
         ballot_publication_id,
+        true,
     )
     .await?
     else {
