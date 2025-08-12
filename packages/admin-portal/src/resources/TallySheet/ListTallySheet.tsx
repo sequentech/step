@@ -178,9 +178,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         // }
         if (errors) {
             // add error notification
-            notify(t("tallysheet.message.publishError"), {type: "error"})
+            notify(t("tallysheet.message.reviewError"), {type: "error"})
         } else {
-            notify(t("tallysheet.message.publishSuccess"), {type: "success"})
+            notify(t("tallysheet.message.reviewSuccess"), {type: "success"})
         }
         setTallySheetId(undefined)
     }
