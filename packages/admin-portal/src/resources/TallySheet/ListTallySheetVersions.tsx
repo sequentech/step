@@ -35,7 +35,6 @@ import UnpublishedIcon from "@mui/icons-material/Unpublished"
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges"
 import {WizardSteps} from "./TallySheetWizard"
 import {useMutation} from "@apollo/client"
-import {REVIEW_TALLY_SHEET} from "@/queries/reviewTallySheet"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add, WorkHistory} from "@mui/icons-material"
@@ -167,7 +166,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                         label={t("tallysheet.versionsTable.version")}
                         render={(record: any) => <TextField source="version" />}
                     />
-                    
+
                     <FunctionField
                         key={"Created by"}
                         label={t("tallysheet.versionsTable.createdBy")}

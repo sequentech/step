@@ -109,9 +109,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         return approvedVersion?.version ?? "-"
     }
 
-    /// For the versions Sreen table - List all tally sheet versions for that box, which means related to the same (area, contest, channel).
-    // get_tally_sheet_versions variables(area, election_id, contest_id, channel)
-
     useEffect(() => {
         localStorage.removeItem("tallySheetData")
     }, [])
@@ -125,6 +122,11 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const createAction = () => {
         localStorage.removeItem("tallySheetData")
         doAction(WizardSteps.Start)
+    }
+
+    const addAction = () => {
+        localStorage.removeItem("tallySheetData")
+        doAction(WizardSteps.Edit)
     }
 
     const Empty = () => (
@@ -213,7 +215,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         },
         {
             icon: <Add />,
-            action: createAction,
+            action: addAction,
             showAction: () => canCreate,
             label: t("tallysheet.common.add"),
         },
