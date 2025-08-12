@@ -63,6 +63,12 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         {enabled: !!tallySheetId}
     )
 
+    const {data: contest} = useGetOne<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {id: tallySheet?.contest_id},
+        {enabled: !!tallySheet}
+    )
+
     const {data: listTallySheets} = useGetList<Sequent_Backend_Tally_Sheet>(
         "sequent_backend_tally_sheet",
         {filter: {contest_id: election.id}},
@@ -82,6 +88,12 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
             setPage(action)
         }
     }, [action])
+
+    useEffect(() => {
+        if (tallySheet) {
+            setChoosenContest(contest)
+        }
+    }, [contest])
 
     const insertTallySheetAction = async () => {
         try {

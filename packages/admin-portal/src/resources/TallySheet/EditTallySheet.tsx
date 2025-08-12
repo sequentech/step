@@ -100,7 +100,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const [channel, setChannel] = React.useState<string | null>(null)
     const [results, setResults] = useState<IAreaContestResults>({
         area_id: tallySheet?.area_id || "",
-        contest_id: choosenContest?.id,
+        contest_id: choosenContest?.id ?? tallySheet?.contest_id,
         total_votes: tallySheet?.annotations?.total_votes || 0,
         total_valid_votes: tallySheet?.annotations?.total_valid_votes || 0,
         invalid_votes: tallySheet?.annotations?.invalid_votes || {},
@@ -122,14 +122,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 tenant_id: election.tenant_id,
                 election_event_id: election.election_event_id,
                 election_id: election.id,
-                // contest_id: choosenContest?.id,
             },
             pagination: {
                 perPage: 10000, // Setting initial larger records size of areas
                 page: 1,
             },
         }
-        // {enabled: !!choosenContest}
     )
 
     const {data: contests, refetch: refetchContests} = useGetList<Sequent_Backend_Contest>(
@@ -192,13 +190,13 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         "sequent_backend_candidate",
         {
             filter: {
-                contest_id: choosenContest?.id,
+                contest_id: choosenContest?.id ?? tallySheet?.contest_id,
                 tenant_id: election.tenant_id,
                 election_event_id: election.election_event_id,
             },
             pagination: {page: 1, perPage: 50},
         },
-        {enabled: !!choosenContest}
+        {enabled: !!choosenContest || !!tallySheet?.contest_id}
     )
 
     const checkableLists = useMemo(() => {
@@ -291,7 +289,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         if (election) {
             setResults((prev: IAreaContestResults) => ({
                 ...prev,
-                contest_id: choosenContest?.id,
+                contest_id: choosenContest?.id ?? tallySheet?.contest_id,
             }))
         }
     }, [election])
@@ -545,7 +543,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             tenant_id: election.tenant_id,
             election_event_id: election.election_event_id,
             election_id: election.id,
-            contest_id: choosenContest?.id,
+            contest_id: choosenContest?.id ?? tallySheet?.contest_id,
             area_id: resultsTemp.area_id,
             channel: channel || "",
             content: resultsTemp,
