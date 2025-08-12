@@ -1768,8 +1768,8 @@ const dutchTranslation: TranslationType = {
                 latestVersion: "Nieuwste versie",
             },
             message: {
-                publishError: "Fout bij publiceren telblad",
-                publishSuccess: "Telblad gepubliceerd",
+                reviewError: "Fout bij beoordelen telblad",
+                reviewSuccess: "Telblad beoordeeld",
             },
         },
         application: {

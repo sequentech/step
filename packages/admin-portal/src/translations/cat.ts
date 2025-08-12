@@ -1780,8 +1780,8 @@ const catalanTranslation: TranslationType = {
                 latestVersion: "Última versió",
             },
             message: {
-                publishError: "Error publicant l'Acta de Recompte",
-                publishSuccess: "Acta de Recompte publicada",
+                reviewError: "Error revisant l'Acta de Recompte",
+                reviewSuccess: "Acta de Recompte revisada",
             },
         },
         application: {

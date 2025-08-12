@@ -1783,8 +1783,8 @@ const frenchTranslation: TranslationType = {
                 latestVersion: "Dernière version",
             },
             message: {
-                publishError: "Erreur lors de la publication de la Feuille de Comptage",
-                publishSuccess: "Feuille de Comptage publiée",
+                reviewError: "Erreur lors de la révision de la Feuille de Comptage",
+                reviewSuccess: "Feuille de Comptage révisée",
             },
         },
         application: {

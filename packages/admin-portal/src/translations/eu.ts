@@ -1764,8 +1764,8 @@ const basqueTranslation: TranslationType = {
                 latestVersion: "Azken bertsioa",
             },
             message: {
-                publishError: "Errorea zenbaketa orria argitaratzerakoan",
-                publishSuccess: "Zenbaketa orria argitaratua",
+                reviewError: "Errorea zenbaketa orria berrikusterakoan",
+                reviewSuccess: "Zenbaketa orria berrikusia",
             },
         },
         application: {

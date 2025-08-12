@@ -1772,8 +1772,8 @@ const galegoTranslation: TranslationType = {
                 latestVersion: "Última versión",
             },
             message: {
-                publishError: "Erro ao publicar a acta de escrutinio",
-                publishSuccess: "Acta de escrutinio publicada",
+                reviewError: "Erro ao revisar a acta de escrutinio",
+                reviewSuccess: "Acta de escrutinio revisada",
             },
         },
         application: {

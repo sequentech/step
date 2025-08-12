@@ -1774,8 +1774,8 @@ const tagalogTranslation: TranslationType = {
                 latestVersion: "Pinakabagong bersyon",
             },
             message: {
-                publishError: "Error sa pag-publish ng tally sheet",
-                publishSuccess: "Na-publish ang tally sheet",
+                reviewError: "Error sa pag-review ng tally sheet",
+                reviewSuccess: "Na-review ang tally sheet",
             },
         },
         application: {
