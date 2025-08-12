@@ -45,11 +45,11 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
 
-const OMIT_FIELDS = ["id", "ballot_eml"]
+const OMIT_FIELDS = ["id"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Area" source="area_id" key={0} />,
-    <TextInput label="Contest" source="contest" key={1} />,
+    <TextInput label="Contest" source="contest_id" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Channel" source="channel" key={3} />,
     <TextInput label="Latest version" source="version" key={4} />,
@@ -73,7 +73,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
     const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
     const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
-    const [publish, setPublish] = React.useState(false)
 
     const authContext = useContext(AuthContext)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_CREATE)
@@ -194,7 +193,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         },
         {
             icon: (
-                <Tooltip title={t("tallysheet.common.publish")}>
+                <Tooltip title={t("tallysheet.common.approve")}>
                     <PublishedWithChangesIcon />
                 </Tooltip>
             ),
@@ -204,7 +203,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         },
         {
             icon: (
-                <Tooltip title={t("tallysheet.common.unpublish")}>
+                <Tooltip title={t("tallysheet.common.disapprove")}>
                     <UnpublishedIcon />
                 </Tooltip>
             ),
@@ -228,9 +227,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     return (
         <>
-            {/* <CustomApolloContextProvider role="tally-sheet-view">
-                <ActionPublish publish={publish} setPublish={setPublish} />
-            </CustomApolloContextProvider> */}
             <List
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,

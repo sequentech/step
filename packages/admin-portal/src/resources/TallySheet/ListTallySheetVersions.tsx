@@ -44,25 +44,30 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
+import { channel } from "diagnostics_channel"
 
-const OMIT_FIELDS = ["id", "ballot_eml"]
+const OMIT_FIELDS = ["id, area_id"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Area" source="area_id" key={0} />,
-    <TextInput label="Contest" source="contest" key={1} />,
+    <TextInput label="Contest" source="contest_id" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Channel" source="channel" key={3} />,
-    <TextInput label="Latest version" source="version" key={4} />,
+    <TextInput label="Version" source="version" key={4} />,
+    <TextInput label="Created by" source="created_by" key={5} />,
+    <TextInput label="Reviewed by" source="reviewed_by" key={6} />,
 ]
 
-interface TTallySheetList {
-    election: Sequent_Backend_Election
+interface TTallySheetListVersions {
+    tallySheet: Sequent_Backend_Tally_Sheet
+    approveAction: (id: Identifier) => void
+    disapproveAction: (id: Identifier) => void
     doAction: (action: number, id?: Identifier) => void
     reload: string | null
 }
 
-export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
-    const {election: election, doAction, reload} = props
+export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props) => {
+    const {tallySheet: tallySheet, doAction, reload, approveAction, disapproveAction} = props
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -72,117 +77,13 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
     const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
     const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
-    const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
-    const [publish, setPublish] = React.useState(false)
 
     const authContext = useContext(AuthContext)
-    const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_CREATE)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
     const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
 
-    const {data: approvedVersions} = useGetList<Sequent_Backend_Tally_Sheet>(
-        "sequent_backend.tally_sheet",
-        {
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: election.election_event_id,
-                election_id: election.id,
-                status: EStatus.APPROVED,
-            },
-            pagination: {
-                page: 1,
-                perPage: 100,
-            },
-            sort: {
-                field: "version",
-                order: "DESC",
-            },
-        }
-    )
-
-    const getLatestApprovedVersion = (area_id: string, contest_id: string, channel: string) => {
-        const approvedVersion = approvedVersions?.find(
-            (sheet) =>
-                sheet.area_id === area_id &&
-                sheet.contest_id === contest_id &&
-                sheet.channel === channel
-        )
-        return approvedVersion?.version ?? "-"
-    }
-
-    /// For the versions Sreen table - List all tally sheet versions for that box, which means related to the same (area, contest, channel).
-    // get_tally_sheet_versions variables(area, election_id, contest_id, channel)
-
-    useEffect(() => {
-        localStorage.removeItem("tallySheetData")
-    }, [])
-
-    useEffect(() => {
-        if (reload) {
-            refresh()
-        }
-    }, [reload, refresh])
-
-    const createAction = () => {
-        localStorage.removeItem("tallySheetData")
-        doAction(WizardSteps.Start)
-    }
-
-    const Empty = () => (
-        <ResourceListStyles.EmptyBox>
-            <Typography variant="h4" paragraph>
-                {t("tallysheet.empty.header")}
-            </Typography>
-            {canCreate && (
-                <>
-                    <Button onClick={createAction}>
-                        <IconButton icon={faPlus} fontSize="24px" />
-                        {t("tallysheet.empty.action")}
-                    </Button>
-                    <Typography variant="body1" paragraph>
-                        {t("common.resources.noResult.askCreate")}
-                    </Typography>
-                </>
-            )}
-        </ResourceListStyles.EmptyBox>
-    )
-
-    if (!canView) {
-        return <Empty />
-    }
-
     const viewAction = (id: Identifier) => {
         doAction(WizardSteps.View, id)
-    }
-
-    const approveAction = (id: Identifier) => {
-        setTallySheetId(id)
-        setOpenApproveDialog(true)
-    }
-
-    const disapproveAction = (id: Identifier) => {
-        setTallySheetId(id)
-        setOpenDisapproveDialog(true)
-    }
-
-    const confirmReviewAction = async (newStatus: EStatus) => {
-        const {data, errors} = await reviewTallySheet({
-            variables: {
-                electionEventId: election.election_event_id,
-                tallySheetId: tallySheetId,
-                newStatus,
-            },
-        })
-        // if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
-        //     console.log("(unpublished) tally sheet not found, probably it's already published")
-        // }
-        if (errors) {
-            // add error notification
-            notify(t("tallysheet.message.publishError"), {type: "error"})
-        } else {
-            notify(t("tallysheet.message.publishSuccess"), {type: "success"})
-        }
-        setTallySheetId(undefined)
     }
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
@@ -194,7 +95,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         },
         {
             icon: (
-                <Tooltip title={t("tallysheet.common.publish")}>
+                <Tooltip title={t("tallysheet.common.approve")}>
                     <PublishedWithChangesIcon />
                 </Tooltip>
             ),
@@ -204,7 +105,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         },
         {
             icon: (
-                <Tooltip title={t("tallysheet.common.unpublish")}>
+                <Tooltip title={t("tallysheet.common.disapprove")}>
                     <UnpublishedIcon />
                 </Tooltip>
             ),
@@ -212,25 +113,17 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             showAction: () => canReview && record.status === EStatus.PENDING,
             label: t("tallysheet.common.disapprove"),
         },
-        {
-            icon: <Add />,
-            action: createAction,
-            showAction: () => canCreate,
-            label: t("tallysheet.common.add"),
-        },
-        {
-            icon: <WorkHistory />,
-            action: viewAction,
-            showAction: () => canView,
-            label: t("tallysheet.common.versions"),
-        },
     ]
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t("tallysheet.empty.header")}
+            </Typography>
+        </ResourceListStyles.EmptyBox>
+    )
 
     return (
         <>
-            {/* <CustomApolloContextProvider role="tally-sheet-view">
-                <ActionPublish publish={publish} setPublish={setPublish} />
-            </CustomApolloContextProvider> */}
             <List
                 queryOptions={{
                     refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
@@ -240,23 +133,15 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <ListActions
                         withImport={false}
                         withExport={false}
-                        extraActions={[
-                            <Button key={0} onClick={createAction}>
-                                <Add />
-                                {t("tallysheet.empty.add")}
-                            </Button>,
-                        ]}
                     />
                 }
                 sx={{flexGrow: 2}}
                 filter={{
-                    tenant_id: election.tenant_id || undefined,
-                    election_event_id: election.election_event_id || undefined,
-                    election_id: election.id || undefined,
-                    deleted_at: {
-                        format: "hasura-raw-query",
-                        value: {_is_null: true},
-                    },
+                    tenant_id: tallySheet.tenant_id || undefined,
+                    election_event_id: tallySheet.election_event_id || undefined,
+                    election_id: tallySheet.election_id || undefined,
+                    area_id: tallySheet.area_id || undefined,
+                    contest_id: tallySheet.contest_id || undefined,
                 }}
                 filters={Filters}
                 empty={<Empty />}
@@ -278,24 +163,20 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     />
 
                     <FunctionField
-                        label={t("tallysheet.table.approvedVersion")}
-                        render={(record: any) =>
-                            record.status === EStatus.APPROVED ? (
-                                <TextField source="version" />
-                            ) : (
-                                getLatestApprovedVersion(
-                                    record.area_id,
-                                    record.contest_id,
-                                    record.channel
-                                )
-                            )
-                        }
-                    />
-
-                    <FunctionField
-                        key={"latestVersion"}
-                        label={t("tallysheet.table.latestVersion")}
+                        key={"Version"}
+                        label={t("tallysheet.versionsTable.version")}
                         render={(record: any) => <TextField source="version" />}
+                    />
+                    
+                    <FunctionField
+                        key={"Created by"}
+                        label={t("tallysheet.versionsTable.createdBy")}
+                        render={(record: any) => <TextField source="created_by" />}
+                    />
+                    <FunctionField
+                        key={"Reviewed by"}
+                        label={t("tallysheet.versionsTable.reviewedBy")}
+                        render={(record: any) => <TextField source="reviewed_by" />}
                     />
 
                     <WrapperField source="actions" label="Actions">
@@ -308,38 +189,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-
-            <Dialog
-                variant="warning"
-                open={openDisapproveDialog}
-                ok={t("tallysheet.common.disapprove")}
-                cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.disapprove")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmReviewAction(EStatus.DISAPPROVED)
-                    }
-                    setOpenDisapproveDialog(false)
-                }}
-            >
-                {t("tallysheet.common.warningDisapprove")}
-            </Dialog>
-
-            <Dialog
-                variant="info"
-                open={openApproveDialog}
-                ok={t("tallysheet.common.approve")}
-                cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.disapprove")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmReviewAction(EStatus.APPROVED)
-                    }
-                    setOpenApproveDialog(false)
-                }}
-            >
-                {t("tallysheet.common.warningApprove")}
-            </Dialog>
         </>
     )
 }
