@@ -136,6 +136,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     election_id: tallySheet.election_id || undefined,
                     area_id: tallySheet.area_id || undefined,
                     contest_id: tallySheet.contest_id || undefined,
+                    channel: tallySheet.channel || undefined,
                 }}
                 filters={Filters}
                 empty={<Empty />}

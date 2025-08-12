@@ -1755,6 +1755,13 @@ const englishTranslation = {
                 approvedVersion: "Approved version",
                 latestVersion: "Latest version",
             },
+            versionsTable: {
+                version: "Version",
+                createdBy: "Created by",
+                reviewedBy: "Reviewed by",
+                createdAt: "Created at",
+                reviewedAt: "Reviewed at",
+            },
             message: {
                 reviewError: "Error reviewing tally sheet",
                 reviewSuccess: "Tally sheet reviewed",
