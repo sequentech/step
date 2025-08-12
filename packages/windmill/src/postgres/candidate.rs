@@ -185,7 +185,9 @@ pub async fn export_candidate_csv(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let mut file = File::create(contests_csv_path).await.context("Error opening CSV data to temp file")?;
+    let mut file = File::create(contests_csv_path)
+        .await
+        .context("Error opening CSV data to temp file")?;
 
     let contests_csv = contest_ids
         .iter()
@@ -233,9 +235,6 @@ pub async fn export_candidate_csv(
             .context("Error writing CSV data to temp file")?;
     }
     file.flush().await?;
-
-    // TODO Is this necessary?
-    // drop(file);
 
     Ok(())
 }

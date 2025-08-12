@@ -129,12 +129,6 @@ pub fn populate_results_tables(
     output_database_path: &Path,
     state_opt: Vec<ElectionReportDataComputed>,
     config: &PipeConfigGenerateDatabase,
-    // session_ids: Option<Vec<i64>>,
-    // previous_execution: TallySessionExecution,
-    // areas: &Vec<Area>,
-    // default_language: &str,
-    // tally_type_enum: TallyType,
-    // tally_session: &TallySession,
 ) -> Result<()> {
     let input_database_path = input_database_path.join(&config.database_filename);
     let database_path = output_database_path.join(&config.database_filename);

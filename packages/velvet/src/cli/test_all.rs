@@ -499,7 +499,7 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
+    #[test]
     fn test_pipes_exec_mcballots() -> Result<()> {
         sequent_core::util::init_log::init_log(true);
 
@@ -613,7 +613,7 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
+    #[test]
     fn test_pipes_exec() -> Result<()> {
         sequent_core::util::init_log::init_log(true);
 

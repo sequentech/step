@@ -11,11 +11,6 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
 use crate::services::ceremonies::renamer::*;
-use sequent_core::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
-use sequent_core::sqlite::results_contest::update_results_contest_documents_sqlite;
-use sequent_core::sqlite::results_election::update_results_election_documents_sqlite;
-use sequent_core::sqlite::results_election_area::create_results_election_area_sqlite;
-use sequent_core::sqlite::results_event::update_results_event_documents_sqlite;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -32,6 +27,11 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::Transaction as SqliteTransaction;
 use sequent_core::services::translations::Name;
+use sequent_core::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
+use sequent_core::sqlite::results_contest::update_results_contest_documents_sqlite;
+use sequent_core::sqlite::results_election::update_results_election_documents_sqlite;
+use sequent_core::sqlite::results_election_area::create_results_election_area_sqlite;
+use sequent_core::sqlite::results_event::update_results_event_documents_sqlite;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::results::ResultDocuments;

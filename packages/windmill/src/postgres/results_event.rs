@@ -145,7 +145,7 @@ pub async fn insert_results_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    results_id: &str
+    results_id: &str,
 ) -> Result<ResultsEvent> {
     let statement = hasura_transaction
         .prepare(

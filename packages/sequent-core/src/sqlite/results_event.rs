@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::results::ResultDocuments;
+use crate::types::results::ResultsEvent;
 use anyhow::{anyhow, Result};
+use chrono::{Local, NaiveDateTime};
 use rusqlite::{params, Transaction};
 use serde_json::to_string;
 use tracing::instrument;
-use crate::types::results::ResultsEvent;
-use chrono::{Local, NaiveDateTime};
 
 #[instrument(err, skip_all)]
 pub async fn create_results_event_sqlite(
@@ -53,7 +53,8 @@ pub fn find_results_event_sqlite(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<ResultsEvent> {
-    // The query is defined to select all columns needed for the ResultsEvent struct.
+    // The query is defined to select all columns needed for the ResultsEvent
+    // struct.
     let query = "
         SELECT 
             id, tenant_id, election_event_id, name, created_at,
@@ -66,10 +67,8 @@ pub fn find_results_event_sqlite(
 
     // `query_row` is used to execute the query on the transaction and expects
     // exactly one row to be returned.
-    sqlite_transaction.query_row(
-        query,
-        params![tenant_id, election_event_id],
-        |row| {
+    sqlite_transaction
+        .query_row(query, params![tenant_id, election_event_id], |row| {
             let created_at_str: Option<String> = row.get(4)?;
             let last_updated_at_str: Option<String> = row.get(5)?;
             let labels_json_str: Option<String> = row.get(6)?;
@@ -82,17 +81,28 @@ pub fn find_results_event_sqlite(
                 election_event_id: row.get(2)?,
                 name: row.get(3)?,
                 created_at: created_at_str
-                    .and_then(|s| NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S").ok())
+                    .and_then(|s| {
+                        NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
+                            .ok()
+                    })
                     .map(|nd| nd.and_local_timezone(Local).unwrap()),
                 last_updated_at: last_updated_at_str
-                    .and_then(|s| NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S").ok())
+                    .and_then(|s| {
+                        NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
+                            .ok()
+                    })
                     .map(|nd| nd.and_local_timezone(Local).unwrap()),
-                labels: labels_json_str.and_then(|s| serde_json::from_str(&s).ok()),
-                annotations: annotations_json_str.and_then(|s| serde_json::from_str(&s).ok()),
-                documents: documents_json_str.and_then(|s| serde_json::from_str(&s).ok()),
+                labels: labels_json_str
+                    .and_then(|s| serde_json::from_str(&s).ok()),
+                annotations: annotations_json_str
+                    .and_then(|s| serde_json::from_str(&s).ok()),
+                documents: documents_json_str
+                    .and_then(|s| serde_json::from_str(&s).ok()),
             })
-        },
-    ).map_err(|error| anyhow!("Error getting results_event from sqlite database: {error}"))
+        })
+        .map_err(|error| {
+            anyhow!("Error getting results_event from sqlite database: {error}")
+        })
 }
 
 #[instrument(err, skip_all)]

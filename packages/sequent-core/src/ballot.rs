@@ -1250,11 +1250,11 @@ pub enum Otp {
 pub enum DecodedBallotsInclusionPolicy {
     #[strum(serialize = "included")]
     #[serde(rename = "included")]
-        INCLUDED,
+    INCLUDED,
     #[default]
     #[strum(serialize = "not-included")]
     #[serde(rename = "not-included")]
-        NOT_INCLUDED,
+    NOT_INCLUDED,
 }
 
 #[allow(non_camel_case_types)]

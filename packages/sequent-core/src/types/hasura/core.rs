@@ -10,7 +10,7 @@ use serde_json::value::Value;
 use std::str::FromStr;
 
 use crate::{
-    ballot::{ContestEncryptionPolicy,DecodedBallotsInclusionPolicy},
+    ballot::{ContestEncryptionPolicy, DecodedBallotsInclusionPolicy},
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
@@ -349,7 +349,9 @@ impl TallySessionConfiguration {
         self.contest_encryption_policy.clone().unwrap_or_default()
     }
     pub fn get_decoded_ballots_policy(&self) -> DecodedBallotsInclusionPolicy {
-        self.decoded_ballots_inclusion_policy.clone().unwrap_or_default()
+        self.decoded_ballots_inclusion_policy
+            .clone()
+            .unwrap_or_default()
     }
 }
 
