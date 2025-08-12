@@ -187,7 +187,6 @@ pub struct ReviewTallySheetInput {
     election_event_id: String,
     tally_sheet_id: String,
     new_status: TallySheetStatus,
-    version: u32,
 }
 
 // The main function to start a key ceremony
@@ -222,7 +221,6 @@ pub async fn review_tally_sheet(
         &input.tally_sheet_id,
         &claims.hasura_claims.user_id,
         input.new_status,
-        input.version as i32,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

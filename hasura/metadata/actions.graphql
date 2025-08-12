@@ -631,7 +631,6 @@ type Mutation {
         election_event_id: String!
         tally_sheet_id: String!
         new_status: String!
-        version: Int!
     ): TallySheetOutput
 }
 

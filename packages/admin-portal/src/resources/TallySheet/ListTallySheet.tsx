@@ -43,6 +43,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
+import {EStatus} from "@/types/TallySheets"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -50,7 +51,8 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Area" source="area_id" key={0} />,
     <TextInput label="Contest" source="contest" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Published" source="published_at" key={3} />,
+    <TextInput label="Channel" source="channel" key={3} />,
+    <TextInput label="Latest version" source="version" key={4} />,
 ]
 
 interface TTallySheetList {
@@ -68,8 +70,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
     const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
-    const [openApproveDialog, setOpenAproveDialog] = React.useState(false)
-    const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
+    const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
+    const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
     const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
     const [publish, setPublish] = React.useState(false)
 
@@ -78,8 +80,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
     const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
 
-    /// For the tally sheets table: The columns should include the approved version and the latest version instead of "Published".
-    /// This table is at election level. It should list the ballot boxes (area, contest, channel).
     const {data: approvedVersions} = useGetList<Sequent_Backend_Tally_Sheet>(
         "sequent_backend.tally_sheet",
         {
@@ -87,7 +87,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 tenant_id: tenantId,
                 election_event_id: election.election_event_id,
                 election_id: election.id,
-                status: "APPROVED",
+                status: EStatus.APPROVED,
             },
             pagination: {
                 page: 1,
@@ -155,22 +155,22 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         doAction(WizardSteps.View, id)
     }
 
-    const publishAction = (id: Identifier) => {
-        setDeleteId(id)
-        setOpenAproveDialog(true)
+    const approveAction = (id: Identifier) => {
+        setTallySheetId(id)
+        setOpenApproveDialog(true)
     }
 
-    const unpublishAction = (id: Identifier) => {
-        setDeleteId(id)
+    const disapproveAction = (id: Identifier) => {
+        setTallySheetId(id)
         setOpenDisapproveDialog(true)
     }
 
-    const confirmApproveAction = async (isPublished: boolean) => {
+    const confirmReviewAction = async (newStatus: EStatus) => {
         const {data, errors} = await reviewTallySheet({
             variables: {
                 electionEventId: election.election_event_id,
-                tallySheetId: deleteId,
-                publish: isPublished,
+                tallySheetId: tallySheetId,
+                newStatus,
             },
         })
         // if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
@@ -182,7 +182,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         } else {
             notify(t("tallysheet.message.publishSuccess"), {type: "success"})
         }
-        setDeleteId(undefined)
+        setTallySheetId(undefined)
     }
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
@@ -195,8 +195,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <PublishedWithChangesIcon />
                 </Tooltip>
             ),
-            action: publishAction,
-            showAction: () => canReview && record.reviewed_at === null,
+            action: approveAction,
+            showAction: () => canReview && record.status === EStatus.PENDING,
             label: t("tallysheet.common.approve"),
         },
         {
@@ -205,8 +205,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <UnpublishedIcon />
                 </Tooltip>
             ),
-            action: unpublishAction,
-            showAction: () => canReview && record.reviewed_at === null,
+            action: disapproveAction,
+            showAction: () => canReview && record.status === EStatus.PENDING,
             label: t("tallysheet.common.disapprove"),
         },
         {
@@ -277,7 +277,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <FunctionField
                         label={t("tallysheet.table.approvedVersion")}
                         render={(record: any) =>
-                            record.status === "APPROVED" ? (
+                            record.status === EStatus.APPROVED ? (
                                 <TextField source="version" />
                             ) : (
                                 getLatestApprovedVersion(
@@ -314,7 +314,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 title={t("tallysheet.common.disapprove")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmApproveAction(false)
+                        confirmReviewAction(EStatus.DISAPPROVED)
                     }
                     setOpenDisapproveDialog(false)
                 }}
@@ -330,9 +330,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                 title={t("tallysheet.common.disapprove")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmApproveAction(true)
+                        confirmReviewAction(EStatus.APPROVED)
                     }
-                    setOpenAproveDialog(false)
+                    setOpenApproveDialog(false)
                 }}
             >
                 {t("tallysheet.common.warningApprove")}

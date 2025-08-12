@@ -165,7 +165,6 @@ pub async fn review_tally_sheet_status(
     tally_sheet_id: &str,
     user_id: &str,
     status: TallySheetStatus,
-    version: i32,
 ) -> Result<Option<TallySheet>> {
     let statement = hasura_transaction
         .prepare(
@@ -173,16 +172,15 @@ pub async fn review_tally_sheet_status(
                 r#"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
-            status = $5,
+            status = $4,
             reviewed_at = NOW(),
-            reviewed_by_user_id = $6,
+            reviewed_by_user_id = $5,
             last_updated_at = NOW()
         WHERE
             tally_sheet.tenant_id = $1 AND
             tally_sheet.election_event_id = $2 AND
             tally_sheet.id = $3 AND
-            tally_sheet.deleted_at IS NULL AND
-            tally_sheet.version = $4
+            tally_sheet.deleted_at IS NULL
         RETURNING *
     "#
             )
@@ -201,7 +199,6 @@ pub async fn review_tally_sheet_status(
         &tenant_uuid,
         &election_event_uuid,
         &tally_sheet_uuid,
-        &version,
         &status_str,
         &user_id,
     ];

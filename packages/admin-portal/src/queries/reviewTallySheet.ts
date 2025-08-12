@@ -9,13 +9,11 @@ export const REVIEW_TALLY_SHEET = gql`
         $electionEventId: String!
         $tallySheetId: String!
         $newStatus: String!
-        $version: Int!
     ) {
         review_tally_sheet(
             election_event_id: $electionEventId
             tally_sheet_id: $tallySheetId
             new_status: $newStatus
-            version: $version
         ) {
             id
             tenant_id

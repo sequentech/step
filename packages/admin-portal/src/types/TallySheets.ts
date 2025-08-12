@@ -8,6 +8,12 @@ export enum EVotingChannel {
     IN_PERSON = "IN_PERSON",
 }
 
+export enum EStatus {
+    PENDING = "PENDING",
+    APPROVED = "APPROVED",
+    DISAPPROVED = "DISAPPROVED",
+}
+
 export interface IInvalidVotes {
     total_invalid?: number
     implicit_invalid?: number
