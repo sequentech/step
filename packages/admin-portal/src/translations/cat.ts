@@ -1779,6 +1779,13 @@ const catalanTranslation: TranslationType = {
                 approvedVersion: "Versió aprovada",
                 latestVersion: "Última versió",
             },
+            versionsTable: {
+                version: "Versió",
+                createdBy: "Creat per",
+                reviewedBy: "Revisat per",
+                createdAt: "Creat el",
+                reviewedAt: "Revisat el",
+            },
             message: {
                 reviewError: "Error revisant l'Acta de Recompte",
                 reviewSuccess: "Acta de Recompte revisada",

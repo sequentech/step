@@ -1771,6 +1771,13 @@ const galegoTranslation: TranslationType = {
                 approvedVersion: "Versión aprobada",
                 latestVersion: "Última versión",
             },
+            versionsTable: {
+                version: "Versión",
+                createdBy: "Creado por",
+                reviewedBy: "Revisado por",
+                createdAt: "Creado o",
+                reviewedAt: "Revisado o",
+            },
             message: {
                 reviewError: "Erro ao revisar a acta de escrutinio",
                 reviewSuccess: "Acta de escrutinio revisada",

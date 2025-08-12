@@ -1763,6 +1763,13 @@ const basqueTranslation: TranslationType = {
                 approvedVersion: "Onartutako bertsioa",
                 latestVersion: "Azken bertsioa",
             },
+            versionsTable: {
+                version: "Bertsioa",
+                createdBy: "Sortzailea",
+                reviewedBy: "Berrikustatzailea",
+                createdAt: "Sortze data",
+                reviewedAt: "Berrikuste data",
+            },
             message: {
                 reviewError: "Errorea zenbaketa orria berrikusterakoan",
                 reviewSuccess: "Zenbaketa orria berrikusia",

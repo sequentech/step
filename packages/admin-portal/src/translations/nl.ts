@@ -1767,6 +1767,13 @@ const dutchTranslation: TranslationType = {
                 approvedVersion: "Goedgekeurde versie",
                 latestVersion: "Nieuwste versie",
             },
+            versionsTable: {
+                version: "Versie",
+                createdBy: "Gemaakt door",
+                reviewedBy: "Beoordeeld door",
+                createdAt: "Gemaakt op",
+                reviewedAt: "Beoordeeld op",
+            },
             message: {
                 reviewError: "Fout bij beoordelen telblad",
                 reviewSuccess: "Telblad beoordeeld",

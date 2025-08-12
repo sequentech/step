@@ -1769,6 +1769,13 @@ const spanishTranslation: TranslationType = {
                 approvedVersion: "Versión aprobada",
                 latestVersion: "Última versión",
             },
+            versionsTable: {
+                version: "Versión",
+                createdBy: "Creado por",
+                reviewedBy: "Revisado por",
+                createdAt: "Creado el",
+                reviewedAt: "Revisado el",
+            },
             message: {
                 reviewError: "Error revisando la Hoja de Recuento",
                 reviewSuccess: "Hoja de Recuento revisada",

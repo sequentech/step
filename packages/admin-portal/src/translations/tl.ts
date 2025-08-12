@@ -1773,6 +1773,13 @@ const tagalogTranslation: TranslationType = {
                 approvedVersion: "Inaprubahang bersyon",
                 latestVersion: "Pinakabagong bersyon",
             },
+            versionsTable: {
+                version: "Bersyon",
+                createdBy: "Ginawa ni",
+                reviewedBy: "Na-review ni",
+                createdAt: "Ginawa noong",
+                reviewedAt: "Na-review noong",
+            },
             message: {
                 reviewError: "Error sa pag-review ng tally sheet",
                 reviewSuccess: "Na-review ang tally sheet",

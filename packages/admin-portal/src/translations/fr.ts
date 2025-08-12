@@ -1782,6 +1782,13 @@ const frenchTranslation: TranslationType = {
                 approvedVersion: "Version approuvée",
                 latestVersion: "Dernière version",
             },
+            versionsTable: {
+                version: "Version",
+                createdBy: "Créé par",
+                reviewedBy: "Révisé par",
+                createdAt: "Créé le",
+                reviewedAt: "Révisé le",
+            },
             message: {
                 reviewError: "Erreur lors de la révision de la Feuille de Comptage",
                 reviewSuccess: "Feuille de Comptage révisée",
