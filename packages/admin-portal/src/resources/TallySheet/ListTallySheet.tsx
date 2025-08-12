@@ -231,6 +231,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     disapproveAction={disapproveAction}
                     doAction={doAction}
                     reload={reload}
+                    setShowVersionsTable={setShowVersionsTable}
                 />
             )}
             {!showVersionsTable && (

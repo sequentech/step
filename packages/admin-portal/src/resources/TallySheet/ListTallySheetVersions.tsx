@@ -45,6 +45,8 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
 import {channel} from "diagnostics_channel"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 const OMIT_FIELDS = ["id, area_id"]
 
@@ -64,10 +66,11 @@ interface TTallySheetListVersions {
     disapproveAction: (id: Identifier) => void
     doAction: (action: number, id?: Identifier) => void
     reload: string | null
+    setShowVersionsTable: (show: boolean) => void
 }
 
 export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props) => {
-    const {tallySheet: tallySheet, doAction, reload, approveAction, disapproveAction} = props
+    const {tallySheet: tallySheet, doAction, reload, approveAction, disapproveAction, setShowVersionsTable} = props
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -121,6 +124,9 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
             </Typography>
         </ResourceListStyles.EmptyBox>
     )
+    function goBack() {
+        setShowVersionsTable(false)
+    }
 
     return (
         <>
@@ -169,14 +175,14 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                         label={t("tallysheet.versionsTable.createdBy")}
                         render={(record: any) => <TextField source="created_by_user_id" />}
                     />
-                    <DateField source="created_at" />
+                    <TextField source="created_at" />
 
                     <FunctionField
                         key={"Reviewed by"}
                         label={t("tallysheet.versionsTable.reviewedBy")}
                         render={(record: any) => <TextField source="reviewed_by_user_id" />}
                     />
-                    <DateField source="reviewed_at" />
+                    <TextField source="reviewed_at" />
 
                     <WrapperField source="actions" label="Actions">
                         <FunctionField
@@ -188,6 +194,16 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
+            <WizardStyles.Toolbar>
+                <WizardStyles.BackButton
+                    color="info"
+                    onClick={goBack}
+                    className="keys-start-back-button"
+                >
+                    <ArrowBackIosIcon />
+                    {t("common.label.back")}
+                </WizardStyles.BackButton>
+            </WizardStyles.Toolbar>
         </>
     )
 }
