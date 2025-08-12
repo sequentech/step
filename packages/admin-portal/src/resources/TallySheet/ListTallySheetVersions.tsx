@@ -6,6 +6,7 @@ import {
     DatagridConfigurable,
     List,
     TextField,
+    DateField,
     TextInput,
     Identifier,
     useDelete,
@@ -166,13 +167,16 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     <FunctionField
                         key={"Created by"}
                         label={t("tallysheet.versionsTable.createdBy")}
-                        render={(record: any) => <TextField source="created_by_user_id" />}
+                        render={(record: any) => <TextField source="created_by_user_id" /> }
                     />
+                    <DateField source="created_at" />
+
                     <FunctionField
                         key={"Reviewed by"}
                         label={t("tallysheet.versionsTable.reviewedBy")}
                         render={(record: any) => <TextField source="reviewed_by_user_id" />}
                     />
+                    <DateField source="reviewed_at" />
 
                     <WrapperField source="actions" label="Actions">
                         <FunctionField
