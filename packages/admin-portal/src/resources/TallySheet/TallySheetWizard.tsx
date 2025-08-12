@@ -41,7 +41,7 @@ interface TallySheetWizardProps {
 
 export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const {action, election: election, tallySheetId, doAction} = props
-
+    console.log("tallySheetId: ", tallySheetId)
     const submitRef = React.useRef<HTMLButtonElement>(null)
     const notify = useNotify()
 
@@ -90,7 +90,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     }, [action])
 
     useEffect(() => {
-        if (tallySheet) {
+        if (contest) {
             setChoosenContest(contest)
         }
     }, [contest])
@@ -124,16 +124,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }
 
-    const sameKindOfTallySheetExists = (tallySheet: string) => {
-        const tallySheetData: Sequent_Backend_Tally_Sheet_Insert_Input = JSON.parse(tallySheet)
-        return listTallySheets?.find(
-            (tallySheet) =>
-                tallySheet.area_id === tallySheetData.area_id &&
-                tallySheet.contest_id === tallySheetData.contest_id &&
-                tallySheet.channel === tallySheetData.channel
-        )
-    }
-
     const handleNext = () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
             submitRef.current?.click()
@@ -141,11 +131,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
             setTimeout(() => {
                 const tallySheet = localStorage.getItem("tallySheetData")
                 if (tallySheet) {
-                    // Do not allow creating a new tally sheet if one with the same channel and area already exists
-                    if (page === WizardSteps.Start && sameKindOfTallySheetExists(tallySheet)) {
-                        notify(t("tallysheet.createTallyErrorSameKindExists"), {type: "error"})
-                        return
-                    }
                     doAction(WizardSteps.Confirm)
                 } else {
                     notify(t("tallysheet.allFieldsRequired"), {type: "error"})

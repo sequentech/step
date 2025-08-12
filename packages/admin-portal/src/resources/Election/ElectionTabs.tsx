@@ -47,6 +47,7 @@ export const ElectionTabs: React.FC = () => {
         if (id) {
             setTallySheetId(id)
         }
+        console.log("id: ", id)
     }
     const isElectionEventLocked =
         electionRecord?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN

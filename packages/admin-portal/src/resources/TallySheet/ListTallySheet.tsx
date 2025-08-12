@@ -79,14 +79,13 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
     const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
 
-    const {data: approvedVersions} = useGetList<Sequent_Backend_Tally_Sheet>(
+    const {data: sheetsDescVersions} = useGetList<Sequent_Backend_Tally_Sheet>(
         "sequent_backend_tally_sheet",
         {
             filter: {
                 tenant_id: tenantId,
                 election_event_id: election.election_event_id,
                 election_id: election.id,
-                status: EStatus.APPROVED,
             },
             pagination: {
                 page: 1,
@@ -99,12 +98,23 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         }
     )
 
-    const getLatestApprovedVersion = (area_id: string, contest_id: string, channel: string) => {
-        const approvedVersion = approvedVersions?.find(
+    const getLatestVersion = (area_id: string, contest_id: string, channel: string) => {
+        const approvedVersion = sheetsDescVersions?.find(
             (sheet) =>
                 sheet.area_id === area_id &&
                 sheet.contest_id === contest_id &&
                 sheet.channel === channel
+        )
+        return approvedVersion?.version ?? "-"
+    }
+
+    const getLatestApprovedVersion = (area_id: string, contest_id: string, channel: string) => {
+        const approvedVersion = sheetsDescVersions?.find(
+            (sheet) =>
+                sheet.area_id === area_id &&
+                sheet.contest_id === contest_id &&
+                sheet.channel === channel &&
+                sheet.status === EStatus.APPROVED
         )
         return approvedVersion?.version ?? "-"
     }
@@ -124,9 +134,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         doAction(WizardSteps.Start)
     }
 
-    const addAction = () => {
+    const addAction = (id: Identifier) => {
         localStorage.removeItem("tallySheetData")
-        doAction(WizardSteps.Edit)
+        doAction(WizardSteps.Edit, id)
     }
 
     const Empty = () => (
@@ -188,32 +198,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
         {
-            icon: <VisibilityIcon />,
-            action: viewAction,
-            showAction: () => canView,
-            label: t("tallysheet.common.show"),
-        },
-        {
-            icon: (
-                <Tooltip title={t("tallysheet.common.approve")}>
-                    <PublishedWithChangesIcon />
-                </Tooltip>
-            ),
-            action: approveAction,
-            showAction: () => canReview && record.status === EStatus.PENDING,
-            label: t("tallysheet.common.approve"),
-        },
-        {
-            icon: (
-                <Tooltip title={t("tallysheet.common.disapprove")}>
-                    <UnpublishedIcon />
-                </Tooltip>
-            ),
-            action: disapproveAction,
-            showAction: () => canReview && record.status === EStatus.PENDING,
-            label: t("tallysheet.common.disapprove"),
-        },
-        {
             icon: <Add />,
             action: addAction,
             showAction: () => canCreate,
@@ -251,10 +235,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     tenant_id: election.tenant_id || undefined,
                     election_event_id: election.election_event_id || undefined,
                     election_id: election.id || undefined,
-                    deleted_at: {
-                        format: "hasura-raw-query",
-                        value: {_is_null: true},
-                    },
+                    version: 1,
                 }}
                 filters={Filters}
                 empty={<Empty />}
@@ -276,24 +257,25 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     />
 
                     <FunctionField
-                        label={t("tallysheet.table.approvedVersion")}
+                        label={t("tallysheet.table.latestVersion")}
                         render={(record: any) =>
-                            record.status === EStatus.APPROVED ? (
-                                <TextField source="version" />
-                            ) : (
-                                getLatestApprovedVersion(
+                            getLatestVersion(
                                     record.area_id,
                                     record.contest_id,
                                     record.channel
                                 )
-                            )
                         }
                     />
-
+                    
                     <FunctionField
-                        key={"latestVersion"}
-                        label={t("tallysheet.table.latestVersion")}
-                        render={(record: any) => <TextField source="version" />}
+                        label={t("tallysheet.table.approvedVersion")}
+                        render={(record: any) =>
+                            getLatestApprovedVersion(
+                                    record.area_id,
+                                    record.contest_id,
+                                    record.channel
+                                )
+                        }
                     />
 
                     <WrapperField source="actions" label="Actions">
