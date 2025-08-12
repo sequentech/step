@@ -44,6 +44,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
+import {ListTallySheetVersions} from "./ListTallySheetVersions"
 
 const OMIT_FIELDS = ["id"]
 
@@ -69,6 +70,8 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
+    const [showVersionsTable, setShowVersionsTable] = React.useState(false)
+    const [selectedTallySheet, setSelectedTallySheet] = React.useState<Sequent_Backend_Tally_Sheet | undefined>(undefined)
     const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
     const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
     const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
@@ -139,6 +142,12 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         doAction(WizardSteps.Edit, id)
     }
 
+    const versionsTableAction = (id: Identifier) => {
+        setShowVersionsTable(true)
+        setTallySheetId(id)
+        setSelectedTallySheet(sheetsDescVersions?.find((s) => s.id === id))
+    }
+
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
@@ -205,7 +214,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         },
         {
             icon: <WorkHistory />,
-            action: viewAction,
+            action: versionsTableAction,
             showAction: () => canView,
             label: t("tallysheet.common.versions"),
         },
@@ -213,82 +222,92 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     return (
         <>
-            <List
-                queryOptions={{
-                    refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
-                }}
-                resource="sequent_backend_tally_sheet"
-                actions={
-                    <ListActions
-                        withImport={false}
-                        withExport={false}
-                        extraActions={[
-                            <Button key={0} onClick={createAction}>
-                                <Add />
-                                {t("tallysheet.empty.add")}
-                            </Button>,
-                        ]}
-                    />
-                }
-                sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: election.tenant_id || undefined,
-                    election_event_id: election.election_event_id || undefined,
-                    election_id: election.id || undefined,
-                    version: 1,
-                }}
-                filters={Filters}
-                empty={<Empty />}
-            >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="channel" />
+            { showVersionsTable && selectedTallySheet && (
+                <ListTallySheetVersions
+                    tallySheet={selectedTallySheet}
+                    approveAction={approveAction}
+                    disapproveAction={disapproveAction}
+                    doAction={doAction}
+                    reload={reload}
+                />
+            )}
+            { !showVersionsTable && (
+                <List
+                    queryOptions={{
+                        refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                    }}
+                    resource="sequent_backend_tally_sheet"
+                    actions={
+                        <ListActions
+                            withImport={false}
+                            withExport={false}
+                            extraActions={[
+                                <Button key={0} onClick={createAction}>
+                                    <Add />
+                                    {t("tallysheet.empty.add")}
+                                </Button>,
+                            ]}
+                        />
+                    }
+                    sx={{flexGrow: 2}}
+                    filter={{
+                        tenant_id: election.tenant_id || undefined,
+                        election_event_id: election.election_event_id || undefined,
+                        election_id: election.id || undefined,
+                        version: 1,
+                    }}
+                    filters={Filters}
+                    empty={<Empty />}
+                >
+                    <DatagridConfigurable omit={OMIT_FIELDS}>
+                        <TextField source="id" />
+                        <TextField source="channel" />
 
-                    <FunctionField
-                        label={t("tallysheet.table.contest")}
-                        render={(record: any) => <ContestItem record={record.contest_id} />}
-                    />
+                        <FunctionField
+                            label={t("tallysheet.table.contest")}
+                            render={(record: any) => <ContestItem record={record.contest_id} />}
+                        />
 
-                    <FunctionField
-                        label={t("tallysheet.table.area")}
-                        render={(record: Sequent_Backend_Tally_Sheet) => (
-                            <AreaItem record={record.area_id} />
-                        )}
-                    />
-
-                    <FunctionField
-                        label={t("tallysheet.table.latestVersion")}
-                        render={(record: any) =>
-                            getLatestVersion(
-                                    record.area_id,
-                                    record.contest_id,
-                                    record.channel
-                                )
-                        }
-                    />
-                    
-                    <FunctionField
-                        label={t("tallysheet.table.approvedVersion")}
-                        render={(record: any) =>
-                            getLatestApprovedVersion(
-                                    record.area_id,
-                                    record.contest_id,
-                                    record.channel
-                                )
-                        }
-                    />
-
-                    <WrapperField source="actions" label="Actions">
                         <FunctionField
                             label={t("tallysheet.table.area")}
                             render={(record: Sequent_Backend_Tally_Sheet) => (
-                                <ListActionsMenu actions={actions(record)} />
+                                <AreaItem record={record.area_id} />
                             )}
                         />
-                    </WrapperField>
-                </DatagridConfigurable>
-            </List>
 
+                        <FunctionField
+                            label={t("tallysheet.table.latestVersion")}
+                            render={(record: any) =>
+                                getLatestVersion(
+                                        record.area_id,
+                                        record.contest_id,
+                                        record.channel
+                                    )
+                            }
+                        />
+                        
+                        <FunctionField
+                            label={t("tallysheet.table.approvedVersion")}
+                            render={(record: any) =>
+                                getLatestApprovedVersion(
+                                        record.area_id,
+                                        record.contest_id,
+                                        record.channel
+                                    )
+                            }
+                        />
+
+                        <WrapperField source="actions" label="Actions">
+                            <FunctionField
+                                label={t("tallysheet.table.area")}
+                                render={(record: Sequent_Backend_Tally_Sheet) => (
+                                    <ListActionsMenu actions={actions(record)} />
+                                )}
+                            />
+                        </WrapperField>
+                    </DatagridConfigurable>
+                </List>
+            )}
             <Dialog
                 variant="warning"
                 open={openDisapproveDialog}

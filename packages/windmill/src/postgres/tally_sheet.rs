@@ -110,7 +110,7 @@ pub async fn get_latest_ballot_box_version(
         .prepare(
             r#"
                 SELECT
-                    version
+                    *
                 FROM
                     sequent_backend.tally_sheet
                 WHERE

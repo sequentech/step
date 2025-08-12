@@ -69,19 +69,18 @@ pub async fn create_new_tally_sheet(
         ));
     };
 
-    // let version = tally_sheet::get_latest_ballot_box_version(
-    //     &hasura_transaction,
-    //     &claims.hasura_claims.tenant_id,
-    //     &input.election_event_id,
-    //     &contest.election_id,
-    //     &input.area_id,
-    //     &input.contest_id,
-    //     &input.channel,
-    // )
-    // .await
-    // .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let version = tally_sheet::get_latest_ballot_box_version(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+        &contest.election_id,
+        &input.area_id,
+        &input.contest_id,
+        &input.channel,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let version = 1;
     let new_tally_sheet = tally_sheet::insert_tally_sheet(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
