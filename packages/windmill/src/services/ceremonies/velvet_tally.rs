@@ -678,7 +678,6 @@ pub async fn create_config_file(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     tally_type: TallyType,
-    database_document_id: String,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -775,6 +774,7 @@ pub async fn create_config_file(
     Ok(())
 }
 
+#[instrument(skip_all, err)]
 async fn populate_sqlite_election_event_data(
     base_tempdir: &Path,
     hasura_transaction: &Transaction<'_>,
@@ -784,7 +784,7 @@ async fn populate_sqlite_election_event_data(
     let velvet_input_dir = base_tempdir.join("input");
 
     let base_database_path = velvet_input_dir.join(format!("{DEFAULT_DIR_DATABASE}/"));
-    let database_path = base_database_path.join(format!("results-{document_id}.db"));
+    let database_path = base_database_path.join(format!("results.db"));
 
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
@@ -905,6 +905,8 @@ async fn populate_sqlite_election_event_data(
             )
             .await
             .context("Failed to create area contest table")?;
+
+            sqlite_transaction.commit()?;
             Ok(())
         })
     })?;
@@ -961,7 +963,6 @@ pub async fn run_velvet_tally(
         pdf_options,
         tally_session,
         tally_type,
-        database_document_id,
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await

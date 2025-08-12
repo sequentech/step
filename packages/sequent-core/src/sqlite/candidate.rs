@@ -6,21 +6,12 @@ use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
-// use deadpool_postgres::Transaction;
-// use futures::{pin_mut, StreamExt};
 use rusqlite::{params, Transaction as SqliteTransaction};
-// use tempfile::NamedTempFile;
-// use tokio::fs::File;
-// use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
 pub async fn create_candidate_sqlite(
-    // hasura_transaction: &Transaction<'_>,
     sqlite_transaction: &SqliteTransaction<'_>,
-    // contest_ids: &Vec<String>,
-    // tenant_id: &str,
-    // election_event_id: &str,
 ) -> Result<()> {
     sqlite_transaction.execute_batch(
         "
@@ -50,9 +41,6 @@ pub async fn create_candidate_sqlite(
 pub async fn import_candidate_sqlite(
     sqlite_transaction: &SqliteTransaction<'_>,
     contests_csv: &Path,
-    // contest_ids: &Vec<String>,
-    // tenant_id: &str,
-    // election_event_id: &str,
 ) -> Result<()> {
     tokio::task::block_in_place(|| -> anyhow::Result<()> {
         let mut insert = sqlite_transaction.prepare(

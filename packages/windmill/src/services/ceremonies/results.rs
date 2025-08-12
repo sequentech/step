@@ -33,6 +33,7 @@ use sequent_core::sqlite::results_contest::create_results_contest_sqlite;
 use sequent_core::sqlite::results_contest_candidate::create_results_contest_candidates_sqlite;
 use sequent_core::sqlite::results_election::create_results_election_sqlite;
 use sequent_core::sqlite::results_event::create_results_event_sqlite;
+use sequent_core::sqlite::results_event::find_results_event_sqlite;
 use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
 use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::hasura::core::{Area, TallySession};
@@ -48,6 +49,7 @@ use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
 use velvet::pipes::pipe_inputs::DEFAULT_DIR_DATABASE;
 use std::fs;
+use tracing::info;
 
 #[instrument(skip_all)]
 pub async fn save_results(
@@ -347,17 +349,14 @@ pub async fn generate_results_id_if_necessary(
     if !(session_ids.len() > previous_session_ids.len()) {
         return Ok(None);
     }
-    let results_event =
-        insert_results_event(hasura_transaction, &tenant_id, &election_event_id).await?;
-
-    let _ = create_results_event_sqlite(
+    
+    let results_event = find_results_event_sqlite(
         sqlite_transaction,
         tenant_id,
         election_event_id,
-        &results_event.id,
-    )
-    .await
-    .context("Failed to create results event table")?;
+    ).context("Failed to find results event table")?;
+
+    insert_results_event(hasura_transaction, &tenant_id, &election_event_id, &results_event.id).await?;
     Ok(Some(results_event.id))
 }
 
@@ -448,6 +447,8 @@ pub async fn populate_results_tables(
     let velvet_output_dir = base_tally_path.join("output");
     let base_database_path = velvet_output_dir.join("velvet-generate-database");
     let database_path = base_database_path.join("results.db");
+
+    info!("************** database_path: {database_path:?}");
 
     let document_id = Uuid::new_v4().to_string();
 

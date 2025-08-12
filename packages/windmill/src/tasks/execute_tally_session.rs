@@ -884,19 +884,6 @@ async fn map_plaintext_data(
     )))
 }
 
-#[instrument(skip(hasura_transaction), err)]
-async fn create_results_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<String> {
-    let results_event = &insert_results_event(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .with_context(|| "can't find results_event")?;
-
-    Ok(results_event.id.clone())
-}
-
 async fn build_reports_template_data(
     tally_type_enum: TallyType,
     tenant_id: String,
