@@ -17,6 +17,7 @@ pub mod export_templates;
 pub mod export_tenant_config;
 pub mod export_trustees;
 pub mod export_users;
+pub mod export_verifiable_bulletin_board;
 pub mod generate_report;
 pub mod generate_template;
 pub mod import_application;

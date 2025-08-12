@@ -32,15 +32,16 @@ interface ActionsColumnProps {
     actions: Array<Action>
 }
 
+export const StyledIconButton = styled(IconButton)`
+    color: ${adminTheme.palette.brandColor};
+    font-size: 18px;
+    margin-left: 8px;
+`
+
 export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
     const record = useRecordContext()
     const {actions} = props
 
-    const StyledIconButton = styled(IconButton)`
-        color: ${adminTheme.palette.brandColor};
-        font-size: 18px;
-        margin-left: 8px;
-    `
     const filteredActions = actions.filter(
         (action) => !action.showAction || action.showAction(record.id)
     )

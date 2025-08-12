@@ -495,6 +495,19 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: export_verifiable_bulletin_board
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-verifiable-bulletin-board
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: export-verifiable-bulletin-board
     - name: fetchDocument
       definition:
           kind: ""
@@ -1465,4 +1478,5 @@ custom_types:
         - name: CountUsersOutput
         - name: RenderDocumentPDFOutput
         - name: UpsertAreaOutput
+        - name: ExportVerifiableBulletinBoardOutput
     scalars: []

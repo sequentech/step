@@ -44,7 +44,7 @@ from the Sqlite3 file produced by the Tally. This makes it faster and
 more scalable.
 
 ## ✨ Improve demo mode
-
+  
 With this change, the DEMO tiled background and the Demo warning dialog
 will appear when entering the voting portal from the preview screen in the
 admin portal. Also, the warning dialog will appear on the election start
@@ -52,3 +52,7 @@ screen rather than in the election chooser. This includes a fix so that
 the demo background/dialog will only appear for elections that don't have
 generated keys when voters login to the voting portal. Also, css classes
 are added to the demo background and dialog to help custom styling.
+
+
+## Add Keycloak permission:
+   - export-verifiable-bulletin-board

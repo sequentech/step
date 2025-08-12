@@ -4,8 +4,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::Context;
 use anyhow::Result;
 use colored::*;
+use rusqlite::params;
+use rusqlite::Connection;
+use rusqlite::OpenFlags;
 use serde::Serialize;
 use strum::Display;
 use tracing::info;
@@ -16,12 +20,11 @@ use b3::messages::message::VerifiedMessage;
 use b3::messages::newtypes::*;
 use b3::messages::statement::StatementType;
 
-use crate::protocol::board::grpc_m::GrpcB3;
-use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee2::Trustee;
 
 use crate::util::dbg_hash;
+use crate::util::VERIFIABLE_BULLETIN_BOARD_FILE;
 use crate::verify::datalog::Target;
 use crate::verify::datalog::Verified;
 
@@ -113,17 +116,22 @@ enum Check {
     PLAINTEXTS_VALID,
 }
 
-pub struct Verifier<C: Ctx> {
+pub struct Verifier<'conn, C: Ctx> {
     trustee: Trustee<C>,
-    board: GrpcB3,
     board_name: String,
+    sqlite_connection: &'conn Connection,
 }
-impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
+
+impl<'conn, C: Ctx> Verifier<'conn, C> {
+    pub fn new(
+        trustee: Trustee<C>,
+        board_name: &str,
+        conn: &'conn Connection,
+    ) -> Verifier<'conn, C> {
         Verifier {
             trustee,
-            board,
             board_name: board_name.to_string(),
+            sqlite_connection: conn,
         }
     }
 
@@ -134,18 +142,9 @@ impl<C: Ctx> Verifier<C> {
         vr.add_target(Check::MESSAGES_CFG_VALID);
         vr.add_target(Check::PK_VALID);
 
-        info!(
-            "{}",
-            format!("Verifying board '{}'", self.board_name).bold()
-        );
+        info!("{}", format!("Verifying '{}'", self.board_name).bold());
 
-        let messages = self.board.get_messages(&self.board_name, -1).await?;
-        let messages: Vec<(Message, i64)> = messages
-            .iter()
-            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
-            .collect();
-        // discard ids here
-        // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
+        let messages = self.get_board_message().await?;
 
         let cfg_message: Vec<&Message> = messages
             .iter()
@@ -251,6 +250,23 @@ impl<C: Ctx> Verifier<C> {
         info!("{}", vr);
 
         Ok(())
+    }
+
+    pub async fn get_board_message(&self) -> Result<Vec<(Message, i64)>> {
+        let mut stmt = self.sqlite_connection.prepare(
+            "SELECT * FROM bulletin_board
+                 ORDER BY id",
+        )?;
+        let mut rows = stmt.query(params![])?;
+        let mut messages: Vec<(Message, i64)> = Vec::new();
+        while let Some(row) = rows.next()? {
+            let id: i64 = row.get(0)?;
+            let message: Vec<u8> = row.get(7)?;
+
+            let msg: Message = StrandDeserialize::strand_deserialize(&message)?;
+            messages.push((msg, id));
+        }
+        Ok(messages)
     }
 }
 

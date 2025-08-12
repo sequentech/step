@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useMemo} from "react"
+import React, {ReactElement, useCallback, useContext, useMemo} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -63,6 +63,7 @@ import {Add} from "@mui/icons-material"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
+import {ExportVerifiableBulletinBoard} from "@/components/tally/ExportVerifiableBulletinBoard"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -124,7 +125,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         IPermissions.MIRU_DOWNLOAD,
         IPermissions.MIRU_SEND,
     ])
-
+    const canExportBulletinBoard = authContext.isAuthorized(true, tenantId, [
+        IPermissions.EXPORT_VERIFIABLE_BULLETIN_BOARD,
+    ])
     const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [isCreatingTally, setIsCreatingTally] = React.useState<boolean>(false)
@@ -212,6 +215,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const keysCeremonyIds = useMemo(
         () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony?.id) ?? [],
         [keysCeremonies?.list_keys_ceremony?.items]
+    )
+
+    const isCanExportVerifiableBulletionBoard = useCallback(
+        (record: RaRecord<Identifier>) =>
+            canExportBulletinBoard &&
+            record.tally_type === ETallyType.ELECTORAL_RESULTS &&
+            record.execution_status === ITallyExecutionStatus.SUCCESS,
+        []
     )
 
     const CreateTallyButton = () => (
@@ -518,7 +529,16 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                             source="actions"
                             label="Actions"
                             render={(record: RaRecord<Identifier>) => (
-                                <ActionsColumn actions={actions(record)} />
+                                <Box sx={{display: "flex", gap: 1}}>
+                                    <ActionsColumn actions={actions(record)} />
+                                    {isCanExportVerifiableBulletionBoard(record) && (
+                                        <ExportVerifiableBulletinBoard
+                                            tallySessionId={record.id.toString()}
+                                            electionEventId={electionEventRecord.id}
+                                            tenantId={tenantId}
+                                        />
+                                    )}
+                                </Box>
                             )}
                         >
                             {/* <ActionsColumn actions={actions} /> */}

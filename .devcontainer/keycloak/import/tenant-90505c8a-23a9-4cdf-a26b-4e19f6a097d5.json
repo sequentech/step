@@ -1795,7 +1795,16 @@
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
         "attributes": {}
-      }
+      },
+      {
+      "id" : "bfb767c7-d530-4824-9951-fc126ea602c4",
+      "name" : "export-verifiable-bulletin-board",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }
     ],
     "client": {
       "cli-account-admin": [
@@ -2383,7 +2392,8 @@
         "election-dashboard-tab",
         "voter-voted-edit",
         "voter-email-tlf-edit",
-        "transmission-report-generate"
+        "transmission-report-generate",
+        "export-verifiable-bulletin-board"
       ],
       "clientRoles": {}
     },

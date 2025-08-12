@@ -18,6 +18,7 @@ getrandom = { version = "0.2" }
 
 strand = { path="../strand", features=["rayon"] }
 b3 = { path="../b3", features = ["client"] }
+sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas"] }
 # borsh = { version = "=1.5.1", features = ["derive"] }
 crepe = "0.1.5"
 strum = { version = "0.26.3", features = ["derive"] }
