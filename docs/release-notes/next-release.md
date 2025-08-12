@@ -52,3 +52,8 @@ screen rather than in the election chooser. This includes a fix so that
 the demo background/dialog will only appear for elections that don't have
 generated keys when voters login to the voting portal. Also, css classes
 are added to the demo background and dialog to help custom styling.
+
+## ✨ Tally sheets input support
+
+New permission roles have been created: `tally-sheet-view`, `tally-sheet-create` and `tally-sheet-review`.
+If they are not present they must be created in Realm Roles and assigned in Groups > Admin > Role Mapping.
