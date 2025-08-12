@@ -1761,7 +1761,8 @@ const frenchTranslation: TranslationType = {
                 show: "Afficher",
                 add: "Ajouter",
                 versions: "Versions",
-                warningDisapprove: "Êtes-vous sûr de vouloir désapprouver cette Feuille de Décompte?",
+                warningDisapprove:
+                    "Êtes-vous sûr de vouloir désapprouver cette Feuille de Décompte?",
                 warningApprove: "Êtes-vous sûr de vouloir approuver cette Feuille de Décompte?",
             },
             empty: {

@@ -3008,7 +3008,6 @@ export type Mutation_RootReview_Tally_SheetArgs = {
     election_event_id: Scalars["String"]["input"]
     new_status: Scalars["String"]["input"]
     tally_sheet_id: Scalars["String"]["input"]
-    version: Scalars["Int"]["input"]
 }
 
 /** mutation root */
