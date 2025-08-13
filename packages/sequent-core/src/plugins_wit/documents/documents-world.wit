@@ -6,6 +6,10 @@ package plugins-manager:documents-manager;
 interface documents {
     create-document-as-temp-file: func(tenant-id: string, document: string) -> result<string, string>;
     get-tally-results: func(tally-base-path:string) -> result<string, string>;
+    get-s3-public-asset-file-path: func(file-name: string) -> result<string, string>;
+    download-s3-file-to-string: func(file-url: string) -> result<string, string>;
+    render-template-text: func(template-string:string, variables-map:string) -> result<string, string>;
+    hash-sha256: func(bytes: list<u8>) -> result<list<u8>, string>;
     print-data: func(data:string);
 }
 

@@ -17,6 +17,7 @@ The Plugin Manager allows you to dynamically load, manage, and invoke WebAssembl
 - `plugin.rs`: Defines the Plugin struct and dynamic hook invocation.
 - `plugin_db_manager.rs`: Provides database transaction management for plugins.
 - `plugins_hooks.rs`: Where you implement Rust-side logic for each hook.
+- `packages/sequent-core/src/plugins.rs`: define existing plugins.
 
 ---
 
@@ -73,6 +74,10 @@ When creating a new plugin under `packages/plugins`, you must:
       ```
 2.  **Implement your plugin logic in Rust (or another supported language).**
     * **Generate Bindings:** After modifying your plugin's WIT files (`wit/world.wit` etc.) or if the `sequent-core` WIT files change, you **must** run `cargo component bindings` in your plugin's directory (`packages/plugins/my_plugin/`). This command generates/updates the Rust bindings in your `src/lib.rs` (or other designated output) file, allowing your Rust code to interact with the defined interfaces.
+
+3. **add plugin name to `packages/sequent-core/src/plugins.rs` Plugins enum**
+  - should be the same name as writting in cargo.toml under package name.
+  
 ## 3. Compile your plugin to the `wasm32-wasip2` target.
 
 * Example build command:

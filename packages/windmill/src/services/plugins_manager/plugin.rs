@@ -6,16 +6,22 @@ use crate::services::plugins_manager::{
     plugin_documents_manager::PluginDocumentsManager,
 };
 use anyhow::{anyhow, Context, Result};
-use core::{option::Option::None, result::Result::Err};
+use core::{
+    option::Option::None,
+    result::Result::{Err, Ok},
+};
 use sequent_core::{
+    plugins::{get_plugin_shared_dir, Plugins},
     plugins_wit::lib::{
         authorization_bindings::plugins_manager::jwt::authorization::{
             add_to_linker as add_auth_to_linker, Host as HostAuth,
         },
         documents_bindings::plugins_manager::documents_manager::documents::add_to_linker as add_documents_to_linker,
         plugin_bindings::{plugins_manager::common::types::Manifest, Plugin as PluginInterface},
-        transactions_manager_bindings::plugins_manager::transactions_manager::postgres_queries::add_to_linker as add_postgres_queries_to_linker,
-        transactions_manager_bindings::plugins_manager::transactions_manager::transaction::add_to_linker as add_transaction_linker,
+        transactions_manager_bindings::plugins_manager::transactions_manager::{
+            postgres_queries::add_to_linker as add_postgres_queries_to_linker,
+            transaction::add_to_linker as add_transaction_linker,
+        },
     },
     services::{authorization::authorize, jwt::JwtClaims},
     types::permissions::Permissions,
@@ -204,7 +210,17 @@ impl Plugin {
             host_temp_path.display()
         );
 
-        let plugin_temp_dir = format!("/temp/{}", wasm_file_name);
+        let plugin_name = match Plugins::from_str(&wasm_file_name) {
+            Ok(name) => name,
+            Err(e) => {
+                println!(
+                    "Failed to parse plugin name from file {}: {}",
+                    wasm_file_name, e
+                );
+                return Ok(None);
+            }
+        };
+        let plugin_temp_dir = get_plugin_shared_dir(&plugin_name);
         builder
             .preopened_dir(
                 host_temp_path.clone(),

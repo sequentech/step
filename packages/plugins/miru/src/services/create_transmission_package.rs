@@ -1,25 +1,34 @@
 // SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use core::{any::Any, convert::Into};
+use core::convert::Into;
 use std::fs;
 
-use crate::bindings::plugins_manager::{
-    documents_manager::documents::{create_document_as_temp_file, get_tally_results, print_data},
-    transactions_manager::postgres_queries::{
-        get_area_by_id, get_document, get_election_by_id, get_election_event_by_election_area,
-        get_last_tally_session_execution, get_results_event_by_id, get_tally_session_by_id,
+use crate::{
+    bindings::plugins_manager::{
+        documents_manager::documents::{
+            create_document_as_temp_file, get_tally_results, print_data,
+        },
+        transactions_manager::postgres_queries::{
+            get_area_by_id, get_document, get_election_by_id, get_election_event_by_election_area,
+            get_last_tally_session_execution, get_results_event_by_id, get_tally_session_by_id,
+        },
+    },
+    services::{
+        acm_transaction::generate_transaction_id,
+        transmission_package::generate_base_compressed_xml,
     },
 };
+use chrono::{Local, Utc};
 use sequent_core::{
     ballot::Annotations,
-    serialization::deserialize_with_path::deserialize_value,
+    serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     types::{
         hasura::core::{Area, Election, ElectionEvent, TallySession, TallySessionExecution},
         results::{ResultDocumentType, ResultsEvent},
-        velvet::ElectionReportDataComputed,
+        velvet::{ElectionReportDataComputed, ReportData},
     },
+    util::date_time::PHILIPPINO_TIMEZONE,
 };
 use tracing::instrument;
 
@@ -189,7 +198,7 @@ pub fn download_tally_tar_gz_to_file(
     };
 
     let tally_session_execution: TallySessionExecution =
-        serde_json::from_str::<TallySessionExecution>(&tally_session_execution_json)
+        deserialize_str::<TallySessionExecution>(&tally_session_execution_json)
             .map_err(|e| e.to_string())?;
 
     let results_event_id = tally_session_execution
@@ -202,7 +211,7 @@ pub fn download_tally_tar_gz_to_file(
             .map_err(|e| e.to_string())?;
 
     let result_event: ResultsEvent =
-        serde_json::from_str::<ResultsEvent>(&result_event_json).map_err(|e| e.to_string())?;
+        deserialize_str::<ResultsEvent>(&result_event_json).map_err(|e| e.to_string())?;
 
     let document_type = ResultDocumentType::TarGzOriginal;
     let document_id = result_event
@@ -242,12 +251,12 @@ pub fn create_transmission_package_service(
         .map_err(|e| e.to_string())?;
 
     let election_event: ElectionEvent =
-        serde_json::from_str::<ElectionEvent>(&election_event_json).map_err(|e| e.to_string())?;
+        deserialize_str::<ElectionEvent>(&election_event_json).map_err(|e| e.to_string())?;
 
     let tally_session_json =
         get_tally_session_by_id(tenant_id, &election_event.id, tally_session_id)
             .map_err(|e| format!("Failed to get tally session by id: {}", e))?;
-    let tally_session: TallySession = serde_json::from_str(&tally_session_json)
+    let tally_session: TallySession = deserialize_str::<TallySession>(&tally_session_json)
         .map_err(|e| format!("Failed to deserialize TallySession: {}", e))?;
 
     let tally_annotations: Annotations = tally_session
@@ -276,7 +285,7 @@ pub fn create_transmission_package_service(
         return Err("Election not found".to_string());
     };
 
-    let election: Election = serde_json::from_str::<Election>(&election_str)
+    let election: Election = deserialize_str::<Election>(&election_str)
         .map_err(|e| format!("Failed to deserialize ElectionEvent: {}", e))?;
     let election_annotations = election.get_annotations().map_err(|e| e.to_string())?;
 
@@ -285,7 +294,7 @@ pub fn create_transmission_package_service(
         return Err("Area not found".to_string());
     };
 
-    let area: Area = serde_json::from_str::<Area>(&area_str)
+    let area: Area = deserialize_str::<Area>(&area_str)
         .map_err(|e| format!("Failed to deserialize Area: {}", e))?;
 
     let area_annotations = area.get_annotations().map_err(|e| e.to_string())?;
@@ -315,7 +324,7 @@ pub fn create_transmission_package_service(
     println!("[Guest Plugin] Tally results string: {}", tally_results_str);
 
     let tally_results: Vec<ElectionReportDataComputed> =
-        serde_json::from_str::<Vec<ElectionReportDataComputed>>(&tally_results_str)
+        deserialize_str::<Vec<ElectionReportDataComputed>>(&tally_results_str)
             .map_err(|e| e.to_string())?;
 
     println!(
@@ -323,42 +332,48 @@ pub fn create_transmission_package_service(
         tally_results
     );
 
-    // let tally_id = tally_session_id;
-    // let transaction_id = generate_transaction_id().to_string();
-    // let time_zone = PHILIPPINO_TIMEZONE;
-    // let now_utc = Utc::now();
-    // let now_local = now_utc.with_timezone(&Local);
+    let tally_id = tally_session_id;
+    let transaction_id = generate_transaction_id().to_string();
+    let time_zone = PHILIPPINO_TIMEZONE.clone();
+    let now_utc = Utc::now();
+    let now_local = now_utc.with_timezone(&Local);
 
-    // let election_event_annotations = election_event.get_annotations()?;
-    // let Some(result) = tally_results
-    //     .into_iter()
-    //     .find(|result| result.election_id == election_id)
-    // else {
-    //     println!("[Guest Plugin] Tally result not found for election_id: {}", election_id);
-    //     return Ok("".to_string())
-    // };
-    // let reports: Vec<ReportData> = result
-    //     .reports
-    //     .into_iter()
-    //     .filter(|result| {
-    //         let Some(basic_area) = result.area.clone() else {
-    //             return false;
-    //         };
-    //         return basic_area.id == area_id;
-    //     })
-    //     .map(|report_computed| report_computed.into())
-    //     .collect();
-    // let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
-    //     tally_id,
-    //     &transaction_id,
-    //     time_zone.clone(),
-    //     now_utc.clone(),
-    //     &election_event_annotations,
-    //     &election_annotations,
-    //     &area_annotations,
-    //     &reports,
-    // )
-    // ?;
+    let election_event_annotations = election_event
+        .get_annotations()
+        .map_err(|e| e.to_string())?;
+    let Some(result) = tally_results
+        .into_iter()
+        .find(|result| result.election_id == election_id)
+    else {
+        println!(
+            "[Guest Plugin] Tally result not found for election_id: {}",
+            election_id
+        );
+        return Ok("".to_string());
+    };
+    let reports: Vec<ReportData> = result
+        .reports
+        .into_iter()
+        .filter(|result| {
+            let Some(basic_area) = result.area.clone() else {
+                return false;
+            };
+            return basic_area.id == area_id;
+        })
+        .map(|report_computed| report_computed.into())
+        .collect();
+
+    // let (base_compressed_xml, eml, eml_hash) =
+    generate_base_compressed_xml(
+        tally_id,
+        &transaction_id,
+        time_zone.clone(),
+        now_utc.clone(),
+        &election_event_annotations,
+        &election_annotations,
+        &area_annotations,
+        &reports,
+    );
 
     // // upload .xz
     // let xz_name = format!("er_{}.xz", transaction_id);

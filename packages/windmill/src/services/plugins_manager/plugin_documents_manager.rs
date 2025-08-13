@@ -2,8 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use core::convert::From;
-use sequent_core::types::hasura::core::Document;
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_str,
+    services::{
+        reports,
+        s3::{download_s3_file_to_string, get_public_asset_file_path},
+    },
+    types::hasura::core::Document,
+};
+use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
+use strand::hash::hash_sha256;
 use tempfile::NamedTempFile;
 
 use sequent_core::plugins_wit::lib::documents_bindings::plugins_manager::documents_manager::documents::Host;
@@ -31,8 +40,7 @@ impl Host for PluginDocumentsManager {
         tenant_id: String,
         document_json: String,
     ) -> Result<String, String> {
-        //TODO: deserialize_str
-        let document: Document = serde_json::from_str(&document_json)
+        let document: Document = deserialize_str::<Document>(&document_json)
             .map_err(|e| format!("Failed to parse document JSON: {}", e))?;
 
         let named_temp_file =
@@ -80,5 +88,36 @@ impl Host for PluginDocumentsManager {
         // println!("Host Tally results: {}", tally_res);
 
         Ok(tally_res)
+    }
+
+    async fn get_s3_public_asset_file_path(&mut self, filename: String) -> Result<String, String> {
+        let path = get_public_asset_file_path(&filename)
+            .map_err(|e| format!("Error getting S3 public asset file path: {}", e))?;
+        Ok(path)
+    }
+
+    async fn download_s3_file_to_string(&mut self, file_url: String) -> Result<String, String> {
+        let file_str = download_s3_file_to_string(&file_url)
+            .await
+            .map_err(|e| format!("Error downloading S3 file: {}", e))?;
+        Ok(file_str)
+    }
+
+    async fn render_template_text(
+        &mut self,
+        template_string: String,
+        variables_map: String,
+    ) -> Result<String, String> {
+        let variables_map: Map<String, Value> =
+            deserialize_str::<Map<String, Value>>(&variables_map)
+                .map_err(|e| format!("Error parsing variables map: {}", e))?;
+
+        let rendered_text = reports::render_template_text(&template_string, variables_map)
+            .map_err(|e| format!("Error rendering template text: {}", e))?;
+        Ok(rendered_text)
+    }
+
+    async fn hash_sha256(&mut self, bytes: Vec<u8>) -> Result<Vec<u8>, String> {
+        hash_sha256(&bytes).map_err(|e| format!("Error hashing bytes: {}", e))
     }
 }

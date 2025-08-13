@@ -1,25 +1,24 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::eml_types::*;
 use crate::services::miru_plugin_types::*;
 use anyhow::{anyhow, Context, Result};
-// use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc};
 use sequent_core::{
     ballot::*,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     types::{
         date_time::*,
-        hasura::core::{self, ElectionEvent, Trustee},
+        hasura::core::{self, ElectionEvent},
+        velvet::{ContestResult, ReportData},
     },
     util::date_time::generate_timestamp,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
-use strum_macros::{Display, EnumString, ToString};
-use tracing::{info, instrument};
-// use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
+use strum_macros::{Display, EnumString};
+use tracing::instrument;
 
 pub const MIRU_PLUGIN_PREPEND: &str = "miru";
 pub const MIRU_ELECTION_EVENT_ID: &str = "election-event-id";
@@ -71,101 +70,100 @@ pub trait GetMetrics {
 }
 
 // TODO: review
-// TODO: Uncomment
-// impl GetMetrics for ContestResult {
-//     #[instrument(skip_all, name = "ContestResult::get_metrics")]
-//     fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric> {
-//         let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
+impl GetMetrics for ContestResult {
+    #[instrument(skip_all, name = "ContestResult::get_metrics")]
+    fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric> {
+        let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
 
-//         vec![
-//             EMLCountMetric {
-//                 kind: "Total Number of Over Votes".into(),
-//                 id: "OV".into(),
-//                 datum: extended_metrics.over_votes as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Under Votes".into(),
-//                 id: "UV".into(),
-//                 datum: extended_metrics.under_votes as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Votes Actually".into(),
-//                 id: "VV".into(),
-//                 datum: extended_metrics.votes_actually as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Registered Voters".into(),
-//                 id: "RV".into(),
-//                 datum: registered_voters,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Expected Votes".into(),
-//                 id: "EV".into(),
-//                 datum: extended_metrics.expected_votes as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Number of Zero Outs Executed".into(),
-//                 id: "RZ".into(),
-//                 datum: 0,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Scanned Ballots".into(),
-//                 id: "TB".into(),
-//                 datum: 0,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Valid Ballots".into(),
-//                 id: "VB".into(),
-//                 datum: self.total_valid_votes as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Stamped Ballots".into(),
-//                 id: "SB".into(),
-//                 datum: 0,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Ballots In Ballot Box".into(),
-//                 id: "BB".into(),
-//                 datum: self.total_votes as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Abstentions".into(),
-//                 id: "AB".into(),
-//                 datum: self.total_blank_votes as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Invalid Ballots".into(),
-//                 id: "IB".into(),
-//                 datum: self.total_invalid_votes as i64,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Misread Ballots".into(),
-//                 id: "MB".into(),
-//                 datum: 0,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Fake Ballots".into(),
-//                 id: "FB".into(),
-//                 datum: 0,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Previously Casted Ballots".into(),
-//                 id: "PB".into(),
-//                 datum: 0,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Returned Ballots".into(),
-//                 id: "RB".into(),
-//                 datum: 0,
-//             },
-//             EMLCountMetric {
-//                 kind: "Total Number of Rejected Ballots".into(),
-//                 id: "JB".into(),
-//                 datum: 0,
-//             },
-//         ]
-//     }
-// }
+        vec![
+            EMLCountMetric {
+                kind: "Total Number of Over Votes".into(),
+                id: "OV".into(),
+                datum: extended_metrics.over_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Under Votes".into(),
+                id: "UV".into(),
+                datum: extended_metrics.under_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Votes Actually".into(),
+                id: "VV".into(),
+                datum: extended_metrics.votes_actually as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Registered Voters".into(),
+                id: "RV".into(),
+                datum: registered_voters,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Expected Votes".into(),
+                id: "EV".into(),
+                datum: extended_metrics.expected_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Number of Zero Outs Executed".into(),
+                id: "RZ".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Scanned Ballots".into(),
+                id: "TB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Valid Ballots".into(),
+                id: "VB".into(),
+                datum: self.total_valid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Stamped Ballots".into(),
+                id: "SB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Ballots In Ballot Box".into(),
+                id: "BB".into(),
+                datum: self.total_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Abstentions".into(),
+                id: "AB".into(),
+                datum: self.total_blank_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Invalid Ballots".into(),
+                id: "IB".into(),
+                datum: self.total_invalid_votes as i64,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Misread Ballots".into(),
+                id: "MB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Fake Ballots".into(),
+                id: "FB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Previously Casted Ballots".into(),
+                id: "PB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Returned Ballots".into(),
+                id: "RB".into(),
+                datum: 0,
+            },
+            EMLCountMetric {
+                kind: "Total Number of Rejected Ballots".into(),
+                id: "JB".into(),
+                datum: 0,
+            },
+        ]
+    }
+}
 
 pub trait ValidateAnnotations {
     type Item;
@@ -817,121 +815,120 @@ pub fn find_miru_annotation_opt(data: &str, annotations: &Annotations) -> Result
 }
 
 // TODO: Uncomment
-// #[instrument(err, skip_all)]
-// pub fn render_eml_contest(
-//     report: &ReportData,
-//     area_annotations: &MiruAreaAnnotations,
-// ) -> Result<EMLContest> {
-//     // Extract contest annotations
-//     let contest_annotations = report
-//         .contest
-//         .get_annotations()
-//         .with_context(|| "render_eml_contest: ")?;
+#[instrument(err, skip_all)]
+pub fn render_eml_contest(
+    report: &ReportData,
+    area_annotations: &MiruAreaAnnotations,
+) -> Result<EMLContest> {
+    // Extract contest annotations
+    let contest_annotations = report
+        .contest
+        .get_annotations()
+        .with_context(|| "render_eml_contest: ")?;
 
-//     let registered_voters = area_annotations.registered_voters;
+    let registered_voters = area_annotations.registered_voters;
 
-//     let count_metrics = report.contest_result.get_metrics(registered_voters);
+    let count_metrics = report.contest_result.get_metrics(registered_voters);
 
-//     let selections: Vec<EMLSelection> = report
-//         .contest_result
-//         .candidate_result
-//         .iter()
-//         .map(|candidate_result| -> Result<EMLSelection> {
-//             // Retrieve candidate annotations
-//             let candidate_annotations = candidate_result
-//                 .candidate
-//                 .get_annotations()
-//                 .with_context(|| "render_eml_contest: ")?;
+    let selections: Vec<EMLSelection> = report
+        .contest_result
+        .candidate_result
+        .iter()
+        .map(|candidate_result| -> Result<EMLSelection> {
+            // Retrieve candidate annotations
+            let candidate_annotations = candidate_result
+                .candidate
+                .get_annotations()
+                .with_context(|| "render_eml_contest: ")?;
 
-//             let candidate = EMLCandidate {
-//                 identifier: EMLIdentifier {
-//                     id_number: candidate_annotations.candidate_id.clone(),
-//                     name: candidate_annotations.candidate_name.clone(),
-//                 },
-//                 status_details: vec![EMLStatusItem {
-//                     setting: candidate_annotations.candidate_setting.clone(),
-//                 }],
-//                 affiliation: EMLAffiliation {
-//                     identifier: EMLIdentifier {
-//                         id_number: candidate_annotations.candidate_affiliation_id.clone(),
-//                         name: candidate_annotations
-//                             .candidate_affiliation_registered_name
-//                             .clone(),
-//                     },
-//                     party: candidate_annotations.candidate_affiliation_party.clone(),
-//                 },
-//             };
-//             Ok(EMLSelection {
-//                 candidates: vec![candidate.clone()],
-//                 valid_votes: candidate_result.total_count as i64,
-//             })
-//         })
-//         .collect::<Result<Vec<_>, _>>()?;
+            let candidate = EMLCandidate {
+                identifier: EMLIdentifier {
+                    id_number: candidate_annotations.candidate_id.clone(),
+                    name: candidate_annotations.candidate_name.clone(),
+                },
+                status_details: vec![EMLStatusItem {
+                    setting: candidate_annotations.candidate_setting.clone(),
+                }],
+                affiliation: EMLAffiliation {
+                    identifier: EMLIdentifier {
+                        id_number: candidate_annotations.candidate_affiliation_id.clone(),
+                        name: candidate_annotations
+                            .candidate_affiliation_registered_name
+                            .clone(),
+                    },
+                    party: candidate_annotations.candidate_affiliation_party.clone(),
+                },
+            };
+            Ok(EMLSelection {
+                candidates: vec![candidate.clone()],
+                valid_votes: candidate_result.total_count as i64,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
-//     let contests = EMLContest {
-//         identifier: EMLIdentifier {
-//             id_number: contest_annotations.contest_id.clone(),
-//             name: contest_annotations.contest_name.clone(),
-//         },
-//         total_votes: EMLTotalVotes {
-//             count_metrics,
-//             selections,
-//         },
-//     };
+    let contests = EMLContest {
+        identifier: EMLIdentifier {
+            id_number: contest_annotations.contest_id.clone(),
+            name: contest_annotations.contest_name.clone(),
+        },
+        total_votes: EMLTotalVotes {
+            count_metrics,
+            selections,
+        },
+    };
 
-//     Ok(contests)
-// }
+    Ok(contests)
+}
 
-// TODO: Uncomment
-// #[instrument(err, skip(election_event_annotations, election_annotations, reports))]
-// pub fn render_eml_file(
-//     tally_id: &str,
-//     transaction_id: &str,
-//     time_zone: TimeZone,
-//     date_time: DateTime<Utc>,
-//     election_event_annotations: &MiruElectionEventAnnotations,
-//     election_annotations: &MiruElectionAnnotations,
-//     area_annotations: &MiruAreaAnnotations,
-//     reports: &Vec<ReportData>,
-// ) -> Result<EMLFile> {
-//     let issue_date = generate_timestamp(
-//         Some(time_zone.clone()),
-//         Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
-//         Some(date_time.clone()),
-//     );
-//     let official_status_date = generate_timestamp(
-//         Some(time_zone.clone()),
-//         Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
-//         Some(date_time.clone()),
-//     );
+#[instrument(err, skip(election_event_annotations, election_annotations, reports))]
+pub fn render_eml_file(
+    tally_id: &str,
+    transaction_id: &str,
+    time_zone: TimeZone,
+    date_time: DateTime<Utc>,
+    election_event_annotations: &MiruElectionEventAnnotations,
+    election_annotations: &MiruElectionAnnotations,
+    area_annotations: &MiruAreaAnnotations,
+    reports: &Vec<ReportData>,
+) -> Result<EMLFile> {
+    let issue_date = generate_timestamp(
+        Some(time_zone.clone()),
+        Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
+        Some(date_time.clone()),
+    );
+    let official_status_date = generate_timestamp(
+        Some(time_zone.clone()),
+        Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
+        Some(date_time.clone()),
+    );
 
-//     let eml_file = EMLFile {
-//         id: tally_id.to_string(),
-//         header: EMLHeader {
-//             transaction_id: transaction_id.to_string(),
-//             issue_date: issue_date,
-//             official_status_detail: EMLOfficialStatusDetail {
-//                 official_status: OfficialStatus::OFFICIAL.to_string(),
-//                 status_date: official_status_date,
-//             },
-//         },
-//         counts: vec![EMLCount {
-//             identifier: EMLIdentifier {
-//                 id_number: election_event_annotations.event_id.clone(),
-//                 name: election_event_annotations.event_name.clone(),
-//             },
-//             elections: vec![EMLElection {
-//                 identifier: EMLIdentifier {
-//                     id_number: election_annotations.election_id.clone(),
-//                     name: election_annotations.election_name.clone(),
-//                 },
-//                 contests: reports
-//                     .into_iter()
-//                     .map(|report| Ok(render_eml_contest(report, area_annotations)?))
-//                     .collect::<Result<Vec<_>>>()
-//                     .with_context(|| "Error rendering EML Contest")?,
-//             }],
-//         }],
-//     };
-//     Ok(eml_file)
-// }
+    let eml_file = EMLFile {
+        id: tally_id.to_string(),
+        header: EMLHeader {
+            transaction_id: transaction_id.to_string(),
+            issue_date: issue_date,
+            official_status_detail: EMLOfficialStatusDetail {
+                official_status: OfficialStatus::OFFICIAL.to_string(),
+                status_date: official_status_date,
+            },
+        },
+        counts: vec![EMLCount {
+            identifier: EMLIdentifier {
+                id_number: election_event_annotations.event_id.clone(),
+                name: election_event_annotations.event_name.clone(),
+            },
+            elections: vec![EMLElection {
+                identifier: EMLIdentifier {
+                    id_number: election_annotations.election_id.clone(),
+                    name: election_annotations.election_name.clone(),
+                },
+                contests: reports
+                    .into_iter()
+                    .map(|report| Ok(render_eml_contest(report, area_annotations)?))
+                    .collect::<Result<Vec<_>>>()
+                    .with_context(|| "Error rendering EML Contest")?,
+            }],
+        }],
+    };
+    Ok(eml_file)
+}

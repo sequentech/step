@@ -19,7 +19,7 @@ use crate::{
 use bindings::exports::plugins_manager::common::plugin_common::Guest as PluginCommonGuest;
 use bindings::plugins_manager::jwt::authorization::authorize;
 use core::result::Result::{self, Ok};
-use sequent_core::types::permissions::Permissions;
+use sequent_core::{plugins::Plugins, types::permissions::Permissions};
 use serde_json::Value;
 
 struct Component;
@@ -63,9 +63,9 @@ impl Guest for Component {
         match create_hasura_transaction() {
             Ok(_) => {
                 let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-                let election_id = "881c759b-7d52-4440-a46b-893ed3bc91b0";
-                let area_id = "c06ce4ce-8957-4504-b0a8-75ec70b02335";
-                let tally_session_id = "7e1c1b80-179d-440b-9c45-2797fc04450c";
+                let election_id = "037ad91d-c729-4d1f-bcbd-b48a47f1dc01";
+                let area_id = "2cf39163-c2af-4756-a5d2-bcb3181230be";
+                let tally_session_id = "ba87869e-6927-45c6-b373-5c63ac359756";
                 let force = false;
 
                 let _ = create_transmission_package_service(
@@ -86,7 +86,7 @@ impl Guest for Component {
 impl PluginCommonGuest for Component {
     fn get_manifest() -> Manifest {
         Manifest {
-            plugin_name: "miru".to_string(),
+            plugin_name: Plugins::MIRU.to_string(),
             hooks: vec!["create-transmission-package".to_string()],
             routes: vec![PluginRoute {
                 path: "/miru/create-transmission-package".to_string(),

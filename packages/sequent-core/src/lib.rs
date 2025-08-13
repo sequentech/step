@@ -36,7 +36,7 @@ pub mod plugins_wit;
 pub mod serialization;
 #[cfg(feature = "default_features")]
 pub mod services;
-// #[cfg(feature = "default_features")]
+
 pub mod util;
 
 #[cfg(all(feature = "reports", feature = "default_features"))]
@@ -48,3 +48,5 @@ pub mod signatures;
 /// Webassembly API.
 #[cfg(all(feature = "wasm", feature = "default_features"))]
 pub mod wasm;
+
+pub mod plugins;

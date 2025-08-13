@@ -97,3 +97,60 @@ pub struct ExtendedMetricsContest {
     //Total counted ballots
     pub total_ballots: u64,
 }
+
+#[derive(Debug, Clone)]
+pub struct ReportData {
+    pub election_name: String,
+    pub election_id: String,
+    pub election_description: String,
+    pub election_dates: Option<StringifiedPeriodDates>,
+    pub election_annotations: HashMap<String, String>,
+    pub election_event_annotations: HashMap<String, String>,
+    pub contest: Contest,
+    pub area: Option<BasicArea>,
+    pub contest_result: ContestResult,
+    pub winners: Vec<WinnerResult>,
+    pub channel_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WinnerResult {
+    pub candidate: Candidate,
+    pub total_count: u64,
+    pub winning_position: usize,
+}
+
+impl From<CandidateResultForReport> for Option<WinnerResult> {
+    fn from(item: CandidateResultForReport) -> Self {
+        let Some(winning_position) = item.winning_position.clone() else {
+            return None;
+        };
+        Some(WinnerResult {
+            candidate: item.candidate,
+            total_count: item.total_count,
+            winning_position,
+        })
+    }
+}
+
+impl From<ReportDataComputed> for ReportData {
+    fn from(item: ReportDataComputed) -> Self {
+        ReportData {
+            election_name: item.election_name.clone(),
+            election_id: item.election_id.clone(),
+            election_description: item.election_description.clone(),
+            election_dates: item.election_dates.clone(),
+            election_annotations: item.election_annotations.clone(),
+            election_event_annotations: item.election_event_annotations.clone(),
+            contest: item.contest.clone(),
+            area: item.area.clone(),
+            contest_result: item.contest_result.clone(),
+            winners: item
+                .candidate_result
+                .into_iter()
+                .filter_map(|winner| winner.into())
+                .collect(),
+            channel_type: item.channel_type.clone(),
+        }
+    }
+}
