@@ -57,4 +57,4 @@ are added to the demo background and dialog to help custom styling.
 
 With this change, it is possible now to include all the raw decoded ballots 
 inside the sqlite database. It also moves part of the database generation 
-inside velvet.
+inside velvet. This can be set at advanced config at the election event.
