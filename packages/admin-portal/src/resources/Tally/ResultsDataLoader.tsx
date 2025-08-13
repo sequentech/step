@@ -59,8 +59,6 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    console.log(area)
-
     const {data: area_contest} = useSQLQuery(
         `SELECT * FROM area_contest WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
             .map(() => "?")
@@ -188,6 +186,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     }
 
     useEffect(() => {
+        console.log("ResultsDataLoader tallyData: ", tallyData)
         setTallyQueryData(tallyData ?? null)
     }, [tallyData])
 
