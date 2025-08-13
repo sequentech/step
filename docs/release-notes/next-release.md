@@ -28,8 +28,27 @@ This fixes the issue where a service account appears in the voters list.
 In order to deploy this in production, the configmap for the default
 election event configuration needs to be changed.
 
+## ✨ Add support retrieving master secret in an env variable
+
+A new environment variable `MASTER_SECRET` has been added to use in DEV evironment instead of hashicorp.
+`SECRETS_BACKEND` was updated to `SECRETS_BACKEND=EnvVarMasterSecret` accordingly.
+
+This change should not affect production, there the value should be `SECRETS_BACKEND=AwsSecretManager`, more info in `.devcontainer/.env.development`.
+
+The Braid Trustee service and its initialization script (`trustee.sh`) have been updated also support the env vars secrets backends.
+
 ## ✨ Read tally in frontend from Sqlite3
 
 With this change, the admin portal starts reading the results directly
 from the Sqlite3 file produced by the Tally. This makes it faster and
 more scalable.
+
+## ✨ Improve demo mode
+
+With this change, the DEMO tiled background and the Demo warning dialog
+will appear when entering the voting portal from the preview screen in the
+admin portal. Also, the warning dialog will appear on the election start
+screen rather than in the election chooser. This includes a fix so that
+the demo background/dialog will only appear for elections that don't have
+generated keys when voters login to the voting portal. Also, css classes
+are added to the demo background and dialog to help custom styling.

@@ -139,30 +139,30 @@ services:
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
-  vault:
-    profiles: ["full", "base"]
-    container_name: vault
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
-    restart: on-failure:10
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - "8201:8201"
-      - "8200:8200"
-    environment:
-      VAULT_API_ADDR: 'http://0.0.0.0:8200'
-      VAULT_ADDR: 'http://0.0.0.0:8201'
-      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
-      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-volume:/vault
-    healthcheck:
-      retries: 5
-    entrypoint: /opt/vault/entrypoint.sh
+  # vault:
+  #   profiles: ["full", "base"]
+  #   container_name: vault
+  #   build:
+  #     context: ./vault
+  #     dockerfile: Dockerfile
+  #   restart: on-failure:10
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - "8201:8201"
+  #     - "8200:8200"
+  #   environment:
+  #     VAULT_API_ADDR: 'http://0.0.0.0:8200'
+  #     VAULT_ADDR: 'http://0.0.0.0:8201'
+  #     VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+  #     VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
+  #   cap_add:
+  #     - IPC_LOCK
+  #   volumes:
+  #     - vault-volume:/vault
+  #   healthcheck:
+  #     retries: 5
+  #   entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
     profiles: ["full", "base"]
@@ -500,9 +500,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
@@ -538,7 +537,7 @@ services:
       dockerfile: ./braid/Dockerfile
     environment:
         TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -563,7 +562,7 @@ services:
       - immudb
     environment:
         TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -585,7 +584,7 @@ services:
   #     - immudb
   #   environment:
   #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+  #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -861,9 +860,8 @@ services:
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
       KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
@@ -1028,6 +1026,5 @@ volumes:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-  vault-volume:
   b3_db_logs:
   b3_db_data:
