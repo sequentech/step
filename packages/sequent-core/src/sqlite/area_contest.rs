@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::hasura::core::AreaContest;
 use anyhow::Result;
 use chrono::Local;
 use rusqlite::{params, Transaction};
+use crate::types::hasura::core::AreaContest;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]

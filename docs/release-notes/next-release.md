@@ -52,3 +52,9 @@ screen rather than in the election chooser. This includes a fix so that
 the demo background/dialog will only appear for elections that don't have
 generated keys when voters login to the voting portal. Also, css classes
 are added to the demo background and dialog to help custom styling.
+
+## ✨ Tally - Add decoded ballot json to SQLite results database
+
+With this change, it is possible now to include all the raw decoded ballots 
+inside the sqlite database. It also moves part of the database generation 
+inside velvet.
