@@ -1,0 +1,13 @@
+FROM sequentech.local/cargo-packages:latest AS builder
+COPY . /app
+RUN cd /app/packages && cargo build --release --bin=step-cli
+
+FROM ubuntu:latest
+WORKDIR /opt/sequentech
+RUN mkdir -p /opt/sequentech
+COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
+COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
+RUN mkdir -p /opt/sequentech/janitor
+COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
+RUN chmod +x /opt/sequentech/janitor-setup
+RUN DEBIAN_FRONTEND=noninteractive /opt/sequentech/janitor-setup
