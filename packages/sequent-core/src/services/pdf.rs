@@ -631,6 +631,8 @@ pub fn html_to_pdf(
         header_template: None,
         footer_template: None,
         prefer_css_page_size: None,
+        generate_document_outline: None,
+        generate_tagged_pdf: None,
         transfer_mode: None,
     });
 
