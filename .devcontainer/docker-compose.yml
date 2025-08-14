@@ -5,7 +5,7 @@
 services:
   devcontainer:
     profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv:latest
+    image: ghcr.io/cachix/devenv:v1.4
     container_name: devcontainer
     volumes:
     - type: bind

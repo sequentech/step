@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.86.0-slim-bookworm AS builder
+FROM rust:1.88.0-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN rustup toolchain install nightly && rustup default nightly
+RUN rustup toolchain install nightly-2025-05-04 \
+    && rustup default nightly-2025-05-04
 
 #TODO: Copy only necessary files
 COPY ./ ./
