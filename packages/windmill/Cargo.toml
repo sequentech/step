@@ -51,7 +51,7 @@ async_once = "0.2"
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }
 toml = "0.8" # Updated for generate_logs binary, was 0.6.0
 quick-error = "2.0"
-keycloak = "26.2"
+keycloak = "24.0"
 encoding_rs = "0.8"
 encoding_rs_io = "0.1"
 xz2 = "0.1"

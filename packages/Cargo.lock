@@ -543,9 +543,9 @@ checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
-version = "0.1.88"
+version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e539d3fca749fcee5236ab05e93a52867dd549cc157c8cb7f99595f3cedffdb5"
+checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4661,12 +4661,11 @@ dependencies = [
 
 [[package]]
 name = "keycloak"
-version = "26.3.202"
+version = "24.0.301"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faf2511fc6736ec14d5762a3475e024ed5d8160ff84e7360863b563440fb0c12"
+checksum = "e71e4f18ea46c9cce555f04351e7a24b793cb35a1a77f8591f1d5d9685899a3b"
 dependencies = [
  "async-trait",
- "percent-encoding",
  "reqwest",
  "serde",
  "serde_json",
