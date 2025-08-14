@@ -814,13 +814,13 @@
             "problemMatcher": []
         },
         {
-            "label": "build.wasm",
+            "label": "build.sequent-core",
             "type": "shell",
             "command": "bash",
             "args": [
-              "-l",  // <== login shell
+              "-l",
               "-c",
-              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-wasm.sh"
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
             ],
             "options": {
               "cwd": "${workspaceFolder}"

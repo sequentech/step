@@ -7,7 +7,7 @@
 
   # input
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.flake-compat = {
     url = "github:edolstra/flake-compat";
@@ -25,7 +25,7 @@
             inherit system overlays;
           };
           
-          rust-system = pkgs.rust-bin.stable.latest.default;
+          rust-system = pkgs.rust-bin.nightly."2025-01-29".default;
           # see https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/rust.section.md#importing-a-cargolock-file-importing-a-cargolock-file
           cargoPatches = {
               cargoLock = let
