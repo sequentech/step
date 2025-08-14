@@ -21,6 +21,7 @@ export const CREATE_KEYS_CEREMONY = gql`
             }
         ) {
             keys_ceremony_id
+            error_message
         }
     }
 `

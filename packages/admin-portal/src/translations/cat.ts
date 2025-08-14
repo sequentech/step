@@ -99,6 +99,7 @@ const catalanTranslation: TranslationType = {
                 deleteError: "Error esborrant Àrea",
             },
             createAreaSuccess: "Àrea creada",
+            updateAreaSuccess: "Àrea actualizada",
             createAreaError: "Error creant àrea",
             sequent_backend_area_contest: "Preguntes de l'Àrea",
             empty: {
@@ -995,6 +996,8 @@ const catalanTranslation: TranslationType = {
                 decryptFileTitle: "Desxifrar arxiu",
                 decryptInstructions:
                     "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
+                encryptSuccess: "S'ha configurat correctament l'encriptació de l'informe",
+                encryptError: "Error en configurar l'encriptació de l'informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
@@ -1322,6 +1325,8 @@ const catalanTranslation: TranslationType = {
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
                 },
                 filterTrustees: "Filtrar Autoritats",
+                errorPermisionLabels:
+                    "No es pot crear la cerimònia de claus: falta almenys una etiqueta de permís.",
             },
             ceremonyStep: {
                 cancel: "Cancel·lar Cerimònia de Claus",

@@ -14,6 +14,7 @@ on:
 jobs:
   build-cli:
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64

@@ -1,0 +1,98 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Documentation Preview
+on:
+  push:
+    branches:
+      - main
+      - release/*
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
+    paths:
+      - '.github/workflows/documentation.yml'
+      - 'docs/docusaurus/**'
+    branches:
+      - main
+      - release/*
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on:
+      - env=infra-euw1
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '>= 18.0'
+      - name: Build Preview (PR)
+        if: github.event_name == 'pull_request'
+        working-directory: ./docs/docusaurus
+        run: |
+          export BASE_URL=/docusaurus/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+          yarn install --frozen-lockfile
+          yarn build
+      - name: Build Preview (main)
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        working-directory: ./docs/docusaurus
+        run: |
+          export BASE_URL=/docusaurus/main
+          yarn install --frozen-lockfile
+          yarn build
+      - name: Build Preview (release)
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
+        working-directory: ./docs/docusaurus
+        run: |
+          export BASE_URL=/docusaurus/release-preview/${{ github.ref_name }}
+          yarn install --frozen-lockfile
+          yarn build
+      - name: Publish (PR)
+        uses: rossjrw/pr-preview-action@v1
+        if: github.event_name == 'pull_request'
+        with:
+          pages-base-url: docs.sequentech.io
+          source-dir: ./docs/docusaurus/build/
+          preview-branch: doc-previews
+          token: ${{ secrets.PAT }}
+          clean-exclude: |
+            docusaurus/main
+            docusaurus/release-preview/*
+          umbrella-dir: docusaurus/pr-preview
+      - name: Publish (main)
+        uses: JamesIves/github-pages-deploy-action@v4
+        if: github.event_name == 'push' && github.ref_name == 'main'
+        with:
+          folder: ./docs/docusaurus/build/
+          branch: doc-previews
+          target-folder: docusaurus/main
+          commit-message: "Deploy preview for ${{ github.ref_name }}"
+          token: ${{ secrets.PAT }}
+          clean-exclude: |
+            docusaurus/pr-preview/*
+            docusaurus/release-preview/*
+      - name: Publish (release)
+        uses: JamesIves/github-pages-deploy-action@v4
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
+        with:
+          folder: ./docs/docusaurus/build/
+          branch: doc-previews
+          target-folder: "docusaurus/release-preview/${{ github.ref_name }}"
+          commit-message: "Deploy preview for ${{ github.ref_name }}"
+          token: ${{ secrets.PAT }}
+          clean-exclude: |
+            docusaurus/main
+            docusaurus/pr-preview/*
+            docusaurus/release-preview/*

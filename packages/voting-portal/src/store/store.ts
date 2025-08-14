@@ -4,6 +4,7 @@
 import {configureStore, ThunkAction, Action} from "@reduxjs/toolkit"
 import ballotStylesReducer from "./ballotStyles/ballotStylesSlice"
 import castVotesReducer from "./castVotes/castVotesSlice"
+import confirmationScreenDataReducer from "./castVotes/confirmationScreenDataSlice"
 import ballotSelectionsReducer from "./ballotSelections/ballotSelectionsSlice"
 import auditableBallotsReducer from "./auditableBallots/auditableBallotsSlice"
 import electionsReducer from "./elections/electionsSlice"
@@ -25,6 +26,7 @@ export const store = configureStore({
         electionEvent: electionEventReducer,
         extra: extraReducer,
         documents: documentsReducer,
+        confirmationScreenData: confirmationScreenDataReducer,
     },
 })
 

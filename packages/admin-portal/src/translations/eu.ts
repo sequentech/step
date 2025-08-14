@@ -99,6 +99,7 @@ const basqueTranslation: TranslationType = {
                 deleteError: "Errorea eremua ezabatzerakoan",
             },
             createAreaSuccess: "Eremua sortua",
+            updateAreaSuccess: "Eremua aldatua",
             createAreaError: "Ezin izan da Eremua sortu",
             sequent_backend_area_contest: "Lehiaketak",
             empty: {
@@ -981,6 +982,8 @@ const basqueTranslation: TranslationType = {
                 incorectPassword: "Pasahitz okerra",
                 decryptFileTitle: "Nola deszifratzen den fitxategia",
                 decryptInstructions: `1. '-in' :Zifratutako fitxategiaren bidea. \n2. '-out' :Deszifratutako fitxategia gordeko den bidea. \n3. '-pass' :Fitxategia zifratzeko erabilitako pasahitza. \n`,
+                encryptSuccess: "Txostenaren enkriptatzea behar bezala konfiguratu da",
+                encryptError: "Errorea txostenaren enkriptatzea konfiguratzean",
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
@@ -1310,6 +1313,8 @@ const basqueTranslation: TranslationType = {
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
+                errorPermisionLabels:
+                    "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
             },
             ceremonyStep: {
                 cancel: "Ezeztatu Giltzen Zeremonia",

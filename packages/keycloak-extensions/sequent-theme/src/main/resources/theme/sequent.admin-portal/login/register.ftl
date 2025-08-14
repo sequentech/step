@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <#import "user-profile-commons.ftl" as userProfileCommons>
 <#import "register-commons.ftl" as registerCommons>
+<#include "intl-tel-input.ftl">
 <@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
     <#if section = "header">
         <#if formMode?? && formMode = 'LOGIN'>
@@ -21,79 +22,90 @@ SPDX-License-Identifier: AGPL-3.0-only
 
             <@userProfileCommons.userProfileFormFields; callback, attribute>
                 <#if callback = "afterField">
-                <#-- render password fields just under the username or email (if used as username) -->
-                    <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
+                    <#if attribute.name == 'mobile'>
                         <div class="${properties.kcFormGroupClass!}">
                             <div class="${properties.kcLabelWrapperClass!}">
-                                <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label> *
+                                <label for="mobile" class="${properties.kcLabelClass!}">${msg("mobileOtp.auth.enterMobileLabel")}</label>
                             </div>
                             <div class="${properties.kcInputWrapperClass!}">
-                                <#--  You can add a custom passwordHelperTextBefore to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
-                                <#if attribute.annotations.passwordHelperTextBefore??>
-                                    <div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextBefore))?no_esc}</div>
-                                </#if>
-
-                                <div class="${properties.kcInputGroup!}">
-                                    <input type="password" id="password" class="${properties.kcInputClass!}" name="password"
-                                           autocomplete="new-password"
-                                           aria-invalid="<#if messagesPerField.existsError('password','password-confirm')>true</#if>"
-                                    />
-                                    <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
-                                            aria-controls="password"  data-password-toggle
-                                            data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                            data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
-                                        <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
-                                    </button>
+                                <@renderIntlTelInput id="mobile" name="mobile" value=attribute.value />
+                            </div>
+                        </div>
+                    <#else>
+                        <#-- render password fields just under the username or email (if used as username) -->
+                        <#if passwordRequired && (attribute.name == 'username' || (attribute.name == 'email' && realm.registrationEmailAsUsername)) && (attribute.annotations.showPasswordAfterThis!'true') != 'false' || (attribute.annotations.showPasswordAfterThis!'false') == 'true'>
+                            <div class="${properties.kcFormGroupClass!}">
+                                <div class="${properties.kcLabelWrapperClass!}">
+                                    <label for="password" class="${properties.kcLabelClass!}">${msg("password")}</label> *
                                 </div>
+                                <div class="${properties.kcInputWrapperClass!}">
+                                    <#--  You can add a custom passwordHelperTextBefore to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
+                                    <#if attribute.annotations.passwordHelperTextBefore??>
+                                        <div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextBefore))?no_esc}</div>
+                                    </#if>
 
-                                <#--  You can add a password strength bar if passwordStrengthBar is set to either username or email depending on realm.registrationEmailAsUsername settings to add a strength bar -->
-                                <#if attribute.annotations.passwordStrengthBar??>
-                                    <div class="pf-c-progress pf-m-sm" id="password-progress">
-                                        <div class="pf-c-progress__bar" id="password-progress-aria" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="password-progress">
-                                            <div class="pf-c-progress__indicator" id="password-progress-indicator"></div>
-                                        </div>
+                                    <div class="${properties.kcInputGroup!}">
+                                        <input type="password" id="password" class="${properties.kcInputClass!}" name="password"
+                                               autocomplete="new-password"
+                                               aria-invalid="<#if messagesPerField.existsError('password','password-confirm')>true</#if>"
+                                        />
+                                        <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
+                                                aria-controls="password"  data-password-toggle
+                                                data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
+                                                data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
+                                            <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
+                                        </button>
                                     </div>
-                                </#if>
 
-                                <#if messagesPerField.existsError('password')>
-                                    <span id="input-error-password" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                                    <#--  You can add a password strength bar if passwordStrengthBar is set to either username or email depending on realm.registrationEmailAsUsername settings to add a strength bar -->
+                                    <#if attribute.annotations.passwordStrengthBar??>
+                                        <div class="pf-c-progress pf-m-sm" id="password-progress">
+                                            <div class="pf-c-progress__bar" id="password-progress-aria" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="password-progress">
+                                                <div class="pf-c-progress__indicator" id="password-progress-indicator"></div>
+                                            </div>
+                                        </div>
+                                    </#if>
+
+                                    <#if messagesPerField.existsError('password')>
+                                        <span id="input-error-password" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 		                                ${kcSanitize(messagesPerField.get('password'))?no_esc}
 		                            </span>
-                                </#if>
+                                    </#if>
 
-                                <#--  You can add a custom passwordHelperTextAfter to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
-                                <#if attribute.annotations.passwordHelperTextAfter??>
-                                    <div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextAfter))?no_esc}</div>
-                                </#if>
-                            </div>
-                        </div>
-
-                        <div class="${properties.kcFormGroupClass!}">
-                            <div class="${properties.kcLabelWrapperClass!}">
-                                <label for="password-confirm"
-                                       class="${properties.kcLabelClass!}">${msg("passwordConfirm")}</label> *
-                            </div>
-                            <div class="${properties.kcInputWrapperClass!}">
-                                <div class="${properties.kcInputGroup!}">
-                                    <input type="password" id="password-confirm" class="${properties.kcInputClass!}"
-                                           name="password-confirm"
-                                           aria-invalid="<#if messagesPerField.existsError('password-confirm')>true</#if>"
-                                    />
-                                    <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
-                                            aria-controls="password-confirm"  data-password-toggle
-                                            data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                            data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
-                                        <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
-                                    </button>
+                                    <#--  You can add a custom passwordHelperTextAfter to either username or email depending on realm.registrationEmailAsUsername settings to add a helpertext -->
+                                    <#if attribute.annotations.passwordHelperTextAfter??>
+                                        <div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${attribute.name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.passwordHelperTextAfter))?no_esc}</div>
+                                    </#if>
                                 </div>
+                            </div>
 
-                                <#if messagesPerField.existsError('password-confirm')>
-                                    <span id="input-error-password-confirm" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                            <div class="${properties.kcFormGroupClass!}">
+                                <div class="${properties.kcLabelWrapperClass!}">
+                                    <label for="password-confirm"
+                                           class="${properties.kcLabelClass!}">${msg("passwordConfirm")}</label> *
+                                </div>
+                                <div class="${properties.kcInputWrapperClass!}">
+                                    <div class="${properties.kcInputGroup!}">
+                                        <input type="password" id="password-confirm" class="${properties.kcInputClass!}"
+                                               name="password-confirm"
+                                               aria-invalid="<#if messagesPerField.existsError('password-confirm')>true</#if>"
+                                        />
+                                        <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
+                                                aria-controls="password-confirm"  data-password-toggle
+                                                data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
+                                                data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
+                                            <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+
+                                    <#if messagesPerField.existsError('password-confirm')>
+                                        <span id="input-error-password-confirm" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
 		                                ${kcSanitize(messagesPerField.get('password-confirm'))?no_esc}
 		                            </span>
-                                </#if>
+                                    </#if>
+                                </div>
                             </div>
-                        </div>
+                        </#if>
                     </#if>
                 </#if>
             </@userProfileCommons.userProfileFormFields>

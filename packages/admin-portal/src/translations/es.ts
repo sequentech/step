@@ -99,6 +99,7 @@ const spanishTranslation: TranslationType = {
                 deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
+            updateAreaSuccess: "Área actualizada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
             empty: {
@@ -985,6 +986,8 @@ const spanishTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración de cifrado del informe exitosa",
+                encryptError: "Error al configurar el cifrado del informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
@@ -1312,6 +1315,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
                 filterTrustees: "Filtrar Autoridades",
+                errorPermisionLabels:
+                    "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",

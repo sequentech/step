@@ -2,9 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication;
-use crate::postgres::ballot_style::{
-    export_event_ballot_styles, get_ballot_styles_by_ballot_publication_by_id,
-};
+use crate::postgres::ballot_style::export_event_ballot_styles;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
