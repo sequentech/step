@@ -19,7 +19,7 @@ import {createBrowserRouter, RouterProvider, useLocation, useMatch} from "react-
 import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
-import Loader from "./components/Loader"
+import {Loader} from "@sequentech/ui-essentials"
 import TenantEvent from "./routes/TenantEvent"
 import PreviewPublicationEvent from "./routes/PreviewPublicationEvent"
 import ElectionSelectionScreen from "./routes/ElectionSelectionScreen"
@@ -32,10 +32,9 @@ import ConfirmationScreen from "./routes/ConfirmationScreen"
 import AuditScreen from "./routes/AuditScreen"
 import BallotLocator from "./routes/BallotLocator"
 import SupportMaterialsScreen from "./routes/SupportMaterialsScreen"
-import { WasmWrapper } from "./providers/WasmWrapper"
+import {WasmWrapper} from "./providers/WasmWrapper"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
-
 
 export type TenantEventType = {
     tenantId: string

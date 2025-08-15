@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {useWasm, WasmContextProvider, WasmStatus} from "@sequentech/ui-core"
 import {Loader} from "@sequentech/ui-essentials"
+import {useWasm, WasmContextProvider, WasmStatus} from "@sequentech/ui-core"
 
 export const WasmGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {status} = useWasm()
