@@ -13,7 +13,6 @@ import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider, useLocation, useMatch} from "react-router-dom"
@@ -21,7 +20,6 @@ import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import Loader from "./components/Loader"
-
 import TenantEvent from "./routes/TenantEvent"
 import PreviewPublicationEvent from "./routes/PreviewPublicationEvent"
 import ElectionSelectionScreen from "./routes/ElectionSelectionScreen"
@@ -34,10 +32,10 @@ import ConfirmationScreen from "./routes/ConfirmationScreen"
 import AuditScreen from "./routes/AuditScreen"
 import BallotLocator from "./routes/BallotLocator"
 import SupportMaterialsScreen from "./routes/SupportMaterialsScreen"
+import { WasmWrapper } from "./providers/WasmWrapper"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
-initCore()
 
 export type TenantEventType = {
     tenantId: string
@@ -189,15 +187,17 @@ const router = createBrowserRouter(
 
 root.render(
     <React.StrictMode>
-        <SettingsWrapper>
-            <KeycloakProviderContainer>
-                <Provider store={store}>
-                    <ThemeProvider theme={theme}>
-                        <RouterProvider router={router} />
-                    </ThemeProvider>
-                </Provider>
-            </KeycloakProviderContainer>
-        </SettingsWrapper>
+        <WasmWrapper>
+            <SettingsWrapper>
+                <KeycloakProviderContainer>
+                    <Provider store={store}>
+                        <ThemeProvider theme={theme}>
+                            <RouterProvider router={router} />
+                        </ThemeProvider>
+                    </Provider>
+                </KeycloakProviderContainer>
+            </SettingsWrapper>
+        </WasmWrapper>
     </React.StrictMode>
 )
 
