@@ -29,7 +29,8 @@ export const WasmContextProvider: React.FC<{children: React.ReactNode}> = ({chil
             .then(() => {
                 setStatus(WasmStatus.READY)
             })
-            .catch(() => {
+            .catch((error) => {
+                console.error("Error loading sequent-core: " + error)
                 setStatus(WasmStatus.ERROR)
             })
     }, []) // Empty dependency array ensures it runs only once
