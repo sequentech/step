@@ -22,6 +22,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useSetAtom} from "jotai"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useManagedDatabase, useSQLQuery} from "@/hooks/useSQLiteDatabase"
+import { isString } from "@sequentech/ui-core"
+import { IResultDocuments } from "@/types/results"
 
 export interface ResultsDataLoaderProps {
     resultsEventId: string
@@ -58,8 +60,6 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
             enabled: !isDbLoading && !!electionEventId && !!tenantId,
         }
     )
-
-    console.log(area)
 
     const {data: area_contest} = useSQLQuery(
         `SELECT * FROM area_contest WHERE election_event_id = ? and tenant_id = ? and contest_id in (${contestIds
@@ -178,11 +178,31 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         sequent_backend_results_election: results_election as Sequent_Backend_Results_Election[],
         sequent_backend_results_contest_candidate:
             results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
-        sequent_backend_results_contest: results_contest as Sequent_Backend_Results_Contest[],
+        sequent_backend_results_contest: results_contest
+            .map(contest => {
+                if (isString(contest.documents)) {
+                    try {
+                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                    } catch (e) {
+                        console.error("error parsing contest documents" + e)
+                    }
+                }
+                return contest
+            }) as Sequent_Backend_Results_Contest[],
         sequent_backend_results_area_contest_candidate:
             results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
         sequent_backend_results_area_contest:
-            results_area_contest as Sequent_Backend_Results_Area_Contest[],
+            results_area_contest
+            .map(contest => {
+                if (isString(contest.documents)) {
+                    try {
+                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                    } catch (e) {
+                        console.error("error parsing contest documents" + e)
+                    }
+                }
+                return contest
+            }) as Sequent_Backend_Results_Area_Contest[],
         sequent_backend_results_election_area:
             results_election_area as Sequent_Backend_Results_Election_Area[],
     }
