@@ -67,12 +67,10 @@ let initializationPromise: Promise<void> | null = null
 export const initCore = (): Promise<void> => {
     // If the promise doesn't exist yet, create it
     if (!initializationPromise) {
-        console.log("Initializing Sequent Core WASM...")
         initializationPromise = SequentCoreLibInit()
             .then((_core) => {
                 // The set_hooks function is often passed the core module itself
                 set_hooks()
-                console.log("Sequent Core WASM Initialized Successfully. ✅")
             })
             .catch((error) => {
                 console.error("Error initializing SequentCoreLib:", error)
