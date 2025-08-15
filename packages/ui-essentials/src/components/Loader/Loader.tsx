@@ -20,7 +20,7 @@ const StyledBox = styled(Box)`
 
 const Loader = () => {
     return (
-        <StyledBox>
+        <StyledBox className="loader">
             <CircularProgress />
         </StyledBox>
     )
