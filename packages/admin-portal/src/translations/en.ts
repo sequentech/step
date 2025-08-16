@@ -80,6 +80,7 @@ const englishTranslation = {
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
