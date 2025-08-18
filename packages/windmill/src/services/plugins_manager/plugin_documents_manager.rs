@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use core::convert::From;
+use deadpool_postgres::Transaction;
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_str,
     services::{
@@ -16,7 +17,12 @@ use strand::hash::hash_sha256;
 use tempfile::NamedTempFile;
 
 use sequent_core::plugins_wit::lib::documents_bindings::plugins_manager::documents_manager::documents::Host;
-use crate::services::{ceremonies::velvet_tally::generate_initial_state, documents::get_document_as_temp_file_at_dir, folders::list_files};
+use crate::services::{
+    ceremonies::velvet_tally::generate_initial_state,
+    documents::{get_document_as_temp_file_at_dir, upload_and_return_document},
+    folders::list_files,
+    plugins_manager::plugin::PluginServices
+};
 
 // A struct to hold the host's state, including a map to manage the temporary files.
 pub struct PluginDocumentsManager {
@@ -33,7 +39,7 @@ impl PluginDocumentsManager {
     }
 }
 
-impl Host for PluginDocumentsManager {
+impl Host for PluginServices {
     // Implement the method to create a document as a temporary file.
     async fn create_document_as_temp_file(
         &mut self,
@@ -44,7 +50,7 @@ impl Host for PluginDocumentsManager {
             .map_err(|e| format!("Failed to parse document JSON: {}", e))?;
 
         let named_temp_file =
-            get_document_as_temp_file_at_dir(&tenant_id, &document, &self.path_dir)
+            get_document_as_temp_file_at_dir(&tenant_id, &document, &self.documents.path_dir)
                 .await
                 .map_err(|e| format!("Failed to get document as temp file: {}", e))?;
         println!(
@@ -59,7 +65,7 @@ impl Host for PluginDocumentsManager {
             .to_string_lossy()
             .into_owned();
 
-        self.open_temp_files.push(named_temp_file);
+        self.documents.open_temp_files.push(named_temp_file);
 
         Ok(file_name)
     }
@@ -71,8 +77,8 @@ impl Host for PluginDocumentsManager {
     async fn get_tally_results(&mut self, tally_base_path: String) -> Result<String, String> {
         println!("Getting tally results from: {}", tally_base_path);
 
-        let file = &self.path_dir;
-        let path = PathBuf::from(file).join(tally_base_path);
+        let base_path = &self.documents.path_dir;
+        let path = PathBuf::from(base_path).join(tally_base_path);
 
         list_files(path.as_path()).map_err(|e| format!("Error listing files: {:?}", e))?;
 
@@ -119,5 +125,48 @@ impl Host for PluginDocumentsManager {
 
     async fn hash_sha256(&mut self, bytes: Vec<u8>) -> Result<Vec<u8>, String> {
         hash_sha256(&bytes).map_err(|e| format!("Error hashing bytes: {}", e))
+    }
+
+    async fn upload_and_return_document(
+        &mut self,
+        file_size: u64,
+        media_type: String,
+        tenant_id: String,
+        election_event_id: Option<String>,
+        name: String,
+        document_id: Option<String>,
+        is_public: bool,
+    ) -> Result<String, String> {
+        let mut manager = self.transactions.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+
+        println!("Uploading document with name: {}", &name);
+
+        let base_path: &PathBuf = &self.documents.path_dir;
+        let path: PathBuf = PathBuf::from(base_path).join(&name);
+        let file_path = path.as_path().to_string_lossy();
+
+        println!("Uploading document from path: {}", &file_path);
+
+        let document = upload_and_return_document(
+            hasura_transaction,
+            &file_path,
+            file_size,
+            &media_type,
+            &tenant_id,
+            election_event_id,
+            &name,
+            document_id,
+            is_public,
+        )
+        .await
+        .map_err(|e| format!("Failed to upload and return document: {}", e))?;
+
+        let document_json = serde_json::to_string(&document)
+            .map_err(|e| format!("Failed to serialize document: {}", e))?;
+
+        Ok(document_json)
     }
 }

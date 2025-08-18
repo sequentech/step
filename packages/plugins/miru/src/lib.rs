@@ -63,9 +63,9 @@ impl Guest for Component {
         match create_hasura_transaction() {
             Ok(_) => {
                 let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-                let election_id = "037ad91d-c729-4d1f-bcbd-b48a47f1dc01";
-                let area_id = "2cf39163-c2af-4756-a5d2-bcb3181230be";
-                let tally_session_id = "ba87869e-6927-45c6-b373-5c63ac359756";
+                let election_id = "f0436332-7b8a-4786-8fa2-036d059c8373";
+                let area_id = "136d8875-6591-4a4c-a3f7-6c38fd3ea811";
+                let tally_session_id = "7529ff62-6af7-4cfb-b936-17a736f13232";
                 let force = false;
 
                 let _ = create_transmission_package_service(

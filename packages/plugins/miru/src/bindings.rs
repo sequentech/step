@@ -616,6 +616,165 @@ pub mod plugins_manager {
                 }
             }
             #[allow(unused_unsafe, clippy::all)]
+            pub fn upload_and_return_document(
+                file_size: u64,
+                media_type: &str,
+                tenant_id: &str,
+                election_event_id: Option<&str>,
+                name: &str,
+                document_id: Option<&str>,
+                is_public: bool,
+            ) -> Result<_rt::String, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = media_type;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = tenant_id;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let (result3_0, result3_1, result3_2) = match election_event_id {
+                        Some(e) => {
+                            let vec2 = e;
+                            let ptr2 = vec2.as_ptr().cast::<u8>();
+                            let len2 = vec2.len();
+                            (1i32, ptr2.cast_mut(), len2)
+                        }
+                        None => (0i32, ::core::ptr::null_mut(), 0usize),
+                    };
+                    let vec4 = name;
+                    let ptr4 = vec4.as_ptr().cast::<u8>();
+                    let len4 = vec4.len();
+                    let (result6_0, result6_1, result6_2) = match document_id {
+                        Some(e) => {
+                            let vec5 = e;
+                            let ptr5 = vec5.as_ptr().cast::<u8>();
+                            let len5 = vec5.len();
+                            (1i32, ptr5.cast_mut(), len5)
+                        }
+                        None => (0i32, ::core::ptr::null_mut(), 0usize),
+                    };
+                    let ptr7 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:documents-manager/documents"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "upload-and-return-document"]
+                        fn wit_import8(
+                            _: i64,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: i32,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: i32,
+                            _: *mut u8,
+                            _: usize,
+                            _: i32,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import8(
+                        _: i64,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: i32,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: i32,
+                        _: *mut u8,
+                        _: usize,
+                        _: i32,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import8(
+                            _rt::as_i64(&file_size),
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            result3_0,
+                            result3_1,
+                            result3_2,
+                            ptr4.cast_mut(),
+                            len4,
+                            result6_0,
+                            result6_1,
+                            result6_2,
+                            match &is_public {
+                                true => 1,
+                                false => 0,
+                            },
+                            ptr7,
+                        )
+                    };
+                    let l9 = i32::from(*ptr7.add(0).cast::<u8>());
+                    let result16 = match l9 {
+                        0 => {
+                            let e = {
+                                let l10 = *ptr7
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l11 = *ptr7
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len12 = l11;
+                                let bytes12 = _rt::Vec::from_raw_parts(
+                                    l10.cast(),
+                                    len12,
+                                    len12,
+                                );
+                                _rt::string_lift(bytes12)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l13 = *ptr7
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l14 = *ptr7
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len15 = l14;
+                                let bytes15 = _rt::Vec::from_raw_parts(
+                                    l13.cast(),
+                                    len15,
+                                    len15,
+                                );
+                                _rt::string_lift(bytes15)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result16
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
             pub fn print_data(data: &str) -> () {
                 unsafe {
                     let vec0 = data;
@@ -2374,6 +2533,29 @@ mod _rt {
             unsafe { core::hint::unreachable_unchecked() }
         }
     }
+    pub fn as_i64<T: AsI64>(t: T) -> i64 {
+        t.as_i64()
+    }
+    pub trait AsI64 {
+        fn as_i64(self) -> i64;
+    }
+    impl<'a, T: Copy + AsI64> AsI64 for &'a T {
+        fn as_i64(self) -> i64 {
+            (*self).as_i64()
+        }
+    }
+    impl AsI64 for i64 {
+        #[inline]
+        fn as_i64(self) -> i64 {
+            self as i64
+        }
+    }
+    impl AsI64 for u64 {
+        #[inline]
+        fn as_i64(self) -> i64 {
+            self as i64
+        }
+    }
     pub use alloc_crate::alloc;
     #[cfg(target_arch = "wasm32")]
     pub fn run_ctors_once() {
@@ -2424,38 +2606,40 @@ pub(crate) use __export_miru_plugin_impl as export;
 #[unsafe(link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1880] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd6\x0d\x01A\x02\x01\
-A\x11\x01B\x0b\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
-\x04\0\x1bcreate-keycloak-transaction\x01\x01\x01ps\x01j\x01s\x01s\x01@\x02\x03s\
-qls\x06params\x02\0\x03\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-k\
-eycloak-query\x01\x04\x04\0\x19commit-hasura-transaction\x01\x01\x04\0\x1bcommit\
--keycloak-transaction\x01\x01\x03\00plugins-manager:transactions-manager/transac\
-tion\x05\0\x01B\x11\x01j\x01s\x01s\x01@\x03\x09tenant-ids\x0belection-ids\x07are\
-a-ids\0\0\x04\0#get-election-event-by-election-area\x01\x01\x01ks\x01j\x01\x02\x01\
-s\x01@\x03\x09tenant-ids\x11election-event-ids\x0belection-ids\0\x03\x04\0\x12ge\
-t-election-by-id\x01\x04\x01@\x03\x09tenant-ids\x11election-event-ids\x10tally-s\
-ession-ids\0\0\x04\0\x17get-tally-session-by-id\x01\x05\x01@\x03\x09tenant-ids\x11\
-election-event-id\x02\x0bdocument-ids\0\x03\x04\0\x0cget-document\x01\x06\x01@\x02\
-\x09tenant-ids\x07area-ids\0\x03\x04\0\x0eget-area-by-id\x01\x07\x01@\x03\x09ten\
-ant-ids\x11election-event-ids\x10tally-session-ids\0\x03\x04\0\x20get-last-tally\
--session-execution\x01\x08\x01@\x03\x09tenant-ids\x11election-event-ids\x10resul\
-ts-event-ids\0\0\x04\0\x17get-results-event-by-id\x01\x09\x03\05plugins-manager:\
-transactions-manager/postgres-queries\x05\x01\x01B\x05\x01ks\x01ps\x01j\0\x01s\x01\
-@\x04\x06claimss\x16allow-super-admin-auth\x7f\x0dtenant-id-opt\0\x0bpermissions\
-\x01\0\x02\x04\0\x09authorize\x01\x03\x03\0!plugins-manager:jwt/authorization\x05\
-\x02\x01B\x11\x01j\x01s\x01s\x01@\x02\x09tenant-ids\x08documents\0\0\x04\0\x1ccr\
-eate-document-as-temp-file\x01\x01\x01@\x01\x0ftally-base-paths\0\0\x04\0\x11get\
--tally-results\x01\x02\x01@\x01\x09file-names\0\0\x04\0\x1dget-s3-public-asset-f\
-ile-path\x01\x03\x01@\x01\x08file-urls\0\0\x04\0\x1adownload-s3-file-to-string\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 2002] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xd0\x0e\x01A\x02\x01\
+A\x11\x01B\x14\x01j\x01s\x01s\x01@\x02\x09tenant-ids\x08documents\0\0\x04\0\x1cc\
+reate-document-as-temp-file\x01\x01\x01@\x01\x0ftally-base-paths\0\0\x04\0\x11ge\
+t-tally-results\x01\x02\x01@\x01\x09file-names\0\0\x04\0\x1dget-s3-public-asset-\
+file-path\x01\x03\x01@\x01\x08file-urls\0\0\x04\0\x1adownload-s3-file-to-string\x01\
 \x04\x01@\x02\x0ftemplate-strings\x0dvariables-maps\0\0\x04\0\x14render-template\
 -text\x01\x05\x01p}\x01j\x01\x06\x01s\x01@\x01\x05bytes\x06\0\x07\x04\0\x0bhash-\
-sha256\x01\x08\x01@\x01\x04datas\x01\0\x04\0\x0aprint-data\x01\x09\x03\0+plugins\
--manager:documents-manager/documents\x05\x03\x01B\x06\x01r\x03\x04paths\x07handl\
-ers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01r\x04\
-\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08manifest\x03\0\
-\x04\x03\0\x1cplugins-manager:common/types\x05\x04\x01j\0\x01s\x01@\x01\x04datas\
-\0\x05\x04\0\x1bcreate-transmission-package\x01\x06\x02\x03\0\x04\x08manifest\x02\
+sha256\x01\x08\x01ks\x01@\x07\x09file-sizew\x0amedia-types\x09tenant-ids\x11elec\
+tion-event-id\x09\x04names\x0bdocument-id\x09\x09is-public\x7f\0\0\x04\0\x1auplo\
+ad-and-return-document\x01\x0a\x01@\x01\x04datas\x01\0\x04\0\x0aprint-data\x01\x0b\
+\x03\0+plugins-manager:documents-manager/documents\x05\0\x01B\x0b\x01j\0\x01s\x01\
+@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\x04\0\x1bcreate-keycloak-tran\
+saction\x01\x01\x01ps\x01j\x01s\x01s\x01@\x02\x03sqls\x06params\x02\0\x03\x04\0\x14\
+execute-hasura-query\x01\x04\x04\0\x16execute-keycloak-query\x01\x04\x04\0\x19co\
+mmit-hasura-transaction\x01\x01\x04\0\x1bcommit-keycloak-transaction\x01\x01\x03\
+\00plugins-manager:transactions-manager/transaction\x05\x01\x01B\x11\x01j\x01s\x01\
+s\x01@\x03\x09tenant-ids\x0belection-ids\x07area-ids\0\0\x04\0#get-election-even\
+t-by-election-area\x01\x01\x01ks\x01j\x01\x02\x01s\x01@\x03\x09tenant-ids\x11ele\
+ction-event-ids\x0belection-ids\0\x03\x04\0\x12get-election-by-id\x01\x04\x01@\x03\
+\x09tenant-ids\x11election-event-ids\x10tally-session-ids\0\0\x04\0\x17get-tally\
+-session-by-id\x01\x05\x01@\x03\x09tenant-ids\x11election-event-id\x02\x0bdocume\
+nt-ids\0\x03\x04\0\x0cget-document\x01\x06\x01@\x02\x09tenant-ids\x07area-ids\0\x03\
+\x04\0\x0eget-area-by-id\x01\x07\x01@\x03\x09tenant-ids\x11election-event-ids\x10\
+tally-session-ids\0\x03\x04\0\x20get-last-tally-session-execution\x01\x08\x01@\x03\
+\x09tenant-ids\x11election-event-ids\x10results-event-ids\0\0\x04\0\x17get-resul\
+ts-event-by-id\x01\x09\x03\05plugins-manager:transactions-manager/postgres-queri\
+es\x05\x02\x01B\x05\x01ks\x01ps\x01j\0\x01s\x01@\x04\x06claimss\x16allow-super-a\
+dmin-auth\x7f\x0dtenant-id-opt\0\x0bpermissions\x01\0\x02\x04\0\x09authorize\x01\
+\x03\x03\0!plugins-manager:jwt/authorization\x05\x03\x01B\x06\x01r\x03\x04paths\x07\
+handlers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01\
+r\x04\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08manifest\x03\
+\0\x04\x03\0\x1cplugins-manager:common/types\x05\x04\x01j\0\x01s\x01@\x01\x04dat\
+as\0\x05\x04\0\x1bcreate-transmission-package\x01\x06\x02\x03\0\x04\x08manifest\x02\
 \x03\0\x04\x0cplugin-route\x01B\x06\x02\x03\x02\x01\x07\x04\0\x08manifest\x03\0\0\
 \x02\x03\x02\x01\x08\x04\0\x0cplugin-route\x03\0\x02\x01@\0\0\x01\x04\0\x0cget-m\
 anifest\x01\x04\x04\0$plugins-manager:common/plugin-common\x05\x09\x04\0'plugins\

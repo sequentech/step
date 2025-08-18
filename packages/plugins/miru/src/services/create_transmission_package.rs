@@ -7,7 +7,7 @@ use std::fs;
 use crate::{
     bindings::plugins_manager::{
         documents_manager::documents::{
-            create_document_as_temp_file, get_tally_results, print_data,
+            create_document_as_temp_file, get_tally_results, print_data, upload_and_return_document,
         },
         transactions_manager::postgres_queries::{
             get_area_by_id, get_document, get_election_by_id, get_election_event_by_election_area,
@@ -15,8 +15,8 @@ use crate::{
         },
     },
     services::{
-        acm_transaction::generate_transaction_id,
-        transmission_package::generate_base_compressed_xml,
+        acm_transaction::generate_transaction_id, files::write_into_named_temp_file,
+        logs::create_transmission_package_log, transmission_package::generate_base_compressed_xml,
     },
 };
 use chrono::{Local, Utc};
@@ -24,7 +24,9 @@ use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     types::{
-        hasura::core::{Area, Election, ElectionEvent, TallySession, TallySessionExecution},
+        hasura::core::{
+            Area, Document, Election, ElectionEvent, TallySession, TallySessionExecution,
+        },
         results::{ResultDocumentType, ResultsEvent},
         velvet::{ElectionReportDataComputed, ReportData},
     },
@@ -363,8 +365,7 @@ pub fn create_transmission_package_service(
         .map(|report_computed| report_computed.into())
         .collect();
 
-    // let (base_compressed_xml, eml, eml_hash) =
-    generate_base_compressed_xml(
+    let (base_compressed_xml, eml, _eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
         time_zone.clone(),
@@ -373,55 +374,54 @@ pub fn create_transmission_package_service(
         &election_annotations,
         &area_annotations,
         &reports,
-    );
+    )
+    .map_err(|e| e.to_string())?;
 
-    // // upload .xz
-    // let xz_name = format!("er_{}.xz", transaction_id);
-    // let (temp_path, temp_path_string, file_size) =
-    //     write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
-    // let xz_document = upload_and_return_document(
-    //     &hasura_transaction,
-    //     &temp_path_string,
-    //     file_size,
-    //     "applization/xml",
-    //     tenant_id,
-    //     Some(election_event.id.to_string()),
-    //     &xz_name,
-    //     None,
-    //     false,
-    // )
-    // ?;
+    // upload .xz
+    let xz_name = format!("er_{}.xz", transaction_id);
+    let (_temp_file, xz_file_name, _temp_path_string, file_size) =
+        write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
+    let xz_document_str = upload_and_return_document(
+        file_size,
+        "applization/xml",
+        tenant_id,
+        Some(election_event.id.as_ref()),
+        &xz_file_name,
+        None,
+        false,
+    )?;
 
-    // // upload eml
-    // let eml_name = format!("er_{}.xml", transaction_id);
-    // let (temp_path, temp_path_string, file_size) =
-    //     write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
-    // let eml_document = upload_and_return_document(
-    //     &hasura_transaction,
-    //     &temp_path_string,
-    //     file_size,
-    //     "applization/xml",
-    //     tenant_id,
-    //     Some(election_event.id.to_string()),
-    //     &eml_name,
-    //     None,
-    //     false,
-    // )
-    // ?;
+    let xz_document = deserialize_str::<Document>(&xz_document_str)
+        .map_err(|e| format!("Failed to deserialize Document: {}", e))?;
+    // upload eml
+    let eml_name = format!("er_{}.xml", transaction_id);
+    let (_temp_file, eml_file_name, _temp_path_string, file_size) =
+        write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
+    let eml_document_str = upload_and_return_document(
+        file_size,
+        "applization/xml",
+        tenant_id,
+        Some(election_event.id.as_ref()),
+        &eml_file_name,
+        None,
+        false,
+    )?;
+    let eml_document = deserialize_str::<Document>(&eml_document_str)
+        .map_err(|e| format!("Failed to deserialize Document: {}", e))?;
 
-    // let area_name = area.name.clone().unwrap_or("".into());
-    // let mut logs = if let Some(package) = found_package {
-    //     package.logs.clone()
-    // } else {
-    //     vec![]
-    // };
-    // logs.push(create_transmission_package_log(
-    //     &now_local,
-    //     election_id,
-    //     &election.name,
-    //     area_id,
-    //     &area_name,
-    // ));
+    let area_name = area.name.clone().unwrap_or("".into());
+    let mut logs = if let Some(package) = found_package {
+        package.logs.clone()
+    } else {
+        vec![]
+    };
+    logs.push(create_transmission_package_log(
+        &now_local,
+        election_id,
+        &election.name,
+        area_id,
+        &area_name,
+    ));
 
     // let all_servers_document = generate_all_servers_document(
     //     &hasura_transaction,

@@ -139,12 +139,24 @@ impl HookValue {
     }
 }
 
+pub struct PluginServices {
+    pub transactions: PluginTransactionsManager,
+    pub documents: PluginDocumentsManager,
+}
+
+impl PluginServices {
+    pub fn new(transactions: PluginTransactionsManager, documents: PluginDocumentsManager) -> Self {
+        PluginServices {
+            transactions,
+            documents,
+        }
+    }
+}
 pub struct PluginStore {
     pub wasi: WasiCtx,
     pub resource_table: ResourceTable,
-    pub transactions_manager: PluginTransactionsManager,
     pub plugin_auth: PluginAuth,
-    pub documents_manager: PluginDocumentsManager,
+    pub services: PluginServices,
 }
 
 impl WasiView for PluginStore {
@@ -245,34 +257,27 @@ impl Plugin {
 
         let transactions_manager =
             PluginTransactionsManager::new(hasura_manager.clone(), keycloak_manager.clone());
-
         let documents_manager = PluginDocumentsManager::new(host_temp_path.clone().to_path_buf());
+        let plugin_services = PluginServices::new(transactions_manager, documents_manager);
 
         let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),
             wasi: wasi,
-            transactions_manager,
             plugin_auth: PluginAuth::new(),
-            documents_manager,
+            services: plugin_services,
         };
 
         let mut store = Store::new(engine, plugin_store);
 
-        add_transaction_linker(&mut linker, |s: &mut PluginStore| {
-            &mut s.transactions_manager
-        })?;
+        add_transaction_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
 
-        add_postgres_queries_to_linker(&mut linker, |s: &mut PluginStore| {
-            &mut s.transactions_manager
-        })?;
+        add_postgres_queries_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
 
         add_auth_to_linker(&mut linker, |store: &mut PluginStore| {
             &mut store.plugin_auth
         })?;
 
-        add_documents_to_linker(&mut linker, |store: &mut PluginStore| {
-            &mut store.documents_manager
-        })?;
+        add_documents_to_linker(&mut linker, |store: &mut PluginStore| &mut store.services)?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 

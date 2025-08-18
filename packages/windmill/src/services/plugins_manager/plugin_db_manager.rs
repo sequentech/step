@@ -9,6 +9,7 @@ use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::plugins_manager::plugin::PluginServices;
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
 use tokio_postgres::types::ToSql;
@@ -24,12 +25,12 @@ use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manag
 use uuid::Uuid;
 #[ouroboros::self_referencing]
 pub struct PluginDbManager {
-    client: Option<Object>,
+    pub client: Option<Object>,
 
     /// a transaction borrowing from that client
     #[borrows(mut client)]
     #[not_covariant]
-    txn: Option<Transaction<'this>>,
+    pub txn: Option<Transaction<'this>>,
 }
 
 impl PluginDbManager {
@@ -40,8 +41,8 @@ impl PluginDbManager {
 }
 
 pub struct PluginTransactionsManager {
-    hasura_manager: Arc<Mutex<PluginDbManager>>,
-    keycloak_manager: Arc<Mutex<PluginDbManager>>,
+    pub hasura_manager: Arc<Mutex<PluginDbManager>>,
+    pub keycloak_manager: Arc<Mutex<PluginDbManager>>,
 }
 
 impl PluginTransactionsManager {
@@ -104,9 +105,9 @@ fn parsed_transactions_query_results(
 }
 
 //Implementing the Host trait for PluginTransactionsManager to handle database transactions
-impl TransactionHost for PluginTransactionsManager {
+impl TransactionHost for PluginServices {
     async fn create_hasura_transaction(&mut self) -> Result<(), String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
 
         println!("Creating Hasura transaction");
         let hasura_client = get_hasura_pool()
@@ -149,7 +150,7 @@ impl TransactionHost for PluginTransactionsManager {
     }
 
     async fn create_keycloak_transaction(&mut self) -> Result<(), String> {
-        let mut manager = self.keycloak_manager.lock().await;
+        let mut manager = self.transactions.keycloak_manager.lock().await;
 
         let keycloak_client = get_keycloak_pool()
             .await
@@ -195,7 +196,7 @@ impl TransactionHost for PluginTransactionsManager {
         sql: String,
         params: Vec<String>,
     ) -> Result<String, String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
 
         let parsed_params: Vec<Box<dyn ToSql + Send + Sync>> = params
             .iter()
@@ -238,7 +239,7 @@ impl TransactionHost for PluginTransactionsManager {
         sql: String,
         params: Vec<String>,
     ) -> Result<String, String> {
-        let mut manager = self.keycloak_manager.lock().await;
+        let mut manager = self.transactions.keycloak_manager.lock().await;
 
         let parsed_params: Vec<Box<dyn ToSql + Send + Sync>> = params
             .iter()
@@ -277,7 +278,7 @@ impl TransactionHost for PluginTransactionsManager {
     }
 
     async fn commit_hasura_transaction(&mut self) -> Result<(), String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: Transaction<'_> = manager
             .with_txn_mut(|opt| opt.take())
             .ok_or("No transaction")?;
@@ -289,7 +290,7 @@ impl TransactionHost for PluginTransactionsManager {
     }
 
     async fn commit_keycloak_transaction(&mut self) -> Result<(), String> {
-        let mut manager = self.keycloak_manager.lock().await;
+        let mut manager = self.transactions.keycloak_manager.lock().await;
         let keycloak_transaction: Transaction<'_> = manager
             .with_txn_mut(|opt| opt.take())
             .ok_or("No transaction")?;
@@ -301,7 +302,7 @@ impl TransactionHost for PluginTransactionsManager {
     }
 }
 
-impl PostgresHost for PluginTransactionsManager {
+impl PostgresHost for PluginServices {
     async fn get_election_event_by_election_area(
         &mut self,
         tenant_id: String,
@@ -312,7 +313,7 @@ impl PostgresHost for PluginTransactionsManager {
             "Getting election event by election area: tenant_id={}, election_id={}, area_id={}",
             tenant_id, election_id, area_id
         );
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
@@ -338,7 +339,7 @@ impl PostgresHost for PluginTransactionsManager {
             "Getting election by id: tenant_id={}, election_event_id={}, election_id={}",
             tenant_id, election_event_id, election_id
         );
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
@@ -364,7 +365,7 @@ impl PostgresHost for PluginTransactionsManager {
         election_event_id: String,
         tally_session_id: String,
     ) -> Result<String, String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
@@ -386,7 +387,7 @@ impl PostgresHost for PluginTransactionsManager {
         election_event_id: Option<String>,
         document_id: String,
     ) -> Result<Option<String>, String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
@@ -412,7 +413,7 @@ impl PostgresHost for PluginTransactionsManager {
         tenant_id: String,
         area_id: String,
     ) -> Result<Option<String>, String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
@@ -434,7 +435,7 @@ impl PostgresHost for PluginTransactionsManager {
         election_event_id: String,
         tally_session_id: String,
     ) -> Result<Option<String>, String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
@@ -461,7 +462,7 @@ impl PostgresHost for PluginTransactionsManager {
         election_event_id: String,
         results_event_id: String,
     ) -> Result<String, String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let mut manager = self.transactions.hasura_manager.lock().await;
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
