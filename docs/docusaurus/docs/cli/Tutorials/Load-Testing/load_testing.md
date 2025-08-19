@@ -32,56 +32,47 @@ our `kubectl` plugins:
 export KUBECONFIG=~/.kube/prod1-euw1-kubeconfig.yml
 ```
 
-Let's review the windmill pods using the following command:
+Let's review the loadtesting pod using the following command:
 
 ```bash
-kubectl get pods -n dev-apps | grep "^testing-pod"
+kubectl get pods -n test-apps -l app.kubernetes.io/name=loadtesting
 ```
 
 The output should looks something like:
 
 ```bash
-testing-pod-6ff8c58cbc-5ps6t              1/1     Running   0             148m
+NAME                           READY   STATUS    RESTARTS   AGE
+loadtesting-86c5944494-j7gnq   1/1     Running   0          4d21h
 ```
 
-Please note that we are filtering for pods in `dev-apps` namespace. Change this
+Please note that we are filtering for pods in `test-apps` namespace. Change this
 accordingly to the name of your environment. For example, the `ehu` environment
 would require to use here the `ehu-apps`.
 
-We can connect to any of these windmill pods using the following kind of
+We can connect to any of these loadtesting pods using the following kind of
 command. Please change the pod name and the namespace name accordingly:
 
 ```bash
-kubectl exec -it testing-pod-6ff8c58cbc-5ps6t -n dev-apps -- /bin/bash
+$ kubectl exec -n test-apps -it deploy/loadtesting -- /bin/bash
 ```
 
 This should give you a prompt very much like this:
 
 ```bash
-root@testing-pod-6ff8c58cbc-5ps6t:/#
+root@loadtesting-86c5944494-j7gnq:/opt/sequentech#
 ```
 
-Good! Now we are inside our windmill pod, let's install our load tool:
+Good! Now we are inside our loadtesting pod, let's initialize the
+environment to run our load tool:
 
 ```bash
-wget -qO- https://gist.githubusercontent.com/edulix/875a9a5d26407e1530f7769419dd8961/raw/7a277986c85c4809169bfb9b20795da518847c51/setup.sh | bash
-```
-
-The result of the installation should look like this:
-
-![Load tool install example](./assets/load_tool_install.png)
-
-Please notice that the instructions indicate that to use the load tool, anytime
-we enter into a pod with this tool installed, we need to execute the following:
-
-```bash
-cd /opt/sequent-step
-source /opt/sequent-step/venv/bin/activate
+root@loadtesting-86c5944494-j7gnq:/opt/sequentech# source /opt/sequent-step/venv/bin/activate
+(venv) root@loadtesting-86c5944494-j7gnq:/opt/sequentech#
 ```
 
 ### 2. Executing the script
 
-At this stage we are asuming we have:
+At this stage we are assuming we have:
 1. The election event created.
 2. The Keys ceremony has been executed.
 3. The election event has been published.
