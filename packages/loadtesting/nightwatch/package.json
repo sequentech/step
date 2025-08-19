@@ -1,0 +1,15 @@
+{
+  "name": "loadtesting",
+  "version": "1.0.0",
+  "description": "Loadtesting for sequentech",
+  "main": "voting.js",
+  "scripts": {
+    "test": "nightwatch"
+  },
+  "author": "",
+  "license": "Apache-2",
+  "devDependencies": {
+    "chromedriver": "^139.0.1",
+    "nightwatch": "^3.12.2"
+  }
+}
