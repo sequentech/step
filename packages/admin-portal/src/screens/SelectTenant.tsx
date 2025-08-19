@@ -334,7 +334,7 @@ export const SelectTenant = () => {
             {loading ? (
                 <CircularProgress />
             ) : (
-                <StyledApp css={css}>
+                <StyledApp css={css} className="select-tenant">
                     <Header
                         appVersion={{main: globalSettings.APP_VERSION}}
                         appHash={{main: globalSettings.APP_HASH}}
