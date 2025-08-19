@@ -58,7 +58,6 @@ pub fn generate_base_compressed_xml(
     area_annotations: &MiruAreaAnnotations,
     reports: &Vec<ReportData>,
 ) -> Result<(Vec<u8>, String, String), String> {
-    println!("Generating base compressed XML...");
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
@@ -86,11 +85,10 @@ pub fn generate_base_compressed_xml(
         .map_err(|e| format!("Error serializing variables map: {}", e))?;
     let render_xml = render_template_text(&template_string, &variables_map_str)
         .map_err(|err| format!("{}", err))?;
-    println!("Rendered XML: {}", render_xml);
 
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml)
         .map_err(|e| format!("Error compressing and hashing EML: {}", e))?;
-    println!("Compressed XML size: {}", compressed_xml.len());
+
     Ok((compressed_xml, render_xml, rendered_xml_hash))
 }
 

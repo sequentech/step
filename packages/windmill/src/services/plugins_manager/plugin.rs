@@ -21,6 +21,7 @@ use sequent_core::{
         transactions_manager_bindings::plugins_manager::transactions_manager::{
             postgres_queries::add_to_linker as add_postgres_queries_to_linker,
             transaction::add_to_linker as add_transaction_linker,
+            vault::add_to_linker as add_vault_to_linker,
         },
     },
     services::{authorization::authorize, jwt::JwtClaims},
@@ -278,6 +279,8 @@ impl Plugin {
         })?;
 
         add_documents_to_linker(&mut linker, |store: &mut PluginStore| &mut store.services)?;
+
+        add_vault_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 

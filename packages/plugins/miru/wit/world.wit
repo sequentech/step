@@ -4,6 +4,7 @@ package plugins-manager:miru-plugin;
 world miru-plugin {
     import plugins-manager:transactions-manager/transaction;
     import plugins-manager:transactions-manager/postgres-queries;
+    import plugins-manager:transactions-manager/vault;
     export plugins-manager:common/plugin-common;
     import plugins-manager:jwt/authorization;
     import plugins-manager:documents-manager/documents;

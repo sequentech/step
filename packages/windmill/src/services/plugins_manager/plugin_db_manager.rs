@@ -10,6 +10,7 @@ use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::plugins_manager::plugin::PluginServices;
+use crate::services::vault;
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
 use tokio_postgres::types::ToSql;
@@ -20,7 +21,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use sequent_core::plugins_wit::lib::transactions_manager_bindings::plugins_manager::transactions_manager::{
     transaction::{Host as TransactionHost},
-    postgres_queries::{Host as PostgresHost}
+    postgres_queries::{Host as PostgresHost},
+    vault::{Host as VaultHost}
 };
 use uuid::Uuid;
 #[ouroboros::self_referencing]
@@ -477,5 +479,52 @@ impl PostgresHost for PluginServices {
         let str = serde_json::to_string(&res)
             .map_err(|e| format!("Failed to serialize results event: {}", e))?;
         Ok(str)
+    }
+}
+
+impl VaultHost for PluginServices {
+    async fn read_secret(
+        &mut self,
+        tenant_id: String,
+        election_event_id: Option<String>,
+        key: String,
+    ) -> Result<Option<String>, String> {
+        let mut manager = self.transactions.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+
+        let res = vault::read_secret(
+            hasura_transaction,
+            &tenant_id,
+            election_event_id.as_deref(),
+            &key,
+        )
+        .await
+        .map_err(|e| format!("Failed to read secret: {}", e))?;
+        Ok(res)
+    }
+
+    async fn save_secret(
+        &mut self,
+        tenant_id: String,
+        election_event_id: Option<String>,
+        key: String,
+        value: String,
+    ) -> Result<(), String> {
+        let mut manager = self.transactions.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+        vault::save_secret(
+            hasura_transaction,
+            &tenant_id,
+            election_event_id.as_deref(),
+            &key,
+            &value,
+        )
+        .await
+        .map_err(|e| format!("Failed to save secret: {}", e))?;
+        Ok(())
     }
 }

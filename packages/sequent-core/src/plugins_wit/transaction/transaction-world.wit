@@ -22,7 +22,13 @@ interface postgres-queries {
     get-results-event-by-id: func(tenant-id:string, election-event-id:string, results-event-id:string) -> result<string, string>;
 }
 
+interface vault {
+    read-secret: func(tenant-id: string, election-event-id: option<string>,key: string) -> result<option<string>, string>;
+    save-secret: func(tenant-id: string, election-event-id: option<string>,key: string, value:string) -> result<_, string>;
+}
+
 world transactions-manager {
     import transaction;
     import postgres-queries;
+    import vault;
 }

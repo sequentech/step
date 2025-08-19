@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use core::convert::Into;
-use std::fs;
+use std::{env, fs};
 
 use crate::{
     bindings::plugins_manager::{
         documents_manager::documents::{
-            create_document_as_temp_file, get_tally_results, print_data, upload_and_return_document,
+            create_document_as_temp_file, get_tally_results, upload_and_return_document,
         },
         transactions_manager::postgres_queries::{
             get_area_by_id, get_document, get_election_by_id, get_election_event_by_election_area,
@@ -15,15 +15,20 @@ use crate::{
         },
     },
     services::{
-        acm_transaction::generate_transaction_id, files::write_into_named_temp_file,
-        logs::create_transmission_package_log, transmission_package::generate_base_compressed_xml,
+        acm_json::get_acm_key_pair, acm_transaction::generate_transaction_id,
+        eml_types::ACMTrustee, logs::create_transmission_package_log,
+        transmission_package::generate_base_compressed_xml,
     },
 };
-use chrono::{Local, Utc};
+use chrono::{DateTime, Local, Utc};
 use sequent_core::{
     ballot::Annotations,
+    plugins::{get_plugin_shared_dir, Plugins},
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
+    std_temp_path::write_into_named_temp_file,
     types::{
+        ceremonies::Log,
+        date_time::TimeZone,
         hasura::core::{
             Area, Document, Election, ElectionEvent, TallySession, TallySessionExecution,
         },
@@ -50,51 +55,21 @@ use std::path::{Path, PathBuf};
 use tar::{Archive, Entries};
 use uuid::Uuid;
 
-pub fn decompress_file(input_file_name: &str) -> Result<String, String> {
+pub fn decompress_file(input_file_name: &str) -> Result<(String, PathBuf), String> {
+    let base_path = get_plugin_shared_dir(&Plugins::MIRU);
     let unique_dir_name = format!("temp-{}", Uuid::new_v4());
-    println!(
-        "[Guest Plugin] Creating temporary directory with unique name: {}",
-        unique_dir_name
-    );
-
-    // 2. Define the path for the new directory.
-    // WASI applications operate within a sandboxed environment,
-    // so you'll be creating this directory relative to the plugin's
-    // working directory.
-    let temp_dir_path = Path::new("/temp/miru").join(&unique_dir_name);
-
-    // 3. Create the directory. `create_dir_all` will also create
-    // any parent directories if they don't exist.
+    let temp_dir_path = Path::new(&base_path).join(&unique_dir_name);
     fs::create_dir_all(&temp_dir_path)
         .map_err(|e| format!("Failed to create temporary directory: {}", e))?;
-
-    println!(
-        "Created temporary directory at: {}",
-        temp_dir_path.display()
-    );
-
     let output_path = temp_dir_path.as_path();
-    let input_dir = PathBuf::from("/temp/miru");
+    println!("Created temporary directory at: {}", output_path.display());
+
+    let input_dir = PathBuf::from(&base_path);
     let input_path = input_dir.join(input_file_name);
-
-    println!(
-        "[Guest Plugin] Plugin opening file: {}",
-        input_path.display()
-    );
-
     let file = File::open(&input_path).map_err(|e| e.to_string())?;
 
-    println!("[Guest Plugin] Plugin opened file: {:?}", file);
-
-    // 3. Create a GzDecoder and tar archive reader.
     let dec = GzDecoder::new(file);
     let mut archive: Archive<GzDecoder<std::fs::File>> = Archive::new(dec);
-
-    // 4. Unpack the archive into the pre-opened "output" directory.
-    println!(
-        "[Guest Plugin] Plugin unpacking archive to: {}",
-        output_path.display()
-    );
 
     let output_path = temp_dir_path.clone(); // Clone the PathBuf
 
@@ -133,12 +108,7 @@ pub fn decompress_file(input_file_name: &str) -> Result<String, String> {
             println!("Skipping unsupported entry type: {:?}", file_type);
         }
     }
-    println!(
-        "[Guest Plugin] Decompressed successfully into directory: {}",
-        output_path.display()
-    );
-
-    Ok(unique_dir_name)
+    Ok((unique_dir_name, temp_dir_path))
 }
 
 fn list_all_temp_files_directly(dir: &PathBuf) -> Result<(), String> {
@@ -311,28 +281,21 @@ pub fn create_transmission_package_service(
         download_tally_tar_gz_to_file(tenant_id, &election_event.id, &tally_session.id)
             .map_err(|e| e.to_string())?;
 
-    let tally_file_name = decompress_file(&tally_tr_gz_file_name)?;
+    let (tally_file_name, tally_path) = decompress_file(&tally_tr_gz_file_name)?;
 
     println!(
         "[Guest Plugin] After decompression, tally file name: {}",
         tally_file_name
     );
 
-    // list_all_temp_files_directly(&tally_path)?;
+    list_all_temp_files_directly(&tally_path)?;
 
     let tally_results_str = get_tally_results(&tally_file_name)
         .map_err(|e| format!("Error getting tally results: {:?}", e))?;
 
-    println!("[Guest Plugin] Tally results string: {}", tally_results_str);
-
     let tally_results: Vec<ElectionReportDataComputed> =
         deserialize_str::<Vec<ElectionReportDataComputed>>(&tally_results_str)
             .map_err(|e| e.to_string())?;
-
-    println!(
-        "[Guest Plugin] Tally results deserialized: {:?}",
-        tally_results
-    );
 
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
@@ -365,7 +328,7 @@ pub fn create_transmission_package_service(
         .map(|report_computed| report_computed.into())
         .collect();
 
-    let (base_compressed_xml, eml, _eml_hash) = generate_base_compressed_xml(
+    let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
         time_zone.clone(),
@@ -390,9 +353,9 @@ pub fn create_transmission_package_service(
         None,
         false,
     )?;
-
     let xz_document = deserialize_str::<Document>(&xz_document_str)
         .map_err(|e| format!("Failed to deserialize Document: {}", e))?;
+
     // upload eml
     let eml_name = format!("er_{}.xml", transaction_id);
     let (_temp_file, eml_file_name, _temp_path_string, file_size) =
@@ -423,23 +386,21 @@ pub fn create_transmission_package_service(
         &area_name,
     ));
 
-    // let all_servers_document = generate_all_servers_document(
-    //     &hasura_transaction,
-    //     &eml_hash,
-    //     &eml,
-    //     base_compressed_xml.clone(),
-    //     &ccs_servers,
-    //     &area_annotations,
-    //     &election_event_annotations,
-    //     &election_event.id,
-    //     tenant_id,
-    //     time_zone.clone(),
-    //     now_utc.clone(),
-    //     vec![],
-    //     &logs,
-    //     &election_annotations,
-    // )
-    // ?;
+    generate_all_servers_document(
+        &eml_hash,
+        &eml,
+        base_compressed_xml.clone(),
+        &ccs_servers,
+        &area_annotations,
+        &election_event_annotations,
+        &election_event.id,
+        tenant_id,
+        time_zone.clone(),
+        now_utc.clone(),
+        vec![],
+        &logs,
+        &election_annotations,
+    )?;
 
     // let new_transmission_package_data = MiruTransmissionPackageData {
     //     election_id: election_id.to_string(),
@@ -477,4 +438,93 @@ pub fn create_transmission_package_service(
     //
     //     .with_context(|| "error comitting transaction")?;
     Ok(format!("Transmission package created with the result"))
+}
+
+#[instrument(skip_all, err)]
+pub fn generate_all_servers_document(
+    eml_hash: &str,
+    eml: &str,
+    compressed_xml_bytes: Vec<u8>,
+    ccs_servers: &Vec<MiruCcsServer>,
+    area_annotations: &MiruAreaAnnotations,
+    election_event_annotations: &MiruElectionEventAnnotations,
+    election_event_id: &str,
+    tenant_id: &str,
+    time_zone: TimeZone,
+    now_utc: DateTime<Utc>,
+    server_signatures: Vec<ACMTrustee>,
+    logs: &Vec<Log>,
+    election_annotations: &MiruElectionAnnotations,
+    // ) -> Result<Document,String> {
+) -> Result<(), String> {
+    println!("[Guest Plugin] Generating all servers document");
+    let acm_key_pair = get_acm_key_pair(tenant_id, election_event_id).map_err(|e| e.to_string())?;
+    let mut temp_dir_path = env::temp_dir();
+    fs::create_dir_all(&temp_dir_path).map_err(|e| e.to_string())?;
+
+    for ccs_server in ccs_servers {
+        let server_path = temp_dir_path.join(&ccs_server.tag);
+        std::fs::create_dir(server_path.clone()).map_err(|e| {
+            format!(
+                "Error generating directory {:?}: {}",
+                server_path.clone(),
+                e
+            )
+        })?;
+        let zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
+        // create_transmission_package(
+        //     eml_hash,
+        //     eml,
+        //     time_zone.clone(),
+        //     now_utc.clone(),
+        //     election_event_annotations,
+        //     compressed_xml_bytes.clone(),
+        //     &acm_key_pair,
+        //     &ccs_server.public_key_pem,
+        //     area_annotations,
+        //     &zip_file_path,
+        //     &server_signatures,
+        //     &election_annotations,
+        // )
+        // .await?;
+        // let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        // if with_logs {
+        //     let zip_file_path = server_path.join(format!("al_{}.zip", area_annotations.station_id));
+        //     create_logs_package(
+        //         time_zone.clone(),
+        //         now_utc.clone(),
+        //         election_event_annotations,
+        //         &election_annotations,
+        //         &acm_key_pair,
+        //         &ccs_server.public_key_pem,
+        //         area_annotations,
+        //         &zip_file_path,
+        //         &server_signatures,
+        //         logs,
+        //     )
+        //     .await?;
+        // }
+    }
+
+    // let dst_file = generate_temp_file("all_servers", ".zip")?;
+    // let dst_file_path = dst_file.path();
+    // let dst_file_string = dst_file_path.to_string_lossy().to_string();
+
+    // compress_folder_to_zip(temp_dir_path, dst_file.path())?;
+    // let file_size =
+    //     get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
+
+    // let document = upload_and_return_document(
+    //     file_size,
+    //     "applization/zip",
+    //     tenant_id,
+    //     Some(election_event_id.to_string()),
+    //     "all_servers.zip",
+    //     None,
+    //     false,
+    // )
+    // .await?;
+
+    // Ok(document)
+    Ok(())
 }
