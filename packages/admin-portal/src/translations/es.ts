@@ -81,6 +81,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",

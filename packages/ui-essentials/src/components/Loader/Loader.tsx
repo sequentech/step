@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2023-2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -20,7 +20,7 @@ const StyledBox = styled(Box)`
 
 const Loader = () => {
     return (
-        <StyledBox>
+        <StyledBox className="loader">
             <CircularProgress />
         </StyledBox>
     )
