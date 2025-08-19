@@ -1,30 +1,31 @@
-FROM sequentech.local/cargo-packages:latest AS builder
-COPY . /app
-RUN cd /app/packages && cargo build --release --bin=step-cli
+# FROM sequentech.local/cargo-packages:latest AS builder
+# COPY . /app
+# RUN cd /app/packages && cargo build --release --bin=step-cli
 
-FROM ubuntu:22.04
+FROM ubuntu:latest
 RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 python3-pip python3-venv python3-dev libpq-dev \
     curl wget gnupg2 nodejs npm procps \
     chromium-browser chromium-driver && \
-    rm -rf /var/lib/apt/lists/* && \
-    npm install -g nightwatch@3.12.2
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/sequentech
 RUN mkdir -p /opt/sequentech
-COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
+# COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
 COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
 RUN mkdir -p /opt/sequentech/janitor
 COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
 RUN chmod +x /opt/sequentech/janitor-setup
 RUN DEBIAN_FRONTEND=noninteractive /opt/sequentech/janitor-setup
 RUN rm /opt/sequentech/janitor-setup
+ENV CHROME=/usr/bin/chromium-browser
 ENV PATH="$PATH:/opt/sequentech"
 RUN echo '#!/bin/bash\nsource /opt/sequent-step/venv/bin/activate\nexec python /opt/sequent-step/load_tool.py "$@"' > /opt/sequent-step/load-tool && \
     chmod +x /opt/sequent-step/load-tool
 RUN echo '#!/bin/bash\nsource /opt/sequent-step/venv/bin/activate\nexec "$@"' > /opt/sequent-step/entrypoint_with_venv.sh && \
     chmod +x /opt/sequent-step/entrypoint_with_venv.sh
 
-COPY ./packages/loadtesting/nightwatch /
+COPY ./packages/loadtesting/nightwatch/ /nightwatch
+RUN cd /nightwatch && npm install .
 
 ENTRYPOINT ["/opt/sequent-step/entrypoint_with_venv.sh"]
