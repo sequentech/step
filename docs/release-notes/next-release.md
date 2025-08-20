@@ -58,3 +58,8 @@ are added to the demo background and dialog to help custom styling.
 Previously, if you're logged in to the Admin Portal, and you logged out,
 and then went to the /tenant page to select the tenant, the page didn't load
 correctly the first time. This change fixes the issue.
+
+## 🐞 Intermitten errors loading preview
+
+Fix a race condition for calling WASM code when loading the voting portal that
+was sometimes causing an error.
