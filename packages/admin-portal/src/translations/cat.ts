@@ -48,6 +48,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -1003,6 +1004,8 @@ const catalanTranslation: TranslationType = {
                 decryptFileTitle: "Desxifrar arxiu",
                 decryptInstructions:
                     "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
+                encryptSuccess: "S'ha configurat correctament l'encriptació de l'informe",
+                encryptError: "Error en configurar l'encriptació de l'informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",

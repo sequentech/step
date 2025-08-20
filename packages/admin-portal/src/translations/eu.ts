@@ -81,6 +81,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
+                PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -989,6 +990,8 @@ const basqueTranslation: TranslationType = {
                 incorectPassword: "Pasahitz okerra",
                 decryptFileTitle: "Nola deszifratzen den fitxategia",
                 decryptInstructions: `1. '-in' :Zifratutako fitxategiaren bidea. \n2. '-out' :Deszifratutako fitxategia gordeko den bidea. \n3. '-pass' :Fitxategia zifratzeko erabilitako pasahitza. \n`,
+                encryptSuccess: "Txostenaren enkriptatzea behar bezala konfiguratu da",
+                encryptError: "Errorea txostenaren enkriptatzea konfiguratzean",
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",

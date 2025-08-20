@@ -81,6 +81,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -993,6 +994,8 @@ const spanishTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración de cifrado del informe exitosa",
+                encryptError: "Error al configurar el cifrado del informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",

@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {PageLimit, theme} from "@sequentech/ui-essentials"
+import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
 import {
     IElection,
     stringToHtml,
@@ -20,7 +20,7 @@ import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
@@ -98,6 +98,8 @@ const StartScreen: React.FC = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
+    const isDemo = useAppSelector(showDemo(electionId))
+    const [showDemoDialog, setShowDemoDialog] = useState(isDemo)
     const navigate = useNavigate()
     useLanguage({ballotStyle})
 
@@ -162,6 +164,20 @@ const StartScreen: React.FC = () => {
                 </Box>
             </Box>
             <ActionButtons election={election} />
+
+            <Dialog
+                variant="warning"
+                open={showDemoDialog}
+                ok={t("electionSelectionScreen.demoDialog.ok")}
+                title={t("electionSelectionScreen.demoDialog.title")}
+                handleClose={(result: boolean) => {
+                    setShowDemoDialog(false)
+                }}
+                fullWidth
+                className="demo-dialog"
+            >
+                {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
+            </Dialog>
         </PageLimit>
     )
 }

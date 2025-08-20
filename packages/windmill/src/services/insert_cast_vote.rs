@@ -144,6 +144,10 @@ pub enum CastVoteError {
     CheckStatusInternalFailed(String),
     #[serde(rename = "check_previous_votes_failed")]
     CheckPreviousVotesFailed(String),
+    #[serde(rename = "check_revotes_failed")]
+    CheckRevotesFailed(String),
+    #[serde(rename = "check_votes_in_other_areas_failed")]
+    CheckVotesInOtherAreasFailed(String),
     #[serde(rename = "insert_failed")]
     InsertFailed(String),
     #[serde(rename = "insert_failed_exceeds_allowed_revotes")]
@@ -917,14 +921,14 @@ async fn check_previous_votes(
 
     // Skip max votes check if max_revotes is 0, allowing unlimited votes
     if max_revotes > 0 && same.len() >= max_revotes {
-        return Err(CastVoteError::CheckPreviousVotesFailed(format!(
+        return Err(CastVoteError::CheckRevotesFailed(format!(
             "Cannot insert cast vote, maximum votes reached ({}, {})",
             voter_id_string,
             same.len()
         )));
     }
     if other.len() > 0 {
-        return Err(CastVoteError::CheckPreviousVotesFailed(format!(
+        return Err(CastVoteError::CheckVotesInOtherAreasFailed(format!(
             "Cannot insert cast vote, votes already present in other area(s) ({}, {:?})",
             voter_id_string, other
         )));

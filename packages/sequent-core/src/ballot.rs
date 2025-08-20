@@ -298,6 +298,7 @@ impl CandidatePresentation {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct Candidate {
     pub id: String,
@@ -329,6 +330,14 @@ impl Candidate {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_explicit_invalid)
+            .flatten()
+            .unwrap_or(false)
+    }
+
+    pub fn is_explicit_blank(&self) -> bool {
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_explicit_blank)
             .flatten()
             .unwrap_or(false)
     }
@@ -1109,6 +1118,7 @@ impl Default for ContestPresentation {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct Contest {
     pub id: String,

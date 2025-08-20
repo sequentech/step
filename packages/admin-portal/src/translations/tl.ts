@@ -81,6 +81,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -994,6 +995,8 @@ const tagalogTranslation: TranslationType = {
                 decryptFileTitle: "Decrypt File",
                 decryptInstructions:
                     "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
+                encryptSuccess: "Matagumpay na na-setup ang pag-encrypt ng ulat",
+                encryptError: "Error sa pag-setup ng pag-encrypt ng ulat",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
