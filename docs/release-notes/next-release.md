@@ -63,3 +63,8 @@ correctly the first time. This change fixes the issue.
 
 Fix a race condition for calling WASM code when loading the voting portal that
 was sometimes causing an error.
+
+## 🐞 Voter actions are not logged
+
+Voter actions were not being logged because they were published to a message queue
+that didn't include the environment prefix.
