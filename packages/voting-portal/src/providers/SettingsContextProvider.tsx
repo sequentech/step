@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
-import Loader from "../components/Loader"
+import {Loader} from "@sequentech/ui-essentials"
 
 export interface GlobalSettings {
     DISABLE_AUTH: boolean
