@@ -27,3 +27,9 @@ Area, Internal Server Error.
 This fixes the issue where a service account appears in the voters list.
 In order to deploy this in production, the configmap for the default
 election event configuration needs to be changed.
+
+## 🐞 Accessing tenant url after logging out does not show tenant selection page.
+
+Previously, if you're logged in to the Admin Portal, and you logged out,
+and then went to the /tenant page to select the tenant, the page didn't load
+correctly the first time. This change fixes the issue.
