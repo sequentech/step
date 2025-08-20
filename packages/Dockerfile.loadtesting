@@ -1,6 +1,6 @@
-#FROM sequentech.local/cargo-packages:latest AS builder
-#COPY . /app
-#RUN cd /app/packages && cargo build --release --bin=step-cli
+FROM sequentech.local/cargo-packages:latest AS builder
+COPY . /app
+RUN cd /app/packages && cargo build --release --bin=step-cli
 
 FROM ubuntu:latest
 RUN apt-get update -y && \
@@ -11,7 +11,7 @@ RUN apt-get update -y && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/sequentech
 RUN mkdir -p /opt/sequentech
-#COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
+COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
 COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
 RUN mkdir -p /opt/sequentech/janitor
 COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
