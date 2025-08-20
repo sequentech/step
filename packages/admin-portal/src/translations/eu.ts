@@ -326,6 +326,13 @@ const basqueTranslation: TranslationType = {
                         disabled: "Desgaituta",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Automated Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",

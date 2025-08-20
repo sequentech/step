@@ -326,6 +326,13 @@ const galegoTranslation: TranslationType = {
                         disabled: "Deshabilitado",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Automated Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "A data de fin debe ser posterior á data de inicio",

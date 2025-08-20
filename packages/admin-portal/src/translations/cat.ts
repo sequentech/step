@@ -325,6 +325,13 @@ const catalanTranslation: TranslationType = {
                         disabled: "Deshabilitat",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Automated Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",

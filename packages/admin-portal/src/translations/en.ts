@@ -322,6 +322,13 @@ const englishTranslation = {
                         disabled: "Disabled",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Automated Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",

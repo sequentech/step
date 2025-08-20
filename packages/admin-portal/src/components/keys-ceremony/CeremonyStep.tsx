@@ -30,6 +30,7 @@ import {useGetOne} from "react-admin"
 import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CancelButton} from "@/resources/Tally/styles"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
@@ -92,6 +93,10 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
 
     const status: IExecutionStatus = ceremony?.status
 
+    const isAutomatedCeremonies =
+        electionEvent.presentation?.ceremonies_policy ===
+        EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
     return (
         <WizardStyles.WizardContainer>
             <WizardStyles.ContentWrapper>
@@ -133,12 +138,20 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                         <TableCell align="center">
                                             {t("keysGeneration.ceremonyStep.header.fragment")}
                                         </TableCell>
-                                        <TableCell align="center">
-                                            {t("keysGeneration.ceremonyStep.header.downloaded")}
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            {t("keysGeneration.ceremonyStep.header.checked")}
-                                        </TableCell>
+                                        {!isAutomatedCeremonies && (
+                                            <>
+                                                <TableCell align="center">
+                                                    {t(
+                                                        "keysGeneration.ceremonyStep.header.downloaded"
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {t(
+                                                        "keysGeneration.ceremonyStep.header.checked"
+                                                    )}
+                                                </TableCell>
+                                            </>
+                                        )}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -160,23 +173,30 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                         <WizardStyles.DoneIcon />
                                                     )}
                                                 </TableCell>
-                                                <TableCell align="center">
-                                                    {trustee.status === TStatus.WAITING ||
-                                                    trustee.status === TStatus.KEY_GENERATED ? (
-                                                        <HourglassEmptyIcon />
-                                                    ) : (
-                                                        <WizardStyles.DoneIcon />
-                                                    )}
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    {trustee.status === TStatus.WAITING ||
-                                                    trustee.status === TStatus.KEY_GENERATED ||
-                                                    trustee.status === TStatus.KEY_RETRIEVED ? (
-                                                        <HourglassEmptyIcon />
-                                                    ) : (
-                                                        <WizardStyles.DoneIcon />
-                                                    )}
-                                                </TableCell>
+                                                {!isAutomatedCeremonies && (
+                                                    <>
+                                                        <TableCell align="center">
+                                                            {trustee.status === TStatus.WAITING ||
+                                                            trustee.status ===
+                                                                TStatus.KEY_GENERATED ? (
+                                                                <HourglassEmptyIcon />
+                                                            ) : (
+                                                                <WizardStyles.DoneIcon />
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align="center">
+                                                            {trustee.status === TStatus.WAITING ||
+                                                            trustee.status ===
+                                                                TStatus.KEY_GENERATED ||
+                                                            trustee.status ===
+                                                                TStatus.KEY_RETRIEVED ? (
+                                                                <HourglassEmptyIcon />
+                                                            ) : (
+                                                                <WizardStyles.DoneIcon />
+                                                            )}
+                                                        </TableCell>
+                                                    </>
+                                                )}
                                             </TableRow>
                                         )
                                     }) ?? null}

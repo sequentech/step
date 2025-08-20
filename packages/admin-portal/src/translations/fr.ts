@@ -325,6 +325,13 @@ const frenchTranslation: TranslationType = {
                         disabled: "Désactivé",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de Cerimònia",
+                    options: {
+                        "automated-ceremonies": "Automated Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",

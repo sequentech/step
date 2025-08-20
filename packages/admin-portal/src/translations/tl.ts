@@ -324,6 +324,13 @@ const tagalogTranslation: TranslationType = {
                         disabled: "Naka-disable",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Automated Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",

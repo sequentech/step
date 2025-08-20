@@ -324,6 +324,13 @@ const dutchTranslation: TranslationType = {
                         disabled: "Uitgeschakeld",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Automated Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",

@@ -2,17 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::trustee::get_trustees_by_id;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::database::get_hasura_pool;
 use crate::services::protocol_manager::check_configuration_exists;
-use crate::services::public_keys;
+use crate::services::{ceremonies, public_keys};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
-use deadpool_postgres::Client as DbClient;
-use sequent_core::types::ceremonies::KeysCeremonyExecutionStatus;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::ceremonies::{
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
+};
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use tracing::{info, instrument};
@@ -21,6 +24,53 @@ use tracing::{info, instrument};
 pub struct CreateKeysBody {
     pub trustee_pks: Vec<String>,
     pub threshold: usize,
+}
+
+pub async fn get_new_ceremonies_execution_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_status: &KeysCeremonyStatus,
+) -> AnyhowResult<(KeysCeremonyExecutionStatus, KeysCeremonyStatus)> {
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "error finding election event")?;
+
+    let ceremonies_policy = election_event
+        .presentation
+        .as_ref()
+        .and_then(|presentation| presentation.get("ceremonies_policy"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("manual-ceremonies")
+        .parse::<CeremoniesPolicy>()
+        .map_err(|e| anyhow!("Error parsing ceremonies policy: {}", e))?;
+
+    let new_excutation_status = match ceremonies_policy {
+        CeremoniesPolicy::AUTOMATED_CEREMONIES => KeysCeremonyExecutionStatus::SUCCESS,
+        _ => KeysCeremonyExecutionStatus::IN_PROGRESS,
+    };
+
+    let status = match ceremonies_policy {
+        CeremoniesPolicy::AUTOMATED_CEREMONIES => KeysCeremonyStatus {
+            stop_date: None,
+            public_key: keys_ceremony_status.public_key.clone(),
+            logs: keys_ceremony_status.logs.clone(),
+            trustees: keys_ceremony_status
+                .trustees
+                .clone()
+                .into_iter()
+                .map(|trustee| {
+                    Ok(Trustee {
+                        name: trustee.name,
+                        status: TrusteeStatus::KEY_RETRIEVED,
+                    })
+                })
+                .collect::<Result<Vec<Trustee>>>()?,
+        },
+        _ => keys_ceremony_status.clone(),
+    };
+
+    Ok((new_excutation_status, status))
 }
 
 pub async fn create_keys_impl(
@@ -83,13 +133,21 @@ pub async fn create_keys_impl(
         .await?;
     }
 
+    let (new_excutation_status, new_status) = get_new_ceremonies_execution_status(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &status,
+    )
+    .await?;
+
     update_keys_ceremony_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
         &keys_ceremony.id,
-        &serde_json::to_value(status)?,
-        &KeysCeremonyExecutionStatus::IN_PROGRESS.to_string(),
+        &serde_json::to_value(new_status)?,
+        &new_excutation_status.to_string(),
     )
     .await?;
 

@@ -718,18 +718,23 @@ export const TallyCeremony: React.FC = () => {
         // Dependency array: re-run only when the original items array changes
     }, [keysCeremonies?.list_keys_ceremony?.items])
 
+    const breadCrumbSteps = () => {
+        let steps = ["tally.breadcrumbSteps.start"]
+        // if (elections?.length) {
+        steps.push("tally.breadcrumbSteps.ceremony")
+        // }
+        steps.push("tally.breadcrumbSteps.tally")
+        steps.push("tally.breadcrumbSteps.results")
+        return steps
+    }
+
     return (
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>
                 <WizardStyles.WizardWrapper data-tally-id={`tally-id-${tallyId}`}>
                     <TallyStyles.StyledHeader>
                         <BreadCrumbSteps
-                            labels={[
-                                "tally.breadcrumbSteps.start",
-                                "tally.breadcrumbSteps.ceremony",
-                                "tally.breadcrumbSteps.tally",
-                                "tally.breadcrumbSteps.results",
-                            ]}
+                            labels={breadCrumbSteps()}
                             selected={page}
                             variant={BreadCrumbStepsVariant.Circle}
                             colorPreviousSteps={true}

@@ -44,7 +44,11 @@ import {useTranslation} from "react-i18next"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Dialog} from "@sequentech/ui-essentials"
-import {isNull} from "@sequentech/ui-core"
+import {
+    EElectionEventCeremoniesPolicy,
+    IElectionEventPresentation,
+    isNull,
+} from "@sequentech/ui-core"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
@@ -318,6 +322,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
 
+    const isCeremonyDisabled =
+        electionEvent.presentation?.ceremony_policy ===
+        EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
     return (
         <>
             <WizardStyles.ContentBox>
@@ -337,7 +344,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             <WizardStyles.CreateButton
                                 className="keys-create-button"
                                 icon={<ArrowForwardIosIcon />}
-                                label={t("keysGeneration.configureStep.create")}
+                                label={
+                                    isCeremonyDisabled
+                                        ? "Create Keys"
+                                        : t("keysGeneration.configureStep.create")
+                                }
                             />
                         </WizardStyles.Toolbar>
                     }
