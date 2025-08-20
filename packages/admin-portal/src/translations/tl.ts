@@ -575,6 +575,13 @@ const tagalogTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            startScreenTitlePolicy: {
+                label: "Patakaran sa Pamagat ng Pangunahing Screen",
+                options: {
+                    "election": "Pamagat ng halalan",
+                    "election-event": "Pamagat ng kaganapan ng halalan",
+                },
+            },
         },
         tenantScreen: {
             common: {

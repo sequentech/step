@@ -576,6 +576,13 @@ const galegoTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            startScreenTitlePolicy: {
+                label: "Política de título da pantalla de inicio",
+                options: {
+                    "election": "Título da elección",
+                    "election-event": "Título do evento electoral",
+                },
+            },
         },
         tenantScreen: {
             common: {

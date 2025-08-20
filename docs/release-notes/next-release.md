@@ -68,3 +68,10 @@ was sometimes causing an error.
 
 Voter actions were not being logged because they were published to a message queue
 that didn't include the environment prefix.
+
+## ✨ Voting Portal > Start Screen: Allow Showing Election Event Title instead of Election Title
+
+The title of the Start Screen (Voting Portal) can be to either the election title or the Election Event Title. 
+The default value is the Election title, so there is no action required by the admin.
+
+This an be changed at election level > Data > Advanced Configuration.

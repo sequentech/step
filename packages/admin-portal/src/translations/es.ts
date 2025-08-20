@@ -575,6 +575,13 @@ const spanishTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            startScreenTitlePolicy: {
+                label: "Política de título de pantalla de inicio",
+                options: {
+                    "election": "Elección",
+                    "election-event": "Evento Electoral",
+                },
+            },
         },
         tenantScreen: {
             common: {
