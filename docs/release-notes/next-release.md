@@ -52,3 +52,9 @@ screen rather than in the election chooser. This includes a fix so that
 the demo background/dialog will only appear for elections that don't have
 generated keys when voters login to the voting portal. Also, css classes
 are added to the demo background and dialog to help custom styling.
+
+## 🐞 Accessing tenant url after logging out does not show tenant selection page.
+
+Previously, if you're logged in to the Admin Portal, and you logged out,
+and then went to the /tenant page to select the tenant, the page didn't load
+correctly the first time. This change fixes the issue.
