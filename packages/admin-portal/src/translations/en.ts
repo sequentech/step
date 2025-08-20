@@ -80,6 +80,7 @@ const englishTranslation = {
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -576,6 +577,13 @@ const englishTranslation = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Start Screen Title Policy",
+                options: {
+                    "election": "Election title",
+                    "election-event": "Election event title",
                 },
             },
         },

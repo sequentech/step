@@ -3,6 +3,12 @@ id: basic_navigation
 title: Basic Navigation
 ---
 
+<!--
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+
 ![System Landing Page](/img/system_introduction/basic_navigation.png)
 
 # Basic Navigation

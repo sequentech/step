@@ -12,6 +12,7 @@ export {
 } from "./services/i18n"
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"
+export * from "./services/WasmContext"
 export {stringToHtml} from "./services/stringToHtml"
 export * from "./types/LanguageConf"
 export * from "./types/TenantSettings"

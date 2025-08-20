@@ -81,6 +81,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
+                PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -578,6 +579,13 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "gold-level": "Urre maila Autentifikazioa",
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Hasierako pantailaren titulu politika",
+                options: {
+                    "election": "Hauteskundearen titulua",
+                    "election-event": "Hauteskunde-ekitaldiaren titulua",
                 },
             },
         },

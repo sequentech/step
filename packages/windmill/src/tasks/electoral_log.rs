@@ -206,10 +206,11 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
         .await
         .with_context(|| "Error creating RabbitMQ channel")?;
 
-    let queue_name = Queue::ElectoralLogEvent.as_ref();
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let queue_name = Queue::ElectoralLogEvent.queue_name(&slug);
     let _queue = channel
         .queue_declare(
-            queue_name,
+            &queue_name,
             QueueDeclareOptions {
                 durable: true,
                 ..Default::default()
@@ -227,7 +228,7 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
         let mut batch_deliveries = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
             if let Some(delivery) = channel
-                .basic_get(queue_name, BasicGetOptions { no_ack: false })
+                .basic_get(&queue_name, BasicGetOptions { no_ack: false })
                 .await?
             {
                 info!("adding delivery element to batch_deliveries");

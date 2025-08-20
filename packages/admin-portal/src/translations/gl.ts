@@ -81,6 +81,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -577,6 +578,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título da pantalla de inicio",
+                options: {
+                    "election": "Título da elección",
+                    "election-event": "Título do evento electoral",
                 },
             },
         },
