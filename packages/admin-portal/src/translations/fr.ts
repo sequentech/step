@@ -1556,6 +1556,8 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point d'annuler la cérémonie de comptage. Cette action ne peut pas être annulée.",
                     ceremony:
                         "Tous les trustees requis ont vérifié leurs fragments de clé. Tout est prêt pour commencer à recevoir les résultats. Voulez-vous commencer le Comptage ?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

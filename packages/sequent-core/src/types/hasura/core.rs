@@ -13,7 +13,9 @@ use crate::{
     ballot::ContestEncryptionPolicy,
     serialization::deserialize_with_path::deserialize_value,
     types::{
-        ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
+        ceremonies::{
+            CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+        },
         tally_sheets::AreaContestResults,
     },
 };
@@ -334,6 +336,17 @@ impl KeysCeremony {
     pub fn status(&self) -> Result<KeysCeremonyStatus> {
         deserialize_value(self.status.clone().unwrap_or_default())
             .map_err(|err| anyhow!("{:?}", err))
+    }
+
+    pub fn policy(&self) -> CeremoniesPolicy {
+        let settings = self.settings.as_ref().unwrap_or(&Value::Null);
+        settings
+            .get("policy")
+            .and_then(|value: &Value| value.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
+            .parse::<CeremoniesPolicy>()
+            .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
     }
 }
 

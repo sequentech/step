@@ -1529,6 +1529,8 @@ const englishTranslation = {
                         "You are about to cancel the tally ceremony. This action is not undoable.",
                     ceremony:
                         "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

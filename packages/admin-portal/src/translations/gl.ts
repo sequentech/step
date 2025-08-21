@@ -1546,6 +1546,8 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de cancelar a cerimonia de escrutinio. Esta acción non se pode desfacer.",
                     ceremony:
                         "Todos os fiduciarios requiridos verificaron os seus fragmentos de chave. Todo está listo para comezar a recibir resultados. ¿Queres iniciar o Escrutinio?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

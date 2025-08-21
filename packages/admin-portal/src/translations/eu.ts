@@ -1541,6 +1541,8 @@ const basqueTranslation: TranslationType = {
                         "Zenbaketa zeremonia ezeztatuzera noa. Ekintza hau ezin da desegin.",
                     ceremony:
                         "Beharrezko fideikomisario guztiek beren giltza zatiak egiaztatu dituzte. Dena prest dago emaitzak jasotzen hasteko. Zenbaketa hasi nahi duzu?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

@@ -35,6 +35,7 @@ import {
     ValidationErrorMessage,
     AutocompleteInput,
     ReferenceInput,
+    BooleanInput,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -108,6 +109,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     )
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, setThreshold] = useState<number>(2)
+    const [isAutomaticCeremony, setIsAutomaticCeremony] = useState<boolean>(false)
     const [electionId, setElectionId] = useState<string | null>(null)
     const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
@@ -213,6 +215,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 trusteeNames,
                 electionId: electionId || null,
                 name: name ?? t("keysGeneration.configureStep.name"),
+                isAutomaticCeremony: isAutomaticCeremony,
             },
         })
 
@@ -269,11 +272,17 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     // Called by the form. Saves the information and shows the confirmation
     // dialog
-    const onSubmit: SubmitHandler<FieldValues> = async ({threshold, trusteeNames, electionId}) => {
+    const onSubmit: SubmitHandler<FieldValues> = async ({
+        threshold,
+        trusteeNames,
+        electionId,
+        isAutomaticCeremony,
+    }) => {
         setThreshold(Number(threshold))
         setTrusteeNames(trusteeNames)
         setOpenConfirmationModal(true)
         setElectionId(electionId ?? null)
+        setIsAutomaticCeremony(isAutomaticCeremony)
     }
 
     // Default values
@@ -322,9 +331,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const validateTrusteeList = [trusteeListValidator]
     const validateThreshold = [thresholdValidator]
 
-    const isCeremonyDisabled =
-        electionEvent.presentation?.ceremony_policy ===
+    const isElectionEventAutomatedCeremonyPolicy =
+        electionEvent.presentation?.ceremonies_policy ===
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
+    const toggleIsAutomaticCeremony = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setIsAutomaticCeremony(event.target.checked)
+    }
     return (
         <>
             <WizardStyles.ContentBox>
@@ -344,11 +357,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             <WizardStyles.CreateButton
                                 className="keys-create-button"
                                 icon={<ArrowForwardIosIcon />}
-                                label={
-                                    isCeremonyDisabled
-                                        ? "Create Keys"
-                                        : t("keysGeneration.configureStep.create")
-                                }
+                                label={t("keysGeneration.configureStep.create")}
                             />
                         </WizardStyles.Toolbar>
                     }
@@ -372,6 +381,12 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 shrink: true,
                             }}
                             variant="filled"
+                        />
+                        <BooleanInput
+                            disabled={!isElectionEventAutomatedCeremonyPolicy}
+                            source="is_automatic"
+                            label={"Automated Ceremony"}
+                            onChange={toggleIsAutomaticCeremony}
                         />
                         {trusteeList ? (
                             <>

@@ -1547,6 +1547,8 @@ const tagalogTranslation: TranslationType = {
                         "Malapit ka nang kanselahin ang seremonya ng pagbibilang. Hindi na mababawi ang aksyong ito.",
                     ceremony:
                         "Na-verify na ng lahat ng kinakailangang tagapagtiwala ang kanilang mga fragment ng key. Handa na ang lahat para simulan ang pagtanggap ng mga resulta. Nais mo bang simulan ang Pagbibilang?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

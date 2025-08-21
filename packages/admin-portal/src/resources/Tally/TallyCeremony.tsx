@@ -46,6 +46,7 @@ import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     EAllowTally,
+    EElectionEventCeremoniesPolicy,
     EInitializeReportPolicy,
     EInitReport,
     EVotingStatus,
@@ -145,6 +146,7 @@ export const TallyCeremony: React.FC = () => {
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
     const allowTallyCeremonyCreation = useRef<boolean>(true)
+    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
@@ -718,11 +720,16 @@ export const TallyCeremony: React.FC = () => {
         // Dependency array: re-run only when the original items array changes
     }, [keysCeremonies?.list_keys_ceremony?.items])
 
+    //TODO: add check if relevant keys ceremony have automated ceremony policy
+    const isAutomatedCeremony =
+        electionEvent.presentation?.ceremonies_policy ===
+        EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
     const breadCrumbSteps = () => {
         let steps = ["tally.breadcrumbSteps.start"]
-        // if (elections?.length) {
-        steps.push("tally.breadcrumbSteps.ceremony")
-        // }
+        if (!isAutomatedCeremony) {
+            steps.push("tally.breadcrumbSteps.ceremony")
+        }
         steps.push("tally.breadcrumbSteps.tally")
         steps.push("tally.breadcrumbSteps.results")
         return steps
@@ -1107,7 +1114,9 @@ export const TallyCeremony: React.FC = () => {
                                 <>
                                     {page === WizardSteps.Start
                                         ? creatingType === ETallyType.ELECTORAL_RESULTS
-                                            ? t("tally.common.ceremony")
+                                            ? isAutomatedCeremony
+                                                ? t("tally.common.start")
+                                                : t("tally.common.ceremony")
                                             : t("tally.common.initialization")
                                         : page === WizardSteps.Ceremony
                                         ? t("tally.common.start")
@@ -1142,7 +1151,11 @@ export const TallyCeremony: React.FC = () => {
                 open={openModal}
                 ok={t("tally.common.dialog.ok")}
                 cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.title")}
+                title={
+                    isAutomatedCeremony
+                        ? t("tally.common.dialog.tallyTitle")
+                        : t("tally.common.dialog.title")
+                }
                 handleClose={(result: boolean) => {
                     setOpenModal(false)
                     if (result) {
@@ -1156,7 +1169,9 @@ export const TallyCeremony: React.FC = () => {
                     // Don't enable the button again because it is handled in the effect when the page changes
                 }}
             >
-                {t("tally.common.dialog.message")}
+                {isAutomatedCeremony
+                    ? t("tally.common.dialog.startAutomatedTallyMessage")
+                    : t("tally.common.dialog.message")}
             </Dialog>
 
             <Dialog

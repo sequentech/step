@@ -1544,6 +1544,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
                     ceremony:
                         "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

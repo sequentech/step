@@ -1554,6 +1554,8 @@ const catalanTranslation: TranslationType = {
                         "Estàs a punt de cancel·lar la cerimònia de recompte. Aquesta acció no es pot desfer.",
                     ceremony:
                         "Tots els trustees requerits han verificat els seus fragments de clau. Tot està a punt per començar a rebre resultats. Voleu iniciar el Recompte?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

@@ -93,9 +93,10 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
 
     const status: IExecutionStatus = ceremony?.status
 
-    const isAutomatedCeremonies =
+    const isAutomaticCeremony =
         electionEvent.presentation?.ceremonies_policy ===
-        EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        ceremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
     return (
         <WizardStyles.WizardContainer>
@@ -138,7 +139,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                         <TableCell align="center">
                                             {t("keysGeneration.ceremonyStep.header.fragment")}
                                         </TableCell>
-                                        {!isAutomatedCeremonies && (
+                                        {!isAutomaticCeremony && (
                                             <>
                                                 <TableCell align="center">
                                                     {t(
@@ -173,7 +174,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                         <WizardStyles.DoneIcon />
                                                     )}
                                                 </TableCell>
-                                                {!isAutomatedCeremonies && (
+                                                {!isAutomaticCeremony && (
                                                     <>
                                                         <TableCell align="center">
                                                             {trustee.status === TStatus.WAITING ||
@@ -215,7 +216,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </CancelButton>
-                    {!!goNext && (
+                    {!!goNext && !isAutomaticCeremony && (
                         <WizardStyles.NextButton
                             color="info"
                             onClick={goNext}

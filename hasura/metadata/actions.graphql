@@ -210,13 +210,6 @@ type Mutation {
 }
 
 type Mutation {
-    prepare_ballot_publication_preview(
-        election_event_id: String!
-        ballot_publication_id: String!
-    ): PrepareBallotPublicationPreviewOutput
-}
-
-type Mutation {
     export_users(
         tenant_id: String!
         election_event_id: String
@@ -492,6 +485,13 @@ type Mutation {
 }
 
 type Mutation {
+    prepare_ballot_publication_preview(
+        election_event_id: String!
+        ballot_publication_id: String!
+    ): PrepareBallotPublicationPreviewOutput
+}
+
+type Mutation {
     publish_ballot(
         election_event_id: uuid!
         ballot_publication_id: uuid!
@@ -740,6 +740,7 @@ input CreateKeysCeremonyInput {
     trustee_names: [String!]
     election_id: String
     name: String
+    is_automatic_ceremony: Boolean
 }
 
 input ElectionEventStatsInput {

@@ -1541,6 +1541,8 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt de telceremonie te annuleren. Deze actie kan niet ongedaan worden gemaakt.",
                     ceremony:
                         "Alle vereiste trustees hebben hun sleutelfragmenten geverifieerd. Alles is klaar om resultaten te ontvangen. Wilt u de Telling starten?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {
