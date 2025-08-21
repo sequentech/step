@@ -1,6 +1,6 @@
 #!/bin/sh
 # Usage: ./script.sh <subcommand> [options]
-# Subcommands: vote-cast, shell, tally
+# Subcommands: vote-cast, shell, sleep, tally
 # For vote-cast: ./script.sh vote-cast --voting-url <value>
 # If --voting-url is not provided, falls back to $VOTING_URL.
 
@@ -8,7 +8,7 @@
 if [ $# -eq 0 ]; then
   echo "Error: Missing subcommand" >&2
   echo "Usage: $0 <subcommand> [options]" >&2
-  echo "Subcommands: vote-cast, shell, tally" >&2
+  echo "Subcommands: vote-cast, shell, sleep, tally" >&2
   exit 1
 fi
 
@@ -17,13 +17,14 @@ shift
 
 # Validate subcommand
 case "$SUBCOMMAND" in
-  vote-cast|shell|tally)
+  vote-cast|shell|sleep|tally)
     ;;
   --help|-h)
     echo "Usage: $0 <subcommand> [options]"
     echo "Subcommands:"
     echo "  vote-cast    Run vote casting load tests [--voting-url <value>]"
     echo "  shell        Start an interactive shell"
+    echo "  sleep        Sleeps for an infinite amount of time"
     echo "  tally        Run tally load tests"
     echo ""
     echo "For vote-cast subcommand:"
@@ -32,7 +33,7 @@ case "$SUBCOMMAND" in
     ;;
   *)
     echo "Error: Unknown subcommand '$SUBCOMMAND'" >&2
-    echo "Valid subcommands: vote-cast, shell, tally" >&2
+    echo "Valid subcommands: vote-cast, shell, sleep, tally" >&2
     exit 1
     ;;
 esac
@@ -68,6 +69,8 @@ if [ "$SUBCOMMAND" = "vote-cast" ]; then
   done
 elif [ "$SUBCOMMAND" = "shell" ]; then
   bash
+elif [ "$SUBCOMMAND" = "sleep" ]; then
+  sleep infinity
 elif [ "$SUBCOMMAND" = "tally" ]; then
   # Handle tally-specific arguments here if needed in the future
   while [ $# -gt 0 ]; do
