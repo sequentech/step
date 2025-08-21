@@ -8,40 +8,43 @@
 if [ $# -eq 0 ]; then
   echo "Error: Missing subcommand" >&2
   echo "Usage: $0 <subcommand> [options]" >&2
-  echo "Subcommands: vote-cast, shell, sleep, tally" >&2
+  echo "Subcommands: load-tool, vote-cast, shell, sleep, step-cli" >&2
   exit 1
 fi
 
 SUBCOMMAND="$1"
 shift
 
+VOTING_URL_VALUE="${VOTING_URL:-$LOADTESTING_VOTING_URL}"
+
 # Validate subcommand
 case "$SUBCOMMAND" in
-  vote-cast|shell|sleep|tally)
+  load-tool|vote-cast|shell|sleep|sleep-cli)
     ;;
   --help|-h)
     echo "Usage: $0 <subcommand> [options]"
     echo "Subcommands:"
+    echo "  load-tool    Run the load-tool tool"
     echo "  vote-cast    Run vote casting load tests [--voting-url <value>]"
     echo "  shell        Start an interactive shell"
     echo "  sleep        Sleeps for an infinite amount of time"
-    echo "  tally        Run tally load tests"
+    echo "  step-cli     Run step-cli"
     echo ""
     echo "For vote-cast subcommand:"
-    echo "  --voting-url <value>    Voting URL (falls back to \$VOTING_URL if not provided)"
+    echo "  --voting-url <value>    Voting URL (falls back to \$LOADTESTING_VOTING_URL if not provided)"
     exit 0
     ;;
   *)
     echo "Error: Unknown subcommand '$SUBCOMMAND'" >&2
-    echo "Valid subcommands: vote-cast, shell, sleep, tally" >&2
+    echo "Valid subcommands: load-tool, vote-cast, shell, sleep, step-cli" >&2
     exit 1
     ;;
 esac
 
-VOTING_URL_VALUE=""
-
 # Parse CLI args (only for vote-cast subcommand)
-if [ "$SUBCOMMAND" = "vote-cast" ]; then
+if [ "$SUBCOMMAND" = "load-tool" ]; then
+  /opt/sequent-step/load-tool "$@"
+elif [ "$SUBCOMMAND" = "vote-cast" ]; then
   while [ $# -gt 0 ]; do
     case "$1" in
       --voting-url)
@@ -50,14 +53,14 @@ if [ "$SUBCOMMAND" = "vote-cast" ]; then
           echo "Error: --voting-url requires a value" >&2
           exit 1
         fi
-        VOTING_URL_VALUE="$1"
+	export LOADTESTING_VOTING_URL="$1"
         ;;
       --voting-url=*)
-        VOTING_URL_VALUE="${1#--voting-url=}"
+        export LOADTESTING_VOTING_URL="${1#--voting-url=}"
         ;;
       --help|-h)
         echo "Usage: $0 vote-cast [--voting-url <value>]"
-        echo "       Falls back to \$VOTING_URL if --voting-url is not provided."
+        echo "       Falls back to \$LOADTESTING_VOTING_URL if --voting-url is not provided."
         exit 0
         ;;
       *)
@@ -68,28 +71,9 @@ if [ "$SUBCOMMAND" = "vote-cast" ]; then
     shift
   done
 elif [ "$SUBCOMMAND" = "shell" ]; then
-  bash
+  bash "$@"
 elif [ "$SUBCOMMAND" = "sleep" ]; then
   sleep infinity
-elif [ "$SUBCOMMAND" = "tally" ]; then
-  # Handle tally-specific arguments here if needed in the future
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --help|-h)
-        echo "Usage: $0 tally"
-        echo "       Run tally load tests"
-        exit 0
-        ;;
-      *)
-        echo "Unknown option for tally: $1" >&2
-        exit 1
-        ;;
-    esac
-    shift
-  done
+elif [ "$SUBCOMMAND" = "step-cli" ]; then
+  /opt/sequentech/step-cli "$@"
 fi
-
-VOTING_URL_VALUE="${VOTING_URL:-$LOADTESTING_VOTING_URL}"
-
-# This environment variable is used by the nightwatch tests
-export VOTING_URL="${VOTING_URL_VALUE}"
