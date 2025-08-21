@@ -501,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_pipes_exec_mcballots() -> Result<()> {
-        sequent_core::util::init_log::init_log(false);
+        //sequent_core::util::init_log::init_log(true);
 
         let election_num = 5;
         let contest_num = 10;
