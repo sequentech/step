@@ -522,6 +522,7 @@ const dutchTranslation: TranslationType = {
                 allowTallyPolicy: "Telling Toestaan",
                 permissionLabel: "Machtigingslabel",
                 custom_filters: "Aangepaste filters",
+                isMandatoryAcceptanceTos: "Verplichte Aanvaarding van de Servicevoorwaarden",
             },
             field: {
                 name: "Naam",
@@ -535,6 +536,7 @@ const dutchTranslation: TranslationType = {
                 scheduledClosing: "Geplande Sluiting",
                 alias: "Alias",
                 description: "Beschrijving",
+                mandatoryAcceptanceTosHtml: "Verplichte Aanvaarding van de Servicevoorwaarden Html",
             },
             error: {
                 fileError: "Fout bij uploaden bestand",

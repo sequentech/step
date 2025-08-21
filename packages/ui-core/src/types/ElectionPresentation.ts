@@ -54,6 +54,7 @@ export interface IElectionPresentation {
     grace_period_secs?: number
     initialization_report_generated?: EInitializeReportPolicy
     voting_period_end?: EVotingPeriodEnd
+    is_mandatory_acceptance_tos?: boolean
     // more missing
 }
 

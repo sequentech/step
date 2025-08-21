@@ -310,11 +310,6 @@ export const ElectionDataForm: React.FC = () => {
         [data, tenantData?.voting_channels]
     )
 
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
-        return errors
-    }
-
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
@@ -385,6 +380,8 @@ export const ElectionDataForm: React.FC = () => {
     const renderTabContent = (parsedValue: Sequent_Backend_Election_Extended) => {
         let tabNodes = []
         let index = 0
+        let hasTos = (parsedValue.presentation as IElectionPresentation | undefined)
+            ?.is_mandatory_acceptance_tos
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
                 tabNodes.push(
@@ -402,6 +399,12 @@ export const ElectionDataForm: React.FC = () => {
                                 source={`presentation.i18n[${lang}].description`}
                                 label={t("electionEventScreen.field.description")}
                             />
+                            {hasTos ? (
+                                <TextInput
+                                    source={`presentation.i18n[${lang}].mandatory_acceptance_tos_html`}
+                                    label={t("electionScreen.field.mandatoryAcceptanceTosHtml")}
+                                />
+                            ) : null}
                         </div>
                     </CustomTabPanel>
                 )
@@ -464,13 +467,6 @@ export const ElectionDataForm: React.FC = () => {
         return (Object.values(EAllowTally) as EAllowTally[]).map((value) => ({
             id: value,
             name: t(`electionScreen.allowTallyPolicy.${value.toLowerCase()}`),
-        }))
-    }
-
-    const templateMethodChoices = () => {
-        return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
-            id: value,
-            name: t(`template.method.${value.toLowerCase()}`),
         }))
     }
 
@@ -846,6 +842,10 @@ export const ElectionDataForm: React.FC = () => {
                                     choices={allowTallyChoices()}
                                     label={t(`electionScreen.edit.allowTallyPolicy`)}
                                     defaultValue={EAllowTally.ALLOWED}
+                                />
+                                <BooleanInput
+                                    source={"presentation.is_mandatory_acceptance_tos"}
+                                    label={t(`electionScreen.edit.isMandatoryAcceptanceTos`)}
                                 />
                             </AccordionDetails>
                         </Accordion>

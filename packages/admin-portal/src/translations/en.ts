@@ -524,6 +524,7 @@ const englishTranslation = {
                 allowTallyPolicy: "Allow Tally",
                 permissionLabel: "Permission Label",
                 custom_filters: "Custom filters",
+                isMandatoryAcceptanceTos: "Mandatory Acceptance Terms Of Service",
             },
             field: {
                 name: "Name",
@@ -537,6 +538,7 @@ const englishTranslation = {
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
+                mandatoryAcceptanceTosHtml: "Mandatory Acceptance Terms Of Service Html",
             },
             error: {
                 fileError: "Error uploading file",

@@ -526,6 +526,7 @@ const basqueTranslation: TranslationType = {
                 allowTallyPolicy: "Baimendu Zenbaketa",
                 permissionLabel: "Baimen Etiketa",
                 custom_filters: "Iragazki pertsonalizatuak",
+                isMandatoryAcceptanceTos: "Zerbitzu Baldintzen Nahitaezko Onarpena",
             },
             field: {
                 name: "Izena",
@@ -539,6 +540,7 @@ const basqueTranslation: TranslationType = {
                 scheduledClosing: "Programatutako Itxiera",
                 alias: "Ezizena",
                 description: "Deskribapena",
+                mandatoryAcceptanceTosHtml: "Zerbitzu Baldintzen Nahitaezko Onarpena Html",
             },
             error: {
                 fileError: "Errorea fitxategia igotzean",

@@ -525,6 +525,7 @@ const spanishTranslation: TranslationType = {
                 allowTallyPolicy: "Permitir Recuento",
                 permissionLabel: "Etiqueta de permiso",
                 custom_filters: "Filtros personalizados",
+                isMandatoryAcceptanceTos: "Términos de Servicio de Aceptación Obligatoria",
             },
             field: {
                 name: "Nombre",
@@ -538,6 +539,7 @@ const spanishTranslation: TranslationType = {
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
+                mandatoryAcceptanceTosHtml: "Términos de Servicio de Aceptación Obligatoria Html",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",

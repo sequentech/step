@@ -527,6 +527,7 @@ const frenchTranslation: TranslationType = {
                 allowTallyPolicy: "Autoriser le décompte",
                 permissionLabel: "Étiquette de permission",
                 custom_filters: "Filtres personnalisés",
+                isMandatoryAcceptanceTos: "Conditions de Service d'Acceptation Obligatoire",
             },
             field: {
                 name: "Nom",
@@ -540,6 +541,7 @@ const frenchTranslation: TranslationType = {
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
                 description: "Description",
+                mandatoryAcceptanceTosHtml: "Conditions de Service d'Acceptation Obligatoire Html",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",

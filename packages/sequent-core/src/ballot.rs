@@ -966,6 +966,7 @@ pub struct ElectionPresentation {
     pub voting_period_end: Option<VotingPeriodEnd>,
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
+    pub is_mandatory_acceptance_tos: Option<bool>,
 }
 
 impl core::Election {
@@ -1000,6 +1001,7 @@ impl Default for ElectionPresentation {
             grace_period_policy: None,
             grace_period_secs: None,
             initialization_report_policy: None,
+            is_mandatory_acceptance_tos: None,
         }
     }
 }
