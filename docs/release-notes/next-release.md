@@ -81,3 +81,9 @@ This an be changed at election level > Data > Advanced Configuration.
 With this change, it is possible now to include all the raw decoded ballots 
 inside the sqlite database. It also moves part of the database generation 
 inside velvet. This can be set at advanced config at the election event.
+
+## ✨ Voting Booth: Security confirmation checkbox support
+
+Add a security confirmation checkbox to the election Start Screen. Enable it from
+the Election > Data > Advanced Configurations in the Admin Portal, then configure
+it from  Election > Data > General translations section.

@@ -538,6 +538,12 @@ const galegoTranslation: TranslationType = {
                 scheduledClosing: "Peche Programado",
                 alias: "Alias",
                 description: "Descrición",
+                securityConfirmationHtml: "Confirmación de seguridade HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política da caixa de confirmación de seguridade",
+                none: "Ningún",
+                mandatory: "Obrigatorio",
             },
             error: {
                 fileError: "Erro ao cargar o ficheiro",

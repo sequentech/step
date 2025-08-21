@@ -537,6 +537,12 @@ const englishTranslation = {
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Security Confirmation Html",
+            },
+            securityConfirmationPolicy: {
+                label: "Security Confirmation Checkbox Policy",
+                none: "None",
+                mandatory: "Mandatory",
             },
             error: {
                 fileError: "Error uploading file",

@@ -468,6 +468,30 @@ pub enum StartScreenTitlePolicy {
     ElectionEvent,
 }
 
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum ESecurityConfirmationPolicy {
+    #[strum(serialize = "none")]
+    #[serde(rename = "none")]
+    #[default]
+    NONE,
+    #[strum(serialize = "mandatory")]
+    #[serde(rename = "mandatory")]
+    MANDATORY,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
@@ -966,6 +990,7 @@ pub struct ElectionPresentation {
     pub voting_period_end: Option<VotingPeriodEnd>,
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
+    pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
 }
 
 impl core::Election {
@@ -1000,6 +1025,7 @@ impl Default for ElectionPresentation {
             grace_period_policy: None,
             grace_period_secs: None,
             initialization_report_policy: None,
+            security_confirmation_policy: None,
         }
     }
 }

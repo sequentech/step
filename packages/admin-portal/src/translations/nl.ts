@@ -535,6 +535,12 @@ const dutchTranslation: TranslationType = {
                 scheduledClosing: "Geplande Sluiting",
                 alias: "Alias",
                 description: "Beschrijving",
+                securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Beleid voor selectievakje van beveiligingsbevestiging",
+                none: "Geen",
+                mandatory: "Verplicht",
             },
             error: {
                 fileError: "Fout bij uploaden bestand",

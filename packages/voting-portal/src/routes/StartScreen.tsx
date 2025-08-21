@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {Box, Typography} from "@mui/material"
+import {Box, Checkbox, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
 import {
@@ -10,6 +10,7 @@ import {
     stringToHtml,
     translateElection,
     EStartScreenTitlePolicy,
+    ESecurityConfirmationPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
@@ -67,26 +68,74 @@ const StyledButton = styled(Button)`
     }
 `
 
+const StyledCheckboxWrapper = styled(Box)`
+    display: flex;
+    flex-direction: row;
+    cursor: pointer;
+    align-items: flex-start;
+    padding: 10px 0;
+`
+
+const StyledCheckbox = styled(Checkbox)`
+    margin-top: 4px;
+    margin-right: 9px;
+    padding: 0;
+`
 interface ActionButtonsProps {
     election: IElection
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const location = useLocation()
+    const [checkboxChecked, setCheckboxChecked] = useState(false)
+
+    const hasSecurityCheckbox =
+        ESecurityConfirmationPolicy.MANDATORY ===
+        election?.presentation?.security_confirmation_policy
+    const defaultTranslation = translateElection(election, "security_confirmation_html", "en")
+    const disabledStart = hasSecurityCheckbox && !checkboxChecked
 
     return (
-        <ActionsContainer>
-            <StyledLink
-                to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
-                sx={{margin: "auto 0", width: "100%"}}
-            >
-                <StyledButton className="start-voting-button" sx={{width: "100%"}}>
-                    {t("startScreen.startButton")}
-                </StyledButton>
-            </StyledLink>
-        </ActionsContainer>
+        <>
+            {hasSecurityCheckbox ? (
+                <StyledCheckboxWrapper onClick={() => setCheckboxChecked(!checkboxChecked)}>
+                    <StyledCheckbox checked={checkboxChecked} />
+                    <Typography variant="body2">
+                        {stringToHtml(
+                            translateElection(
+                                election,
+                                "security_confirmation_html",
+                                i18n.language
+                            ) ??
+                                defaultTranslation ??
+                                "-"
+                        )}
+                    </Typography>
+                </StyledCheckboxWrapper>
+            ) : null}
+            <ActionsContainer>
+                {disabledStart ? (
+                    <StyledButton
+                        className="start-voting-button"
+                        sx={{width: "100%"}}
+                        disabled={true}
+                    >
+                        {t("startScreen.startButton")}
+                    </StyledButton>
+                ) : (
+                    <StyledLink
+                        to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
+                        sx={{margin: "auto 0", width: "100%"}}
+                    >
+                        <StyledButton className="start-voting-button" sx={{width: "100%"}}>
+                            {t("startScreen.startButton")}
+                        </StyledButton>
+                    </StyledLink>
+                )}
+            </ActionsContainer>
+        </>
     )
 }
 

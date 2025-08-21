@@ -57,6 +57,7 @@ import {
     ECastVoteGoldLevelPolicy,
     EStartScreenTitlePolicy,
     EGracePeriodPolicy,
+    ESecurityConfirmationPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
     EInitializeReportPolicy,
@@ -310,11 +311,6 @@ export const ElectionDataForm: React.FC = () => {
         [data, tenantData?.voting_channels]
     )
 
-    const formValidator = (values: any): any => {
-        const errors: any = {dates: {}}
-        return errors
-    }
-
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
@@ -385,6 +381,10 @@ export const ElectionDataForm: React.FC = () => {
     const renderTabContent = (parsedValue: Sequent_Backend_Election_Extended) => {
         let tabNodes = []
         let index = 0
+        let hasTos =
+            ESecurityConfirmationPolicy.MANDATORY ===
+            (parsedValue.presentation as IElectionPresentation | undefined)
+                ?.security_confirmation_policy
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
                 tabNodes.push(
@@ -402,6 +402,12 @@ export const ElectionDataForm: React.FC = () => {
                                 source={`presentation.i18n[${lang}].description`}
                                 label={t("electionEventScreen.field.description")}
                             />
+                            {hasTos ? (
+                                <TextInput
+                                    source={`presentation.i18n[${lang}].security_confirmation_html`}
+                                    label={t("electionScreen.field.securityConfirmationHtml")}
+                                />
+                            ) : null}
                         </div>
                     </CustomTabPanel>
                 )
@@ -467,11 +473,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
-    const templateMethodChoices = () => {
-        return (Object.values(ITemplateMethod) as ITemplateMethod[]).map((value) => ({
-            id: value,
-            name: t(`template.method.${value.toLowerCase()}`),
-        }))
+    const securityConfirmationPolicyChoices = () => {
+        return (Object.values(ESecurityConfirmationPolicy) as ESecurityConfirmationPolicy[]).map(
+            (value) => ({
+                id: value,
+                name: t(`electionScreen.securityConfirmationPolicy.${value.toLowerCase()}`),
+            })
+        )
     }
 
     const sortedContests = (contests ?? []).sort((a, b) => {
@@ -846,6 +854,13 @@ export const ElectionDataForm: React.FC = () => {
                                     choices={allowTallyChoices()}
                                     label={t(`electionScreen.edit.allowTallyPolicy`)}
                                     defaultValue={EAllowTally.ALLOWED}
+                                />
+
+                                <ManagedSelectInput
+                                    source={`presentation.security_confirmation_policy`}
+                                    choices={securityConfirmationPolicyChoices()}
+                                    label={t(`electionScreen.securityConfirmationPolicy.label`)}
+                                    defaultValue={ESecurityConfirmationPolicy.NONE}
                                 />
                             </AccordionDetails>
                         </Accordion>

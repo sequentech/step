@@ -539,6 +539,12 @@ const basqueTranslation: TranslationType = {
                 scheduledClosing: "Programatutako Itxiera",
                 alias: "Ezizena",
                 description: "Deskribapena",
+                securityConfirmationHtml: "Segurtasun-berrespena HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Segurtasun-berrespeneko kontrol-laukiaren politika",
+                none: "Bat ere ez",
+                mandatory: "Derrigorrezkoa",
             },
             error: {
                 fileError: "Errorea fitxategia igotzean",

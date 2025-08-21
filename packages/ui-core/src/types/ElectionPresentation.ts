@@ -15,6 +15,11 @@ export enum EVotingPeriodEnd {
     DISALLOWED = "disallowed",
 }
 
+export enum ESecurityConfirmationPolicy {
+    NONE = "none",
+    MANDATORY = "mandatory",
+}
+
 export enum ECastVoteGoldLevelPolicy {
     GOLD_LEVEL = "gold-level",
     NO_GOLD_LEVEL = "no-gold-level",
@@ -54,6 +59,7 @@ export interface IElectionPresentation {
     grace_period_secs?: number
     initialization_report_generated?: EInitializeReportPolicy
     voting_period_end?: EVotingPeriodEnd
+    security_confirmation_policy?: ESecurityConfirmationPolicy
     // more missing
 }
 
