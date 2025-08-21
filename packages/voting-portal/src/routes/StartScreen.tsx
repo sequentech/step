@@ -78,6 +78,8 @@ const StyledCheckboxWrapper = styled(Box)`
 
 const StyledCheckbox = styled(Checkbox)`
     margin-top: 4px;
+    margin-right: 9px;
+    padding: 0;
 `
 interface ActionButtonsProps {
     election: IElection
