@@ -102,7 +102,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
             {hasSecurityCheckbox ? (
                 <StyledCheckboxWrapper onClick={() => setCheckboxChecked(!checkboxChecked)}>
                     <StyledCheckbox checked={checkboxChecked} />
-                    <Typography variant="body2">
+                    <Typography variant="body2" marginTop="4px">
                         {stringToHtml(
                             translateElection(
                                 election,
