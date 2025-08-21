@@ -10,6 +10,7 @@ use sequent_core::types::results::{
 };
 use serde_json::json;
 use tempfile::{NamedTempFile, TempPath};
+use tracing::info;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
@@ -55,6 +56,8 @@ impl PipeConfigGenerateDatabase {
         Self::default()
     }
 }
+
+pub const DATABASE_FILENAME: &str = "results.db";
 
 #[derive(Debug)]
 pub struct GenerateDatabase {
@@ -123,7 +126,7 @@ impl Pipe for GenerateDatabase {
     }
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(state_opt, config))]
 pub fn populate_results_tables(
     input_database_path: &Path,
     output_database_path: &Path,

@@ -70,7 +70,7 @@ pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
     }]
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
     let mut sorted = logs.clone();
 

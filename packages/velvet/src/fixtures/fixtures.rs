@@ -17,6 +17,7 @@ use crate::config::generate_reports::PipeConfigGenerateReports;
 use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::config::{self, Config};
 use crate::pipes::generate_db::PipeConfigGenerateDatabase;
+use crate::pipes::generate_db::DATABASE_FILENAME;
 use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use crate::pipes::pipe_name::PipeName;
 
@@ -235,7 +236,7 @@ pub fn get_config() -> Result<Config> {
         include_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
         election_event_id: Uuid::new_v4().to_string(),
-        database_filename: "results.db".to_string(),
+        database_filename: DATABASE_FILENAME.to_string(),
     };
 
     let stages_def = {
@@ -299,7 +300,7 @@ pub fn get_config_mcballots() -> Result<Config> {
         include_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
         election_event_id: Uuid::new_v4().to_string(),
-        database_filename: "results.db".to_string(),
+        database_filename: DATABASE_FILENAME.to_string(),
     };
 
     let stages_def = {

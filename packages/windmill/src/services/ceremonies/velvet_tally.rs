@@ -64,7 +64,7 @@ use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
-use velvet::pipes::generate_db::PipeConfigGenerateDatabase;
+use velvet::pipes::generate_db::{PipeConfigGenerateDatabase, DATABASE_FILENAME};
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_inputs::{
     DEFAULT_DIR_BALLOTS, DEFAULT_DIR_CONFIGS, DEFAULT_DIR_DATABASE, DEFAULT_DIR_TALLY_SHEETS,
@@ -710,7 +710,7 @@ pub async fn create_config_file(
         include_decoded_ballots: decoded_ballots_policy == DecodedBallotsInclusionPolicy::INCLUDED,
         tenant_id: tally_session.tenant_id.clone(),
         election_event_id: tally_session.election_event_id.clone(),
-        database_filename: format!("results.db"),
+        database_filename: DATABASE_FILENAME.to_string(),
     };
 
     info!("FFF enable pdfs: {}", gen_report_pipe_config.enable_pdfs);

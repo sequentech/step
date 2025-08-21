@@ -34,7 +34,9 @@ use tracing::info;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
+use velvet::pipes::generate_db::DATABASE_FILENAME;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
+use velvet::pipes::pipe_name::PipeNameOutputDir;
 
 #[instrument(skip_all)]
 pub async fn save_results(
@@ -302,7 +304,7 @@ pub async fn save_results(
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
     hasura_transaction: &Transaction<'_>,
-    sqlite_transaction: &SqliteTransaction<'_>,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     tenant_id: &str,
     election_event_id: &str,
     session_ids_opt: Option<Vec<i64>>,
@@ -319,17 +321,22 @@ pub async fn generate_results_id_if_necessary(
         return Ok(None);
     }
 
-    let results_event = find_results_event_sqlite(sqlite_transaction, tenant_id, election_event_id)
-        .context("Failed to find results event table")?;
+    if let Some(sqlite_transaction) = sqlite_transaction_opt {
+        let results_event =
+            find_results_event_sqlite(sqlite_transaction, tenant_id, election_event_id)
+                .context("Failed to find results event table")?;
 
-    insert_results_event(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &results_event.id,
-    )
-    .await?;
-    Ok(Some(results_event.id))
+        insert_results_event(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &results_event.id,
+        )
+        .await?;
+        Ok(Some(results_event.id))
+    } else {
+        Ok(None)
+    }
 }
 
 #[instrument(skip_all)]
@@ -344,11 +351,11 @@ pub async fn process_results_tables(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
-    sqlite_transaction: &SqliteTransaction<'_>,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
 ) -> Result<Option<String>> {
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
-        sqlite_transaction,
+        sqlite_transaction_opt,
         tenant_id,
         election_event_id,
         session_ids,
@@ -377,7 +384,7 @@ pub async fn process_results_tables(
                 areas,
                 default_language,
                 tally_type_enum,
-                sqlite_transaction,
+                sqlite_transaction_opt,
             )
             .await?;
         }
@@ -387,7 +394,7 @@ pub async fn process_results_tables(
     }
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(hasura_transaction, state_opt, previous_execution, areas))]
 pub async fn populate_results_tables(
     hasura_transaction: &Transaction<'_>,
     base_tally_path: &PathBuf,
@@ -399,36 +406,62 @@ pub async fn populate_results_tables(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
+    is_empty: bool,
 ) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
     let velvet_output_dir = base_tally_path.join("output");
-    let base_database_path = velvet_output_dir.join("velvet-generate-database");
-    let database_path = base_database_path.join("results.db");
-
+    let base_database_path = velvet_output_dir.join(PipeNameOutputDir::GenerateDatabase.as_ref());
+    let database_path = base_database_path.join(DATABASE_FILENAME);
     let document_id = Uuid::new_v4().to_string();
 
-    let results_event_id_opt =
-        tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
-            let mut sqlite_connection = Connection::open(&database_path)?;
-            let sqlite_transaction = sqlite_connection.transaction()?;
-            let process_result = tokio::runtime::Handle::current().block_on(async {
-                process_results_tables(
-                    hasura_transaction,
-                    base_tally_path,
-                    state_opt,
-                    tenant_id,
-                    election_event_id,
-                    session_ids,
-                    previous_execution,
-                    areas,
-                    default_language,
-                    tally_type_enum,
-                    &sqlite_transaction,
-                )
-                .await
+    let results_event_id_opt = if !is_empty {
+        let results_event_id_opt =
+            tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+                let mut sqlite_connection = Connection::open(&database_path)?;
+                let sqlite_transaction = sqlite_connection.transaction()?;
+
+                let process_result = tokio::runtime::Handle::current().block_on(async {
+                    process_results_tables(
+                        hasura_transaction,
+                        base_tally_path,
+                        state_opt,
+                        tenant_id,
+                        election_event_id,
+                        session_ids,
+                        previous_execution,
+                        areas,
+                        default_language,
+                        tally_type_enum,
+                        Some(&sqlite_transaction),
+                    )
+                    .await
+                })?;
+                sqlite_transaction.commit()?;
+                Ok(process_result)
             })?;
-            sqlite_transaction.commit()?;
-            Ok(process_result)
-        })?;
+        results_event_id_opt
+    } else {
+        let results_event_id_opt =
+            tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+                let process_result = tokio::runtime::Handle::current().block_on(async {
+                    process_results_tables(
+                        hasura_transaction,
+                        base_tally_path,
+                        state_opt,
+                        tenant_id,
+                        election_event_id,
+                        session_ids,
+                        previous_execution,
+                        areas,
+                        default_language,
+                        tally_type_enum,
+                        None,
+                    )
+                    .await
+                })?;
+                Ok(process_result)
+            })?;
+        results_event_id_opt
+    };
 
     if let Some(ref results_event_id) = results_event_id_opt {
         let file_name = format!("results-{}.db", results_event_id);
