@@ -205,7 +205,6 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
     }
 
     useEffect(() => {
-        console.log("ResultsDataLoader tallyData: ", tallyData)
         setTallyQueryData(tallyData ?? null)
     }, [tallyData])
 

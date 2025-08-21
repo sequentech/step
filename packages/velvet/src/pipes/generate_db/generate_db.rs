@@ -208,13 +208,11 @@ pub fn populate_results_tables(
 ///
 /// # Returns
 /// `Result<()>` - Returns `Ok(())` on success, or an `anyhow::Error` if any operation fails.
-#[instrument(skip_all)]
+#[instrument(skip(sqlite_transaction))]
 pub async fn process_decoded_ballots(
     sqlite_transaction: &SqliteTransaction<'_>,
     decoded_ballots_path: &Path,
 ) -> anyhow::Result<()> {
-    print!("-------------- {decoded_ballots_path:?}");
-
     // 1. Create the 'ballot' table if it does not already exist.
     // The table stores election, contest, and area IDs as text, and the JSON content as a BLOB.
     // The primary key ensures uniqueness for each combination of election, contest, and area.
