@@ -288,6 +288,11 @@ const frenchTranslation: TranslationType = {
                         "not-locked-down": "Non Confiné",
                     },
                 },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclure les bulletins décodés dans la base de données de résultats",
+                    options: {"included": "Inclure", "not-included": "Ne pas inclure"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Concours unique",

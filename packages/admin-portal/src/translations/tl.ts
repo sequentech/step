@@ -289,6 +289,10 @@ const tagalogTranslation: TranslationType = {
                         "not-locked-down": "Hindi naka-lockdown",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
+                    options: {"included": "Isama", "not-included": "Huwag isama"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Isang Paligsahan",

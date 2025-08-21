@@ -75,3 +75,9 @@ The title of the Start Screen (Voting Portal) can be to either the election titl
 The default value is the Election title, so there is no action required by the admin.
 
 This an be changed at election level > Data > Advanced Configuration.
+
+## ✨ Tally - Add decoded ballot json to SQLite results database
+
+With this change, it is possible now to include all the raw decoded ballots 
+inside the sqlite database. It also moves part of the database generation 
+inside velvet. This can be set at advanced config at the election event.

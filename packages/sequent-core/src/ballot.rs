@@ -711,6 +711,7 @@ pub struct ElectionEventPresentation {
     pub custom_urls: Option<CustomUrls>,
     pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
+    pub decoded_ballot_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
@@ -1255,6 +1256,31 @@ pub enum Otp {
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]
     DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum DecodedBallotsInclusionPolicy {
+    #[strum(serialize = "included")]
+    #[serde(rename = "included")]
+    INCLUDED,
+    #[default]
+    #[strum(serialize = "not-included")]
+    #[serde(rename = "not-included")]
+    NOT_INCLUDED,
 }
 
 #[allow(non_camel_case_types)]

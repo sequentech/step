@@ -580,14 +580,27 @@ export const TallyCeremony: React.FC = () => {
     }
 
     let documents: IResultDocumentsData | null = useMemo(() => {
-        let documents =
-            !!resultsEventId &&
-            !!resultsEvent &&
-            resultsEvent?.[0]?.id === resultsEventId &&
-            (resultsEvent[0]?.documents as IResultDocuments | null)
-        return documents
+        let parsedDocuments: IResultDocuments | null = null
+        try {
+            const rawDocuments =
+                !!resultsEventId &&
+                !!resultsEvent &&
+                resultsEvent?.[0]?.id === resultsEventId &&
+                (resultsEvent[0]?.documents as IResultDocuments | null)
+            if (rawDocuments) {
+                // Check if the documents are already an object.
+                // If they are a string, parse them.
+                parsedDocuments =
+                    typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+            }
+        } catch (e) {
+            console.error("Failed to parse documents JSON string:", e)
+            return null // Return null if parsing fails
+        }
+
+        return parsedDocuments
             ? {
-                  documents,
+                  documents: parsedDocuments,
                   name: resultsEvent?.[0]?.name ?? "event",
                   class_type: "event",
               }
