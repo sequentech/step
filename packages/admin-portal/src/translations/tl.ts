@@ -524,7 +524,6 @@ const tagalogTranslation: TranslationType = {
                 allowTallyPolicy: "Payagan si Tally",
                 permissionLabel: "Label ng pahintulot",
                 custom_filters: "Pasadyang mga filter",
-                isMandatoryAcceptanceTos: "Sapilitang Pagtanggap sa mga Tuntunin ng Serbisyo",
             },
             field: {
                 name: "Pangalan",
@@ -538,8 +537,12 @@ const tagalogTranslation: TranslationType = {
                 scheduledClosing: "Naka-iskedyul na Pagsasara",
                 alias: "Alias",
                 description: "Paglalarawan",
-                mandatoryAcceptanceTosHtml:
-                    "Sapilitang Pagtanggap sa mga Tuntunin ng Serbisyo Html",
+                securityConfirmationHtml: "HTML ng Kumpirmasyon sa Seguridad",
+            },
+            securityConfirmationPolicy: {
+                label: "Patakaran sa Checkbox ng Kumpirmasyon sa Seguridad",
+                none: "Wala",
+                mandatory: "Kinakailangan",
             },
             error: {
                 fileError: "Error sa pag-upload ng file",

@@ -525,7 +525,6 @@ const spanishTranslation: TranslationType = {
                 allowTallyPolicy: "Permitir Recuento",
                 permissionLabel: "Etiqueta de permiso",
                 custom_filters: "Filtros personalizados",
-                isMandatoryAcceptanceTos: "Términos de Servicio de Aceptación Obligatoria",
             },
             field: {
                 name: "Nombre",
@@ -539,7 +538,12 @@ const spanishTranslation: TranslationType = {
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
-                mandatoryAcceptanceTosHtml: "Términos de Servicio de Aceptación Obligatoria Html",
+                securityConfirmationHtml: "Confirmación de seguridad HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casilla de confirmación de seguridad",
+                none: "Ninguno",
+                mandatory: "Obligatorio",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",

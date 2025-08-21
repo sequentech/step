@@ -525,7 +525,6 @@ const galegoTranslation: TranslationType = {
                 allowTallyPolicy: "Permitir Recuento",
                 permissionLabel: "Etiqueta de Permiso",
                 custom_filters: "Filtros Personalizados",
-                isMandatoryAcceptanceTos: "Termos de Servizo de Aceptación Obrigatoria",
             },
             field: {
                 name: "Nome",
@@ -539,7 +538,12 @@ const galegoTranslation: TranslationType = {
                 scheduledClosing: "Peche Programado",
                 alias: "Alias",
                 description: "Descrición",
-                mandatoryAcceptanceTosHtml: "Termos de Servizo de Aceptación Obrigatoria Html",
+                securityConfirmationHtml: "Confirmación de seguridade HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política da caixa de confirmación de seguridade",
+                none: "Ningún",
+                mandatory: "Obrigatorio",
             },
             error: {
                 fileError: "Erro ao cargar o ficheiro",

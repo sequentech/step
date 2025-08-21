@@ -57,6 +57,7 @@ import {
     ECastVoteGoldLevelPolicy,
     EStartScreenTitlePolicy,
     EGracePeriodPolicy,
+    ESecurityConfirmationPolicy,
     EVotingPortalAuditButtonCfg,
     IContestPresentation,
     EInitializeReportPolicy,
@@ -380,8 +381,10 @@ export const ElectionDataForm: React.FC = () => {
     const renderTabContent = (parsedValue: Sequent_Backend_Election_Extended) => {
         let tabNodes = []
         let index = 0
-        let hasTos = (parsedValue.presentation as IElectionPresentation | undefined)
-            ?.is_mandatory_acceptance_tos
+        let hasTos =
+            ESecurityConfirmationPolicy.MANDATORY ===
+            (parsedValue.presentation as IElectionPresentation | undefined)
+                ?.security_confirmation_policy
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
                 tabNodes.push(
@@ -401,8 +404,8 @@ export const ElectionDataForm: React.FC = () => {
                             />
                             {hasTos ? (
                                 <TextInput
-                                    source={`presentation.i18n[${lang}].mandatory_acceptance_tos_html`}
-                                    label={t("electionScreen.field.mandatoryAcceptanceTosHtml")}
+                                    source={`presentation.i18n[${lang}].security_confirmation_html`}
+                                    label={t("electionScreen.field.securityConfirmationHtml")}
                                 />
                             ) : null}
                         </div>
@@ -468,6 +471,15 @@ export const ElectionDataForm: React.FC = () => {
             id: value,
             name: t(`electionScreen.allowTallyPolicy.${value.toLowerCase()}`),
         }))
+    }
+
+    const securityConfirmationPolicyChoices = () => {
+        return (Object.values(ESecurityConfirmationPolicy) as ESecurityConfirmationPolicy[]).map(
+            (value) => ({
+                id: value,
+                name: t(`electionScreen.securityConfirmationPolicy.${value.toLowerCase()}`),
+            })
+        )
     }
 
     const sortedContests = (contests ?? []).sort((a, b) => {
@@ -843,9 +855,12 @@ export const ElectionDataForm: React.FC = () => {
                                     label={t(`electionScreen.edit.allowTallyPolicy`)}
                                     defaultValue={EAllowTally.ALLOWED}
                                 />
-                                <BooleanInput
-                                    source={"presentation.is_mandatory_acceptance_tos"}
-                                    label={t(`electionScreen.edit.isMandatoryAcceptanceTos`)}
+
+                                <ManagedSelectInput
+                                    source={`presentation.security_confirmation_policy`}
+                                    choices={securityConfirmationPolicyChoices()}
+                                    label={t(`electionScreen.securityConfirmationPolicy.label`)}
+                                    defaultValue={ESecurityConfirmationPolicy.NONE}
                                 />
                             </AccordionDetails>
                         </Accordion>

@@ -526,7 +526,6 @@ const catalanTranslation: TranslationType = {
                 allowTallyPolicy: "Permetre recompte",
                 permissionLabel: "Etiqueta de permís",
                 custom_filters: "Filtres personalitzats",
-                isMandatoryAcceptanceTos: "Condicions del Servei d'Acceptació Obligatòria",
             },
             field: {
                 name: "Nom",
@@ -540,7 +539,12 @@ const catalanTranslation: TranslationType = {
                 scheduledClosing: "Tancament Programat",
                 alias: "Àlies",
                 description: "Descripció",
-                mandatoryAcceptanceTosHtml: "Condicions del Servei d'Acceptació Obligatòria Html",
+                securityConfirmationHtml: "Confirmació de seguretat HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casella de confirmació de seguretat",
+                none: "Cap",
+                mandatory: "Obligatori",
             },
             error: {
                 fileError: "Error al carregar el fitxer",

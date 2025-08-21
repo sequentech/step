@@ -10,6 +10,7 @@ import {
     stringToHtml,
     translateElection,
     EStartScreenTitlePolicy,
+    ESecurityConfirmationPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
@@ -88,8 +89,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     const location = useLocation()
     const [checkboxChecked, setCheckboxChecked] = useState(false)
 
-    const hasSecurityCheckbox = election?.presentation?.is_mandatory_acceptance_tos
-    const defaultTranslation = translateElection(election, "mandatory_acceptance_tos_html", "en")
+    const hasSecurityCheckbox =
+        ESecurityConfirmationPolicy.MANDATORY ===
+        election?.presentation?.security_confirmation_policy
+    const defaultTranslation = translateElection(election, "security_confirmation_html", "en")
     const disabledStart = hasSecurityCheckbox && !checkboxChecked
 
     return (
@@ -101,7 +104,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
                         {stringToHtml(
                             translateElection(
                                 election,
-                                "mandatory_acceptance_tos_html",
+                                "security_confirmation_html",
                                 i18n.language
                             ) ??
                                 defaultTranslation ??
