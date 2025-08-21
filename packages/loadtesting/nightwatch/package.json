@@ -4,12 +4,16 @@
   "description": "Loadtesting for sequentech",
   "main": "voting.js",
   "scripts": {
-    "test": "nightwatch"
+    "test": "concurrently '/nightwatch/node_modules/chromedriver/bin/chromedriver' 'nightwatch'"
   },
   "author": "",
   "license": "Apache-2",
+  "dependencies": {
+    "concurrently": "^9.2.0",	
+    "chromedriver": "^139.0.2",
+    "ts-node": "^10.9.2"
+  },
   "devDependencies": {
-    "chromedriver": "^139.0.1",
     "nightwatch": "^3.12.2"
   }
 }
