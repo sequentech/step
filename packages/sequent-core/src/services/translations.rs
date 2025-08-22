@@ -5,7 +5,8 @@
 use crate::{
     ballot::{
         Contest, ContestEncryptionPolicy, ContestPresentation,
-        ElectionEventPresentation, ElectionPresentation, I18nContent,
+        DecodedBallotsInclusionPolicy, ElectionEventPresentation,
+        ElectionPresentation, I18nContent,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
@@ -42,6 +43,22 @@ impl ElectionEvent {
             return ContestEncryptionPolicy::default();
         };
         presentation.contest_encryption_policy.unwrap_or_default()
+    }
+
+    pub fn get_decoded_ballots_inclusion_policy(
+        &self,
+    ) -> DecodedBallotsInclusionPolicy {
+        let Some(presentation_val) = self.presentation.clone() else {
+            return DecodedBallotsInclusionPolicy::default();
+        };
+        let Ok(presentation) =
+            deserialize_value::<ElectionEventPresentation>(presentation_val)
+        else {
+            return DecodedBallotsInclusionPolicy::default();
+        };
+        presentation
+            .decoded_ballot_inclusion_policy
+            .unwrap_or_default()
     }
 }
 

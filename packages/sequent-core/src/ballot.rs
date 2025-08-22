@@ -444,6 +444,54 @@ pub enum CastVoteGoldLevelPolicy {
     NoGoldLevel,
 }
 
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum StartScreenTitlePolicy {
+    #[strum(serialize = "election")]
+    #[serde(rename = "election")]
+    #[default]
+    Election,
+    #[strum(serialize = "election-event")]
+    #[serde(rename = "election-event")]
+    ElectionEvent,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum ESecurityConfirmationPolicy {
+    #[strum(serialize = "none")]
+    #[serde(rename = "none")]
+    #[default]
+    NONE,
+    #[strum(serialize = "mandatory")]
+    #[serde(rename = "mandatory")]
+    MANDATORY,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Debug,
@@ -687,6 +735,7 @@ pub struct ElectionEventPresentation {
     pub custom_urls: Option<CustomUrls>,
     pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
+    pub decoded_ballot_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
     pub locked_down: Option<LockedDown>,
     pub publish_policy: Option<Publish>,
     pub enrollment: Option<Enrollment>,
@@ -932,6 +981,7 @@ pub struct ElectionPresentation {
     pub sort_order: Option<i64>,
     pub cast_vote_confirm: Option<bool>,
     pub cast_vote_gold_level: Option<CastVoteGoldLevelPolicy>,
+    pub start_screen_title_policy: Option<StartScreenTitlePolicy>,
     pub is_grace_priod: Option<bool>,
     pub grace_period_policy: Option<EGracePeriodPolicy>,
     pub grace_period_secs: Option<u64>,
@@ -940,6 +990,7 @@ pub struct ElectionPresentation {
     pub voting_period_end: Option<VotingPeriodEnd>,
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
+    pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
 }
 
 impl core::Election {
@@ -969,10 +1020,12 @@ impl Default for ElectionPresentation {
             sort_order: None,
             cast_vote_confirm: None,
             cast_vote_gold_level: Some(CastVoteGoldLevelPolicy::NoGoldLevel),
+            start_screen_title_policy: Some(StartScreenTitlePolicy::Election),
             is_grace_priod: None,
             grace_period_policy: None,
             grace_period_secs: None,
             initialization_report_policy: None,
+            security_confirmation_policy: None,
         }
     }
 }
@@ -1229,6 +1282,31 @@ pub enum Otp {
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]
     DISABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum DecodedBallotsInclusionPolicy {
+    #[strum(serialize = "included")]
+    #[serde(rename = "included")]
+    INCLUDED,
+    #[default]
+    #[strum(serialize = "not-included")]
+    #[serde(rename = "not-included")]
+    NOT_INCLUDED,
 }
 
 #[allow(non_camel_case_types)]

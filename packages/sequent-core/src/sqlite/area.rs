@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::types::hasura::core::Area;
 use anyhow::Result;
 use rusqlite::{params, Transaction};
-use sequent_core::types::hasura::core::Area;
 use serde_json::to_string;
 use tracing::instrument;
 

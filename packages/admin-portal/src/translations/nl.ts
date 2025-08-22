@@ -288,6 +288,10 @@ const dutchTranslation: TranslationType = {
                         "not-locked-down": "Niet vergrendeld",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
+                    options: {"included": "Opnemen", "not-included": "Niet opnemen"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Enkele Verkiezing",
@@ -531,6 +535,12 @@ const dutchTranslation: TranslationType = {
                 scheduledClosing: "Geplande Sluiting",
                 alias: "Alias",
                 description: "Beschrijving",
+                securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Beleid voor selectievakje van beveiligingsbevestiging",
+                none: "Geen",
+                mandatory: "Verplicht",
             },
             error: {
                 fileError: "Fout bij uploaden bestand",
@@ -571,6 +581,13 @@ const dutchTranslation: TranslationType = {
                 options: {
                     "gold-level": "'Gold level' Authenticatie",
                     "no-gold-level": "Geen 'Gold level' Authenticatie",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Titelbeleid startscherm",
+                options: {
+                    "election": "Verkiezingstitel",
+                    "election-event": "Verkiezingsevenementtitel",
                 },
             },
         },

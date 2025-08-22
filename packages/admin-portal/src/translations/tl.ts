@@ -289,6 +289,10 @@ const tagalogTranslation: TranslationType = {
                         "not-locked-down": "Hindi naka-lockdown",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
+                    options: {"included": "Isama", "not-included": "Huwag isama"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Isang Paligsahan",
@@ -533,6 +537,12 @@ const tagalogTranslation: TranslationType = {
                 scheduledClosing: "Naka-iskedyul na Pagsasara",
                 alias: "Alias",
                 description: "Paglalarawan",
+                securityConfirmationHtml: "HTML ng Kumpirmasyon sa Seguridad",
+            },
+            securityConfirmationPolicy: {
+                label: "Patakaran sa Checkbox ng Kumpirmasyon sa Seguridad",
+                none: "Wala",
+                mandatory: "Kinakailangan",
             },
             error: {
                 fileError: "Error sa pag-upload ng file",
@@ -573,6 +583,13 @@ const tagalogTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Patakaran sa Pamagat ng Pangunahing Screen",
+                options: {
+                    "election": "Pamagat ng halalan",
+                    "election-event": "Pamagat ng kaganapan ng halalan",
                 },
             },
         },

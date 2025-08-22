@@ -15,9 +15,19 @@ export enum EVotingPeriodEnd {
     DISALLOWED = "disallowed",
 }
 
+export enum ESecurityConfirmationPolicy {
+    NONE = "none",
+    MANDATORY = "mandatory",
+}
+
 export enum ECastVoteGoldLevelPolicy {
     GOLD_LEVEL = "gold-level",
     NO_GOLD_LEVEL = "no-gold-level",
+}
+
+export enum EStartScreenTitlePolicy {
+    ELECTION = "election",
+    ELECTION_EVENT = "election-event",
 }
 
 export interface IScheduledEventDates {
@@ -42,12 +52,14 @@ export interface IElectionPresentation {
     sort_order?: number
     cast_vote_confirm?: boolean
     cast_vote_gold_level?: ECastVoteGoldLevelPolicy
+    start_screen_title_policy?: EStartScreenTitlePolicy
     audit_button_cfg?: EVotingPortalAuditButtonCfg
     is_grace_priod?: boolean
     grace_period_policy?: EGracePeriodPolicy
     grace_period_secs?: number
     initialization_report_generated?: EInitializeReportPolicy
     voting_period_end?: EVotingPeriodEnd
+    security_confirmation_policy?: ESecurityConfirmationPolicy
     // more missing
 }
 

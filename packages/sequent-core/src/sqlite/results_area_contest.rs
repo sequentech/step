@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::{opt_f64, opt_json};
+use crate::types::results::{ResultDocuments, ResultsAreaContest};
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Transaction};
-use sequent_core::types::results::{ResultDocuments, ResultsAreaContest};
 use serde_json::to_string;
 use tracing::instrument;
 

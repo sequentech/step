@@ -14,6 +14,7 @@ use super::vote_receipts::VoteReceipts;
 use crate::cli::state::Stage;
 use crate::cli::CliRun;
 use crate::pipes::do_tally::DoTally;
+use crate::pipes::generate_db::GenerateDatabase;
 use tracing::instrument;
 
 pub trait Pipe {
@@ -38,6 +39,7 @@ impl PipeManager {
                 PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
                 PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
                 PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),
+                PipeName::GenerateDatabase => Some(Box::new(GenerateDatabase::new(pipe_inputs))),
             })
         } else {
             Ok(None)

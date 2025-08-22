@@ -288,6 +288,11 @@ const frenchTranslation: TranslationType = {
                         "not-locked-down": "Non Confiné",
                     },
                 },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclure les bulletins décodés dans la base de données de résultats",
+                    options: {"included": "Inclure", "not-included": "Ne pas inclure"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Concours unique",
@@ -535,6 +540,12 @@ const frenchTranslation: TranslationType = {
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Confirmation de sécurité HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Politique de la case à cocher de confirmation de sécurité",
+                none: "Aucun",
+                mandatory: "Obligatoire",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -575,6 +586,13 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Politique de titre de l'écran d'accueil",
+                options: {
+                    "election": "Titre de l'élection",
+                    "election-event": "Titre de l'événement électoral",
                 },
             },
         },
