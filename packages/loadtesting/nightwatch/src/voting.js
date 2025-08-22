@@ -3,11 +3,13 @@ module.exports = {
         const url = process.env.LOADTESTING_VOTING_URL;
         const password = "User1234567!";
         const otpCode = "123456";
-        const numberOfVotes = 4032;
+        const numberOfVotes = 1;
 
         function vote(iteration) {
             const randomNumber = Math.floor(Math.random() * numberOfVotes) + 1;
-            const username = `testsequent2025+${randomNumber}@mailinator.com`;
+            let rndStr = randomNumber > 9? `${randomNumber}` : `0${randomNumber}`;
+            
+            const username = "user01";//`user${rndStr}`;
             console.log(`Starting iteration ${iteration} for: ${username}`);
 
             browser
@@ -15,7 +17,7 @@ module.exports = {
                 .waitForElementVisible('body', 20000)
                 .saveScreenshot(`screenshots/login(${iteration}).png`)
                 .setValue('input[name=username]', username)
-                .setValue('input[name=password]', password)
+                .setValue('input[name=password]', username)
                 .pause(500)
                 .click('#kc-login')
                 .pause(2500)

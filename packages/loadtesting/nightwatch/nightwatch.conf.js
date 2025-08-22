@@ -2,7 +2,8 @@ module.exports = {
   src_folders: ["src"],
 
   webdriver: {
-    server_path: "/nightwatch/node_modules/chromedriver/bin/chromedriver"
+    start_process: true,
+    server_path: "./node_modules/chromedriver/lib/chromedriver/chromedriver"
   },
 
   test_settings: {
@@ -10,7 +11,12 @@ module.exports = {
       desiredCapabilities: {
         browserName: "chrome",
         'goog:chromeOptions': {
-          args: ['--no-sandbox']
+          args: [
+            '--no-sandbox',
+            '--headless',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+          ]
         }
       },
     },
