@@ -35,14 +35,27 @@ const CustomLink = ({title, href}: {title?: string; href?: string}) => (
 )
 
 const Footer: React.FC<PaperProps> = (args) => {
-    useTranslation()
+    const {t} = useTranslation()
+    const poweredByString = t("footer.poweredBy")
+
+    if (!poweredByString.includes("<sequent />")) {
+        return (
+            <StyledPaper className="footer-class" {...args}>
+                <Typography variant="subtitle2" fontStyle="italic" color="error">
+                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;sequent
+                    /&gt;`.
+                </Typography>
+            </StyledPaper>
+        )
+    }
+
     return (
         <StyledPaper className="footer-class" {...args}>
             <Typography variant="subtitle2" fontStyle="italic">
                 <Trans
                     i18nKey="footer.poweredBy"
                     components={{
-                        link: <CustomLink />,
+                        a: <CustomLink />,
                         sequent: <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
                     }}
                 >
