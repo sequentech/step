@@ -12,14 +12,14 @@ module.exports = {
         browserName: "chrome",
         'goog:chromeOptions': {
           args: [
-            '--no-sandbox',
-            '--headless=new',
+            //'--no-sandbox',
+            '--headless',//'--headless=new',
             '--disable-dev-shm-usage',
             '--disable-gpu',
-            '--window-size=1920,1080',
-            '--disable-web-security',
-            '--allow-running-insecure-content',
-            '--disable-features=VizDisplayCompositor'
+            '--window-size=500,700'//,
+            //'--disable-web-security',
+            //'--allow-running-insecure-content',
+            //'--disable-features=VizDisplayCompositor'
           ]
         }
       },
