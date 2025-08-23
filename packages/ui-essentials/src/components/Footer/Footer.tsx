@@ -55,7 +55,7 @@ const Footer: React.FC<PaperProps> = (args) => {
                 <Trans
                     i18nKey="footer.poweredBy"
                     components={{
-                        a: <CustomLink />,
+                        link: <CustomLink />,
                         sequent: <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
                     }}
                 >
@@ -65,6 +65,15 @@ const Footer: React.FC<PaperProps> = (args) => {
             </Typography>
         </StyledPaper>
     )
+}
+
+declare global {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
+    namespace JSX {
+        interface IntrinsicElements {
+            sequent: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
+        }
+    }
 }
 
 export default Footer

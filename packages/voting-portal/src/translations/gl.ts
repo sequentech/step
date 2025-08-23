@@ -16,6 +16,9 @@ const galegoTranslation: TranslationType = {
             confirmation: "Confirmación",
             audit: "Auditoría",
         },
+        footer: {
+            poweredBy: "Desenvolvido por <sequent />",
+        },
         votingScreen: {
             backButton: "Volver",
             reviewButton: "Seguinte",
