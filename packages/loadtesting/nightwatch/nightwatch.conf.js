@@ -13,9 +13,27 @@ module.exports = {
         'goog:chromeOptions': {
           args: [
             '--no-sandbox',
-            '--headless',
+            '--headless=new',
             '--disable-dev-shm-usage',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--window-size=1920,1080',
+            '--disable-web-security',
+            '--allow-running-insecure-content',
+            '--disable-features=VizDisplayCompositor'
+          ]
+        }
+      },
+    },
+
+    // Non-headless environment for debugging
+    chrome: {
+      desiredCapabilities: {
+        browserName: "chrome",
+        'goog:chromeOptions': {
+          args: [
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--window-size=1920,1080'
           ]
         }
       },
