@@ -69,6 +69,9 @@ elif [ "$SUBCOMMAND" = "vote-cast" ]; then
         ;;
     esac
     shift
+    pushd /nightwatch &> /dev/null
+    npm run test
+    popd &> /dev/null
   done
 elif [ "$SUBCOMMAND" = "shell" ]; then
   bash "$@"

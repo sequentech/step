@@ -12,7 +12,7 @@ module.exports = {
         browserName: "chrome",
         'goog:chromeOptions': {
           args: [
-            //'--no-sandbox',
+            '--no-sandbox',
             '--headless',//'--headless=new',
             '--disable-dev-shm-usage',
             '--disable-gpu',
