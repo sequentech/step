@@ -19,7 +19,7 @@ VOTING_URL_VALUE="${VOTING_URL:-$LOADTESTING_VOTING_URL}"
 
 # Validate subcommand
 case "$SUBCOMMAND" in
-  load-tool|vote-cast|shell|sleep|sleep-cli)
+  load-tool|vote-cast|shell|sleep|step-cli)
     ;;
   --help|-h)
     echo "Usage: $0 <subcommand> [options]"
@@ -69,10 +69,8 @@ elif [ "$SUBCOMMAND" = "vote-cast" ]; then
         ;;
     esac
     shift
-    pushd /nightwatch &> /dev/null
-    npm run test
-    popd &> /dev/null
   done
+  cd /nightwatch && npm run test  
 elif [ "$SUBCOMMAND" = "shell" ]; then
   bash "$@"
 elif [ "$SUBCOMMAND" = "sleep" ]; then

@@ -53,24 +53,46 @@ We can connect to any of these loadtesting pods using the following kind of
 command. Please change the pod name and the namespace name accordingly:
 
 ```bash
-$ kubectl exec -n test-apps -it deploy/loadtesting -- /bin/bash
+$ kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh --help
+Usage: /entrypoint.sh <subcommand> [options]
+Subcommands:
+  load-tool    Run the load-tool tool
+  vote-cast    Run vote casting load tests [--voting-url <value>]
+  shell        Start an interactive shell
+  sleep        Sleeps for an infinite amount of time
+  step-cli     Run step-cli
+
+For vote-cast subcommand:
+  --voting-url <value>    Voting URL (falls back to $LOADTESTING_VOTING_URL if not provided)
 ```
 
-This should give you a prompt very much like this:
+With this command, you can check what load testing actions and commands are available.
+
+### 2. Executing the `load-tool` script to duplicate votes
+
+We can check what `load-tool` options are available by running the entrypoint:
 
 ```bash
-root@loadtesting-86c5944494-j7gnq:/opt/sequentech#
+$ kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh load-tool --help
+usage: load_tool.py [-h] [--working-directory WORKING_DIRECTORY] {generate-voters,duplicate-votes,generate-applications,generate-activity-logs} ...
+
+Load Testing Tool
+
+positional arguments:
+  {generate-voters,duplicate-votes,generate-applications,generate-activity-logs}
+                        Action to perform
+    generate-voters     Generate random voters CSV file
+    duplicate-votes     Duplicate cast votes in the database
+    generate-applications
+                        Generate applications in different states
+    generate-activity-logs
+                        Generate activity logs
+
+options:
+  -h, --help            show this help message and exit
+  --working-directory WORKING_DIRECTORY
+                        Path to working directory (input/output directory)
 ```
-
-Good! Now we are inside our loadtesting pod, let's initialize the
-environment to run our load tool:
-
-```bash
-root@loadtesting-86c5944494-j7gnq:/opt/sequentech# source /opt/sequent-step/venv/bin/activate
-(venv) root@loadtesting-86c5944494-j7gnq:/opt/sequentech#
-```
-
-### 2. Executing the script
 
 At this stage we are assuming we have:
 1. The election event created.
@@ -87,9 +109,10 @@ Given the above, we can just duplicate votes with a command like below, please
 change the election event id accordingly:
 
 ```bash
-python load_tool.py duplicate-votes \
-  --num-votes 10 \
-  --election-event-id 666ed45c-d35c-417c-a190-7e1ab41dd5d1
+$ kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh \
+    load-tool duplicate-votes \
+	--num-votes 10 \
+	--election-event-id 7d7f840a-4e75-4ba4-b431-633196da1a2c
 ```
 
 The election event id can be found in the admin portal in the URL of the
@@ -110,3 +133,52 @@ Please find below a short video that shows how we:
 
 [kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
 [kubeconfig]: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
+
+### 2. Executing the `vote-cast` command to perform vote loading tests
+
+```bash
+$ kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh \
+    vote-cast \
+	--voting-url https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login
+```
+
+### 3. Executing the `tally` load test
+
+You can check what options are available to you by calling the `step-cli` CLI tool:
+
+```bash
+$ kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh step-cli step --help
+Usage: step-cli step <COMMAND>
+
+Commands:
+  config                        Create a config file
+  create-election-event         Create a new election event
+  create-election               Create a new election
+  create-contest                Create a new contest
+  create-candidate              Create a new candidate
+  create-area                   Create a new area
+  create-area-contest           Create area contest
+  create-voter                  Create a new voter
+  export-cast-votes             Export casted a vote
+  update-voter                  Edit a voter
+  update-election-event-status  Update election event status
+  update-election-status        Update election status
+  import-election               Import Election Event
+  publish                       Publish election event ballot changes
+  refresh-token                 Refresh auth jwt
+  start-key-ceremony            Start Key Ceremony
+  complete-key-ceremony         Complete Key Ceremony
+  start-tally                   Start Tally Ceremony
+  update-tally                  Update tally status
+  confirm-key-tally             Confirm trustee key for tally ceremony
+  render-template               Render a handlebars-rs template with variables
+  generate-voters
+  duplicate-votes
+  create-applications
+  create-electoral-logs
+  hash-password                 Process a CSV file to hash passwords and generate salts
+  help                          Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+```
