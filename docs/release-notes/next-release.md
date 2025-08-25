@@ -55,6 +55,8 @@ are added to the demo background and dialog to help custom styling.
 
 ## ✨ Tally sheets input support
 
+`TALLY SHEETS` tab has been moved to election level. The table supports new actions
+ like viewing the versions for each ballot box and approving/disapproving them.
 New permission roles have been created: `tally-sheet-view`, `tally-sheet-create` and `tally-sheet-review`.
 If they are not present they must be created in Realm Roles and assigned in Groups > Admin > Role Mapping.
 
