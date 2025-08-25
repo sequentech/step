@@ -1,4 +1,9 @@
 #!/bin/sh
+
+# SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Usage: ./script.sh <subcommand> [options]
 # Subcommands: vote-cast, shell, sleep, tally
 # For vote-cast: ./script.sh vote-cast --voting-url <value>
