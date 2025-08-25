@@ -8,25 +8,22 @@
 #   ./run_bg_voting.sh
 #     [--batches N]
 #     [--instances N]
-#     [--env-name NAME]
+#     [--voting-url URL]
 #     [--tenant-id ID]
-#     [--election-event-id ID]
-#     [--voting-password PASS]
-#     [--number-of-votes N]
+#     [--password-pattern PATTERN]
 #     [--username-pattern PATTERN]
+#     [--number-of-voters N]
 #     [--save-screenshots true|false]
 #
 # All arguments are optional. Defaults are shown below.
 
 # Defaults:
-NUM_BATCHES=400
-INSTANCES_PER_BATCH=10
-ENV_NAME="dev"
-TENANT_ID="90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
-ELECTION_EVENT_ID="e14a57a3-0c54-41d9-bceb-89a2c2c206f3"
-VOTING_PASSWORD="User1234567!"
-NUMBER_OF_VOTES=4096
-USERNAME_PATTERN='testsequent2025+{n}@mailinator.com'
+NUM_BATCHES=10
+INSTANCES_PER_BATCH=4
+VOTING_URL="https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login"
+PASSWORD_PATTERN="user{n}"
+USERNAME_PATTERN="user{n}"
+NUMBER_OF_VOTERS=4096
 SAVE_SCREENSHOTS="false"
 
 # Parse arguments
@@ -36,16 +33,14 @@ while [[ $# -gt 0 ]]; do
       NUM_BATCHES="$2"; shift 2;;
     --instances)
       INSTANCES_PER_BATCH="$2"; shift 2;;
-    --env-name)
-      ENV_NAME="$2"; shift 2;;
-    --tenant-id)
-      TENANT_ID="$2"; shift 2;;
-    --election-event-id)
-      ELECTION_EVENT_ID="$2"; shift 2;;
-    --voting-password)
-      VOTING_PASSWORD="$2"; shift 2;;
-    --number-of-votes)
-      NUMBER_OF_VOTES="$2"; shift 2;;
+    --voting-url)
+      VOTING_URL="$2"; shift 2;;
+    --password-pattern)
+      PASSWORD_PATTERN="$2"; shift 2;;
+    --username-pattern)
+      USERNAME_PATTERN="$2"; shift 2;;
+    --number-of-voters)
+      NUMBER_OF_VOTERS="$2"; shift 2;;
     --username-pattern)
       USERNAME_PATTERN="$2"; shift 2;;
     --save-screenshots)
@@ -93,14 +88,13 @@ for batch in $(seq 1 $NUM_BATCHES); do
   for i in $(seq 1 $INSTANCES_PER_BATCH); do
     run_id=$(( (batch - 1) * INSTANCES_PER_BATCH + i ))
     echo "  🧪 Starting test instance #$run_id"
-    export ENV_NAME="$ENV_NAME"
-    export TENANT_ID="$TENANT_ID"
-    export ELECTION_EVENT_ID="$ELECTION_EVENT_ID"
-    export VOTING_PASSWORD="$VOTING_PASSWORD"
-    export NUMBER_OF_VOTES="$NUMBER_OF_VOTES"
+    export NUMBER_OF_ITERATIONS="1"
+    export VOTING_URL="$VOTING_URL"
+    export NUMBER_OF_VOTERS="$NUMBER_OF_VOTERS"
     export USERNAME_PATTERN="$USERNAME_PATTERN"
+    export PASSWORD_PATTERN="$PASSWORD_PATTERN"
     export SAVE_SCREENSHOTS="$SAVE_SCREENSHOTS"
-    npx nightwatch tests/voting.js --env chrome > logs/test_$run_id.log 2>&1 &
+    npx nightwatch src/voting1.js --env chrome > logs/test_$run_id.log 2>&1 &
   done
 
   # Wait for tests to start and run briefly
