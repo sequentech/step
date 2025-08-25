@@ -81,6 +81,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -286,6 +287,11 @@ const frenchTranslation: TranslationType = {
                         "locked-down": "Confiné",
                         "not-locked-down": "Non Confiné",
                     },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclure les bulletins décodés dans la base de données de résultats",
+                    options: {"included": "Inclure", "not-included": "Ne pas inclure"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -534,6 +540,12 @@ const frenchTranslation: TranslationType = {
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Confirmation de sécurité HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Politique de la case à cocher de confirmation de sécurité",
+                none: "Aucun",
+                mandatory: "Obligatoire",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -575,6 +587,13 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Politique de titre de l'écran d'accueil",
+                options: {
+                    "election": "Titre de l'élection",
+                    "election-event": "Titre de l'événement électoral",
                 },
             },
         },

@@ -175,6 +175,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
+    const [selectedTenantId, setSelectTenantId] = useState<string | null>(
+        localStorage.getItem("selected-tenant-id")
+    )
+
+    const modifySelectedTenantId = (val: string | null) => {
+        if (null === val) {
+            localStorage.removeItem("selected-tenant-id")
+        } else {
+            localStorage.setItem("selected-tenant-id", val)
+        }
+        setSelectTenantId(val)
+    }
 
     const [openModal, setOpenModal] = React.useState(false)
     const {t, i18n} = useTranslation()
@@ -215,14 +227,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setOpenModal(true)
             } else {
                 setOpenModal(false)
-                localStorage.removeItem("selected-tenant-id")
+                modifySelectedTenantId(null)
             }
         }
-    }, [
-        location.pathname.endsWith("/tenant"),
-        localStorage.getItem("token"),
-        localStorage.getItem("selected-tenant-id"),
-    ])
+    }, [location.pathname.endsWith("/tenant"), localStorage.getItem("token"), selectedTenantId])
 
     /**
      * Initializes the Keycloak instance for the specified tenant and handles authentication.
@@ -253,7 +261,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const newKeycloak = new Keycloak(keycloakConfig)
 
             // Store the tenant ID for initialization
-            localStorage.setItem("selected-tenant-id", tenantId)
+            modifySelectedTenantId(tenantId)
             navigate("/")
 
             // Initialize Keycloak with login-required to force login if not authenticated
@@ -349,16 +357,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         /**
          * KeycloakConfig configures the connection to the Keycloak server.
          */
-        const storedTenantId =
-            tenantId ||
-            localStorage.getItem("selected-tenant-id") ||
-            globalSettings.DEFAULT_TENANT_ID
+        const storedTenantId = tenantId || selectedTenantId || globalSettings.DEFAULT_TENANT_ID
 
-        if (location.pathname.endsWith("/tenant") && !localStorage.getItem("selected-tenant-id")) {
+        if (location.pathname.endsWith("/tenant") && !selectedTenantId) {
             return
         }
 
-        localStorage.setItem("selected-tenant-id", storedTenantId)
+        modifySelectedTenantId(storedTenantId)
 
         const keycloakConfig: KeycloakConfig = {
             realm: `tenant-${storedTenantId}`,
@@ -394,11 +399,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setAuthenticated(false)
                 setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
                 localStorage.removeItem("token")
-                if (
-                    location.pathname.endsWith("/tenant") &&
-                    localStorage.getItem("selected-tenant-id")
-                ) {
-                    localStorage.removeItem("selected-tenant-id")
+                if (location.pathname.endsWith("/tenant") && selectedTenantId) {
+                    modifySelectedTenantId(null)
                 }
                 return
             }
@@ -416,11 +418,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             setAuthenticated(false)
             setIsKeycloakInitialized(true) // Still mark as initialized so we can use it for login
             localStorage.removeItem("token")
-            if (
-                location.pathname.endsWith("/tenant") &&
-                localStorage.getItem("selected-tenant-id")
-            ) {
-                localStorage.removeItem("selected-tenant-id")
+            if (location.pathname.endsWith("/tenant") && selectedTenantId) {
+                modifySelectedTenantId(null)
             }
         }
     }
@@ -615,7 +614,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 initKeycloak,
             }}
         >
-            {localStorage.getItem("selected-tenant-id") ? props.children : <SelectTenant />}
+            {selectedTenantId ? props.children : <SelectTenant />}
             <Dialog
                 variant="info"
                 hasCloseButton={false}
@@ -625,7 +624,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 title={t("common.label.warning")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        localStorage.removeItem("selected-tenant-id")
+                        modifySelectedTenantId(null)
                         logout(window.location.origin + "/tenant")
                     } else {
                         setOpenModal(false)

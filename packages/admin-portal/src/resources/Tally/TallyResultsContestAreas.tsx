@@ -124,16 +124,29 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     }
 
     let documents: IResultDocumentsData | null = useMemo(() => {
-        const documents =
-            !!contestId &&
-            !!selectedArea &&
-            !!resultsContests &&
-            resultsContests[0]?.contest_id === contestId &&
-            resultsContests[0]?.area_id === selectedArea &&
-            (resultsContests[0]?.documents as IResultDocuments | null)
-        return documents
+        let parsedDocuments: IResultDocuments | null = null
+        try {
+            const rawDocuments =
+                !!contestId &&
+                !!selectedArea &&
+                !!resultsContests &&
+                resultsContests[0]?.contest_id === contestId &&
+                resultsContests[0]?.area_id === selectedArea &&
+                (resultsContests[0]?.documents as IResultDocuments | null)
+            if (rawDocuments) {
+                // Check if the documents are already an object.
+                // If they are a string, parse them.
+                parsedDocuments =
+                    typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+            }
+        } catch (e) {
+            console.error("Failed to parse documents JSON string:", e)
+            return null // Return null if parsing fails
+        }
+
+        return parsedDocuments
             ? {
-                  documents,
+                  documents: parsedDocuments,
                   name: contest?.name ?? "contest",
                   class_type: "contest-area",
               }
