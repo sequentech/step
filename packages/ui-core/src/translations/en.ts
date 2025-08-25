@@ -63,7 +63,7 @@ const englishTranslation = {
             },
         },
         footer: {
-            poweredBy: 'Powered by <sequent />',
+            poweredBy: "Powered by <sequent />",
         },
         errors: {
             encoding: {
