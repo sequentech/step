@@ -63,7 +63,7 @@ const englishTranslation = {
             },
         },
         footer: {
-            poweredBy: 'Powered by <link href="//google.es" title="Sequent Tech Inc" />',
+            poweredBy: 'Powered by <sequent />',
         },
         errors: {
             encoding: {
