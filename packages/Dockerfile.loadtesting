@@ -28,7 +28,9 @@ RUN echo '#!/bin/bash\nsource /opt/sequent-step/venv/bin/activate\nexec "$@"' > 
     chmod +x /opt/sequent-step/entrypoint_with_venv.sh
 
 COPY ./packages/loadtesting/entrypoint.sh /entrypoint.sh
+COPY ./packages/loadtesting/run_bg_voting.sh /run_bg_voting.sh
 RUN chmod +x /entrypoint.sh
+RUN chmod +x /run_bg_voting.sh
 COPY ./packages/loadtesting/nightwatch/ /nightwatch
 RUN cd /nightwatch && npm install .
 

@@ -40,7 +40,7 @@ set -Eeuo pipefail
 # Defaults
 NUM_BATCHES=10                    # -> NUMBER_OF_ITERATIONS for voting.js
 INSTANCES_PER_BATCH=4             # number of parallel test instances
-VOTING_URL="https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login"
+VOTING_URL="${VOTING_URL:-https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login}"
 PASSWORD_PATTERN="user{n}"
 USERNAME_PATTERN="user{n}"
 NUMBER_OF_VOTERS=4096

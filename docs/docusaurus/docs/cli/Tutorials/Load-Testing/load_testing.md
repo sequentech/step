@@ -63,7 +63,8 @@ Subcommands:
   step-cli     Run step-cli
 
 For vote-cast subcommand:
-  --voting-url <value>    Voting URL (falls back to $LOADTESTING_VOTING_URL if not provided)
+  --voting-url <value>    Voting URL (falls back to $VOTING_URL or $LOADTESTING_VOTING_URL if not provided)
+  Other options are forwarded to /run_bg_voting.sh (e.g. --batches, --instances, --save-screenshots, --env chrome)
 ```
 
 With this command, you can check what load testing actions and commands are available.
@@ -136,11 +137,76 @@ Please find below a short video that shows how we:
 
 ### 2. Executing the `vote-cast` command to perform vote loading tests
 
+The `vote-cast` subcommand drives a Nightwatch-based browser test inside the loadtesting pod to cast votes through the public voting UI.
+
+How it works (pipeline):
+- `/entrypoint.sh vote-cast` forwards arguments to `/run_bg_voting.sh`.
+- `/run_bg_voting.sh` orchestrates parallel Nightwatch runs using the base test at `/nightwatch/src/voting.js` by default.
+- Nightwatch runs headlessly by default (env `default`); you can switch to non-headless with `--env chrome`.
+
+Key flags and environment variables:
+- `--voting-url <URL>`
+  - The voting login URL. If omitted, the script uses `$VOTING_URL` or `$LOADTESTING_VOTING_URL` if set in the pod.
+  - Always quote the URL.
+- `--batches <N>`
+  - Total iterations each Nightwatch instance will perform. This maps 1:1 to `NUMBER_OF_ITERATIONS` consumed by `nightwatch/src/voting.js`.
+- `--instances <N>`
+  - Parallelism. The orchestrator duplicates the base test into N files and runs them concurrently using Nightwatch workers.
+- `--save-screenshots <true|false>` (default: `false`)
+  - When `true`, screenshots are saved during the flow.
+- `--number-of-voters <N>` (default: `4096`)
+  - Used by the test to randomize test users.
+- `--username-pattern <pattern>` (default: `user{n}`)
+- `--password-pattern <pattern>` (default: `user{n}`)
+  - `{n}` is replaced by the randomized user index.
+- `--env <default|chrome>` (default: `default`)
+  - Nightwatch environment. `default` runs Chrome headless; `chrome` is non-headless (not recommended in pods).
+- Advanced:
+  - `--base-test <relative_path>` (default: `nightwatch/src/voting.js`)
+    - Allows running another test file, e.g., `nightwatch/src/voting2.js`.
+  - `--keep-parallel-files`
+    - Keeps the generated duplicate test files under `/nightwatch/src/_parallel_<RUN_ID>`.
+
+Outputs and logs:
+- Aggregated Nightwatch log: `/logs/nightwatch_<timestamp>.log` (inside the container).
+- Screenshots (when enabled): `/nightwatch/screenshots` in the container.
+- Temporary per-run test copies: `/nightwatch/src/_parallel_<timestamp>_PID` (removed by default unless `--keep-parallel-files`).
+
+Examples:
+- Single instance, single iteration (sanity check):
 ```bash
-$ kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh \
-    vote-cast \
-	--voting-url https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login
+kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh \
+  vote-cast \
+  --voting-url "https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login" \
+  --batches 1 \
+  --instances 1
 ```
+
+- 8 instances in parallel, 200 iterations each:
+```bash
+kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh \
+  vote-cast \
+  --voting-url "https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login" \
+  --batches 200 \
+  --instances 8 \
+  --save-screenshots false
+```
+
+- Debugging with non-headless Chrome (use sparingly; pods may not support it):
+```bash
+kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh \
+  vote-cast \
+  --voting-url "https://voting-test.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/7d7f840a-4e75-4ba4-b431-633196da1a2c/login" \
+  --batches 1 \
+  --instances 1 \
+  --env chrome \
+  --save-screenshots true
+```
+
+Troubleshooting:
+- If your run prints defaults (e.g., `INSTANCES: 4` or `ITERATIONS: 10`) despite passing flags, ensure the flags follow `vote-cast` and that the URL is quoted.
+- If the site markup requires different selectors, consider providing an alternative base test via `--base-test nightwatch/src/voting2.js`.
+- To keep the generated parallel files for inspection, add `--keep-parallel-files` and check `/nightwatch/src/_parallel_*`.
 
 ### 3. Executing the `tally` load test
 
