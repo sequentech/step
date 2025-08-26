@@ -68,7 +68,6 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
-
 // Resolve initial language with precedence:
 // 1) ?lang query param
 // 2) Preview JSON election default (if on /preview)
@@ -109,8 +108,7 @@ const I18nGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const [ready, setReady] = React.useState<boolean>(isI18nInitialized())
 
     React.useEffect(() => {
-        let cancelled = False as any
-        cancelled = false
+        let cancelled = false as any
         const bootstrap = async () => {
             if (isI18nInitialized()) {
                 if (!cancelled) setReady(true)
@@ -133,9 +131,13 @@ const I18nGate: React.FC<React.PropsWithChildren> = ({children}) => {
                         const resp = await fetch(previewUrl)
                         if (resp.ok) {
                             const data = await resp.json()
-                            const styles = Array.isArray(data?.ballot_styles) ? data.ballot_styles : []
-                            const match = styles.find((b: any) => b?.area_id === areaId) || styles[0]
-                            const defaultLang = match?.election_presentation?.language_conf?.default_language_code
+                            const styles = Array.isArray(data?.ballot_styles)
+                                ? data.ballot_styles
+                                : []
+                            const match =
+                                styles.find((b: any) => b?.area_id === areaId) || styles[0]
+                            const defaultLang =
+                                match?.election_presentation?.language_conf?.default_language_code
                             if (defaultLang) {
                                 await initI18n(defaultLang)
                                 if (!cancelled) setReady(true)
@@ -281,13 +283,13 @@ root.render(
         <WasmWrapper>
             <SettingsWrapper>
                 <I18nGate>
-                <KeycloakProviderContainer>
-                    <Provider store={store}>
-                        <ThemeProvider theme={theme}>
-                            <RouterProvider router={router} />
-                        </ThemeProvider>
-                    </Provider>
-                </KeycloakProviderContainer>
+                    <KeycloakProviderContainer>
+                        <Provider store={store}>
+                            <ThemeProvider theme={theme}>
+                                <RouterProvider router={router} />
+                            </ThemeProvider>
+                        </Provider>
+                    </KeycloakProviderContainer>
                 </I18nGate>
             </SettingsWrapper>
         </WasmWrapper>

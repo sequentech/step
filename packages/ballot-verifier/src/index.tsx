@@ -83,7 +83,6 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
-
 const getLangParam = (): string | undefined => {
     try {
         const params = new URLSearchParams(window.location.search)
@@ -119,15 +118,15 @@ root.render(
         <WasmWrapper>
             <SettingsWrapper>
                 <I18nGate>
-                <KeycloakProviderContainer>
-                    <Provider store={store}>
-                        <BrowserRouter>
-                            <ThemeProvider theme={theme}>
-                                <App />
-                            </ThemeProvider>
-                        </BrowserRouter>
-                    </Provider>
-                </KeycloakProviderContainer>
+                    <KeycloakProviderContainer>
+                        <Provider store={store}>
+                            <BrowserRouter>
+                                <ThemeProvider theme={theme}>
+                                    <App />
+                                </ThemeProvider>
+                            </BrowserRouter>
+                        </Provider>
+                    </KeycloakProviderContainer>
                 </I18nGate>
             </SettingsWrapper>
         </WasmWrapper>
