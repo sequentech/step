@@ -33,7 +33,6 @@ import AuditScreen from "./routes/AuditScreen"
 import BallotLocator from "./routes/BallotLocator"
 import SupportMaterialsScreen from "./routes/SupportMaterialsScreen"
 import {WasmWrapper} from "./providers/WasmWrapper"
-import i18n from "i18next"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
