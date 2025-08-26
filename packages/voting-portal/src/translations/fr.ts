@@ -15,6 +15,9 @@ const frenchTranslation: TranslationType = {
             confirmation: "Confirmation",
             audit: "Auditer",
         },
+        footer: {
+            poweredBy: "Propulsé par <sequent />",
+        },
         votingScreen: {
             backButton: "Retour",
             reviewButton: "Suivant",

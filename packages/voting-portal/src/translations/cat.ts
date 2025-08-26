@@ -15,6 +15,9 @@ const catalanTranslation: TranslationType = {
             confirmation: "Confirmació",
             audit: "Auditar",
         },
+        footer: {
+            poweredBy: "Funciona amb <sequent />",
+        },
         votingScreen: {
             backButton: "Enrere",
             reviewButton: "Següent",

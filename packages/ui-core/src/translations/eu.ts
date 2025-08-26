@@ -62,7 +62,9 @@ const basqueTranslation: TranslationType = {
                 ok: "Ados",
             },
         },
-        poweredBy: "Honek bultzatuta:",
+        footer: {
+            poweredBy: "Honek bultzatuta: <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
