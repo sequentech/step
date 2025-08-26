@@ -48,7 +48,7 @@ import {channel} from "diagnostics_channel"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
-const OMIT_FIELDS = ["id, area_id"]
+const OMIT_FIELDS = ["id"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Area" source="area_id" key={0} />,
