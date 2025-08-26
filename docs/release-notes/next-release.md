@@ -99,3 +99,8 @@ channel was not set active.
 When a new tenant or event is created, some clients have secrets and they are 
 being imported as-is. When creating/importing a new tenant/event, now the secrets are 
 stripped from the config to be regenerated. 
+
+## 🐞 Default language in the voting portal is not honored in preview mode
+
+Previously the default language was not being selected when loading the Voting
+Portal, now it is.
