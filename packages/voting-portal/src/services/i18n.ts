@@ -10,20 +10,38 @@ import tagalotTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
 import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
-import {getLanguageFromURL} from "../utils/queryParams"
 
-const language = getLanguageFromURL()
+/**
+ * Lazy i18n bootstrap. Do NOT initialize i18n on module import to avoid
+ * first-paint with an incorrect language. Consumers must call initI18n()
+ * with a resolved initial language prior to rendering UI.
+ */
+let initialized = false
+let initPromise: Promise<void> | null = null
 
-initializeLanguages(
-    {
-        en: englishTranslation,
-        es: spanishTranslation,
-        cat: catalanTranslation,
-        fr: frenchTranslation,
-        tl: tagalotTranslation,
-        gl: galegoTranslation,
-        nl: dutchTranslation,
-        eu: basqueTranslation,
-    },
-    language
-)
+export const initI18n = (language?: string): Promise<void> => {
+    if (initialized) return Promise.resolve()
+    if (initPromise) return initPromise
+
+    initPromise = new Promise<void>((resolve) => {
+        initializeLanguages(
+            {
+                en: englishTranslation,
+                es: spanishTranslation,
+                cat: catalanTranslation,
+                fr: frenchTranslation,
+                tl: tagalotTranslation,
+                gl: galegoTranslation,
+                nl: dutchTranslation,
+                eu: basqueTranslation,
+            },
+            language
+        )
+        initialized = true
+        resolve()
+    })
+
+    return initPromise
+}
+
+export const isI18nInitialized = () => initialized

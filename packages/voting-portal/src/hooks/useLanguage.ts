@@ -18,14 +18,15 @@ const useLanguage = ({ballotStyle}: props) => {
             ballotStyle?.ballot_eml?.election_presentation?.language_conf?.enabled_language_codes
         const defaultLang =
             ballotStyle?.ballot_eml?.election_presentation?.language_conf?.default_language_code
-        if (
-            !electionLanguages ||
-            !currLanguage ||
-            electionLanguages.includes(currLanguage) ||
-            !defaultLang
-        )
-            return
-        i18n.changeLanguage(defaultLang)
+
+        if (!defaultLang) return
+
+        // If current language differs from election default, switch to default.
+        // Only proceed if default is among the enabled languages (when provided).
+        const defaultIsEnabled = !electionLanguages || electionLanguages.includes(defaultLang)
+        if (defaultIsEnabled && currLanguage && currLanguage !== defaultLang) {
+            i18n.changeLanguage(defaultLang)
+        }
     }, [])
 }
 

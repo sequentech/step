@@ -6,7 +6,7 @@ import ReactDOM from "react-dom/client"
 import {BrowserRouter, useParams} from "react-router-dom"
 import "./index.css"
 import App from "./App"
-import "./services/i18n"
+import {initI18n, isI18nInitialized} from "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
@@ -15,6 +15,7 @@ import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvi
 import {Provider} from "react-redux"
 import {store} from "./store/store"
 import {WasmWrapper} from "./providers/WasmWrapper"
+import {Loader} from "@sequentech/ui-essentials"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -82,10 +83,42 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
+
+const getLangParam = (): string | undefined => {
+    try {
+        const params = new URLSearchParams(window.location.search)
+        return params.get("lang") || undefined
+    } catch {
+        return undefined
+    }
+}
+
+const I18nGate: React.FC<React.PropsWithChildren> = ({children}) => {
+    const [ready, setReady] = React.useState<boolean>(isI18nInitialized())
+    React.useEffect(() => {
+        let cancelled = false
+        const run = async () => {
+            if (isI18nInitialized()) {
+                if (!cancelled) setReady(true)
+                return
+            }
+            const urlLang = getLangParam()
+            await initI18n(urlLang)
+            if (!cancelled) setReady(true)
+        }
+        run()
+        return () => {
+            cancelled = true
+        }
+    }, [])
+    return ready ? <>{children}</> : <Loader />
+}
+
 root.render(
     <React.StrictMode>
         <WasmWrapper>
             <SettingsWrapper>
+                <I18nGate>
                 <KeycloakProviderContainer>
                     <Provider store={store}>
                         <BrowserRouter>
@@ -95,6 +128,7 @@ root.render(
                         </BrowserRouter>
                     </Provider>
                 </KeycloakProviderContainer>
+                </I18nGate>
             </SettingsWrapper>
         </WasmWrapper>
     </React.StrictMode>

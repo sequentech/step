@@ -9,7 +9,7 @@ import {Provider} from "react-redux"
 import {store} from "./store/store"
 import "./index.css"
 import App from "./App"
-import "./services/i18n"
+import {initI18n, isI18nInitialized} from "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
@@ -33,6 +33,7 @@ import AuditScreen from "./routes/AuditScreen"
 import BallotLocator from "./routes/BallotLocator"
 import SupportMaterialsScreen from "./routes/SupportMaterialsScreen"
 import {WasmWrapper} from "./providers/WasmWrapper"
+import i18n from "i18next"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -66,6 +67,98 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     const {globalSettings, setDisableAuth} = useContext(SettingsContext)
 
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
+}
+
+
+// Resolve initial language with precedence:
+// 1) ?lang query param
+// 2) Preview JSON election default (if on /preview)
+// 3) i18next detector (handled by init without explicit lang)
+const getLangParam = (): string | undefined => {
+    try {
+        const params = new URLSearchParams(window.location.search)
+        const lang = params.get("lang") || undefined
+        return lang || undefined
+    } catch {
+        return undefined
+    }
+}
+
+const isPreviewPath = (): boolean => {
+    return /^\/?preview\//.test(window.location.pathname)
+}
+
+type PreviewParams = {
+    tenantId: string
+    documentId: string
+    areaId: string
+    publicationId: string
+}
+
+const parsePreviewParams = (): PreviewParams | null => {
+    const parts = window.location.pathname.split("/").filter(Boolean)
+    // expected: ["preview", tenantId, documentId, areaId, publicationId]
+    if (parts.length >= 5 && parts[0] === "preview") {
+        const [_, tenantId, documentId, areaId, publicationId] = parts
+        return {tenantId, documentId, areaId, publicationId}
+    }
+    return null
+}
+
+const I18nGate: React.FC<React.PropsWithChildren> = ({children}) => {
+    const {globalSettings} = useContext(SettingsContext)
+    const [ready, setReady] = React.useState<boolean>(isI18nInitialized())
+
+    React.useEffect(() => {
+        let cancelled = False as any
+        cancelled = false
+        const bootstrap = async () => {
+            if (isI18nInitialized()) {
+                if (!cancelled) setReady(true)
+                return
+            }
+
+            const urlLang = getLangParam()
+            if (urlLang) {
+                await initI18n(urlLang)
+                if (!cancelled) setReady(true)
+                return
+            }
+
+            if (isPreviewPath()) {
+                try {
+                    const params = parsePreviewParams()
+                    if (params) {
+                        const {tenantId, documentId, publicationId, areaId} = params
+                        const previewUrl = `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/document-${documentId}/${publicationId}.json`
+                        const resp = await fetch(previewUrl)
+                        if (resp.ok) {
+                            const data = await resp.json()
+                            const styles = Array.isArray(data?.ballot_styles) ? data.ballot_styles : []
+                            const match = styles.find((b: any) => b?.area_id === areaId) || styles[0]
+                            const defaultLang = match?.election_presentation?.language_conf?.default_language_code
+                            if (defaultLang) {
+                                await initI18n(defaultLang)
+                                if (!cancelled) setReady(true)
+                                return
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn("I18nGate: failed to obtain preview default language", e)
+                }
+            }
+
+            await initI18n(undefined)
+            if (!cancelled) setReady(true)
+        }
+        bootstrap()
+        return () => {
+            cancelled = true
+        }
+    }, [globalSettings.PUBLIC_BUCKET_URL])
+
+    return ready ? <>{children}</> : <Loader />
 }
 
 const router = createBrowserRouter(
@@ -188,6 +281,7 @@ root.render(
     <React.StrictMode>
         <WasmWrapper>
             <SettingsWrapper>
+                <I18nGate>
                 <KeycloakProviderContainer>
                     <Provider store={store}>
                         <ThemeProvider theme={theme}>
@@ -195,6 +289,7 @@ root.render(
                         </ThemeProvider>
                     </Provider>
                 </KeycloakProviderContainer>
+                </I18nGate>
             </SettingsWrapper>
         </WasmWrapper>
     </React.StrictMode>

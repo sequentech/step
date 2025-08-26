@@ -9,11 +9,31 @@ import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
 
-initializeLanguages({
-    en: englishTranslation,
-    es: spanishTranslation,
-    cat: catalanTranslation,
-    fr: frenchTranslation,
-    tl: tagalogTranslation,
-    gl: galegoTranslation,
-})
+// Lazy initialization (same pattern as voting-portal)
+let initialized = false
+let initPromise: Promise<void> | null = null
+
+export const initI18n = (language?: string): Promise<void> => {
+    if (initialized) return Promise.resolve()
+    if (initPromise) return initPromise
+
+    initPromise = new Promise<void>((resolve) => {
+        initializeLanguages(
+            {
+                en: englishTranslation,
+                es: spanishTranslation,
+                cat: catalanTranslation,
+                fr: frenchTranslation,
+                tl: tagalogTranslation,
+                gl: galegoTranslation,
+            },
+            language
+        )
+        initialized = true
+        resolve()
+    })
+
+    return initPromise
+}
+
+export const isI18nInitialized = () => initialized
