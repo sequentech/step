@@ -416,6 +416,21 @@ services:
       MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
     ports:
      - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
+
+  janitor:
+    profiles: ["full"]
+    container_name: janitor
+    build:
+      context: ../packages/windmill/external-bin/janitor/scripts
+      dockerfile: Dockerfile.janitor
+    image: sequentech.local/janitor
+    stdin_open: true
+    tty: true
+    working_dir: /opt/sequent-step
+    entrypoint: ["/bin/bash"]
+    environment:
+      - PYTHONUNBUFFERED=1
+  
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
