@@ -56,14 +56,15 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
 
 export const getLanguages = (i18n: I18N) => Object.keys(i18n.services.resourceStore.data)
 
-export const overwriteTranslations = (electionEventObj: any) => {
+export const overwriteTranslations = (
+    electionEventPresentation: IElectionEventPresentation | undefined,
+    changeDefaultLanguage: boolean = true
+): boolean => {
     // Check object has translations to overwrite
-    if (!electionEventObj || !electionEventObj?.["presentation"]?.["i18n"]) {
-        return
-    }
-    const i18nObj = (electionEventObj.presentation as IElectionEventPresentation).i18n
+    let hasChangedDefaultLanguage = false
+    const i18nObj = electionEventPresentation?.i18n
     if (!i18nObj) {
-        return
+        return hasChangedDefaultLanguage
     }
 
     Object.keys(i18nObj).forEach((lang) => {
@@ -84,19 +85,22 @@ export const overwriteTranslations = (electionEventObj: any) => {
         i18n.addResourceBundle(lang, "translations", mergedResources, true, true) // Overwriting existing resource for language
     })
 
-    let languageConf = (electionEventObj.presentation as IElectionEventPresentation | undefined)
-        ?.language_conf
-    let enabledLanguages = languageConf?.enabled_language_codes ?? ["en"]
-    let defaultLanguage = languageConf?.default_language_code
-    let currentLanguage = i18n.language
-    if (
-        !!enabledLanguages &&
-        !!defaultLanguage &&
-        defaultLanguage !== currentLanguage &&
-        enabledLanguages.includes(defaultLanguage)
-    ) {
-        i18n.changeLanguage(defaultLanguage)
+    if (changeDefaultLanguage) {
+        let languageConf = electionEventPresentation?.language_conf
+        let enabledLanguages = languageConf?.enabled_language_codes ?? ["en"]
+        let defaultLanguage = languageConf?.default_language_code
+        let currentLanguage = i18n.language
+        if (
+            !!enabledLanguages &&
+            !!defaultLanguage &&
+            defaultLanguage !== currentLanguage &&
+            enabledLanguages.includes(defaultLanguage)
+        ) {
+            i18n.changeLanguage(defaultLanguage)
+            hasChangedDefaultLanguage = true
+        }
     }
+    return hasChangedDefaultLanguage
 }
 
 export default i18n
