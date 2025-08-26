@@ -49,3 +49,9 @@ that didn't include the environment prefix.
 When an Election was created manually through the Admin Portal, the voting channels
 column was left empty. This means voters couldn't cast their vote as the online
 channel was not set active.
+
+## 🐞 Tenant/Event keycloak configs have static secrets 
+
+When a new tenant or event is created, some clients have secrets and they are 
+being imported as-is. When creating/importing a new tenant/event, now the secrets are 
+stripped from the config to be regenerated. 
