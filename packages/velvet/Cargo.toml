@@ -43,7 +43,7 @@ criterion = "0.5"
 hex = "0.4"
 
 # sqlite
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.35", features = ["bundled"] }
 tempfile = "3.15.0"
 ordered-float = { version = "4.4.0", features = ["serde"] }
 
