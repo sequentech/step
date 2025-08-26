@@ -2,19 +2,31 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect} from "react"
+import React, {useContext, useEffect} from "react"
 import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import {overwriteTranslations} from "@sequentech/ui-core"
 
 type props = {
     electionEvent: IElectionEvent | undefined
 }
-const useUpdateTranslation = ({electionEvent}: props) => {
+const useUpdateTranslation = (
+    {electionEvent}: props,
+    defaultLanguageTouched: boolean,
+    setDefaultLanguageTouched: (value: boolean) => void
+) => {
     // Overwrites translations based on the election event presentation
     useEffect(() => {
-        if (!electionEvent?.presentation) return
-        overwriteTranslations(electionEvent)
-    }, [electionEvent])
+        if (!electionEvent?.presentation) {
+            return
+        }
+        let hasSetDefaultLanguage = overwriteTranslations(
+            electionEvent?.presentation,
+            !defaultLanguageTouched
+        )
+        if (hasSetDefaultLanguage) {
+            setDefaultLanguageTouched(true)
+        }
+    }, [electionEvent?.presentation])
 
     return {}
 }
