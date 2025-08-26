@@ -72,7 +72,9 @@ const englishTranslation = {
             points: "({{points}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
         },
-        poweredBy: "Powered by",
+        footer: {
+            poweredBy: "Powered by <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Not enough choices to decode",

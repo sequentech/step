@@ -13,6 +13,9 @@ const englishTranslation = {
             confirmation: "Confirmation",
             audit: "Audit",
         },
+        footer: {
+            poweredBy: "Powered by <sequent />",
+        },
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
