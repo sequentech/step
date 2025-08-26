@@ -254,6 +254,33 @@
                 "runOn": "default"
             },
             "problemMatcher": []
+        },        {
+            "label": "rebuild.janitor",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop janitor; docker compose build janitor && docker compose up -d --no-deps janitor",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
         },
         {
           "label": "logs.restart.simplesaml",
