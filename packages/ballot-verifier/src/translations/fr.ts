@@ -74,7 +74,9 @@ const frenchTranslation: TranslationType = {
             points: "({{points}} Points)",
             contestNotFound: "Question non trouvée : {{contestId}}",
         },
-        "poweredBy": "Propulsé par",
+        "footer": {
+            poweredBy: "Propulsé par <sequent />",
+        },
         "errors": {
             encoding: {
                 notEnoughChoices: "Il n'y a pas assez d'options pour décoder",
