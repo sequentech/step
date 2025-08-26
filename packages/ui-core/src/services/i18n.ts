@@ -13,6 +13,7 @@ import tagalogTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
 import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
+import {IElectionEventPresentation} from "../types/ElectionEventPresentation"
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
     const libTranslations: Resource = {
@@ -56,8 +57,14 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
 export const getLanguages = (i18n: I18N) => Object.keys(i18n.services.resourceStore.data)
 
 export const overwriteTranslations = (electionEventObj: any) => {
-    if (!electionEventObj || !electionEventObj?.["presentation"]?.["i18n"]) return // Check object has translations to overwrite
-    const i18nObj = electionEventObj.presentation.i18n
+    // Check object has translations to overwrite
+    if (!electionEventObj || !electionEventObj?.["presentation"]?.["i18n"]) {
+        return
+    }
+    const i18nObj = (electionEventObj.presentation as IElectionEventPresentation).i18n
+    if (!i18nObj) {
+        return
+    }
 
     Object.keys(i18nObj).forEach((lang) => {
         const translations = i18nObj[lang]
@@ -76,6 +83,20 @@ export const overwriteTranslations = (electionEventObj: any) => {
 
         i18n.addResourceBundle(lang, "translations", mergedResources, true, true) // Overwriting existing resource for language
     })
+
+    let languageConf = (electionEventObj.presentation as IElectionEventPresentation | undefined)
+        ?.language_conf
+    let enabledLanguages = languageConf?.enabled_language_codes ?? ["en"]
+    let defaultLanguage = languageConf?.default_language_code
+    let currentLanguage = i18n.language
+    if (
+        !!enabledLanguages &&
+        !!defaultLanguage &&
+        defaultLanguage !== currentLanguage &&
+        enabledLanguages.includes(defaultLanguage)
+    ) {
+        i18n.changeLanguage(defaultLanguage)
+    }
 }
 
 export default i18n
