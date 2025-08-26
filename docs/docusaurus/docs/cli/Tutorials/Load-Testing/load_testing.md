@@ -147,13 +147,13 @@ Note: If any are missing or incorrect, update the loadtesting Deployment (or its
 
 The duplicate-votes subcommand accepts the following arguments:
 
-- --num-votes <int> (required)
+- --num-votes `<int>` (required)
   - Number of votes to insert by duplicating existing votes.
-- --election-event-id <uuid> (required)
+- --election-event-id `<uuid>` (required)
   - The Election Event ID the votes belong to.
-- --election-id <uuid> (optional)
+- --election-id `<uuid>` (optional)
   - If omitted, the tool discovers an election_id with at least one existing vote in the event and uses that.
-- --tenant-id <uuid> (optional; default: 90505c8a-23a9-4cdf-a26b-4e19f6a097d5)
+- --tenant-id `<uuid>` (optional; default: 90505c8a-23a9-4cdf-a26b-4e19f6a097d5)
   - Used to build the Keycloak realm name as tenant-{tenant_id}-event-{election_event_id} for querying eligible voters.
 
 Operational notes:
