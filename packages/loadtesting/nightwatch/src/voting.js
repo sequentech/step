@@ -54,7 +54,7 @@ module.exports = {
             // Using a random number ensures we hit a wide range of test users
             // and avoid hardcoding patterns
             const randomNumber = Math.floor(Math.random() * numberOfVoters) + 1;
-            const rndStr = randomNumber > 9? `${randomNumber}` : `0${randomNumber}`;
+            const rndStr = `${randomNumber}`;
             return rndStr;
         }
 
