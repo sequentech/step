@@ -26,7 +26,7 @@ pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_TENANT_REALM_CONFIG_PATH")
         .expect(&format!("KEYCLOAK_TENANT_REALM_CONFIG_PATH must be set"));
     let realm_config = fs::read_to_string(&realm_config_path)
-        .expect(&format!("Should have been able to read the configuration file in KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}"));
+        .map_err(|err| anyhow!("Should have been able to read the configuration file in KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}. Error: {err}"))?;
 
     deserialize_str(&realm_config).map_err(|err| {
         anyhow!("Error parsing KEYCLOAK_TENANT_REALM_CONFIG_PATH into RealmRepresentation: {err}")
