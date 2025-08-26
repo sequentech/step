@@ -87,3 +87,9 @@ inside velvet. This can be set at advanced config at the election event.
 Add a security confirmation checkbox to the election Start Screen. Enable it from
 the Election > Data > Advanced Configurations in the Admin Portal, then configure
 it from  Election > Data > General translations section.
+
+## 🐞 Can't cast vote
+
+When an Election was created manually through the Admin Portal, the voting channels
+column was left empty. This means voters couldn't cast their vote as the online
+channel was not set active.
