@@ -103,7 +103,8 @@ const BallotLocator: React.FC = () => {
     const location = useLocation()
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
-    const {globalSettings} = useContext(SettingsContext)
+    const {globalSettings, defaultLanguageTouched, setDefaultLanguageTouched} =
+        useContext(SettingsContext)
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
@@ -130,9 +131,13 @@ const BallotLocator: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
-    useUpdateTranslation({
-        electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
-    }) // Overwrite translations
+    useUpdateTranslation(
+        {
+            electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+        },
+        defaultLanguageTouched,
+        setDefaultLanguageTouched
+    ) // Overwrite translations
 
     useEffect(() => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {

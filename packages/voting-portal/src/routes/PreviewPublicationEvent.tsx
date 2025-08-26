@@ -103,7 +103,7 @@ export const updateBallotStyleAndSelection = (
 }
 
 export const PreviewPublicationEvent: React.FC = () => {
-    const {globalSettings, setDisableAuth} = useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
     const navigate = useNavigate()
     const {tenantId, documentId, areaId, publicationId} = useParams<PreviewPublicationEventType>()
     const dispatch = useAppDispatch()
