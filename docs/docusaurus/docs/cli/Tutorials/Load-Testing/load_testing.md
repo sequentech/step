@@ -19,8 +19,6 @@ You need:
 
 ## Creating an election
 
-## Cast votes using chromium headless
-
 ## Duplicating votes
 
 ### 1. Access and Configuration
@@ -119,6 +117,54 @@ $ kubectl exec -it deployment/loadtesting -n test-apps -- /entrypoint.sh \
 The election event id can be found in the admin portal in the URL of the
 election event.
 
+#### Environment variables required for duplicate votes
+
+The duplicate-votes action connects to two PostgreSQL databases (Keycloak and Hasura). Connection parameters are read from environment variables inside the loadtesting container. Ensure these are set in the Deployment (typically via Secrets/ConfigMaps) for the loadtesting pod:
+
+- Keycloak DB
+  - KEYCLOAK_DB__DBNAME
+  - KEYCLOAK_DB__USER
+  - KEYCLOAK_DB__PASSWORD
+  - KEYCLOAK_DB__HOST
+  - KEYCLOAK_DB__PORT
+
+- Hasura DB
+  - HASURA_DB__DBNAME
+  - HASURA_DB__USER
+  - HASURA_DB__PASSWORD
+  - HASURA_DB__HOST
+  - HASURA_DB__PORT
+
+You can quickly verify that these variables are present in the running pod:
+
+```bash
+kubectl exec -it deployment/loadtesting -n test-apps -- env | grep -E '^(KEYCLOAK_DB__|HASURA_DB__)'
+```
+
+Note: If any are missing or incorrect, update the loadtesting Deployment (or its referenced Secret/ConfigMap) and redeploy so the pod picks them up.
+
+#### duplicate-votes arguments
+
+The duplicate-votes subcommand accepts the following arguments:
+
+- --num-votes <int> (required)
+  - Number of votes to insert by duplicating existing votes.
+- --election-event-id <uuid> (required)
+  - The Election Event ID the votes belong to.
+- --election-id <uuid> (optional)
+  - If omitted, the tool discovers an election_id with at least one existing vote in the event and uses that.
+- --tenant-id <uuid> (optional; default: 90505c8a-23a9-4cdf-a26b-4e19f6a097d5)
+  - Used to build the Keycloak realm name as tenant-{tenant_id}-event-{election_event_id} for querying eligible voters.
+
+Operational notes:
+- The tool will:
+  1) Find an existing vote for the given election event (and election if specified) to use as a base template.
+  2) Determine the area_id and election_id (if not passed).
+  3) Fetch up to --num-votes random eligible voter IDs from Keycloak for that area.
+  4) Duplicate existing cast_vote rows, reassigning voter_id_string to the fetched users, and bulk-insert via COPY for speed.
+- The election should allow revoting to avoid collisions, since random users may already have cast a vote.
+- There must already be at least one cast vote in the target election/area to serve as the duplication template.
+
 Please find below a short video that shows how we:
 1. Enter the Dashboard of the Election Event, which currently has 400K voters
    and 12 votes cast today and 566 votes in total.
@@ -135,7 +181,8 @@ Please find below a short video that shows how we:
 [kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
 [kubeconfig]: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/
 
-### 2. Executing the `vote-cast` command to perform vote loading tests
+## Cast votes using chromium headless
+### 1. Executing the `vote-cast` command to perform vote loading tests
 
 The `vote-cast` subcommand drives a Nightwatch-based browser test inside the loadtesting pod to cast votes through the public voting UI.
 
@@ -208,7 +255,7 @@ Troubleshooting:
 - If the site markup requires different selectors, consider providing an alternative base test via `--base-test nightwatch/src/voting2.js`.
 - To keep the generated parallel files for inspection, add `--keep-parallel-files` and check `/nightwatch/src/_parallel_*`.
 
-### 3. Executing the `tally` load test
+## Managing an election event through the `step-cli`
 
 You can check what options are available to you by calling the `step-cli` CLI tool:
 
@@ -225,7 +272,7 @@ Commands:
   create-area                   Create a new area
   create-area-contest           Create area contest
   create-voter                  Create a new voter
-  export-cast-votes             Export casted a vote
+  export-cast-votes             Export a cast vote
   update-voter                  Edit a voter
   update-election-event-status  Update election event status
   update-election-status        Update election status
