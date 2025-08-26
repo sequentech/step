@@ -81,7 +81,7 @@ immudb-rs = { path="../immudb-rs" }
 b3 = { path="../b3", features = ["client"] }
 electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
-sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas"] }
+sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "sqlite"] }
 velvet = { path="../velvet" }
 
 # To connect to the Database

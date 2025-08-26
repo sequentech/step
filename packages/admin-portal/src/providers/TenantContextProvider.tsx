@@ -35,7 +35,11 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
     )
 
     const setTenantIdWrapper = (tenantId: string | null): void => {
-        localStorage.setItem("selected-tenant-id", tenantId || "")
+        if (null === tenantId) {
+            localStorage.removeItem("selected-tenant-id")
+        } else {
+            localStorage.setItem("selected-tenant-id", tenantId)
+        }
         setTenantId(tenantId)
     }
     const [tenant, setTenant] = useState<Sequent_Backend_Tenant | undefined>(undefined)

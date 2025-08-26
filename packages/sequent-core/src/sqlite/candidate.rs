@@ -2,23 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::path::Path;
+
 use anyhow::{anyhow, Context, Result};
 use csv::ReaderBuilder;
-use deadpool_postgres::Transaction;
-use futures::{pin_mut, StreamExt};
 use rusqlite::{params, Transaction as SqliteTransaction};
-use tempfile::NamedTempFile;
-use tokio::fs::File;
-use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
 pub async fn create_candidate_sqlite(
-    hasura_transaction: &Transaction<'_>,
     sqlite_transaction: &SqliteTransaction<'_>,
-    contest_ids: &Vec<String>,
-    tenant_id: &str,
-    election_event_id: &str,
 ) -> Result<()> {
     sqlite_transaction.execute_batch(
         "
@@ -41,58 +34,14 @@ pub async fn create_candidate_sqlite(
         );",
     )?;
 
-    let contests_csv = contest_ids
-        .iter()
-        .map(|id| format!("\"{}\"", id))
-        .collect::<Vec<_>>()
-        .join(",");
+    Ok(())
+}
 
-    let copy_sql = format!(
-        r#"COPY (
-            SELECT
-                id::text,
-                tenant_id,
-                election_event_id::text,
-                contest_id::text,
-                created_at::text,
-                last_updated_at::text,
-                labels::text,
-                annotations::text,
-                name,
-                alias,
-                description,
-                type,
-                presentation::text,
-                is_public::text,
-                image_document_id::text
-            FROM sequent_backend.candidate
-            WHERE
-                tenant_id = '{}'
-                AND election_event_id = '{}'
-                AND contest_id = ANY('{{{}}}')
-        ) TO STDOUT WITH CSV HEADER"#,
-        tenant_id, election_event_id, contests_csv
-    );
-
-    let mut tmp = NamedTempFile::new().context("creating temp CSV file")?;
-    let mut file = File::from_std(tmp.reopen()?);
-
-    let mut stream = hasura_transaction
-        .copy_out(&copy_sql)
-        .await
-        .map_err(|e| anyhow!("COPY OUT failed: {}", e))?;
-    pin_mut!(stream);
-
-    while let Some(chunk) = stream.next().await {
-        let data = chunk.context("Error reading COPY OUT stream")?;
-        file.write_all(&data)
-            .await
-            .context("Error writing CSV data to temp file")?;
-    }
-    file.flush().await?;
-    drop(file);
-
-    let tmp_path = tmp.into_temp_path();
+#[instrument(err, skip_all)]
+pub async fn import_candidate_sqlite(
+    sqlite_transaction: &SqliteTransaction<'_>,
+    contests_csv: &Path,
+) -> Result<()> {
     tokio::task::block_in_place(|| -> anyhow::Result<()> {
         let mut insert = sqlite_transaction.prepare(
             "INSERT INTO candidate (
@@ -104,7 +53,7 @@ pub async fn create_candidate_sqlite(
 
         let mut rdr = ReaderBuilder::new()
             .has_headers(true)
-            .from_path(&tmp_path)
+            .from_path(&contests_csv)
             .context("opening candidate CSV")?;
 
         for record in rdr.records() {
@@ -123,7 +72,10 @@ pub async fn create_candidate_sqlite(
                 "f" | "false" => Some(false),
                 _ if rec.get(13).unwrap_or("").is_empty() => None,
                 other => {
-                    return Err(anyhow!("Invalid boolean in is_public column: {}", other));
+                    return Err(anyhow!(
+                        "Invalid boolean in is_public column: {}",
+                        other
+                    ));
                 }
             };
 
@@ -131,13 +83,25 @@ pub async fn create_candidate_sqlite(
                 rec.get(0).with_context(|| "Error fetching String record")?,
                 rec.get(1).with_context(|| "Error fetching String record")?,
                 rec.get(2).with_context(|| "Error fetching String record")?,
-                opt(rec.get(3).with_context(|| "Error fetching String record")?),
-                opt(rec.get(4).with_context(|| "Error fetching String record")?),
-                opt(rec.get(5).with_context(|| "Error fetching String record")?),
-                opt(rec.get(6).with_context(|| "Error fetching String record")?),
-                opt(rec.get(7).with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(3)
+                    .with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(4)
+                    .with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(5)
+                    .with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(6)
+                    .with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(7)
+                    .with_context(|| "Error fetching String record")?),
                 rec.get(8).with_context(|| "Error fetching String record")?,
-                opt(rec.get(9).with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(9)
+                    .with_context(|| "Error fetching String record")?),
                 opt(rec
                     .get(10)
                     .with_context(|| "Error fetching String record")?),
