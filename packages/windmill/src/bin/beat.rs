@@ -6,7 +6,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use celery::beat::DeltaSchedule;
 use celery::prelude::Task;
 use dotenv::dotenv;
@@ -42,6 +42,7 @@ async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
     setup_probe(AppName::BEAT).await;
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
@@ -68,10 +69,10 @@ async fn main() -> Result<()> {
             },
         ],
         task_routes = [
-            review_boards::NAME => Queue::Beat.as_ref(),
-            scheduled_events::NAME => Queue::Beat.as_ref(),
-            scheduled_reports::NAME => Queue::Beat.as_ref(),
-            electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.as_ref(),
+            review_boards::NAME => &Queue::Beat.queue_name(&slug),
+            scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
+            scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
+            electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
         ],
     ).await?;
 

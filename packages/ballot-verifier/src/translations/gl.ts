@@ -75,7 +75,9 @@ const galegoTranslation: TranslationType = {
             points: "({{points}} Puntos)",
             contestNotFound: "Concurso non atopado: {{contestId}}",
         },
-        poweredBy: "Desenvolvido por",
+        footer: {
+            poweredBy: "Impulsado por <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Non hai suficientes opcións para descodificar",

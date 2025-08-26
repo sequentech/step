@@ -81,6 +81,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -99,6 +100,7 @@ const spanishTranslation: TranslationType = {
                 deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
+            updateAreaSuccess: "Área actualizada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
             empty: {
@@ -285,6 +287,11 @@ const spanishTranslation: TranslationType = {
                         "locked-down": "Confinado",
                         "not-locked-down": "No Confinado",
                     },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Incluir papeletas decodificadas en la base de datos de resultados",
+                    options: {"included": "Incluir", "not-included": "No incluir"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -531,6 +538,12 @@ const spanishTranslation: TranslationType = {
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
+                securityConfirmationHtml: "Confirmación de seguridad HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casilla de confirmación de seguridad",
+                none: "Ninguno",
+                mandatory: "Obligatorio",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -571,6 +584,13 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título de pantalla de inicio",
+                options: {
+                    "election": "Elección",
+                    "election-event": "Evento Electoral",
                 },
             },
         },
@@ -985,6 +1005,8 @@ const spanishTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración de cifrado del informe exitosa",
+                encryptError: "Error al configurar el cifrado del informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
@@ -1312,6 +1334,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
                 filterTrustees: "Filtrar Autoridades",
+                errorPermisionLabels:
+                    "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",

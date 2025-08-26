@@ -16,10 +16,14 @@ import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.ConfigurableAuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.ClientModel;
+import org.keycloak.models.Constants;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.services.Urls;
+import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
  * Authenticator that transparently redirects users from login to registration flow. This
@@ -31,34 +35,49 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
   public static final String PROVIDER_ID = "redirect-to-register";
   private static final Logger log = Logger.getLogger(RedirectToRegisterAuthenticator.class);
 
-  @Override
-  public void authenticate(final AuthenticationFlowContext context) {
-    // Get the base URI and construct the registration URL
-    final URI baseUri = context.getUriInfo().getBaseUri();
-    final String realm = context.getRealm().getName();
+  /**
+   * Prepare base uri builder for later use
+   *
+   * @return base uri builder
+   */
+  protected UriBuilder prepareBaseUriBuilder(final AuthenticationFlowContext context) {
+    final String requestURI = context.getUriInfo().getBaseUri().getPath();
+    final UriBuilder uriBuilder = UriBuilder.fromUri(requestURI);
+    final ClientModel client = context.getAuthenticationSession().getClient();
+    final AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
 
-    // Build the registration URL using UriBuilder for safety
-    UriBuilder builder =
-        UriBuilder.fromUri(baseUri).path("realms").path(realm).path("login-actions/registration");
-
-    // Optionally, filter query parameters to avoid open redirect issues
-    String queryString = context.getUriInfo().getRequestUri().getQuery();
-    if (queryString != null && !queryString.isEmpty()) {
-      // Only allow safe parameters (example: skip redirect_uri)
-      // In production, parse and filter as needed
-      if (!queryString.contains("redirect_uri")) {
-        builder.replaceQuery(queryString);
-      }
+    if (client != null) {
+      uriBuilder.queryParam(Constants.CLIENT_ID, client.getClientId());
     }
+    if (authenticationSession != null) {
+      uriBuilder.queryParam(Constants.TAB_ID, authenticationSession.getTabId());
+    }
+    return uriBuilder;
+  }
 
-    String registrationUrl = builder.build().toString();
-    log.debugf("Redirecting to registration URL: %s", registrationUrl);
+  public void authenticate(final AuthenticationFlowContext context) {
+    try {
+      // Get the UriBuilder from the current request. This is crucial as it
+      // preserves all existing query parameters like client_id, state, scope,
+      // and most importantly, the 'execution' ID which maintains the
+      // authentication flow state.
+      final UriBuilder builder = prepareBaseUriBuilder(context);
+      final URI baseUri = builder.build();
 
-    // Perform the redirect
-    Response response =
-        Response.status(Response.Status.FOUND).location(URI.create(registrationUrl)).build();
+      // The name of the current realm.
+      final String realmName = context.getRealm().getName();
 
-    context.challenge(response);
+      final URI registrationUri = Urls.realmRegisterPage(baseUri, realmName);
+
+      // Perform the redirect using a 302 Found response.
+      final Response response =
+          Response.status(Response.Status.FOUND).location(registrationUri).build();
+
+      context.challenge(response);
+    } catch (Exception e) {
+      log.error("Failed to create redirect to registration", e);
+      context.cancelLogin();
+    }
   }
 
   @Override

@@ -15,6 +15,9 @@ const dutchTranslation: TranslationType = {
             confirmation: "Bevestiging",
             audit: "Audit",
         },
+        footer: {
+            poweredBy: "Aangedreven door <sequent />",
+        },
         votingScreen: {
             backButton: "Terug",
             reviewButton: "Volgende",
@@ -123,6 +126,14 @@ const dutchTranslation: TranslationType = {
                     "Er is een fout opgetreden bij het verwerken van uw verzoek. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_unexpected:
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
+                CAST_VOTE_timeout:
+                    "Time-out fout bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "U heeft de limiet voor herstemmen overschreden. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "U heeft het toegestane aantal herstemmen overschreden. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "U heeft al in een ander gebied gestemd. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
                 CAST_VOTE_UnknownError:
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 NO_BALLOT_SELECTION:
@@ -147,6 +158,23 @@ const dutchTranslation: TranslationType = {
                     "Er was een fout bij het serialiseren van het stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 UNKNOWN_ERROR:
                     "Er is een fout opgetreden. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
+                REAUTH_FAILED:
+                    "Authenticatie is mislukt. Probeer het opnieuw of neem contact op met ondersteuning voor hulp.",
+                SESSION_EXPIRED: "Uw sessie is verlopen. Begin opnieuw vanaf het begin.",
+                CAST_VOTE_BallotIdMismatch:
+                    "De stembiljet-ID komt niet overeen met de uitgebrachte stem.",
+                SESSION_STORAGE_ERROR:
+                    "Sessie-opslag is niet beschikbaar. Probeer het opnieuw of neem contact op met de ondersteuning.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Er is een fout opgetreden bij het verwerken van de stemgegevens. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Stemgegevens zijn niet geldig. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Time-out fout bij het ophalen van de gegevens. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Fout bij het converteren naar hashbare stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                INTERNAL_ERROR:
+                    "Er is een interne fout opgetreden tijdens het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
             },
         },
         confirmationScreen: {

@@ -81,6 +81,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -99,6 +100,7 @@ const galegoTranslation: TranslationType = {
                 deleteError: "Erro ao eliminar a área",
             },
             createAreaSuccess: "Área creada",
+            updateAreaSuccess: "Área actualizada",
             createAreaError: "Non se puido crear a área",
             sequent_backend_area_contest: "Concursos",
             empty: {
@@ -286,6 +288,10 @@ const galegoTranslation: TranslationType = {
                         "locked-down": "Bloqueado",
                         "not-locked-down": "Non Bloqueado",
                     },
+                },
+                decodedBallots: {
+                    policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
+                    options: {"included": "Incluír", "not-included": "Non incluír"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -532,6 +538,12 @@ const galegoTranslation: TranslationType = {
                 scheduledClosing: "Peche Programado",
                 alias: "Alias",
                 description: "Descrición",
+                securityConfirmationHtml: "Confirmación de seguridade HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política da caixa de confirmación de seguridade",
+                none: "Ningún",
+                mandatory: "Obrigatorio",
             },
             error: {
                 fileError: "Erro ao cargar o ficheiro",
@@ -572,6 +584,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título da pantalla de inicio",
+                options: {
+                    "election": "Título da elección",
+                    "election-event": "Título do evento electoral",
                 },
             },
         },
@@ -986,6 +1005,8 @@ const galegoTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración do cifrado do informe realizada con éxito",
+                encryptError: "Erro ao configurar o cifrado do informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
@@ -1314,6 +1335,8 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de Crear a Cerimonia de Chaves. Esta acción notificará aos Fiduciarios para participar na creación e distribución das Chaves do Evento Electoral.",
                 },
                 filterTrustees: "Filtrar Autoridades",
+                errorPermisionLabels:
+                    "Non se pode crear a cerimonia de chaves: falta unha ou máis etiquetas de permisos.",
             },
             ceremonyStep: {
                 cancel: "Cancelar Cerimonia de Chaves",

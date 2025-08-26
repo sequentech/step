@@ -81,6 +81,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
+                PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -99,6 +100,7 @@ const basqueTranslation: TranslationType = {
                 deleteError: "Errorea eremua ezabatzerakoan",
             },
             createAreaSuccess: "Eremua sortua",
+            updateAreaSuccess: "Eremua aldatua",
             createAreaError: "Ezin izan da Eremua sortu",
             sequent_backend_area_contest: "Lehiaketak",
             empty: {
@@ -286,6 +288,10 @@ const basqueTranslation: TranslationType = {
                         "locked-down": "Blokeatuta",
                         "not-locked-down": "Blokeatu gabe",
                     },
+                },
+                decodedBallots: {
+                    policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
+                    options: {"included": "Sartu", "not-included": "Ez sartu"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -533,6 +539,12 @@ const basqueTranslation: TranslationType = {
                 scheduledClosing: "Programatutako Itxiera",
                 alias: "Ezizena",
                 description: "Deskribapena",
+                securityConfirmationHtml: "Segurtasun-berrespena HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Segurtasun-berrespeneko kontrol-laukiaren politika",
+                none: "Bat ere ez",
+                mandatory: "Derrigorrezkoa",
             },
             error: {
                 fileError: "Errorea fitxategia igotzean",
@@ -573,6 +585,13 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "gold-level": "Urre maila Autentifikazioa",
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Hasierako pantailaren titulu politika",
+                options: {
+                    "election": "Hauteskundearen titulua",
+                    "election-event": "Hauteskunde-ekitaldiaren titulua",
                 },
             },
         },
@@ -981,6 +1000,8 @@ const basqueTranslation: TranslationType = {
                 incorectPassword: "Pasahitz okerra",
                 decryptFileTitle: "Nola deszifratzen den fitxategia",
                 decryptInstructions: `1. '-in' :Zifratutako fitxategiaren bidea. \n2. '-out' :Deszifratutako fitxategia gordeko den bidea. \n3. '-pass' :Fitxategia zifratzeko erabilitako pasahitza. \n`,
+                encryptSuccess: "Txostenaren enkriptatzea behar bezala konfiguratu da",
+                encryptError: "Errorea txostenaren enkriptatzea konfiguratzean",
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
@@ -1310,6 +1331,8 @@ const basqueTranslation: TranslationType = {
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
+                errorPermisionLabels:
+                    "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
             },
             ceremonyStep: {
                 cancel: "Ezeztatu Giltzen Zeremonia",

@@ -115,7 +115,10 @@
 				"ms-python.python",
 
 				// Useful to check interactions with keyloak´s DB or other SQL databases
-				"cweijan.vscode-database-client2"
+				"cweijan.vscode-database-client2",
+
+				// Rewarp lines with Alt+Q or Cmd+Q
+				"stkb.rewrap",
     		]
 		},
 		"devpod": {

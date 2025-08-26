@@ -81,6 +81,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
+                PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -99,6 +100,7 @@ const frenchTranslation: TranslationType = {
                 deleteError: "Erreur lors de la suppression de la Zone",
             },
             createAreaSuccess: "Zone créée",
+            updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
             sequent_backend_area_contest: "Questions de la Zone",
             empty: {
@@ -285,6 +287,11 @@ const frenchTranslation: TranslationType = {
                         "locked-down": "Confiné",
                         "not-locked-down": "Non Confiné",
                     },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclure les bulletins décodés dans la base de données de résultats",
+                    options: {"included": "Inclure", "not-included": "Ne pas inclure"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -533,6 +540,12 @@ const frenchTranslation: TranslationType = {
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Confirmation de sécurité HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Politique de la case à cocher de confirmation de sécurité",
+                none: "Aucun",
+                mandatory: "Obligatoire",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -573,6 +586,13 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Politique de titre de l'écran d'accueil",
+                options: {
+                    "election": "Titre de l'élection",
+                    "election-event": "Titre de l'événement électoral",
                 },
             },
         },
@@ -991,6 +1011,8 @@ const frenchTranslation: TranslationType = {
                 decryptFileTitle: "Déchiffrer le fichier",
                 decryptInstructions:
                     "1. '-in' : Le chemin vers le fichier chiffré. \n2. '-out' : Le chemin où le fichier déchiffré sera enregistré. \n3. '-pass' : Le mot de passe utilisé pour chiffrer le fichier. \n",
+                encryptSuccess: "Configuration du chiffrement du rapport réussie",
+                encryptError: "Erreur lors de la configuration du chiffrement du rapport",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
@@ -1323,6 +1345,8 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
                 },
                 filterTrustees: "Filtre des Autorités",
+                errorPermisionLabels:
+                    "Impossible de créer la cérémonie de clés : une ou plusieurs étiquettes d’autorisations sont manquantes.",
             },
             ceremonyStep: {
                 cancel: "Annuler la Cérémonie de Clés",

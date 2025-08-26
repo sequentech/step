@@ -80,6 +80,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
+                PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -98,6 +99,7 @@ const dutchTranslation: TranslationType = {
                 deleteError: "Fout bij verwijderen van gebied",
             },
             createAreaSuccess: "Gebied aangemaakt",
+            updateAreaSuccess: "Gebied bijgewerkt",
             createAreaError: "Kon gebied niet aanmaken",
             sequent_backend_area_contest: "Verkiezingen",
             empty: {
@@ -285,6 +287,10 @@ const dutchTranslation: TranslationType = {
                         "locked-down": "Vergrendeld",
                         "not-locked-down": "Niet vergrendeld",
                     },
+                },
+                decodedBallots: {
+                    policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
+                    options: {"included": "Opnemen", "not-included": "Niet opnemen"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -529,6 +535,12 @@ const dutchTranslation: TranslationType = {
                 scheduledClosing: "Geplande Sluiting",
                 alias: "Alias",
                 description: "Beschrijving",
+                securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Beleid voor selectievakje van beveiligingsbevestiging",
+                none: "Geen",
+                mandatory: "Verplicht",
             },
             error: {
                 fileError: "Fout bij uploaden bestand",
@@ -569,6 +581,13 @@ const dutchTranslation: TranslationType = {
                 options: {
                     "gold-level": "'Gold level' Authenticatie",
                     "no-gold-level": "Geen 'Gold level' Authenticatie",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Titelbeleid startscherm",
+                options: {
+                    "election": "Verkiezingstitel",
+                    "election-event": "Verkiezingsevenementtitel",
                 },
             },
         },
@@ -981,6 +1000,8 @@ const dutchTranslation: TranslationType = {
                 incorectPassword: "Incorrect wachtwoord",
                 decryptFileTitle: "Hoe het bestand te ontsleutelen",
                 decryptInstructions: `1. '-in': Het pad naar het versleutelde bestand.\n2. '-out': Het pad waar het ontsleutelde bestand wordt opgeslagen.\n3. '-pass': Het wachtwoord dat is gebruikt om het bestand te versleutelen.\n`,
+                encryptSuccess: "Rapportversleuteling succesvol ingesteld",
+                encryptError: "Fout bij het instellen van rapportversleuteling",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
@@ -1311,6 +1332,8 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt een Sleutelceremonie aan te maken. Deze actie zal de Trustees informeren om deel te nemen aan de aanmaak en distributie van de Sleutels van het Verkiezingsevenement.",
                 },
                 filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Sleutelceremonie kan niet worden aangemaakt: een of meer toestemmingslabels ontbreken.",
             },
             ceremonyStep: {
                 cancel: "Sleutelceremonie Annuleren",
