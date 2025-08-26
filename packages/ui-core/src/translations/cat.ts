@@ -63,7 +63,9 @@ const catalanTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Funciona amb",
+        footer: {
+            poweredBy: "Funciona amb <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "No hi ha prou opcions per a decodificar",
