@@ -216,11 +216,12 @@ const ElectionSelectionScreen: React.FC = () => {
     const navigate = useNavigate()
     const location = useLocation()
 
-    const {globalSettings} = useContext(SettingsContext)
+    const {globalSettings, defaultLanguageTouched, setDefaultLanguageTouched} =
+        useContext(SettingsContext)
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    useUpdateTranslation({electionEvent}) // Overwrite translations
+    useUpdateTranslation({electionEvent}, defaultLanguageTouched, setDefaultLanguageTouched) // Overwrite translations
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const dispatch = useAppDispatch()
