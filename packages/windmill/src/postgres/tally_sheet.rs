@@ -156,11 +156,11 @@ pub async fn get_latest_ballot_box_version(
     }
 }
 
-/// When a tally sheet is reviewed approved/disapproved, the previous versions are soft deleted.
+/// When a tally sheet is approved, the other versions must be soft deleted.
 /// It will soft-delete all the sheets with the same area_id, contest_id and channel but different tally_sheet_id
-/// than the one that is passed.
+/// than the tally_sheet passed as a parameter.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn soft_delete_tally_sheet(
+pub async fn soft_delete_tally_sheet_leftover_versions(
     hasura_transaction: &Transaction<'_>,
     tally_sheet: &TallySheet,
 ) -> Result<()> {

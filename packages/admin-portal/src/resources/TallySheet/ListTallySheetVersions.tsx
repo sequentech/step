@@ -44,7 +44,6 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
-import {channel} from "diagnostics_channel"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
@@ -58,6 +57,7 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Version" source="version" key={4} />,
     <TextInput label="Created by" source="created_by" key={5} />,
     <TextInput label="Reviewed by" source="reviewed_by" key={6} />,
+    <TextInput label="Status" source="status" key={7} />,
 ]
 
 interface TTallySheetListVersions {
@@ -187,9 +187,27 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     <FunctionField
                         key={"Reviewed by"}
                         label={t("tallysheet.versionsTable.reviewedBy")}
-                        render={(record: any) => <TextField source="reviewed_by_user_id" />}
+                        render={(record: any) => (
+                            record.reviewed_at ? (
+                                <TextField source="reviewed_by_user_id" />
+                            ) : (
+                                "-"
+                            )
+                        )}
                     />
-                    <TextField source="reviewed_at" />
+
+                   <FunctionField
+                        key={"reviewed_at"}
+                        label={t("tallysheet.versionsTable.reviewedAt")}
+                        render={(record: any) => (
+                            record.reviewed_at ? (
+                                <TextField source="reviewed_at" />
+                            ) : (
+                                "-"
+                            )
+                        )}
+                    />
+                    <TextField source="status" />
 
                     <WrapperField source="actions" label="Actions">
                         <FunctionField

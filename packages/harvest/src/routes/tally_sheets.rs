@@ -144,7 +144,7 @@ pub async fn review_tally_sheet(
         &input.election_event_id,
         &input.tally_sheet_id,
         &claims.hasura_claims.user_id,
-        input.new_status,
+        input.new_status.clone(),
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
@@ -159,9 +159,14 @@ pub async fn review_tally_sheet(
         }
     };
 
-    tally_sheet::soft_delete_tally_sheet(&hasura_transaction, &tally_sheet)
+    if input.new_status == TallySheetStatus::APPROVED {
+        tally_sheet::soft_delete_tally_sheet_leftover_versions(
+            &hasura_transaction,
+            &tally_sheet,
+        )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    }
 
     hasura_transaction
         .commit()
