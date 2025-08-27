@@ -111,6 +111,6 @@ Updated rust dependencies in step.
 
 ## ✨ New Github Action that builds sequent-core with wasm target
 
-Created a vscode task `build.sequent-core` (if the task does not appear reload the window)
- that also updates the hash in `yarn.lock` automotically.
+Created a vscode task `build.sequent-core` (if the task does not appear try reloading the window)
+ that also updates the hash in `yarn.lock` automatically.
 Created a github action `Build WASM Target` to check that the build is not broken.
