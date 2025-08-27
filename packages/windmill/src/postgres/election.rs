@@ -391,9 +391,8 @@ pub async fn create_election(
 ) -> Result<Election> {
     let presentation_value = serde_json::to_value(presentation)
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
-    let voting_channels_value = serde_json::to_value(VotingChannels::default())
-        .map_err(|err| anyhow!("Error serializing election voting channels: {err}"))?;
-
+    let voting_channels_value = serde_json::to_value(&VotingChannels::default())
+        .map_err(|err| anyhow!("Error serializing voting_channels: {err}"))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -406,7 +405,7 @@ pub async fn create_election(
                     name,
                     alias,
                     description,
-					presentation,
+                    presentation,
                     voting_channels
                 )
                 VALUES
@@ -416,9 +415,9 @@ pub async fn create_election(
                     NOW(),
                     NOW(),
                     $3,
-                    $6,
                     $4,
-					$5,
+                    $5,
+                    $6,
                     $7
                 )
                 RETURNING *;
@@ -433,9 +432,9 @@ pub async fn create_election(
                 &Uuid::parse_str(&tenant_id)?,
                 &Uuid::parse_str(&election_event_id)?,
                 &name.to_string(),
+                &name.to_string(),
                 &description,
                 &presentation_value,
-                &name.to_string(),
                 &voting_channels_value,
             ],
         )
