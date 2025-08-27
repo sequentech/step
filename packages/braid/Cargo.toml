@@ -27,7 +27,7 @@ rayon = { version = "1.5" }
 tonic = "0.13"
 
 # trustee local store
-rusqlite = { version = "0.35", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 
 # only needed for verifier
 serde_json = "1.0"
