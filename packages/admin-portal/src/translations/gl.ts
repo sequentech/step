@@ -327,10 +327,10 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Ceremonies Policy",
+                    policyLabel: "Política de cerimonias",
                     options: {
-                        "automated-ceremonies": "Automated Ceremonies",
-                        "manual-ceremonies": "Manual Ceremonies",
+                        "automated-ceremonies": "Cerimonias automáticas",
+                        "manual-ceremonies": "Cerimonias manuais",
                     },
                 },
             },
@@ -1321,12 +1321,17 @@ const galegoTranslation: TranslationType = {
                     ok: "Si, Crear Cerimonia de Chaves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que queres Crear a Cerimonia de Chaves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que queres crear unha cerimonia de chaves automática?",
                     description:
                         "Estás a piques de Crear a Cerimonia de Chaves. Esta acción notificará aos Fiduciarios para participar na creación e distribución das Chaves do Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a piques de crear unha cerimonia de chaves automática. Isto non notificará aos fideicomisarios para que participen.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
                     "Non se pode crear a cerimonia de chaves: falta unha ou máis etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Cerimonia de Chaves",
@@ -1547,7 +1552,7 @@ const galegoTranslation: TranslationType = {
                     ceremony:
                         "Todos os fiduciarios requiridos verificaron os seus fragmentos de chave. Todo está listo para comezar a recibir resultados. ¿Queres iniciar o Escrutinio?",
                     startAutomatedTallyMessage:
-                        "Select Start Tally to run tally process and display results, or Close to cancel.",
+                        "Seleccione 'Start Tally' para executar o proceso de reconto e mostrar os resultados, ou 'Close' para cancelar.",
                 },
             },
             table: {

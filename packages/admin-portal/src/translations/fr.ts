@@ -326,10 +326,10 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Política de Cerimònia",
+                    policyLabel: "Politique des cérémonies",
                     options: {
-                        "automated-ceremonies": "Automated Ceremonies",
-                        "manual-ceremonies": "Manual Ceremonies",
+                        "automated-ceremonies": "Cérémonies automatisées",
+                        "manual-ceremonies": "Cérémonies manuelles",
                     },
                 },
             },
@@ -1330,12 +1330,17 @@ const frenchTranslation: TranslationType = {
                     ok: "Oui, Créer une Cérémonie de Clés",
                     cancel: "Annuler",
                     title: "Êtes-vous sûr de vouloir Créer une Cérémonie de Clés ?",
+                    automaticCeremonyTitle:
+                        "Êtes-vous sûr de vouloir créer une cérémonie de clés automatique ?",
                     description:
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
+                    automaticCeremonyDescription:
+                        "Vous êtes sur le point de créer une cérémonie de clés automatique. Cela n'informera pas les fiduciaires de leur participation.",
                 },
                 filterTrustees: "Filtre des Autorités",
                 errorPermisionLabels:
                     "Impossible de créer la cérémonie de clés : une ou plusieurs étiquettes d’autorisations sont manquantes.",
+                automaticCeremonyToggle: "Cérémonie automatique",
             },
             ceremonyStep: {
                 cancel: "Annuler la Cérémonie de Clés",
@@ -1557,7 +1562,7 @@ const frenchTranslation: TranslationType = {
                     ceremony:
                         "Tous les trustees requis ont vérifié leurs fragments de clé. Tout est prêt pour commencer à recevoir les résultats. Voulez-vous commencer le Comptage ?",
                     startAutomatedTallyMessage:
-                        "Select Start Tally to run tally process and display results, or Close to cancel.",
+                        "Sélectionnez 'Start Tally' pour lancer le processus de décompte et afficher les résultats, ou 'Close' pour annuler.",
                 },
             },
             table: {

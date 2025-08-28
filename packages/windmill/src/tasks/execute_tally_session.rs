@@ -68,10 +68,10 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -682,13 +682,23 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
+    let keys_ceremony_policy = keys_ceremony.policy();
+
     let threshold = keys_ceremonies[0].threshold as usize;
-    let mut available_trustees: Vec<String> = ceremony_status
-        .trustees
-        .into_iter()
-        .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
-        .map(|trustee| trustee.name.clone())
-        .collect();
+    let mut available_trustees: Vec<String> = match keys_ceremony_policy {
+        CeremoniesPolicy::MANUAL_CEREMONIES => ceremony_status
+            .trustees
+            .into_iter()
+            .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
+            .map(|trustee| trustee.name.clone())
+            .collect(),
+        CeremoniesPolicy::AUTOMATED_CEREMONIES => ceremony_status
+            .trustees
+            .into_iter()
+            .map(|trustee| trustee.name.clone())
+            .collect(),
+    };
+
     let mut rng = StdRng::from_entropy();
     available_trustees.shuffle(&mut rng);
 

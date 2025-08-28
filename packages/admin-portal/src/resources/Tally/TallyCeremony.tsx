@@ -720,10 +720,15 @@ export const TallyCeremony: React.FC = () => {
         // Dependency array: re-run only when the original items array changes
     }, [keysCeremonies?.list_keys_ceremony?.items])
 
-    //TODO: add check if relevant keys ceremony have automated ceremony policy
+    const selectedKeysCeremony = sortedKeysCeremonies.find(
+        (ceremony) => ceremony.id === keysCeremonyId
+    )
+    
     const isAutomatedCeremony =
         electionEvent.presentation?.ceremonies_policy ===
-        EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        selectedKeysCeremony?.settings?.policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
     const breadCrumbSteps = () => {
         let steps = ["tally.breadcrumbSteps.start"]
@@ -742,7 +747,7 @@ export const TallyCeremony: React.FC = () => {
                     <TallyStyles.StyledHeader>
                         <BreadCrumbSteps
                             labels={breadCrumbSteps()}
-                            selected={page}
+                            selected={isAutomatedCeremony && page > 0 ? page - 1 : page} // skipped ceremony page number
                             variant={BreadCrumbStepsVariant.Circle}
                             colorPreviousSteps={true}
                         />
@@ -819,7 +824,7 @@ export const TallyCeremony: React.FC = () => {
                         </>
                     )}
 
-                    {page === WizardSteps.Ceremony && (
+                    {!isAutomatedCeremony && page === WizardSteps.Ceremony && (
                         <>
                             {/* 
                             This code snippet determines whether the "Next" button should be

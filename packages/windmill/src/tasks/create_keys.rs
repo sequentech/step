@@ -53,11 +53,8 @@ pub async fn get_new_ceremony_status(
         (CeremoniesPolicy::AUTOMATED_CEREMONIES, CeremoniesPolicy::AUTOMATED_CEREMONIES) => {
             KeysCeremonyExecutionStatus::SUCCESS
         }
-        (CeremoniesPolicy::AUTOMATED_CEREMONIES, CeremoniesPolicy::MANUAL_CEREMONIES)
-        | (CeremoniesPolicy::MANUAL_CEREMONIES, CeremoniesPolicy::AUTOMATED_CEREMONIES) => {
-            return Err(anyhow!(
-                "election event and key ceremony Incompatible ceremonies policy"
-            ))
+        (CeremoniesPolicy::MANUAL_CEREMONIES, CeremoniesPolicy::AUTOMATED_CEREMONIES) => {
+            return Err(anyhow!("election event doesn't allow automated ceremonies"))
         }
         _ => KeysCeremonyExecutionStatus::IN_PROGRESS,
     };
@@ -75,7 +72,7 @@ pub async fn get_new_ceremony_status(
                     .map(|trustee| {
                         Ok(Trustee {
                             name: trustee.name,
-                            status: TrusteeStatus::KEY_RETRIEVED,
+                            status: TrusteeStatus::KEY_GENERATED,
                         })
                     })
                     .collect::<Result<Vec<Trustee>>>()?,

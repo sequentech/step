@@ -1306,12 +1306,17 @@ const englishTranslation = {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
                     title: "Are you sure you want to Create Keys Ceremony?",
+                    automaticCeremonyTitle:
+                        "Are you sure you want to Create Automatic Keys Ceremony?",
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    automaticCeremonyDescription:
+                        "You are about to Create an Automatic Keys Ceremony. This will not notify the Trustees to participate.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
                     "Cannot create keys ceremony: one or more permission labels are missing.",
+                automaticCeremonyToggle: "Automatic Ceremony",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",

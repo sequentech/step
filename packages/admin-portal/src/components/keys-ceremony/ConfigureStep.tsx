@@ -207,7 +207,14 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         trusteeNames: string[]
         electionId?: string
         name?: string
-    }) => Promise<string | null> = async ({threshold, trusteeNames, electionId, name}) => {
+        isAutomaticCeremony: boolean
+    }) => Promise<string | null> = async ({
+        threshold,
+        trusteeNames,
+        electionId,
+        name,
+        isAutomaticCeremony,
+    }) => {
         const {data, errors} = await createKeysCeremonyMutation({
             variables: {
                 electionEventId: electionEvent.id,
@@ -255,6 +262,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 trusteeNames,
                 name: electionName,
                 electionId: electionId ?? undefined,
+                isAutomaticCeremony: isAutomaticCeremony,
             })
             if (keysCeremonyId) {
                 setNewId(keysCeremonyId)
@@ -276,13 +284,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         threshold,
         trusteeNames,
         electionId,
-        isAutomaticCeremony,
+        isAutomatic,
     }) => {
         setThreshold(Number(threshold))
         setTrusteeNames(trusteeNames)
         setOpenConfirmationModal(true)
         setElectionId(electionId ?? null)
-        setIsAutomaticCeremony(isAutomaticCeremony)
+        setIsAutomaticCeremony(isAutomatic)
     }
 
     // Default values
@@ -335,9 +343,6 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
         electionEvent.presentation?.ceremonies_policy ===
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    const toggleIsAutomaticCeremony = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setIsAutomaticCeremony(event.target.checked)
-    }
     return (
         <>
             <WizardStyles.ContentBox>
@@ -382,12 +387,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             }}
                             variant="filled"
                         />
-                        <BooleanInput
-                            disabled={!isElectionEventAutomatedCeremonyPolicy}
-                            source="is_automatic"
-                            label={"Automated Ceremony"}
-                            onChange={toggleIsAutomaticCeremony}
-                        />
+                        {isElectionEventAutomatedCeremonyPolicy && (
+                            <BooleanInput
+                                disabled={!isElectionEventAutomatedCeremonyPolicy}
+                                source="isAutomatic"
+                                label={t("keysGeneration.configureStep.automaticCeremonyToggle")}
+                            />
+                        )}
                         {trusteeList ? (
                             <>
                                 <InputLabel dir={i18n.dir(i18n.language)}>
@@ -475,7 +481,13 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                     open={openConfirmationModal}
                     ok={t("keysGeneration.configureStep.confirmdDialog.ok")}
                     cancel={t("keysGeneration.configureStep.confirmdDialog.cancel")}
-                    title={t("keysGeneration.configureStep.confirmdDialog.title")}
+                    title={
+                        isAutomaticCeremony
+                            ? t(
+                                  "keysGeneration.configureStep.confirmdDialog.automaticCeremonyTitle"
+                              )
+                            : t("keysGeneration.configureStep.confirmdDialog.title")
+                    }
                     handleClose={(result: boolean) => {
                         if (result) {
                             confirmCreateKeysCeremony()
@@ -483,7 +495,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         setOpenConfirmationModal(false)
                     }}
                 >
-                    {t("keysGeneration.configureStep.confirmdDialog.description")}
+                    {isAutomaticCeremony
+                        ? t(
+                              "keysGeneration.configureStep.confirmdDialog.automaticCeremonyDescription"
+                          )
+                        : t("keysGeneration.configureStep.confirmdDialog.description")}
                 </Dialog>
             </WizardStyles.ContentBox>
         </>

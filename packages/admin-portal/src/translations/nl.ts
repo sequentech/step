@@ -325,10 +325,10 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Ceremonies Policy",
+                    policyLabel: "Ceremoniebeleid",
                     options: {
-                        "automated-ceremonies": "Automated Ceremonies",
-                        "manual-ceremonies": "Manual Ceremonies",
+                        "automated-ceremonies": "Geautomatiseerde ceremonies",
+                        "manual-ceremonies": "Handmatige ceremonies",
                     },
                 },
             },
@@ -1318,12 +1318,17 @@ const dutchTranslation: TranslationType = {
                     ok: "Ja, Sleutelceremonie Aanmaken",
                     cancel: "Annuleren",
                     title: "Weet u zeker dat u de Sleutelceremonie wilt aanmaken?",
+                    automaticCeremonyTitle:
+                        "Weet u zeker dat u een automatische sleutelceremonie wilt creëren?",
                     description:
                         "U staat op het punt een Sleutelceremonie aan te maken. Deze actie zal de Trustees informeren om deel te nemen aan de aanmaak en distributie van de Sleutels van het Verkiezingsevenement.",
+                    automaticCeremonyDescription:
+                        "U staat op het punt een automatische sleutelceremonie te creëren. Dit zal de beheerders niet op de hoogte stellen om deel te nemen.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
                     "Sleutelceremonie kan niet worden aangemaakt: een of meer toestemmingslabels ontbreken.",
+                automaticCeremonyToggle: "Automatische ceremonie",
             },
             ceremonyStep: {
                 cancel: "Sleutelceremonie Annuleren",
@@ -1542,7 +1547,7 @@ const dutchTranslation: TranslationType = {
                     ceremony:
                         "Alle vereiste trustees hebben hun sleutelfragmenten geverifieerd. Alles is klaar om resultaten te ontvangen. Wilt u de Telling starten?",
                     startAutomatedTallyMessage:
-                        "Select Start Tally to run tally process and display results, or Close to cancel.",
+                        "Selecteer 'Start Tally' om het telproces uit te voeren en de resultaten weer te geven, of 'Close' om te annuleren.",
                 },
             },
             table: {
