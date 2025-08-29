@@ -127,6 +127,7 @@ export const TallyCeremony: React.FC = () => {
     const [openModal, setOpenModal] = useState(false)
     const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
+    const [nextStartTransition, setNextStartTransition] = useState(false)
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [pristine, setPristine] = useState<boolean>(true)
@@ -511,6 +512,7 @@ export const TallyCeremony: React.FC = () => {
             setOpenModal(true)
         } else if (page === WizardSteps.Ceremony) {
             setIsButtonDisabled(true)
+            setNextStartTransition(true)
             setOpenCeremonyModal(true)
         } else if (page === WizardSteps.Tally) {
             setPage(WizardSteps.Results)
@@ -830,7 +832,7 @@ export const TallyCeremony: React.FC = () => {
                             The tally session is not in the CONNECTED state or if the start of the ceremony 
                             is not allowed based on the tally type and the status of the elections.
                             */}
-                            {isButtonDisabled && (
+                            {isButtonDisabled && !nextStartTransition && (
                                 <Alert severity="warning">
                                     {t("electionEventScreen.tally.notify.ceremonyDisabled")}
                                 </Alert>
@@ -1187,6 +1189,7 @@ export const TallyCeremony: React.FC = () => {
                         // enables the button again because the user cancelled the dialog
                         // so the user can try again.
                     }
+                    setNextStartTransition(false)
                 }}
             >
                 {t("tally.common.dialog.ceremony")}
