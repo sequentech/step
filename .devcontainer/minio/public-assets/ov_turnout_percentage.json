@@ -8,8 +8,8 @@
     "executer_username": "User"
   },
   "election": {
-    "post": "Philippine Embassy, Washington DC",
-    "election_title": "National Elections",
+    "post": "Area name i.e. Russian Embassy, Washington DC",
+    "election_title": "Election name i.e. Federal elections",
     "election_dates": {
       "first_started_at": "2024-11-08T00:00:00Z",
       "last_started_at": "2024-11-08T12:00:00Z",
@@ -66,7 +66,7 @@
     },
     "inspectors": [
       {
-        "name": "Juan Dela Cruz",
+        "name": "John Petersen",
         "role": "Chairperson"
       },
       {
@@ -74,7 +74,7 @@
         "role": "Poll Clerk"
       },
       {
-        "name": "Jose Rizal",
+        "name": "Mike Anderson",
         "role": "Third Member"
       }
     ]

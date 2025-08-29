@@ -99,25 +99,13 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
             <thead>
               <tr>
                 <td>
-                  <strong>Region/Post</strong>
+                  <strong>Area</strong>
                 </td>
                 <td>
                   <strong>Country</strong>
                 </td>
                 <td>
-                  <strong>Registered Male Total</strong>
-                </td>
-                <td>
-                  <strong>Registered Female Total</strong>
-                </td>
-                <td>
-                  <strong>ROV Total</strong>
-                </td>
-                <td>
-                  <strong>OV who Actually Voted Male</strong>
-                </td>
-                <td>
-                  <strong>OV who Actually Voted Female</strong>
+                  <strong>Registered OV Total</strong>
                 </td>
                 <td>
                   <strong>OV who Actually Voted Total</strong>
@@ -141,19 +129,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                 <td>
                 </td>
                 <td>
-                  {{election.overall_total.total_male_registered}}
-                </td>
-                <td>
-                  {{election.overall_total.total_female_registered}}
-                </td>
-                <td>
                   {{election.overall_total.total_registered}}
-                </td>
-                <td>
-                  {{election.overall_total.total_male_voted}}
-                </td>
-                <td>
-                  {{election.overall_total.total_female_voted}}
                 </td>
                 <td>
                   {{election.overall_total.total_voted}}
@@ -177,19 +153,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                   {{area_name}}
                 </td>
                 <td>
-                  {{stats.total_male_registered}}
-                </td>
-                <td>
-                  {{stats.total_female_registered}}
-                </td>
-                <td>
                   {{stats.total_registered}}
-                </td>
-                <td>
-                  {{stats.total_male_voted}}
-                </td>
-                <td>
-                  {{stats.total_female_voted}}
                 </td>
                 <td>
                   {{stats.total_voted}}
@@ -211,18 +175,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       </td>
     </tr>
     <!-- END of additional sections -->
-
-    <!-- Title secondary section -->
-    <!-- QR CODES section -->
-    <tr class="qr-codes">
-      <td align="center">
-        <div>
-          <div class="qrcode" id="qrcode"></div>
-        </div>
-      </td>
-    </tr>
-    <!-- END QR CODES section -->
-    <!-- END Title secondary section -->
 
     <!-- Left paragraph section -->
     <tr class="sys-info">
