@@ -5,6 +5,7 @@ use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionPresentation;
+use sequent_core::ballot::ElectionStatus;
 use sequent_core::types::hasura::core::{Election, VotingChannels};
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -393,6 +394,8 @@ pub async fn create_election(
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
     let voting_channels_value = serde_json::to_value(&VotingChannels::default())
         .map_err(|err| anyhow!("Error serializing voting_channels: {err}"))?;
+    let status = serde_json::to_value(ElectionStatus::default())
+        .map_err(|err| anyhow!("Error serializing election status: {err}"))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -406,7 +409,8 @@ pub async fn create_election(
                     alias,
                     description,
                     presentation,
-                    voting_channels
+                    voting_channels,
+                    status
                 )
                 VALUES
                 (
@@ -418,7 +422,8 @@ pub async fn create_election(
                     $4,
                     $5,
                     $6,
-                    $7
+                    $7,
+                    $8
                 )
                 RETURNING *;
             "#,
@@ -436,6 +441,7 @@ pub async fn create_election(
                 &description,
                 &presentation_value,
                 &voting_channels_value,
+                &status,
             ],
         )
         .await
@@ -467,7 +473,6 @@ pub async fn insert_elections(
             .clone()
             .map(|val| Uuid::parse_str(&val))
             .transpose()?;
-
         let statement = hasura_transaction
             .prepare(
                 r#"
