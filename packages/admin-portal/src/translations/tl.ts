@@ -325,9 +325,9 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Patakaran sa Seremonya",
+                    policyLabel: "Patakaran sa mga Seremonya ng Susi/Pagbilang",
                     options: {
-                        "automated-ceremonies": "Mga Awtomatikong Seremonya",
+                        "automated-ceremonies": "Payagan ang mga Awtomatikong Seremonya",
                         "manual-ceremonies": "Mga Manu-manong Seremonya",
                     },
                 },

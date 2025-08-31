@@ -52,3 +52,9 @@ screen rather than in the election chooser. This includes a fix so that
 the demo background/dialog will only appear for elections that don't have
 generated keys when voters login to the voting portal. Also, css classes
 are added to the demo background and dialog to help custom styling.
+
+## ✨ Add automatic keys/tally ceremonies
+Add a new Ceremonies Policy at the election event level.
+This policy provides the option for a user to enable automatic key ceremonies
+for a specific election or all elections. With this enabled, the tally will 
+also be performed automatically, eliminating the need for trustee involvement.

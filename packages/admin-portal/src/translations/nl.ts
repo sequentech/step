@@ -325,9 +325,9 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Ceremoniebeleid",
+                    policyLabel: "Sleutel-/Telceremoniebeleid",
                     options: {
-                        "automated-ceremonies": "Geautomatiseerde ceremonies",
+                        "automated-ceremonies": "Automatische ceremonies toestaan",
                         "manual-ceremonies": "Handmatige ceremonies",
                     },
                 },

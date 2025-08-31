@@ -327,9 +327,9 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Política de cerimonias",
+                    policyLabel: "Política de cerimonias de chaves/reconto",
                     options: {
-                        "automated-ceremonies": "Cerimonias automáticas",
+                        "automated-ceremonies": "Permitir cerimonias automáticas",
                         "manual-ceremonies": "Cerimonias manuais",
                     },
                 },

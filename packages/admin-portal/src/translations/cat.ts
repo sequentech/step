@@ -326,9 +326,9 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Política de cerimònies",
+                    policyLabel: "Política de cerimònies de claus/recompte",
                     options: {
-                        "automated-ceremonies": "Cerimònies automàtiques",
+                        "automated-ceremonies": "Permetre cerimònies automàtiques",
                         "manual-ceremonies": "Cerimònies manuals",
                     },
                 },

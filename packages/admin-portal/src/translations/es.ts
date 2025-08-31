@@ -326,9 +326,9 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Política de ceremonias",
+                    policyLabel: "Política de ceremonias de llaves/recuento",
                     options: {
-                        "automated-ceremonies": "Ceremonias automáticas",
+                        "automated-ceremonies": "Permitir ceremonias automáticas",
                         "manual-ceremonies": "Ceremonias manuales",
                     },
                 },

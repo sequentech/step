@@ -323,9 +323,9 @@ const englishTranslation = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Ceremonies Policy",
+                    policyLabel: "Keys/Tally Ceremonies Policy",
                     options: {
-                        "automated-ceremonies": "Automated Ceremonies",
+                        "automated-ceremonies": "Allow Automatic Ceremonies",
                         "manual-ceremonies": "Manual Ceremonies",
                     },
                 },

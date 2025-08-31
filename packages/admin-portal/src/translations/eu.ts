@@ -327,9 +327,9 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 ceremoniesPolicy: {
-                    policyLabel: "Zeremonien politika",
+                    policyLabel: "Giltza/Zenbaketa zeremonien politika",
                     options: {
-                        "automated-ceremonies": "Zeremonia automatizatuak",
+                        "automated-ceremonies": "Zeremonia automatikoak baimendu",
                         "manual-ceremonies": "Eskuzko zeremoniak",
                     },
                 },
