@@ -222,7 +222,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 trusteeNames,
                 electionId: electionId || null,
                 name: name ?? t("keysGeneration.configureStep.name"),
-                isAutomaticCeremony: isAutomaticCeremony,
+                isAutomaticCeremony: isAutomaticCeremony ?? false,
             },
         })
 

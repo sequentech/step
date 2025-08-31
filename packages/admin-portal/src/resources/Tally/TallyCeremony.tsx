@@ -430,30 +430,34 @@ export const TallyCeremony: React.FC = () => {
         )
     }, [elections, tallySession])
 
+    // Check if Tally is Allowed for automatic ceremony (skipped ceremony step)
     const isAutomaticTallyAllowed = useMemo(() => {
-        let keys_election = elections?.filter(
+        let selectedKeysElections = elections?.filter(
             (election) =>
-                election.permission_label &&
-                currentKeysCeremony?.permission_label?.includes(election.permission_label) &&
-                currentKeysCeremony?.name &&
-                election.name === currentKeysCeremony?.name
+                selectedElections?.includes(election.id) &&
+                election.keys_ceremony_id &&
+                currentKeysCeremony?.id === election.keys_ceremony_id
         )
-        return keys_election?.every((election) => {
-            const isVotingPeriodEnded =
-                election.status?.voting_status === EVotingStatus.CLOSED &&
-                (!election.voting_channels?.kiosk ||
-                    election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
-
-            return (
-                // tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
-                (election.status?.allow_tally === EAllowTally.ALLOWED ||
-                    (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
-                        isVotingPeriodEnded)) &&
-                // And the election must be published
-                election.status.is_published
-            )
-        })
-    }, [elections, currentKeysCeremony, isAutomatedCeremony])
+        if (selectedKeysElections?.length === 0) {
+            return false
+        }
+        return (
+            selectedKeysElections?.every((election) => {
+                const isVotingPeriodEnded =
+                    election.status?.voting_status === EVotingStatus.CLOSED &&
+                    (!election.voting_channels?.kiosk ||
+                        election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
+                return (
+                    // tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
+                    (election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            isVotingPeriodEnded)) &&
+                    // And the election must be published
+                    election.status.is_published
+                )
+            }) || false
+        )
+    }, [elections, currentKeysCeremony, isAutomatedCeremony, selectedElections])
 
     useEffect(() => {
         if (page === WizardSteps.Start && creatingType !== ETallyType.INITIALIZATION_REPORT) {
@@ -473,7 +477,7 @@ export const TallyCeremony: React.FC = () => {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
             }
         }
-    }, [selectedElections, isAutomatedCeremony])
+    }, [selectedElections, isAutomatedCeremony, isAutomaticTallyAllowed])
 
     const isInitAllowed = useMemo(() => {
         return (
@@ -814,7 +818,9 @@ export const TallyCeremony: React.FC = () => {
                             disabled on the Start page of the wizard. The button is disabled if:
                             1. The current page is the Start page and no elections are selected.
                             2. The elections are not published. 
-                            3. The keys ceremony policy is automatic-ceremonies and tally is not allowed yet.
+                            3. The keys ceremony policy is automatic-ceremonies and
+                            the tally session is not in the CONNECTED state or if the start of the ceremony 
+                            is not allowed based on the tally type and the status of the elections.
                             */}
                             {nextDisabledReason && isButtonDisabled && (
                                 <Alert severity="warning">{nextDisabledReason}</Alert>
