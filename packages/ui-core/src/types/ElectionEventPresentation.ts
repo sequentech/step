@@ -40,6 +40,11 @@ export enum EElectionEventLockedDown {
     NOT_LOCKED_DOWN = "not-locked-down",
 }
 
+export enum EElectionEventDecodedBallots {
+    INCLUDED = "included",
+    NOT_INCLUDED = "not-included",
+}
+
 export enum EElectionEventContestEncryptionPolicy {
     MULTIPLE_CONTESTS = "multiple-contests",
     SINGLE_CONTEST = "single-contest",

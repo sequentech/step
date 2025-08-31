@@ -22,7 +22,7 @@ extern "C" {
 const IINVALID_PLAINTEXT_ERROR: &'static str = r#"
 interface IInvalidPlaintextError {
     error_type: IInvalidPlaintextErrorType;
-    candidate_id?: number;
+    candidate_id?: string;
     message?: string;
     message_map: Map<string, string>;
 }

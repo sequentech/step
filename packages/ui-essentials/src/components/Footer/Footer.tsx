@@ -6,7 +6,7 @@ import {styled} from "@mui/material/styles"
 import Link from "@mui/material/Link"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
-import {useTranslation} from "react-i18next"
+import {Trans, useTranslation} from "react-i18next"
 
 const StyledPaper = styled(Paper)(
     ({theme}) => `
@@ -28,19 +28,52 @@ const StyledLink = styled(Link)`
     }
 `
 
+const CustomLink = ({title, href}: {title?: string; href?: string}) => (
+    <StyledLink className="footer-link" href={href} target="_blank" rel="noopener noreferrer">
+        {title}
+    </StyledLink>
+)
+
 const Footer: React.FC<PaperProps> = (args) => {
     const {t} = useTranslation()
+    const poweredByString = t("footer.poweredBy")
+
+    if (!poweredByString.includes("<sequent />")) {
+        return (
+            <StyledPaper className="footer-class" {...args}>
+                <Typography variant="subtitle2" fontStyle="italic" color="error">
+                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;sequent
+                    /&gt;`.
+                </Typography>
+            </StyledPaper>
+        )
+    }
 
     return (
         <StyledPaper className="footer-class" {...args}>
             <Typography variant="subtitle2" fontStyle="italic">
-                {t("poweredBy")}{" "}
-                <StyledLink href="//sequentech.io/" target="_blank" variant="black">
-                    Sequent Tech Inc.
-                </StyledLink>
+                <Trans
+                    i18nKey="footer.poweredBy"
+                    components={{
+                        link: <CustomLink />,
+                        sequent: <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
+                    }}
+                >
+                    <strong>Powered</strong> by&nbsp;
+                    <sequent />
+                </Trans>
             </Typography>
         </StyledPaper>
     )
+}
+
+declare global {
+    // eslint-disable-next-line @typescript-eslint/no-namespace
+    namespace JSX {
+        interface IntrinsicElements {
+            sequent: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
+        }
+    }
 }
 
 export default Footer

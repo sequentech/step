@@ -53,6 +53,58 @@ the demo background/dialog will only appear for elections that don't have
 generated keys when voters login to the voting portal. Also, css classes
 are added to the demo background and dialog to help custom styling.
 
+## 🐞 Accessing tenant url after logging out does not show tenant selection page.
+
+Previously, if you're logged in to the Admin Portal, and you logged out,
+and then went to the /tenant page to select the tenant, the page didn't load
+correctly the first time. This change fixes the issue.
+
+## 🐞 Intermitten errors loading preview
+
+Fix a race condition for calling WASM code when loading the voting portal that
+was sometimes causing an error.
+
+## 🐞 Voter actions are not logged
+
+Voter actions were not being logged because they were published to a message queue
+that didn't include the environment prefix.
+
+## ✨ Voting Portal > Start Screen: Allow Showing Election Event Title instead of Election Title
+
+The title of the Start Screen (Voting Portal) can be to either the election title or the Election Event Title. 
+The default value is the Election title, so there is no action required by the admin.
+
+This an be changed at election level > Data > Advanced Configuration.
+
+## ✨ Tally - Add decoded ballot json to SQLite results database
+
+With this change, it is possible now to include all the raw decoded ballots 
+inside the sqlite database. It also moves part of the database generation 
+inside velvet. This can be set at advanced config at the election event.
+
+## ✨ Voting Booth: Security confirmation checkbox support
+
+Add a security confirmation checkbox to the election Start Screen. Enable it from
+the Election > Data > Advanced Configurations in the Admin Portal, then configure
+it from  Election > Data > General translations section.
+
+## 🐞 Can't cast vote
+
+When an Election was created manually through the Admin Portal, the voting channels
+column was left empty. This means voters couldn't cast their vote as the online
+channel was not set active.
+
+## 🐞 Tenant/Event keycloak configs have static secrets 
+
+When a new tenant or event is created, some clients have secrets and they are 
+being imported as-is. When creating/importing a new tenant/event, now the secrets are 
+stripped from the config to be regenerated. 
+
+## 🐞 Default language in the voting portal is not honored in preview mode
+
+Previously the default language was not being selected when loading the Voting
+Portal, now it is.
+
 ## ✨ Add automatic keys/tally ceremonies
 Add a new Ceremonies Policy at the election event level.
 This policy provides the option for a user to enable automatic key ceremonies

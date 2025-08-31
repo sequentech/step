@@ -289,6 +289,10 @@ const basqueTranslation: TranslationType = {
                         "not-locked-down": "Blokeatu gabe",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
+                    options: {"included": "Sartu", "not-included": "Ez sartu"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Lehiaketa Bakarra",
@@ -542,6 +546,12 @@ const basqueTranslation: TranslationType = {
                 scheduledClosing: "Programatutako Itxiera",
                 alias: "Ezizena",
                 description: "Deskribapena",
+                securityConfirmationHtml: "Segurtasun-berrespena HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Segurtasun-berrespeneko kontrol-laukiaren politika",
+                none: "Bat ere ez",
+                mandatory: "Derrigorrezkoa",
             },
             error: {
                 fileError: "Errorea fitxategia igotzean",
@@ -582,6 +592,13 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "gold-level": "Urre maila Autentifikazioa",
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Hasierako pantailaren titulu politika",
+                options: {
+                    "election": "Hauteskundearen titulua",
+                    "election-event": "Hauteskunde-ekitaldiaren titulua",
                 },
             },
         },

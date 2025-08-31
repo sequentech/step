@@ -51,6 +51,7 @@ import {
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
+    EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
@@ -570,6 +571,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         let sortOrderB = presentationB?.sort_order ?? -1
         return sortOrderA - sortOrderB
     })
+
+    const decodedBallotsStateChoices = () => {
+        return Object.values(EElectionEventDecodedBallots).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.decodedBallots.options.${value}`),
+        }))
+    }
 
     const lockdownStateChoices = () => {
         return Object.values(EElectionEventLockedDown).map((value) => ({
@@ -1114,16 +1122,26 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         emptyText={undefined}
                                         validate={required()}
                                     />
-                                    <SelectInput
+                                        <SelectInput
+                                        source={"presentation.decoded_ballot_inclusion_policy"}
+                                        choices={decodedBallotsStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.decodedBallots.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                                                        <SelectInput
                                         source={"presentation.ceremonies_policy"}
                                         choices={ceremonyPolicyOptions()}
                                         label={t(
                                             "electionEventScreen.field.ceremoniesPolicy.policyLabel"
                                         )}
-                                        defaultValue={"manual-ceremonies"}
+                                        defaultValue={EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES}
                                         emptyText={undefined}
                                         validate={required()}
-                                    />
+                                        />
                                     <Typography
                                         variant="body1"
                                         component="span"

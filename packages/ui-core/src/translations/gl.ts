@@ -64,7 +64,9 @@ const galegoTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Desenvolvido por",
+        footer: {
+            poweredBy: "Desenvolvido por <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Non hai suficientes opcións para descifrar",

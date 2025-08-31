@@ -894,19 +894,6 @@ async fn map_plaintext_data(
     )))
 }
 
-#[instrument(skip(hasura_transaction), err)]
-async fn create_results_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<String> {
-    let results_event = &insert_results_event(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .with_context(|| "can't find results_event")?;
-
-    Ok(results_event.id.clone())
-}
-
 async fn build_reports_template_data(
     tally_type_enum: TallyType,
     tenant_id: String,
@@ -1131,7 +1118,7 @@ pub async fn execute_tally_session_wrapped(
         &areas,
         &default_language,
         tally_type_enum.clone(),
-        &tally_session,
+        plaintexts_data.is_empty(), // &tally_session,
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials

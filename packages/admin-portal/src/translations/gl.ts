@@ -289,6 +289,10 @@ const galegoTranslation: TranslationType = {
                         "not-locked-down": "Non Bloqueado",
                     },
                 },
+                decodedBallots: {
+                    policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
+                    options: {"included": "Incluír", "not-included": "Non incluír"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Concurso único",
@@ -541,6 +545,12 @@ const galegoTranslation: TranslationType = {
                 scheduledClosing: "Peche Programado",
                 alias: "Alias",
                 description: "Descrición",
+                securityConfirmationHtml: "Confirmación de seguridade HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política da caixa de confirmación de seguridade",
+                none: "Ningún",
+                mandatory: "Obrigatorio",
             },
             error: {
                 fileError: "Erro ao cargar o ficheiro",
@@ -581,6 +591,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título da pantalla de inicio",
+                options: {
+                    "election": "Título da elección",
+                    "election-event": "Título do evento electoral",
                 },
             },
         },

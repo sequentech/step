@@ -288,6 +288,11 @@ const spanishTranslation: TranslationType = {
                         "not-locked-down": "No Confinado",
                     },
                 },
+                decodedBallots: {
+                    policyLabel:
+                        "Incluir papeletas decodificadas en la base de datos de resultados",
+                    options: {"included": "Incluir", "not-included": "No incluir"},
+                },
                 contestEncryptionPolicy: {
                     options: {
                         "single-contest": "Concurso único",
@@ -540,6 +545,12 @@ const spanishTranslation: TranslationType = {
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
+                securityConfirmationHtml: "Confirmación de seguridad HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casilla de confirmación de seguridad",
+                none: "Ninguno",
+                mandatory: "Obligatorio",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -580,6 +591,13 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título de pantalla de inicio",
+                options: {
+                    "election": "Elección",
+                    "election-event": "Evento Electoral",
                 },
             },
         },

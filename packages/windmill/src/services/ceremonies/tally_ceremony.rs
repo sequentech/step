@@ -297,8 +297,10 @@ pub async fn create_tally_ceremony(
         export_area_contests(&transaction, &tenant_id, &election_event_id),
     )?;
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
+    let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let mut final_configuration = configuration.clone().unwrap_or_default();
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
+    final_configuration.decoded_ballots_inclusion_policy = Some(decoded_ballots_inclusion_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))

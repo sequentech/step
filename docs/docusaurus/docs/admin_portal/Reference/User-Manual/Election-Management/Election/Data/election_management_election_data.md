@@ -8,6 +8,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 1. General
 
 Manage data related to the Election. This tab allows configuration of core settings for an individual Election, similar in structure to the Election Event Data tab but scoped to this specific Election.
 
@@ -121,6 +122,10 @@ Import advanced settings for this Election and define vote limits, confirmations
 - **Upload Advanced Configuration** (Optional):  
   - Drag and drop a configuration file (e.g., JSON or system-specific format) to apply pre-defined advanced settings.  
   - This may include settings like contest encryption policies, custom validations, or integrations.
+  
+- **Start Screen Title Policy**
+
+  - Set the title of the Start Screen (Voting Portal) to either the election title or the Election Event Title. The default value is the Election title.
 
 ---
 

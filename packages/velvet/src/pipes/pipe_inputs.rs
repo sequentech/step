@@ -29,6 +29,7 @@ pub const PREFIX_TALLY_SHEET: &str = "tally_sheet__";
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
 pub const DEFAULT_DIR_TALLY_SHEETS: &str = "default/tally_sheets";
+pub const DEFAULT_DIR_DATABASE: &str = "default/database";
 
 pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
@@ -42,6 +43,7 @@ pub struct PipeInputs {
     pub root_path_config: PathBuf,
     pub root_path_ballots: PathBuf,
     pub root_path_tally_sheets: PathBuf,
+    pub root_path_database: PathBuf,
     pub stage: Stage,
     pub election_list: Vec<InputElectionConfig>,
 }
@@ -52,13 +54,15 @@ impl PipeInputs {
         let root_path_config = &cli.input_dir.join(DEFAULT_DIR_CONFIGS);
         let root_path_ballots = &cli.input_dir.join(DEFAULT_DIR_BALLOTS);
         let root_path_tally_sheets = &cli.input_dir.join(DEFAULT_DIR_TALLY_SHEETS);
-        let election_list = Self::read_input_dir_config(root_path_config.as_path())?;
+        let root_path_database = &cli.input_dir.join(DEFAULT_DIR_DATABASE);
 
+        let election_list = Self::read_input_dir_config(root_path_config.as_path())?;
         Ok(Self {
             cli,
             root_path_config: root_path_config.to_path_buf(),
             root_path_ballots: root_path_ballots.to_path_buf(),
             root_path_tally_sheets: root_path_tally_sheets.to_path_buf(),
+            root_path_database: root_path_database.to_path_buf(),
             stage,
             election_list,
         })

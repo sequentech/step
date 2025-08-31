@@ -160,6 +160,7 @@ module.exports = {
           label: 'Braid',
           items: ['developers/Braid/braid_trustees_configuration'],
         },
+        'cli/Tutorials/Load-Testing/load_testing'
       ],
     },
     {
@@ -203,7 +204,7 @@ module.exports = {
               items: [
                 'reference/cryptography_security/cryptography/mixnet',
                 'reference/cryptography_security/cryptography/proofs',
-                
+
               ],
             },
             {
