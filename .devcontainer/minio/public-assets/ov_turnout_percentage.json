@@ -55,13 +55,13 @@
     "precinct_code": "P12345",
     "overall_total": {
       "total_male_registered": 3,
-      "total_female_registered": 3,
-      "total_registered": 1,
-      "total_male_voted": 1,
-      "total_female_voted": 1,
-      "total_voted": 1,
-      "percentage_male": 20.0,
-      "percentage_female": 60.0,
+      "total_female_registered": 2,
+      "total_registered": 5,
+      "total_male_voted": 2,
+      "total_female_voted": 2,
+      "total_voted": 4,
+      "percentage_male": 40.0,
+      "percentage_female": 40.0,
       "percentage_total": 80.0
     },
     "inspectors": [
@@ -84,13 +84,13 @@
       "area_name": "United States",
       "stats": {
         "total_male_registered": 3,
-        "total_female_registered": 3,
-        "total_registered": 1,
-        "total_male_voted": 1,
-        "total_female_voted": 1,
-        "total_voted": 1,
-        "percentage_male": 20.0,
-        "percentage_female": 60.0,
+        "total_female_registered": 2,
+        "total_registered": 5,
+        "total_male_voted": 2,
+        "total_female_voted": 2,
+        "total_voted": 4,
+        "percentage_male": 40.0,
+        "percentage_female": 40.0,
         "percentage_total": 80.0
       }
     }
