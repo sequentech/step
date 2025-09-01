@@ -102,13 +102,10 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                   <strong>Area</strong>
                 </td>
                 <td>
-                  <strong>Country</strong>
+                  <strong>Registered Voters</strong>
                 </td>
                 <td>
-                  <strong>Registered OV Total</strong>
-                </td>
-                <td>
-                  <strong>OV who Actually Voted Total</strong>
+                  <strong>Actually Voted</strong>
                 </td>
                 <td>
                   <strong>% Male</strong>
@@ -125,8 +122,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
               <tr>
                 <td>
                   Overall Total
-                </td>
-                <td>
                 </td>
                 <td>
                   {{election.overall_total.total_registered}}
@@ -146,9 +141,6 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
               </tr>
               {{#each areas}}
               <tr>
-                <td>
-                  {{../election.post}}
-                </td>
                 <td>
                   {{area_name}}
                 </td>
