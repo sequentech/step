@@ -42,7 +42,7 @@ jobs:
           profile: minimal
           toolchain: nightly-2025-05-04
           components: rustfmt
-          target: x86_64-unknown-linux-musl
+          override: true
 
       - name: Install system dependencies
         run: |

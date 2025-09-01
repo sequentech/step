@@ -37,6 +37,7 @@ jobs:
           profile: minimal
           toolchain: nightly-2025-05-04
           components: rustfmt
+          override: true
           target: x86_64-unknown-linux-musl
 
       - name: Link openssl
