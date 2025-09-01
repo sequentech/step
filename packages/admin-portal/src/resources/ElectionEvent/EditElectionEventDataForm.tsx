@@ -1122,7 +1122,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         emptyText={undefined}
                                         validate={required()}
                                     />
-                                        <SelectInput
+                                    <SelectInput
                                         source={"presentation.decoded_ballot_inclusion_policy"}
                                         choices={decodedBallotsStateChoices()}
                                         label={t(
@@ -1132,16 +1132,18 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         emptyText={undefined}
                                         validate={required()}
                                     />
-                                                                        <SelectInput
+                                    <SelectInput
                                         source={"presentation.ceremonies_policy"}
                                         choices={ceremonyPolicyOptions()}
                                         label={t(
                                             "electionEventScreen.field.ceremoniesPolicy.policyLabel"
                                         )}
-                                        defaultValue={EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES}
+                                        defaultValue={
+                                            EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
+                                        }
                                         emptyText={undefined}
                                         validate={required()}
-                                        />
+                                    />
                                     <Typography
                                         variant="body1"
                                         component="span"
