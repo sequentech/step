@@ -140,14 +140,14 @@ module.exports = {
                 // Screenshots are optional for performance or disk space
                 // reasons
                 .perform(() => maybeScreenshot(`screenshots/login(${iteration}).png`))
-                .pause(1500)
+                .pause(300)
                 // Use unique credentials per iteration to ensure enough total
                 // votes are captured; please ensure revoting is allowed because
                 // this script will sometimes vote multiple times with the same
                 // user
                 .perform(() => robustSetValue('input[name=username]', username))
                 .perform(() => robustSetValue('input[name=password]', password))
-                .pause(1500)
+                .pause(300)
                 .perform(() => maybeScreenshot(`screenshots/login_filled(${iteration}).png`))
                 .execute(function() {
                     const button = document.querySelector('#kc-login');
@@ -159,7 +159,7 @@ module.exports = {
                 }, [], function(result) {
                     console.log('#kc-login button clicked via JavaScript:', result.value);
                 })
-                .pause(2500)
+                .pause(300)
                 .perform(() => maybeScreenshot(`screenshots/ballot_list_load${iteration}.png`))
                 // Wait for the voting UI to load; this ensures the test doesn't
                 // race ahead
@@ -177,7 +177,7 @@ module.exports = {
                         console.log('Warning: click-to-vote-button not found');
                     }
                 })
-                .pause(1000)
+                .pause(300)
                 .perform(() => maybeScreenshot(`screenshots/startVotingScreen${iteration}.png`))
                 .execute(function() {
                     const button = document.querySelector('button.click-to-vote-button');
@@ -189,7 +189,7 @@ module.exports = {
                 }, [], function(result) {
                     console.log('Click to vote button clicked via JavaScript:', result.value);
                 })
-                .pause(2000)
+                .pause(300)
                 .waitForElementVisible("button.start-voting-button", 20000)
                 .execute(function() {
                     const button = document.querySelector('button.start-voting-button');
@@ -199,7 +199,7 @@ module.exports = {
                     }
                     return false;
                 })
-                .pause(1000)
+                .pause(100)
                 .execute(function() {
                     const button = document.querySelector('button.start-voting-button');
                     if (button && !button.disabled) {
@@ -210,7 +210,7 @@ module.exports = {
                 }, [], function(result) {
                     console.log('Start voting button clicked via JavaScript:', result.value);
                 })
-                .pause(1000)
+                .pause(300)
                 .saveScreenshot(`screenshots/afterStartVoting${iteration}.png`)
                 // Use browser.execute to dynamically discover contests and
                 // candidates; this makes the test robust to ballot changes
@@ -252,9 +252,9 @@ module.exports = {
                                     }, [candidate.selector], function(clickResult) {
                                         console.log(`Clicked ${candidate.name} via JavaScript:`, clickResult.value);
                                     })
-                                    .pause(500)
+                                    .pause(100)
                                     .assert.elementPresent(`${candidate.selector}:checked`, `Checkbox for ${candidate.name} is checked`)
-                                    .pause(500);
+                                    .pause(100);
                             });
                         });
                     } else {
@@ -273,7 +273,7 @@ module.exports = {
                 }, [], function(result) {
                     console.log('Next button clicked via JavaScript:', result.value);
                 })
-                .pause(2000)
+                .pause(300)
                 .perform(() => maybeScreenshot(`screenshots/reviewScreen${iteration}.png`))
                 .waitForElementVisible("button.cast-ballot-button", 20000)
                 .execute(function() {
@@ -286,7 +286,7 @@ module.exports = {
                 }, [], function(result) {
                     console.log('Cast ballot button clicked via JavaScript:', result.value);
                 })
-                .pause(2000)
+                .pause(100)
                 .perform(() => maybeScreenshot(`screenshots/afterCastBallot${iteration}.png`))
                 .waitForElementVisible("div.confirmation-screen.screen", 1500)
                 .execute(function() {
@@ -299,7 +299,7 @@ module.exports = {
                 }, [], function(result) {
                     console.log('Logout button clicked via JavaScript:', result.value);
                 })
-                .pause(500)
+                .pause(300)
                 .waitForElementVisible("li.logout-button", 20000)
                 .execute(function() {
                     const button = document.querySelector('li.logout-button');
@@ -311,7 +311,7 @@ module.exports = {
                 }, [], function(result) {
                     console.log('Logout button clicked via JavaScript:', result.value);
                 })
-                .pause(500)
+                .pause(300)
                 .execute(function() {
                     const button = document.querySelector('button.ok-button');
                     if (button && !button.disabled) {
@@ -322,9 +322,8 @@ module.exports = {
                 }, [], function(result) {
                     console.log('Final logout button clicked via JavaScript:', result.value);
                 })
-                .pause(500)
+                .pause(300)
                 .saveScreenshot(`screenshots/summaryPage${iteration}.png`)
-                .pause(500)
                 // Continue with logout flow or handle completion
                 .perform(() => {
                     console.log(`Completed iteration #${iteration}`);
