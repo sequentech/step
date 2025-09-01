@@ -40,7 +40,7 @@ The **Actions** column provides options to interact with voter records:
 
 ---
 
-### Send Notifications
+#### Send Notifications
 
 Use this tab to send notifications to voters through various methods, schedules, and templates.
 
@@ -55,7 +55,7 @@ Use this tab to send notifications to voters through various methods, schedules,
 
 ---
 
-### Manual Verification
+#### Manual Verification
 
 Confirm the voter's identity without requiring additional verification steps.
 
@@ -68,7 +68,7 @@ Confirm the voter's identity without requiring additional verification steps.
 
 ---
 
-### Change Password
+#### Change Password
 
 Change the voter's password.
 
@@ -77,7 +77,40 @@ Change the voter's password.
 
 ---
 
-### User’s Log
+#### User’s Log
 
 View logs of all actions performed by the voter.
 
+### Adding User Attributes
+
+The system supports adding additional user attributes that will appear as a new 
+field in the user data (Add or Edit action) once they are configured. This must 
+be configured via Keycloak.
+
+1. Login to Keycloak and select the election event you want to edit.
+2. Realm settings > User profile > Create attribute
+3. Give an attribute name, like in the first example `sex`.
+4. Set display name as `${sex}` if you want override the translations in 
+   Localization > Realm overrides.
+5. Continue configuring Annotations and other parameters, see below.
+
+For example these attribute types are supported:
+
+#### Sex
+
+To be able to select the sex:
+
+1. In Annotations > Add annotation > set Key `Input type` Value `select`
+2. Add Validator > Validator type `options` and add the desired options i.e. M, F
+
+#### Birth date
+
+To show a date input field:
+
+1. In Annotations set Key `Input type` Value `html5-date`
+2. Add a validation if desired.
+
+#### Checkboxes
+
+1. In Annotations > Add annotation set Key `Input type` Value `multiselect-checkboxes`
+2. TODO
