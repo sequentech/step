@@ -148,7 +148,8 @@ const BallotLocator: React.FC = () => {
     const [somethingWentWrongErr, setSomethingWentWrongErr] = useState(false)
     const validatedBallotId = isHex(inputBallotId ?? "")
     const [showCVLogsPolicy, setShowCVLogsPolicy] = useState(false)
-    const {globalSettings, defaultLanguageTouched, setDefaultLanguageTouched} = useContext(SettingsContext)
+    const {globalSettings, defaultLanguageTouched, setDefaultLanguageTouched} =
+        useContext(SettingsContext)
     const [page, setPage] = React.useState(0)
     const [rowsPerPage, setRowsPerPage] = React.useState(5)
     const lastCVRequestTimestamp = useRef<number | undefined>(undefined) // Timestamp of last LIST_CAST_VOTE_MESSAGES request
@@ -170,9 +171,13 @@ const BallotLocator: React.FC = () => {
         skip: true,
     })
 
-    useUpdateTranslation({
-        electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
-    }, defaultLanguageTouched, setDefaultLanguageTouched) // Overwrite translations
+    useUpdateTranslation(
+        {
+            electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
+        },
+        defaultLanguageTouched,
+        setDefaultLanguageTouched
+    ) // Overwrite translations
     const customCss = dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css
     let fetchTimeout: any = useRef()
 
@@ -479,8 +484,7 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({customCss}) => {
     const location = useLocation()
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
-    const {globalSettings} =
-        useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
 
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
