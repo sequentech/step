@@ -15,6 +15,9 @@ const basqueTranslation: TranslationType = {
             confirmation: "Berrespena",
             audit: "Auditoria",
         },
+        footer: {
+            poweredBy: "Honek bultzatuta: <sequent />",
+        },
         votingScreen: {
             backButton: "Atzera",
             reviewButton: "Hurrengoa",

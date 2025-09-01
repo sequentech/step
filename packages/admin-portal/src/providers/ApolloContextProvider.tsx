@@ -116,7 +116,7 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     // Show loading spinner while waiting for client
     if (null === apolloClient) {
         return (
-            <Box>
+            <Box className="apollo-wrapper">
                 <CircularProgress />
             </Box>
         )

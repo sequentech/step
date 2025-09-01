@@ -77,6 +77,30 @@
             "problemMatcher": []
         },
         {
+            "label": "start.storybook.ui-essentials",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd packages && yarn storybook:ui-essentials",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "start.docusaurus",
             "command": "devenv",
             "args": [
@@ -209,6 +233,33 @@
             "args": [
                 "-c",
                 "docker compose stop keycloak; docker compose build keycloak && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },        {
+            "label": "rebuild.janitor",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop janitor; docker compose build janitor && docker compose up -d --no-deps janitor",
             ],
             "options": {
                 "env": {

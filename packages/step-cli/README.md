@@ -4,7 +4,7 @@
 
 # Sequent CLI
 A tool created to automate and streamline actions within the sequent ecosystem
-> Either run the task init.cli to have the cli available through the terminal using ```seq COMMAND``` or run directly in the step-cli folder via ```cargo run -- COMMAND```
+> Either run the task init.cli to have the cli available through the terminal using ```step-cli COMMAND``` or run directly in the step-cli folder via ```cargo run -- COMMAND```
 
 ## Help
 Run 

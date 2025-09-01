@@ -15,6 +15,9 @@ const tagalogTranslation: TranslationType = {
             confirmation: "Kumpirmasyon",
             audit: "Audit",
         },
+        footer: {
+            poweredBy: "Pinapagana ng <sequent />",
+        },
         votingScreen: {
             backButton: "Bumalik",
             reviewButton: "Susunod",

@@ -15,6 +15,9 @@ const dutchTranslation: TranslationType = {
             confirmation: "Bevestiging",
             audit: "Audit",
         },
+        footer: {
+            poweredBy: "Aangedreven door <sequent />",
+        },
         votingScreen: {
             backButton: "Terug",
             reviewButton: "Volgende",

@@ -15,6 +15,9 @@ const spanishTranslation: TranslationType = {
             confirmation: "Confirmación",
             audit: "Auditar",
         },
+        footer: {
+            poweredBy: "Funciona con <sequent />",
+        },
         votingScreen: {
             backButton: "Atrás",
             reviewButton: "Siguiente",

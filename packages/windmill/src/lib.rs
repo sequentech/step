@@ -11,6 +11,5 @@ extern crate quick_error;
 
 pub mod postgres;
 pub mod services;
-pub mod sqlite;
 pub mod tasks;
 pub mod types;

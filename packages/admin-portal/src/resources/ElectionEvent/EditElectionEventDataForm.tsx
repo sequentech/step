@@ -52,6 +52,7 @@ import {
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
     EShowCastVoteLogsPolicy,
+    EElectionEventDecodedBallots,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -577,6 +578,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         let sortOrderB = presentationB?.sort_order ?? -1
         return sortOrderA - sortOrderB
     })
+
+    const decodedBallotsStateChoices = () => {
+        return Object.values(EElectionEventDecodedBallots).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.decodedBallots.options.${value}`),
+        }))
+    }
 
     const lockdownStateChoices = () => {
         return Object.values(EElectionEventLockedDown).map((value) => ({
@@ -1118,6 +1126,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             "electionEventScreen.field.lockdownState.policyLabel"
                                         )}
                                         defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.decoded_ballot_inclusion_policy"}
+                                        choices={decodedBallotsStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.decodedBallots.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
                                         emptyText={undefined}
                                         validate={required()}
                                     />

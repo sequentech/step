@@ -16,6 +16,7 @@ pub enum Error {
     IO(std::io::Error),
     JsonParse(serde_json::Error),
     UnexpectedError(String),
+    Anyhow(anyhow::Error),
 }
 
 impl core::fmt::Display for Error {
@@ -33,6 +34,12 @@ impl From<std::io::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(val: serde_json::Error) -> Self {
         Self::JsonParse(val)
+    }
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(err: anyhow::Error) -> Self {
+        Error::Anyhow(err)
     }
 }
 

@@ -16,7 +16,7 @@ use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
-use ::keycloak::types::RealmRepresentation;
+use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
 use anyhow::{anyhow, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
@@ -205,18 +205,64 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
         .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
 }
 
+#[instrument(skip(realm))]
+pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepresentation {
+    // we remove secrets and certs so that keycloak regenerates them
+    // remove client secrets
+    let mut realm_copy = realm.clone();
+    realm_copy.clients = realm_copy.clients.map(|clients| {
+        clients
+            .iter()
+            .map(|client| {
+                let mut client_copy = client.clone();
+                client_copy.secret = None;
+                client_copy
+            })
+            .collect()
+    });
+    // remove certificates, only leaving their algorithm/priority
+    let valid_keys: Vec<String> = vec!["priority".to_string(), "algorithm".to_string()];
+    if let Some(components) = realm_copy.components.clone() {
+        let mut newcomponents = components.clone();
+        let key: &'static str = "org.keycloak.keys.KeyProvider";
+        if let Some(val) = components.get(key) {
+            let newval: Vec<ComponentExportRepresentation> = val
+                .iter()
+                .map(|el| {
+                    let mut elnew = el.clone();
+                    if let Some(config) = elnew.config.clone() {
+                        let mut newconfig = config.clone();
+                        for k in config.keys() {
+                            if !valid_keys.contains(&k) {
+                                info!("Removing key {} from {}", k, key);
+                                newconfig.remove(k);
+                            }
+                        }
+                        elnew.config = Some(newconfig);
+                    }
+                    elnew
+                })
+                .collect();
+            newcomponents.insert(key.to_string(), newval.clone());
+        }
+        realm_copy.components = Some(newcomponents);
+    }
+    realm_copy
+}
+
 #[instrument(err, skip(keycloak_event_realm))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
 ) -> Result<()> {
-    let realm = if let Some(realm) = keycloak_event_realm.clone() {
+    let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
         let realm = read_default_election_event_realm()?;
         realm
     };
+    realm = remove_keycloak_realm_secrets(&realm);
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
