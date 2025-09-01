@@ -51,7 +51,7 @@ RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
 RUN rustup toolchain install nightly-2025-05-04 \
     && rustup default nightly-2025-05-04
-RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev wget software-properties-common \
+RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev wget \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \

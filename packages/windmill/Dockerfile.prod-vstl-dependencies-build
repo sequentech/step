@@ -40,7 +40,7 @@ RUN case "${TARGETARCH}" in \
 # Install any necessary runtime dependencies for production
 RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
+    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 RUN update-ca-certificates
 RUN wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
