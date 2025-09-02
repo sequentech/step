@@ -81,36 +81,9 @@ Change the voter's password.
 
 View logs of all actions performed by the voter.
 
-### Adding User Attributes
+### Additional User Data Fields
 
-The system supports adding additional user attributes that will appear as a new 
-field in the user data (Add or Edit action) once they are configured. This must 
-be configured via Keycloak.
+You can add addtional fields like the voter´s birthday or sex, check out the 
+tutorial for that.
+docs/docusaurus/docs/admin_portal/Tutorials/admin_portal_tutorials_add-user-attributes-to-keycloak.md
 
-1. Login to Keycloak and select the election event you want to edit.
-2. Realm settings > User profile > Create attribute
-3. Give an attribute name, like in the first example `sex`.
-4. Set display name as `${sex}` if you want override the translations in 
-   Localization > Realm overrides.
-5. Continue configuring Annotations and other parameters, see below.
-
-For example these attribute types are supported:
-
-#### Sex
-
-To be able to select the sex:
-
-1. In Annotations > Add annotation > set Key `Input type` Value `select`
-2. Add Validator > Validator type `options` and add the desired options i.e. M, F
-
-#### Birth date
-
-To show a date input field:
-
-1. In Annotations set Key `Input type` Value `html5-date`
-2. Add a validation if desired.
-
-#### Checkboxes
-
-1. In Annotations > Add annotation set Key `Input type` Value `multiselect-checkboxes`
-2. TODO
