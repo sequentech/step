@@ -13,7 +13,7 @@ use crate::services::reports::ov_turnout_per_aboard_status_sex_percentage::OVTur
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
-use crate::services::reports::voters_turnout_percentage::OVTurnoutPercentageReport;
+use crate::services::reports::voters_turnout_percentage::VotersTurnoutPercentageReport;
 use crate::services::reports::{
     activity_log::{ActivityLogsTemplate, ReportFormat},
     audit_logs::AuditLogsTemplate,
@@ -221,7 +221,7 @@ pub async fn generate_report(
             execute_report!(report);
         }
         Ok(ReportType::VOTERS_TURNOUT_PERCENTAGE) => {
-            let report = OVTurnoutPercentageReport::new(ids);
+            let report = VotersTurnoutPercentageReport::new(ids);
             execute_report!(report);
         }
         Ok(ReportType::OV_NOT_YET_PRE_ENROLLED_NUMBER) => {

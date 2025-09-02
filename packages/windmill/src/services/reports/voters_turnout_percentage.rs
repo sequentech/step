@@ -68,20 +68,20 @@ pub struct SystemData {
     pub file_qrcode_lib: String,
 }
 
-/// Main struct for generating Overseas Voters Report
+/// Main struct for generating Voters Report
 #[derive(Debug)]
-pub struct OVTurnoutPercentageReport {
+pub struct VotersTurnoutPercentageReport {
     ids: ReportOrigins,
 }
 
-impl OVTurnoutPercentageReport {
+impl VotersTurnoutPercentageReport {
     pub fn new(ids: ReportOrigins) -> Self {
-        OVTurnoutPercentageReport { ids }
+        VotersTurnoutPercentageReport { ids }
     }
 }
 
 #[async_trait]
-impl TemplateRenderer for OVTurnoutPercentageReport {
+impl TemplateRenderer for VotersTurnoutPercentageReport {
     type UserData = UserData;
     type SystemData = SystemData;
 
