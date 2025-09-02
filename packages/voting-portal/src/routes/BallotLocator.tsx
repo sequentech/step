@@ -400,6 +400,15 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.statement_timestamp")}
                                 </TableSortLabel>
                             </TableCell>
+                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                                <TableSortLabel
+                                    active={orderBy === "message"}
+                                    direction={orderBy === "message" ? order : "asc"}
+                                    // onClick={() => onClickHeader("message")}
+                                >
+                                    {t("ballotLocator.column.message")}
+                                </TableSortLabel>
+                            </TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -411,6 +420,8 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 <TableCell align="justify">
                                     {new Date(row.statement_timestamp * 1000).toUTCString()}
                                 </TableCell>
+                                <TableCell align="justify">{row.message}</TableCell>
+
                             </TableRow>
                         ))}
                     </TableBody>
