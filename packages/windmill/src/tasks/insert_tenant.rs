@@ -36,7 +36,7 @@ pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
 #[instrument(err)]
 pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
     let mut default_tenant = read_default_tenant_realm()?;
-    default_tenant = remove_keycloak_realm_secrets(&default_tenant);
+    default_tenant = remove_keycloak_realm_secrets(&default_tenant)?;
     let realm_config = serde_json::to_string(&default_tenant)?;
     let client = KeycloakAdminClient::new().await?;
     let realm = get_tenant_realm(tenant_id);

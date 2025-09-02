@@ -195,9 +195,8 @@ pub async fn upsert_b3_and_elog(
 
 #[instrument(err)]
 pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
-    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").with_context(||
-        "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
-    )?;
+    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH")
+        .with_context(|| "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set")?;
     let realm_config = fs::read_to_string(&realm_config_path)
         .with_context(|| "Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}")?;
 
@@ -209,7 +208,8 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
     // set a specific client secret for a specific client id by env config
     let client_id = env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
-    let client_secret = env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
+    let client_secret =
+        env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
     // we remove secrets and certs so that keycloak regenerates them
     // remove client secrets
     let mut realm_copy = realm.clone();
@@ -254,7 +254,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
         }
         realm_copy.components = Some(newcomponents);
     }
-    realm_copy
+    Ok(realm_copy)
 }
 
 #[instrument(err, skip(keycloak_event_realm))]
@@ -269,7 +269,7 @@ pub async fn upsert_keycloak_realm(
         let realm = read_default_election_event_realm()?;
         realm
     };
-    realm = remove_keycloak_realm_secrets(&realm);
+    realm = remove_keycloak_realm_secrets(&realm)?;
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
