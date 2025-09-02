@@ -85,3 +85,11 @@ stripped from the config to be regenerated.
 
 Previously the default language was not being selected when loading the Voting
 Portal, now it is.
+
+## 🐞 Voters can't login to election events in new tenants
+
+For security, secrets/certificates are generated randomly when creating a new
+election event/tenant. However the secret for the service account of the tenant
+should be set by the system as it is used internally. This is now set by
+environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
+
