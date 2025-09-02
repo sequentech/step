@@ -1863,7 +1863,7 @@ const tagalogTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
                 LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                VOTERS_TURNOUT_PERCENTAGE: "Turnout ng mga Botante sa Ibang Bansa",
+                VOTERS_TURNOUT_PERCENTAGE: "Turnout ng mga Botante",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
