@@ -1858,7 +1858,7 @@ const dutchTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven maar afgekeurd",
                 LIST_OF_OVERSEAS_VOTERS: "Lijst van buitenlandse kiezers",
-                OV_TURNOUT_PERCENTAGE: "Opkomst Buitenlandse Kiezers",
+                VOTERS_TURNOUT_PERCENTAGE: "Opkomst Buitenlandse Kiezers",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Opkomst Buitenlandse Kiezers - per Status aan Boord en Geslacht",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:

@@ -86,7 +86,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
     type SystemData = SystemData;
 
     fn get_report_type(&self) -> ReportType {
-        ReportType::OV_TURNOUT_PERCENTAGE
+        ReportType::VOTERS_TURNOUT_PERCENTAGE
     }
 
     fn get_tenant_id(&self) -> String {
@@ -110,12 +110,12 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
     }
 
     fn base_name(&self) -> String {
-        "ov_turnout_percentage".to_string()
+        "voters_turnout_percentage".to_string()
     }
 
     fn prefix(&self) -> String {
         format!(
-            "ov_turnout_percentage_{}_{}_{}",
+            "voters_turnout_percentage{}_{}_{}",
             self.ids.tenant_id,
             self.ids.election_event_id,
             self.ids.election_id.clone().unwrap_or_default()
@@ -189,7 +189,7 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();
-        let report_hash = get_report_hash(&ReportType::OV_TURNOUT_PERCENTAGE.to_string())
+        let report_hash = get_report_hash(&ReportType::VOTERS_TURNOUT_PERCENTAGE.to_string())
             .await
             .unwrap_or("-".to_string());
 

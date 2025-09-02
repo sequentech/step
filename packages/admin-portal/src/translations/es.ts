@@ -1861,7 +1861,7 @@ const spanishTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de OV que se preinscribieron pero fueron rechazados",
                 LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                OV_TURNOUT_PERCENTAGE: "Participación de Votantes en el Extranjero",
+                VOTERS_TURNOUT_PERCENTAGE: "Participación de Votantes en el Extranjero",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
