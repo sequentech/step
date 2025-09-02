@@ -218,7 +218,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
             .iter()
             .map(|client| {
                 let mut client_copy = client.clone();
-                if client.client_id == Some(client_id) {
+                if client.client_id == Some(client_id.clone()) {
                     client_copy.secret = Some(client_secret.clone());
                 } else {
                     client_copy.secret = None;
