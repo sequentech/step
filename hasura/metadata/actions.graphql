@@ -1064,6 +1064,7 @@ type CastVoteEntry {
     statement_kind: String!
     ballot_id: String!
     username: String!
+    message: String!
 }
 
 type ListCastVoteMessagesOutput {

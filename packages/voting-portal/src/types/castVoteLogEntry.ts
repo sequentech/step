@@ -7,4 +7,5 @@ export interface ICastVoteEntry {
     statement_kind: string
     ballot_id: string
     username: string
+    message: string
 }
