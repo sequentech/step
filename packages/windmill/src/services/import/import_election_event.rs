@@ -195,18 +195,21 @@ pub async fn upsert_b3_and_elog(
 
 #[instrument(err)]
 pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
-    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
+    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").with_context(||
         "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
-    ));
+    )?;
     let realm_config = fs::read_to_string(&realm_config_path)
-        .expect(&format!("Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}"));
+        .with_context(|| "Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}")?;
 
     deserialize_str(&realm_config)
         .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
 }
 
 #[instrument(skip(realm))]
-pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepresentation {
+pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
+    // set a specific client secret for a specific client id by env config
+    let client_id = env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
+    let client_secret = env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
     // we remove secrets and certs so that keycloak regenerates them
     // remove client secrets
     let mut realm_copy = realm.clone();
@@ -215,7 +218,11 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepres
             .iter()
             .map(|client| {
                 let mut client_copy = client.clone();
-                client_copy.secret = None;
+                if client.client_id == Some(client_id) {
+                    client_copy.secret = Some(client_secret.clone());
+                } else {
+                    client_copy.secret = None;
+                }
                 client_copy
             })
             .collect()
