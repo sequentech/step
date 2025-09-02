@@ -79,6 +79,7 @@ export type Boolean_Comparison_Exp = {
 export type CastVoteEntry = {
     __typename?: "CastVoteEntry"
     ballot_id: Scalars["String"]["output"]
+    message: Scalars["String"]["output"]
     statement_kind: Scalars["String"]["output"]
     statement_timestamp: Scalars["Int"]["output"]
     username: Scalars["String"]["output"]
@@ -17105,8 +17106,6 @@ export type Sequent_Backend_Tally_Sheet_Bool_Exp = {
 export enum Sequent_Backend_Tally_Sheet_Constraint {
     /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
     TallySheetPkey = "tally_sheet_pkey",
-    /** unique or primary key constraint on columns "election_id", "contest_id", "area_id", "channel", "tenant_id", "election_event_id" */
-    TallySheetUniqChannel = "tally_sheet_uniq_channel",
 }
 
 /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
