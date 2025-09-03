@@ -83,7 +83,8 @@ View logs of all actions performed by the voter.
 
 ### Additional User Data Fields
 
-You can add addtional fields like the voter´s birthday or sex, check out the 
-tutorial for that.
-docs/docusaurus/docs/admin_portal/Tutorials/admin_portal_tutorials_add-user-attributes-to-keycloak.md
-
+You can add addtional fields like the voter´s birthday or sex, [check out the tutorial for that](/docs/docusaurus/docs/admin_portal/Tutorials/admin_portal_tutorials_add-user-attributes-to-keycloak).
+Note that for obvious reasons the additional attributes for the voters have to 
+be added before the enrollment process.
+For instance if the sex attribute is not added, this trait will not be reflected 
+in the reports and statistics.

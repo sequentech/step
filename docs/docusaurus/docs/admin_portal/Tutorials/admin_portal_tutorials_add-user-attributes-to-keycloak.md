@@ -9,8 +9,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 The system supports adding additional user attributes that will appear as a new 
-field in the user data once they are configured it will appear in the Add or Edit 
-action in the admin portal´s Voters tab. This must be configured via Keycloak.
+field in the user data.
+Once It is configured it will appear in the Add or Edit action in the admin 
+portal´s Voters tab.
+This must be configured via Keycloak.
 
 1. Login to Keycloak and select the election event you want to edit.
 2. Realm settings > User profile > Create attribute
