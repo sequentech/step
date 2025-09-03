@@ -112,3 +112,9 @@ election event/tenant. However the secret for the service account of the tenant
 should be set by the system as it is used internally. This is now set by
 environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
 
+## ✨ Standarize "Overseas voters turnout"
+
+Rename report to "Voters Turnout" and remove "Overseas", "OV" or other non standard
+ terminology from the report, admin portal and source code.
+Create documents and tutorials about the voters tab, adding User Attributes to keycloak,
+ or how to create reports and templates.
