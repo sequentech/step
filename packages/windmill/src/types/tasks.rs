@@ -26,6 +26,7 @@ pub enum ETasksExecution {
     EXPORT_TRUSTEES,
     RENDER_DOCUMENT_PDF,
     PREPARE_PUBLICATION_PREVIEW,
+    EXPORT_TALLY_RESULTS_XLSX,
 }
 
 impl ETasksExecution {
@@ -51,6 +52,7 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_TRUSTEES => "Export Trustees",
             ETasksExecution::RENDER_DOCUMENT_PDF => "Render Document PDF",
             ETasksExecution::PREPARE_PUBLICATION_PREVIEW => "Prepare Publication Preview",
+            ETasksExecution::EXPORT_TALLY_RESULTS_XLSX => "Export Tally Results To XLSX",
         }
     }
 }
