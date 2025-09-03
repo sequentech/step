@@ -94,6 +94,7 @@ impl CreateElectoralLogs {
             username: username.clone(),
             election_id: Some(election_id.to_string()),
             area_id: Some(area_id.to_string()),
+            ballot_id: None,
         };
 
         let board_message: ElectoralLogMessage = message.try_into().with_context(|| "")?;
