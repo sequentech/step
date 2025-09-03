@@ -112,3 +112,9 @@ election event/tenant. However the secret for the service account of the tenant
 should be set by the system as it is used internally. This is now set by
 environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
 
+## ✨ Voting Portal Immutable Logs table
+
+To enable the feature change the policy in Admin Portal at Election Event level, 
+Data > Ballot Design > Show Cast Vote Logs Tab.
+To see the Immutable logs of the type `CastVote` go to the Voting Portal landing page
+/election-chooser > "Locate Your Ballot" button, there the tab LOGS should appear.
