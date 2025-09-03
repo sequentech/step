@@ -418,6 +418,81 @@
       },
       {
         "kind": "OBJECT",
+        "name": "CastVoteEntry",
+        "description": null,
+        "fields": [
+          {
+            "name": "ballot_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "statement_kind",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "statement_timestamp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "username",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "CastVotesByIp",
         "description": null,
         "fields": [
@@ -2321,6 +2396,16 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "ballot_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "OrderDirection",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "created",
             "description": null,
             "type": {
@@ -2362,6 +2447,16 @@
           },
           {
             "name": "user_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "OrderDirection",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "username",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -5520,6 +5615,53 @@
               "kind": "SCALAR",
               "name": "Boolean",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ListCastVoteMessagesOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "list",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "CastVoteEntry",
+                  "ofType": null
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -26743,6 +26885,101 @@
             "type": {
               "kind": "OBJECT",
               "name": "DataListPgAudit",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "list_cast_vote_messages",
+            "description": "List electoral log entries of statement_kind CastVote",
+            "args": [
+              {
+                "name": "ballot_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "limit",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "offset",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "order_by",
+                "description": null,
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "ElectoralLogOrderBy",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "ListCastVoteMessagesOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -113250,6 +113487,12 @@
           {
             "name": "tally_sheet_pkey",
             "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tally_sheet_uniq_channel",
+            "description": "unique or primary key constraint on columns \"election_id\", \"contest_id\", \"area_id\", \"channel\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }

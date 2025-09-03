@@ -20,6 +20,11 @@ export enum EVoterSigningPolicy {
     WITH_SIGNATURE = "with-signature",
 }
 
+export enum EShowCastVoteLogsPolicy {
+    SHOW_LOGS_TAB = "show-logs-tab",
+    HIDE_LOGS_TAB = "hide-logs-tab",
+}
+
 export enum ElectionsOrder {
     RANDOM = "random",
     CUSTOM = "custom",
