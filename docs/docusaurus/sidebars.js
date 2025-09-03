@@ -88,7 +88,7 @@ module.exports = {
           'admin_portal/Tutorials/admin_portal_tutorials_setting-up-an-automated-election',
           'admin_portal/Tutorials/Reports-and-Templates/reports_and_templates',
           'admin_portal/Tutorials/Reports-and-Templates/value_to_template_association',
-          'admin_portal/Tutorials/admin_portal_tutorials_add-user-attributes-to-keycloak',
+          'admin_portal/Tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak',
           ],
         },
       ],
