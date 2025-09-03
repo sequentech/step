@@ -27,4 +27,4 @@ Templates allow you to customize HTML documents used in reports and communicatio
 
 The system will automatically use the created template when generating documents of that type (e.g., during the tally process or when exporting data).
 
-You can also use this template when manually [creating reports](../../Tutorials/admin_portal_tutorials_create-reports) in the Reports tab.
+You can also use this template when manually [creating reports](../../../Tutorials/admin_portal_tutorials_create-reports.md) in the Reports tab.
