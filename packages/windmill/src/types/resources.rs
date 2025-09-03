@@ -19,7 +19,7 @@ pub struct TotalAggregate {
 }
 
 // Enumeration for the valid order directions
-#[derive(Debug, Deserialize, EnumString, Display)]
+#[derive(Debug, Deserialize, EnumString, Display, Clone)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum OrderDirection {

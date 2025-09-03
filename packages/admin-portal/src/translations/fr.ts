@@ -281,6 +281,13 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                showCastVoteLogs: {
+                    policyLabel: "Afficher les logs de vote",
+                    options: {
+                        "show-logs-tab": "Afficher l'onglet des logs de vote",
+                        "hide-logs-tab": "Ne pas afficher l'onglet des logs de vote",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "État de Confinement",
                     options: {
