@@ -335,6 +335,13 @@ const tagalogTranslation: TranslationType = {
                         disabled: "Naka-disable",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Patakaran sa mga Seremonya ng Susi/Pagbilang",
+                    options: {
+                        "automated-ceremonies": "Payagan ang mga Awtomatikong Seremonya",
+                        "manual-ceremonies": "Mga Manu-manong Seremonya",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",
@@ -1340,12 +1347,17 @@ const tagalogTranslation: TranslationType = {
                     ok: "Oo, Lumikha ng Seremonya ng Mga Susi",
                     cancel: "Kanselahin",
                     title: "Sigurado ka bang nais mong lumikha ng Seremonya ng Mga Susi?",
+                    automaticCeremonyTitle:
+                        "Sigurado ka bang gusto mong lumikha ng isang Awtomatikong Seremonya ng mga Susi?",
                     description:
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
+                    automaticCeremonyDescription:
+                        "Ikaw ay lilikha ng isang Awtomatikong Seremonya ng mga Susi. Hindi nito aabisuhan ang mga Trustee na lumahok.",
                 },
                 filterTrustees: "I-filter ang mga trustee",
                 errorPermisionLabels:
                     "Hindi maipagawa ang keys ceremony: may nawawala sa isa o higit pang permission label.",
+                automaticCeremonyToggle: "Awtomatikong Seremonya",
             },
             ceremonyStep: {
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
@@ -1564,6 +1576,8 @@ const tagalogTranslation: TranslationType = {
                         "Malapit ka nang kanselahin ang seremonya ng pagbibilang. Hindi na mababawi ang aksyong ito.",
                     ceremony:
                         "Na-verify na ng lahat ng kinakailangang tagapagtiwala ang kanilang mga fragment ng key. Handa na ang lahat para simulan ang pagtanggap ng mga resulta. Nais mo bang simulan ang Pagbibilang?",
+                    startAutomatedTallyMessage:
+                        "Piliin ang 'Start Tally' upang patakbuhin ang proseso ng pagbilang at ipakita ang mga resulta, o 'Close' upang kanselahin.",
                 },
             },
             table: {

@@ -176,6 +176,7 @@ export type CreateElectionOutput = {
 export type CreateKeysCeremonyInput = {
     election_event_id: Scalars["String"]["input"]
     election_id?: InputMaybe<Scalars["String"]["input"]>
+    is_automatic_ceremony?: InputMaybe<Scalars["Boolean"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
     threshold: Scalars["Int"]["input"]
     trustee_names?: InputMaybe<Array<Scalars["String"]["input"]>>

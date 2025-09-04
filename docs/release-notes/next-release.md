@@ -105,12 +105,26 @@ stripped from the config to be regenerated.
 Previously the default language was not being selected when loading the Voting
 Portal, now it is.
 
+## ✨ Add automatic keys/tally ceremonies
+
+Add a new Ceremonies Policy at the election event level.
+This policy provides the option for a user to enable automatic key ceremonies
+for a specific election or all elections. With this enabled, the tally will 
+also be performed automatically, eliminating the need for trustee involvement.
+
 ## 🐞 Voters can't login to election events in new tenants
 
 For security, secrets/certificates are generated randomly when creating a new
 election event/tenant. However the secret for the service account of the tenant
 should be set by the system as it is used internally. This is now set by
 environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
+
+## ✨ Voting Portal Immutable Logs table
+
+To enable the feature change the policy in Admin Portal at Election Event level, 
+Data > Ballot Design > Show Cast Vote Logs Tab.
+To see the Immutable logs of the type `CastVote` go to the Voting Portal landing page
+/election-chooser > "Locate Your Ballot" button, there the tab LOGS should appear.
 
 ## ✨ Voting Portal > Logs: Show Message column, to ensure signature shown
 

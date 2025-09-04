@@ -53,6 +53,7 @@ import {
     EVoterSigningPolicy,
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
+    EElectionEventCeremoniesPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -628,6 +629,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const ceremonyPolicyOptions = () => {
+        return Object.values(EElectionEventCeremoniesPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ceremoniesPolicy.options.${value}`),
+        }))
+    }
+
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
     const updateCustomFilters = (
@@ -652,6 +660,8 @@ export const EditElectionEventDataForm: React.FC = () => {
             otp: event.target.value,
         }))
     }
+
+    console.log("ceremonyPolicyOptions: ", ceremonyPolicyOptions())
 
     return (
         <>
@@ -1136,6 +1146,18 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             "electionEventScreen.field.decodedBallots.policyLabel"
                                         )}
                                         defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.ceremonies_policy"}
+                                        choices={ceremonyPolicyOptions()}
+                                        label={t(
+                                            "electionEventScreen.field.ceremoniesPolicy.policyLabel"
+                                        )}
+                                        defaultValue={
+                                            EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
+                                        }
                                         emptyText={undefined}
                                         validate={required()}
                                     />
