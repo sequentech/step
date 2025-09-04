@@ -112,3 +112,6 @@ election event/tenant. However the secret for the service account of the tenant
 should be set by the system as it is used internally. This is now set by
 environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
 
+## ✨ Voting Portal > Logs: Show Message column, to ensure signature shown
+
+Added the message column on the log´s table of the Voting portal´s ballot-locator screen.
