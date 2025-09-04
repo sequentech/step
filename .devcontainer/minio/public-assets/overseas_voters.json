@@ -5,7 +5,8 @@
     "software_version": "1.0.0",
     "app_version": "2.3.4",
     "app_hash": "z9y8x7w6v5",
-    "executer_username": "User"
+    "executer_username": "User",
+    "user_timezone": "Asia/Manila"
   },
   "areas": [
     {

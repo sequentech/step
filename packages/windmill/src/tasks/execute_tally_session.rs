@@ -913,6 +913,7 @@ async fn build_reports_template_data(
                     report_origin: ReportOriginatedFrom::ExportFunction,
                     executer_username: None, //TODO: fix?
                     tally_session_id: None,
+                    user_timezone: None,
                 });
                 let template_data_opt: Option<SendTemplateBody> = renderer
                     .get_custom_user_template_data(hasura_transaction)
@@ -952,6 +953,7 @@ async fn build_reports_template_data(
                     report_origin: ReportOriginatedFrom::ExportFunction,
                     executer_username: None, //TODO: fix?
                     tally_session_id: None,
+                    user_timezone: None,
                 });
                 let template_data_opt: Option<SendTemplateBody> = renderer
                     .get_custom_user_template_data(hasura_transaction)

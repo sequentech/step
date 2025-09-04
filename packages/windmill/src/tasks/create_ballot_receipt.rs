@@ -29,8 +29,7 @@ pub async fn create_ballot_receipt(
     election_id: String,
     area_id: String,
     voter_id: String,
-    time_zone: Option<TimeZone>,
-    date_format: Option<DateFormat>,
+    timezone: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
@@ -74,14 +73,13 @@ pub async fn create_ballot_receipt(
                         report_origin: ReportOriginatedFrom::VotingPortal,
                         executer_username: None,
                         tally_session_id: None,
+                        user_timezone: Some(timezone),
                     },
                     Some(BallotData {
                         area_id,
                         voter_id,
                         ballot_id,
                         ballot_tracker_url,
-                        time_zone,
-                        date_format,
                     }),
                 );
 

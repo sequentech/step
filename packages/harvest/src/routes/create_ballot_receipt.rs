@@ -6,12 +6,11 @@ use crate::services::authorization::authorize_voter_election;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::types::date_time::DateFormat;
+use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::VoterPermissions;
-use sequent_core::{services::jwt::JwtClaims, types::date_time::TimeZone};
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::{event, instrument};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::post;
@@ -19,12 +18,11 @@ use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateBallotReceiptInput {
-    pub ballot_id: String,
-    pub ballot_tracker_url: String,
-    pub election_event_id: String,
-    pub election_id: String,
-    pub time_zone: Option<TimeZone>,
-    pub date_format: Option<DateFormat>,
+    ballot_id: String,
+    ballot_tracker_url: String,
+    election_event_id: String,
+    election_id: String,
+    user_timezone: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -89,8 +87,7 @@ pub async fn create_ballot_receipt(
                 input.election_id,
                 area_id,
                 voter_id,
-                input.time_zone,
-                input.date_format,
+                input.user_timezone,
                 task_execution.clone(),
             ),
         )

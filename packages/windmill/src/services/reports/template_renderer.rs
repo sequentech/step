@@ -66,6 +66,7 @@ pub struct ReportOrigins {
     pub report_origin: ReportOriginatedFrom,
     pub executer_username: Option<String>,
     pub tally_session_id: Option<String>,
+    pub user_timezone: Option<String>,
 }
 
 // // Note: Should be implemented once types for each id are defined.

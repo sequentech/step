@@ -13,8 +13,7 @@ use sequent_core::util::temp_path::*;
 
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::types::date_time::{DateFormat, TimeZone};
-use sequent_core::util::date_time::generate_timestamp;
+use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
@@ -27,8 +26,6 @@ pub struct BallotData {
     pub voter_id: String,
     pub ballot_id: String,
     pub ballot_tracker_url: String,
-    pub time_zone: Option<TimeZone>,
-    pub date_format: Option<DateFormat>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,6 +35,7 @@ pub struct UserData {
     pub qrcode: String,
     pub logo: String,
     pub timestamp: String,
+    pub timezone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -107,22 +105,19 @@ impl TemplateRenderer for BallotTemplate {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let (area_id, voter_id, ballot_id, ballot_tracker_url, time_zone, date_format) =
-            match &self.ballot_data {
-                Some(ballot_data) => (
-                    ballot_data.area_id.as_str(),
-                    ballot_data.voter_id.as_str(),
-                    ballot_data.ballot_id.as_str(),
-                    ballot_data.ballot_tracker_url.as_str(),
-                    ballot_data.time_zone.clone(),
-                    ballot_data.date_format.clone(),
-                ),
-                None => {
-                    return Err(anyhow!(
-                        "Cannot verify ballot id becasue Ballot data is missing"
-                    ));
-                }
-            };
+        let (area_id, voter_id, ballot_id, ballot_tracker_url) = match &self.ballot_data {
+            Some(ballot_data) => (
+                ballot_data.area_id.as_str(),
+                ballot_data.voter_id.as_str(),
+                ballot_data.ballot_id.as_str(),
+                ballot_data.ballot_tracker_url.as_str(),
+            ),
+            None => {
+                return Err(anyhow!(
+                    "Cannot verify ballot id becasue Ballot data is missing"
+                ));
+            }
+        };
 
         let tennant_uuid = Uuid::parse_str(self.get_tenant_id().as_str())
             .map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
@@ -154,7 +149,8 @@ impl TemplateRenderer for BallotTemplate {
             ballot_tracker_url: ballot_tracker_url.to_string(),
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
-            timestamp: generate_timestamp(time_zone, date_format, None),
+            timestamp: get_date_and_time(),
+            timezone: self.ids.user_timezone.clone(),
         })
     }
 

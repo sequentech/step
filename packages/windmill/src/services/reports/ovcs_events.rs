@@ -128,7 +128,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let date_printed = get_date_and_time();
 
@@ -298,6 +298,7 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
                 results_hash: None,
+                user_timezone: self.ids.user_timezone.clone(),
             },
             elections: elections_data,
             ovcs_downtime: None,

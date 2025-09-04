@@ -252,6 +252,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     election_event_id: eventId,
                     tenant_id: tenantId,
                     election_id: electionId,
+                    userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 },
             })
             let docId = res.data?.create_ballot_receipt?.id

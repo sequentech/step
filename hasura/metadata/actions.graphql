@@ -31,9 +31,9 @@ type Mutation {
     create_ballot_receipt(
         ballot_id: String!
         ballot_tracker_url: String!
-        tenant_id: uuid!
         election_event_id: uuid!
         election_id: uuid!
+        user_timezone: String!
     ): createBallotReceiptOutput
 }
 
@@ -179,6 +179,7 @@ type Mutation {
     export_election_event_logs(
         election_event_id: String!
         format: String!
+        user_timezone: String!
     ): ExportLogsOutput
 }
 
@@ -237,6 +238,7 @@ type Mutation {
         report_mode: String!
         tenant_id: String!
         election_event_id: String
+        user_timezone: String!
     ): generateReportOutput
 }
 
