@@ -281,6 +281,13 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                showCastVoteLogs: {
+                    policyLabel: "Mostrar logs de votación",
+                    options: {
+                        "show-logs-tab": "Mostrar Tab de logs de votación",
+                        "hide-logs-tab": "Ocultar Tab de logs de votación",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estado de Confinamiento",
                     options: {

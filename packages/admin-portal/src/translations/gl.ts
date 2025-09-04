@@ -282,6 +282,13 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                showCastVoteLogs: {
+                    policyLabel: "Mostrar Tab de Logs de Votación",
+                    options: {
+                        "show-logs-tab": "Mostrar Tab de Logs de Votación",
+                        "hide-logs-tab": "No Mostrar Tab de Logs de Votación",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estado de Bloqueo",
                     options: {

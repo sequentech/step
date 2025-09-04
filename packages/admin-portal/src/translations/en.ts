@@ -280,6 +280,13 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                showCastVoteLogs: {
+                    policyLabel: "Show Cast Vote Logs Tab",
+                    options: {
+                        "show-logs-tab": "Show Cast Vote Logs Tab",
+                        "hide-logs-tab": "Hide Cast Vote Logs Tab",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Lockdown Status",
                     options: {

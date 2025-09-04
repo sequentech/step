@@ -110,3 +110,10 @@ Add a new Ceremonies Policy at the election event level.
 This policy provides the option for a user to enable automatic key ceremonies
 for a specific election or all elections. With this enabled, the tally will 
 also be performed automatically, eliminating the need for trustee involvement.
+
+## 🐞 Voters can't login to election events in new tenants
+
+For security, secrets/certificates are generated randomly when creating a new
+election event/tenant. However the secret for the service account of the tenant
+should be set by the system as it is used internally. This is now set by
+environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
