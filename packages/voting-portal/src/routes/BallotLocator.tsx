@@ -27,7 +27,7 @@ import {
     GetElectionEventQuery,
     ListCastVoteMessagesQuery,
 } from "../gql/graphql"
-import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
+import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
@@ -336,6 +336,44 @@ interface LogsTableProps {
     somethingWentWrongErr: boolean
 }
 
+interface MessageCellProps {
+    message: string
+}
+
+const MessageCell: React.FC<MessageCellProps> = ({ message }) => {
+    return (
+        <>
+            <IconButton
+                icon={faCopy}
+                size="xs"
+                onClick={() => navigator.clipboard.writeText(message)}
+                sx={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    zIndex: 1,
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                    },
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    padding: '2px'
+                }}
+            />
+            <div style={{
+                width: '100%',
+                height: '100%',
+                overflow: 'auto',
+                paddingRight: '24px',
+                whiteSpace: 'pre',
+            }}>
+                {message}
+            </div>
+        </>
+    )
+}
+
 const LogsTable: React.FC<LogsTableProps> = ({
     rows,
     total,
@@ -414,7 +452,20 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 <TableCell align="justify">
                                     {new Date(row.statement_timestamp * 1000).toUTCString()}
                                 </TableCell>
-                                <TableCell align="justify">{row.message}</TableCell>
+                                <TableCell 
+                                    align="justify"
+                                    sx={{
+                                        width: '300px',
+                                        maxWidth: '300px',
+                                        height: '150px',
+                                        maxHeight: '150px',
+                                        padding: '8px',
+                                        verticalAlign: 'top',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    <MessageCell message={row.message} />
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
