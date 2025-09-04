@@ -303,10 +303,13 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             ),
             action: cancelAdminTally,
             showAction: (id: Identifier) =>
-                canAdminCeremony &&
-                (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
-                    record.execution_status === ITallyExecutionStatus.STARTED ||
-                    record.execution_status === ITallyExecutionStatus.CONNECTED),
+                (canAdminCeremony &&
+                    (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                        record.execution_status === ITallyExecutionStatus.STARTED ||
+                        record.execution_status === ITallyExecutionStatus.CONNECTED)) ||
+                (record.tally_type === ETallyType.INITIALIZATION_REPORT &&
+                    (record.execution_status === ITallyExecutionStatus.SUCCESS ||
+                        record.execution_status === ITallyExecutionStatus.IN_PROGRESS)),
         },
         {
             icon:

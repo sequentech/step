@@ -12,6 +12,7 @@ use sequent_core::{
 };
 use serde::Serialize;
 use serde_json::value::Value;
+use std::str::FromStr;
 use tokio_postgres::{row::Row, types::ToSql};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -335,7 +336,7 @@ pub async fn update_tally_session_status(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    execution_status: TallyExecutionStatus,
+    execution_status: &TallyExecutionStatus,
     is_execution_completed: bool,
 ) -> Result<()> {
     println!("Updating tally session status:{:?}", &tally_session_id);
@@ -522,4 +523,48 @@ pub async fn insert_many_tally_sessions(
         .collect::<Result<Vec<TallySession>>>()?;
 
     Ok(result_sessions)
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_tally_session_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<TallyExecutionStatus> {
+    // 1) prepare the SELECT
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                execution_status
+            FROM
+                sequent_backend.tally_session
+            WHERE
+                id = $1
+                AND tenant_id = $2
+                AND election_event_id = $3
+            LIMIT 1;
+            "#,
+        )
+        .await?;
+
+    // 2) run the query and grab the single row
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[
+                &Uuid::parse_str(tally_session_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error fetching tally session status: {err}"))?;
+
+    // 3) extract the string and convert back into your enum
+    let status_str: String = row.get("execution_status");
+    let status =
+        TallyExecutionStatus::from_str(&status_str).unwrap_or(TallyExecutionStatus::STARTED);
+    Ok(status)
 }

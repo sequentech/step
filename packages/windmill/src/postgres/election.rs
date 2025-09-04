@@ -687,7 +687,7 @@ pub async fn set_election_initialization_report_generated(
         )
         .await?;
 
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
