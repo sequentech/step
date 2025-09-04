@@ -362,6 +362,7 @@ const dutchTranslation: TranslationType = {
                 statement_timestamp: "Tijdstip",
                 username: "Gebruikersnaam",
                 ballot_id: "Stembiljet ID",
+                message: "Bericht",
             },
         },
     },

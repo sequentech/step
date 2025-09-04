@@ -361,6 +361,7 @@ const basqueTranslation: TranslationType = {
                 statement_timestamp: "Adierazpen denbora-marka",
                 username: "Erabiltzaile izena",
                 ballot_id: "Bozketa IDa",
+                message: "Mezua",
             },
         },
     },

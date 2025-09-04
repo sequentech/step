@@ -362,6 +362,7 @@ const frenchTranslation: TranslationType = {
                 statement_timestamp: "Marque de temps",
                 username: "Nom d'utilisateur",
                 ballot_id: "ID de Bulletin",
+                message: "Message",
             },
         },
     },

@@ -358,6 +358,7 @@ const englishTranslation = {
                 statement_timestamp: "Statement Timestamp",
                 username: "Username",
                 ballot_id: "Ballot ID",
+                message: "Message",
             },
         },
     },

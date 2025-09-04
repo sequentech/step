@@ -364,6 +364,7 @@ const spanishTranslation: TranslationType = {
                 statement_timestamp: "Marca de tiempo",
                 username: "Usuario",
                 ballot_id: "ID de Papeleta",
+                message: "Mensaje",
             },
         },
     },

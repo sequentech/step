@@ -363,6 +363,7 @@ const catalanTranslation: TranslationType = {
                 statement_timestamp: "Marca de temps",
                 username: "Usuari",
                 ballot_id: "ID de la Papereta",
+                message: "Missatge",
             },
         },
     },
