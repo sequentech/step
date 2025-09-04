@@ -135,25 +135,6 @@ const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
     )
 }
 
-interface TabPanelProps {
-    children?: React.ReactNode
-    index: number
-    value: number
-}
-
-const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`simple-tabpanel-${index}`}
-            aria-labelledby={`simple-tab-${index}`}
-        >
-            {value === index && <Box sx={{p: 3}}>{children}</Box>}
-        </div>
-    )
-}
-
 const BallotLocator: React.FC = () => {
     const {t} = useTranslation()
     const location = useLocation()
@@ -420,13 +401,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 </TableSortLabel>
                             </TableCell>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
-                                <TableSortLabel
-                                    active={orderBy === "message"}
-                                    direction={orderBy === "message" ? order : "asc"}
-                                    // onClick={() => onClickHeader("message")}
-                                >
-                                    {t("ballotLocator.column.message")}
-                                </TableSortLabel>
+                                {t("ballotLocator.column.message")}
                             </TableCell>
                         </TableRow>
                     </TableHead>
