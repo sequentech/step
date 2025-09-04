@@ -1111,8 +1111,6 @@ impl CastVoteEntry {
         let message: &Message = &Message::strand_deserialize(&entry.message)
             .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
         let message = message.to_string();
-        // let message = serde_json::to_string_pretty(message)
-        //     .map_err(|err| anyhow!("Failed to serialize message: {:?}", err))?;
 
         Ok(Some(CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,

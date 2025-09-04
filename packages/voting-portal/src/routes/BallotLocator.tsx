@@ -341,6 +341,14 @@ interface MessageCellProps {
 }
 
 const MessageCell: React.FC<MessageCellProps> = ({ message }) => {
+
+    const formatJson = (json: string) => {
+        try {
+            return JSON.stringify(JSON.parse(json), null, 2)
+        } catch {
+            return json
+        }
+    } 
     return (
         <>
             <IconButton
@@ -368,7 +376,7 @@ const MessageCell: React.FC<MessageCellProps> = ({ message }) => {
                 paddingRight: '24px',
                 whiteSpace: 'pre',
             }}>
-                {message}
+                {formatJson(message)}
             </div>
         </>
     )
@@ -399,7 +407,15 @@ const LogsTable: React.FC<LogsTableProps> = ({
         <>
             <StyledTitle variant="h5">{t("ballotLocator.totalBallots", {total})}</StyledTitle>
             <TableContainer component={Paper}>
-                <Table sx={{minWidth: 650}} aria-label="simple table">
+                <Table 
+                    sx={{
+                        minWidth: 650,
+                        '& .MuiTableCell-root': {
+                            border: '1px solid #e0e0e0'
+                        }
+                    }} 
+                    aria-label="simple table"
+                >
                     <TableHead>
                         <TableRow>
                             <TableCell align="justify" sx={{fontWeight: "bold"}}>
