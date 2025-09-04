@@ -1251,6 +1251,16 @@
             "defaultValue": null
           },
           {
+            "name": "is_automatic_ceremony",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "name",
             "description": null,
             "type": {

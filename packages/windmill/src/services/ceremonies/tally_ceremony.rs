@@ -397,6 +397,13 @@ pub async fn create_tally_ceremony(
         "executer_username": username,
     });
 
+    let keys_ceremony_policy = keys_ceremony.policy();
+
+    let tally_execution_status = match keys_ceremony_policy {
+        CeremoniesPolicy::AUTOMATED_CEREMONIES => TallyExecutionStatus::IN_PROGRESS,
+        _ => TallyExecutionStatus::STARTED,
+    };
+
     let _tally_session = insert_tally_session(
         transaction,
         &tenant_id,
@@ -405,7 +412,7 @@ pub async fn create_tally_ceremony(
         area_ids.clone(),
         &tally_session_id,
         &keys_ceremony_id,
-        TallyExecutionStatus::STARTED,
+        tally_execution_status,
         keys_ceremony.threshold as i32,
         Some(final_configuration.clone()),
         &tally_type,

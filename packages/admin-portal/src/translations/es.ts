@@ -337,6 +337,13 @@ const spanishTranslation: TranslationType = {
                         disabled: "Deshabilitado",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de ceremonias de llaves/recuento",
+                    options: {
+                        "automated-ceremonies": "Permitir ceremonias automáticas",
+                        "manual-ceremonies": "Ceremonias manuales",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -1337,12 +1344,17 @@ const spanishTranslation: TranslationType = {
                     ok: "Sí, Crear Ceremonia de Claves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que quieres crear una ceremonia de llaves automática?",
                     description:
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a punto de crear una ceremonia de llaves automática. Esto no notificará a los fideicomisarios para que participen.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
                     "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
@@ -1562,6 +1574,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
                     ceremony:
                         "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
+                    startAutomatedTallyMessage:
+                        "Selecciona 'Start Tally' para ejecutar el proceso de recuento y mostrar los resultados, o 'Close' para cancelar.",
                 },
             },
             table: {

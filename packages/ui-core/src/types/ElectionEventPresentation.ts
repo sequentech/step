@@ -70,6 +70,11 @@ export enum EElectionEventOTP {
     DISABLED = "disabled",
 }
 
+export enum EElectionEventCeremoniesPolicy {
+    MANUAL_CEREMONIES = "manual-ceremonies",
+    AUTOMATED_CEREMONIES = "automated-ceremonies",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -88,4 +93,5 @@ export interface IElectionEventPresentation {
     publish_policy: EElectionEventPublishPolicy
     enrollment: EElectionEventEnrollment
     otp: EElectionEventOTP
+    ceremonies_policy: EElectionEventCeremoniesPolicy
 }
