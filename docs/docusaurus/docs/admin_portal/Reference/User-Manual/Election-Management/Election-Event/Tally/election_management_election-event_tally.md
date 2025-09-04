@@ -28,6 +28,8 @@ Before initiating the tally process:
 1. **Opening Key Ceremony completed:** All key fragments have been generated and verified.
 2. **Voting phase concluded (optional):** Votes may or may not have been cast; starting a tally with no votes is technically possible but yields empty results.
 
+> Note: According to the Election Event Keys/Tally Ceremonies Policy, if the Key Ceremony is set to 'Automatic,' the Tally Ceremony will also be automated, and no trustee action is required.
+
 ## Starting the Tally Process
 1. Navigate to the relevant **Election Event** in the Administration Portal.
 2. Go to the **Tally** tab.

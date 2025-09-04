@@ -337,6 +337,13 @@ const basqueTranslation: TranslationType = {
                         disabled: "Desgaituta",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Giltza/Zenbaketa zeremonien politika",
+                    options: {
+                        "automated-ceremonies": "Zeremonia automatikoak baimendu",
+                        "manual-ceremonies": "Eskuzko zeremoniak",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",
@@ -1334,12 +1341,17 @@ const basqueTranslation: TranslationType = {
                     ok: "Bai, Sortu Giltzen Zeremonia",
                     cancel: "Ezeztatu",
                     title: "Ziur zaude Giltzen Zeremonia sortu nahi duzula?",
+                    automaticCeremonyTitle:
+                        "Ziur zaude giltza-ekitaldi automatiko bat sortu nahi duzula?",
                     description:
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
+                    automaticCeremonyDescription:
+                        "Giltza-ekitaldi automatiko bat sortzear zaude. Honek ez die arduradunei parte hartzeko jakinaraziko.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
                 errorPermisionLabels:
                     "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
+                automaticCeremonyToggle: "Zeremonia automatikoa",
             },
             ceremonyStep: {
                 cancel: "Ezeztatu Giltzen Zeremonia",
@@ -1558,6 +1570,8 @@ const basqueTranslation: TranslationType = {
                         "Zenbaketa zeremonia ezeztatuzera noa. Ekintza hau ezin da desegin.",
                     ceremony:
                         "Beharrezko fideikomisario guztiek beren giltza zatiak egiaztatu dituzte. Dena prest dago emaitzak jasotzen hasteko. Zenbaketa hasi nahi duzu?",
+                    startAutomatedTallyMessage:
+                        "Hautatu 'Start Tally' zenbaketa-prozesua exekutatzeko eta emaitzak bistaratzeko, edo 'Close' ezeztatzeko.",
                 },
             },
             table: {
