@@ -340,15 +340,14 @@ interface MessageCellProps {
     message: string
 }
 
-const MessageCell: React.FC<MessageCellProps> = ({ message }) => {
-
+const MessageCell: React.FC<MessageCellProps> = ({message}) => {
     const formatJson = (json: string) => {
         try {
             return JSON.stringify(JSON.parse(json), null, 2)
         } catch {
             return json
         }
-    } 
+    }
     return (
         <>
             <IconButton
@@ -356,26 +355,28 @@ const MessageCell: React.FC<MessageCellProps> = ({ message }) => {
                 size="xs"
                 onClick={() => navigator.clipboard.writeText(message)}
                 sx={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    zIndex: 1,
-                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                    '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                    "position": "absolute",
+                    "top": "4px",
+                    "right": "4px",
+                    "zIndex": 1,
+                    "backgroundColor": "rgba(255, 255, 255, 0.8)",
+                    "&:hover": {
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
                     },
-                    minWidth: '20px',
-                    minHeight: '20px',
-                    padding: '2px'
+                    "minWidth": "20px",
+                    "minHeight": "20px",
+                    "padding": "2px",
                 }}
             />
-            <div style={{
-                width: '100%',
-                height: '100%',
-                overflow: 'auto',
-                paddingRight: '24px',
-                whiteSpace: 'pre',
-            }}>
+            <div
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    overflow: "auto",
+                    paddingRight: "24px",
+                    whiteSpace: "pre",
+                }}
+            >
                 {formatJson(message)}
             </div>
         </>
@@ -407,13 +408,13 @@ const LogsTable: React.FC<LogsTableProps> = ({
         <>
             <StyledTitle variant="h5">{t("ballotLocator.totalBallots", {total})}</StyledTitle>
             <TableContainer component={Paper}>
-                <Table 
+                <Table
                     sx={{
-                        minWidth: 650,
-                        '& .MuiTableCell-root': {
-                            border: '1px solid #e0e0e0'
-                        }
-                    }} 
+                        "minWidth": 650,
+                        "& .MuiTableCell-root": {
+                            border: "1px solid #e0e0e0",
+                        },
+                    }}
                     aria-label="simple table"
                 >
                     <TableHead>
@@ -468,16 +469,16 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 <TableCell align="justify">
                                     {new Date(row.statement_timestamp * 1000).toUTCString()}
                                 </TableCell>
-                                <TableCell 
+                                <TableCell
                                     align="justify"
                                     sx={{
-                                        width: '300px',
-                                        maxWidth: '300px',
-                                        height: '150px',
-                                        maxHeight: '150px',
-                                        padding: '8px',
-                                        verticalAlign: 'top',
-                                        position: 'relative'
+                                        width: "300px",
+                                        maxWidth: "300px",
+                                        height: "150px",
+                                        maxHeight: "150px",
+                                        padding: "8px",
+                                        verticalAlign: "top",
+                                        position: "relative",
                                     }}
                                 >
                                     <MessageCell message={row.message} />
