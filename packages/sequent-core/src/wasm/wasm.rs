@@ -994,39 +994,46 @@ pub fn generate_sender_signature_js(
     area_id_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // Deserialize inputs
-    let sender_sk: StrandSignatureSk = serde_wasm_bindgen::from_value(sender_sk_json)
-        .map_err(|err| format!("Error deserializing sender_sk: {err}"))
-        .into_json()?;
+    let sender_sk: StrandSignatureSk =
+        serde_wasm_bindgen::from_value(sender_sk_json)
+            .map_err(|err| format!("Error deserializing sender_sk: {err}"))
+            .into_json()?;
     let event: EventIdString = serde_wasm_bindgen::from_value(event_json)
         .map_err(|err| format!("Error deserializing event: {err}"))
         .into_json()?;
-    let election: ElectionIdString = serde_wasm_bindgen::from_value(election_json)
-        .map_err(|err| format!("Error deserializing election: {err}"))
-        .into_json()?;
-    let pseudonym_h: PseudonymHash = serde_wasm_bindgen::from_value(pseudonym_h_json)
-        .map_err(|err| format!("Error deserializing pseudonym_h: {err}"))
-        .into_json()?;
+    let election: ElectionIdString =
+        serde_wasm_bindgen::from_value(election_json)
+            .map_err(|err| format!("Error deserializing election: {err}"))
+            .into_json()?;
+    let pseudonym_h: PseudonymHash =
+        serde_wasm_bindgen::from_value(pseudonym_h_json)
+            .map_err(|err| format!("Error deserializing pseudonym_h: {err}"))
+            .into_json()?;
     let vote_h: CastVoteHash = serde_wasm_bindgen::from_value(vote_h_json)
         .map_err(|err| format!("Error deserializing vote_h: {err}"))
         .into_json()?;
     let ip: VoterIpString = serde_wasm_bindgen::from_value(ip_json)
         .map_err(|err| format!("Error deserializing ip: {err}"))
         .into_json()?;
-    let country: VoterCountryString = serde_wasm_bindgen::from_value(country_json)
-        .map_err(|err| format!("Error deserializing country: {err}"))
-        .into_json()?;
-    let voter_id: Option<String> = serde_wasm_bindgen::from_value(voter_id_json)
-        .map_err(|err| format!("Error deserializing voter_id: {err}"))
-        .into_json()?;
-    let voter_username: Option<String> = serde_wasm_bindgen::from_value(voter_username_json)
-        .map_err(|err| format!("Error deserializing voter_username: {err}"))
-        .into_json()?;
+    let country: VoterCountryString =
+        serde_wasm_bindgen::from_value(country_json)
+            .map_err(|err| format!("Error deserializing country: {err}"))
+            .into_json()?;
+    let voter_id: Option<String> =
+        serde_wasm_bindgen::from_value(voter_id_json)
+            .map_err(|err| format!("Error deserializing voter_id: {err}"))
+            .into_json()?;
+    let voter_username: Option<String> =
+        serde_wasm_bindgen::from_value(voter_username_json)
+            .map_err(|err| format!("Error deserializing voter_username: {err}"))
+            .into_json()?;
     let area_id: String = serde_wasm_bindgen::from_value(area_id_json)
         .map_err(|err| format!("Error deserializing area_id: {err}"))
         .into_json()?;
 
     // Generate the statement
-    let body = StatementBody::CastVote(election, pseudonym_h, vote_h, ip, country);
+    let body =
+        StatementBody::CastVote(election, pseudonym_h, vote_h, ip, country);
     let head = StatementHead::from_body(event, &body);
     let statement = Statement::new(head, body);
 
@@ -1052,11 +1059,14 @@ pub fn generate_sender_signature_js(
 
 #[allow(clippy::all)]
 #[wasm_bindgen]
-pub fn get_sender_public_key_js(sender_sk_json: JsValue) -> Result<JsValue, JsValue> {
+pub fn get_sender_public_key_js(
+    sender_sk_json: JsValue,
+) -> Result<JsValue, JsValue> {
     // Deserialize the sender's signing key from JsValue
-    let sender_sk: StrandSignatureSk = serde_wasm_bindgen::from_value(sender_sk_json)
-        .map_err(|err| format!("Error deserializing sender_sk: {err}"))
-        .into_json()?;
+    let sender_sk: StrandSignatureSk =
+        serde_wasm_bindgen::from_value(sender_sk_json)
+            .map_err(|err| format!("Error deserializing sender_sk: {err}"))
+            .into_json()?;
 
     // Derive the public key
     let sender_pk: StrandSignaturePk = StrandSignaturePk::from_sk(&sender_sk)
