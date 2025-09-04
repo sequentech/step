@@ -106,6 +106,7 @@ Previously the default language was not being selected when loading the Voting
 Portal, now it is.
 
 ## ✨ Add automatic keys/tally ceremonies
+
 Add a new Ceremonies Policy at the election event level.
 This policy provides the option for a user to enable automatic key ceremonies
 for a specific election or all elections. With this enabled, the tally will 
