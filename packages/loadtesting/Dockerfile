@@ -1,7 +1,17 @@
 # SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-FROM sequentech.local/cargo-packages:latest AS builder
+FROM rustlang/rust:nightly-slim AS builder
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget && \
+    wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581645e8/9/GPL/openjdk-22.0.2_linux-x64_bin.tar.gz \
+    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
+    cargo binstall -y cargo-watch && \
+    # cleanups
+    apt-get clean && \
+    apt-get autoremove
+WORKDIR /app
 COPY . /app
 RUN cd /app/packages && cargo build --release --bin=step-cli
 

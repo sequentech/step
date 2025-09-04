@@ -65,6 +65,10 @@ jobs:
             context: packages
             file: packages/Dockerfile.immudb
 
+          - service: loadtesting
+            context: .
+            file: packages/loadtesting/Dockerfile
+
           # - service: mock_server
           #   context: packages/e2e/src/mock_server
           #   file: packages/e2e/src/mock_server/Dockerfile.prod
