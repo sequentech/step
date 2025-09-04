@@ -336,6 +336,13 @@ const englishTranslation = {
                         disabled: "Disabled",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Keys/Tally Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Allow Automatic Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",
@@ -1326,12 +1333,17 @@ const englishTranslation = {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
                     title: "Are you sure you want to Create Keys Ceremony?",
+                    automaticCeremonyTitle:
+                        "Are you sure you want to Create Automatic Keys Ceremony?",
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    automaticCeremonyDescription:
+                        "You are about to Create an Automatic Keys Ceremony. This will not notify the Trustees to participate.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
                     "Cannot create keys ceremony: one or more permission labels are missing.",
+                automaticCeremonyToggle: "Automatic Ceremony",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -1549,6 +1561,8 @@ const englishTranslation = {
                         "You are about to cancel the tally ceremony. This action is not undoable.",
                     ceremony:
                         "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {

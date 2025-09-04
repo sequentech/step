@@ -337,6 +337,13 @@ const catalanTranslation: TranslationType = {
                         disabled: "Deshabilitat",
                     },
                 },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de cerimònies de claus/recompte",
+                    options: {
+                        "automated-ceremonies": "Permetre cerimònies automàtiques",
+                        "manual-ceremonies": "Cerimònies manuals",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
@@ -1347,12 +1354,17 @@ const catalanTranslation: TranslationType = {
                     ok: "Sí, Crear Cerimònia de Claus",
                     cancel: "Cancel·lar",
                     title: "Estàs segur de que vols Crear una Cerimònia de Claus?",
+                    automaticCeremonyTitle:
+                        "Estàs segur que vols crear una cerimònia de claus automàtica?",
                     description:
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
+                    automaticCeremonyDescription:
+                        "Estàs a punt de crear una cerimònia de claus automàtica. Això no notificarà als fideïcomissaris que hi participin.",
                 },
                 filterTrustees: "Filtrar Autoritats",
                 errorPermisionLabels:
                     "No es pot crear la cerimònia de claus: falta almenys una etiqueta de permís.",
+                automaticCeremonyToggle: "Cerimònia automàtica",
             },
             ceremonyStep: {
                 cancel: "Cancel·lar Cerimònia de Claus",
@@ -1572,6 +1584,8 @@ const catalanTranslation: TranslationType = {
                         "Estàs a punt de cancel·lar la cerimònia de recompte. Aquesta acció no es pot desfer.",
                     ceremony:
                         "Tots els trustees requerits han verificat els seus fragments de clau. Tot està a punt per començar a rebre resultats. Voleu iniciar el Recompte?",
+                    startAutomatedTallyMessage:
+                        "Seleccioneu 'Start Tally' per executar el procés de recompte i mostrar els resultats, o 'Close' per cancel·lar.",
                 },
             },
             table: {

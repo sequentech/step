@@ -97,4 +97,5 @@ Configure advanced system behaviors for this Election Event.
 - **Voting Portal Countdown Policy**:
   - Define the session timeout duration in seconds.
   - Configure the countdown warning and logout alert thresholds.
-
+- **Keys/Tally Ceremonies Policy**:
+  - Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.
