@@ -163,4 +163,5 @@ pub enum TallyType {
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct TallySessionDocuments {
     pub sqlite: Option<String>,
+    pub xlsx: Option<String>,
 }

@@ -21,10 +21,8 @@ use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportTallyResultsInput {
-    tenant_id: String,
     election_event_id: String,
-    results_event_id: String,
-    results_sqlite_document_id: String,
+    tally_session_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -51,8 +49,7 @@ pub async fn export_tally_results_route(
 
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
-    let results_sqlite_document_id = body.results_sqlite_document_id.clone();
-    let results_event_id = body.results_event_id.clone();
+    let tally_session_id = body.tally_session_id.clone();
 
     let executer_name = claims
         .name
@@ -79,8 +76,7 @@ pub async fn export_tally_results_route(
     let _celery_task = match celery_app.send_task(windmill::tasks::export_tally_results::export_tally_results_to_xlsx_task::new(
         tenant_id,
         election_event_id,
-        results_sqlite_document_id,
-        results_event_id,
+        tally_session_id,
         document_id.clone(),
         task_execution.clone(),
     ))

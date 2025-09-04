@@ -21,6 +21,7 @@ import {StyledAppAtom} from "@/App"
 import {ETemplateType} from "@/types/templates"
 import {GenerateReport} from "./GenerateReport"
 import {GeneratePDF} from "./GeneratePdf"
+import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -97,6 +98,7 @@ interface ExportElectionMenuProps {
     electionId?: string | null
     miruExportloading?: boolean
     onCreateTransmissionPackage?: (v: {area_id: string; election_id: string}) => void
+    tenantId?: string | null
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
@@ -110,6 +112,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         electionId,
         miruExportloading,
         onCreateTransmissionPackage,
+        tenantId,
     } = props
     const {globalSettings} = useContext(SettingsContext)
     const {t} = useTranslation()
@@ -305,6 +308,18 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             />
                         </>
                     ) : null}
+                    {tenantId &&
+                        electionEventId &&
+                        documentsList &&
+                        documentsList.length > 0 &&
+                        documentsList[0].class_type === "event" && (
+                            <GenerateResultsXlsx
+                                electionEventId={electionEventId}
+                                tallySessionId={tallySessionId}
+                                tenantId={tenantId}
+                                handleClose={handleClose}
+                            />
+                        )}
                 </StyledAppAtom>
             </Menu>
         </div>
