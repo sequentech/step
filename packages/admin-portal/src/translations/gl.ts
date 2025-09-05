@@ -81,6 +81,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
             },

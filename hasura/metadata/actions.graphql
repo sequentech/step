@@ -1388,6 +1388,8 @@ type SetCustomUrlsOutput {
 
 type DeleteElectionEvent {
     id: String
+    task_execution: tasks_execution_type
+    error_msg: String
 }
 
 type ExportTasksExecutionOutput {
