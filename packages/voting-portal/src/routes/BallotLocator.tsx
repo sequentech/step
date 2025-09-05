@@ -379,7 +379,7 @@ const MessageCell: React.FC<MessageCellProps> = ({message}) => {
                     whiteSpace: "pre",
                 }}
             >
-                {message ? formatJson(message) : "****"}
+                {message ? formatJson(message) : "-"}
             </div>
         </>
     )
@@ -465,7 +465,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                     <TableBody>
                         {rows.map((row, index) => (
                             <TableRow key={index}>
-                                <TableCell align="center">{row.username ?? "****"}</TableCell>
+                                <TableCell align="center">{row.username ?? "-"}</TableCell>
                                 <TableCell align="center">{row.ballot_id}</TableCell>
                                 <TableCell align="center">{row.statement_kind}</TableCell>
                                 <TableCell align="center">

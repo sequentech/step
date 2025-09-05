@@ -25,7 +25,6 @@ To see the immutable logs, it's policy must be enabled in the Admin Portal at
 Election Event level: Data > Ballot Design > Show Cast Vote Logs Tab.
 
 Enter the ballot ID to confirm you ballot is in the logs.
-You can see the ballot IDs from other users but their user names will remain anonymous.
 
 The table shows the user name, the ballot ID, timestamp of the ballot and message.
 The immutable log's message contains the user's signature among other things. It's 

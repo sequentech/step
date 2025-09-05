@@ -1102,20 +1102,12 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(
-        entry: &ElectoralLogMessage,
-        input_username: &str,
-    ) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
-        let username = entry.username.clone().filter(|s| s.eq(input_username)); // Keep other usernames anonymous on the table
-        let message = match username {
-            None => None,
-            Some(_) => {
-                let message: &Message = &Message::strand_deserialize(&entry.message)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-                Some(message.to_string())
-            }
-        };
+        let username = entry.username.clone();
+        let message: &Message = &Message::strand_deserialize(&entry.message)
+            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+        let message = Some(message.to_string());
 
         Ok(Some(CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,
@@ -1295,7 +1287,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message, username)? {
+            match CastVoteEntry::from_elog_message(&message)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;
