@@ -1630,7 +1630,7 @@ const spanishTranslation: TranslationType = {
                 generateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar votación",
                 stopVotingPeriod: "Detener votación",
-                stopKioskVotingPeriod: "Detener la Votación en el Quiosco",
+                stopKioskVotingPeriod: "Cerrar Quiosco",
                 pauseVotingPeriod: "Pausar votación",
                 generate: "regenerar",
                 publish: "Publicar Cambios",
