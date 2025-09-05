@@ -4,6 +4,8 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import Chart, {Props} from "react-apexcharts"
+import {Box, Typography} from "@mui/material"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -28,6 +30,82 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     elegible_census: number | "-"
     total_voters: number | "-"
     total_voters_percent: number | "-"
+}
+
+interface ParticipationChartsProps {
+    results: Sequent_Backend_Election_Extended[]
+}
+
+const ParticipationCharts: React.FC<ParticipationChartsProps> = ({results}) => {
+    const {t} = useTranslation()
+
+    // Filter out results with valid participation data
+    const validResults = results.filter(
+        (result) => 
+            isNumber(result.elegible_census) && 
+            isNumber(result.total_voters)
+    )
+
+    if (validResults.length === 0) {
+        return null
+    }
+
+    return (
+        <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            {validResults.map((result) => {
+                const eligibleCensus = result.elegible_census as number
+                const totalVoters = result.total_voters as number
+                const nonVoters = eligibleCensus - totalVoters
+
+                const chartData = [
+                    {
+                        label: t("tally.chart.voters"),
+                        value: totalVoters
+                    },
+                    {
+                        label: t("tally.chart.nonVoters"),
+                        value: nonVoters
+                    }
+                ].filter(item => item.value > 0)
+
+                const chartOptions: Props = {
+                    options: {
+                        labels: chartData.map((item) => item.label),
+                        legend: {
+                            position: 'bottom'
+                        },
+                        responsive: [{
+                            breakpoint: 480,
+                            options: {
+                                chart: {
+                                    width: 200
+                                },
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            }
+                        }]
+                    },
+                    series: chartData.map((item) => item.value),
+                }
+
+                return (
+                    <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h6" sx={{ mb: 2 }}>
+                            {result.id}
+                        </Typography>
+                        <Chart
+                            options={chartOptions.options}
+                            series={chartOptions.series}
+                            type="pie"
+                            width={400}
+                            height={300}
+                        />
+                    </Box>
+                )
+            })}
+        </Box>
+    )
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
@@ -109,24 +187,27 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     ]
 
     return (
-        <>
+        <Box>
             {resultsData.length ? (
-                <DataGrid
-                    rows={resultsData}
-                    columns={columns}
-                    initialState={{
-                        pagination: {
-                            paginationModel: {
-                                pageSize: 10,
+                <>
+                    <DataGrid
+                        rows={resultsData}
+                        columns={columns}
+                        initialState={{
+                            pagination: {
+                                paginationModel: {
+                                    pageSize: 10,
+                                },
                             },
-                        },
-                    }}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                    disableRowSelectionOnClick
-                />
+                        }}
+                        pageSizeOptions={[10, 20, 50, 100]}
+                        disableRowSelectionOnClick 
+                    />
+                    <ParticipationCharts results={resultsData} /> 
+                </>
             ) : (
                 <NoItem />
             )}
-        </>
+        </Box>
     )
 }
