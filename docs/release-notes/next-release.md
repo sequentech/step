@@ -131,3 +131,9 @@ To see the Immutable logs of the type `CastVote` go to the Voting Portal landing
 Voter logs related to Keycloak (login, login error, code to token) were being 
 published to the wrong rabbitmq queue. This has been fixed and now they are 
 published to the queue for the respective environment.
+
+## 🐞 Voting script for loadtesting takes screenshots when it shouldn't
+
+The loadtesting script for voting with nightwatch was saving some screenshots
+event when the screenshots option was disabled. This took a lot of space in the
+tests, filling in the disk.
