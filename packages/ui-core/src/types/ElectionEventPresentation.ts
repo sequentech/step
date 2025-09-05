@@ -20,6 +20,11 @@ export enum EVoterSigningPolicy {
     WITH_SIGNATURE = "with-signature",
 }
 
+export enum EShowCastVoteLogsPolicy {
+    SHOW_LOGS_TAB = "show-logs-tab",
+    HIDE_LOGS_TAB = "hide-logs-tab",
+}
+
 export enum ElectionsOrder {
     RANDOM = "random",
     CUSTOM = "custom",
@@ -38,6 +43,11 @@ export interface IActiveTemplateIds {
 export enum EElectionEventLockedDown {
     LOCKED_DOWN = "locked-down",
     NOT_LOCKED_DOWN = "not-locked-down",
+}
+
+export enum EElectionEventDecodedBallots {
+    INCLUDED = "included",
+    NOT_INCLUDED = "not-included",
 }
 
 export enum EElectionEventContestEncryptionPolicy {
@@ -60,6 +70,11 @@ export enum EElectionEventOTP {
     DISABLED = "disabled",
 }
 
+export enum EElectionEventCeremoniesPolicy {
+    MANUAL_CEREMONIES = "manual-ceremonies",
+    AUTOMATED_CEREMONIES = "automated-ceremonies",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -78,4 +93,5 @@ export interface IElectionEventPresentation {
     publish_policy: EElectionEventPublishPolicy
     enrollment: EElectionEventEnrollment
     otp: EElectionEventOTP
+    ceremonies_policy: EElectionEventCeremoniesPolicy
 }

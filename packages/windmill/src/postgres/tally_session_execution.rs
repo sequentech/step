@@ -4,7 +4,10 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::types::{ceremonies::TallyCeremonyStatus, hasura::core::TallySessionExecution};
+use sequent_core::types::{
+    ceremonies::{TallyCeremonyStatus, TallySessionDocuments},
+    hasura::core::TallySessionExecution,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -32,6 +35,7 @@ impl TryFrom<Row> for TallySessionExecutionWrapper {
             results_event_id: item
                 .try_get::<_, Option<Uuid>>("results_event_id")?
                 .map(|val| val.to_string()),
+            documents: item.try_get("documents")?,
         }))
     }
 }
@@ -46,6 +50,7 @@ pub async fn insert_tally_session_execution(
     status: Option<TallyCeremonyStatus>,
     results_event_id: Option<String>,
     session_ids: Option<Vec<i32>>,
+    documents: Option<TallySessionDocuments>,
 ) -> Result<TallySessionExecution> {
     let json_status = match status {
         Some(value) => Some(serde_json::to_value(value)?),
@@ -55,12 +60,18 @@ pub async fn insert_tally_session_execution(
         Some(value) => Some(Uuid::parse_str(&value)?),
         None => None,
     };
+
+    let documents_value = match documents {
+        Some(docs) => Some(serde_json::to_value(docs)?),
+        None => None,
+    };
+
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.tally_session_execution
-                (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids)
+                (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids, documents)
                 VALUES(
                     $1,
                     $2,
@@ -68,7 +79,8 @@ pub async fn insert_tally_session_execution(
                     $4,
                     $5,
                     $6,
-                    $7
+                    $7,
+                    $8
                 )
                 RETURNING
                     *;
@@ -86,6 +98,7 @@ pub async fn insert_tally_session_execution(
                 &json_status,
                 &results_event_uuid,
                 &session_ids,
+                &documents_value,
             ],
         )
         .await

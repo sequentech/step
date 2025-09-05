@@ -27,3 +27,28 @@ export const convertToNumber = <T>(val: T) => {
 export const getPreferenceKey = (key: string, subkey: string) => {
     return `${key.replaceAll("/", "_").replaceAll("-", "_")}_${subkey}`
 }
+
+// function to convert null values to void string for comparison
+const customSortComparator = (
+    a: Record<string, any>,
+    b: Record<string, any>,
+    field: string,
+    order: "ASC" | "DESC"
+): number => {
+    const aValue = a[field] != null ? a[field] : ""
+    const bValue = b[field] != null ? b[field] : ""
+    if (typeof aValue === "string" && typeof bValue === "string") {
+        return order === "ASC" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+    }
+    if (aValue < bValue) return order === "ASC" ? -1 : 1
+    if (aValue > bValue) return order === "ASC" ? 1 : -1
+    return 0
+}
+
+// A function that sorts an array of records using our custom comparator.
+export const customSortData = (
+    data: Array<Record<string, any>>,
+    sort: {field: string; order: "ASC" | "DESC"}
+): Array<Record<string, any>> => {
+    return [...data].sort((a, b) => customSortComparator(a, b, sort.field, sort.order))
+}

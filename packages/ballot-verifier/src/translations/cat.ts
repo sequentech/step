@@ -76,7 +76,6 @@ const catalanTranslation: TranslationType = {
             points: "({{points}} Punts)",
             contestNotFound: "Pregunta no trobada: {{contestId}}",
         },
-        "poweredBy": "Funciona amb",
         "errors": {
             encoding: {
                 notEnoughChoices: "No hi ha prou opcions per a descodificar",
@@ -95,6 +94,9 @@ const catalanTranslation: TranslationType = {
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
             },
+        },
+        "footer": {
+            poweredBy: "Funciona amb <sequent />",
         },
     },
 }

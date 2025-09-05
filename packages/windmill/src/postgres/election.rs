@@ -5,7 +5,7 @@ use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionPresentation;
-use sequent_core::types::hasura::core::Election;
+use sequent_core::types::hasura::core::{Election, VotingChannels};
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -391,7 +391,8 @@ pub async fn create_election(
 ) -> Result<Election> {
     let presentation_value = serde_json::to_value(presentation)
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
-
+    let voting_channels_value = serde_json::to_value(&VotingChannels::default())
+        .map_err(|err| anyhow!("Error serializing voting_channels: {err}"))?;
     let statement = hasura_transaction
         .prepare(
             r#"
@@ -402,8 +403,10 @@ pub async fn create_election(
                     created_at,
                     last_updated_at,
                     name,
+                    alias,
                     description,
-					presentation
+                    presentation,
+                    voting_channels
                 )
                 VALUES
                 (
@@ -413,7 +416,9 @@ pub async fn create_election(
                     NOW(),
                     $3,
                     $4,
-					$5
+                    $5,
+                    $6,
+                    $7
                 )
                 RETURNING *;
             "#,
@@ -427,8 +432,10 @@ pub async fn create_election(
                 &Uuid::parse_str(&tenant_id)?,
                 &Uuid::parse_str(&election_event_id)?,
                 &name.to_string(),
+                &name.to_string(),
                 &description,
                 &presentation_value,
+                &voting_channels_value,
             ],
         )
         .await
@@ -797,4 +804,57 @@ pub async fn get_elections_ids(
         .collect::<Result<Vec<String>>>()?;
 
     Ok(elections)
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_election_permission_label(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<String>,
+) -> Result<Vec<String>> {
+    let election_uuid_opt = election_id
+        .clone()
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                permission_label
+                FROM
+                    sequent_backend.election
+                WHERE
+                    ($1::uuid IS NULL OR id = $1::uuid) AND
+                    tenant_id = $2 AND
+                    election_event_id = $3
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &election_uuid_opt,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the set_election_keys_ceremony query: {err}"))?;
+
+    if 0 == rows.len() {
+        return Err(anyhow!("No election found"));
+    }
+
+    let perms: Vec<Option<String>> = rows
+        .into_iter()
+        .map(|row: Row| -> Result<Option<String>> {
+            let permission_label: Option<String> = row.try_get(0)?;
+            Ok(permission_label)
+        })
+        .collect::<Result<Vec<Option<String>>>>()?;
+
+    Ok(perms.into_iter().flatten().collect())
 }

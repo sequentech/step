@@ -5,7 +5,8 @@
 use crate::postgres::secret::{get_secret_by_key, insert_secret};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::vault::{
-    aws_secret_manager::AwsSecretManager, hashicorp_vault::HashiCorpVault,
+    aws_secret_manager::AwsSecretManager, env_var_master_secret::EnvVarMasterSecret,
+    hashicorp_vault::HashiCorpVault,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -25,6 +26,7 @@ const MASTER_SECRET_KEY_NAME: &str = "master_secret";
 pub enum VaultManagerType {
     HashiCorpVault,
     AwsSecretManager,
+    EnvVarMasterSecret,
 }
 
 static MASTER_SECRET: OnceCell<SymmetricKey> = OnceCell::const_new();
@@ -78,7 +80,7 @@ pub trait Vault: Send {
 
 #[instrument(err)]
 pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
-    let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("HashiCorpVault".to_string());
+    let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("EnvVarMasterSecret".to_string());
 
     info!("Vault: vault_name={vault_name}");
 
@@ -87,6 +89,7 @@ pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     Ok(match vault {
         VaultManagerType::HashiCorpVault => Box::new(HashiCorpVault {}),
         VaultManagerType::AwsSecretManager => Box::new(AwsSecretManager {}),
+        VaultManagerType::EnvVarMasterSecret => Box::new(EnvVarMasterSecret {}),
     })
 }
 

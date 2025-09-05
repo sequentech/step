@@ -1404,9 +1404,9 @@ dependencies = [
 
 [[package]]
 name = "borsh"
-version = "1.5.1"
+version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6362ed55def622cddc70a4746a68554d7b687713770de539e59a739b249f8ed"
+checksum = "ad8646f98db542e39fc66e68a20b2144f6a732636df7c2354e74645faaa433ce"
 dependencies = [
  "borsh-derive",
  "cfg_aliases",
@@ -1414,9 +1414,9 @@ dependencies = [
 
 [[package]]
 name = "borsh-derive"
-version = "1.5.3"
+version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2593a3b8b938bd68373196c9832f516be11fa487ef4ae745eb282e6a56a7244"
+checksum = "fdd1d3c0c2f5833f22386f252fe8ed005c7f59fdcddeef025c01b4c3b9fd9ac3"
 dependencies = [
  "once_cell",
  "proc-macro-crate",
@@ -1588,7 +1588,7 @@ dependencies = [
 [[package]]
 name = "celery"
 version = "0.5.5"
-source = "git+https://github.com/rusty-celery/rusty-celery.git?rev=1a0168f4b4b521c891fcfc853c21fc30de12c2f2#1a0168f4b4b521c891fcfc853c21fc30de12c2f2"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1617,7 +1617,7 @@ dependencies = [
 [[package]]
 name = "celery-codegen"
 version = "0.5.5"
-source = "git+https://github.com/rusty-celery/rusty-celery.git?rev=1a0168f4b4b521c891fcfc853c21fc30de12c2f2#1a0168f4b4b521c891fcfc853c21fc30de12c2f2"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=b4145925aaaf742b7ba54499fff45313bcadfca1#b4145925aaaf742b7ba54499fff45313bcadfca1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2911,6 +2911,7 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tracing",
  "tracing-attributes",
@@ -7567,6 +7568,7 @@ dependencies = [
  "cfg-if",
  "chrono",
  "console_error_panic_hook",
+ "csv",
  "curve25519-dalek",
  "ed25519-dalek",
  "handlebars",
@@ -7591,6 +7593,7 @@ dependencies = [
  "reqwest-middleware",
  "reqwest-retry",
  "rocket",
+ "rusqlite",
  "schemars",
  "serde",
  "serde-wasm-bindgen",
@@ -9351,14 +9354,17 @@ dependencies = [
  "csv",
  "hex",
  "num-bigint",
+ "ordered-float 4.6.0",
  "rand 0.8.5",
  "rayon",
+ "rusqlite",
  "sequent-core",
  "serde",
  "serde_json",
  "strand",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
  "tokio",
  "tracing",
  "uuid",
@@ -9709,6 +9715,7 @@ dependencies = [
  "celery",
  "cfg-if",
  "chrono",
+ "clap 4.5.23",
  "config 0.13.4",
  "croner",
  "csv",
@@ -9742,6 +9749,7 @@ dependencies = [
  "reqwest 0.12.7",
  "ring 0.17.8",
  "rocket",
+ "rusqlite",
  "rust-s3",
  "rust_decimal",
  "rust_decimal_macros",
@@ -9761,8 +9769,10 @@ dependencies = [
  "tokio",
  "tokio-postgres",
  "tokio-stream",
- "toml 0.6.0",
+ "tokio-util",
+ "toml 0.8.19",
  "tracing",
+ "tracing-subscriber",
  "unicode-normalization",
  "uuid",
  "velvet",

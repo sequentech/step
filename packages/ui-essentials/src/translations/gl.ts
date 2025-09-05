@@ -62,7 +62,9 @@ const galegoTranslation = {
                 ok: "Aceptar",
             },
         },
-        poweredBy: "Desenvolvido por",
+        footer: {
+            poweredBy: "Desenvolvido por <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Non hai suficientes opcións para descodificar",

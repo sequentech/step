@@ -419,7 +419,7 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
     let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
 
-    let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
+    let board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
 }
@@ -460,27 +460,27 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
     }
 }
 
-pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
+pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
         .chars()
         .filter(|&c| c != '-')
         .take(17)
         .collect();
-    format!("tenant{}event{}", tenant, election_event_id)
+    format!("{}tenant{}event{}", slug, tenant, election_event_id)
         .chars()
         .filter(|&c| c != '-')
         .collect()
 }
 
-pub fn get_election_board(tenant_id: &str, election_id: &str) -> String {
+pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
         .chars()
         .filter(|&c| c != '-')
         .take(17)
         .collect();
-    format!("tenant{}election{}", tenant, election_id)
+    format!("{}tenant{}election{}", slug, tenant, election_id)
         .chars()
         .filter(|&c| c != '-')
         .collect()

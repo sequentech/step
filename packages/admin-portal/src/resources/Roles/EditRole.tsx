@@ -81,13 +81,13 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             },
         })
         if (errors) {
-            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+            notify(t("usersAndRolesScreen.roles.notifications.permissionEditError"), {
                 type: "error",
             })
             console.log(`Error editing permission: ${errors}`)
             return
         }
-        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+        notify(t("usersAndRolesScreen.roles.notifications.permissionEditSuccess"), {
             type: "success",
         })
         refresh()

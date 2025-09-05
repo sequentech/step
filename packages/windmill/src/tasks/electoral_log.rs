@@ -16,8 +16,8 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::ElectoralLogMessage;
-use electoral_log::messages::message::Message;
 use immudb_rs::TxMode;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -117,7 +117,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
 
         let event_message = match input.message_type.as_str() {
             INTERNAL_MESSAGE_TYPE => {
-                let message: ElectoralLogMessage = serde_json::from_str(&input.body)
+                let message: ElectoralLogMessage = deserialize_str(&input.body)
                     .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
                 message
             }
@@ -206,10 +206,11 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
         .await
         .with_context(|| "Error creating RabbitMQ channel")?;
 
-    let queue_name = Queue::ElectoralLogEvent.as_ref();
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let queue_name = Queue::ElectoralLogEvent.queue_name(&slug);
     let _queue = channel
         .queue_declare(
-            queue_name,
+            &queue_name,
             QueueDeclareOptions {
                 durable: true,
                 ..Default::default()
@@ -227,7 +228,7 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
         let mut batch_deliveries = Vec::with_capacity(batch_size);
         for _ in 0..batch_size {
             if let Some(delivery) = channel
-                .basic_get(queue_name, BasicGetOptions { no_ack: false })
+                .basic_get(&queue_name, BasicGetOptions { no_ack: false })
                 .await?
             {
                 info!("adding delivery element to batch_deliveries");

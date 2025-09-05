@@ -9,6 +9,8 @@ export function useAliasRenderer() {
     const {i18n} = useTranslation()
 
     const aliasRenderer = (item: any) => {
+        if (!item) return "-"
+
         return (
             translateElection(item, "alias", i18n.language) ||
             translateElection(item, "name", i18n.language) ||

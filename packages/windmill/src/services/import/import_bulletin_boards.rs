@@ -83,11 +83,12 @@ fn get_board_name_for_event_or_election(
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<String>,
+    slug: &str,
 ) -> String {
     if let Some(election_id) = election_id.clone() {
-        get_election_board(tenant_id, &election_id)
+        get_election_board(tenant_id, &election_id, slug)
     } else {
-        get_event_board(tenant_id, election_event_id)
+        get_event_board(tenant_id, election_event_id, slug)
     }
 }
 
@@ -157,8 +158,9 @@ pub async fn import_protocol_manager_keys(
     }
 
     // insert event protocol manager keys
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     if let Some(value) = keys_map.get(&None).cloned() {
-        let board_name = get_event_board(tenant_id, election_event_id);
+        let board_name = get_event_board(tenant_id, election_event_id, &slug);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
         vault::save_secret(
             hasura_transaction,
@@ -176,7 +178,7 @@ pub async fn import_protocol_manager_keys(
     // insert elections protocol managerkeys
     for election in elections {
         if let Some(value) = keys_map.get(&Some(election.id.clone())).cloned() {
-            let board_name = get_election_board(tenant_id, &election.id);
+            let board_name = get_election_board(tenant_id, &election.id, &slug);
             let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
             vault::save_secret(
                 hasura_transaction,
@@ -243,6 +245,7 @@ pub async fn import_bulletin_boards(
             .or_insert_with(Vec::new)
             .push(board_record);
     }
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     for (election_id, records) in boards_map {
         let new_election_id = if election_id.trim().len() > 0 {
@@ -256,8 +259,12 @@ pub async fn import_bulletin_boards(
             None
         };
 
-        let board_name =
-            get_board_name_for_event_or_election(tenant_id, election_event_id, new_election_id);
+        let board_name = get_board_name_for_event_or_election(
+            tenant_id,
+            election_event_id,
+            new_election_id,
+            &slug,
+        );
         let mut board_client = get_b3_pgsql_client().await?;
 
         let existing_board: Option<b3::client::pgsql::B3IndexRow> =

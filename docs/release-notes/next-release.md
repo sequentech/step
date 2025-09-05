@@ -6,228 +6,128 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release NEXT
 
-## ✨ Remove tagalo from admin settings in janitor
+## ✨ Automatically create super tenant
 
-In order to ensure that tagalo is not active as a language in the admin portal, ensure
-that in the excel file you're using for janitor, you have this configuration: in the
-`Parameters` tab, add a row with:
+This change requires new env vars:  `AWS_S3_JWKS_CERTS_PATH`=certs.json and 
+`ENV_SLUG`. `ENV_SLUG` should be the short name of the environment.
 
-- type: admin
-- key: tenant_configurations.settings.language_conf.enabled_language_codes
-- value: ["en"]
+Also keycloak no longer needs to import realms at
+ `/opt/keycloak/data/import`. Furthermore the file `certs.json` doesn't
+ need to exist initially, as windmill-beat will automatically create it
+ along with the first tenant.
 
-## ✨ Move all PDF generation to Lambda functions
+## 🐞 Uncategorized error while casting ballot
 
-PDF generation backend is now configurable and allows Lambdas to
-perform this action. Generated PDF's might also be pushed to S3 --if
-the Lambda backend is configured as AWS.--
+Improve error handling on the Voting Portal when casting a vote. This
+includes handling a Timeout, Excess Allowed Revotes, Voting in another
+Area, Internal Server Error.
 
-The **environment variable** that mandates which PDF renderer backend
-to use is called `DOC_RENDERER_BACKEND`.
+## 🐞 service-account-realm-management shouldn't appear as a voter
 
-There are three renderers allowed:
+This fixes the issue where a service account appears in the voters list.
+In order to deploy this in production, the configmap for the default
+election event configuration needs to be changed.
 
-- `DOC_RENDERER_BACKEND=aws_lambda`: this uses the AWS Lambda service -- only through a
-  Function URL in with `NONE` `Auth type`
-  (https://docs.aws.amazon.com/lambda/latest/dg/urls-configuration.html). This
-  backend is used in **production.**
-- `DOC_RENDERER_BACKEND=inplace`: this forks chrome/chromium,
-  generating the PDF in place. This is how PDF's have been generated
-  in the past. This is still the default in the development
-  environment, until `openwhisk` is promoted to the default in this
-  environment.
-- `DOC_RENDERER_BACKEND=openwhisk`: this service can be started in
-  development mode (`.devcontainer/docker-compose.yaml`), and the PDF renderer
-  lambda will be built and served locally in this mode.
+## ✨ Add support retrieving master secret in an env variable
 
-Depending on the chosen renderer, other environment variables might be
-relevant. **Note that this environment variables, both
-`DOC_RENDERER_BACKEND` and the ones following based on the backend
-that was chosen will need to be configured on multiple services, as
-the renderer decision that reads the `DOC_RENDERER_BACKEND` is inside
-`sequent-core`.**
+A new environment variable `MASTER_SECRET` has been added to use in DEV evironment instead of hashicorp.
+`SECRETS_BACKEND` was updated to `SECRETS_BACKEND=EnvVarMasterSecret` accordingly.
 
-### Lambda input
+This change should not affect production, there the value should be `SECRETS_BACKEND=AwsSecretManager`, more info in `.devcontainer/.env.development`.
 
-The input to the Lambda, is a JSON file of the form:
+The Braid Trustee service and its initialization script (`trustee.sh`) have been updated also support the env vars secrets backends.
 
-```
-{
-  "html": "raw html with escaped quotes",
-  "pdf_options": {
-    "landscape": <bool>,
-    "displayHeaderFooter": <bool>,
-    "printBackground": <bool>,
-    "scale": <float>,
-    "paperWidth": <float>,
-    "paperHeight": <float>,
-    "marginTop": <float>,
-    "marginBottom": <float>,
-    "marginLeft": <float>,
-    "marginRight": <float>,
-    "pageRanges": <string>,
-    "ignoreInvalidPageRanges": <bool>,
-    "headerTemplate": <string>,
-    "footerTemplate": <string>,
-    "preferCssPageSize": <bool>,
-    "transferMode": {
-      "mode": <string>
-    }
-  },
-  "bucket": <string>,
-  "bucket_path": <string>
-}
-```
+## ✨ Read tally in frontend from Sqlite3
 
-**All keys are optional, except for `html`.**
+With this change, the admin portal starts reading the results directly
+from the Sqlite3 file produced by the Tally. This makes it faster and
+more scalable.
 
-### Backends
+## ✨ Improve demo mode
 
-#### `aws_lambda`
+With this change, the DEMO tiled background and the Demo warning dialog
+will appear when entering the voting portal from the preview screen in the
+admin portal. Also, the warning dialog will appear on the election start
+screen rather than in the election chooser. This includes a fix so that
+the demo background/dialog will only appear for elections that don't have
+generated keys when voters login to the voting portal. Also, css classes
+are added to the demo background and dialog to help custom styling.
 
-The environment variable that ponits to the AWS Lambda endpoint is
-`AWS_LAMBDA_DOC_RENDERER_ENDPOINT`. It has not a default value, so
-that the PDF generation will fail if it is missing.
+## 🐞 Accessing tenant url after logging out does not show tenant selection page.
 
-**In the AWS Lambda mode, if the Lambda is provided with a bucket, it
-will try to upload the generated PDF to S3 at the provided path and S3
-bucket. If the upload to S3 fails, the generation of the PDF as a
-whole will return failure, as if it was never generated.**
+Previously, if you're logged in to the Admin Portal, and you logged out,
+and then went to the /tenant page to select the tenant, the page didn't load
+correctly the first time. This change fixes the issue.
 
-#### Test
+## 🐞 Intermitten errors loading preview
 
-First create the Lambda, assume we got as Function URL
-`https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/`
-in this example.
+Fix a race condition for calling WASM code when loading the voting portal that
+was sometimes causing an error.
 
-In a terminal, go to `step`, run `devenv shell`. Now, `cd
-packages/sequent-core`. From this location, run:
+## 🐞 Voter actions are not logged
 
-```
-step/packages/sequent-core $ AWS_LAMBDA_DOC_RENDERER_ENDPOINT=https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/ cargo run -q --features=reports,lambda_aws_lambda --example render_pdf
-PDF correctly generated. Lambda is working as expected.
-```
+Voter actions were not being logged because they were published to a message queue
+that didn't include the environment prefix.
 
-If you see the message `PDF correctly generated. Lambda is working as
-expected.`, the Lambda is accessible and reporting a valid response.
+## ✨ Voting Portal > Start Screen: Allow Showing Election Event Title instead of Election Title
 
-##### Testing lambda with curl
+The title of the Start Screen (Voting Portal) can be to either the election title or the Election Event Title. 
+The default value is the Election title, so there is no action required by the admin.
 
-You can also test the lambda manually with curl, like so:
+This an be changed at election level > Data > Advanced Configuration.
 
-```
-$ curl -H 'Content-Type: application/json' \
-    -d '{ "html": "Hello, world" }' \
-    https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/ | jq
-```
+## ✨ Tally - Add decoded ballot json to SQLite results database
 
-#### `inplace`
+With this change, it is possible now to include all the raw decoded ballots 
+inside the sqlite database. It also moves part of the database generation 
+inside velvet. This can be set at advanced config at the election event.
 
-**This mode is not relevant in production mode.**
+## ✨ Voting Booth: Security confirmation checkbox support
 
-No extra envvars are relevant other than `PATH`, or `CHROME` if you
-want to point explicitly to a specific Chrome executable.
+Add a security confirmation checkbox to the election Start Screen. Enable it from
+the Election > Data > Advanced Configurations in the Admin Portal, then configure
+it from  Election > Data > General translations section.
 
-#### `openwhisk`
+## 🐞 Can't cast vote
 
-**This mode is not relevant in production mode.**
+When an Election was created manually through the Admin Portal, the voting channels
+column was left empty. This means voters couldn't cast their vote as the online
+channel was not set active.
 
-The environment variable that points to the OpenWhisk endpoint is
-called `OPENWHISK_DOC_RENDERER_ENDPOINT`. If its value is not provided, it will be
-defaulted to `http://$OPENWHISK_API_HOST:3233/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true`.
+## 🐞 Tenant/Event keycloak configs have static secrets 
 
-### Services to update with the new environment variables
+When a new tenant or event is created, some clients have secrets and they are 
+being imported as-is. When creating/importing a new tenant/event, now the secrets are 
+stripped from the config to be regenerated. 
 
-Environment variables to add, in production:
+## 🐞 Default language in the voting portal is not honored in preview mode
 
-- `DOC_RENDERER_BACKEND=aws_lambda`
-- `AWS_LAMBDA_DOC_RENDERER_ENDPOINT=<endpoint>`: this endpoint should
-  be the Function URL, with **NONE** **Auth type**. The requests that
-  are issued by `sequent-core` to the Lamdba **are not IAM
-  authenticated at this time**. It is of the form
-  `https://rq5jtxuv4rxo5viu5jmxmpxuqq0oisgh.lambda-url.us-east-1.on.aws/`
-  (**DO NOT USE THIS ONE IN PARTICULAR, AS IT WILL PROBABLY NOT
-  EXIST.**)
-- `AWS_S3_PRIVATE_URI`
-- `AWS_S3_PUBLIC_URI`
-- `AWS_S3_BUCKET`
-- `AWS_S3_PUBLIC_BUCKET`
-- `AWS_REGION`
-- `AWS_S3_ACCESS_KEY`
-- `AWS_S3_ACCESS_SECRET`
-- `AWS_S3_MAX_UPLOAD_BYTES`
-- `AWS_S3_UPLOAD_EXPIRATION_SECS`
-- `AWS_S3_FETCH_EXPIRATION_SECS`
+Previously the default language was not being selected when loading the Voting
+Portal, now it is.
 
-Impacted services:
+## ✨ Add automatic keys/tally ceremonies
 
-- `windmill`
-- `harvest`
+Add a new Ceremonies Policy at the election event level.
+This policy provides the option for a user to enable automatic key ceremonies
+for a specific election or all elections. With this enabled, the tally will 
+also be performed automatically, eliminating the need for trustee involvement.
 
-As a rule of thumb, **anything** that calls to `render_pdf` from
-`packages/sequent-core/src/services/pdf.rs` will have this
-behavior. This **applies transitively** across dependencies.
+## 🐞 Voters can't login to election events in new tenants
 
-## ✨ Windmill > Enrollment: improved fuzzy search with indexes
+For security, secrets/certificates are generated randomly when creating a new
+election event/tenant. However the secret for the service account of the tenant
+should be set by the system as it is used internally. This is now set by
+environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
 
-A new function needs to be created to normalize search values:
-```
-CREATE OR REPLACE FUNCTION normalize_text(input_text TEXT)
-RETURNS TEXT AS $$
-BEGIN
-RETURN lower(
-        regexp_replace(
-            unaccent(btrim(input_text)),
-            '[-\s]+', -- Match hyphens and whitespace
-            '',
-            'g'      -- Globally replace
-        )
-        );
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-```
+## ✨ Voting Portal Immutable Logs table
 
-And a few index that make use of the new normalizing function
-```
--- Normalized User entity
-CREATE INDEX idx_user_entity_first_name_normalize ON user_entity((normalize_text(first_name)));
-CREATE INDEX idx_user_entity_last_name_normalize ON user_entity((normalize_text(last_name)));
--- Normalized attribute
-CREATE INDEX idx_user_attribute_name_value_normalize_text ON user_attribute(name, (normalize_text(value)));
-```
+To enable the feature change the policy in Admin Portal at Election Event level, 
+Data > Ballot Design > Show Cast Vote Logs Tab.
+To see the Immutable logs of the type `CastVote` go to the Voting Portal landing page
+/election-chooser > "Locate Your Ballot" button, there the tab LOGS should appear.
 
-## ✨ CANADA: Datafix integration
+## 🐞 Keycloak voter logs are not recorded
 
-New endpoints have been created, the definition and the json files can be found in _docs/datafix-integration_.
-Steps to configure the tenant and election event:
-1. Add the 2 new user attributes _voted-channel_ and _disable-comment_ into the election event realm in Realm Settings > User profile > Create attribute.
-
-2. Import new client _datafix-account.json_ into Sequent Admin Portal > Clients
-
-3. Set the election event annotations column in database - Hasura - as indicated in one of the examples: _election-event-annotations-example1.json_ or _election-event-annotations-example2.json_
-
-## ✨ Postgres add indexes
-
-Look into the file [init.sh](https://github.com/sequentech/step/blame/main/.devcontainer/postgresql/init.sh) to see which indexes
-are missing and need to be deployed. It looks like this PR [added new indexes](https://github.com/sequentech/step/pull/1628):
-
-```
--- Index on user_entity.realm_id to optimize the join with realm
-CREATE INDEX IF NOT EXISTS idx_user_entity_realm_id ON user_entity(realm_id);
-
--- Index on user_attribute.user_id to optimize the lateral join and aggregation
-CREATE INDEX IF NOT EXISTS idx_user_attribute_user_id ON user_attribute(user_id);
-  
--- A composite index on user_attribute for covering queries on user_id, name, and value
-CREATE INDEX IF NOT EXISTS idx_user_attribute_userid_name_value ON user_attribute(user_id, name, value);
-```
-
-## ✨ Create PostgreSQL constraint on number of allowed revotes
-A new constraint has been added to check the number of allowed revotes at SQL level that will raise the exception:
-```
-insert_failed_exceeds_allowed_revotes
-```
-
-Migration files in the folder:
-_1744797160789_add_check_revote_limit_at_trigger_to_cast_vote_
-
+Voter logs related to Keycloak (login, login error, code to token) were being 
+published to the wrong rabbitmq queue. This has been fixed and now they are 
+published to the queue for the respective environment.

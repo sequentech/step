@@ -8,6 +8,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::area_tree::{TreeNode, TreeNodeArea};
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
 use serde::{Deserialize, Serialize};
+use sha2::digest::const_oid::db::rfc5911::ID_AES_192_CBC;
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -519,4 +520,170 @@ pub async fn get_areas_by_election_id(
         .collect::<Result<Vec<Area>>>()?;
 
     Ok(areas)
+}
+
+/// Returns a vector of areas per tenant and election event, filtered by a list of area_ids
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_areas_by_ids(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_ids: &Vec<String>,
+) -> Result<Vec<Area>> {
+    let uuid_tenant_id = Uuid::parse_str(tenant_id)?;
+    let uuid_election_event_id = Uuid::parse_str(election_event_id)?;
+    let uuid_area_ids: Vec<Uuid> = area_ids
+        .iter()
+        .map(|id| Uuid::parse_str(id))
+        .collect::<Result<_, _>>()?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                *
+            FROM
+                sequent_backend.area
+            WHERE
+                tenant_id = $1 AND
+                election_event_id = $2 AND
+                id = ANY($3);
+            "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&uuid_tenant_id, &uuid_election_event_id, &uuid_area_ids],
+        )
+        .await?;
+
+    let areas: Vec<Area> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|res: AreaWrapper| res.0))
+        .collect::<Result<Vec<Area>>>()?;
+
+    Ok(areas)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn delete_area_contests(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &Uuid,
+    area_id: &str,
+) -> Result<()> {
+    // Delete existing area_contest rows for this area
+    let query: String = format!(
+        r#"
+            DELETE FROM sequent_backend.area_contest 
+            WHERE tenant_id = $1 
+            AND election_event_id = $2 
+            AND area_id = $3;
+            "#
+    );
+
+    // Now prepare the statement with the dynamically generated query
+    let statement = hasura_transaction.prepare(&query).await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &election_event_id,
+                &Uuid::parse_str(area_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing the delete query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.area
+                SET
+                    last_updated_at = NOW(),
+                    labels = $1,
+                    annotations = $2,
+                    name = $3,
+                    description = $4,
+                    type = $5,
+                    parent_id = $6
+                WHERE id = $7 AND tenant_id = $8 AND election_event_id = $9;
+                "#,
+        )
+        .await?;
+
+    let parent_id: Option<Uuid> = area
+        .parent_id
+        .clone()
+        .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+        .flatten();
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &area.labels,
+                &area.annotations,
+                &area.name,
+                &area.description,
+                &area.r#type,
+                &parent_id,
+                &Uuid::parse_str(&area.id)?,
+                &Uuid::parse_str(&area.tenant_id)?,
+                &Uuid::parse_str(&area.election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing update query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                INSERT INTO sequent_backend.area
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id)
+                VALUES
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9);
+            "#,
+        )
+        .await?;
+
+    let parent_id: Option<Uuid> = area
+        .parent_id
+        .clone()
+        .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+        .flatten();
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(&area.id)?,
+                &Uuid::parse_str(&area.tenant_id)?,
+                &Uuid::parse_str(&area.election_event_id)?,
+                &area.labels,
+                &area.annotations,
+                &area.name,
+                &area.description,
+                &area.r#type,
+                &parent_id,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+
+    Ok(())
 }
