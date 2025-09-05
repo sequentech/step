@@ -401,6 +401,7 @@ mod tests {
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
+    use sequent_core::util::init_log;
     use std::fs;
     use std::io::Read;
     use std::io::Write;
@@ -500,6 +501,8 @@ mod tests {
 
     #[test]
     fn test_pipes_exec_mcballots() -> Result<()> {
+        //sequent_core::util::init_log::init_log(true);
+
         let election_num = 5;
         let contest_num = 10;
         let area_num = 3;
@@ -604,11 +607,16 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // Generate database
+        state.exec_next()?;
+
         Ok(())
     }
 
     #[test]
     fn test_pipes_exec() -> Result<()> {
+        sequent_core::util::init_log::init_log(true);
+
         let election_num = 5;
         let contest_num = 10;
         let area_num = 3;
@@ -716,6 +724,9 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // Generate database
+        state.exec_next()?;
+
         Ok(())
     }
 
@@ -751,6 +762,9 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
+        state.exec_next()?;
+
+        // Generate database
         state.exec_next()?;
 
         Ok(())
@@ -1111,6 +1125,9 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // Generate database
+        state.exec_next()?;
+
         // test first contest
         let mut path = cli.output_dir.clone();
         path.push("velvet-generate-reports");
@@ -1265,6 +1282,9 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // Generate database
+        state.exec_next()?;
+
         let mut path = cli.output_dir.clone();
         path.push("velvet-generate-reports");
         path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
@@ -1414,6 +1434,9 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
+        state.exec_next()?;
+
+        // Generate database
         state.exec_next()?;
 
         let mut path = cli.output_dir.clone();
@@ -1571,6 +1594,9 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
+        state.exec_next()?;
+
+        // Generate database
         state.exec_next()?;
 
         let mut path = cli.output_dir.clone();

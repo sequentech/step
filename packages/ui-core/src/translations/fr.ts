@@ -64,7 +64,9 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Propulsé par",
+        footer: {
+            poweredBy: "Propulsé par <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Pas assez d'options pour déchiffrer",

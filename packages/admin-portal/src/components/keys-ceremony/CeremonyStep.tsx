@@ -30,6 +30,7 @@ import {useGetOne} from "react-admin"
 import {Logs} from "../Logs"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CancelButton} from "@/resources/Tally/styles"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 
 export const statusColor: (status: EStatus) => string = (status) => {
     if (status === EStatus.USER_CONFIGURATION) {
@@ -92,6 +93,11 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
 
     const status: IExecutionStatus = ceremony?.status
 
+    const isAutomaticCeremony =
+        electionEvent.presentation?.ceremonies_policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        ceremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
     return (
         <WizardStyles.WizardContainer>
             <WizardStyles.ContentWrapper>
@@ -133,12 +139,20 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                         <TableCell align="center">
                                             {t("keysGeneration.ceremonyStep.header.fragment")}
                                         </TableCell>
-                                        <TableCell align="center">
-                                            {t("keysGeneration.ceremonyStep.header.downloaded")}
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            {t("keysGeneration.ceremonyStep.header.checked")}
-                                        </TableCell>
+                                        {!isAutomaticCeremony && (
+                                            <>
+                                                <TableCell align="center">
+                                                    {t(
+                                                        "keysGeneration.ceremonyStep.header.downloaded"
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {t(
+                                                        "keysGeneration.ceremonyStep.header.checked"
+                                                    )}
+                                                </TableCell>
+                                            </>
+                                        )}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -160,23 +174,30 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                         <WizardStyles.DoneIcon />
                                                     )}
                                                 </TableCell>
-                                                <TableCell align="center">
-                                                    {trustee.status === TStatus.WAITING ||
-                                                    trustee.status === TStatus.KEY_GENERATED ? (
-                                                        <HourglassEmptyIcon />
-                                                    ) : (
-                                                        <WizardStyles.DoneIcon />
-                                                    )}
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    {trustee.status === TStatus.WAITING ||
-                                                    trustee.status === TStatus.KEY_GENERATED ||
-                                                    trustee.status === TStatus.KEY_RETRIEVED ? (
-                                                        <HourglassEmptyIcon />
-                                                    ) : (
-                                                        <WizardStyles.DoneIcon />
-                                                    )}
-                                                </TableCell>
+                                                {!isAutomaticCeremony && (
+                                                    <>
+                                                        <TableCell align="center">
+                                                            {trustee.status === TStatus.WAITING ||
+                                                            trustee.status ===
+                                                                TStatus.KEY_GENERATED ? (
+                                                                <HourglassEmptyIcon />
+                                                            ) : (
+                                                                <WizardStyles.DoneIcon />
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell align="center">
+                                                            {trustee.status === TStatus.WAITING ||
+                                                            trustee.status ===
+                                                                TStatus.KEY_GENERATED ||
+                                                            trustee.status ===
+                                                                TStatus.KEY_RETRIEVED ? (
+                                                                <HourglassEmptyIcon />
+                                                            ) : (
+                                                                <WizardStyles.DoneIcon />
+                                                            )}
+                                                        </TableCell>
+                                                    </>
+                                                )}
                                             </TableRow>
                                         )
                                     }) ?? null}
@@ -195,7 +216,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </CancelButton>
-                    {!!goNext && (
+                    {!!goNext && !isAutomaticCeremony && (
                         <WizardStyles.NextButton
                             color="info"
                             onClick={goNext}

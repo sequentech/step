@@ -11,11 +11,6 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
 use crate::services::ceremonies::renamer::*;
-use crate::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
-use crate::sqlite::results_contest::update_results_contest_documents_sqlite;
-use crate::sqlite::results_election::update_results_election_documents_sqlite;
-use crate::sqlite::results_election_area::create_results_election_area_sqlite;
-use crate::sqlite::results_event::update_results_event_documents_sqlite;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -24,13 +19,19 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::compress_folder, documents::upload_and_return_document, folders::copy_to_temp_dir,
+        compress::create_archive_from_folder, documents::upload_and_return_document,
+        folders::copy_to_temp_dir,
     },
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::Transaction as SqliteTransaction;
 use sequent_core::services::translations::Name;
+use sequent_core::sqlite::results_area_contest::update_results_area_contest_documents_sqlite;
+use sequent_core::sqlite::results_contest::update_results_contest_documents_sqlite;
+use sequent_core::sqlite::results_election::update_results_election_documents_sqlite;
+use sequent_core::sqlite::results_election_area::create_results_election_area_sqlite;
+use sequent_core::sqlite::results_event::update_results_event_documents_sqlite;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::results::ResultDocuments;
@@ -187,7 +188,7 @@ pub trait GenerateResultDocuments {
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
         tally_type_enum: TallyType,
-        sqlite_transaction: &SqliteTransaction<'_>,
+        sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     ) -> Result<ResultDocuments>;
 }
 
@@ -222,7 +223,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
         tally_type_enum: TallyType,
-        sqlite_transaction: &SqliteTransaction<'_>,
+        sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     ) -> Result<ResultDocuments> {
         let tenant_id_clone = tenant_id.to_string();
         let election_event_id_clone = election_event_id.to_string();
@@ -241,7 +242,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let tar_gz_path_clone = tar_gz_path.clone();
             let original_handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path_clone);
-                compress_folder(&path)
+                create_archive_from_folder(&path, false)
             });
 
             // Await the result
@@ -314,7 +315,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                     Ok::<_, anyhow::Error>(())
                 })?;
 
-                compress_folder(&temp_dir_path)
+                create_archive_from_folder(&temp_dir_path, false)
             });
 
             // Await the result
@@ -369,14 +370,16 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             )
             .await?;
 
-            update_results_event_documents_sqlite(
-                sqlite_transaction,
-                &contest.tenant_id,
-                results_event_id,
-                &contest.election_event_id,
-                &documents,
-            )
-            .await?;
+            if let Some(sqlite_transaction) = sqlite_transaction_opt {
+                update_results_event_documents_sqlite(
+                    sqlite_transaction,
+                    &contest.tenant_id,
+                    results_event_id,
+                    &contest.election_event_id,
+                    &documents,
+                )
+                .await?;
+            }
 
             Ok(documents)
         } else {
@@ -442,7 +445,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
         tally_type_enum: TallyType,
-        sqlite_transaction: &SqliteTransaction<'_>,
+        sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     ) -> Result<ResultDocuments> {
         let contest = self
             .reports
@@ -481,16 +484,18 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         )
         .await?;
 
-        update_results_election_documents_sqlite(
-            sqlite_transaction,
-            &contest.tenant_id,
-            results_event_id,
-            &contest.election_event_id,
-            &contest.election_id,
-            &documents,
-            &json_hash,
-        )
-        .await?;
+        if let Some(sqlite_transaction) = sqlite_transaction_opt {
+            update_results_election_documents_sqlite(
+                sqlite_transaction,
+                &contest.tenant_id,
+                results_event_id,
+                &contest.election_event_id,
+                &contest.election_id,
+                &documents,
+                &json_hash,
+            )
+            .await?;
+        }
 
         Ok(documents)
     }
@@ -564,7 +569,7 @@ impl GenerateResultDocuments for ReportDataComputed {
         results_event_id: &str,
         rename_map: Option<HashMap<String, String>>,
         tally_type_enum: TallyType,
-        sqlite_transaction: &SqliteTransaction<'_>,
+        sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             document_paths,
@@ -588,17 +593,19 @@ impl GenerateResultDocuments for ReportDataComputed {
             )
             .await?;
 
-            update_results_area_contest_documents_sqlite(
-                sqlite_transaction,
-                &self.contest.tenant_id,
-                results_event_id,
-                &self.contest.election_event_id,
-                &self.contest.election_id,
-                &self.contest.id,
-                &area.id,
-                &documents,
-            )
-            .await?;
+            if let Some(sqlite_transaction) = sqlite_transaction_opt.clone() {
+                update_results_area_contest_documents_sqlite(
+                    sqlite_transaction,
+                    &self.contest.tenant_id,
+                    results_event_id,
+                    &self.contest.election_event_id,
+                    &self.contest.election_id,
+                    &self.contest.id,
+                    &area.id,
+                    &documents,
+                )
+                .await?;
+            }
         } else {
             update_results_contest_documents(
                 hasura_transaction,
@@ -611,16 +618,18 @@ impl GenerateResultDocuments for ReportDataComputed {
             )
             .await?;
 
-            update_results_contest_documents_sqlite(
-                sqlite_transaction,
-                &self.contest.tenant_id,
-                results_event_id,
-                &self.contest.election_event_id,
-                &self.contest.election_id,
-                &self.contest.id,
-                &documents,
-            )
-            .await?;
+            if let Some(sqlite_transaction) = sqlite_transaction_opt {
+                update_results_contest_documents_sqlite(
+                    sqlite_transaction,
+                    &self.contest.tenant_id,
+                    results_event_id,
+                    &self.contest.election_event_id,
+                    &self.contest.election_id,
+                    &self.contest.id,
+                    &documents,
+                )
+                .await?;
+            }
         }
 
         Ok(documents)
@@ -686,7 +695,7 @@ pub async fn save_result_documents(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
-    sqlite_transaction: &SqliteTransaction<'_>,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
 ) -> Result<()> {
     let rename_map = generate_ids_map(&results, areas, default_language)?;
     let event_document_paths = results.get_document_paths(None, base_tally_path);
@@ -699,7 +708,7 @@ pub async fn save_result_documents(
             results_event_id,
             Some(rename_map),
             tally_type_enum.clone(),
-            sqlite_transaction,
+            sqlite_transaction_opt,
         )
         .await?;
 
@@ -717,7 +726,7 @@ pub async fn save_result_documents(
                 results_event_id,
                 None,
                 tally_type_enum.clone(),
-                sqlite_transaction,
+                sqlite_transaction_opt,
             )
             .await?;
         let mut election_areas: HashMap<String, BasicArea> = HashMap::new();
@@ -740,7 +749,7 @@ pub async fn save_result_documents(
                     results_event_id,
                     None,
                     tally_type_enum.clone(),
-                    sqlite_transaction,
+                    sqlite_transaction_opt,
                 )
                 .await?;
         }
@@ -767,7 +776,7 @@ pub async fn save_result_documents(
                 None,
                 area,
                 tally_type_enum.clone(),
-                sqlite_transaction,
+                sqlite_transaction_opt,
             )
             .await?;
         }
@@ -822,7 +831,7 @@ async fn save_area_documents(
     rename_map: Option<HashMap<String, String>>,
     area: BasicArea,
     tally_type_enum: TallyType,
-    sqlite_transaction: &SqliteTransaction<'_>,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
 ) -> Result<ResultDocuments> {
     let documents = generic_save_documents(
         document_paths,
@@ -845,17 +854,19 @@ async fn save_area_documents(
     )
     .await?;
 
-    create_results_election_area_sqlite(
-        sqlite_transaction,
-        &tenant_id,
-        &results_event_id,
-        &election_event_id,
-        &election_id,
-        &area.id,
-        &area.name,
-        &documents,
-    )
-    .await?;
+    if let Some(sqlite_transaction) = sqlite_transaction_opt {
+        create_results_election_area_sqlite(
+            sqlite_transaction,
+            &tenant_id,
+            &results_event_id,
+            &election_event_id,
+            &election_id,
+            &area.id,
+            &area.name,
+            &documents,
+        )
+        .await?;
+    }
 
     Ok(documents)
 }

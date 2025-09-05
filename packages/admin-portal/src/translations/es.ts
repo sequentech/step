@@ -82,6 +82,7 @@ const spanishTranslation: TranslationType = {
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -281,12 +282,24 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                showCastVoteLogs: {
+                    policyLabel: "Mostrar logs de votación",
+                    options: {
+                        "show-logs-tab": "Mostrar Tab de logs de votación",
+                        "hide-logs-tab": "Ocultar Tab de logs de votación",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estado de Confinamiento",
                     options: {
                         "locked-down": "Confinado",
                         "not-locked-down": "No Confinado",
                     },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Incluir papeletas decodificadas en la base de datos de resultados",
+                    options: {"included": "Incluir", "not-included": "No incluir"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -323,6 +336,13 @@ const spanishTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitado",
                         disabled: "Deshabilitado",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de ceremonias de llaves/recuento",
+                    options: {
+                        "automated-ceremonies": "Permitir ceremonias automáticas",
+                        "manual-ceremonies": "Ceremonias manuales",
                     },
                 },
             },
@@ -533,6 +553,12 @@ const spanishTranslation: TranslationType = {
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
+                securityConfirmationHtml: "Confirmación de seguridad HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casilla de confirmación de seguridad",
+                none: "Ninguno",
+                mandatory: "Obligatorio",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -573,6 +599,13 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título de pantalla de inicio",
+                options: {
+                    "election": "Elección",
+                    "election-event": "Evento Electoral",
                 },
             },
         },
@@ -987,6 +1020,8 @@ const spanishTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración de cifrado del informe exitosa",
+                encryptError: "Error al configurar el cifrado del informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo de Voto",
@@ -1310,12 +1345,17 @@ const spanishTranslation: TranslationType = {
                     ok: "Sí, Crear Ceremonia de Claves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que quieres crear una ceremonia de llaves automática?",
                     description:
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a punto de crear una ceremonia de llaves automática. Esto no notificará a los fideicomisarios para que participen.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
                     "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
@@ -1535,6 +1575,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
                     ceremony:
                         "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
+                    startAutomatedTallyMessage:
+                        "Selecciona 'Start Tally' para ejecutar el proceso de recuento y mostrar los resultados, o 'Close' para cancelar.",
                 },
             },
             table: {

@@ -16,6 +16,9 @@ const galegoTranslation: TranslationType = {
             confirmation: "Confirmación",
             audit: "Auditoría",
         },
+        footer: {
+            poweredBy: "Desenvolvido por <sequent />",
+        },
         votingScreen: {
             backButton: "Volver",
             reviewButton: "Seguinte",
@@ -125,6 +128,14 @@ const galegoTranslation: TranslationType = {
                     "Produciuse un erro ao procesar a túa solicitude. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 CAST_VOTE_unexpected:
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
+                CAST_VOTE_timeout:
+                    "Erro de tempo de espera ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Superou o límite de renovacións de voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Superou o número permitido de renovacións de voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Xa votou noutra área. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
                 CAST_VOTE_UnknownError:
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 NO_BALLOT_SELECTION:
@@ -152,6 +163,18 @@ const galegoTranslation: TranslationType = {
                     "A túa sesión expirou. Por favor, comeza de novo dende o principio.",
                 CAST_VOTE_BallotIdMismatch:
                     "O identificador da papeleta non coincide co do voto emitido.",
+                SESSION_STORAGE_ERROR:
+                    "O almacenamento de sesión non está dispoñible. Por favor, inténteo de novo ou contacte co soporte.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Houbo un erro ao analizar os datos da papeleta. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Os datos da papeleta non son válidos. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Erro de tempo de espera ao obter os datos. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Erro ao converter a papeleta hashable. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                INTERNAL_ERROR:
+                    "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
         },
         confirmationScreen: {
@@ -316,6 +339,10 @@ const galegoTranslation: TranslationType = {
             notFound: "O teu ID de papeleta {{ballotId}} non foi localizado",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
+            ballotIdNotFoundAtFilter:
+                "Non atopado, comprobe que o ID da Papeleta seja correcto e pertenezca a este usuario.",
+            filterByBallotId: "Filtrar por ID da Papeleta",
+            totalBallots: "Papeletas: {{total}}",
             steps: {
                 lookup: "Localiza a túa Papeleta",
                 result: "Resultado",
@@ -325,6 +352,16 @@ const galegoTranslation: TranslationType = {
                 content:
                     "Esta pantalla permite ao votante atopar o seu voto utilizando o ID da papeleta para recuperalo. Este procedemento permite verificar que a súa papeleta foi emitida correctamente e que a papeleta rexistrada coincide coa papeleta encriptada enviada.",
                 ok: "Aceptar",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localiza a tua Papeleta",
+            },
+            column: {
+                statement_kind: "Tipo",
+                statement_timestamp: "Marca de tempo",
+                username: "Nome de usuario",
+                ballot_id: "ID da papeleta",
             },
         },
     },

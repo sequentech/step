@@ -4,8 +4,13 @@
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::pin_mut;
 use sequent_core::types::hasura::core::Candidate;
+use std::path::Path;
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use tokio_postgres::row::Row;
+use tokio_stream::StreamExt; // Added for streaming
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -170,4 +175,66 @@ pub async fn get_candidates_by_contest_id(
         .collect::<Result<Vec<Candidate>>>()?;
 
     Ok(candidate)
+}
+
+#[instrument(err, skip_all)]
+pub async fn export_candidate_csv(
+    hasura_transaction: &Transaction<'_>,
+    contests_csv_path: &Path,
+    contest_ids: &Vec<String>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let mut file = File::create(contests_csv_path)
+        .await
+        .context("Error opening CSV data to temp file")?;
+
+    let contests_csv = contest_ids
+        .iter()
+        .map(|id| format!("\"{}\"", id))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let copy_sql = format!(
+        r#"COPY (
+            SELECT
+                id::text,
+                tenant_id,
+                election_event_id::text,
+                contest_id::text,
+                created_at::text,
+                last_updated_at::text,
+                labels::text,
+                annotations::text,
+                name,
+                alias,
+                description,
+                type,
+                presentation::text,
+                is_public::text,
+                image_document_id::text
+            FROM sequent_backend.candidate
+            WHERE
+                tenant_id = '{}'
+                AND election_event_id = '{}'
+                AND contest_id = ANY('{{{}}}')
+        ) TO STDOUT WITH CSV HEADER"#,
+        tenant_id, election_event_id, contests_csv
+    );
+
+    let stream = hasura_transaction
+        .copy_out(&copy_sql)
+        .await
+        .map_err(|e| anyhow!("COPY OUT failed: {}", e))?;
+    pin_mut!(stream);
+
+    while let Some(chunk) = stream.next().await {
+        let data = chunk.context("Error reading COPY OUT stream")?;
+        file.write_all(&data)
+            .await
+            .context("Error writing CSV data to temp file")?;
+    }
+    file.flush().await?;
+
+    Ok(())
 }

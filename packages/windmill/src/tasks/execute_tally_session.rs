@@ -68,10 +68,10 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -443,12 +443,14 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
-    tally_session_contest: &[TallySessionContest],
+    tally_session_area_contest: &[TallySessionContest],
 ) -> Result<Vec<ElectionCastVotes>> {
     let mut cast_votes_map: HashMap<String, ElectionCastVotes> = HashMap::new();
 
-    for contest in tally_session_contest {
-        let annotations: serde_json::Value = contest
+    // (election_id, (area_ids))
+    let mut election_areas_map: HashMap<String, HashSet<String>> = HashMap::new();
+    for area_contest in tally_session_area_contest {
+        let annotations: serde_json::Value = area_contest
             .annotations
             .clone()
             .ok_or(anyhow!("Missing annotations in tally session contest."))?;
@@ -456,15 +458,25 @@ pub async fn count_cast_votes_election_with_census(
         let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
 
         let entry = cast_votes_map
-            .entry(contest.election_id.clone())
+            .entry(area_contest.election_id.clone())
             .or_insert_with(|| ElectionCastVotes {
-                election_id: contest.election_id.clone(),
+                election_id: area_contest.election_id.clone(),
                 census: 0,
                 cast_votes: 0,
             });
 
+        let areas_set = election_areas_map
+            .entry(area_contest.election_id.clone())
+            .or_insert_with(|| HashSet::new());
+
+        if areas_set.contains(&area_contest.area_id) {
+            continue;
+        }
+
         entry.census += annotations.elegible_voters as i64;
         entry.cast_votes += annotations.casted_ballots as i64;
+
+        areas_set.insert(area_contest.area_id.clone());
     }
 
     Ok(cast_votes_map.into_values().collect())
@@ -670,13 +682,23 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
+    let keys_ceremony_policy = keys_ceremony.policy();
+
     let threshold = keys_ceremonies[0].threshold as usize;
-    let mut available_trustees: Vec<String> = ceremony_status
-        .trustees
-        .into_iter()
-        .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
-        .map(|trustee| trustee.name.clone())
-        .collect();
+    let mut available_trustees: Vec<String> = match keys_ceremony_policy {
+        CeremoniesPolicy::MANUAL_CEREMONIES => ceremony_status
+            .trustees
+            .into_iter()
+            .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
+            .map(|trustee| trustee.name.clone())
+            .collect(),
+        CeremoniesPolicy::AUTOMATED_CEREMONIES => ceremony_status
+            .trustees
+            .into_iter()
+            .map(|trustee| trustee.name.clone())
+            .collect(),
+    };
+
     let mut rng = StdRng::from_entropy();
     available_trustees.shuffle(&mut rng);
 
@@ -870,19 +892,6 @@ async fn map_plaintext_data(
         election_event,
         tally_session,
     )))
-}
-
-#[instrument(skip(hasura_transaction), err)]
-async fn create_results_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<String> {
-    let results_event = &insert_results_event(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .with_context(|| "can't find results_event")?;
-
-    Ok(results_event.id.clone())
 }
 
 async fn build_reports_template_data(
@@ -1109,7 +1118,7 @@ pub async fn execute_tally_session_wrapped(
         &areas,
         &default_language,
         tally_type_enum.clone(),
-        &tally_session,
+        plaintexts_data.is_empty(), // &tally_session,
     )
     .await?;
     // map_plaintext_data also calls this but at this point the credentials
@@ -1289,4 +1298,161 @@ pub async fn execute_tally_session(
     };
     lock.release().await?;
     res
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::tasks::execute_tally_session::count_cast_votes_election_with_census;
+    use anyhow::anyhow;
+    use anyhow::Result;
+    use sequent_core::types::hasura::core::TallySessionContest;
+
+    #[tokio::test]
+    async fn test_count_cast_votes_election_with_census() -> Result<()> {
+        let tally_session_contest: Vec<TallySessionContest> = vec![
+            TallySessionContest {
+                id: "da77960c-2982-4ee1-ae31-d78d9fccec5a".into(),
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2".into(),
+                contest_id: Some("6b3bff7c-e272-4f34-bbaf-2f27a1fad2d0".into()),
+                session_id: 11,
+                created_at: None,      // not used for the test
+                last_updated_at: None, // not used for the test
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+                election_id: "7c261aae-5918-439a-a298-f4e89d30b5e9".into(),
+            },
+            TallySessionContest {
+                id: "3ae7714d-76d5-4302-98d3-92d77e7162b8".into(),
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+                area_id: "7903cfd5-b782-4584-abff-0674b8507d9b".into(),
+                contest_id: Some("b8bcd18f-7b1f-4c85-bcee-2ab0bf75e022".into()),
+                session_id: 27,
+                created_at: None,      // not used for the test
+                last_updated_at: None, // not used for the test
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 2,
+                    "elegible_voters": 2,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8".into(),
+            },
+            TallySessionContest {
+                id: "338485c9-9aad-48c0-bf7c-9ed42da927a0".into(),
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+                area_id: "7903cfd5-b782-4584-abff-0674b8507d9b".into(),
+                contest_id: Some("2d22e285-d9bf-45d0-a42f-86adbae3035f".into()),
+                session_id: 33,
+                created_at: None,      // not used for the test
+                last_updated_at: None, // not used for the test
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 2,
+                    "elegible_voters": 2,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8".into(),
+            },
+            TallySessionContest {
+                id: "fa96870c-fc44-42ef-8a3c-b7d31a5a22cb".into(),
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2".into(),
+                contest_id: Some("b8bcd18f-7b1f-4c85-bcee-2ab0bf75e022".into()),
+                session_id: 42,
+                created_at: None,      // not used for the test
+                last_updated_at: None, // not used for the test
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8".into(),
+            },
+            TallySessionContest {
+                id: "1605576f-c35e-4af0-8a2b-f98e4295ac17".into(),
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2".into(),
+                contest_id: Some("438089fa-2d40-487b-be71-824ba5376212".into()),
+                session_id: 47,
+                created_at: None,      // not used for the test
+                last_updated_at: None, // not used for the test
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+                election_id: "7c261aae-5918-439a-a298-f4e89d30b5e9".into(),
+            },
+            TallySessionContest {
+                id: "527fa899-290c-460d-a76b-326babec03cd".into(),
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+                area_id: "7903cfd5-b782-4584-abff-0674b8507d9b".into(),
+                contest_id: Some("6b3bff7c-e272-4f34-bbaf-2f27a1fad2d0".into()),
+                session_id: 48,
+                created_at: None,      // not used for the test
+                last_updated_at: None, // not used for the test
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 2,
+                    "elegible_voters": 2,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+                election_id: "7c261aae-5918-439a-a298-f4e89d30b5e9".into(),
+            },
+            TallySessionContest {
+                id: "547fac16-5af7-4084-ad39-b9b72ea83613".into(),
+                tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
+                election_event_id: "53c8a9ee-4cce-477b-a3a1-afc193f6a503".into(),
+                area_id: "b673d615-d363-47d2-aae9-10334f987ce2".into(),
+                contest_id: Some("2d22e285-d9bf-45d0-a42f-86adbae3035f".into()),
+                session_id: 49,
+                created_at: None,      // not used for the test
+                last_updated_at: None, // not used for the test
+                labels: None,
+                annotations: Some(serde_json::json!({
+                    "casted_ballots": 1,
+                    "elegible_voters": 1,
+                    "ballots_without_voter": 0
+                })),
+                tally_session_id: "93d39ddd-f868-4873-86fe-08948ae9e23f".into(),
+                election_id: "f19bca5f-2104-43ba-a255-87870c9875c8".into(),
+            },
+        ];
+
+        let cast_votes_count =
+            count_cast_votes_election_with_census(&tally_session_contest).await?;
+        let election_ee1e1 = cast_votes_count
+            .get(0)
+            .ok_or(anyhow!("Election1 not found"))?;
+        let election_ee1e2 = cast_votes_count
+            .get(1)
+            .ok_or(anyhow!("Election2 not found"))?;
+
+        assert_eq!(election_ee1e1.census, 3);
+        assert_eq!(election_ee1e1.cast_votes, 3);
+        assert_eq!(election_ee1e2.census, 3);
+        assert_eq!(election_ee1e2.cast_votes, 3);
+
+        Ok(())
+    }
 }

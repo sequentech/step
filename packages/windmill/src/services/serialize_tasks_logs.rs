@@ -1,23 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::ceremonies::serialize_logs::sort_logs;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::{serialization::deserialize_with_path, services::date::ISO8601};
 use serde_json::value::Value;
 use tracing::{event, instrument, Level};
-
-#[instrument]
-pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
-    let mut sorted = logs.clone();
-
-    sorted.sort_by(|a, b| {
-        let a_date = ISO8601::to_date(&a.created_date).unwrap_or(ISO8601::now());
-        let b_date = ISO8601::to_date(&b.created_date).unwrap_or(ISO8601::now());
-        a_date.cmp(&b_date)
-    });
-
-    sorted
-}
 
 #[instrument]
 pub fn general_start_log() -> Vec<Log> {
