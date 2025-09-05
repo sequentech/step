@@ -80,6 +80,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
+                DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
             },
             widget: {
