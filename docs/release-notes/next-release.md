@@ -131,3 +131,9 @@ To see the Immutable logs of the type `CastVote` go to the Voting Portal landing
 Voter logs related to Keycloak (login, login error, code to token) were being 
 published to the wrong rabbitmq queue. This has been fixed and now they are 
 published to the queue for the respective environment.
+
+## 🐞 Text gets out of the Publish buttons in the admin portal
+
+Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
+label of the Publish buttons are too long for a given language, i.e. spanish.
+Also shortened the spanish translations.
