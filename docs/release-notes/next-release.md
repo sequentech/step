@@ -125,3 +125,9 @@ To enable the feature change the policy in Admin Portal at Election Event level,
 Data > Ballot Design > Show Cast Vote Logs Tab.
 To see the Immutable logs of the type `CastVote` go to the Voting Portal landing page
 /election-chooser > "Locate Your Ballot" button, there the tab LOGS should appear.
+
+## 🐞 Keycloak voter logs are not recorded
+
+Voter logs related to Keycloak (login, login error, code to token) were being 
+published to the wrong rabbitmq queue. This has been fixed and now they are 
+published to the queue for the respective environment.
