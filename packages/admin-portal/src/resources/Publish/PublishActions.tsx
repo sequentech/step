@@ -162,8 +162,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                           padding: "6px 16px",
                       }
                     : {
-                        overflow: "hidden",
-                        padding: "6px 16px",
+                          overflow: "hidden",
+                          padding: "6px 16px",
                       }
             }
             disabled={disabled || disabledStatus?.includes(status) || st === status + 0.1}
