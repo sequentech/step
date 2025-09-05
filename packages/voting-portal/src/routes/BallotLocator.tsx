@@ -337,7 +337,7 @@ interface LogsTableProps {
 }
 
 interface MessageCellProps {
-    message: string
+    message: string | null
 }
 
 const MessageCell: React.FC<MessageCellProps> = ({message}) => {
@@ -350,24 +350,26 @@ const MessageCell: React.FC<MessageCellProps> = ({message}) => {
     }
     return (
         <>
-            <IconButton
-                icon={faCopy}
-                size="xs"
-                onClick={() => navigator.clipboard.writeText(message)}
-                sx={{
-                    "position": "absolute",
-                    "top": "4px",
-                    "right": "4px",
-                    "zIndex": 1,
-                    "backgroundColor": "rgba(255, 255, 255, 0.8)",
-                    "&:hover": {
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                    },
-                    "minWidth": "20px",
-                    "minHeight": "20px",
-                    "padding": "2px",
-                }}
-            />
+            {message && (
+                <IconButton
+                    icon={faCopy}
+                    size="xs"
+                    onClick={() => navigator.clipboard.writeText(formatJson(message))}
+                    sx={{
+                        "position": "absolute",
+                        "top": "4px",
+                        "right": "4px",
+                        "zIndex": 1,
+                        "backgroundColor": "rgba(255, 255, 255, 0.8)",
+                        "&:hover": {
+                            backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        },
+                        "minWidth": "20px",
+                        "minHeight": "20px",
+                        "padding": "2px",
+                    }}
+                />
+            )}
             <div
                 style={{
                     width: "100%",
@@ -377,7 +379,7 @@ const MessageCell: React.FC<MessageCellProps> = ({message}) => {
                     whiteSpace: "pre",
                 }}
             >
-                {formatJson(message)}
+                {message ? formatJson(message) : "****"}
             </div>
         </>
     )
@@ -419,7 +421,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 >
                     <TableHead>
                         <TableRow>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel
                                     active={orderBy === "username"}
                                     direction={orderBy === "username" ? order : "asc"}
@@ -428,7 +430,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel
                                     active={orderBy === "ballot_id"}
                                     direction={orderBy === "ballot_id" ? order : "asc"}
@@ -437,7 +439,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.ballot_id")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_kind"}
                                     direction={orderBy === "statement_kind" ? order : "asc"}
@@ -446,7 +448,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.statement_kind")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_timestamp"}
                                     direction={orderBy === "statement_timestamp" ? order : "asc"}
@@ -463,10 +465,10 @@ const LogsTable: React.FC<LogsTableProps> = ({
                     <TableBody>
                         {rows.map((row, index) => (
                             <TableRow key={index}>
-                                <TableCell align="justify">{row.username ?? "****"}</TableCell>
-                                <TableCell align="justify">{row.ballot_id}</TableCell>
-                                <TableCell align="justify">{row.statement_kind}</TableCell>
-                                <TableCell align="justify">
+                                <TableCell align="center">{row.username ?? "****"}</TableCell>
+                                <TableCell align="center">{row.ballot_id}</TableCell>
+                                <TableCell align="center">{row.statement_kind}</TableCell>
+                                <TableCell align="center">
                                     {new Date(row.statement_timestamp * 1000).toUTCString()}
                                 </TableCell>
                                 <TableCell

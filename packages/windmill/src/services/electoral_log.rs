@@ -1092,7 +1092,7 @@ pub struct CastVoteEntry {
     pub statement_kind: String,
     pub ballot_id: String,
     pub username: Option<String>,
-    pub message: String,
+    pub message: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -1108,9 +1108,14 @@ impl CastVoteEntry {
     ) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone().filter(|s| s.eq(input_username)); // Keep other usernames anonymous on the table
-        let message: &Message = &Message::strand_deserialize(&entry.message)
-            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-        let message = message.to_string();
+        let message = match username {
+            None => None,
+            Some(_) => {
+                let message: &Message = &Message::strand_deserialize(&entry.message)
+                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+                Some(message.to_string())
+            }
+        };
 
         Ok(Some(CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,
