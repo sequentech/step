@@ -68,3 +68,8 @@ election event/tenant. However the secret for the service account of the tenant
 should be set by the system as it is used internally. This is now set by
 environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
 
+## 🐞 Keycloak voter logs are not recorded
+
+Voter logs related to Keycloak (login, login error, code to token) were being 
+published to the wrong rabbitmq queue. This has been fixed and now they are 
+published to the queue for the respective environment.
