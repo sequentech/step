@@ -13,6 +13,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "../Widget"
 import {EXPORT_TALLY_RESULTS} from "@/queries/ExportTallyResults"
 import {GET_TALLY_SESSION_EXECUTION} from "@/queries/GetTallySessionExecution"
+import {DownloadExistingDocument} from "@/resources/User/DownloadExistingDocument"
 
 interface GenerateResultsXlsxProps {
     eventName: string
@@ -21,6 +22,11 @@ interface GenerateResultsXlsxProps {
     tenantId: string
     resultsEventId: string
     handleClose: () => void
+}
+
+interface DownloadDocumentData {
+    id: string
+    isTask: boolean
 }
 
 export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
@@ -32,8 +38,7 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
     handleClose,
 }) => {
     const {t} = useTranslation()
-    const [documentId, setDocumentId] = useState<string | null>(null)
-
+    const [document, setDocument] = useState<DownloadDocumentData | null>(null)
     const [exportTallyResults] = useMutation<ExportTallyResultsMutation>(EXPORT_TALLY_RESULTS, {
         context: {
             headers: {
@@ -54,23 +59,22 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
     const onClick = async (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
+        setDocument(null)
         setTimeout(() => handleClose(), 0)
-        setDocumentId(null)
-        let tallySessionExecution = await getTallySessionExecution({
+        let {data} = await getTallySessionExecution({
             variables: {
                 tallySessionId: tallySessionId,
                 tenantId: tenantId,
                 resultsEventId: resultsEventId,
             },
         })
-        let documents =
-            tallySessionExecution.data?.sequent_backend_tally_session_execution?.[0]?.documents
+        let documents = data?.sequent_backend_tally_session_execution?.[0]?.documents
         let resultsXlsxDocument = documents?.xlsx ?? null
 
         if (resultsXlsxDocument) {
-            setDocumentId(resultsXlsxDocument)
+            setDocument({id: resultsXlsxDocument, isTask: false})
         } else {
-            const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+            const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TALLY_RESULTS_XLSX)
             try {
                 let {data} = await exportTallyResults({
                     variables: {
@@ -84,10 +88,10 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
 
                 if (!generatedDocumentId) {
                     updateWidgetFail(currWidget.identifier)
-                    setDocumentId(null)
+                    setDocument(null)
                     return
                 }
-                setDocumentId(generatedDocumentId)
+                setDocument({id: generatedDocumentId, isTask: true})
                 setWidgetTaskId(currWidget.identifier, taskId)
             } catch (e) {
                 updateWidgetFail(currWidget.identifier)
@@ -111,15 +115,26 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
                             format: "XLSX",
                         })}
                     </span>
-                    {documentId ? (
-                        <DownloadDocument
-                            documentId={documentId}
-                            electionEventId={electionEventId}
-                            fileName={null}
-                            onDownload={() => {
-                                setDocumentId(null)
-                            }}
-                        />
+                    {document ? (
+                        document.isTask ? (
+                            <DownloadDocument
+                                documentId={document.id}
+                                electionEventId={electionEventId}
+                                fileName={null}
+                                onDownload={() => {
+                                    setDocument(null)
+                                }}
+                            />
+                        ) : (
+                            <DownloadExistingDocument
+                                documentId={document.id}
+                                electionEventId={electionEventId}
+                                fileName={null}
+                                onDownload={() => {
+                                    setDocument(null)
+                                }}
+                            />
+                        )
                     ) : null}
                 </span>
             </Box>

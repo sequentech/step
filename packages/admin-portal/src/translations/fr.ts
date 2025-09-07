@@ -82,6 +82,7 @@ const frenchTranslation: TranslationType = {
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",

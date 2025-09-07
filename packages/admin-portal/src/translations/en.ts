@@ -81,6 +81,7 @@ const englishTranslation = {
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
+                EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
