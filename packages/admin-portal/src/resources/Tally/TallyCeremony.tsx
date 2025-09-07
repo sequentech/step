@@ -1071,6 +1071,7 @@ export const TallyCeremony: React.FC = () => {
                                                 }
                                                 itemName={resultsEvent?.[0]?.name ?? "event"}
                                                 tenantId={tenantId}
+                                                resultsEventId={resultsEventId}
                                             />
                                         ) : null}
                                     </TallyStyles.StyledSpacing>

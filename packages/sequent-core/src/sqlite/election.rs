@@ -82,12 +82,12 @@ pub async fn create_election_sqlite(
             election.num_allowed_revotes,
             election.is_consolidated_ballot_encoding,
             election.spoil_ballot_option,
-            election.is_kiosk.unwrap_or(false),
             election.alias,
             election
                 .voting_channels
                 .as_ref()
                 .and_then(|v| to_string(v).ok()),
+            election.is_kiosk.unwrap_or(false),
             election.image_document_id,
             election.statistics.as_ref().and_then(|v| to_string(v).ok()),
             election.receipts.as_ref().and_then(|v| to_string(v).ok()),

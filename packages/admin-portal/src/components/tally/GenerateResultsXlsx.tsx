@@ -6,25 +6,29 @@ import {Box, MenuItem} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useMutation, useLazyQuery} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
-import {ExportTallyResultsMutation, GetLastTallySessionExecutionQuery} from "@/gql/graphql"
+import {ExportTallyResultsMutation, GetTallySessionExecutionQuery} from "@/gql/graphql"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "../Widget"
 import {EXPORT_TALLY_RESULTS} from "@/queries/ExportTallyResults"
-import {GET_LAST_TALLY_SESSION_EXECUTION} from "@/queries/GetLastTallySessionExecution"
+import {GET_TALLY_SESSION_EXECUTION} from "@/queries/GetTallySessionExecution"
 
 interface GenerateResultsXlsxProps {
+    eventName: string
     electionEventId: string
     tallySessionId: string
     tenantId: string
+    resultsEventId: string
     handleClose: () => void
 }
 
 export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
+    eventName,
     electionEventId,
     tallySessionId,
     tenantId,
+    resultsEventId,
     handleClose,
 }) => {
     const {t} = useTranslation()
@@ -38,8 +42,11 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
         },
     })
 
-    const [getLastTallySessionExecution] = useLazyQuery<GetLastTallySessionExecutionQuery>(
-        GET_LAST_TALLY_SESSION_EXECUTION
+    const [getTallySessionExecution] = useLazyQuery<GetTallySessionExecutionQuery>(
+        GET_TALLY_SESSION_EXECUTION,
+        {
+            fetchPolicy: "network-only",
+        }
     )
 
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
@@ -49,13 +56,13 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
         e.stopPropagation()
         setTimeout(() => handleClose(), 0)
         setDocumentId(null)
-        let tallySessionExecution = await getLastTallySessionExecution({
+        let tallySessionExecution = await getTallySessionExecution({
             variables: {
                 tallySessionId: tallySessionId,
                 tenantId: tenantId,
+                resultsEventId: resultsEventId,
             },
         })
-
         let documents =
             tallySessionExecution.data?.sequent_backend_tally_session_execution?.[0]?.documents
         let resultsXlsxDocument = documents?.xlsx ?? null
@@ -98,7 +105,12 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
                 }}
             >
                 <span>
-                    Export results to xlsx
+                    <span title={"XLSX"}>
+                        {t("common.label.exportFormat", {
+                            item: eventName,
+                            format: "XLSX",
+                        })}
+                    </span>
                     {documentId ? (
                         <DownloadDocument
                             documentId={documentId}

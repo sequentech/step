@@ -71,8 +71,6 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
 
     let document = documents?.sequent_backend_document?.[0]
 
-    console.log({name: document?.name})
-
     useEffect(() => {
         if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
             onSucess && onSucess()

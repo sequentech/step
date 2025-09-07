@@ -3,12 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const GET_LAST_TALLY_SESSION_EXECUTION = gql`
-    query GetLastTallySessionExecution($tallySessionId: uuid!, $tenantId: uuid!) {
+export const GET_TALLY_SESSION_EXECUTION = gql`
+    query GetTallySessionExecution(
+        $tallySessionId: uuid!
+        $tenantId: uuid!
+        $resultsEventId: uuid!
+    ) {
         sequent_backend_tally_session_execution(
-            where: {tally_session_id: {_eq: $tallySessionId}, tenant_id: {_eq: $tenantId}}
-            order_by: {created_at: desc}
-            limit: 1
+            where: {
+                tally_session_id: {_eq: $tallySessionId}
+                tenant_id: {_eq: $tenantId}
+                results_event_id: {_eq: $resultsEventId}
+            }
         ) {
             id
             tenant_id

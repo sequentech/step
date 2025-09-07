@@ -99,6 +99,7 @@ interface ExportElectionMenuProps {
     miruExportloading?: boolean
     onCreateTransmissionPackage?: (v: {area_id: string; election_id: string}) => void
     tenantId?: string | null
+    resultsEventId?: string | null
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
@@ -113,6 +114,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         miruExportloading,
         onCreateTransmissionPackage,
         tenantId,
+        resultsEventId,
     } = props
     const {globalSettings} = useContext(SettingsContext)
     const {t} = useTranslation()
@@ -309,15 +311,18 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                         </>
                     ) : null}
                     {tenantId &&
+                        resultsEventId &&
                         electionEventId &&
                         documentsList &&
                         documentsList.length > 0 &&
                         documentsList[0].class_type === "event" && (
                             <GenerateResultsXlsx
+                                eventName={itemName}
                                 electionEventId={electionEventId}
                                 tallySessionId={tallySessionId}
                                 tenantId={tenantId}
                                 handleClose={handleClose}
+                                resultsEventId={resultsEventId}
                             />
                         )}
                 </StyledAppAtom>
