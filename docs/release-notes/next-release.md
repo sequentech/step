@@ -137,3 +137,7 @@ published to the queue for the respective environment.
 The loadtesting script for voting with nightwatch was saving some screenshots
 event when the screenshots option was disabled. This took a lot of space in the
 tests, filling in the disk.
+
+## ✨ Improve Dashboard print look
+Improve the election event/election dashboard so that all necessary data (statistics)
+are displayed correctlys
