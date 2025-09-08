@@ -32,6 +32,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
+import Item from "antd/es/list/Item"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -66,7 +67,6 @@ export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChar
         return null
     }
 
-    console.log(result)
     const eligibleCensus = result.elegible_census as number
     const validVotes = result.total_valid_votes as number
     const invalidVotes = result.total_invalid_votes as number
@@ -115,6 +115,63 @@ export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChar
 
     return (
         <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'left', mb: 2 }}>
+            <CardChart title={chartName}>
+                <Chart
+                    options={chartOptions.options}
+                    series={chartOptions.series}
+                    type="pie"
+                    width={400}
+                    height={300}
+                />
+            </CardChart>
+        </Box>
+    )
+}
+
+interface CandidatesResultsChartsProps {
+    results: Sequent_Backend_Candidate_Extended[]
+    chartName: string
+}
+
+export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = ({results, chartName}) => {
+    const {t} = useTranslation()
+
+    if (results.length === 0) {
+        return null
+    }
+
+    const chartData = [
+        ...results.map((candidate) => {
+            return {
+                label: candidate.name ?? "-",
+                value: candidate.cast_votes as number
+            }
+        })
+    ].filter(item => item.value && item.value > 0)
+
+    const chartOptions: Props = {
+        options: {
+            labels: chartData.map((item) => item.label),
+            legend: {
+                position: 'bottom'
+            },
+            responsive: [{
+                breakpoint: 480,
+                options: {
+                    chart: {
+                        width: 200
+                    },
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }]
+        },
+        series: chartData.map((item) => item.value),
+    }
+
+    return (
+        <Box key={chartName+"-candidates"} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'left', mb: 2 }}>
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
@@ -389,6 +446,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             </Typography>
 
             {resultsData.length ? (
+                <>
                 <DataGrid
                     rows={resultsData}
                     columns={columns}
@@ -405,14 +463,17 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     pageSizeOptions={[10, 20, 50, 100]}
                     disableRowSelectionOnClick
                 />
+                <Box sx={{mt: 8}}>    
+                    <CandidatesResultsCharts
+                        results={resultsData}
+                        chartName={getChartName(general?.[0].name ?? undefined)}
+                    />
+                </Box>
+                </>
+
             ) : (
                 <NoItem />
             )}
-
-            {/* <CandidatesResultsCharts
-                election={election}
-                electionEvent={electionEvent}
-            /> */}
         </>
     )
 }

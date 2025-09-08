@@ -14,6 +14,7 @@ import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui
 import {NoItem} from "@/components/NoItem"
 import {
     TableContainer,
+    Box,
     Paper,
     Table,
     TableHead,
@@ -308,10 +309,12 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                             </TableBody>
                         </Table>
                     </TableContainer>
-                    <ResultsAndParticipationCharts
-                        result={general?.[0]}
-                        chartName={getChartName()}
-                    />
+                    <Box sx={{mt: 8}}>    
+                        <ResultsAndParticipationCharts
+                            result={general?.[0]}
+                            chartName={getChartName()}
+                        />
+                    </Box>
                 </>
             ) : (
                 <NoItem />
