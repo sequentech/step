@@ -28,7 +28,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {ResultsAndParticipationCharts} from "./TallyResultsGlobalCandidates"
+import {ResultsAndParticipationCharts, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -325,22 +325,30 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             </Typography>
 
             {resultsData.length ? (
-                <DataGrid
-                    rows={resultsData}
-                    columns={columns}
-                    initialState={{
-                        pagination: {
-                            paginationModel: {
-                                pageSize: 20,
+                <>
+                    <DataGrid
+                        rows={resultsData}
+                        columns={columns}
+                        initialState={{
+                            pagination: {
+                                paginationModel: {
+                                    pageSize: 20,
+                                },
                             },
-                        },
-                        sorting: {
-                            sortModel: [{field: "winning_position", sort: "asc"}],
-                        },
-                    }}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                    disableRowSelectionOnClick
-                />
+                            sorting: {
+                                sortModel: [{field: "winning_position", sort: "asc"}],
+                            },
+                        }}
+                        pageSizeOptions={[10, 20, 50, 100]}
+                        disableRowSelectionOnClick
+                    />
+                    <Box sx={{mt: 8}}>    
+                        <CandidatesResultsCharts
+                            results={resultsData as Sequent_Backend_Candidate_Extended[]}
+                            chartName={getChartName()}
+                        />
+                    </Box>
+                </>
             ) : (
                 <NoItem />
             )}

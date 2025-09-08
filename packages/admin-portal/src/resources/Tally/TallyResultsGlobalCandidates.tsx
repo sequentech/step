@@ -75,15 +75,15 @@ export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChar
     const nonVoters = eligibleCensus - validVotes - invalidVotes
     const chartData = [
         {
-            label: t("tally.chart.VotesForCandidates"),
+            label: t("tally.chart.votesForCandidates"),
             value: VotesForCandidates
         },
         {
-            label: t("tally.chart.BlankVotes"),
+            label: t("tally.chart.blankVotes"),
             value: blankVotes
         },
         {
-            label: t("tally.chart.InvalidVotes"),
+            label: t("tally.chart.invalidVotes"),
             value: invalidVotes
         },
         {
