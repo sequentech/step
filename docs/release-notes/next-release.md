@@ -104,3 +104,9 @@ stripped from the config to be regenerated.
 
 Previously the default language was not being selected when loading the Voting
 Portal, now it is.
+
+
+## ✨Tally - Add the option to export event tally results in xlsx format
+In Results & Participation aection, Add a new action to ACTIONS button at the event level
+to export results in xlsx format. This will read the data from the sqlite file
+and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
