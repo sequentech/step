@@ -51,4 +51,5 @@ pub mod templates;
 pub mod trustees;
 pub mod upload_document;
 pub mod users;
+pub mod voter_electoral_log;
 pub mod voting_status;

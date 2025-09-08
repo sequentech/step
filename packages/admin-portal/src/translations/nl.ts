@@ -80,6 +80,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
+                DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
             },
@@ -282,6 +283,13 @@ const dutchTranslation: TranslationType = {
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
+                showCastVoteLogs: {
+                    policyLabel: "Logboeken stemmen tonen",
+                    options: {
+                        "show-logs-tab": "Tab log stemmen tonen",
+                        "hide-logs-tab": "Tab log stemmen verbergen",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Vergrendelingsstatus",
                     options: {
@@ -327,6 +335,13 @@ const dutchTranslation: TranslationType = {
                     options: {
                         enabled: "Ingeschakeld",
                         disabled: "Uitgeschakeld",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Sleutel-/Telceremoniebeleid",
+                    options: {
+                        "automated-ceremonies": "Automatische ceremonies toestaan",
+                        "manual-ceremonies": "Handmatige ceremonies",
                     },
                 },
             },
@@ -1329,12 +1344,17 @@ const dutchTranslation: TranslationType = {
                     ok: "Ja, Sleutelceremonie Aanmaken",
                     cancel: "Annuleren",
                     title: "Weet u zeker dat u de Sleutelceremonie wilt aanmaken?",
+                    automaticCeremonyTitle:
+                        "Weet u zeker dat u een automatische sleutelceremonie wilt creëren?",
                     description:
                         "U staat op het punt een Sleutelceremonie aan te maken. Deze actie zal de Trustees informeren om deel te nemen aan de aanmaak en distributie van de Sleutels van het Verkiezingsevenement.",
+                    automaticCeremonyDescription:
+                        "U staat op het punt een automatische sleutelceremonie te creëren. Dit zal de beheerders niet op de hoogte stellen om deel te nemen.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
                     "Sleutelceremonie kan niet worden aangemaakt: een of meer toestemmingslabels ontbreken.",
+                automaticCeremonyToggle: "Automatische ceremonie",
             },
             ceremonyStep: {
                 cancel: "Sleutelceremonie Annuleren",
@@ -1552,6 +1572,8 @@ const dutchTranslation: TranslationType = {
                         "U staat op het punt de telceremonie te annuleren. Deze actie kan niet ongedaan worden gemaakt.",
                     ceremony:
                         "Alle vereiste trustees hebben hun sleutelfragmenten geverifieerd. Alles is klaar om resultaten te ontvangen. Wilt u de Telling starten?",
+                    startAutomatedTallyMessage:
+                        "Selecteer 'Start Tally' om het telproces uit te voeren en de resultaten weer te geven, of 'Close' om te annuleren.",
                 },
             },
             table: {

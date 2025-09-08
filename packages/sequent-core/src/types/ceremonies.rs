@@ -165,3 +165,23 @@ pub struct TallySessionDocuments {
     pub sqlite: Option<String>,
     pub xlsx: Option<String>,
 }
+
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum CeremoniesPolicy {
+    #[default]
+    #[strum(serialize = "manual-ceremonies")]
+    MANUAL_CEREMONIES,
+    #[strum(serialize = "automated-ceremonies")]
+    AUTOMATED_CEREMONIES,
+}

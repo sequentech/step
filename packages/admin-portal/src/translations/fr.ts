@@ -81,6 +81,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
+                DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
             },
@@ -282,6 +283,13 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                showCastVoteLogs: {
+                    policyLabel: "Afficher les logs de vote",
+                    options: {
+                        "show-logs-tab": "Afficher l'onglet des logs de vote",
+                        "hide-logs-tab": "Ne pas afficher l'onglet des logs de vote",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "État de Confinement",
                     options: {
@@ -329,6 +337,13 @@ const frenchTranslation: TranslationType = {
                     options: {
                         enabled: "Activé",
                         disabled: "Désactivé",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Politique des cérémonies de clés/décompte",
+                    options: {
+                        "automated-ceremonies": "Autoriser les cérémonies automatiques",
+                        "manual-ceremonies": "Cérémonies manuelles",
                     },
                 },
             },
@@ -1342,12 +1357,17 @@ const frenchTranslation: TranslationType = {
                     ok: "Oui, Créer une Cérémonie de Clés",
                     cancel: "Annuler",
                     title: "Êtes-vous sûr de vouloir Créer une Cérémonie de Clés ?",
+                    automaticCeremonyTitle:
+                        "Êtes-vous sûr de vouloir créer une cérémonie de clés automatique ?",
                     description:
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
+                    automaticCeremonyDescription:
+                        "Vous êtes sur le point de créer une cérémonie de clés automatique. Cela n'informera pas les fiduciaires de leur participation.",
                 },
                 filterTrustees: "Filtre des Autorités",
                 errorPermisionLabels:
                     "Impossible de créer la cérémonie de clés : une ou plusieurs étiquettes d’autorisations sont manquantes.",
+                automaticCeremonyToggle: "Cérémonie automatique",
             },
             ceremonyStep: {
                 cancel: "Annuler la Cérémonie de Clés",
@@ -1568,6 +1588,8 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point d'annuler la cérémonie de comptage. Cette action ne peut pas être annulée.",
                     ceremony:
                         "Tous les trustees requis ont vérifié leurs fragments de clé. Tout est prêt pour commencer à recevoir les résultats. Voulez-vous commencer le Comptage ?",
+                    startAutomatedTallyMessage:
+                        "Sélectionnez 'Start Tally' pour lancer le processus de décompte et afficher les résultats, ou 'Close' pour annuler.",
                 },
             },
             table: {

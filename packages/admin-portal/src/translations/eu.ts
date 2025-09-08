@@ -81,6 +81,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
+                DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
             },
@@ -283,6 +284,13 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                showCastVoteLogs: {
+                    policyLabel: "Erakutsi Logs Bozketa Taba",
+                    options: {
+                        "show-logs-tab": "Erakutsi Logs Bozketa Taba",
+                        "hide-logs-tab": "Ez Erakutsi Logs Bozketa Taba",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Blokeo Egoera",
                     options: {
@@ -329,6 +337,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         enabled: "Gaituta",
                         disabled: "Desgaituta",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Giltza/Zenbaketa zeremonien politika",
+                    options: {
+                        "automated-ceremonies": "Zeremonia automatikoak baimendu",
+                        "manual-ceremonies": "Eskuzko zeremoniak",
                     },
                 },
             },
@@ -1328,12 +1343,17 @@ const basqueTranslation: TranslationType = {
                     ok: "Bai, Sortu Giltzen Zeremonia",
                     cancel: "Ezeztatu",
                     title: "Ziur zaude Giltzen Zeremonia sortu nahi duzula?",
+                    automaticCeremonyTitle:
+                        "Ziur zaude giltza-ekitaldi automatiko bat sortu nahi duzula?",
                     description:
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
+                    automaticCeremonyDescription:
+                        "Giltza-ekitaldi automatiko bat sortzear zaude. Honek ez die arduradunei parte hartzeko jakinaraziko.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
                 errorPermisionLabels:
                     "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
+                automaticCeremonyToggle: "Zeremonia automatikoa",
             },
             ceremonyStep: {
                 cancel: "Ezeztatu Giltzen Zeremonia",
@@ -1552,6 +1572,8 @@ const basqueTranslation: TranslationType = {
                         "Zenbaketa zeremonia ezeztatuzera noa. Ekintza hau ezin da desegin.",
                     ceremony:
                         "Beharrezko fideikomisario guztiek beren giltza zatiak egiaztatu dituzte. Dena prest dago emaitzak jasotzen hasteko. Zenbaketa hasi nahi duzu?",
+                    startAutomatedTallyMessage:
+                        "Hautatu 'Start Tally' zenbaketa-prozesua exekutatzeko eta emaitzak bistaratzeko, edo 'Close' ezeztatzeko.",
                 },
             },
             table: {
