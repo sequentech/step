@@ -114,7 +114,7 @@ export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChar
     }
 
     return (
-        <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'left', mb: 2 }}>
+        <Box key={result.id} sx={{ display: 'flex', flexDirection: 'row', alignItems: 'left', mb: 2 }}>
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
@@ -171,7 +171,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     }
 
     return (
-        <Box key={chartName+"-candidates"} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'left', mb: 2 }}>
+        <Box key={chartName+"-candidates"} sx={{ display: 'flex', flexDirection: 'row', alignItems: 'left', mb: 2 }}>
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
