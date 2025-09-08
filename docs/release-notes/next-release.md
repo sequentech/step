@@ -98,3 +98,8 @@ environment variables  `KEYCLOAK_CLIENT_ID` and `KEYCLOAK_CLIENT_SECRET`.
 Voter logs related to Keycloak (login, login error, code to token) were being 
 published to the wrong rabbitmq queue. This has been fixed and now they are 
 published to the queue for the respective environment.
+
+## 🐞 Error in Election name on Admin Portal Tally
+
+The election name shown in the section "Results & Participation" of the Tally in
+the Admin Portal is shown as 0 rather than its actual name.
