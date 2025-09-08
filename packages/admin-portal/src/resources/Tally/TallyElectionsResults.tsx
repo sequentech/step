@@ -32,11 +32,11 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     total_voters_percent: number | "-"
 }
 
-interface ParticipationChartsProps {
+interface GeneralInformationChartsProps {
     results: Sequent_Backend_Election_Extended[]
 }
 
-const ParticipationCharts: React.FC<ParticipationChartsProps> = ({results}) => {
+const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({results}) => {
     const {t} = useTranslation()
 
     // Filter out results with valid participation data
@@ -203,7 +203,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         pageSizeOptions={[10, 20, 50, 100]}
                         disableRowSelectionOnClick 
                     />
-                    <ParticipationCharts results={resultsData} /> 
+                    <GeneralInformationCharts results={resultsData} />
                 </>
             ) : (
                 <NoItem />
