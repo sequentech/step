@@ -31,6 +31,7 @@ import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import Chart, {Props} from "react-apexcharts"
+import CardChart from "@/components/dashboard/charts/Charts"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -113,17 +114,16 @@ export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChar
     }
 
     return (
-        <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-                {chartName}
-            </Typography>
-            <Chart
-                options={chartOptions.options}
-                series={chartOptions.series}
-                type="pie"
-                width={400}
-                height={300}
-            />
+        <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'left', mb: 2 }}>
+            <CardChart title={chartName}>
+                <Chart
+                    options={chartOptions.options}
+                    series={chartOptions.series}
+                    type="pie"
+                    width={400}
+                    height={300}
+                />
+            </CardChart>
         </Box>
     )
 }
@@ -373,10 +373,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             </TableBody>
                         </Table>
                     </TableContainer>
-                    <ResultsAndParticipationCharts
-                        result={general?.[0]}
-                        chartName={getChartName(general?.[0].name ?? undefined)}
-                    />
+                    <Box sx={{mt: 8}}>    
+                        <ResultsAndParticipationCharts
+                            result={general?.[0]}
+                            chartName={getChartName(general?.[0].name ?? undefined)}
+                        />
+                    </Box>
                 </>
             ) : (
                 <NoItem />

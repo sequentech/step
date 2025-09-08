@@ -5,6 +5,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import Chart, {Props} from "react-apexcharts"
+import CardChart from "@/components/dashboard/charts/Charts"
 import {Box, Typography} from "@mui/material"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
@@ -51,7 +52,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
     }
 
     return (
-        <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+        <Box sx={{ mt: 4, display: 'flex', flexDirection: 'row', alignItems: 'left', gap: 4 }}>
             {validResults.map((result) => {
                 const eligibleCensus = result.elegible_census as number
                 const totalVoters = result.total_voters as number
@@ -91,16 +92,15 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
 
                 return (
                     <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ mb: 2 }}>
-                            {result.name}
-                        </Typography>
-                        <Chart
-                            options={chartOptions.options}
-                            series={chartOptions.series}
-                            type="pie"
-                            width={400}
-                            height={300}
-                        />
+                        <CardChart title={result.name}>
+                            <Chart
+                                options={chartOptions.options}
+                                series={chartOptions.series}
+                                type="pie"
+                                width={400}
+                                height={300}
+                            />
+                        </CardChart>
                     </Box>
                 )
             })}
@@ -187,9 +187,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     ]
 
     return (
-        <Box>
-            {resultsData.length ? (
-                <>
+        <>
+            <Box>
+                {resultsData.length ? (
                     <DataGrid
                         rows={resultsData}
                         columns={columns}
@@ -203,11 +203,17 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         pageSizeOptions={[10, 20, 50, 100]}
                         disableRowSelectionOnClick 
                     />
+                ) : (
+                    <NoItem />
+                )}
+            </Box>
+            <Box sx={{mt: 8}}>
+                {resultsData.length ? (
                     <GeneralInformationCharts results={resultsData} />
-                </>
-            ) : (
+                ) : (
                 <NoItem />
-            )}
-        </Box>
+                )}
+            </Box>
+        </>
     )
 }
