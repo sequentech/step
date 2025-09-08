@@ -83,7 +83,7 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
     }
 
     return (
-        <>
+        <div className="print-hidden">
             <Typography variant="h4">{t(`dashboard.ipAddress.title`)}</Typography>
             <ListStyle
                 resource="ip_address"
@@ -127,6 +127,6 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
                     />
                 </DatagridConfigurable>
             </ListStyle>
-        </>
+        </div>
     )
 }

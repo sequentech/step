@@ -200,7 +200,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
 
     return (
         <>
-            <Box sx={{width: 1024, marginX: "auto"}}>
+            <Box sx={{width: 1024, marginX: "auto"}} className="dashboard">
                 <BreadCrumbSteps
                     labels={[
                         "electionEventBreadcrumbSteps.created", // 0
