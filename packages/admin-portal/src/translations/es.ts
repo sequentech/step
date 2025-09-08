@@ -1618,7 +1618,7 @@ const spanishTranslation: TranslationType = {
                 invalidVotes: "Votos Inválidos",
                 totalVoters: "Total de Votantes",
                 nonVoters: "No Votantes",
-            }
+            },
         },
         publish: {
             preview: {

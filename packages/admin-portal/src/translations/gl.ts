@@ -1619,7 +1619,7 @@ const galegoTranslation: TranslationType = {
                 invalidVotes: "Votos Inválidos",
                 totalVoters: "Total de Votantes",
                 nonVoters: "Non Votantes",
-            }
+            },
         },
         publish: {
             preview: {

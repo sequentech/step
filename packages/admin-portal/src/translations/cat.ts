@@ -1628,7 +1628,7 @@ const catalanTranslation: TranslationType = {
                 invalidVotes: "Vots Invàlids",
                 totalVoters: "Total de Votants",
                 nonVoters: "No Votants",
-            }
+            },
         },
         publish: {
             preview: {

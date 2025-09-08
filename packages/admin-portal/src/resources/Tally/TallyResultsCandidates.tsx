@@ -28,7 +28,10 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {ResultsAndParticipationCharts, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
+import {
+    ResultsAndParticipationCharts,
+    CandidatesResultsCharts,
+} from "./TallyResultsGlobalCandidates"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -88,25 +91,18 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
     const electionName: string | undefined = useMemo(
         () =>
-            tallyData?.sequent_backend_election?.find(
-                (election) => election.id === electionId
-            )?.name,
+            tallyData?.sequent_backend_election?.find((election) => election.id === electionId)
+                ?.name,
         [tallyData?.sequent_backend_election, electionId]
     )
 
     const contestName: string | undefined | null = useMemo(
-        () =>
-            tallyData?.sequent_backend_contest?.find(
-                (contest) => contest.id === contestId
-            )?.name,
+        () => tallyData?.sequent_backend_contest?.find((contest) => contest.id === contestId)?.name,
         [tallyData?.sequent_backend_contest, contestId]
     )
 
     const areaName: string | undefined | null = useMemo(
-        () =>
-            tallyData?.sequent_backend_area?.find(
-                (area) => area.id === areaId
-            )?.name,
+        () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,
         [tallyData?.sequent_backend_area, areaId]
     )
 
@@ -220,7 +216,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     </TableCell>
                                     <TableCell align="right">
                                         {isNumber(general?.[0].total_auditable_votes_percent)
-                                            ? formatPercentOne(general[0].total_auditable_votes_percent)
+                                            ? formatPercentOne(
+                                                  general[0].total_auditable_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -259,7 +257,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     </TableCell>
                                     <TableCell align="right">
                                         {isNumber(general?.[0].total_invalid_votes_percent)
-                                            ? formatPercentOne(general[0].total_invalid_votes_percent)
+                                            ? formatPercentOne(
+                                                  general[0].total_invalid_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -273,8 +273,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     <TableCell align="right">
                                         {isNumber(general?.[0].explicit_invalid_votes_percent)
                                             ? formatPercentOne(
-                                                general[0].explicit_invalid_votes_percent
-                                            )
+                                                  general[0].explicit_invalid_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -288,8 +288,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     <TableCell align="right">
                                         {isNumber(general?.[0].implicit_invalid_votes_percent)
                                             ? formatPercentOne(
-                                                general[0].implicit_invalid_votes_percent
-                                            )
+                                                  general[0].implicit_invalid_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -309,7 +309,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                             </TableBody>
                         </Table>
                     </TableContainer>
-                    <Box sx={{mt: 8}}>    
+                    <Box sx={{mt: 8}}>
                         <ResultsAndParticipationCharts
                             result={general?.[0]}
                             chartName={getChartName()}
@@ -342,7 +342,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         pageSizeOptions={[10, 20, 50, 100]}
                         disableRowSelectionOnClick
                     />
-                    <Box sx={{mt: 8}}>    
+                    <Box sx={{mt: 8}}>
                         <CandidatesResultsCharts
                             results={resultsData as Sequent_Backend_Candidate_Extended[]}
                             chartName={getChartName()}

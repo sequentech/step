@@ -1614,7 +1614,7 @@ const basqueTranslation: TranslationType = {
                 invalidVotes: "Boto Baliogabeak",
                 totalVoters: "Bozkatzaile Guztiak",
                 nonVoters: "Ez-bozkatzaileak",
-            }
+            },
         },
         publish: {
             preview: {

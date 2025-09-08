@@ -1630,7 +1630,7 @@ const frenchTranslation: TranslationType = {
                 invalidVotes: "Votes Invalides",
                 totalVoters: "Total des Électeurs",
                 nonVoters: "Non-Électeurs",
-            }
+            },
         },
         publish: {
             preview: {

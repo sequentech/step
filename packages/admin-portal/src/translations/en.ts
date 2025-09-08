@@ -1605,7 +1605,7 @@ const englishTranslation = {
                 invalidVotes: "Invalid Votes",
                 totalVoters: "Total Voters",
                 nonVoters: "Non Voters",
-            }
+            },
         },
         publish: {
             preview: {

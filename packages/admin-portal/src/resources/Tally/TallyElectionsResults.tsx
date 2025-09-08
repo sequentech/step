@@ -42,9 +42,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
 
     // Filter out results with valid participation data
     const validResults = results.filter(
-        (result) => 
-            isNumber(result.elegible_census) && 
-            isNumber(result.total_voters)
+        (result) => isNumber(result.elegible_census) && isNumber(result.total_voters)
     )
 
     if (validResults.length === 0) {
@@ -52,7 +50,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
     }
 
     return (
-        <Box sx={{ mt: 4, display: 'flex', flexDirection: 'row', alignItems: 'left', gap: 4 }}>
+        <Box sx={{mt: 4, display: "flex", flexDirection: "row", alignItems: "left", gap: 4}}>
             {validResults.map((result) => {
                 const eligibleCensus = result.elegible_census as number
                 const totalVoters = result.total_voters as number
@@ -61,37 +59,42 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
                 const chartData = [
                     {
                         label: t("tally.chart.totalVoters"),
-                        value: totalVoters
+                        value: totalVoters,
                     },
                     {
                         label: t("tally.chart.nonVoters"),
-                        value: nonVoters
-                    }
-                ].filter(item => item.value > 0)
+                        value: nonVoters,
+                    },
+                ].filter((item) => item.value > 0)
 
                 const chartOptions: Props = {
                     options: {
                         labels: chartData.map((item) => item.label),
                         legend: {
-                            position: 'bottom'
+                            position: "bottom",
                         },
-                        responsive: [{
-                            breakpoint: 480,
-                            options: {
-                                chart: {
-                                    width: 200
+                        responsive: [
+                            {
+                                breakpoint: 480,
+                                options: {
+                                    chart: {
+                                        width: 200,
+                                    },
+                                    legend: {
+                                        position: "bottom",
+                                    },
                                 },
-                                legend: {
-                                    position: 'bottom'
-                                }
-                            }
-                        }]
+                            },
+                        ],
                     },
                     series: chartData.map((item) => item.value),
                 }
 
                 return (
-                    <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                    <Box
+                        key={result.id}
+                        sx={{display: "flex", flexDirection: "column", alignItems: "center", mb: 2}}
+                    >
                         <CardChart title={result.name}>
                             <Chart
                                 options={chartOptions.options}
@@ -201,7 +204,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                             },
                         }}
                         pageSizeOptions={[10, 20, 50, 100]}
-                        disableRowSelectionOnClick 
+                        disableRowSelectionOnClick
                     />
                 ) : (
                     <NoItem />
@@ -211,7 +214,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                 {resultsData.length ? (
                     <GeneralInformationCharts results={resultsData} />
                 ) : (
-                <NoItem />
+                    <NoItem />
                 )}
             </Box>
         </>

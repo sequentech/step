@@ -53,14 +53,15 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     return pos1 - pos2
 }
 
-
-
 interface ResultsAndParticipationChartsProps {
     result: Sequent_Backend_Results_Contest | Sequent_Backend_Results_Area_Contest
     chartName: string
 }
 
-export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChartsProps> = ({result, chartName}) => {
+export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChartsProps> = ({
+    result,
+    chartName,
+}) => {
     const {t} = useTranslation()
 
     if (result.elegible_census === 0) {
@@ -76,45 +77,50 @@ export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChar
     const chartData = [
         {
             label: t("tally.chart.votesForCandidates"),
-            value: VotesForCandidates
+            value: VotesForCandidates,
         },
         {
             label: t("tally.chart.blankVotes"),
-            value: blankVotes
+            value: blankVotes,
         },
         {
             label: t("tally.chart.invalidVotes"),
-            value: invalidVotes
+            value: invalidVotes,
         },
         {
             label: t("tally.chart.nonVoters"),
-            value: nonVoters
-        }
-    ].filter(item => item.value > 0)
+            value: nonVoters,
+        },
+    ].filter((item) => item.value > 0)
 
     const chartOptions: Props = {
         options: {
             labels: chartData.map((item) => item.label),
             legend: {
-                position: 'bottom'
+                position: "bottom",
             },
-            responsive: [{
-                breakpoint: 480,
-                options: {
-                    chart: {
-                        width: 200
+            responsive: [
+                {
+                    breakpoint: 480,
+                    options: {
+                        chart: {
+                            width: 200,
+                        },
+                        legend: {
+                            position: "bottom",
+                        },
                     },
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }]
+                },
+            ],
         },
         series: chartData.map((item) => item.value),
     }
 
     return (
-        <Box key={result.id} sx={{ display: 'flex', flexDirection: 'row', alignItems: 'left', mb: 2 }}>
+        <Box
+            key={result.id}
+            sx={{display: "flex", flexDirection: "row", alignItems: "left", mb: 2}}
+        >
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
@@ -133,7 +139,10 @@ interface CandidatesResultsChartsProps {
     chartName: string
 }
 
-export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = ({results, chartName}) => {
+export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = ({
+    results,
+    chartName,
+}) => {
     const {t} = useTranslation()
 
     if (results.length === 0) {
@@ -144,34 +153,39 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
         ...results.map((candidate) => {
             return {
                 label: candidate.name ?? "-",
-                value: candidate.cast_votes as number
+                value: candidate.cast_votes as number,
             }
-        })
-    ].filter(item => item.value && item.value > 0)
+        }),
+    ].filter((item) => item.value && item.value > 0)
 
     const chartOptions: Props = {
         options: {
             labels: chartData.map((item) => item.label),
             legend: {
-                position: 'bottom'
+                position: "bottom",
             },
-            responsive: [{
-                breakpoint: 480,
-                options: {
-                    chart: {
-                        width: 200
+            responsive: [
+                {
+                    breakpoint: 480,
+                    options: {
+                        chart: {
+                            width: 200,
+                        },
+                        legend: {
+                            position: "bottom",
+                        },
                     },
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }]
+                },
+            ],
         },
         series: chartData.map((item) => item.value),
     }
 
     return (
-        <Box key={chartName+"-candidates"} sx={{ display: 'flex', flexDirection: 'row', alignItems: 'left', mb: 2 }}>
+        <Box
+            key={chartName + "-candidates"}
+            sx={{display: "flex", flexDirection: "row", alignItems: "left", mb: 2}}
+        >
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
@@ -225,9 +239,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const electionName: string | undefined = useMemo(
         () =>
-            tallyData?.sequent_backend_election?.find(
-                (election) => election.id === electionId
-            )?.name,
+            tallyData?.sequent_backend_election?.find((election) => election.id === electionId)
+                ?.name,
         [tallyData?.sequent_backend_election, electionId]
     )
 
@@ -341,7 +354,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     </TableCell>
                                     <TableCell align="right">
                                         {isNumber(general?.[0].total_auditable_votes_percent)
-                                            ? formatPercentOne(general[0].total_auditable_votes_percent)
+                                            ? formatPercentOne(
+                                                  general[0].total_auditable_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -380,7 +395,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     </TableCell>
                                     <TableCell align="right">
                                         {isNumber(general?.[0].total_invalid_votes_percent)
-                                            ? formatPercentOne(general[0].total_invalid_votes_percent)
+                                            ? formatPercentOne(
+                                                  general[0].total_invalid_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -394,8 +411,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     <TableCell align="right">
                                         {isNumber(general?.[0].explicit_invalid_votes_percent)
                                             ? formatPercentOne(
-                                                general[0].explicit_invalid_votes_percent
-                                            )
+                                                  general[0].explicit_invalid_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -409,8 +426,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                     <TableCell align="right">
                                         {isNumber(general?.[0].implicit_invalid_votes_percent)
                                             ? formatPercentOne(
-                                                general[0].implicit_invalid_votes_percent
-                                            )
+                                                  general[0].implicit_invalid_votes_percent
+                                              )
                                             : "-"}
                                     </TableCell>
                                 </TableRow>
@@ -430,7 +447,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             </TableBody>
                         </Table>
                     </TableContainer>
-                    <Box sx={{mt: 8}}>    
+                    <Box sx={{mt: 8}}>
                         <ResultsAndParticipationCharts
                             result={general?.[0]}
                             chartName={getChartName(general?.[0].name ?? undefined)}
@@ -447,30 +464,29 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
             {resultsData.length ? (
                 <>
-                <DataGrid
-                    rows={resultsData}
-                    columns={columns}
-                    initialState={{
-                        pagination: {
-                            paginationModel: {
-                                pageSize: 20,
+                    <DataGrid
+                        rows={resultsData}
+                        columns={columns}
+                        initialState={{
+                            pagination: {
+                                paginationModel: {
+                                    pageSize: 20,
+                                },
                             },
-                        },
-                        sorting: {
-                            sortModel: [{field: "winning_position", sort: "asc"}],
-                        },
-                    }}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                    disableRowSelectionOnClick
-                />
-                <Box sx={{mt: 8}}>    
-                    <CandidatesResultsCharts
-                        results={resultsData}
-                        chartName={getChartName(general?.[0].name ?? undefined)}
+                            sorting: {
+                                sortModel: [{field: "winning_position", sort: "asc"}],
+                            },
+                        }}
+                        pageSizeOptions={[10, 20, 50, 100]}
+                        disableRowSelectionOnClick
                     />
-                </Box>
+                    <Box sx={{mt: 8}}>
+                        <CandidatesResultsCharts
+                            results={resultsData}
+                            chartName={getChartName(general?.[0].name ?? undefined)}
+                        />
+                    </Box>
                 </>
-
             ) : (
                 <NoItem />
             )}

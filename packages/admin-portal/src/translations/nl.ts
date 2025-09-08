@@ -1614,7 +1614,7 @@ const dutchTranslation: TranslationType = {
                 invalidVotes: "Ongeldige Stemmen",
                 totalVoters: "Totaal Kiezers",
                 nonVoters: "Niet-kiezers",
-            }
+            },
         },
         publish: {
             preview: {

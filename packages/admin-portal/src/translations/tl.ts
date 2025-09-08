@@ -1620,7 +1620,7 @@ const tagalogTranslation: TranslationType = {
                 invalidVotes: "Mga Hindi Wastong Boto",
                 totalVoters: "Kabuuang mga Botante",
                 nonVoters: "Hindi Bumoto",
-            }
+            },
         },
         publish: {
             preview: {
