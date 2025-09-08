@@ -191,8 +191,8 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
                     options={chartOptions.options}
                     series={chartOptions.series}
                     type="pie"
-                    width={400}
-                    height={300}
+                    width={600}
+                    height={500}
                 />
             </CardChart>
         </Box>
