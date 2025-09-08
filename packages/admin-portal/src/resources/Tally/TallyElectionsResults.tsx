@@ -60,7 +60,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
 
                 const chartData = [
                     {
-                        label: t("tally.chart.voters"),
+                        label: t("tally.chart.totalVoters"),
                         value: totalVoters
                     },
                     {

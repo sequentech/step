@@ -1608,6 +1608,13 @@ const basqueTranslation: TranslationType = {
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
             },
+            chart: {
+                votesForCandidates: "Hautagaientzako Botoak",
+                blankVotes: "Boto Zuriak",
+                invalidVotes: "Boto Baliogabeak",
+                totalVoters: "Bozkatzaile Guztiak",
+                nonVoters: "Ez-bozkatzaileak",
+            }
         },
         publish: {
             preview: {

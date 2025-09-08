@@ -1622,6 +1622,13 @@ const catalanTranslation: TranslationType = {
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
             },
+            chart: {
+                votesForCandidates: "Vots per Candidats",
+                blankVotes: "Vots en Blanc",
+                invalidVotes: "Vots Invàlids",
+                totalVoters: "Total de Votants",
+                nonVoters: "No Votants",
+            }
         },
         publish: {
             preview: {

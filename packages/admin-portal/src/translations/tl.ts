@@ -1614,6 +1614,13 @@ const tagalogTranslation: TranslationType = {
                 number_of_votes: "Bilang ng mga boto",
                 winning_position: "Winning position",
             },
+            chart: {
+                votesForCandidates: "Mga Boto para sa mga Kandidato",
+                blankVotes: "Mga Blankong Boto",
+                invalidVotes: "Mga Hindi Wastong Boto",
+                totalVoters: "Kabuuang mga Botante",
+                nonVoters: "Hindi Bumoto",
+            }
         },
         publish: {
             preview: {

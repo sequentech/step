@@ -1599,6 +1599,13 @@ const englishTranslation = {
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
             },
+            chart: {
+                votesForCandidates: "Votes For Candidates",
+                blankVotes: "Blank Votes",
+                invalidVotes: "Invalid Votes",
+                totalVoters: "Total Voters",
+                nonVoters: "Non Voters",
+            }
         },
         publish: {
             preview: {

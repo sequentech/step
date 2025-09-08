@@ -1624,6 +1624,13 @@ const frenchTranslation: TranslationType = {
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
             },
+            chart: {
+                votesForCandidates: "Votes pour les Candidats",
+                blankVotes: "Votes Blancs",
+                invalidVotes: "Votes Invalides",
+                totalVoters: "Total des Électeurs",
+                nonVoters: "Non-Électeurs",
+            }
         },
         publish: {
             preview: {

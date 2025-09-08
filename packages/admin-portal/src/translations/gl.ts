@@ -1613,6 +1613,13 @@ const galegoTranslation: TranslationType = {
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",
             },
+            chart: {
+                votesForCandidates: "Votos polos Candidatos",
+                blankVotes: "Votos en Branco",
+                invalidVotes: "Votos Inválidos",
+                totalVoters: "Total de Votantes",
+                nonVoters: "Non Votantes",
+            }
         },
         publish: {
             preview: {
