@@ -137,3 +137,8 @@ published to the queue for the respective environment.
 The loadtesting script for voting with nightwatch was saving some screenshots
 event when the screenshots option was disabled. This took a lot of space in the
 tests, filling in the disk.
+
+## 🐞 Error in Election name on Admin Portal Tally
+
+The election name shown in the section "Results & Participation" of the Tally in
+the Admin Portal is shown as 0 rather than its actual name.
