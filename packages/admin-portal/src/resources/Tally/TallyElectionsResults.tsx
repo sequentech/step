@@ -92,7 +92,7 @@ const ParticipationCharts: React.FC<ParticipationChartsProps> = ({results}) => {
                 return (
                     <Box key={result.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ mb: 2 }}>
-                            {result.id}
+                            {result.name}
                         </Typography>
                         <Chart
                             options={chartOptions.options}
