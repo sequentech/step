@@ -147,3 +147,10 @@ the Admin Portal is shown as 0 rather than its actual name.
 
 Event deletion is now managed as a task. It will report the result of the task if
 it goes correctly or the errors if not.
+
+## ✨ Standarize "Overseas voters turnout"
+
+Rename report to "Voters Turnout" and remove "Overseas", "OV" or other non standard
+ terminology from the report, admin portal and source code.
+Create documents and tutorials about the voters tab, adding User Attributes to keycloak,
+ or how to create reports and templates.

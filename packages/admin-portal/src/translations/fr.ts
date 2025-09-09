@@ -1894,7 +1894,7 @@ const frenchTranslation: TranslationType = {
                 OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
                 LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                OV_TURNOUT_PERCENTAGE: "Participation des Électeurs à l'Étranger",
+                VOTERS_TURNOUT_PERCENTAGE: "Participation des Électeurs",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
