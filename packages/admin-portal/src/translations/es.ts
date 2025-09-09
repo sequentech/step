@@ -81,6 +81,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
             },
             widget: {
@@ -281,6 +282,13 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                showCastVoteLogs: {
+                    policyLabel: "Mostrar logs de votación",
+                    options: {
+                        "show-logs-tab": "Mostrar Tab de logs de votación",
+                        "hide-logs-tab": "Ocultar Tab de logs de votación",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estado de Confinamiento",
                     options: {
@@ -328,6 +336,13 @@ const spanishTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitado",
                         disabled: "Deshabilitado",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de ceremonias de llaves/recuento",
+                    options: {
+                        "automated-ceremonies": "Permitir ceremonias automáticas",
+                        "manual-ceremonies": "Ceremonias manuales",
                     },
                 },
             },
@@ -1330,12 +1345,17 @@ const spanishTranslation: TranslationType = {
                     ok: "Sí, Crear Ceremonia de Claves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que quieres crear una ceremonia de llaves automática?",
                     description:
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a punto de crear una ceremonia de llaves automática. Esto no notificará a los fideicomisarios para que participen.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
                     "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
@@ -1555,6 +1575,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
                     ceremony:
                         "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
+                    startAutomatedTallyMessage:
+                        "Selecciona 'Start Tally' para ejecutar el proceso de recuento y mostrar los resultados, o 'Close' para cancelar.",
                 },
             },
             table: {

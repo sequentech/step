@@ -62,8 +62,8 @@ sha3 = "0.10"
 
 # Serialization
 # borsh = "0.9.3"
-borsh = { version = "=1.5", features = ["derive"] }
-base64 = "0.22"
+borsh = { version = "1.5", features = ["derive"] }
+base64 = "0.22.1"
 
 # RNG
 rand = { package="rand", version = "=0.8" } # 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
