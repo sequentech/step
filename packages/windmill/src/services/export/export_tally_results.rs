@@ -110,6 +110,8 @@ fn truncate_string_for_excel(value_str: String) -> String {
 }
 
 /// Converts a SQLite database file to an XLSX file, with each table as a worksheet.
+///
+#[instrument(err)]
 async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
     let db_conn = Connection::open(db_path)?;
     let mut workbook = Workbook::new();

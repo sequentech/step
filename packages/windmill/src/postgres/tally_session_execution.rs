@@ -118,6 +118,7 @@ pub async fn insert_tally_session_execution(
     Ok(value.clone())
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_tally_session_executions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -162,6 +163,7 @@ pub async fn get_tally_session_executions(
     Ok(elements)
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_last_tally_session_execution(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
