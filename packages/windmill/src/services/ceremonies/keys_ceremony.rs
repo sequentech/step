@@ -22,7 +22,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::{
-    KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
 };
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
@@ -323,6 +323,7 @@ pub async fn create_keys_ceremony(
     trustee_names: Vec<String>,
     election_id: Option<String>,
     name: Option<String>,
+    is_automatic_ceremony: bool,
 ) -> Result<String> {
     // verify trustee names and fetch their objects to get their ids
     let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
@@ -420,6 +421,16 @@ pub async fn create_keys_ceremony(
         .into_iter()
         .collect(); // Convert back to Vec
 
+    let ceremony_policy = if is_automatic_ceremony {
+        CeremoniesPolicy::AUTOMATED_CEREMONIES
+    } else {
+        CeremoniesPolicy::MANUAL_CEREMONIES
+    };
+
+    let settings = serde_json::json!({
+        "policy": ceremony_policy.to_string(),
+    });
+
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
         &transaction,
@@ -431,7 +442,7 @@ pub async fn create_keys_ceremony(
         /* status */ Some(status),
         /* execution_status */ Some(execution_status),
         name,
-        None,
+        Some(settings),
         is_default,
         permission_labels,
     )

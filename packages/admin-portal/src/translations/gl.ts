@@ -81,6 +81,7 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
             },
             widget: {
@@ -335,6 +336,13 @@ const galegoTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitado",
                         disabled: "Deshabilitado",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de cerimonias de chaves/reconto",
+                    options: {
+                        "automated-ceremonies": "Permitir cerimonias automáticas",
+                        "manual-ceremonies": "Cerimonias manuais",
                     },
                 },
             },
@@ -1338,12 +1346,17 @@ const galegoTranslation: TranslationType = {
                     ok: "Si, Crear Cerimonia de Chaves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que queres Crear a Cerimonia de Chaves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que queres crear unha cerimonia de chaves automática?",
                     description:
                         "Estás a piques de Crear a Cerimonia de Chaves. Esta acción notificará aos Fiduciarios para participar na creación e distribución das Chaves do Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a piques de crear unha cerimonia de chaves automática. Isto non notificará aos fideicomisarios para que participen.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
                     "Non se pode crear a cerimonia de chaves: falta unha ou máis etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Cerimonia de Chaves",
@@ -1563,6 +1576,8 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de cancelar a cerimonia de escrutinio. Esta acción non se pode desfacer.",
                     ceremony:
                         "Todos os fiduciarios requiridos verificaron os seus fragmentos de chave. Todo está listo para comezar a recibir resultados. ¿Queres iniciar o Escrutinio?",
+                    startAutomatedTallyMessage:
+                        "Seleccione 'Start Tally' para executar o proceso de reconto e mostrar os resultados, ou 'Close' para cancelar.",
                 },
             },
             table: {

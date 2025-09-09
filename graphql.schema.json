@@ -1251,6 +1251,16 @@
             "defaultValue": null
           },
           {
+            "name": "is_automatic_ceremony",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "name",
             "description": null,
             "type": {
@@ -1502,12 +1512,36 @@
         "description": null,
         "fields": [
           {
+            "name": "error_msg",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "task_execution",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "tasks_execution_type",
               "ofType": null
             },
             "isDeprecated": false,
@@ -113487,12 +113521,6 @@
           {
             "name": "tally_sheet_pkey",
             "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tally_sheet_uniq_channel",
-            "description": "unique or primary key constraint on columns \"election_id\", \"contest_id\", \"area_id\", \"channel\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }

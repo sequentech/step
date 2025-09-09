@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-FROM sequentech.local/cargo-packages:latest AS builder
+FROM sequentech.local/cargo-packages:v9.1.0-rc.4 AS builder
 COPY . /app
 RUN cd /app/packages && cargo build --release --bin=step-cli
 
