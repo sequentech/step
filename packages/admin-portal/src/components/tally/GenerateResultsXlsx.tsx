@@ -13,7 +13,6 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "../Widget"
 import {EXPORT_TALLY_RESULTS} from "@/queries/ExportTallyResults"
 import {GET_TALLY_SESSION_EXECUTION} from "@/queries/GetTallySessionExecution"
-import {DownloadExistingDocument} from "@/resources/User/DownloadExistingDocument"
 
 interface GenerateResultsXlsxProps {
     eventName: string
@@ -116,25 +115,14 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
                         })}
                     </span>
                     {document ? (
-                        document.isTask ? (
-                            <DownloadDocument
-                                documentId={document.id}
-                                electionEventId={electionEventId}
-                                fileName={null}
-                                onDownload={() => {
-                                    setDocument(null)
-                                }}
-                            />
-                        ) : (
-                            <DownloadExistingDocument
-                                documentId={document.id}
-                                electionEventId={electionEventId}
-                                fileName={null}
-                                onDownload={() => {
-                                    setDocument(null)
-                                }}
-                            />
-                        )
+                        <DownloadDocument
+                            documentId={document.id}
+                            electionEventId={electionEventId}
+                            fileName={null}
+                            onDownload={() => {
+                                setDocument(null)
+                            }}
+                        />
                     ) : null}
                 </span>
             </Box>
