@@ -138,6 +138,17 @@ The loadtesting script for voting with nightwatch was saving some screenshots
 event when the screenshots option was disabled. This took a lot of space in the
 tests, filling in the disk.
 
+## 🐞 Error in Election name on Admin Portal Tally
+
+The election name shown in the section "Results & Participation" of the Tally in
+the Admin Portal is shown as 0 rather than its actual name.
+
+## ✨ Create a task for deleting events
+
+Event deletion is now managed as a task. It will report the result of the task if
+it goes correctly or the errors if not.
+
 ## ✨ Improve Dashboard print look
+
 Improve the election event/election dashboard so that all necessary data (statistics)
 are displayed correctlys
