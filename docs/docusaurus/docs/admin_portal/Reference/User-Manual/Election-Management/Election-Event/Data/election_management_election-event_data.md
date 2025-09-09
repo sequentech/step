@@ -51,6 +51,7 @@ Manage how the ballot appears in the Voting Portal.
 - **Disable Ballot Audit Support**: Enable or disable the ability for voters to verify ballot encryption.
 - **Skip Election List Screen**: Skip election selection in the portal.
 - **Show User Profile**: Show user profile information in the Voting Portal.
+- **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator.
 - **Logo URL (optional)**: Provide a link to a logo to display.
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.
 - **Custom CSS**: Apply custom styles to the ballot design.
@@ -97,4 +98,5 @@ Configure advanced system behaviors for this Election Event.
 - **Voting Portal Countdown Policy**:
   - Define the session timeout duration in seconds.
   - Configure the countdown warning and logout alert thresholds.
-
+- **Keys/Tally Ceremonies Policy**:
+  - Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.

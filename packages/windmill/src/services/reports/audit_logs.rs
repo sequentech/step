@@ -348,6 +348,7 @@ impl TemplateRenderer for AuditLogsTemplate {
             area_ids: Some(area_ids),
             only_with_user: Some(true),
             election_id: Some(election_id),
+            statement_kind: None,
         };
         Ok(count_electoral_log(input).await.ok())
     }
@@ -475,6 +476,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 election_id: Some(election_id.clone()),
                 area_ids: Some(area_ids.clone()),
                 only_with_user: Some(true),
+                statement_kind: None,
             };
 
             let electoral_logs_batch = list_electoral_log(input)
@@ -687,6 +689,7 @@ impl TemplateRenderer for AuditLogsTemplate {
                 area_ids: Some(area_ids.clone()),
                 only_with_user: Some(true),
                 election_id: Some(election_id.clone()),
+                statement_kind: None,
             })
             .await
             .with_context(|| "Error in fetching list of electoral logs")?;

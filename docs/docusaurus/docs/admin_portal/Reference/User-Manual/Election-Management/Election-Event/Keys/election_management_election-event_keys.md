@@ -36,16 +36,20 @@ To initiate the Key Ceremony in the Sequent Online Voting System (OVS):
 
 3. **Start Key Ceremony**
    - Click **Create Key Ceremony** (or equivalent button/screen).
+  
+4. **Automatic Key Ceremony (Optional)**
+   - Only available for events with an 'Allow Automatic Ceremonies' policy.
+   - Enabling this setting automates the ceremony, so trustees are not required to take any action.
 
-4. **Configure Threshold & Trustees**
+5. **Configure Threshold & Trustees**
    - **Input Threshold**: Specify the minimum number of trustees required to reconstruct/decrypt (the threshold).
    - **Select Trustees**: Check the trustees who will participate in this ceremony for the Election Event.
 
-5. **Create Keys Ceremony**
+6. **Create Keys Ceremony**
    - Confirm and submit to generate the keys.
    - Approve any confirmation prompt if prompted.
 
-6. **Trustee Actions**
+7. **Trustee Actions**
    - Each trustee must:
      - **Download** the generated encrypted private key.
      - **Secure** multiple backups of their key.

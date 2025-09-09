@@ -210,13 +210,6 @@ type Mutation {
 }
 
 type Mutation {
-    prepare_ballot_publication_preview(
-        election_event_id: String!
-        ballot_publication_id: String!
-    ): PrepareBallotPublicationPreviewOutput
-}
-
-type Mutation {
     export_users(
         tenant_id: String!
         election_event_id: String
@@ -442,6 +435,18 @@ type Mutation {
 }
 
 type Query {
+    list_cast_vote_messages(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_id: String!
+        limit: Int
+        offset: Int
+        order_by: ElectoralLogOrderBy
+    ): ListCastVoteMessagesOutput
+}
+
+type Query {
     listElectoralLog(
         limit: Int
         offset: Int
@@ -489,6 +494,13 @@ type Mutation {
         scheduled_date: String
         event_processor: String!
     ): ManageElectionDatesOutput
+}
+
+type Mutation {
+    prepare_ballot_publication_preview(
+        election_event_id: String!
+        ballot_publication_id: String!
+    ): PrepareBallotPublicationPreviewOutput
 }
 
 type Mutation {
@@ -685,6 +697,8 @@ input ElectoralLogOrderBy {
     statement_timestamp: OrderDirection
     statement_kind: OrderDirection
     user_id: OrderDirection
+    username: OrderDirection
+    ballot_id: OrderDirection
 }
 
 input SampleInput {
@@ -740,6 +754,7 @@ input CreateKeysCeremonyInput {
     trustee_names: [String!]
     election_id: String
     name: String
+    is_automatic_ceremony: Boolean
 }
 
 input ElectionEventStatsInput {
@@ -1043,6 +1058,18 @@ type ElectoralLogRow {
     statement_kind: String!
     message: String!
     user_id: String!
+}
+
+type CastVoteEntry {
+    statement_timestamp: Int!
+    statement_kind: String!
+    ballot_id: String!
+    username: String!
+}
+
+type ListCastVoteMessagesOutput {
+    list: [CastVoteEntry]!
+    total: Int!
 }
 
 type DataListElectoralLog {
@@ -1354,6 +1381,8 @@ type SetCustomUrlsOutput {
 
 type DeleteElectionEvent {
     id: String
+    task_execution: tasks_execution_type
+    error_msg: String
 }
 
 type ExportTasksExecutionOutput {
