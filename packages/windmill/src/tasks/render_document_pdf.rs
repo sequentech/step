@@ -231,9 +231,7 @@ pub async fn render_documents_pdf_task_wrap(
         };
     }
 
-    let concatenated_output_ids = Some(successful_renders.join(","));
-
-    update_complete(&task_execution, concatenated_output_ids).await?;
+    // TODO pack all documents into a tar gz file and update results_event
 
     Ok(())
 }
