@@ -104,6 +104,20 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                 <td>
                   <strong>Eligible Voters</strong>
                 </td>
+
+                <td>
+                  <strong>Elegible Male Voters</strong>
+                </td>
+                <td>
+                  <strong>Eligible Female Voters</strong>
+                </td>
+                <td>
+                  <strong>Total Voted Male</strong>
+                </td>
+                <td>
+                  <strong>Total Voted Female</strong>
+                </td>
+
                 <td>
                   <strong>Actually Voted</strong>
                 </td>
@@ -126,6 +140,20 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                 <td>
                   {{election.overall_total.total_registered}}
                 </td>
+
+                <td>
+                  {{election.overall_total.total_male_registered}}
+                </td>
+                <td>
+                  {{election.overall_total.total_female_registered}}
+                </td>
+                <td>
+                  {{election.overall_total.total_male_voted}}
+                </td>
+                <td>
+                  {{election.overall_total.total_female_voted}}
+                </td>
+
                 <td>
                   {{election.overall_total.total_voted}}
                 </td>
@@ -147,6 +175,20 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
                 <td>
                   {{stats.total_registered}}
                 </td>
+
+                <td>
+                  {{stats.total_male_registered}}
+                </td>
+                <td>
+                  {{stats.total_female_registered}}
+                </td>
+                <td>
+                  {{stats.total_male_voted}}
+                </td>
+                <td>
+                  {{stats.total_female_voted}}
+                </td>
+
                 <td>
                   {{stats.total_voted}}
                 </td>
