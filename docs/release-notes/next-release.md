@@ -142,3 +142,8 @@ tests, filling in the disk.
 
 The election name shown in the section "Results & Participation" of the Tally in
 the Admin Portal is shown as 0 rather than its actual name.
+
+## 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections
+
+At the trustees tally ceremony, all elections were fetched instead of only those
+selected to participate in the tally."
