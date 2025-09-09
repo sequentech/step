@@ -14,7 +14,7 @@ RUN apt-get update && \
     apt-get autoremove
 WORKDIR /app
 COPY . /app
-RUN cd /app/packages && cargo build --release --bin=step-cli
+RUN cd /app/packages && cargo build --release --bin=step-cli --bin=e2e
 
 FROM ubuntu:noble
 RUN apt-get update -y && \
@@ -28,6 +28,7 @@ RUN curl -sL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh &
 WORKDIR /opt/sequentech
 RUN mkdir -p /opt/sequentech
 COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
+COPY --from=builder /app/packages/target/release/e2e /opt/sequentech/e2e
 COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
 RUN mkdir -p /opt/sequentech/janitor
 COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
@@ -46,6 +47,8 @@ COPY ./packages/loadtesting/run_bg_voting.sh /run_bg_voting.sh
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /run_bg_voting.sh
 COPY ./packages/loadtesting/nightwatch/ /nightwatch
+RUN mkdir -p /workspaces/step/packages
+COPY ./packages/e2e /workspaces/step/packages/
 RUN cd /nightwatch && npm install .
 
 ENTRYPOINT ["/entrypoint.sh"]
