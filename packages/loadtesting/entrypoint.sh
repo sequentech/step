@@ -54,7 +54,14 @@ esac
 
 # Parse CLI args (only for vote-cast subcommand)
 if [ "$SUBCOMMAND" = "e2e" ]; then
-  exec /run_bg_voting.sh "$@"
+  if [ $# -eq 0 ]; then
+    echo "Error: you have to provide a test scenario; for example: 'login/login_test_script.js'. List of available scenarios:"
+    tree /workspaces/step/packages/src/scenarios/
+    exit 1
+  fi
+  SCENARIO=$1
+  shift
+  exec /run_bg_voting.sh --base-test /workspaces/step/packages/src/scenarios/$SCENARIO "$@"
 elif [ "$SUBCOMMAND" = "load-tool" ]; then
   exec /opt/sequent-step/load-tool "$@"
 elif [ "$SUBCOMMAND" = "vote-cast" ]; then

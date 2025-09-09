@@ -20,7 +20,7 @@ FROM ubuntu:noble
 RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 python3-pip python3-venv python3-dev libpq-dev \
-    curl wget gnupg2 procps chromium-browser && \
+    curl wget gnupg2 procps chromium-browser tree && \
     rm -rf /var/lib/apt/lists/*
 RUN curl -sL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh && \
       bash /tmp/nodesource_setup.sh && \
