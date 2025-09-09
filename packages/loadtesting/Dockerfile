@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
+
 FROM rustlang/rust:nightly-slim AS builder
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
