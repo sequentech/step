@@ -212,8 +212,8 @@ pub async fn render_documents_pdf_task_wrap(
         let render_output_id = format!("{}-output", document_id);
 
         match render_document_pdf_wrap(
-            tenant_id.clone(), // Clone since it's a loop
-            document_id.clone(), // Clone for the same reason
+            tenant_id.clone(),
+            document_id.clone(),
             election_event_id.clone(),
             executer_username.clone(),
             render_output_id.clone(),
@@ -250,7 +250,6 @@ pub async fn render_many_document_pdf(
     output_document_id: String,
     tally_session_id: Option<String>,
 ) -> WrapResult<()> {
-    // Note, put this in a thread?
     render_documents_pdf_task_wrap(
         tenant_id,
         document_ids,
