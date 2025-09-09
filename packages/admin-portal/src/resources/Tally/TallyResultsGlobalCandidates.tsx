@@ -151,7 +151,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
         ...results.map((candidate) => {
             return {
                 label: candidate.name ?? "-",
-                value: (candidate.cast_votes ?? 0) as number + 1,
+                value: (candidate.cast_votes ?? 0) as number,
             }
         }),
     ].filter((item) => item.value && item.value > 0)
