@@ -142,3 +142,8 @@ tests, filling in the disk.
 
 The election name shown in the section "Results & Participation" of the Tally in
 the Admin Portal is shown as 0 rather than its actual name.
+
+## ✨ Create a task for deleting events
+
+Event deletion is now managed as a task. It will report the result of the task if
+it goes correctly or the errors if not.
