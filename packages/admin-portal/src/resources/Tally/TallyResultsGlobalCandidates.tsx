@@ -143,7 +143,6 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     results,
     chartName,
 }) => {
-
     if (!results || results.length === 0) {
         return null
     }
@@ -152,7 +151,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
         ...results.map((candidate) => {
             return {
                 label: candidate.name ?? "-",
-                value: (candidate.cast_votes ?? 0) as number,
+                value: (candidate.cast_votes ?? 0) as number + 1,
             }
         }),
     ].filter((item) => item.value && item.value > 0)
@@ -166,9 +165,11 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     // Distribute numbers evenly across the range based on index to have a different color for each candidate
     let colorsArray = chartData.map((_, index) => {
         let pad = index.toString(16)[0]
-        return `#${Math.floor((index / totalCandidatesRepresented) * 16777215).toString(16).padStart(8, pad)}`
+        return `#${Math.floor((index / totalCandidatesRepresented) * 16777215)
+            .toString(16)
+            .padStart(8, pad)}`
     }) as any[]
-    colorsArray[0] = "#000000ff" // Set the first color to black
+    colorsArray[0] = "#008FFBFF"
 
     const chartOptions: Props = {
         options: {
