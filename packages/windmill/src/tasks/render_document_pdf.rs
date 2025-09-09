@@ -203,7 +203,7 @@ pub async fn render_documents_pdf_task_wrap(
     election_event_id: Option<String>,
     task_execution: TasksExecution,
     executer_username: Option<String>,
-    output_document_id: String, // This now seems problematic, as it's a single ID for multiple renders.
+    output_document_id: String,
     tally_session_id: Option<String>,
 ) -> Result<()> {
     let mut successful_renders = Vec::new();
