@@ -26,7 +26,7 @@ fi
 
 SECRET_KEY_NAME="secrets/${TRUSTEE_NAME}_config"
 
-if [ "$SECRETS_BACKEND" = "awssecretsmanager" ]; then
+if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
     if [ -z "$AWS_SM_KEY_PREFIX" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]
     then
         echo "Error: AWS_SM_KEY_PREFIX must be set." #Avoid secrets overwriting
