@@ -49,6 +49,7 @@ const catalanTranslation: TranslationType = {
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",

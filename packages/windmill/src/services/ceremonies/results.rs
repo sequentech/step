@@ -483,6 +483,7 @@ pub async fn populate_results_tables(
 
         let documents = TallySessionDocuments {
             sqlite: Some(document_id.to_string()),
+            xlsx: None,
         };
 
         Ok((results_event_id_opt, Some(documents)))

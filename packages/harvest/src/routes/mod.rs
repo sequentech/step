@@ -22,6 +22,7 @@ pub mod export_application;
 pub mod export_ballot_publication;
 pub mod export_election_event;
 pub mod export_election_event_logs;
+pub mod export_tally_results;
 pub mod export_tasks_execution;
 pub mod export_template;
 pub mod export_tenant_config;

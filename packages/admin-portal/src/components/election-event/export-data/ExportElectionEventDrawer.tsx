@@ -285,7 +285,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             setExportDocumentId(undefined)
                             setOpenExport(false)
                         }}
-                        onSucess={onDownloadSuccess}
+                        onSuccess={onDownloadSuccess}
                     />
                 </>
             )}
