@@ -68,7 +68,7 @@
                             ONLINE VOTING AND COUNTING SYSTEM
                           </div>
                           <div class="voting-period">
-                            Overseas Voting Period: {{datetime from_rfc3339=(lookup (lookup reports 0).election_dates.scheduled_event_dates "ALLOW_INIT_REPORT").scheduled_at
+                            Voting Period: {{datetime from_rfc3339=(lookup (lookup reports 0).election_dates.scheduled_event_dates "ALLOW_INIT_REPORT").scheduled_at
                             output_format="%d %B %Y" with_timezone="Asia/Manila"}} - {{datetime
                             from_rfc3339=(lookup (lookup reports 0).election_dates.scheduled_event_dates "END_VOTING_PERIOD").scheduled_at output_format="%d %B %Y"
                             with_timezone="Asia/Manila"}}
