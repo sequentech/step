@@ -151,4 +151,4 @@ it goes correctly or the errors if not.
 ## ✨ Improve Dashboard print look
 
 Improve the election event/election dashboard so that all necessary data (statistics)
-are displayed correctlys
+are displayed correctly in print mode.
