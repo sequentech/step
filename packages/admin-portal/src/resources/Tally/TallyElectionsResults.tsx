@@ -191,32 +191,30 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            <Box>
-                {resultsData.length ? (
-                    <DataGrid
-                        rows={resultsData}
-                        columns={columns}
-                        initialState={{
-                            pagination: {
-                                paginationModel: {
-                                    pageSize: 10,
+            {resultsData.length ? (
+                <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
+                    <Box sx={{flex: "0 0 auto"}}>
+                        <GeneralInformationCharts results={resultsData} />
+                    </Box>
+                    <Box sx={{flex: 1}}>
+                        <DataGrid
+                            rows={resultsData}
+                            columns={columns}
+                            initialState={{
+                                pagination: {
+                                    paginationModel: {
+                                        pageSize: 10,
+                                    },
                                 },
-                            },
-                        }}
-                        pageSizeOptions={[10, 20, 50, 100]}
-                        disableRowSelectionOnClick
-                    />
-                ) : (
-                    <NoItem />
-                )}
-            </Box>
-            <Box sx={{mt: 8}}>
-                {resultsData.length ? (
-                    <GeneralInformationCharts results={resultsData} />
-                ) : (
-                    <NoItem />
-                )}
-            </Box>
+                            }}
+                            pageSizeOptions={[10, 20, 50, 100]}
+                            disableRowSelectionOnClick
+                        />
+                    </Box>
+                </Box>
+            ) : (
+                <NoItem />
+            )}
         </>
     )
 }
