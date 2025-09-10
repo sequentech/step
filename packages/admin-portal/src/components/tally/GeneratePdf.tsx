@@ -85,7 +85,11 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     }
 
     return (
-        <MenuItem onClick={onClick}>
+        <MenuItem
+            onClick={onClick}
+            className="generate-pdf"
+            key={EExportFormat.PDF + "-" + documentId}
+        >
             <Box
                 sx={{
                     textOverflow: "ellipsis",

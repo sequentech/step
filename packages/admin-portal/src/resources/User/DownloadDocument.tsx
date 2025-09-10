@@ -2,12 +2,14 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useState} from "react"
-import {FetchDocumentQuery, GetDocumentQuery} from "@/gql/graphql"
-import {useQuery, useLazyQuery} from "@apollo/client"
+
+import React, {useContext, useEffect} from "react"
+import {FetchDocumentQuery, GetDocumentQuery, Sequent_Backend_Document} from "@/gql/graphql"
+import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
+import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {downloadUrl} from "@sequentech/ui-core"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
@@ -29,73 +31,83 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     withProgress,
     onSuccess,
 }) => {
+    const [downloaded, setDownloaded] = React.useState(false)
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
-    const [downloadCompleted, setDownloadCompleted] = useState(false)
 
     const {
-        data: hasuraData,
-        loading: loadingHasura,
-        error: errorHasura,
+        data: documents,
+        refetch: hasuraRefetch,
         stopPolling,
     } = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
         variables: {
             id: documentId,
             tenantId: tenantId,
         },
-        skip: !documentId || !tenantId || downloadCompleted,
+        skip: !documentId || !tenantId || downloaded,
         pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
         onError: (error: any) => {
-            console.error(`error checking for document: ${error.message}`)
+            console.log(`error downloading doc: ${error.message}`)
         },
         onCompleted: (data) => {
+            console.log(`success downloading doc`)
             const document = data?.sequent_backend_document?.[0]
             if (document) {
                 // Document found, stop polling and trigger the next query
                 console.log("Document found, stopping polling.")
                 stopPolling()
-                getHarvestDocument()
+                harvestRefetch()
             }
         },
     })
 
-    const [getHarvestDocument, {data: harvestData, loading, error: errorHarvest}] =
-        useLazyQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
-            variables: {
-                electionEventId,
-                documentId,
-            },
-            fetchPolicy: "network-only", // Don't cache, always get fresh URL
-            onCompleted: (data) => {
-                console.log("Completed fetching document URL.")
-            },
-            onError: (error: any) => {
-                console.error(`error fetching download URL: ${error.message}`)
-                setDownloadCompleted(true)
-            },
-        })
+    const {
+        loading,
+        error,
+        data,
+        refetch: harvestRefetch,
+    } = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
+        variables: {
+            electionEventId,
+            documentId,
+        },
+        skip: !documentId || !tenantId || downloaded,
+        pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+        onCompleted: () => {
+            console.log(`completed fetching document`)
+            //harvestRefetch()
+        },
+    })
 
-    let document = hasuraData?.sequent_backend_document?.[0]
+    let document = documents?.sequent_backend_document?.[0]
+
+    console.log({name: document?.name})
 
     useEffect(() => {
-        if (harvestData?.fetchDocument?.url && !downloadCompleted) {
-            console.log("Harvest URL received, initiating download.")
+        if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
             onSuccess?.()
+            console.log("setting downloaded true")
 
-            const name = fileName || document?.name || "file"
-            downloadUrl(harvestData.fetchDocument.url, name)
-                .then(() => {
-                    onDownload()
-                })
+            let name = fileName || document?.name || "file"
+            console.log("calling downloadUrl")
+            downloadUrl(data.fetchDocument.url, name)
+                .then(() => onDownload())
                 .finally(() => {
-                    setDownloadCompleted(true)
+                    setDownloaded(true)
                 })
         }
-    }, [harvestData, document, fileName, downloadCompleted, onDownload, onSuccess])
+    }, [
+        data,
+        data?.fetchDocument?.url,
+        error,
+        loading,
+        document,
+        fileName,
+        downloaded,
+        setDownloaded,
+        onDownload,
+        downloadUrl,
+    ])
 
-    if (withProgress && (loadingHasura || loading)) {
-        return <CircularProgress />
-    }
-
-    return null
+    return withProgress ? <CircularProgress /> : <></>
 }
