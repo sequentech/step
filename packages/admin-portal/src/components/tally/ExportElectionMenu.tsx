@@ -188,7 +188,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     }
 
     return (
-        <div>
+        <div key={itemName}>
             <ExportButton
                 aria-label="export election data"
                 aria-controls="export-menu"
@@ -232,7 +232,9 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                         <React.Fragment key={documents.class_type + documents.name}>
                             {EXPORT_FORMATS.map((format) =>
                                 isExportFormatDisabled(documents.documents, format.value) ? null : (
-                                    <>
+                                    <React.Fragment
+                                        key={`${documents.class_type}:${documents.name}:${format.value}`}
+                                    >
                                         <MenuItem
                                             className={getMenuClassName(
                                                 format.value,
@@ -268,13 +270,14 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                         </MenuItem>
                                         {format.value === EExportFormat.HTML ? (
                                             <GeneratePDF
+                                                key={documents.name}
                                                 documents={documents.documents}
                                                 name={documents.name}
                                                 electionEventId={electionEventId}
                                                 tallySessionId={tallySessionId}
                                             />
                                         ) : null}
-                                    </>
+                                    </React.Fragment>
                                 )
                             )}
                         </React.Fragment>
