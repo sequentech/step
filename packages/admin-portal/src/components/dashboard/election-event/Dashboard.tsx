@@ -226,7 +226,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
 
                     <Stats metrics={metrics} />
 
-                    <Container>
+                    <Container className="dashboard-container">
                         <VotesPerDay
                             data={(dataStats?.stats?.votes_per_day as CastVotesPerDay[]) ?? null}
                             width={cardWidth}
