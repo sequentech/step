@@ -68,6 +68,9 @@ handle_trustee_config() {
     local config_content
     log "Querying secrets service for config..."
 
+    # Convert SECRETS_BACKEND to lowercase for case-insensitive comparison
+    local secrets_backend_lower=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
+
     if [ -f "$TRUSTEE_CONFIG_PATH" ] && [ "$SECRETS_BACKEND" = "EnvVarMasterSecret" ] && ! [ -z "$TRUSTEE_CONFIG" ]; then
         rm "$TRUSTEE_CONFIG_PATH"
     fi
@@ -76,8 +79,8 @@ handle_trustee_config() {
         config_content=$(<"$TRUSTEE_CONFIG_PATH")
         log "Using existing config from $TRUSTEE_CONFIG_PATH"
     else
-        case "$SECRETS_BACKEND" in
-            "EnvVarMasterSecret")
+        case "$secrets_backend_lower" in
+            "envvarmastersecret")
                 if [ -z "$TRUSTEE_CONFIG" ]; then
                     log "TRUSTEE_CONFIG empty, generating ephemeral config"
                     config_content=$(gen_trustee_config)
@@ -85,13 +88,13 @@ handle_trustee_config() {
                     config_content=$(echo -e "$TRUSTEE_CONFIG")
                 fi
                 ;;
-            "AwsSecretManager")
+            "awssecretmanager")
                 config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || {
                     log "Failed to fetch from AWS Secrets Manager"
                     config_content=""
                 }
                 ;;
-            "HashiCorpVault")
+            "hashicorpvault")
                 config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || {
                     log "Failed to fetch from HashiCorp Vault"
                     config_content=""
@@ -106,9 +109,9 @@ handle_trustee_config() {
         if [ -z "$config_content" ]; then
             log "Config does not exist, generating..."
             config_content=$(gen_trustee_config)
-            if [ "$SECRETS_BACKEND" = "AwsSecretManager" ]; then
+            if [ "$secrets_backend_lower" = "awssecretmanager" ]; then
                 store_secret_aws "$SECRET_KEY_NAME" "$config_content"
-            elif [ "$SECRETS_BACKEND" = "HashiCorpVault" ]; then
+            elif [ "$secrets_backend_lower" = "hashicorpvault" ]; then
                 store_secret_vault "$SECRET_KEY_NAME" "$config_content"
             fi
         fi
