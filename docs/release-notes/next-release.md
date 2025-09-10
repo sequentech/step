@@ -143,7 +143,24 @@ tests, filling in the disk.
 The election name shown in the section "Results & Participation" of the Tally in
 the Admin Portal is shown as 0 rather than its actual name.
 
+## ✨ Create a task for deleting events
+
+Event deletion is now managed as a task. It will report the result of the task if
+it goes correctly or the errors if not.
+
+## ✨ Standarize "Overseas voters turnout"
+
+Rename report to "Voters Turnout" and remove "Overseas", "OV" or other non standard
+ terminology from the report, admin portal and source code.
+Create documents and tutorials about the voters tab, adding User Attributes to keycloak,
+ or how to create reports and templates.
+
+## ✨Tally - Add the option to export event tally results in xlsx format
+In Results & Participation Section, Add a new action to ACTIONS button at the event level
+to export results in xlsx format. This will read the data from the sqlite file
+and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
+
 ## 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections
 
 At the trustees tally ceremony, all elections were fetched instead of only those
-selected to participate in the tally."
+selected to participate in the tally.

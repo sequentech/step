@@ -273,7 +273,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                         onDownload={() => {
                             setExportDocumentId(null)
                         }}
-                        onSucess={() => undefined}
+                        onSuccess={() => undefined}
                     />
                 </>
             )}

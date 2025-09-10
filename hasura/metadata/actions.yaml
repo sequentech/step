@@ -411,6 +411,19 @@ actions:
                   template: "{{$body.input}}"
               template_engine: Kriti
               version: 2
+    - name: export_tally_results
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tally-results
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tally-results-read
     - name: export_tasks_execution
       definition:
           kind: synchronous
@@ -1481,4 +1494,5 @@ custom_types:
         - name: CountUsersOutput
         - name: RenderDocumentPDFOutput
         - name: UpsertAreaOutput
+        - name: ExportTallyResultsOutput
     scalars: []

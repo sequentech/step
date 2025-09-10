@@ -83,6 +83,7 @@ const basqueTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
+                EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -1875,7 +1876,7 @@ const basqueTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
                 LIST_OF_OVERSEAS_VOTERS: "Atzerriko Bozkatzaileen Zerrenda",
-                OV_TURNOUT_PERCENTAGE: "Atzerriko Bozkatzaileen Parte-hartzea",
+                VOTERS_TURNOUT_PERCENTAGE: "Bozkatzaileen Parte-hartzea",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera eta Sexuaren arabera",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
