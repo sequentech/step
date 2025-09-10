@@ -16,6 +16,7 @@ export const UPSERT_AREA = gql`
         $annotations: jsonb
         $labels: jsonb
         $type: String
+        $early_start: EarlyStartPolicy!
     ) {
         upsert_area(
             id: $id
@@ -28,6 +29,7 @@ export const UPSERT_AREA = gql`
             annotations: $annotations
             labels: $labels
             type: $type
+            early_start: $early_start
         ) {
             id
         }

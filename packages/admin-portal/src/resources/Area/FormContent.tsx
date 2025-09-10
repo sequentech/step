@@ -110,6 +110,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     annotations: values.annotations,
                     labels: values.labels,
                     type: values.type,
+                    early_start: values.early_start,
                 },
             })
             refresh()

@@ -8,6 +8,11 @@ import {IContestPresentation} from "./ContestPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
+export enum EEarlyStartPolicy {
+    ALLOW_EARLY_START = "allow-early-start",
+    NO_EARLY_START = "no-early-start",
+}
+
 export enum EAllowTally {
     ALLOWED = "allowed",
     DISALLOWED = "disallowed",
