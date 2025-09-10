@@ -71,10 +71,6 @@ handle_trustee_config() {
     # Convert SECRETS_BACKEND to lowercase for case-insensitive comparison
     local secrets_backend_lower=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
 
-    if [ -f "$TRUSTEE_CONFIG_PATH" ] && [ "$SECRETS_BACKEND" = "EnvVarMasterSecret" ] && ! [ -z "$TRUSTEE_CONFIG" ]; then
-        rm "$TRUSTEE_CONFIG_PATH"
-    fi
-
     if [ -f "$TRUSTEE_CONFIG_PATH" ]; then
         config_content=$(<"$TRUSTEE_CONFIG_PATH")
         log "Using existing config from $TRUSTEE_CONFIG_PATH"
@@ -121,7 +117,7 @@ handle_trustee_config() {
         printf "%b" "$config_content" > "$TRUSTEE_CONFIG_PATH"
         log "Wrote config to $TRUSTEE_CONFIG_PATH"
     fi
-    cat "$TRUSTEE_CONFIG_PATH"
+    grep key_pk "$TRUSTEE_CONFIG_PATH"
 }
 
 handle_trustee_config
