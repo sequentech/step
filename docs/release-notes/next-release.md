@@ -137,3 +137,25 @@ published to the queue for the respective environment.
 The loadtesting script for voting with nightwatch was saving some screenshots
 event when the screenshots option was disabled. This took a lot of space in the
 tests, filling in the disk.
+
+## 🐞 Error in Election name on Admin Portal Tally
+
+The election name shown in the section "Results & Participation" of the Tally in
+the Admin Portal is shown as 0 rather than its actual name.
+
+## ✨ Create a task for deleting events
+
+Event deletion is now managed as a task. It will report the result of the task if
+it goes correctly or the errors if not.
+
+## ✨ Standarize "Overseas voters turnout"
+
+Rename report to "Voters Turnout" and remove "Overseas", "OV" or other non standard
+ terminology from the report, admin portal and source code.
+Create documents and tutorials about the voters tab, adding User Attributes to keycloak,
+ or how to create reports and templates.
+
+## ✨Tally - Add the option to export event tally results in xlsx format
+In Results & Participation Section, Add a new action to ACTIONS button at the event level
+to export results in xlsx format. This will read the data from the sqlite file
+and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
