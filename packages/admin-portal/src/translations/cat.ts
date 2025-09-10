@@ -287,7 +287,14 @@ const catalanTranslation: TranslationType = {
                     policyLabel: "Mostra els registres de votació",
                     options: {
                         "show-logs-tab": "Mostra els registres de votació",
-                        "hide-logs-tab": "Amaga els registres de votació",
+                        "hide-logs-tab": "Oculta els registres de votació",
+                    },
+                },
+                showElectoralResults: {
+                    policyLabel: "Mostra la pestanya de resultats electorals",
+                    options: {
+                        "show-results-tab": "Mostra els registres de resultats electorals",
+                        "hide-results-tab": "Oculta els registres de resultats electorals",
                     },
                 },
                 lockdownState: {

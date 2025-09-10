@@ -25,6 +25,11 @@ export enum EShowCastVoteLogsPolicy {
     HIDE_LOGS_TAB = "hide-logs-tab",
 }
 
+export enum EShowElectoralResultsPolicy {
+    SHOW_RESULTS_TAB = "show-results-tab",
+    HIDE_RESULTS_TAB = "hide-results-tab",
+}
+
 export enum ElectionsOrder {
     RANDOM = "random",
     CUSTOM = "custom",
@@ -84,6 +89,8 @@ export interface IElectionEventPresentation {
     css?: string
     skip_election_list?: boolean
     show_user_profile?: boolean
+    show_cast_vote_logs?: EShowCastVoteLogsPolicy
+    show_electoral_results?: EShowElectoralResultsPolicy
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls

@@ -289,6 +289,13 @@ const englishTranslation = {
                         "hide-logs-tab": "Hide Cast Vote Logs Tab",
                     },
                 },
+                showElectoralResults: {
+                    policyLabel: "Show Electoral Results Tab",
+                    options: {
+                        "show-results-tab": "Show Electoral Results Logs Tab",
+                        "hide-results-tab": "Hide Electoral Results Logs Tab",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Lockdown Status",
                     options: {

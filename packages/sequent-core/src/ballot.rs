@@ -558,6 +558,30 @@ pub enum ShowCastVoteLogs {
     Display,
     Default,
 )]
+pub enum ShowElectoralResults {
+    #[strum(serialize = "show-results-tab")]
+    #[serde(rename = "show-results-tab")]
+    ShowResultsTab,
+    #[strum(serialize = "hide-results-tab")]
+    #[serde(rename = "hide-results-tab")]
+    #[default]
+    HideResultsTab,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
 pub enum ElectionsOrder {
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
@@ -755,6 +779,7 @@ pub struct ElectionEventPresentation {
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
     pub show_cast_vote_logs: Option<ShowCastVoteLogs>,
+    pub show_electoral_results: Option<ShowElectoralResults>,
     pub elections_order: Option<ElectionsOrder>,
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
     pub custom_urls: Option<CustomUrls>,

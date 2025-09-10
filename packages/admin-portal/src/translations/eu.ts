@@ -288,7 +288,14 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Erakutsi Logs Bozketa Taba",
                     options: {
                         "show-logs-tab": "Erakutsi Logs Bozketa Taba",
-                        "hide-logs-tab": "Ez Erakutsi Logs Bozketa Taba",
+                        "hide-logs-tab": "Ezkutatu Logs Bozketa Taba",
+                    },
+                },
+                showElectoralResults: {
+                    policyLabel: "Erakutsi Hauteskunde Emaitzen Taba",
+                    options: {
+                        "show-results-tab": "Erakutsi Hauteskunde Emaitzen Logs Taba",
+                        "hide-results-tab": "Ezkutatu Hauteskunde Emaitzen Logs Taba",
                     },
                 },
                 lockdownState: {

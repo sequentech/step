@@ -55,6 +55,7 @@ import {
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
 } from "@sequentech/ui-core"
+import {EShowElectoralResultsPolicy} from "@sequentech/ui-core/src/types/ElectionEventPresentation"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
@@ -468,6 +469,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const showElectoralResultsChoices = (): Array<EnumChoice<EShowElectoralResultsPolicy>> => {
+        return Object.values(EShowElectoralResultsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.showElectoralResults.options.${value}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
         const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES)
@@ -833,6 +841,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
                                         label={t(
                                             "electionEventScreen.field.showCastVoteLogs.policyLabel"
+                                        )}
+                                    />
+                                    <SelectInput
+                                        source="presentation.show_electoral_results"
+                                        choices={showElectoralResultsChoices()}
+                                        validate={required()}
+                                        defaultValue={EShowElectoralResultsPolicy.HIDE_RESULTS_TAB}
+                                        label={t(
+                                            "electionEventScreen.field.showElectoralResults.policyLabel"
                                         )}
                                     />
                                     <FormDataConsumer>
