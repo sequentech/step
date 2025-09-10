@@ -82,6 +82,7 @@ const englishTranslation = {
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
+                EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -1875,7 +1876,7 @@ const englishTranslation = {
                 OV_WHO_VOTED: "OV Users Who Voted",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
-                OV_TURNOUT_PERCENTAGE: "Overseas Voters Turnout",
+                VOTERS_TURNOUT_PERCENTAGE: "Voters Turnout",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:

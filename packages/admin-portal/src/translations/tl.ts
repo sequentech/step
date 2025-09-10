@@ -83,6 +83,8 @@ const tagalogTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
+                EXPORT_TALLY_RESULTS_XLSX:
+                    "I-export ang mga resulta ng pagbibilang sa format na XLSX",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -1892,7 +1894,7 @@ const tagalogTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
                 LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                OV_TURNOUT_PERCENTAGE: "Turnout ng mga Botante sa Ibang Bansa",
+                VOTERS_TURNOUT_PERCENTAGE: "Turnout ng mga Botante",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
