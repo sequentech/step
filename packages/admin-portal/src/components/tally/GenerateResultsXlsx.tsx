@@ -71,7 +71,9 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
         let resultsXlsxDocument = documents?.xlsx ?? null
 
         if (resultsXlsxDocument) {
-            setDocument({id: resultsXlsxDocument, isTask: false})
+            if (!document) {
+                setDocument({id: resultsXlsxDocument, isTask: false})
+            }
         } else {
             const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TALLY_RESULTS_XLSX)
             try {

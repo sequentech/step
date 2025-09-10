@@ -25,7 +25,6 @@ export const formatDate: (date: Date) => String = (date: Date) => {
 }
 
 export function getWeekLegend(date: Date): Array<string> {
-    console.log(`getWeekLegend: ${date}`)
     const legend = ["M", "T", "W", "T", "F", "S", "S"]
     const dayOfWeek = date.getDay() // 0-6 day of week
 
