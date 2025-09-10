@@ -83,6 +83,7 @@ const spanishTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
+                EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",

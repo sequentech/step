@@ -75,7 +75,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     }
 
     return (
-        <MenuItem onClick={onClick}>
+        <MenuItem onClick={onClick} key={reportType}>
             <Box
                 sx={{
                     textOverflow: "ellipsis",

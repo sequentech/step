@@ -83,6 +83,7 @@ const galegoTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
+                EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",

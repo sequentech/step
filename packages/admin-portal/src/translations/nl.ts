@@ -82,6 +82,7 @@ const dutchTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",

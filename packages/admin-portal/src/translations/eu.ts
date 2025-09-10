@@ -83,6 +83,7 @@ const basqueTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
+                EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",

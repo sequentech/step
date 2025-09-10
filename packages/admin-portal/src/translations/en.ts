@@ -82,6 +82,7 @@ const englishTranslation = {
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
+                EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
             },
             widget: {
                 taskTitle: "Task: {{title}}",

@@ -83,6 +83,8 @@ const tagalogTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
+                EXPORT_TALLY_RESULTS_XLSX:
+                    "I-export ang mga resulta ng pagbibilang sa format na XLSX",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",

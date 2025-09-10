@@ -83,6 +83,7 @@ const frenchTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
