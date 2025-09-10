@@ -290,6 +290,13 @@ const spanishTranslation: TranslationType = {
                         "hide-logs-tab": "Ocultar Tab de logs de votación",
                     },
                 },
+                showElectoralResults: {
+                    policyLabel: "Mostrar Pestaña de Resultados Electorales",
+                    options: {
+                        "show-results-tab": "Mostrar Pestaña de Logs de Resultados Electorales",
+                        "hide-results-tab": "Ocultar Pestaña de Logs de Resultados Electorales",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estado de Confinamiento",
                     options: {

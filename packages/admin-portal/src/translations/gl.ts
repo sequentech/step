@@ -288,7 +288,14 @@ const galegoTranslation: TranslationType = {
                     policyLabel: "Mostrar Tab de Logs de Votación",
                     options: {
                         "show-logs-tab": "Mostrar Tab de Logs de Votación",
-                        "hide-logs-tab": "No Mostrar Tab de Logs de Votación",
+                        "hide-logs-tab": "Ocultar Tab de Logs de Votación",
+                    },
+                },
+                showElectoralResults: {
+                    policyLabel: "Mostrar Pestaña de Resultados Electorais",
+                    options: {
+                        "show-results-tab": "Mostrar Pestaña de Logs de Resultados Electorais",
+                        "hide-results-tab": "Ocultar Pestaña de Logs de Resultados Electorais",
                     },
                 },
                 lockdownState: {

@@ -290,6 +290,13 @@ const dutchTranslation: TranslationType = {
                         "hide-logs-tab": "Tab log stemmen verbergen",
                     },
                 },
+                showElectoralResults: {
+                    policyLabel: "Electorale Resultaten Tab Tonen",
+                    options: {
+                        "show-results-tab": "Electorale Resultaten Logs Tab Tonen",
+                        "hide-results-tab": "Electorale Resultaten Logs Tab Verbergen",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Vergrendelingsstatus",
                     options: {

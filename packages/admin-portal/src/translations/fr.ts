@@ -287,7 +287,14 @@ const frenchTranslation: TranslationType = {
                     policyLabel: "Afficher les logs de vote",
                     options: {
                         "show-logs-tab": "Afficher l'onglet des logs de vote",
-                        "hide-logs-tab": "Ne pas afficher l'onglet des logs de vote",
+                        "hide-logs-tab": "Masquer l'onglet des logs de vote",
+                    },
+                },
+                showElectoralResults: {
+                    policyLabel: "Afficher l'onglet des résultats électoraux",
+                    options: {
+                        "show-results-tab": "Afficher l'onglet des logs de résultats électoraux",
+                        "hide-results-tab": "Masquer l'onglet des logs de résultats électoraux",
                     },
                 },
                 lockdownState: {

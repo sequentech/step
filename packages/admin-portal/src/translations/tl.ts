@@ -289,7 +289,14 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Patakaran sa Ipakita ng mga Log ng Pagboto",
                     options: {
                         "show-logs-tab": "Ipakita ang Tab ng mga Log ng Pagboto",
-                        "hide-logs-tab": "Laktawan ang Tab ng mga Log ng Pagboto",
+                        "hide-logs-tab": "Itago ang Tab ng mga Log ng Pagboto",
+                    },
+                },
+                showElectoralResults: {
+                    policyLabel: "Ipakita ang Tab ng mga Resulta ng Halalan",
+                    options: {
+                        "show-results-tab": "Ipakita ang Tab ng mga Log ng Resulta ng Halalan",
+                        "hide-results-tab": "Itago ang Tab ng mga Log ng Resulta ng Halalan",
                     },
                 },
                 lockdownState: {
