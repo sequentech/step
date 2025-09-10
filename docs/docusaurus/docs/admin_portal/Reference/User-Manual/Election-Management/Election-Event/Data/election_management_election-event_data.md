@@ -52,6 +52,7 @@ Manage how the ballot appears in the Voting Portal.
 - **Skip Election List Screen**: Skip election selection in the portal.
 - **Show User Profile**: Show user profile information in the Voting Portal.
 - **Show Cast Vote Logs Tab**: Policy to enable the CastVote Immutable logs in the Ballot Locator.
+- **Show Electoral Results Tab**: Policy to enable the Electoral Results tab for viewing election results data.
 - **Logo URL (optional)**: Provide a link to a logo to display.
 - **Redirect Finish URL (optional)**: Redirect users to a URL after completing voting.
 - **Custom CSS**: Apply custom styles to the ballot design.

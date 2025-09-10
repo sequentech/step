@@ -159,3 +159,10 @@ Create documents and tutorials about the voters tab, adding User Attributes to k
 In Results & Participation Section, Add a new action to ACTIONS button at the event level
 to export results in xlsx format. This will read the data from the sqlite file
 and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
+
+## ✨ Instant elections: results in voter tab, create videoconference links
+
+A new policy has been added to control the visibility of the Electoral Results tab. 
+This policy can be configured in the Admin Portal at Election Event level, 
+Data > Ballot Design > Show Electoral Results Tab. When enabled, this tab will 
+display electoral results data for the election event in the Voting Portal.
