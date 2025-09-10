@@ -149,6 +149,7 @@ button.RaFilterFormInput-hideButton {
 
    html, body, .dashboard{
         width: 100% !important;
+        height: 100%; 
         margin: 0;
         padding: 0;
         overflow: visible !important;
@@ -159,10 +160,6 @@ button.RaFilterFormInput-hideButton {
         height: auto !important;
     }
 
-       @page {
-        size: A4 landscape;
-      
-    }
     .print-hidden{
       display: none !important;
     }
@@ -170,5 +167,10 @@ button.RaFilterFormInput-hideButton {
     .dashboard{
       transform: scale(0.95);
       transform-origin: top left;
+    }
+
+    @page {
+      size: auto;
+      margin: 0;
     }
 }
