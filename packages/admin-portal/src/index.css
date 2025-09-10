@@ -169,7 +169,6 @@ button.RaFilterFormInput-hideButton {
       transform-origin: top left;
     }
 
-    /* dashboard-box should have its children components in a row from the top left to right */
     .dashboard-container{
       transform: scale(0.618);
       display: flex !important;
