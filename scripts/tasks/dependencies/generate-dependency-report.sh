@@ -9,6 +9,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
 OUTPUT_DIR="$PROJECT_ROOT/docs/docusaurus/docs/reference/third_party_deps/assets"
 PACKAGES_DIR="$PROJECT_ROOT/packages"
+DOCS_OUTPUT="$PROJECT_ROOT/docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md"
 
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
@@ -29,6 +30,5 @@ echo "🔍 Generating dependency CSV..."
 python "$SCRIPT_DIR/list_deps.py" "$PACKAGES_DIR" -o "$OUTPUT_DIR/dependencies.csv"
 
 # Generate markdown documentation from CSV
-echo "📝 Generating markdown documentation..."
-DOCS_OUTPUT="$PROJECT_ROOT/docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md"
-python "$SCRIPT_DIR/generate_docs.py" "$OUTPUT_DIR/dependencies.csv" -o "$DOCS_OUTPUT"
+echo "📝 Updating markdown documentation..."
+python "$SCRIPT_DIR/update_deps_docs.py" "$OUTPUT_DIR/dependencies.csv" -o "$DOCS_OUTPUT"

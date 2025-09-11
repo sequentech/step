@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
@@ -14,7 +14,7 @@ documenting all third-party dependencies across the Sequent Voting Platform
 The system consists of three main components:
 
 1. **`list_deps.py`** - Scans packages and generates CSV dependency data
-2. **`generate_docs.py`** - Updates markdown documentation from CSV data  
+2. **`update_deps_docs.py`** - Updates markdown documentation from CSV data  
 3. **`generate-dependency-report.sh`** - Orchestrates the complete process
 
 ## Quick Start
@@ -56,7 +56,7 @@ Scans the step repository and extracts dependencies from:
 Outputs a CSV file with columns: `Package`, `Dependency`, `Version`, `License`,
 `Description`.
 
-### Documentation Generation (`generate_docs.py`)
+### Documentation Generation (`update_deps_docs.py`)
 
 Intelligently updates the existing markdown documentation by:
 - Automatically detecting package sections in the markdown (e.g., "Admin
