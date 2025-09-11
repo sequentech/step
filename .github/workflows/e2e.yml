@@ -6,21 +6,11 @@ name: E2E Tests
 on:
   workflow_dispatch:
     inputs:
-      urlTest:
-        description: 'URL from env where launch the tests, by default is dev env'
+      loadtestingImage:
+        description: 'Load testing image to use'
         required: true
         type: string
-        default: 'https://admin-portal-dev.sequent.vote/'
-      adminUser:
-        description: 'admin user of env'
-        required: true
-        type: string
-        default: 'admin'
-      adminPassword:
-        description: 'admin password of env'
-        required: true
-        type: string
-        default: 'admin'
+        default: '133529410358.dkr.ecr.eu-west-1.amazonaws.com/loadtesting'
   pull_request:
   push:
       branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
@@ -32,33 +22,8 @@ jobs:
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
-    strategy:
-      matrix:
-        include:
-          - browser: chrome
-      fail-fast: false
     steps:
     - uses: actions/checkout@v3
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18.13.0'
-        cache: 'yarn'
-    - name: Install Dependencies
-      run: | 
-        cd packages
-        yarn
-        npm install @nightwatch/browserstack
-    # - name: Run admin-portal tests
-    #   run: |
-    #     cd packages/admin-portal/node_modules
-    #     cp -r ../../node_modules/@nightwatch .
-    #     cp -r ../../node_modules/nightwatch .
-    #     cd ..
-    #     xvfb-run --auto-servernum npx nightwatch test/e2e/*.ts -c nightwatch.conf-ghaction.js  --env ${{ matrix.browser }}
-      env:
-        TEST_URL: ${{ github.event.inputs.urlTest }}
-        ADMIN_PORTAL_TEST_USERNAME: ${{ github.event.inputs.adminUser }}
-        ADMIN_PORTAL_TEST_PASSWORD: ${{ github.event.inputs.adminPassword }}
-        BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
-        BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+    - name: Run e2e tests
+      run: |
+        docker run ${{ loadtestingImage }} e2e
