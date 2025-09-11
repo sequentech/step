@@ -7,111 +7,30 @@ import argparse
 from pathlib import Path
 from collections import defaultdict
 
-# Package descriptions mapping
-PACKAGE_DESCRIPTIONS = {
-    'admin-portal': 'The admin portal is a React-based web application for administrative functions.',
-    'b3': 'B3 is a Rust-based component providing cryptographic utilities and core functionality.',
-    'ballot-verifier': 'The ballot verifier is a React-based application for verifying ballot integrity and authenticity.',
-    'braid': 'Braid is a Rust-based component providing consensus and distributed systems functionality.',
-    'e2e': 'E2E provides end-to-end testing capabilities and automation tools.',
-    'ECIESEncryption': 'ECIESEncryption is a Java-based package providing elliptic curve encryption capabilities.',
-    'electoral-log': 'Electoral Log provides comprehensive logging and auditing capabilities for electoral processes.',
-    'harvest': 'Harvest provides data collection and processing capabilities.',
-    'immu-board': 'Immu Board provides immutable board management and verification capabilities.',
-    'immudb-rs': 'ImmuDB-RS provides Rust bindings for ImmuDB database operations.',
-    'keycloak-extensions': 'Keycloak Extensions provides custom authentication and authorization extensions.',
-    'orare': 'Orare provides procedural macro utilities and code generation capabilities.',
-    'sequent-core': 'Sequent Core provides the fundamental libraries and utilities for the Sequent Voting Platform.',
-    'step-cli': 'Step CLI provides command-line interface tools for managing the Sequent Voting Platform.',
-    'strand': 'Strand provides cryptographic protocols and zero-knowledge proof capabilities.',
-    'ui-core': 'UI Core provides shared user interface components and utilities.',
-    'ui-essentials': 'UI Essentials provides essential user interface components and styling utilities.',
-    'velvet': 'Velvet provides verification and validation tools for electoral processes.',
-    'voting-portal': 'The voting portal is a React-based web application that provides the voter interface for elections.',
-    'windmill': 'Windmill provides workflow automation and task orchestration capabilities.',
-    'wrap-map-err': 'Wrap Map Err provides procedural macros for error handling utilities.',
+# Mapping from markdown section headers to package directory names
+HEADER_TO_PACKAGE = {
+    'ECIESEncryption': 'ECIESEncryption',
+    'Admin Portal': 'admin-portal',
+    'B3': 'b3',
+    'Ballot Verifier': 'ballot-verifier',
+    'Braid': 'braid',
+    'E2e': 'e2e',
+    'Electoral Log': 'electoral-log',
+    'Harvest': 'harvest',
+    'Immu Board': 'immu-board',
+    'ImmuDB-RS': 'immudb-rs',
+    'Keycloak Extensions': 'keycloak-extensions',
+    'Orare': 'orare',
+    'Sequent Core': 'sequent-core',
+    'Step Cli': 'step-cli',
+    'Strand': 'strand',
+    'UI CORE': 'ui-core',
+    'UI ESSENTIALS': 'ui-essentials',
+    'Velvet': 'velvet',
+    'Voting Portal': 'voting-portal',
+    'Windmill': 'windmill',
+    'Wrap Map Err': 'wrap-map-err',
 }
-
-# Package name formatting for display
-def format_package_name(package_name):
-    """Format package names for display in headers."""
-    if package_name == 'ECIESEncryption':
-        return 'ECIESEncryption'
-    elif package_name == 'immudb-rs':
-        return 'ImmuDB-RS'
-    elif package_name in ['ui-core', 'ui-essentials']:
-        return package_name.upper().replace('-', ' ')
-    elif '-' in package_name:
-        return ' '.join(word.capitalize() for word in package_name.split('-'))
-    else:
-        return package_name.capitalize()
-
-def create_package_header_mapping():
-    """Create mapping from CSV package names to markdown section headers."""
-    mapping = {}
-    for package_name in PACKAGE_DESCRIPTIONS.keys():
-        formatted_name = format_package_name(package_name)
-        mapping[package_name] = formatted_name
-    return mapping
-
-def parse_existing_markdown(markdown_path):
-    """Parse existing markdown file and return sections with their content."""
-    if not markdown_path.exists():
-        return None, []
-    
-    with open(markdown_path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-    
-    sections = []
-    current_section = None
-    current_content = []
-    
-    for i, line in enumerate(lines):
-        if line.startswith('## ') and not line.startswith('## Overview') and not line.startswith('## License Compliance'):
-            # Save previous section if it exists
-            if current_section:
-                sections.append({
-                    'header': current_section,
-                    'content_start': len(sections) > 0 and sections[-1]['content_end'] or 0,
-                    'content_end': i,
-                    'content': current_content[:]
-                })
-            
-            # Start new section
-            current_section = line.strip()
-            current_content = []
-        elif current_section:
-            current_content.append(line)
-    
-    # Add the last section if it exists
-    if current_section:
-        sections.append({
-            'header': current_section,
-            'content_start': len(sections) > 0 and sections[-1]['content_end'] or 0,
-            'content_end': len(lines),
-            'content': current_content[:]
-        })
-    
-    return lines, sections
-
-def generate_dependency_table(dependencies):
-    """Generate dependency table markdown for a package."""
-    if not dependencies:
-        return ''
-    
-    table_lines = []
-    table_lines.append('| Dependency | Version | License | Description |')
-    table_lines.append('|------------|---------|---------|-------------|')
-    
-    # Sort dependencies alphabetically
-    sorted_deps = sorted(dependencies, key=lambda x: x['name'])
-    
-    for dep in sorted_deps:
-        # Escape pipe characters in descriptions
-        desc = dep['description'].replace('|', '\\|').replace('\n', ' ').strip()
-        table_lines.append(f"| {dep['name']} | {dep['version']} | {dep['license']} | {desc} |")
-    
-    return '\n'.join(table_lines) + '\n'
 
 def update_markdown_from_csv(csv_path, output_path):
     """Update existing markdown documentation with CSV data, preserving structure."""
@@ -135,10 +54,6 @@ def update_markdown_from_csv(csv_path, output_path):
     with open(output_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     
-    # Create package name to header mapping
-    header_mapping = create_package_header_mapping()
-    header_to_package = {v: k for k, v in header_mapping.items()}
-    
     print(f"🔍 Processing {len(lines)} lines in existing markdown")
     
     # Process file line by line and update tables
@@ -153,7 +68,7 @@ def update_markdown_from_csv(csv_path, output_path):
         # Check if this is a package section header
         if line.startswith('## ') and not line.startswith('## Overview') and not line.startswith('## License Compliance'):
             header_text = line.replace('## ', '').strip()
-            package_name = header_to_package.get(header_text)
+            package_name = HEADER_TO_PACKAGE.get(header_text)
             
             if package_name and package_name in packages:
                 print(f"  -> Updating section '{header_text}' for package '{package_name}'")
@@ -209,11 +124,13 @@ def update_markdown_from_csv(csv_path, output_path):
     # Write updated content
     with open(output_path, 'w', encoding='utf-8') as f:
         f.writelines(updated_lines)
+    
+    print(f"✅ Updated {sections_updated} sections in markdown documentation: {output_path}")
 
 def main():
     """Main function to parse arguments and generate documentation."""
     parser = argparse.ArgumentParser(
-        description="Generate markdown documentation from dependencies CSV file."
+        description="Update markdown documentation with dependencies from CSV file."
     )
     parser.add_argument(
         "csv_file",
@@ -231,7 +148,7 @@ def main():
     output_path = Path(args.output)
     
     if not output_path.exists():
-        print(f"Error: Markdown file '{output_path}' not found.")
+        print(f"Error: Markdown file '{output_path}' not found. This script only updates existing files.")
         return
 
     if not csv_path.exists():
