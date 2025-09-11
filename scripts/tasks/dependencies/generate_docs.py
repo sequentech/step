@@ -46,8 +46,75 @@ def format_package_name(package_name):
     else:
         return package_name.capitalize()
 
-def generate_markdown_from_csv(csv_path, output_path):
-    """Generate markdown documentation from CSV file."""
+def create_package_header_mapping():
+    """Create mapping from CSV package names to markdown section headers."""
+    mapping = {}
+    for package_name in PACKAGE_DESCRIPTIONS.keys():
+        formatted_name = format_package_name(package_name)
+        mapping[package_name] = formatted_name
+    return mapping
+
+def parse_existing_markdown(markdown_path):
+    """Parse existing markdown file and return sections with their content."""
+    if not markdown_path.exists():
+        return None, []
+    
+    with open(markdown_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    
+    sections = []
+    current_section = None
+    current_content = []
+    
+    for i, line in enumerate(lines):
+        if line.startswith('## ') and not line.startswith('## Overview') and not line.startswith('## License Compliance'):
+            # Save previous section if it exists
+            if current_section:
+                sections.append({
+                    'header': current_section,
+                    'content_start': len(sections) > 0 and sections[-1]['content_end'] or 0,
+                    'content_end': i,
+                    'content': current_content[:]
+                })
+            
+            # Start new section
+            current_section = line.strip()
+            current_content = []
+        elif current_section:
+            current_content.append(line)
+    
+    # Add the last section if it exists
+    if current_section:
+        sections.append({
+            'header': current_section,
+            'content_start': len(sections) > 0 and sections[-1]['content_end'] or 0,
+            'content_end': len(lines),
+            'content': current_content[:]
+        })
+    
+    return lines, sections
+
+def generate_dependency_table(dependencies):
+    """Generate dependency table markdown for a package."""
+    if not dependencies:
+        return ''
+    
+    table_lines = []
+    table_lines.append('| Dependency | Version | License | Description |')
+    table_lines.append('|------------|---------|---------|-------------|')
+    
+    # Sort dependencies alphabetically
+    sorted_deps = sorted(dependencies, key=lambda x: x['name'])
+    
+    for dep in sorted_deps:
+        # Escape pipe characters in descriptions
+        desc = dep['description'].replace('|', '\\|').replace('\n', ' ').strip()
+        table_lines.append(f"| {dep['name']} | {dep['version']} | {dep['license']} | {desc} |")
+    
+    return '\n'.join(table_lines) + '\n'
+
+def update_markdown_from_csv(csv_path, output_path):
+    """Update existing markdown documentation with CSV data, preserving structure."""
     
     # Read and organize dependencies by package
     packages = defaultdict(list)
@@ -62,67 +129,86 @@ def generate_markdown_from_csv(csv_path, output_path):
                 'description': row['Description']
             })
     
-    # Sort packages alphabetically
-    sorted_packages = sorted(packages.keys())
+    print(f"📊 Read {len(packages)} packages from CSV")
+
+    # Read existing markdown file
+    with open(output_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
     
-    # Generate markdown content
-    markdown_content = '''---
-id: third_party_deps
-title: Third-Party Dependencies
----
-
-# Third-Party Dependencies Reference
-
-This document provides a comprehensive listing of all third-party dependencies used across the Sequent Voting Platform (SVP) packages, including their licenses and descriptions.
-
-*The dependency information in this document is automatically generated using the `scripts/tasks/dependencies/list_deps.py` script, which scans package manifest files and queries package registries for metadata. For instructions on updating this information, see the README in the `scripts/tasks/dependencies/` directory.*
-
-## Overview
-
-The SVP monorepo contains packages written in multiple languages and using different package managers:
-
-- **Rust packages**: Managed with Cargo, using dependencies from [crates.io](https://crates.io)
-- **TypeScript/JavaScript packages**: Managed with npm/yarn, using dependencies from [npmjs.com](https://npmjs.com)
-- **Java packages**: Managed with Maven, using dependencies from [Maven Central](https://central.sonatype.com)
-
-Each package's dependencies are listed below with their version, license, and description information.
-
-'''
+    # Create package name to header mapping
+    header_mapping = create_package_header_mapping()
+    header_to_package = {v: k for k, v in header_mapping.items()}
     
-    # Add each package section
-    for package_name in sorted_packages:
-        package_display_name = format_package_name(package_name)
-        description = PACKAGE_DESCRIPTIONS.get(package_name, f'{package_display_name} package dependencies.')
-        
-        markdown_content += f'## {package_display_name}\n\n'
-        markdown_content += f'{description}\n\n'
-        markdown_content += '| Dependency | Version | License | Description |\n'
-        markdown_content += '|------------|---------|---------|-------------|\n'
-        
-        # Sort dependencies alphabetically
-        deps = sorted(packages[package_name], key=lambda x: x['name'])
-        
-        for dep in deps:
-            # Escape pipe characters in descriptions
-            desc = dep['description'].replace('|', '\\|').replace('\n', ' ').strip()
-            markdown_content += f"| {dep['name']} | {dep['version']} | {dep['license']} | {desc} |\n"
-        
-        markdown_content += '\n'
+    print(f"🔍 Processing {len(lines)} lines in existing markdown")
     
-    # Add footer
-    markdown_content += '''---
-
-## License Compliance
-
-This documentation lists the licenses of all third-party dependencies for compliance and legal review purposes. Please ensure that all license requirements are met when distributing or deploying the Sequent Voting Platform.
-
-For any questions about license compliance or dependency management, please consult the project maintainers or legal team.'''
+    # Process file line by line and update tables
+    updated_lines = []
+    i = 0
+    sections_updated = 0
     
-    # Write to output file
+    while i < len(lines):
+        line = lines[i]
+        updated_lines.append(line)
+        
+        # Check if this is a package section header
+        if line.startswith('## ') and not line.startswith('## Overview') and not line.startswith('## License Compliance'):
+            header_text = line.replace('## ', '').strip()
+            package_name = header_to_package.get(header_text)
+            
+            if package_name and package_name in packages:
+                print(f"  -> Updating section '{header_text}' for package '{package_name}'")
+                
+                # Skip lines until we find the dependency table header or next section
+                i += 1
+                while i < len(lines) and not lines[i].strip().startswith('| Dependency | Version | License | Description |'):
+                    if lines[i].startswith('## '):
+                        # Hit next section, no table found
+                        break
+                    updated_lines.append(lines[i])
+                    i += 1
+                
+                # If we found the table header
+                if i < len(lines) and lines[i].strip().startswith('| Dependency | Version | License | Description |'):
+                    # Add the table header and separator
+                    updated_lines.append(lines[i])  # Header row
+                    i += 1
+                    if i < len(lines) and lines[i].strip().startswith('|----'):
+                        updated_lines.append(lines[i])  # Separator row
+                        i += 1
+                    
+                    # Skip existing table rows until next section or empty line followed by section
+                    while i < len(lines):
+                        if lines[i].startswith('## '):
+                            break
+                        elif lines[i].strip() == '' and i + 1 < len(lines) and lines[i + 1].startswith('## '):
+                            break
+                        elif not lines[i].strip().startswith('|') and lines[i].strip() != '':
+                            break
+                        i += 1
+                    
+                    # Generate and add new table rows
+                    sorted_deps = sorted(packages[package_name], key=lambda x: x['name'])
+                    for dep in sorted_deps:
+                        desc = dep['description'].replace('|', '\\\\|').replace('\\n', ' ').strip()
+                        updated_lines.append(f"| {dep['name']} | {dep['version']} | {dep['license']} | {desc} |\n")
+                    
+                    # Add blank line after table
+                    if i < len(lines) and lines[i].strip() != '':
+                        updated_lines.append('\n')
+                    
+                    sections_updated += 1
+                    print(f"    -> Updated {len(packages[package_name])} dependencies")
+                    
+                    continue  # Don't increment i again at end of loop
+            else:
+                if package_name:
+                    print(f"    -> Warning: Package '{package_name}' not found in CSV data")
+        
+        i += 1
+    
+    # Write updated content
     with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(markdown_content)
-    
-    print(f"✅ Generated markdown documentation: {output_path}")
+        f.writelines(updated_lines)
 
 def main():
     """Main function to parse arguments and generate documentation."""
@@ -144,6 +230,10 @@ def main():
     csv_path = Path(args.csv_file)
     output_path = Path(args.output)
     
+    if not output_path.exists():
+        print(f"Error: Markdown file '{output_path}' not found.")
+        return
+
     if not csv_path.exists():
         print(f"Error: CSV file '{csv_path}' not found.")
         return
@@ -151,7 +241,7 @@ def main():
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    generate_markdown_from_csv(csv_path, output_path)
+    update_markdown_from_csv(csv_path, output_path)
 
 if __name__ == "__main__":
     main()

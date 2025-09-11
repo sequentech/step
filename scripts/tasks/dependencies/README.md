@@ -3,59 +3,98 @@ SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Dependency List Tool (`list_deps.py`)
+# Third-Party Dependencies Documentation System
 
-This script scans a monorepo's packages directory and generates a CSV report of
-all third-party dependencies (Rust, NPM, Maven) for each package, including
-license and description metadata.
+This directory contains an automated system for scanning, tracking, and
+documenting all third-party dependencies across the Sequent Voting Platform
+(SVP) monorepo packages.
 
-## Usage
+## Overview
 
-1. **Create and activate a virtual environment:**
+The system consists of three main components:
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
+1. **`list_deps.py`** - Scans packages and generates CSV dependency data
+2. **`generate_docs.py`** - Updates markdown documentation from CSV data  
+3. **`generate-dependency-report.sh`** - Orchestrates the complete process
 
-2. **Install dependencies:**
+## Quick Start
 
-```bash
-pip install -r requirements.txt
-```
+### Using VS Code (Recommended)
 
-> **Note:** Required packages: `requests`, `tomli`
+The easiest way to update the dependency documentation is through VS Code:
 
-3. **Run the script:**
+1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+2. Search for `Tasks: Run Task`
+3. Select `generate.dependency.report`
 
-```bash
-python list_deps.py ../packages -o ../output/dependencies.csv
-```
+This will automatically:
+- Scan all packages for direct dependencies
+- Generate the CSV report with current license information
+- Update the markdown documentation while preserving existing structure
+- Output results to `docs/docusaurus/docs/reference/third_party_deps/`
 
-- The first argument is the path to the packages directory (e.g.,
-  `../packages`).
-- The `-o`/`--output` argument specifies the output CSV file (e.g.,
-  `./output/dependencies.csv`).
+### Manual Usage
 
-## Output
-
-- The script will create a CSV file with columns: `Package`, `Dependency`,
-  `Version`, `License`, `Description`.
-- By default, output is written to `dependencies.csv` in the current directory.
-  For this project, use the `output/` directory.
-
-## Example
+Run the complete pipeline manually:
 
 ```bash
-python list_deps.py ../packages -o ../output/dependencies.csv
+./scripts/tasks/dependencies/generate-dependency-report.sh
 ```
 
-## Wrapper Script
+## System Architecture
 
-A wrapper script (`generate-dependency-report.sh`) is provided to automate
-running this tool with the correct arguments and environment.
+### Dependency Scanning (`list_deps.py`)
+
+Scans the step repository and extracts dependencies from:
+- **Rust packages**: `Cargo.toml` files, queries [crates.io](https://crates.io)
+  API
+- **TypeScript/JavaScript packages**: `package.json` files, queries
+  [npmjs.com](https://npmjs.com) API  
+- **Java packages**: `pom.xml` files, queries [Maven
+  Central](https://central.sonatype.com) API
+
+Outputs a CSV file with columns: `Package`, `Dependency`, `Version`, `License`,
+`Description`.
+
+### Documentation Generation (`generate_docs.py`)
+
+Intelligently updates the existing markdown documentation by:
+- Automatically detecting package sections in the markdown (e.g., "Admin
+  Portal", "Voting Portal")
+- Mapping CSV package names to markdown section headers
+- Preserving all existing content (descriptions, overview, license compliance
+  sections)
+- Updating only the dependency tables with current data from CSV
+
+### Pipeline Orchestration (`generate-dependency-report.sh`)
+
+The wrapper script:
+1. Sets up Python virtual environment
+2. Installs required dependencies (`requests`, `tomli`)
+3. Runs dependency scanning to generate CSV
+4. Updates markdown documentation from CSV data
+5. Outputs to `docs/docusaurus/docs/reference/third_party_deps/`
+
+## Output Files
+
+- **CSV**: `docs/docusaurus/docs/reference/third_party_deps/assets/dependencies.csv`
+- **Markdown**: `docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md`
+
+The markdown file is automatically included in the Docusaurus documentation site
+and accessible at `/docs/reference/third_party_deps/third_party_deps`.
+
+## License Information
+
+The system fetches actual license information from package registries, ensuring
+accurate compliance data instead of placeholder "N/A" values. Common license
+formats include:
+- `MIT`
+- `Apache-2.0` 
+- `MIT OR Apache-2.0`
+- `BSD-3-Clause`
 
 ---
 
-**See also:** The VS Code task `generate.dependency.report` for one-click
-generation from the command palette.
+**Note:** All operations preserve existing documentation structure and only
+update dependency data, making it safe to run repeatedly without losing manual
+edits to package descriptions or other content.

@@ -628,8 +628,6 @@ Wrap Map Err provides procedural macros for error handling utilities.
 | quote | 1.0 | MIT OR Apache-2.0 | Quasi-quoting macro quote!(...) |
 | syn | 2.0 | MIT OR Apache-2.0 | Parser for Rust source code |
 
----
-
 ## License Compliance
 
 This documentation lists the licenses of all third-party dependencies for compliance and legal review purposes. Please ensure that all license requirements are met when distributing or deploying the Sequent Voting Platform.
