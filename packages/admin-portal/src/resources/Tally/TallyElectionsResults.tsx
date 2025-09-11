@@ -35,9 +35,10 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 
 interface GeneralInformationChartsProps {
     results: Sequent_Backend_Election_Extended[]
+    selectedElectionId?: string
 }
 
-const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({results}) => {
+const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({results, selectedElectionId}) => {
     const {t} = useTranslation()
 
     // Filter out results with valid participation data
@@ -49,64 +50,65 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
         return null
     }
 
-    return (
-        <Box sx={{display: "flex", flexDirection: "row", alignItems: "left"}}>
-            {validResults.map((result) => {
-                const eligibleCensus = result.elegible_census as number
-                const totalVoters = result.total_voters as number
-                const nonVoters = eligibleCensus - totalVoters
+    // Find the selected result or use the first one as default
+    const selectedResult = selectedElectionId 
+        ? validResults.find(result => result.id === selectedElectionId)
+        : validResults[0]
 
-                const chartData = [
-                    {
-                        label: t("tally.chart.totalVoters"),
-                        value: totalVoters,
-                    },
-                    {
-                        label: t("tally.chart.nonVoters"),
-                        value: nonVoters,
-                    },
-                ].filter((item) => item.value > 0)
+    if (!selectedResult) {
+        return null
+    }
 
-                const chartOptions: Props = {
+    const result = selectedResult
+    const eligibleCensus = result.elegible_census as number
+    const totalVoters = result.total_voters as number
+    const nonVoters = eligibleCensus - totalVoters
+
+    const chartData = [
+        {
+            label: t("tally.chart.totalVoters"),
+            value: totalVoters,
+        },
+        {
+            label: t("tally.chart.nonVoters"),
+            value: nonVoters,
+        },
+    ].filter((item) => item.value > 0)
+
+    const chartOptions: Props = {
+        options: {
+            labels: chartData.map((item) => item.label),
+            legend: {
+                position: "bottom",
+            },
+            responsive: [
+                {
+                    breakpoint: 480,
                     options: {
-                        labels: chartData.map((item) => item.label),
+                        chart: {
+                            width: 200,
+                        },
                         legend: {
                             position: "bottom",
                         },
-                        responsive: [
-                            {
-                                breakpoint: 480,
-                                options: {
-                                    chart: {
-                                        width: 200,
-                                    },
-                                    legend: {
-                                        position: "bottom",
-                                    },
-                                },
-                            },
-                        ],
                     },
-                    series: chartData.map((item) => item.value),
-                }
+                },
+            ],
+        },
+        series: chartData.map((item) => item.value),
+    }
 
-                return (
-                    <Box
-                        key={result.id}
-                        sx={{display: "flex", flexDirection: "column", alignItems: "center", mb: 2}}
-                    >
-                        <CardChart title={result.name}>
-                            <Chart
-                                options={chartOptions.options}
-                                series={chartOptions.series}
-                                type="pie"
-                                width={400}
-                                height={300}
-                            />
-                        </CardChart>
-                    </Box>
-                )
-            })}
+    return (
+        <Box sx={{display: "flex", flexDirection: "column", alignItems: "center", mb: 2}}>
+            <CardChart title={result.name}>
+                <Chart
+                    options={chartOptions.options}
+                    series={chartOptions.series}
+                    type="pie"
+                    width={400}
+                    height={300}
+                />
+            </CardChart>
         </Box>
     )
 }
@@ -116,6 +118,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
+    const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
@@ -152,8 +155,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             )
 
             setResultsData(temp)
+            // Set default selected election to the first one if none is selected
+            if (!selectedElectionId && temp.length > 0) {
+                setSelectedElectionId(temp[0].id)
+            }
         }
-    }, [results, elections])
+    }, [results, elections, selectedElectionId])
 
     const columns: GridColDef[] = [
         {
@@ -194,11 +201,25 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             {resultsData.length ? (
                 <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
                     <Box sx={{flex: "0 0 auto", mt: 2}}>
-                        <GeneralInformationCharts results={resultsData} />
+                        <GeneralInformationCharts results={resultsData} selectedElectionId={selectedElectionId || undefined} />
                     </Box>
                     <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2}}>
                         <DataGrid
-                            sx={{mt: 0}}
+                            sx={{
+                                mt: 0,
+                                '& .MuiDataGrid-row.selected': {
+                                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                },
+                                '& .MuiDataGrid-row.selected:hover': {
+                                    backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                                },
+                                '& .MuiDataGrid-cell:focus': {
+                                    outline: 'none',
+                                },
+                                '& .MuiDataGrid-cell:focus-within': {
+                                    outline: 'none',
+                                },
+                            }}
                             rows={resultsData}
                             columns={columns}
                             initialState={{
@@ -210,6 +231,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                             }}
                             pageSizeOptions={[10, 20, 50, 100]}
                             disableRowSelectionOnClick
+                            onRowClick={(params) => {
+                                setSelectedElectionId(params.row.id)
+                            }}
+                            getRowClassName={(params) => 
+                                params.row.id === selectedElectionId ? 'selected' : ''
+                            }
                         />
                     </Box>
                 </Box>
