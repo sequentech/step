@@ -51,6 +51,7 @@ RUN chmod +x /run_bg_voting.sh
 COPY ./packages/loadtesting/nightwatch/ /nightwatch
 RUN mkdir -p /workspaces/step/packages
 COPY ./packages/e2e /workspaces/step/packages/
+COPY ./packages/e2e/src/scenarios /nightwatch/
 RUN cd /nightwatch && npm install .
 
 ENTRYPOINT ["/entrypoint.sh"]
