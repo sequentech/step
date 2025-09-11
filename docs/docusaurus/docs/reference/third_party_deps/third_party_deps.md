@@ -7,8 +7,6 @@ title: Third-Party Dependencies
 
 This document provides a comprehensive listing of all third-party dependencies used across the Sequent Voting Platform (SVP) packages, including their licenses and descriptions.
 
-*The dependency information in this document is automatically generated using the `scripts/tasks/dependencies/list_deps.py` script, which scans package manifest files and queries package registries for metadata. For instructions on updating this information, see the README in the `scripts/tasks/dependencies/` directory.*
-
 ## Overview
 
 The SVP monorepo contains packages written in multiple languages and using different package managers:
@@ -18,6 +16,10 @@ The SVP monorepo contains packages written in multiple languages and using diffe
 - **Java packages**: Managed with Maven, using dependencies from [Maven Central](https://central.sonatype.com)
 
 Each package's dependencies are listed below with their version, license, and description information.
+
+## License Compliance
+
+This documentation lists the licenses of all third-party dependencies for compliance and legal review purposes. Please ensure that all license requirements are met when distributing or deploying the Sequent Voting Platform.
 
 ## ECIESEncryption
 
@@ -454,7 +456,7 @@ Strand provides cryptographic protocols and zero-knowledge proof capabilities.
 | web-sys | 0.3 | MIT OR Apache-2.0 | Bindings for all Web APIs, a procedurally generated crate from WebIDL |
 | x509-parser | 0.15.1 | MIT OR Apache-2.0 | Parser for the X.509 v3 format (RFC 5280 certificates) |
 
-## UI CORE
+## UI Core
 
 UI Core provides shared user interface components and utilities.
 
@@ -468,7 +470,7 @@ UI Core provides shared user interface components and utilities.
 | react-scripts | 5.0.1 | MIT | Configuration and scripts for Create React App. |
 | sanitize-html | 2.11.0 | MIT | Clean up user-submitted HTML, preserving allowlisted elements and allowlisted attributes on a per-element basis |
 
-## UI ESSENTIALS
+## UI Essentials
 
 UI Essentials provides essential user interface components and styling utilities.
 
@@ -627,9 +629,3 @@ Wrap Map Err provides procedural macros for error handling utilities.
 | proc-macro2 | 1.0 | MIT OR Apache-2.0 | A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case. |
 | quote | 1.0 | MIT OR Apache-2.0 | Quasi-quoting macro quote!(...) |
 | syn | 2.0 | MIT OR Apache-2.0 | Parser for Rust source code |
-
-## License Compliance
-
-This documentation lists the licenses of all third-party dependencies for compliance and legal review purposes. Please ensure that all license requirements are met when distributing or deploying the Sequent Voting Platform.
-
-For any questions about license compliance or dependency management, please consult the project maintainers or legal team.
