@@ -174,6 +174,7 @@ module.exports = {
       items:[
         'reference/glossary',
         'reference/product_lifecycle_and_release_cadence',
+        'reference/third_party_deps/third_party_deps',
         {
           type: 'category',
           label: 'Tally Deep Dive',
