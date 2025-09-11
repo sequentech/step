@@ -7,7 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
-OUTPUT_DIR="$SCRIPT_DIR/output"
+OUTPUT_DIR="$PROJECT_ROOT/docs/docusaurus/docs/reference/third_party_deps/assets"
 PACKAGES_DIR="$PROJECT_ROOT/packages"
 
 # Ensure output directory exists
