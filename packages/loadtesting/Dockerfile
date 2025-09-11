@@ -48,10 +48,11 @@ COPY ./packages/loadtesting/entrypoint.sh /entrypoint.sh
 COPY ./packages/loadtesting/run_bg_voting.sh /run_bg_voting.sh
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /run_bg_voting.sh
-COPY ./packages/loadtesting/nightwatch/ /nightwatch
-RUN mkdir -p /workspaces/step/packages
-COPY ./packages/e2e /workspaces/step/packages/
-COPY ./packages/e2e/src/scenarios /nightwatch/
+RUN mkdir -p /workspaces/step/packages /nightwatch/src/admin-portal /nightwatch/src/e2e /nightwatch/src/loadtesting /nightwatch/src/voting-portal
+COPY ./packages/loadtesting/nightwatch/ /nightwatch/
+COPY ./packages/admin-portal/nightwatch/ /nightwatch/src/admin-portal
+COPY ./packages/e2e/src/scenarios/ /nightwatch/src/e2e
+COPY ./packages/voting-portal/nightwatch/ /nightwatch/src/voting-portal
 RUN cd /nightwatch && npm install .
 
 ENTRYPOINT ["/entrypoint.sh"]
