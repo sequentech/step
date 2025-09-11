@@ -29,7 +29,7 @@ import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {
-    ResultsAndParticipationCharts,
+    ParticipationSummaryChart,
     CandidatesResultsCharts,
 } from "./TallyResultsGlobalCandidates"
 
@@ -185,14 +185,14 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             {general && general.length ? (
                 <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
                     {/* Chart on the left */}
-                    <Box sx={{flex: "0 0 auto"}}>
-                        <ResultsAndParticipationCharts
+                    <Box sx={{flex: "0 0 auto", mt: 2}}>
+                        <ParticipationSummaryChart
                             result={general?.[0]}
                             chartName={getChartName()}
                         />
                     </Box>
                     {/* Table on the right */}
-                    <Box sx={{flex: 1}}>
+                    <Box sx={{flex: "1 1 auto", mt: 2}}>
                         <TableContainer component={Paper}>
                             <Table sx={{minWidth: 650}} aria-label="simple table">
                                 <TableHead>
@@ -330,14 +330,15 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
             {resultsData.length ? (
                 <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
-                    <Box sx={{flex: "0 0 auto"}}>
+                    <Box sx={{flex: "0 0 auto", mt: 2}}>
                         <CandidatesResultsCharts
                             results={resultsData as Sequent_Backend_Candidate_Extended[]}
                             chartName={getChartName()}
                         />
                     </Box>
-                    <Box sx={{flex: 1}}>
+                    <Box sx={{flex: "1 1 auto", mt: 2}}>
                         <DataGrid
+                            sx={{mt: 0}}
                             rows={resultsData}
                             columns={columns}
                             initialState={{

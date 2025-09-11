@@ -53,12 +53,13 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     return pos1 - pos2
 }
 
-interface ResultsAndParticipationChartsProps {
+interface ParticipationSummaryChartProps {
     result: Sequent_Backend_Results_Contest | Sequent_Backend_Results_Area_Contest
     chartName: string
 }
 
-export const ResultsAndParticipationCharts: React.FC<ResultsAndParticipationChartsProps> = ({
+
+export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps> = ({
     result,
     chartName,
 }) => {
@@ -330,13 +331,13 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
             {general && general.length ? (
                 <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
-                    <Box sx={{flex: "0 0 auto"}}>
-                        <ResultsAndParticipationCharts
+                    <Box sx={{flex: "0 0 auto", mt: 2}}>
+                        <ParticipationSummaryChart
                             result={general?.[0]}
                             chartName={getChartName(general?.[0].name ?? undefined)}
                         />
                     </Box>
-                    <Box sx={{flex: 1}}>
+                    <Box sx={{flex: "1 1 auto", mt: 2}}>
                         <TableContainer component={Paper}>
                             <Table sx={{minWidth: 650}} aria-label="simple table">
                                 <TableHead>
@@ -474,14 +475,15 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
             {resultsData.length ? (
                 <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
-                    <Box sx={{flex: "0 0 auto"}}>
+                    <Box sx={{flex: "0 0 auto", mt: 2}}>
                         <CandidatesResultsCharts
                             results={resultsData}
                             chartName={getChartName(general?.[0].name ?? undefined)}
                         />
                     </Box>
-                    <Box sx={{flex: 1}}>
+                    <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2}}>
                         <DataGrid
+                            sx={{mt: 0}}
                             rows={resultsData}
                             columns={columns}
                             initialState={{

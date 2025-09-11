@@ -50,7 +50,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
     }
 
     return (
-        <Box sx={{mt: 4, display: "flex", flexDirection: "row", alignItems: "left", gap: 4}}>
+        <Box sx={{display: "flex", flexDirection: "row", alignItems: "left"}}>
             {validResults.map((result) => {
                 const eligibleCensus = result.elegible_census as number
                 const totalVoters = result.total_voters as number
@@ -193,11 +193,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         <>
             {resultsData.length ? (
                 <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
-                    <Box sx={{flex: "0 0 auto"}}>
+                    <Box sx={{flex: "0 0 auto", mt: 2}}>
                         <GeneralInformationCharts results={resultsData} />
                     </Box>
-                    <Box sx={{flex: 1}}>
+                    <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2}}>
                         <DataGrid
+                            sx={{mt: 0}}
                             rows={resultsData}
                             columns={columns}
                             initialState={{
