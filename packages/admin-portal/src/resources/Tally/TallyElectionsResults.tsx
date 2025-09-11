@@ -102,7 +102,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     }
 
     return (
-        <Box sx={{display: "flex", flexDirection: "column", alignItems: "center", mb: 2}}>
+        <Box sx={{display: "flex", flexDirection: "column", alignItems: "center", mb: 2, border: "1px solid #cccccc99"}}>
             <CardChart title={result.name}>
                 <Chart
                     options={chartOptions.options}

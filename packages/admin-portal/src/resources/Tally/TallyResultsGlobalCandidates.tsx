@@ -117,7 +117,7 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
     }
 
     return (
-        <Box key={result.id} sx={{mb: 2}}>
+        <Box key={result.id} sx={{mb: 2, border: "1px solid #cccccc99"}}>
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
@@ -194,7 +194,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     }
 
     return (
-        <Box key={chartName + "-candidates"} sx={{mb: 2}}>
+        <Box key={chartName + "-candidates"} sx={{mb: 2, border: "1px solid #cccccc99"}}>
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
@@ -345,7 +345,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 chartName={getChartName(general?.[0].name ?? undefined)}
                             />
                         </Box>
-                        <Box sx={{flex: "1 1 auto", mt: 2}}>
+                        <Box sx={{flex: "1 1 auto", mt: 2, border: "1px solid #cccccc99"}}>
                             <TableContainer component={Paper}>
                                 <Table sx={{minWidth: 650}} aria-label="simple table">
                                     <TableHead>
@@ -538,7 +538,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                         },
                                     },
                                     sorting: {
-                                        sortModel: [{field: "winning_position", sort: "asc"}],
+                                        sortModel: [{field: "cast_votes", sort: "desc"}],
                                     },
                                 }}
                                 pageSizeOptions={[10, 20, 50, 100]}

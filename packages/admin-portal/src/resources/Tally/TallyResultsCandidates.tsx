@@ -394,7 +394,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                         },
                                     },
                                     sorting: {
-                                        sortModel: [{field: "winning_position", sort: "asc"}],
+                                        sortModel: [{field: "cast_votes", sort: "desc"}],
                                     },
                                 }}
                                 pageSizeOptions={[10, 20, 50, 100]}
