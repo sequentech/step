@@ -25,4 +25,10 @@ source "$VENV_DIR/bin/activate"
 pip install --quiet --disable-pip-version-check -r "$SCRIPT_DIR/requirements.txt"
 
 # Run the dependency listing script
+echo "🔍 Generating dependency CSV..."
 python "$SCRIPT_DIR/list_deps.py" "$PACKAGES_DIR" -o "$OUTPUT_DIR/dependencies.csv"
+
+# Generate markdown documentation from CSV
+echo "📝 Generating markdown documentation..."
+DOCS_OUTPUT="$PROJECT_ROOT/docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md"
+python "$SCRIPT_DIR/generate_docs.py" "$OUTPUT_DIR/dependencies.csv" -o "$DOCS_OUTPUT"

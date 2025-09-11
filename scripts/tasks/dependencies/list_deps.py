@@ -37,10 +37,19 @@ def fetch_rust_deps(package_path, package_name, writer, internal_pkgs):
                 # Query crates.io API for metadata
                 response = requests.get(f"https://crates.io/api/v1/crates/{quote(name)}", timeout=5)
                 response.raise_for_status()
-                api_data = response.json().get("crate", {})
-
-                license = api_data.get("license", "N/A")
-                description = (api_data.get("description", "") or "").replace("\n", " ").strip()
+                api_data = response.json()
+                
+                crate_info = api_data.get("crate", {})
+                versions = api_data.get("versions", [])
+                
+                # Get license from the latest version, fallback to crate-level license
+                license = "N/A"
+                if versions:
+                    license = versions[0].get("license", "N/A") or "N/A"
+                if license == "N/A":
+                    license = crate_info.get("license", "N/A") or "N/A"
+                    
+                description = (crate_info.get("description", "") or "").replace("\n", " ").strip()
                 writer.writerow([package_name, name, version, license, description])
             except requests.RequestException as e:
                 print(f"    [WARN] Could not fetch metadata for Rust crate '{name}': {e}")
