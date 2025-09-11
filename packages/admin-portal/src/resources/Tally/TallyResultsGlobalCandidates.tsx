@@ -97,7 +97,7 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
         options: {
             labels: chartData.map((item) => item.label),
             legend: {
-                position: "bottom",
+                position: "right",
             },
             responsive: [
                 {
@@ -172,7 +172,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
         options: {
             labels: chartData.map((item) => item.label),
             legend: {
-                position: "bottom",
+                position: "right",
             },
             responsive: [
                 {

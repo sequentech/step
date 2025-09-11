@@ -82,7 +82,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
         options: {
             labels: chartData.map((item) => item.label),
             legend: {
-                position: "bottom",
+                position: "right",
             },
             responsive: [
                 {
