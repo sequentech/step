@@ -29,6 +29,30 @@
             "problemMatcher": []
         },
         {
+            "label": "generate.dependency.report",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/tasks/dependencies/generate-dependency-report.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "check.reuse",
             "command": "devenv",
             "args": [

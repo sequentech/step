@@ -19,23 +19,26 @@ import tomli
 # --- Configuration ---
 MAVEN_NAMESPACES = {'m': 'http://maven.apache.org/POM/4.0.0'}
 
-def fetch_rust_deps(package_path, package_name, writer):
-    """Parses Cargo.toml and queries the crates.io API."""
+def fetch_rust_deps(package_path, package_name, writer, internal_pkgs):
+    """Parses Cargo.toml and queries the crates.io API, skipping internal dependencies."""
     try:
         with open(package_path / "Cargo.toml", "rb") as f:
             cargo_data = tomli.load(f)
-        
+
         dependencies = cargo_data.get("dependencies", {})
         print(f"  -> Found {len(dependencies)} Rust dependencies for '{package_name}'")
 
         for name, version_info in dependencies.items():
+            # Skip internal dependencies
+            if name in internal_pkgs:
+                continue
             version = version_info if isinstance(version_info, str) else version_info.get("version", "N/A")
             try:
                 # Query crates.io API for metadata
                 response = requests.get(f"https://crates.io/api/v1/crates/{quote(name)}", timeout=5)
                 response.raise_for_status()
                 api_data = response.json().get("crate", {})
-                
+
                 license = api_data.get("license", "N/A")
                 description = (api_data.get("description", "") or "").replace("\n", " ").strip()
                 writer.writerow([package_name, name, version, license, description])
@@ -46,16 +49,20 @@ def fetch_rust_deps(package_path, package_name, writer):
     except Exception as e:
         print(f"  [ERROR] Failed to process Cargo.toml for '{package_name}': {e}")
 
-def fetch_npm_deps(package_path, package_name, writer):
-    """Parses package.json and uses `npm view` for metadata."""
+def fetch_npm_deps(package_path, package_name, writer, internal_pkgs):
+    """Parses package.json and uses `npm view` for metadata, skipping internal dependencies."""
     try:
         with open(package_path / "package.json", "r", encoding="utf-8") as f:
             package_data = json.load(f)
-            
+
         dependencies = package_data.get("dependencies", {})
         print(f"  -> Found {len(dependencies)} TypeScript dependencies for '{package_name}'")
 
         for name, version in dependencies.items():
+            # Skip internal dependencies (by name or by @scope/name)
+            base_name = name.split('/')[-1] if name.startswith('@') else name
+            if name in internal_pkgs or base_name in internal_pkgs:
+                continue
             try:
                 # `npm view --json` is fast and gets all info in one call
                 result = subprocess.run(
@@ -73,12 +80,12 @@ def fetch_npm_deps(package_path, package_name, writer):
     except Exception as e:
         print(f"  [ERROR] Failed to process package.json for '{package_name}': {e}")
 
-def fetch_maven_deps(package_path, package_name, writer):
-    """Parses pom.xml and fetches dependency POMs from Maven Central."""
+def fetch_maven_deps(package_path, package_name, writer, internal_pkgs):
+    """Parses pom.xml and fetches dependency POMs from Maven Central, skipping internal dependencies."""
     try:
         tree = ET.parse(package_path / "pom.xml")
         root = tree.getroot()
-        
+
         # Helper to find text in namespaced XML
         def find_text(element, path):
             node = element.find(path, MAVEN_NAMESPACES)
@@ -94,8 +101,12 @@ def fetch_maven_deps(package_path, package_name, writer):
 
             if not all([groupId, artifactId, version]) or "${" in version:
                 continue
-            
+
             dep_name = f"{groupId}:{artifactId}"
+            # Skip if artifactId or dep_name is in internal_pkgs
+            if artifactId in internal_pkgs or dep_name in internal_pkgs:
+                continue
+
             group_path = groupId.replace('.', '/')
             pom_url = f"https://repo1.maven.org/maven2/{group_path}/{artifactId}/{version}/{artifactId}-{version}.pom"
 
@@ -115,6 +126,7 @@ def fetch_maven_deps(package_path, package_name, writer):
     
     except ET.ParseError as e:
         print(f"  [ERROR] Failed to parse pom.xml for '{package_name}': {e}")
+
 
 
 def main():
@@ -141,8 +153,40 @@ def main():
         print(f"Error: Directory '{packages_path}' not found. Please provide a valid path.")
         return
 
+    # Collect all internal package names (for Rust, NPM, Maven)
+    internal_pkgs = set()
+    for pkg in packages_path.iterdir():
+        if not pkg.is_dir():
+            continue
+        # Rust: directory name
+        if (pkg / "Cargo.toml").exists():
+            internal_pkgs.add(pkg.name)
+        # NPM: name from package.json
+        if (pkg / "package.json").exists():
+            try:
+                with open(pkg / "package.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if "name" in data:
+                        internal_pkgs.add(data["name"])
+            except Exception:
+                pass
+        # Maven: artifactId from pom.xml
+        if (pkg / "pom.xml").exists():
+            try:
+                tree = ET.parse(pkg / "pom.xml")
+                root = tree.getroot()
+                artifactId = root.find("m:artifactId", MAVEN_NAMESPACES)
+                groupId = root.find("m:groupId", MAVEN_NAMESPACES)
+                if artifactId is not None:
+                    internal_pkgs.add(artifactId.text.strip())
+                # Also add groupId:artifactId
+                if groupId is not None:
+                    internal_pkgs.add(f"{groupId.text.strip()}:{artifactId.text.strip()}")
+            except Exception:
+                pass
+
     print(f"🔍 Starting dependency scan... Output will be saved to '{output_path}'")
-    
+
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Package", "Dependency", "Version", "License", "Description"])
@@ -155,11 +199,11 @@ def main():
             print(f"\nProcessing package: {package_name}")
 
             if (package_path / "Cargo.toml").exists():
-                fetch_rust_deps(package_path, package_name, writer)
+                fetch_rust_deps(package_path, package_name, writer, internal_pkgs)
             elif (package_path / "package.json").exists():
-                fetch_npm_deps(package_path, package_name, writer)
+                fetch_npm_deps(package_path, package_name, writer, internal_pkgs)
             elif (package_path / "pom.xml").exists():
-                fetch_maven_deps(package_path, package_name, writer)
+                fetch_maven_deps(package_path, package_name, writer, internal_pkgs)
 
     print(f"\n✅ Done! Dependency report saved to '{output_path}'.")
 
