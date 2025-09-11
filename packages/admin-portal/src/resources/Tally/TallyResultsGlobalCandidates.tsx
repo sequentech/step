@@ -190,7 +190,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
                 },
             ],
             // Six colors, starting with the same blue than the other charts above
-            colors: ["#008FFBFF", "#FF0000", "#FFFF00", "#00FF00", "#FF8000", "#706565ff"],
+            colors: ["#008FFBFF", "#FF0000", "#dfdf01ff", "#079107ff", "#FF8000", "#706565ff"],
         },
         series: chartData.map((item) => item.value),
     }
