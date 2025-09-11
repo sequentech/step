@@ -25,7 +25,14 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Set loadtestingImage variable with default fallback
-      run: echo "LOADTESTING_IMAGE=${{ github.event.inputs.loadtestingImage || '133529410358.dkr.ecr.eu-west-1.amazonaws.com/loadtesting:latest' }}" >> $GITHUB_ENV
+      run: echo "LOADTESTING_IMAGE=${{ github.event.inputs.loadtestingImage || 'loadtesting:latest' }}" >> $GITHUB_ENV
+    - name: Build image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: packages/loadtesting/Dockerfile
+        push: false
+        tags: loadtesting:latest
     - name: Run e2e tests
       run: |
-        docker run ${{ inputs.loadtestingImage }} e2e
+        docker run ${{ env.LOADTESTING }} e2e
