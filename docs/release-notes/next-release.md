@@ -163,5 +163,5 @@ and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
 
 ## ✨ Electoral results charts/visualization
 
-Added Charts in the Admin Porta's Tally Results below the data tables to display
+Added Charts in the Admin Portal's Tally Results below the data tables to display
  the Gerneral Information, Participation Results and Candidate Results.

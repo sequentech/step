@@ -1611,7 +1611,7 @@ const spanishTranslation: TranslationType = {
                 blank_votes: "Votos en blanco",
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
-                winning_position: "Winning position",
+                winning_position: "Posición ganadora",
             },
             chart: {
                 votesForCandidates: "Votos por Candidatos",
