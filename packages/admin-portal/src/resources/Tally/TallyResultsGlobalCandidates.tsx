@@ -148,23 +148,26 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
         return null
     }
 
-    const chartData = [
-        ...results.map((candidate) => {
+    let chartData = [
+        ...results.map((candidate, index) => {
+            let castVotes = (candidate.cast_votes ?? 0) as number
             return {
                 label: candidate.name ?? "-",
-                value: (candidate.cast_votes ?? 0) as number,
+                value: castVotes,
             }
         }),
-    ].filter((item) => item.value && item.value > 0).sort((a, b) => b.value - a.value)
+    ]
+    chartData = chartData.filter((item) => item.value && item.value > 0).sort((a, b) => b.value - a.value)
 
     let totalCandidatesRepresented = chartData ? chartData?.length : 0
-
     if (totalCandidatesRepresented === 0) {
         return null
     } else if (totalCandidatesRepresented > 5) {
         totalCandidatesRepresented = 5
-        // trim chartData to have only the first 5 candidates
-        chartData.splice(5)
+        // Trim chartData to represent only the first 5 candidates + "Others"
+        let deletedItems = chartData.splice(5)
+        let othersSum = deletedItems.reduce((a, b) => a + b.value, 0)
+        chartData.push({label: "Others", value: othersSum})
     }
 
     const chartOptions: Props = {
@@ -186,6 +189,8 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
                     },
                 },
             ],
+            // Six colors, starting with the same blue than the other charts above
+            colors: ["#008FFBFF", "#FF0000", "#FFFF00", "#00FF00", "#FF8000", "#706565ff"],
         },
         series: chartData.map((item) => item.value),
     }
