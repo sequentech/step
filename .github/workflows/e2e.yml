@@ -32,7 +32,7 @@ jobs:
         context: .
         file: packages/loadtesting/Dockerfile
         push: false
-        tags: loadtesting:latest
+        tags: ${{ env.LOADTESTING_IMAGE }}
     - name: Run e2e tests
       run: |
-        docker run ${{ env.LOADTESTING }} e2e
+        docker run ${{ env.LOADTESTING_IMAGE }} e2e
