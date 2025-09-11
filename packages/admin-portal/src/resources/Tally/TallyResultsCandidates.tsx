@@ -28,10 +28,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {
-    ParticipationSummaryChart,
-    CandidatesResultsCharts,
-} from "./TallyResultsGlobalCandidates"
+import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -178,13 +175,20 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
     return (
         <>
-            <Box sx={{ borderTop: '1px solid #ccc', mt: 4, p: 0 }}>
+            <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.global")}
                 </Typography>
 
                 {general && general.length ? (
-                    <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: "row",
+                            gap: 4,
+                            alignItems: "flex-start",
+                        }}
+                    >
                         {/* Chart on the left */}
                         <Box sx={{flex: "0 0 auto", mt: 2}}>
                             <ParticipationSummaryChart
@@ -202,13 +206,19 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                             <TableCell sx={{width: "25%"}} align="right">
                                                 {t("tally.table.total")}
                                             </TableCell>
-                                            <TableCell sx={{width: "25%"}} align="right" width="300px">
+                                            <TableCell
+                                                sx={{width: "25%"}}
+                                                align="right"
+                                                width="300px"
+                                            >
                                                 {t("tally.table.turnout")}
                                             </TableCell>
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.elegible_census")}
                                             </TableCell>
@@ -217,7 +227,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                             </TableCell>
                                             <TableCell align="right"></TableCell>
                                         </TableRow>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.total_auditable_votes")}
                                             </TableCell>
@@ -225,14 +237,18 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                                 {general?.[0].total_auditable_votes ?? "-"}
                                             </TableCell>
                                             <TableCell align="right">
-                                                {isNumber(general?.[0].total_auditable_votes_percent)
+                                                {isNumber(
+                                                    general?.[0].total_auditable_votes_percent
+                                                )
                                                     ? formatPercentOne(
-                                                        general[0].total_auditable_votes_percent
-                                                    )
+                                                          general[0].total_auditable_votes_percent
+                                                      )
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.total_votes_counted")}
                                             </TableCell>
@@ -241,11 +257,15 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                             </TableCell>
                                             <TableCell align="right">
                                                 {isNumber(general?.[0].total_votes_percent)
-                                                    ? formatPercentOne(general[0].total_votes_percent)
+                                                    ? formatPercentOne(
+                                                          general[0].total_votes_percent
+                                                      )
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.total_valid_votes")}
                                             </TableCell>
@@ -254,11 +274,15 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                             </TableCell>
                                             <TableCell align="right">
                                                 {isNumber(general?.[0].total_valid_votes_percent)
-                                                    ? formatPercentOne(general[0].total_valid_votes_percent)
+                                                    ? formatPercentOne(
+                                                          general[0].total_valid_votes_percent
+                                                      )
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.total_invalid_votes")}
                                             </TableCell>
@@ -268,12 +292,14 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                             <TableCell align="right">
                                                 {isNumber(general?.[0].total_invalid_votes_percent)
                                                     ? formatPercentOne(
-                                                        general[0].total_invalid_votes_percent
-                                                    )
+                                                          general[0].total_invalid_votes_percent
+                                                      )
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.explicit_invalid_votes")}
                                             </TableCell>
@@ -281,14 +307,18 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                                 {general?.[0].explicit_invalid_votes ?? "-"}
                                             </TableCell>
                                             <TableCell align="right">
-                                                {isNumber(general?.[0].explicit_invalid_votes_percent)
+                                                {isNumber(
+                                                    general?.[0].explicit_invalid_votes_percent
+                                                )
                                                     ? formatPercentOne(
-                                                        general[0].explicit_invalid_votes_percent
-                                                    )
+                                                          general[0].explicit_invalid_votes_percent
+                                                      )
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.implicit_invalid_votes")}
                                             </TableCell>
@@ -296,14 +326,18 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                                 {general?.[0].implicit_invalid_votes ?? "-"}
                                             </TableCell>
                                             <TableCell align="right">
-                                                {isNumber(general?.[0].implicit_invalid_votes_percent)
+                                                {isNumber(
+                                                    general?.[0].implicit_invalid_votes_percent
+                                                )
                                                     ? formatPercentOne(
-                                                        general[0].implicit_invalid_votes_percent
-                                                    )
+                                                          general[0].implicit_invalid_votes_percent
+                                                      )
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
-                                        <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                        <TableRow
+                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
+                                        >
                                             <TableCell component="th" scope="row">
                                                 {t("tally.table.blank_votes")}
                                             </TableCell>
@@ -312,7 +346,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                             </TableCell>
                                             <TableCell align="right">
                                                 {isNumber(general?.[0].blank_votes_percent)
-                                                    ? formatPercentOne(general[0].blank_votes_percent)
+                                                    ? formatPercentOne(
+                                                          general[0].blank_votes_percent
+                                                      )
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
@@ -326,13 +362,20 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 )}
             </Box>
 
-            <Box sx={{ borderTop: '1px solid #ccc', mt: 4, p: 0 }}>
+            <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.candidates")}
                 </Typography>
 
                 {resultsData.length ? (
-                    <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: "row",
+                            gap: 4,
+                            alignItems: "flex-start",
+                        }}
+                    >
                         <Box sx={{flex: "0 0 auto", mt: 2}}>
                             <CandidatesResultsCharts
                                 results={resultsData as Sequent_Backend_Candidate_Extended[]}
@@ -363,7 +406,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     <NoItem />
                 )}
             </Box>
-                
         </>
     )
 }

@@ -38,7 +38,10 @@ interface GeneralInformationChartsProps {
     selectedElectionId?: string
 }
 
-const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({results, selectedElectionId}) => {
+const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
+    results,
+    selectedElectionId,
+}) => {
     const {t} = useTranslation()
 
     // Filter out results with valid participation data
@@ -51,8 +54,8 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({resu
     }
 
     // Find the selected result or use the first one as default
-    const selectedResult = selectedElectionId 
-        ? validResults.find(result => result.id === selectedElectionId)
+    const selectedResult = selectedElectionId
+        ? validResults.find((result) => result.id === selectedElectionId)
         : validResults[0]
 
     if (!selectedResult) {
@@ -201,23 +204,26 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             {resultsData.length ? (
                 <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
                     <Box sx={{flex: "0 0 auto", mt: 2}}>
-                        <GeneralInformationCharts results={resultsData} selectedElectionId={selectedElectionId || undefined} />
+                        <GeneralInformationCharts
+                            results={resultsData}
+                            selectedElectionId={selectedElectionId || undefined}
+                        />
                     </Box>
                     <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2}}>
                         <DataGrid
                             sx={{
-                                mt: 0,
-                                '& .MuiDataGrid-row.selected': {
-                                    backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                                "mt": 0,
+                                "& .MuiDataGrid-row.selected": {
+                                    backgroundColor: "rgba(25, 118, 210, 0.08)",
                                 },
-                                '& .MuiDataGrid-row.selected:hover': {
-                                    backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                                "& .MuiDataGrid-row.selected:hover": {
+                                    backgroundColor: "rgba(25, 118, 210, 0.12)",
                                 },
-                                '& .MuiDataGrid-cell:focus': {
-                                    outline: 'none',
+                                "& .MuiDataGrid-cell:focus": {
+                                    outline: "none",
                                 },
-                                '& .MuiDataGrid-cell:focus-within': {
-                                    outline: 'none',
+                                "& .MuiDataGrid-cell:focus-within": {
+                                    outline: "none",
                                 },
                             }}
                             rows={resultsData}
@@ -234,8 +240,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                             onRowClick={(params) => {
                                 setSelectedElectionId(params.row.id)
                             }}
-                            getRowClassName={(params) => 
-                                params.row.id === selectedElectionId ? 'selected' : ''
+                            getRowClassName={(params) =>
+                                params.row.id === selectedElectionId ? "selected" : ""
                             }
                         />
                     </Box>
