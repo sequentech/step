@@ -24,6 +24,13 @@ import {UpsertAreaProps} from "./UpsertArea"
 import SelectArea from "@/components/area/SelectArea"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {Checkbox, FormControlLabel} from "@mui/material"
+import {styled} from "@mui/styles"
+
+
+const StyledCheckbox = styled(Checkbox)({
+    size: "small",
+})
 
 /**
  * FormContent component for creating or updating an Area entity.
@@ -52,6 +59,13 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const aliasRenderer = useAliasRenderer()
+
+    // TODO: Set inital value from the area/presentation when editing or false if undefined(adding a new one)
+    const [allowEarlyVoting, setAllowEarlyVoting] = useState(false)
+    
+    const toggleEarlyVoting = (newValue: boolean) => {
+        setAllowEarlyVoting(newValue)
+    }
 
     const contestFilterToQuery = (searchText: string) => {
         if (!searchText || searchText.length == 0) {
@@ -110,7 +124,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     annotations: values.annotations,
                     labels: values.labels,
                     type: values.type,
-                    early_start: values.early_start,
+                    allow_early_voting: values.allow_early_voting,
                 },
             })
             refresh()
@@ -135,6 +149,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming)
+                console.log(parsedValue)
                 return (
                     <SimpleForm
                         record={parsedValue}
@@ -193,6 +208,15 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                                 />
                             </>
                         ) : null}
+                        <FormControlLabel
+                            control={
+                                <StyledCheckbox
+                                    checked={allowEarlyVoting}
+                                    onChange={() => toggleEarlyVoting(!allowEarlyVoting)}
+                                />
+                            }
+                            label={t("areas.formImputs.allowEarlyVoting")}
+                        />
                     </SimpleForm>
                 )
             }}

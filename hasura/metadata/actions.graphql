@@ -628,7 +628,7 @@ type Mutation {
         annotations: jsonb
         labels: jsonb
         type: String
-        start_policy: EarlyStartPolicy!
+        start_policy: EarlyVotingPolicy!
     ): UpsertAreaOutput
 }
 
@@ -636,9 +636,9 @@ type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
-enum EarlyStartPolicy {
-    allow-early-start
-    no-early-start
+enum EarlyVotingPolicy {
+    allow-early-voting
+    no-early-voting
 }
 
 enum ReportEncryptionPolicy {
