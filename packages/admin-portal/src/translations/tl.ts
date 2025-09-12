@@ -112,7 +112,7 @@ const tagalogTranslation: TranslationType = {
             },
             formImputs: {
                 allowEarlyVoting: "Payagan ang Maagang Pagboto",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {

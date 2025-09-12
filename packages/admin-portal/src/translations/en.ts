@@ -110,7 +110,7 @@ const englishTranslation = {
             },
             formImputs: {
                 allowEarlyVoting: "Allow Early Voting",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {

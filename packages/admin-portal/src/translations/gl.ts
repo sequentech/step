@@ -111,7 +111,7 @@ const galegoTranslation: TranslationType = {
             },
             formImputs: {
                 allowEarlyVoting: "Permitir Votación Anticipada",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {

@@ -111,7 +111,7 @@ const spanishTranslation: TranslationType = {
             },
             formImputs: {
                 allowEarlyVoting: "Permitir Votación Temprana",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {

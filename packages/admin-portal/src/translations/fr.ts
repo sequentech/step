@@ -111,7 +111,7 @@ const frenchTranslation: TranslationType = {
             },
             formImputs: {
                 allowEarlyVoting: "Autoriser le Vote Anticipé",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {

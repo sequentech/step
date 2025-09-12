@@ -111,7 +111,7 @@ const basqueTranslation: TranslationType = {
             },
             formImputs: {
                 allowEarlyVoting: "Onartu Goiztiarra Bozketa",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {

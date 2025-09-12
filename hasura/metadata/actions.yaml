@@ -1318,10 +1318,10 @@ custom_types:
           values:
               - description: null
                 is_deprecated: null
-                value: allow-early-voting
+                value: allow_early_voting
               - description: null
                 is_deprecated: null
-                value: no-early-voting
+                value: no_early_voting
         - name: OrderDirection
           values:
               - description: null

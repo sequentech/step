@@ -110,7 +110,7 @@ const dutchTranslation: TranslationType = {
             },
             formImputs: {
                 allowEarlyVoting: "Vroeg Stemmen Toestaan",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {

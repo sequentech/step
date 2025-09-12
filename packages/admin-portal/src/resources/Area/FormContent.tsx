@@ -27,7 +27,6 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {Checkbox, FormControlLabel} from "@mui/material"
 import {styled} from "@mui/styles"
 
-
 const StyledCheckbox = styled(Checkbox)({
     size: "small",
 })
@@ -62,7 +61,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
 
     // TODO: Set inital value from the area/presentation when editing or false if undefined(adding a new one)
     const [allowEarlyVoting, setAllowEarlyVoting] = useState(false)
-    
+
     const toggleEarlyVoting = (newValue: boolean) => {
         setAllowEarlyVoting(newValue)
     }

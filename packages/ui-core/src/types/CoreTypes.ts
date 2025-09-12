@@ -9,8 +9,8 @@ import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
 export enum EEarlyVotingPolicy {
-    ALLOW_EARLY_VOTING = "allow-early-voting",
-    NO_EARLY_VOTING = "no-early-voting",
+    ALLOW_EARLY_VOTING = "allow_early_voting",
+    NO_EARLY_VOTING = "no_early_voting",
 }
 
 export enum EAllowTally {

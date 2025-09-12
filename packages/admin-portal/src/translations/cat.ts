@@ -111,7 +111,7 @@ const catalanTranslation: TranslationType = {
             },
             formImputs: {
                 allowEarlyVoting: "Permetre Votació Anticipada",
-            }
+            },
         },
         lookAndFeelScreen: {
             common: {
