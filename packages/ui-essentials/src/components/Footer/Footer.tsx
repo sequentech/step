@@ -20,13 +20,14 @@ const StyledPaper = styled(Paper)(
     `
 )
 
-const StyledLink = styled(Link)`
-    text-decoration: underline;
-    font-weight: normal;
-    &:hover {
-        text-decoration: none;
-    }
-`
+const StyledLink = styled(Link)(({theme}) => ({
+    textDecoration: 'underline',
+    fontWeight: 'normal',
+    color: theme.palette.blue.dark,
+    '&:hover': {
+        textDecoration: 'none',
+    },
+}))
 
 const CustomLink = ({title, href}: {title?: string; href?: string}) => (
     <StyledLink className="footer-link" href={href} target="_blank" rel="noopener noreferrer">

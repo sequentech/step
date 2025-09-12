@@ -179,12 +179,12 @@ export default function Header({
                                 <StyledButtonContainerWrapper className="logout-button-container-wrapper">
                                     <StyledButton
                                         className="logout-button"
-                                        aria-label="log out button"
+                                        aria-label={t("logout.buttonText")}
                                         onClick={() => {
                                             setOpenModal(true)
                                         }}
                                     >
-                                        <LogoutIcon />
+                                        <LogoutIcon aria-hidden/>
                                         <Box sx={{display: {xs: "none", sm: "block"}}}>
                                             {t("logout.buttonText")}
                                         </Box>
