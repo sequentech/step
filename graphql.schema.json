@@ -6188,6 +6188,29 @@
         "possibleTypes": null
       },
       {
+        "kind": "ENUM",
+        "name": "EarlyVotingPolicy",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "allow-early-voting",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "no-early-voting",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "PgAuditFilter",
         "description": null,
@@ -26296,6 +26319,16 @@
                 "type": {
                   "kind": "SCALAR",
                   "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "allow_early_voting",
+                "description": null,
+                "type": {
+                  "kind": "ENUM",
+                  "name": "EarlyVotingPolicy",
                   "ofType": null
                 },
                 "defaultValue": null

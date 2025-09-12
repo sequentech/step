@@ -628,7 +628,7 @@ type Mutation {
         annotations: jsonb
         labels: jsonb
         type: String
-        start_policy: EarlyVotingPolicy!
+        allow_early_voting: EarlyVotingPolicy!
     ): UpsertAreaOutput
 }
 

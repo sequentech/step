@@ -1314,6 +1314,14 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: configured_password
+        - name: EarlyVotingPolicy
+          values:
+              - description: null
+                is_deprecated: null
+                value: allow-early-voting
+              - description: null
+                is_deprecated: null
+                value: no-early-voting
         - name: OrderDirection
           values:
               - description: null
