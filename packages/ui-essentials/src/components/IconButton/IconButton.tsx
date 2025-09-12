@@ -38,7 +38,6 @@ const IconButton: React.FC<IIconButtonProps> = ({variant, sx, onClick, ...props}
         sx={{color: ColorMap[variant || "inherit"], ...sx}}
         onClick={onClick}
     >
-        {/* Ensure the name includes the visible label if provided */}
         <FontAwesomeIcon {...props} />
     </StyledButton>
 )

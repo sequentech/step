@@ -221,6 +221,7 @@ export const Question: React.FC<IQuestionProps> = ({
             {isBlank ? <BlankAnswer /> : null}
             <CandidatesWrapper className="candidates-container">
                 <Box
+                    className="candidates-legend"
                     component="legend"
                     sx={{
                         position: "absolute",

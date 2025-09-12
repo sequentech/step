@@ -43,7 +43,6 @@ const StepNumber = styled(Box)<StepNumberProps>`
     ${({isselected}) => isselected !== "true" && "opacity: 0.8;"}
     border: ${({isselected, theme}) =>
         isselected === "true" ? "inherit" : `1px solid ${theme.palette.brandColor}`};
-    /* Ensure 4.5:1 contrast minimum: use white text on brand color when selected, and brand color on white otherwise */
     color: ${({isselected, theme}) =>
         isselected === "true" ? theme.palette.white : theme.palette.brandColor};
     background: ${({isselected, warning, theme}) =>
