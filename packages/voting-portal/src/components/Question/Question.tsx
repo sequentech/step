@@ -51,7 +51,7 @@ const StyledTitle = styled(Typography)`
     gap: 16px;
 `
 
-const CandidatesWrapper = styled('fieldset')`
+const CandidatesWrapper = styled("fieldset")`
     display: flex;
     flex-direction: column;
     border: 0;

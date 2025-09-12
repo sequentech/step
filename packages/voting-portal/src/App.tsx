@@ -45,6 +45,13 @@ const StyledApp = styled(Stack)<{css: string}>`
     }
 `
 
+const StyledMain = styled(`main`)`
+    margin-bottom: auto;
+    display: flex;
+    position: relative;
+    flex: 1;
+`
+
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
@@ -143,24 +150,22 @@ const App = () => {
             <ScrollRestoration />
             <ApolloWrapper>
                 {/* Site header landmark */}
-                <header role="banner">
-                    <HeaderWithContext />
-                </header>
+                <HeaderWithContext />
                 {/* Main landmark for all page content */}
-                <main id="main-content" role="main">
-                    <PageBanner
-                        marginBottom="auto"
-                        sx={{display: "flex", position: "relative", flex: 1}}
-                    >
-                        <WatermarkBackground />
-                        <Outlet />
-                    </PageBanner>
-                </main>
+                <PageBanner
+                    marginBottom="auto"
+                    sx={{display: "flex", position: "relative", flex: 1}}
+                    className="main"
+                    component="main"
+                    id="main-content"
+                    role="main"
+                >
+                    <WatermarkBackground />
+                    <Outlet />
+                </PageBanner>
             </ApolloWrapper>
             {/* Footer landmark */}
-            <footer role="contentinfo">
-                <Footer />
-            </footer>
+            <Footer />
         </StyledApp>
     )
 }
