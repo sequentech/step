@@ -165,7 +165,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     )}
                     <StyledButton
                         className="logout-button"
-                        aria-label="log out button"
+                        aria-label={t("header.welcome")}
                         onClick={handleMenu}
                     >
                         <AccountCircle sx={{fontSize: 40}} />

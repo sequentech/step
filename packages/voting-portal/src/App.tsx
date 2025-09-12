@@ -144,9 +144,6 @@ const App = () => {
             className="app-root"
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
-            <a href="#main-content" className="skip-link">
-                Skip to main content
-            </a>
             <ScrollRestoration />
             <ApolloWrapper>
                 {/* Site header landmark */}
