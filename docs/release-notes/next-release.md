@@ -142,3 +142,10 @@ tests, filling in the disk.
 
 The election name shown in the section "Results & Participation" of the Tally in
 the Admin Portal is shown as 0 rather than its actual name.
+
+## 🐞 Multiple Finished Tally Ceremony logs
+
+Finished Tally Ceremony logs were repeated multiple times (each time the task is
+executed). Now the logs say "Updated Tally Ceremony" each time unless the
+Tally is completed.
+
