@@ -217,6 +217,22 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const tallyData = useAtomValue(tallyQueryData)
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
+    const orderedResultsData = useMemo(
+        () => {
+            return resultsData.sort((a, b) => {
+                if (a.winning_position && b.winning_position) {
+                    return a.winning_position - b.winning_position
+                } else if (a.winning_position) {
+                    return -1
+                } else if (b.winning_position) {
+                    return 1
+                } else {
+                    return (b.cast_votes ?? 0) - (a.cast_votes ?? 0) 
+                }
+            })
+        },
+        [resultsData]
+    )
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
@@ -529,16 +545,13 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2}}>
                             <DataGrid
                                 sx={{mt: 0}}
-                                rows={resultsData}
+                                rows={orderedResultsData}
                                 columns={columns}
                                 initialState={{
                                     pagination: {
                                         paginationModel: {
                                             pageSize: 10,
                                         },
-                                    },
-                                    sorting: {
-                                        sortModel: [{field: "cast_votes", sort: "desc"}],
                                     },
                                 }}
                                 pageSizeOptions={[10, 20, 50, 100]}
