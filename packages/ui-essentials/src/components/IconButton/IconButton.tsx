@@ -34,7 +34,7 @@ const ColorMap = {
 
 const IconButton: React.FC<IIconButtonProps> = ({variant, sx, onClick, ...props}) => (
     <StyledButton
-        aria-label={props.title || (props as any)['aria-label'] || "icon button"}
+        aria-label={props.title || (props as any)["aria-label"] || "icon button"}
         sx={{color: ColorMap[variant || "inherit"], ...sx}}
         onClick={onClick}
     >

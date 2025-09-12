@@ -21,11 +21,11 @@ const StyledPaper = styled(Paper)(
 )
 
 const StyledLink = styled(Link)(({theme}) => ({
-    textDecoration: 'underline',
-    fontWeight: 'normal',
-    color: theme.palette.blue.dark,
-    '&:hover': {
-        textDecoration: 'none',
+    "textDecoration": "underline",
+    "fontWeight": "normal",
+    "color": theme.palette.blue.dark,
+    "&:hover": {
+        textDecoration: "none",
     },
 }))
 

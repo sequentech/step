@@ -184,7 +184,7 @@ export default function Header({
                                             setOpenModal(true)
                                         }}
                                     >
-                                        <LogoutIcon aria-hidden/>
+                                        <LogoutIcon aria-hidden />
                                         <Box sx={{display: {xs: "none", sm: "block"}}}>
                                             {t("logout.buttonText")}
                                         </Box>

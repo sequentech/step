@@ -29,7 +29,6 @@ const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
     ${({css}) => css}
 
-    
     /* Visually hidden until focused, then shown for keyboard users */
     .skip-link {
         position: absolute;
@@ -44,7 +43,7 @@ const StyledApp = styled(Stack)<{css: string}>`
     .skip-link:focus {
         top: 0;
     }
-    `
+`
 
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -138,7 +137,9 @@ const App = () => {
             className="app-root"
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
-            <a href="#main-content" className="skip-link">Skip to main content</a>
+            <a href="#main-content" className="skip-link">
+                Skip to main content
+            </a>
             <ScrollRestoration />
             <ApolloWrapper>
                 {/* Site header landmark */}

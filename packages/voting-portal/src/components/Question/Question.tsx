@@ -51,9 +51,13 @@ const StyledTitle = styled(Typography)`
     gap: 16px;
 `
 
-const CandidatesWrapper = styled(Box)`
+const CandidatesWrapper = styled('fieldset')`
     display: flex;
     flex-direction: column;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    min-inline-size: 0;
 `
 
 const CandidateListsWrapper = styled(Box)`
@@ -189,13 +193,13 @@ export const Question: React.FC<IQuestionProps> = ({
     const isBlank = isReview && contestState && checkIsBlank(contestState)
 
     return (
-        <Box component="section" aria-labelledby={`contest-${"${"}question.id{"}"}-title`}>
+        <Box component="section" aria-labelledby={`contest-${question.id}-title`}>
             <StyledTitle
                 className="contest-title"
                 variant="h5"
                 data-min={question.min_votes}
                 data-max={question.max_votes}
-                id={`contest-${"${"}question.id{"}"}-title`}
+                id={`contest-${question.id}-title`}
             >
                 {translate(question, "name", i18n.language) || ""}
             </StyledTitle>
@@ -215,8 +219,19 @@ export const Question: React.FC<IQuestionProps> = ({
                 errorSelectionState={errorSelectionState}
             />
             {isBlank ? <BlankAnswer /> : null}
-            <CandidatesWrapper className="candidates-container" component="fieldset">
-                <Box component="legend" sx={{position: "absolute", width: 0, height: 0, overflow: "hidden", clip: "rect(0 0 0 0)"}}>{translate(question, "name", i18n.language) || ""}</Box>
+            <CandidatesWrapper className="candidates-container">
+                <Box
+                    component="legend"
+                    sx={{
+                        position: "absolute",
+                        width: 0,
+                        height: 0,
+                        overflow: "hidden",
+                        clip: "rect(0 0 0 0)",
+                    }}
+                >
+                    {translate(question, "name", i18n.language) || ""}
+                </Box>
                 {invalidTopCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
