@@ -137,6 +137,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         setAnchorEl(null)
     }
 
+    const profileName =
+        userProfile.firstName && userProfile.firstName !== ""
+            ? userProfile.firstName
+            : userProfile.username
+
     return (
         <Box>
             <StyledButtonTooltip
@@ -165,11 +170,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     )}
                     <StyledButton
                         className="logout-button"
-                        aria-label={t("header.welcome")}
+                        aria-labelledby="welcome-text-name"
                         onClick={handleMenu}
                     >
                         <AccountCircle sx={{fontSize: 40}} />
                         <Box
+                            id="welcome-text-name"
                             className="user-first-name"
                             sx={{
                                 display: {xs: "none", sm: "block"},
@@ -180,19 +186,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 lineHeight: "18px",
                                 fontWeight: "200",
                             }}
-                            title={
-                                userProfile.firstName && userProfile.firstName !== ""
-                                    ? userProfile.firstName
-                                    : userProfile.username
-                            }
+                            title={profileName}
                         >
                             <Trans
                                 i18nKey="header.welcome"
                                 values={{
-                                    name:
-                                        userProfile.firstName && userProfile.firstName !== ""
-                                            ? userProfile.firstName
-                                            : userProfile.username,
+                                    name: profileName,
                                 }}
                                 components={{br: <br />, span: <Name />}}
                             />
