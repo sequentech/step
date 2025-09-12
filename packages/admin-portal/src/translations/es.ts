@@ -109,6 +109,9 @@ const spanishTranslation: TranslationType = {
                 header: "No hay Áreas aún.",
                 action: "Crear un Área",
             },
+            formImputs: {
+                allowEarlyVoting: "Permitir Votación Temprana",
+            }
         },
         lookAndFeelScreen: {
             common: {

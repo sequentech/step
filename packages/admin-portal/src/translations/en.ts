@@ -108,6 +108,9 @@ const englishTranslation = {
                 header: "No Areas yet.",
                 action: "Create Area",
             },
+            formImputs: {
+                allowEarlyVoting: "Allow Early Voting",
+            }
         },
         lookAndFeelScreen: {
             common: {

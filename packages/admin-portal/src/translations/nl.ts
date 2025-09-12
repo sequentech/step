@@ -108,6 +108,9 @@ const dutchTranslation: TranslationType = {
                 header: "Nog geen gebieden.",
                 action: "Gebied aanmaken",
             },
+            formImputs: {
+                allowEarlyVoting: "Vroeg Stemmen Toestaan",
+            }
         },
         lookAndFeelScreen: {
             common: {

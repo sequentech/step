@@ -109,6 +109,9 @@ const frenchTranslation: TranslationType = {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",
             },
+            formImputs: {
+                allowEarlyVoting: "Autoriser le Vote Anticipé",
+            }
         },
         lookAndFeelScreen: {
             common: {

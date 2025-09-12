@@ -109,6 +109,9 @@ const catalanTranslation: TranslationType = {
                 header: "No hi ha Àrees encara.",
                 action: "Crear una Àrea",
             },
+            formImputs: {
+                allowEarlyVoting: "Permetre Votació Anticipada",
+            }
         },
         lookAndFeelScreen: {
             common: {

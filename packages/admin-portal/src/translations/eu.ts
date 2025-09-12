@@ -109,6 +109,9 @@ const basqueTranslation: TranslationType = {
                 header: "Ez dago Eremurik oraindik.",
                 action: "Sortu Eremua",
             },
+            formImputs: {
+                allowEarlyVoting: "Onartu Goiztiarra Bozketa",
+            }
         },
         lookAndFeelScreen: {
             common: {

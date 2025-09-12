@@ -110,6 +110,9 @@ const tagalogTranslation: TranslationType = {
                 header: "Wala pang Lugar.",
                 action: "Lumikha ng Lugar",
             },
+            formImputs: {
+                allowEarlyVoting: "Payagan ang Maagang Pagboto",
+            }
         },
         lookAndFeelScreen: {
             common: {

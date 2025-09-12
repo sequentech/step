@@ -109,6 +109,9 @@ const galegoTranslation: TranslationType = {
                 header: "Aínda non hai áreas.",
                 action: "Crear Área",
             },
+            formImputs: {
+                allowEarlyVoting: "Permitir Votación Anticipada",
+            }
         },
         lookAndFeelScreen: {
             common: {
