@@ -51,7 +51,7 @@ const StepNumber = styled(Box)<StepNumberProps>`
             ? warning === "true"
                 ? theme.palette.errorColor
                 : theme.palette.brandColor
-            : theme.palette.white};
+            : "inherit"};
 `
 
 const StepSeparator = styled(Box)(

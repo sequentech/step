@@ -146,9 +146,7 @@ const App = () => {
         >
             <ScrollRestoration />
             <ApolloWrapper>
-                {/* Site header landmark */}
                 <HeaderWithContext />
-                {/* Main landmark for all page content */}
                 <PageBanner
                     marginBottom="auto"
                     sx={{display: "flex", position: "relative", flex: 1}}
@@ -161,7 +159,6 @@ const App = () => {
                     <Outlet />
                 </PageBanner>
             </ApolloWrapper>
-            {/* Footer landmark */}
             <Footer />
         </StyledApp>
     )
