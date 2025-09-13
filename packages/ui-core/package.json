@@ -28,7 +28,7 @@
     "i18next-browser-languagedetector": "^6.1.4",
     "react-scripts": "5.0.1",
     "moderndash": "^3.7.3",
-    "sanitize-html": "2.11.0",
+    "sanitize-html": "2.12.1",
     "html-react-parser": "4.2.0",
     "qrcode.react": "3.1.0"
   },
@@ -77,7 +77,7 @@
     "ts-jest": "26.4.4",
     "ts-loader": "8.0.12",
     "typescript": "5.0.4",
-    "webpack": "5.9.0",
+    "webpack": "5.94.0",
     "webpack-cli": "4.2.0"
   },
   "eslintConfig": {
