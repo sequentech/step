@@ -149,3 +149,7 @@ Finished Tally Ceremony logs were repeated multiple times (each time the task is
 executed). Now the logs say "Updated Tally Ceremony" each time unless the
 Tally is completed.
 
+## ✨ Review UI accessibility
+
+Using the IBM tool https://www.ibm.com/able/toolkit/tools/#develop , review the
+accessibility for the Voting Portal and Ballot Verifier.
