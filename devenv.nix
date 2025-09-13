@@ -27,6 +27,7 @@
     openssh
     postgresql_15
     python3
+    openssh
 
     # immudb
     go
