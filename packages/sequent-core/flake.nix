@@ -7,7 +7,7 @@
 
   # input
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
-  inputs.nixpkgs.url = "nixpkgs/nixos-24.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-24.11";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.flake-compat = {
     url = "github:edolstra/flake-compat";
@@ -28,7 +28,7 @@
           configureRustTargets = targets : pkgs
             .rust-bin
             .nightly
-            ."2024-07-31"
+            ."2024-10-17"
             .default
             .override {
                 extensions = [ "rust-src" ];
