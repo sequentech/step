@@ -40,7 +40,7 @@ const StepNumber = styled(Box)<StepNumberProps>`
     gap: 8px;
     ${({variant}) =>
         variant === BreadCrumbStepsVariant.Default ? "border-radius: 4px;" : "border-radius: 100%;"}
-    ${({isselected}) => isselected !== "true" && "opacity: 0.5;"}
+    ${({isselected}) => isselected !== "true" && "opacity: 0.8;"}
     border: ${({isselected, theme}) =>
         isselected === "true" ? "inherit" : `1px solid ${theme.palette.brandColor}`};
     color: ${({isselected, theme}) =>
