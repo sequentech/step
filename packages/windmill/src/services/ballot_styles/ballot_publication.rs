@@ -200,12 +200,12 @@ pub async fn update_publish_ballot(
             Some(username),
         )
         .await
-        .with_context(|| "error posting to the electoral log")?;
+        .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
     Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
-async fn get_publication_json(
+pub async fn get_publication_json(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,

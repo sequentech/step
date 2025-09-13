@@ -820,7 +820,7 @@ pub async fn confirm_application(
     let credentials = annotations
         .get("credentials")
         .map(|value| {
-            serde_json::from_value::<Vec<CredentialRepresentation>>(value.clone())
+            deserialize_value::<Vec<CredentialRepresentation>>(value.clone())
                 .map_err(|err| anyhow!("Error parsing application credentials: {}", err))
         })
         .transpose()?;

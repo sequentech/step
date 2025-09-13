@@ -1,11 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
+import {
+    Admin,
+    CustomRoutes,
+    DataProvider,
+    GetListParams,
+    GetListResult,
+    Resource,
+} from "react-admin"
 import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
-import {CreateArea} from "./resources/Area/CreateArea"
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
 import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
@@ -31,7 +37,6 @@ import {SettingsScreen} from "./screens/SettingsScreen"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
 import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
-import {EditArea} from "./resources/Area/EditArea"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -55,6 +60,8 @@ import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
 import {SelectTenant} from "./screens/SelectTenant"
 import {AuthContext} from "./providers/AuthContextProvider"
+import {customSortData} from "./lib/helpers"
+import {UpsertArea} from "./resources/Area/UpsertArea"
 
 interface AppProps {}
 
@@ -65,10 +72,46 @@ const StyledApp = styled(Box)<{css: string}>`
 export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
-        <StyledApp className="felix-ttt" css={css}>
+        <StyledApp className="styled-app-atom" css={css}>
             {children}
         </StyledApp>
     )
+}
+
+// This function builds and wraps your Hasura data provider.
+export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {
+    const options = {
+        client: apolloClient,
+        buildQuery: customBuildQuery,
+    }
+    const buildGqlQueryOverrides = {}
+    const dataProviderHasura: DataProvider = await buildHasuraProvider(
+        options,
+        buildGqlQueryOverrides
+    )
+
+    // Override the getList method to apply custom sort logic.
+    const wrappedDataProvider: DataProvider = {
+        ...dataProviderHasura,
+        getList: (resource: string, params: GetListParams): Promise<GetListResult> =>
+            dataProviderHasura.getList(resource, params).then((response: GetListResult) => {
+                // Create a new sort object ensuring proper literal types for order.
+                let sortedData = response.data
+
+                // params.sort is undefined for non well defined list column fields (ex: FunctionFields )
+                if (params.sort) {
+                    const sort: {field: string; order: "ASC" | "DESC"} = {
+                        field: params.sort.field,
+                        order: params.sort.order === "DESC" ? "DESC" : "ASC",
+                    }
+                    sortedData = customSortData(response.data, sort)
+                }
+
+                return {data: sortedData, total: response.total}
+            }),
+    }
+
+    return wrappedDataProvider
 }
 
 const App: React.FC<AppProps> = () => {
@@ -80,14 +123,9 @@ const App: React.FC<AppProps> = () => {
     const {isAuthenticated} = useContext(AuthContext)
 
     useEffect(() => {
-        const buildDataProvider = async () => {
-            const options = {
-                client: apolloClient as any,
-                buildQuery: customBuildQuery as any,
-            }
-            const buildGqlQueryOverrides = {}
-            const dataProviderHasura = await buildHasuraProvider(options, buildGqlQueryOverrides)
-            setDataProvider(() => dataProviderHasura as any)
+        const buildDataProvider = async (): Promise<void> => {
+            const wrappedProvider = await buildWrappedHasuraProvider(apolloClient)
+            setDataProvider(wrappedProvider)
         }
         buildDataProvider()
     }, [])
@@ -113,7 +151,7 @@ const App: React.FC<AppProps> = () => {
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/messages" element={<Messages />} />
-                    <Route path="/settings/" element={<SettingsScreen />} />
+                    <Route path="/settings/*" element={<SettingsScreen />} />
                 </CustomRoutes>
 
                 <Resource
@@ -178,9 +216,9 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_area"
-                    edit={EditArea}
+                    edit={UpsertArea}
                     list={ListArea}
-                    create={CreateArea}
+                    create={UpsertArea}
                     options={{label: "Area"}}
                 />
                 <Resource
@@ -232,7 +270,12 @@ const App: React.FC<AppProps> = () => {
                     options={{label: "Reports"}}
                 />
 
-                <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
+                <Resource
+                    name="user"
+                    edit={UpsertArea}
+                    list={ListUsers}
+                    options={{label: "Users"}}
+                />
             </Admin>
         </StyledAppAtom>
     )

@@ -103,7 +103,7 @@ export const updateBallotStyleAndSelection = (
 }
 
 export const PreviewPublicationEvent: React.FC = () => {
-    const {globalSettings, setDisableAuth} = useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
     const navigate = useNavigate()
     const {tenantId, documentId, areaId, publicationId} = useParams<PreviewPublicationEventType>()
     const dispatch = useAppDispatch()
@@ -125,7 +125,6 @@ export const PreviewPublicationEvent: React.FC = () => {
                     throw new Error(`Error: ${response.statusText}`)
                 }
                 const ballotStyleJson = (await response.json()) as PreviewDocument
-                console.log({ballotStyleJson, areaId})
                 // TODO: filter elections by area_id
                 setSessionStorage()
                 updateBallotStyleAndSelection(ballotStyleJson, tenantId, areaId, dispatch)

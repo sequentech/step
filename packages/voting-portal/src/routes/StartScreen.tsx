@@ -1,11 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect} from "react"
-import {Box, Typography} from "@mui/material"
+import React, {useEffect, useMemo, useState} from "react"
+import {Box, Checkbox, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {PageLimit, theme} from "@sequentech/ui-essentials"
-import {IElection, stringToHtml, translateElection} from "@sequentech/ui-core"
+import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
+import {
+    IElection,
+    stringToHtml,
+    translateElection,
+    EStartScreenTitlePolicy,
+    ESecurityConfirmationPolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -15,8 +21,9 @@ import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -61,26 +68,74 @@ const StyledButton = styled(Button)`
     }
 `
 
+const StyledCheckboxWrapper = styled(Box)`
+    display: flex;
+    flex-direction: row;
+    cursor: pointer;
+    align-items: flex-start;
+    padding: 10px 0;
+`
+
+const StyledCheckbox = styled(Checkbox)`
+    margin-top: 4px;
+    margin-right: 9px;
+    padding: 0;
+`
 interface ActionButtonsProps {
     election: IElection
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const location = useLocation()
+    const [checkboxChecked, setCheckboxChecked] = useState(false)
+
+    const hasSecurityCheckbox =
+        ESecurityConfirmationPolicy.MANDATORY ===
+        election?.presentation?.security_confirmation_policy
+    const defaultTranslation = translateElection(election, "security_confirmation_html", "en")
+    const disabledStart = hasSecurityCheckbox && !checkboxChecked
 
     return (
-        <ActionsContainer>
-            <StyledLink
-                to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
-                sx={{margin: "auto 0", width: "100%"}}
-            >
-                <StyledButton className="start-voting-button" sx={{width: "100%"}}>
-                    {t("startScreen.startButton")}
-                </StyledButton>
-            </StyledLink>
-        </ActionsContainer>
+        <>
+            {hasSecurityCheckbox ? (
+                <StyledCheckboxWrapper onClick={() => setCheckboxChecked(!checkboxChecked)}>
+                    <StyledCheckbox checked={checkboxChecked} />
+                    <Typography variant="body2" marginTop="4px">
+                        {stringToHtml(
+                            translateElection(
+                                election,
+                                "security_confirmation_html",
+                                i18n.language
+                            ) ??
+                                defaultTranslation ??
+                                "-"
+                        )}
+                    </Typography>
+                </StyledCheckboxWrapper>
+            ) : null}
+            <ActionsContainer>
+                {disabledStart ? (
+                    <StyledButton
+                        className="start-voting-button"
+                        sx={{width: "100%"}}
+                        disabled={true}
+                    >
+                        {t("startScreen.startButton")}
+                    </StyledButton>
+                ) : (
+                    <StyledLink
+                        to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
+                        sx={{margin: "auto 0", width: "100%"}}
+                    >
+                        <StyledButton className="start-voting-button" sx={{width: "100%"}}>
+                            {t("startScreen.startButton")}
+                        </StyledButton>
+                    </StyledLink>
+                )}
+            </ActionsContainer>
+        </>
     )
 }
 
@@ -88,18 +143,29 @@ const StartScreen: React.FC = () => {
     const {t, i18n} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
     const election = useAppSelector(selectElectionById(String(electionId)))
+    const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const backLink = useRootBackLink()
+    const isDemo = useAppSelector(showDemo(electionId))
+    const [showDemoDialog, setShowDemoDialog] = useState(isDemo)
     const navigate = useNavigate()
     useLanguage({ballotStyle})
 
+    const titleObject = useMemo(() => {
+        const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
+        return startScreenTitlePolicy === EStartScreenTitlePolicy.ELECTION_EVENT
+            ? electionEvent
+            : election
+    }, [election, electionEvent])
+
     useEffect(() => {
-        if (!election) {
+        if (!election || !titleObject) {
             navigate(backLink)
         }
     })
 
-    if (!election) {
+    if (!election || !titleObject) {
         return <CircularProgress />
     }
 
@@ -109,11 +175,13 @@ const StartScreen: React.FC = () => {
                 <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{translateElection(election, "name", i18n.language) ?? "-"}</span>
+                <span>{translateElection(titleObject, "name", i18n.language) ?? "-"}</span>
             </StyledTitle>
-            {election.description ? (
+            {titleObject.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
+                    {stringToHtml(
+                        translateElection(titleObject, "description", i18n.language) ?? "-"
+                    )}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
@@ -145,6 +213,20 @@ const StartScreen: React.FC = () => {
                 </Box>
             </Box>
             <ActionButtons election={election} />
+
+            <Dialog
+                variant="warning"
+                open={showDemoDialog}
+                ok={t("electionSelectionScreen.demoDialog.ok")}
+                title={t("electionSelectionScreen.demoDialog.title")}
+                handleClose={(result: boolean) => {
+                    setShowDemoDialog(false)
+                }}
+                fullWidth
+                className="demo-dialog"
+            >
+                {stringToHtml(t("electionSelectionScreen.demoDialog.content"))}
+            </Dialog>
         </PageLimit>
     )
 }

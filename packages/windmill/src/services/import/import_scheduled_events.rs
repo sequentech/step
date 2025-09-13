@@ -85,10 +85,10 @@ pub async fn process_record(
                 .and_then(|id| id.as_str().map(String::from))
         });
 
-    let election_id = if old_election_id.is_some() {
+    let election_id = if let Some(old_election_id) = old_election_id {
         Some(
             replacement_map
-                .get(&old_election_id.unwrap().to_string())
+                .get(&old_election_id)
                 .ok_or(anyhow!("Can't find election id in replacement map"))?
                 .clone(),
         )

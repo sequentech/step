@@ -64,7 +64,9 @@ const dutchTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Powered by",
+        footer: {
+            poweredBy: "Aangedreven door <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Not enough choices to decode",

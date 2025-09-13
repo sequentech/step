@@ -81,6 +81,9 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
+                EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -99,6 +102,7 @@ const galegoTranslation: TranslationType = {
                 deleteError: "Erro ao eliminar a área",
             },
             createAreaSuccess: "Área creada",
+            updateAreaSuccess: "Área actualizada",
             createAreaError: "Non se puido crear a área",
             sequent_backend_area_contest: "Concursos",
             empty: {
@@ -280,12 +284,23 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                showCastVoteLogs: {
+                    policyLabel: "Mostrar Tab de Logs de Votación",
+                    options: {
+                        "show-logs-tab": "Mostrar Tab de Logs de Votación",
+                        "hide-logs-tab": "No Mostrar Tab de Logs de Votación",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estado de Bloqueo",
                     options: {
                         "locked-down": "Bloqueado",
                         "not-locked-down": "Non Bloqueado",
                     },
+                },
+                decodedBallots: {
+                    policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
+                    options: {"included": "Incluír", "not-included": "Non incluír"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -322,6 +337,13 @@ const galegoTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitado",
                         disabled: "Deshabilitado",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de cerimonias de chaves/reconto",
+                    options: {
+                        "automated-ceremonies": "Permitir cerimonias automáticas",
+                        "manual-ceremonies": "Cerimonias manuais",
                     },
                 },
             },
@@ -532,6 +554,12 @@ const galegoTranslation: TranslationType = {
                 scheduledClosing: "Peche Programado",
                 alias: "Alias",
                 description: "Descrición",
+                securityConfirmationHtml: "Confirmación de seguridade HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política da caixa de confirmación de seguridade",
+                none: "Ningún",
+                mandatory: "Obrigatorio",
             },
             error: {
                 fileError: "Erro ao cargar o ficheiro",
@@ -572,6 +600,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título da pantalla de inicio",
+                options: {
+                    "election": "Título da elección",
+                    "election-event": "Título do evento electoral",
                 },
             },
         },
@@ -986,6 +1021,8 @@ const galegoTranslation: TranslationType = {
                 decryptFileTitle: "Descifrar archivo",
                 decryptInstructions:
                     "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración do cifrado do informe realizada con éxito",
+                encryptError: "Erro ao configurar o cifrado do informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
@@ -1310,10 +1347,17 @@ const galegoTranslation: TranslationType = {
                     ok: "Si, Crear Cerimonia de Chaves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que queres Crear a Cerimonia de Chaves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que queres crear unha cerimonia de chaves automática?",
                     description:
                         "Estás a piques de Crear a Cerimonia de Chaves. Esta acción notificará aos Fiduciarios para participar na creación e distribución das Chaves do Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a piques de crear unha cerimonia de chaves automática. Isto non notificará aos fideicomisarios para que participen.",
                 },
                 filterTrustees: "Filtrar Autoridades",
+                errorPermisionLabels:
+                    "Non se pode crear a cerimonia de chaves: falta unha ou máis etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Cerimonia de Chaves",
@@ -1533,6 +1577,8 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de cancelar a cerimonia de escrutinio. Esta acción non se pode desfacer.",
                     ceremony:
                         "Todos os fiduciarios requiridos verificaron os seus fragmentos de chave. Todo está listo para comezar a recibir resultados. ¿Queres iniciar o Escrutinio?",
+                    startAutomatedTallyMessage:
+                        "Seleccione 'Start Tally' para executar o proceso de reconto e mostrar os resultados, ou 'Close' para cancelar.",
                 },
             },
             table: {
@@ -1840,7 +1886,7 @@ const galegoTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de OV que se preinscribieron pero fueron rechazados",
                 LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                OV_TURNOUT_PERCENTAGE: "Participación de Votantes en el Extranjero",
+                VOTERS_TURNOUT_PERCENTAGE: "Participación de Votantes",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:

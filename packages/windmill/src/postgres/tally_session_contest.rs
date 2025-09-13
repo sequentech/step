@@ -9,7 +9,7 @@ use sequent_core::types::hasura::core::TallySessionContest;
 use serde::Serialize;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::{event, instrument, warn, Level};
 use uuid::Uuid;
 
 pub struct TallySessionContestWrapper(pub TallySessionContest);
@@ -35,6 +35,49 @@ impl TryFrom<Row> for TallySessionContestWrapper {
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
         }))
     }
+}
+
+pub async fn update_tally_session_contests_annotations(
+    hasura_transaction: &Transaction<'_>,
+    contests: &[TallySessionContest],
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            "UPDATE sequent_backend.tally_session_contest
+         SET
+             annotations = $1,
+             last_updated_at = NOW()
+         WHERE
+             id = $2 AND
+             tenant_id = $3 AND
+             election_event_id = $4;",
+        )
+        .await?;
+
+    for contest in contests {
+        let rows_affected = hasura_transaction
+            .execute(
+                &statement,
+                &[
+                    &contest.annotations,
+                    &Uuid::parse_str(&contest.id)?,
+                    &Uuid::parse_str(&contest.tenant_id)?,
+                    &Uuid::parse_str(&contest.election_event_id)?,
+                ],
+            )
+            .await?;
+
+        // Check if any row was actually updated.
+        // If rows_affected is 0, it means no record matched the provided 'id'.
+        if rows_affected == 0 {
+            warn!(
+                "Warning: No row found to update for TallySessionContest with ID: {}. It might not exist.",
+                contest.id
+            );
+        }
+    }
+
+    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]

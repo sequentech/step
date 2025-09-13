@@ -16,23 +16,11 @@ use crate::postgres::results_election::insert_results_elections;
 use crate::postgres::results_event::insert_results_event;
 use crate::services::ceremonies::result_documents::save_result_documents;
 use crate::services::documents::upload_and_return_document;
-use crate::sqlite::area::create_area_sqlite;
-use crate::sqlite::area_contest::create_area_contest_sqlite;
-use crate::sqlite::candidate::create_candidate_sqlite;
-use crate::sqlite::contests::create_contest_sqlite;
-use crate::sqlite::election::create_election_sqlite;
-use crate::sqlite::election_event::create_election_event_sqlite;
-use crate::sqlite::results_area_contest::create_results_area_contests_sqlite;
-use crate::sqlite::results_area_contest_candidate::create_results_area_contest_candidates_sqlite;
-use crate::sqlite::results_contest::create_results_contest_sqlite;
-use crate::sqlite::results_contest_candidate::create_results_contest_candidates_sqlite;
-use crate::sqlite::results_election::create_results_election_sqlite;
-use crate::sqlite::results_event::create_results_event_sqlite;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use rusqlite::Connection;
 use rusqlite::Transaction as SqliteTransaction;
-use sequent_core::services::connection;
+use sequent_core::sqlite::results_event::find_results_event_sqlite;
 use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
 use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::hasura::core::{Area, TallySession};
@@ -42,15 +30,17 @@ use serde_json::json;
 use std::cmp;
 use std::path::PathBuf;
 use tempfile::{NamedTempFile, TempPath};
+use tracing::info;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
+use velvet::pipes::generate_db::DATABASE_FILENAME;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
+use velvet::pipes::pipe_name::PipeNameOutputDir;
 
 #[instrument(skip_all)]
 pub async fn save_results(
     hasura_transaction: &Transaction<'_>,
-    sqlite_transaction: &SqliteTransaction<'_>,
     results: Vec<ElectionReportDataComputed>,
     tenant_id: &str,
     election_event_id: &str,
@@ -272,8 +262,6 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_contest_sqlite(sqlite_transaction, results_contests).await?;
-
     insert_results_area_contests(
         hasura_transaction,
         tenant_id.into(),
@@ -282,8 +270,6 @@ pub async fn save_results(
         results_area_contests.clone(),
     )
     .await?;
-
-    create_results_area_contests_sqlite(sqlite_transaction, results_area_contests).await?;
 
     insert_results_elections(
         hasura_transaction,
@@ -294,8 +280,6 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_election_sqlite(sqlite_transaction, results_elections).await?;
-
     insert_results_contest_candidates(
         hasura_transaction,
         tenant_id,
@@ -304,9 +288,6 @@ pub async fn save_results(
         results_contest_candidates.clone(),
     )
     .await?;
-
-    create_results_contest_candidates_sqlite(sqlite_transaction, results_contest_candidates)
-        .await?;
 
     insert_results_area_contest_candidates(
         hasura_transaction,
@@ -317,19 +298,13 @@ pub async fn save_results(
     )
     .await?;
 
-    create_results_area_contest_candidates_sqlite(
-        sqlite_transaction,
-        results_area_contest_candidates,
-    )
-    .await?;
-
     Ok(())
 }
 
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
     hasura_transaction: &Transaction<'_>,
-    sqlite_transaction: &SqliteTransaction<'_>,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     tenant_id: &str,
     election_event_id: &str,
     session_ids_opt: Option<Vec<i64>>,
@@ -345,112 +320,23 @@ pub async fn generate_results_id_if_necessary(
     if !(session_ids.len() > previous_session_ids.len()) {
         return Ok(None);
     }
-    let results_event =
-        insert_results_event(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    let _ = create_results_event_sqlite(
-        sqlite_transaction,
-        tenant_id,
-        election_event_id,
-        &results_event.id,
-    )
-    .await
-    .context("Failed to create results event table")?;
-    Ok(Some(results_event.id))
-}
+    if let Some(sqlite_transaction) = sqlite_transaction_opt {
+        let results_event =
+            find_results_event_sqlite(sqlite_transaction, tenant_id, election_event_id)
+                .context("Failed to find results event table")?;
 
-async fn populate_election_event_data(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    sqlite_transaction: &SqliteTransaction<'_>,
-    election_ids: Option<Vec<String>>,
-    areas_ids: Option<Vec<String>>,
-) -> Result<()> {
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .context("Failed to get election event by ID")?;
-    create_election_event_sqlite(&sqlite_transaction, election_event)
-        .await
-        .context("Failed to create election event table")?;
-
-    let elections = match election_ids.clone() {
-        Some(ids) => {
-            get_elections_by_ids(hasura_transaction, tenant_id, election_event_id, &ids).await
-        }
-        None => get_elections(hasura_transaction, tenant_id, election_event_id, None).await,
-    }
-    .context("Failed to get elections")?;
-
-    create_election_sqlite(&sqlite_transaction, elections)
-        .await
-        .context("Failed to create election table")?;
-
-    let contests = match election_ids {
-        Some(ids) => {
-            get_contest_by_election_ids(hasura_transaction, tenant_id, election_event_id, &ids)
-                .await
-                .context("Failed to export contests")?
-        }
-        None => export_contests(hasura_transaction, tenant_id, election_event_id)
-            .await
-            .context("Failed to export contests")?,
-    };
-
-    create_contest_sqlite(sqlite_transaction, contests.clone())
-        .await
-        .context("Failed to create contest table")?;
-
-    let contests_ids: Vec<String> = contests.iter().map(|c| c.id.clone()).collect();
-
-    create_candidate_sqlite(
-        hasura_transaction,
-        sqlite_transaction,
-        &contests_ids,
-        tenant_id,
-        election_event_id,
-    )
-    .await
-    .context("Failed to create candidate table")?;
-
-    let areas = match areas_ids.clone() {
-        Some(ids) => get_areas_by_ids(hasura_transaction, tenant_id, election_event_id, &ids)
-            .await
-            .context("Failed to get event areas by IDs")?,
-        None => get_event_areas(hasura_transaction, tenant_id, election_event_id)
-            .await
-            .context("Failed to get event areas")?,
-    };
-
-    create_area_sqlite(sqlite_transaction, areas)
-        .await
-        .context("Failed to create area table")?;
-
-    let area_contests = match areas_ids {
-        Some(ids) => get_area_contests_by_area_contest_ids(
+        insert_results_event(
             hasura_transaction,
-            tenant_id,
-            election_event_id,
-            &ids,
-            &contests_ids,
+            &tenant_id,
+            &election_event_id,
+            &results_event.id,
         )
-        .await
-        .context("Failed to get areas contestby IDs")?,
-        None => export_area_contests(hasura_transaction, tenant_id, election_event_id)
-            .await
-            .context("Failed to export area contests")?,
-    };
-
-    create_area_contest_sqlite(
-        sqlite_transaction,
-        tenant_id,
-        election_event_id,
-        area_contests,
-    )
-    .await
-    .context("Failed to create area contest table")?;
-
-    Ok(())
+        .await?;
+        Ok(Some(results_event.id))
+    } else {
+        Ok(None)
+    }
 }
 
 #[instrument(skip_all)]
@@ -465,25 +351,11 @@ pub async fn process_results_tables(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
-    sqlite_transaction: &SqliteTransaction<'_>,
-    tally_session: &TallySession,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
 ) -> Result<Option<String>> {
-    let elections_ids = tally_session.election_ids.clone();
-    let areas_ids = tally_session.area_ids.clone();
-
-    let _ = populate_election_event_data(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        sqlite_transaction,
-        elections_ids,
-        areas_ids,
-    )
-    .await?;
-
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
-        sqlite_transaction,
+        sqlite_transaction_opt,
         tenant_id,
         election_event_id,
         session_ids,
@@ -496,7 +368,6 @@ pub async fn process_results_tables(
         if let Ok(results) = state.get_results(false) {
             save_results(
                 hasura_transaction,
-                sqlite_transaction,
                 results.clone(),
                 tenant_id,
                 election_event_id,
@@ -513,7 +384,7 @@ pub async fn process_results_tables(
                 areas,
                 default_language,
                 tally_type_enum,
-                sqlite_transaction,
+                sqlite_transaction_opt,
             )
             .await?;
         }
@@ -523,7 +394,7 @@ pub async fn process_results_tables(
     }
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(hasura_transaction, state_opt, previous_execution, areas))]
 pub async fn populate_results_tables(
     hasura_transaction: &Transaction<'_>,
     base_tally_path: &PathBuf,
@@ -535,41 +406,66 @@ pub async fn populate_results_tables(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
-    tally_session: &TallySession,
+    is_empty: bool,
 ) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
-    let temp_file = NamedTempFile::new()
-        .context("Failed to create temporary file for verifiable bulletin board")?;
-    let temp_path: TempPath = temp_file.into_temp_path();
+    let velvet_output_dir = base_tally_path.join("output");
+    let base_database_path = velvet_output_dir.join(PipeNameOutputDir::GenerateDatabase.as_ref());
+    let database_path = base_database_path.join(DATABASE_FILENAME);
     let document_id = Uuid::new_v4().to_string();
 
-    let results_event_id_opt =
-        tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
-            let mut sqlite_connection = Connection::open(&temp_path)?;
-            let sqlite_transaction = sqlite_connection.transaction()?;
-            let process_result = tokio::runtime::Handle::current().block_on(async {
-                process_results_tables(
-                    hasura_transaction,
-                    base_tally_path,
-                    state_opt,
-                    tenant_id,
-                    election_event_id,
-                    session_ids,
-                    previous_execution,
-                    areas,
-                    default_language,
-                    tally_type_enum,
-                    &sqlite_transaction,
-                    tally_session,
-                )
-                .await
+    let results_event_id_opt = if !is_empty {
+        let results_event_id_opt =
+            tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+                let mut sqlite_connection = Connection::open(&database_path)?;
+                let sqlite_transaction = sqlite_connection.transaction()?;
+
+                let process_result = tokio::runtime::Handle::current().block_on(async {
+                    process_results_tables(
+                        hasura_transaction,
+                        base_tally_path,
+                        state_opt,
+                        tenant_id,
+                        election_event_id,
+                        session_ids,
+                        previous_execution,
+                        areas,
+                        default_language,
+                        tally_type_enum,
+                        Some(&sqlite_transaction),
+                    )
+                    .await
+                })?;
+                sqlite_transaction.commit()?;
+                Ok(process_result)
             })?;
-            sqlite_transaction.commit()?;
-            Ok(process_result)
-        })?;
+        results_event_id_opt
+    } else {
+        let results_event_id_opt =
+            tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+                let process_result = tokio::runtime::Handle::current().block_on(async {
+                    process_results_tables(
+                        hasura_transaction,
+                        base_tally_path,
+                        state_opt,
+                        tenant_id,
+                        election_event_id,
+                        session_ids,
+                        previous_execution,
+                        areas,
+                        default_language,
+                        tally_type_enum,
+                        None,
+                    )
+                    .await
+                })?;
+                Ok(process_result)
+            })?;
+        results_event_id_opt
+    };
 
     if let Some(ref results_event_id) = results_event_id_opt {
         let file_name = format!("results-{}.db", results_event_id);
-        let file_path = temp_path.to_str().ok_or(anyhow!("Empty upload path"))?;
+        let file_path = database_path.to_str().ok_or(anyhow!("Empty upload path"))?;
         let file_size = get_file_size(file_path)?;
 
         let _document = upload_and_return_document(
@@ -587,6 +483,7 @@ pub async fn populate_results_tables(
 
         let documents = TallySessionDocuments {
             sqlite: Some(document_id.to_string()),
+            xlsx: None,
         };
 
         Ok((results_event_id_opt, Some(documents)))

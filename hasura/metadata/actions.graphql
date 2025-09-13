@@ -187,6 +187,13 @@ type Mutation {
 }
 
 type Mutation {
+    export_tally_results(
+        election_event_id: String!
+        tally_session_id: String!
+    ): ExportTallyResultsOutput
+}
+
+type Mutation {
     export_tasks_execution(
         tenant_id: String!
         election_event_id: String!
@@ -435,6 +442,18 @@ type Mutation {
 }
 
 type Query {
+    list_cast_vote_messages(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_id: String!
+        limit: Int
+        offset: Int
+        order_by: ElectoralLogOrderBy
+    ): ListCastVoteMessagesOutput
+}
+
+type Query {
     listElectoralLog(
         limit: Int
         offset: Int
@@ -482,6 +501,13 @@ type Mutation {
         scheduled_date: String
         event_processor: String!
     ): ManageElectionDatesOutput
+}
+
+type Mutation {
+    prepare_ballot_publication_preview(
+        election_event_id: String!
+        ballot_publication_id: String!
+    ): PrepareBallotPublicationPreviewOutput
 }
 
 type Mutation {
@@ -591,6 +617,21 @@ type Mutation {
 }
 
 type Mutation {
+    upsert_area(
+        id: String
+        name: String!
+        description: String
+        election_event_id: String!
+        tenant_id: String!
+        parent_id: String
+        area_contest_ids: [String]
+        annotations: jsonb
+        labels: jsonb
+        type: String
+    ): UpsertAreaOutput
+}
+
+type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
 }
 
@@ -663,6 +704,8 @@ input ElectoralLogOrderBy {
     statement_timestamp: OrderDirection
     statement_kind: OrderDirection
     user_id: OrderDirection
+    username: OrderDirection
+    ballot_id: OrderDirection
 }
 
 input SampleInput {
@@ -718,6 +761,7 @@ input CreateKeysCeremonyInput {
     trustee_names: [String!]
     election_id: String
     name: String
+    is_automatic_ceremony: Boolean
 }
 
 input ElectionEventStatsInput {
@@ -932,6 +976,7 @@ type GetManualVerificationOutput {
 
 type CreateKeysCeremonyOutput {
     keys_ceremony_id: String!
+    error_message: String
 }
 
 type GetPrivateKeyOutput {
@@ -1020,6 +1065,18 @@ type ElectoralLogRow {
     statement_kind: String!
     message: String!
     user_id: String!
+}
+
+type CastVoteEntry {
+    statement_timestamp: Int!
+    statement_kind: String!
+    ballot_id: String!
+    username: String!
+}
+
+type ListCastVoteMessagesOutput {
+    list: [CastVoteEntry]!
+    total: Int!
 }
 
 type DataListElectoralLog {
@@ -1127,6 +1184,12 @@ type SetRolePermissionOutput {
 
 type OptionalId {
     id: String
+}
+
+type PrepareBallotPublicationPreviewOutput {
+    error_msg: String
+    task_execution: tasks_execution_type
+    document_id: String!
 }
 
 type ExportUsersOutput {
@@ -1325,6 +1388,8 @@ type SetCustomUrlsOutput {
 
 type DeleteElectionEvent {
     id: String
+    task_execution: tasks_execution_type
+    error_msg: String
 }
 
 type ExportTasksExecutionOutput {
@@ -1572,4 +1637,14 @@ type CountUsersOutput {
 type RenderDocumentPDFOutput {
     document_id: String
     task_execution: tasks_execution_type
+}
+
+type UpsertAreaOutput {
+    id: String!
+}
+
+type ExportTallyResultsOutput {
+    document_id: String!
+    task_execution: tasks_execution_type!
+    error_msg: String
 }
