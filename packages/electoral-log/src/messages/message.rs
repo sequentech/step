@@ -7,6 +7,7 @@ use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
@@ -36,6 +37,7 @@ pub struct Message {
     pub username: Option<String>,
     pub election_id: Option<String>,
     pub area_id: Option<String>,
+    pub ballot_id: Option<String>,
 }
 
 impl fmt::Display for Message {
@@ -60,7 +62,16 @@ impl Message {
         voter_username: Option<String>,
         area_id: String,
     ) -> Result<Self> {
-        let body = StatementBody::CastVote(election.clone(), pseudonym_h, vote_h, ip, country);
+        let body =
+            StatementBody::CastVote(election.clone(), pseudonym_h, vote_h.clone(), ip, country);
+        let ballot_id: String = vote_h
+            .0
+            .into_inner()
+            .iter()
+            .take(STRAND_HASH_LENGTH_BYTES / 2)
+            .map(|b| format!("{:02x}", b))
+            .collect();
+
         Self::from_body(
             event,
             body,
@@ -69,6 +80,7 @@ impl Message {
             voter_username.clone(), /* username */
             election.0,
             Some(area_id),
+            Some(ballot_id),
         )
     }
 
@@ -92,6 +104,7 @@ impl Message {
             None, /* username */
             election.0,
             Some(area_id),
+            None,
         )
     }
 
@@ -104,7 +117,7 @@ impl Message {
         username: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::ElectionPublish(election.clone(), ballot_pub_id);
-        Self::from_body(event, body, sd, user_id, username, election.0, None)
+        Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
     pub fn election_open_message(
@@ -120,7 +133,7 @@ impl Message {
             Some(election) => {
                 let body =
                     StatementBody::ElectionVotingPeriodOpen(election.clone(), voting_channel);
-                Self::from_body(event, body, sd, user_id, username, election.0, None)
+                Self::from_body(event, body, sd, user_id, username, election.0, None, None)
             }
             None => {
                 let body = StatementBody::ElectionEventVotingPeriodOpen(
@@ -128,7 +141,7 @@ impl Message {
                     ElectionsIdsString(election_ids.clone()),
                     voting_channel,
                 );
-                Self::from_body(event, body, sd, user_id, username, None, None)
+                Self::from_body(event, body, sd, user_id, username, None, None, None)
             }
         }
     }
@@ -145,12 +158,12 @@ impl Message {
             Some(election) => {
                 let body =
                     StatementBody::ElectionVotingPeriodPause(election.clone(), voting_channel);
-                Self::from_body(event, body, sd, user_id, username, election.0, None)
+                Self::from_body(event, body, sd, user_id, username, election.0, None, None)
             }
             None => {
                 let body =
                     StatementBody::ElectionEventVotingPeriodPause(event.clone(), voting_channel);
-                Self::from_body(event, body, sd, user_id, username, None, None)
+                Self::from_body(event, body, sd, user_id, username, None, None, None)
             }
         }
     }
@@ -168,7 +181,7 @@ impl Message {
             Some(election) => {
                 let body =
                     StatementBody::ElectionVotingPeriodClose(election.clone(), voting_channel);
-                Self::from_body(event, body, sd, user_id, username, election.0, None)
+                Self::from_body(event, body, sd, user_id, username, election.0, None, None)
             }
             None => {
                 let body = StatementBody::ElectionEventVotingPeriodClose(
@@ -176,7 +189,7 @@ impl Message {
                     ElectionsIdsString(election_ids.clone()),
                     voting_channel,
                 );
-                Self::from_body(event, body, sd, user_id, username, None, None)
+                Self::from_body(event, body, sd, user_id, username, None, None, None)
             }
         }
     }
@@ -191,7 +204,7 @@ impl Message {
         area_id: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::KeycloakUserEvent(error, event_type);
-        Self::from_body(event, body, sd, user_id, username, None, area_id)
+        Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
     pub fn keygen_message(
@@ -202,7 +215,7 @@ impl Message {
         election_id: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::KeyGeneration;
-        Self::from_body(event, body, sd, user_id, username, election_id, None)
+        Self::from_body(event, body, sd, user_id, username, election_id, None, None)
     }
 
     pub fn key_insertion_start(
@@ -213,7 +226,16 @@ impl Message {
         elections_ids: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::KeyInsertionStart;
-        Self::from_body(event, body, sd, user_id, username, elections_ids, None)
+        Self::from_body(
+            event,
+            body,
+            sd,
+            user_id,
+            username,
+            elections_ids,
+            None,
+            None,
+        )
     }
 
     pub fn key_insertion_message(
@@ -225,7 +247,16 @@ impl Message {
         elections_ids: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::KeyInsertionCeremony(trustee_name);
-        Self::from_body(event, body, sd, user_id, username, elections_ids, None)
+        Self::from_body(
+            event,
+            body,
+            sd,
+            user_id,
+            username,
+            elections_ids,
+            None,
+            None,
+        )
     }
 
     pub fn tally_open_message(
@@ -236,7 +267,7 @@ impl Message {
         username: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::TallyOpen(election.clone());
-        Self::from_body(event, body, sd, user_id, username, election.0, None)
+        Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
     pub fn tally_close_message(
@@ -247,7 +278,7 @@ impl Message {
         username: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::TallyClose(election);
-        Self::from_body(event, body, sd, user_id, username, None, None)
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
     pub fn send_template(
@@ -260,7 +291,7 @@ impl Message {
         area_id: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::SendCommunications(message);
-        Self::from_body(event, body, sd, user_id, username, None, area_id)
+        Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
     pub fn voter_public_key_message(
@@ -274,7 +305,7 @@ impl Message {
         area_id: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::VoterPublicKey(tenant_id, event.clone(), user_hash, pk);
-        Self::from_body(event, body, sd, user_id, username, None, area_id)
+        Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
     pub fn admin_public_key_message(
@@ -289,7 +320,16 @@ impl Message {
         let body = StatementBody::AdminPublicKey(tenant_id, user_id.clone(), pk);
         let event = EventIdString(GENERIC_EVENT.to_string());
 
-        Self::from_body(event, body, sd, user_id, username, elections_ids, area_id)
+        Self::from_body(
+            event,
+            body,
+            sd,
+            user_id,
+            username,
+            elections_ids,
+            area_id,
+            None,
+        )
     }
 
     fn from_body(
@@ -300,6 +340,7 @@ impl Message {
         username: Option<String>,
         election_id: Option<String>,
         area_id: Option<String>,
+        ballot_id: Option<String>,
     ) -> Result<Self> {
         let head = StatementHead::from_body(event, &body);
         let statement = Statement::new(head, body);
@@ -314,6 +355,7 @@ impl Message {
             username,
             election_id,
             area_id,
+            ballot_id,
         )
     }
 
@@ -327,6 +369,7 @@ impl Message {
         username: Option<String>,
         election_id: Option<String>,
         area_id: Option<String>,
+        ballot_id: Option<String>,
     ) -> Result<Message> {
         let bytes = statement.strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
@@ -344,6 +387,7 @@ impl Message {
             username,
             election_id,
             area_id,
+            ballot_id,
         })
     }
 
@@ -372,6 +416,7 @@ impl TryFrom<&Message> for ElectoralLogMessage {
             username: message.username.clone(),
             election_id: message.election_id.clone(),
             area_id: message.area_id.clone(),
+            ballot_id: message.ballot_id.clone(),
         })
     }
 }

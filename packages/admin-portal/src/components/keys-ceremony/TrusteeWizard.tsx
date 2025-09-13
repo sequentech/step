@@ -18,6 +18,7 @@ import {useTranslation} from "react-i18next"
 import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 
 export const isTrusteeParticipating = (
     ceremony: Sequent_Backend_Keys_Ceremony,
@@ -114,6 +115,11 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
     }
 
+    const isAutomaticCeremony =
+        electionEvent.presentation?.ceremonies_policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
     return (
         <WizardStyles.WizardWrapper>
             <BreadCrumbSteps
@@ -169,7 +175,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                             ? () => setCurrentStep(WizardStep.Start)
                             : undefined
                     }
-                    isNextDisabled={checkKeysGenerated()}
+                    isNextDisabled={checkKeysGenerated() || isAutomaticCeremony}
                     message={
                         checkKeysGenerated() ? (
                             <>

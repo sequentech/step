@@ -118,16 +118,29 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         }
 
         let documents: IResultDocumentsData | null = useMemo(() => {
-            const documents =
-                !!resultsEventId &&
-                !!electionId &&
-                !!resultsElection &&
-                resultsElection?.[0]?.results_event_id === resultsEventId &&
-                resultsElection?.[0]?.election_id === electionId &&
-                (resultsElection[0]?.documents as IResultDocuments | null)
-            return documents
+            let parsedDocuments: IResultDocuments | null = null
+            try {
+                const rawDocuments =
+                    !!resultsEventId &&
+                    !!electionId &&
+                    !!resultsElection &&
+                    resultsElection?.[0]?.results_event_id === resultsEventId &&
+                    resultsElection?.[0]?.election_id === electionId &&
+                    (resultsElection[0]?.documents as IResultDocuments | null)
+                if (rawDocuments) {
+                    // Check if the documents are already an object.
+                    // If they are a string, parse them.
+                    parsedDocuments =
+                        typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+                }
+            } catch (e) {
+                console.error("Failed to parse documents JSON string:", e)
+                return null // Return null if parsing fails
+            }
+
+            return parsedDocuments
                 ? {
-                      documents,
+                      documents: parsedDocuments,
                       name: resultsElection?.[0]?.name ?? "election",
                       class_type: "election",
                   }

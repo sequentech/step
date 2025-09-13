@@ -15,6 +15,9 @@ const catalanTranslation: TranslationType = {
             confirmation: "Confirmació",
             audit: "Auditar",
         },
+        footer: {
+            poweredBy: "Funciona amb <sequent />",
+        },
         votingScreen: {
             backButton: "Enrere",
             reviewButton: "Següent",
@@ -124,6 +127,14 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error en processar la seva sol·licitud. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_unexpected:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_timeout:
+                    "Error de temps d'espera per emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Heu superat el límit de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Heu superat el nombre permès de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Ja heu votat en una altra àrea. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
                 CAST_VOTE_UnknownError:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:
@@ -148,6 +159,24 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 UNKNOWN_ERROR:
                     "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                REAUTH_FAILED:
+                    "L'autenticació ha fallat. Si us plau, torna-ho a intentar o contacta amb el servei d'assistència.",
+                SESSION_EXPIRED:
+                    "La teva sessió ha caducat. Si us plau, torna a començar des del principi.",
+                CAST_VOTE_BallotIdMismatch:
+                    "L'identificador de la papereta no coincideix amb el del vot emès.",
+                SESSION_STORAGE_ERROR:
+                    "L'emmagatzematge de sessió no està disponible. Si us plau, torneu-ho a provar o contacteu amb el suport.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "S'ha produït un error en analitzar les dades de la papereta. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Les dades de la papereta no són vàlides. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Error de temps d'espera en obtenir les dades. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Error en convertir a papereta hashable. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                INTERNAL_ERROR:
+                    "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
         },
         confirmationScreen: {
@@ -311,6 +340,10 @@ const catalanTranslation: TranslationType = {
             notFound: "El teu ID de Papereta {{ballotId}} no ha estat localitzat",
             contentDesc: "Aquest és el contingut de la teva Papereta: ",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
+            ballotIdNotFoundAtFilter:
+                "No trobat, comprova que l'ID de la Papereta estigui correcte i pertanyi a l'usuari actual.",
+            filterByBallotId: "Filtra per ID de la Papereta",
+            totalBallots: "Paperetes: {{total}}",
             steps: {
                 lookup: "Localitza la teva Papereta",
                 result: "Resultat",
@@ -320,6 +353,16 @@ const catalanTranslation: TranslationType = {
                 content:
                     "Aquesta pantalla permet al votant trobar la seva Papereta utilitzant l'ID de la Papereta per recuperar-la. Aquest procediment permet comprovar que el seu vot va ser emès correctament i que el vot registrat coincideix amb el vot xifrat que va emetre.",
                 ok: "D'acord",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localitzador de la Papereta",
+            },
+            column: {
+                statement_kind: "Tipus",
+                statement_timestamp: "Marca de temps",
+                username: "Usuari",
+                ballot_id: "ID de la Papereta",
             },
         },
     },

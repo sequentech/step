@@ -62,7 +62,9 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
-        poweredBy: "Powered by",
+        footer: {
+            poweredBy: "Powered by <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Not enough choices to decode",

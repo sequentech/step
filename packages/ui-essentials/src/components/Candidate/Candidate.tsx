@@ -31,9 +31,9 @@ const BorderBox = emotionStyled.li<{
                 : theme.palette.customGrey.light};
     ${({hascategory, isinvalidvote, theme}) =>
         hascategory === "true"
-            ? `background-color: ${theme.palette.white};`
+            ? `backgroundColor: ${theme.palette.white};`
             : isinvalidvote === "true"
-            ? `background-color: ${theme.palette.lightBackground};`
+            ? `backgroundColor: ${theme.palette.lightBackground};`
             : ""}
     border-radius: 10px;
     break-inside: avoid;
@@ -49,23 +49,23 @@ const BorderBox = emotionStyled.li<{
         isactive === "true"
             ? hascategory === "true"
                 ? `
-                    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                    boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     &:hover {
                         cursor: pointer;
-                        box-shadow: unset;
+                        boxShadow: unset;
                         border-color: ${theme.palette.customGrey.light};
                     }
                     &:active {
-                        background-color: #eee;
+                        backgroundColor: #eee;
                     }
                 `
                 : `
                     &:hover {
                         cursor: pointer;
-                        box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                        boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     }
                     &:active {
-                        background-color: #eee;
+                        backgroundColor: #eee;
                     }
                 `
             : ""}

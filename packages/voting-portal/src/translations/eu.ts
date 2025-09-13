@@ -15,6 +15,9 @@ const basqueTranslation: TranslationType = {
             confirmation: "Berrespena",
             audit: "Auditoria",
         },
+        footer: {
+            poweredBy: "Honek bultzatuta: <sequent />",
+        },
         votingScreen: {
             backButton: "Atzera",
             reviewButton: "Hurrengoa",
@@ -124,6 +127,14 @@ const basqueTranslation: TranslationType = {
                     "Errorea izan da zure eskaria prozesatzerakoan. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 CAST_VOTE_unexpected:
                     "Errore ezezaguna izan da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
+                CAST_VOTE_timeout:
+                    "Botoa emateko denbora-muga errorea. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Berriro botoen muga gainditu duzu. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Baimendutako berriro boto kopurua gainditu duzu. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Beste eremu batean bozkatu duzu dagoeneko. Saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
                 CAST_VOTE_UnknownError:
                     "Errore ezezaguna izan da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 NO_BALLOT_SELECTION:
@@ -148,6 +159,22 @@ const basqueTranslation: TranslationType = {
                     "Errorea izan da bozketa serializatzerakoan. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 UNKNOWN_ERROR:
                     "Errorea izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
+                REAUTH_FAILED:
+                    "Autentifikazioak huts egin du. Saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin laguntza jasotzeko.",
+                SESSION_EXPIRED: "Zure saioa iraungi da. Saiatu berriro hasieratik.",
+                CAST_VOTE_BallotIdMismatch: "Boto-paperaren IDa ez dator bat emandako botoarekin.",
+                SESSION_STORAGE_ERROR:
+                    "Saio-biltegia ez dago erabilgarri. Mesedez, saiatu berriro edo jarri harremanetan laguntza-zerbitzuarekin.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Errore bat gertatu da boto-datuen analisian. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Boto-datuak ez dira baliozkoak. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Denbora-muga gainditu da datuak eskuratzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Errorea gertatu da hash bihurgarri bihurtzean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
+                INTERNAL_ERROR:
+                    "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
         },
         confirmationScreen: {
@@ -312,6 +339,9 @@ const basqueTranslation: TranslationType = {
             notFound: "Zure bozketa IDa {{ballotId}} ez da lokalizatu",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
+            ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",
+            filterByBallotId: "Filtratu Bozketa IDa",
+            totalBallots: "Bozketa kopurua: {{total}}",
             steps: {
                 lookup: "Lokalizatu zure Bozketa",
                 result: "Emaitza",
@@ -321,6 +351,16 @@ const basqueTranslation: TranslationType = {
                 content:
                     "Pantaila honek bozkatzaileari bere botoa aurkitzeko aukera ematen dio Bozketa IDa erabiliz berreskuratzeko. Prozedura honek beren bozketa zuzen eman dela eta erregistratutako bozketa bidali zuten zifratutako bozketarekin bat datorrela egiaztatzeko aukera ematen du.",
                 ok: "Ados",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Bozketa Lokalizatzaile",
+            },
+            column: {
+                statement_kind: "Adierazpen mota",
+                statement_timestamp: "Adierazpen denbora-marka",
+                username: "Erabiltzaile izena",
+                ballot_id: "Bozketa IDa",
             },
         },
     },

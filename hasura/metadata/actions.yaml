@@ -411,6 +411,19 @@ actions:
                   template: "{{$body.input}}"
               template_engine: Kriti
               version: 2
+    - name: export_tally_results
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tally-results
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tally-results-read
     - name: export_tasks_execution
       definition:
           kind: synchronous
@@ -948,6 +961,20 @@ actions:
       permissions:
           - role: cloudflare-write
           - role: admin-user
+    - name: list_cast_vote_messages
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/list-cast-vote-messages
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: List electoral log entries of statement_kind CastVote
     - name: listElectoralLog
       definition:
           kind: ""
@@ -1052,6 +1079,19 @@ actions:
       permissions:
           - role: scheduled-event-write
           - role: election-event-write
+          - role: admin-user
+    - name: prepare_ballot_publication_preview
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/prepare-ballot-publication-preview
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
           - role: admin-user
     - name: publish_ballot
       definition:
@@ -1234,6 +1274,19 @@ actions:
       permissions:
           - role: miru-sign
           - role: admin-user
+    - name: upsert_area
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/upsert-area
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: upsert_areas
       definition:
           kind: synchronous
@@ -1246,6 +1299,9 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: area-read
+          - role: area-upsert
+          - role: area-create
           - role: area-write
       comment: upsert_areas
 custom_types:
@@ -1347,6 +1403,8 @@ custom_types:
         - name: DataListPgAudit
         - name: TotalAggregate
         - name: ElectoralLogRow
+        - name: CastVoteEntry
+        - name: ListCastVoteMessagesOutput
         - name: DataListElectoralLog
         - name: ScheduledEventOutput2
         - name: ScheduledEventOutput3
@@ -1366,6 +1424,7 @@ custom_types:
         - name: CreateUserOutput
         - name: SetRolePermissionOutput
         - name: OptionalId
+        - name: PrepareBallotPublicationPreviewOutput
         - name: ExportUsersOutput
         - name: SetUserRoleOutput
         - name: CreateTallyOutput
@@ -1434,4 +1493,6 @@ custom_types:
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
         - name: RenderDocumentPDFOutput
+        - name: UpsertAreaOutput
+        - name: ExportTallyResultsOutput
     scalars: []

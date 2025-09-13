@@ -10,6 +10,7 @@ export const CREATE_KEYS_CEREMONY = gql`
         $trusteeNames: [String!]
         $electionId: String
         $name: String
+        $isAutomaticCeremony: Boolean
     ) {
         create_keys_ceremony(
             object: {
@@ -18,9 +19,11 @@ export const CREATE_KEYS_CEREMONY = gql`
                 trustee_names: $trusteeNames
                 election_id: $electionId
                 name: $name
+                is_automatic_ceremony: $isAutomaticCeremony
             }
         ) {
             keys_ceremony_id
+            error_message
         }
     }
 `

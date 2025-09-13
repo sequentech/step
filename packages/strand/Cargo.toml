@@ -63,7 +63,7 @@ sha3 = "0.10"
 
 # Serialization
 # borsh = "0.9.3"
-borsh = { version = "=1.5.1", features = ["derive"] }
+borsh = { version = "1.5", features = ["derive"] }
 base64 = "0.22.1"
 
 # RNG
