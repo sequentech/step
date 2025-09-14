@@ -28,7 +28,7 @@
     "cross-spawn": "^7.0.6",
     "get-func-name": "^2.0.2",
     "serialize-javascript": "^6.0.2",
-    "esbuild": "^0.24.2"
+    "esbuild": "^0.25.0"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
