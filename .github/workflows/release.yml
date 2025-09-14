@@ -260,7 +260,8 @@ jobs:
       push: true
 
   trigger-beyond-release:
-    needs: [release, build-and-push]
+    needs: [release]
+    if: ${{ always() && needs.release.result == 'success' }}
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}
@@ -278,7 +279,8 @@ jobs:
         wait-for-completion: true
 
   trigger-deployer:
-    needs: [release, create-release-branch, build-and-push, trigger-beyond-release]
+    needs: [release, create-release-branch, trigger-beyond-release]
+    if: ${{ always() && needs.release.result == 'success' && needs.create-release-branch.result == 'success' }}
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}
