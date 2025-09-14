@@ -23,7 +23,12 @@
     "semver": "^7.6.4",
     "path-to-regexp": "^0.1.12",
     "postcss": "^8.4.31",
-    "nth-check": "^2.0.1"
+    "nth-check": "^2.0.1",
+    "axios": "^1.7.7",
+    "cross-spawn": "^7.0.6",
+    "get-func-name": "^2.0.2",
+    "serialize-javascript": "^6.0.2",
+    "esbuild": "^0.24.2"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
