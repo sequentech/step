@@ -46,7 +46,13 @@
     "@sequentech/ui-core": "*"
   },
   "resolutions": {
-    "braces": "^3.0.3"
+    "braces": "^3.0.3",
+    "webpack-dev-server": "^5.2.1",
+    "micromatch": "^4.0.8",
+    "ws": "^8.18.0",
+    "follow-redirects": "^1.15.9",
+    "semver": "^7.6.4",
+    "path-to-regexp": "^0.1.12"
   },
   "devDependencies": {
     "@babel/cli": "7.12.8",

@@ -66,7 +66,13 @@
     "graphql": "^16.8.1",
     "dompurify": "^3.2.4",
     "braces": "^3.0.3",
-    "tinymce": "^7.0.0"
+    "tinymce": "^7.0.0",
+    "webpack-dev-server": "^5.2.1",
+    "micromatch": "^4.0.8",
+    "ws": "^8.18.0",
+    "follow-redirects": "^1.15.9",
+    "semver": "^7.6.4",
+    "path-to-regexp": "^0.1.12"
   },
   "scripts": {
     "start": "PORT=3002 NODE_OPTIONS=--openssl-legacy-provider craco start",
