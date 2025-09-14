@@ -125,8 +125,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         isElectionEventOpen(electionEvent)
 
     const isVotingStarted =
-        (electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
-              (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED))
+        electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
+        (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED)
 
     const isPreview = sessionStorage.getItem("isDemo") === "true"
     const canVote = () => {
