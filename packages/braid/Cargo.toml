@@ -21,7 +21,6 @@ b3 = { path="../b3", features = ["client"] }
 # borsh = { version = "=1.5.1", features = ["derive"] }
 crepe = "0.1.5"
 strum = { version = "0.26.3", features = ["derive"] }
-strum = { version = "0.26.3", features = ["derive"] }
 rayon = { version = "1.5" }
 
 # grpc client
@@ -52,7 +51,6 @@ cfg-if = "1.0"
 config = "0.14.1"
 hex = "0.4.2"
 base64 = "0.22.1"
-base64 = "0.22.1"
 serde = "1.0.152"
 toml = "0.8.19"
 anyhow = "1.0"
@@ -60,7 +58,7 @@ thiserror = "2.0.3"
 
 # wasm
 wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = true}
-wasm-bindgen = {version = "=0.2.95", optional = true}
+wasm-bindgen = {version = "=0.2.101", optional = true}
 tracing-wasm = {version="0.2.1", optional = true}
 
 # dbg

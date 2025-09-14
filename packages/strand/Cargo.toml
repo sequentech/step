@@ -34,7 +34,7 @@ rustcrypto_interop_test = []
 
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
-curve25519-dalek = { version = "=4.1.2", features = [] }
+curve25519-dalek = { version = "=4.1.3", features = [] }
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = { version = "0.2", optional = true }
 num-integer = { version = "0.1", optional = true }
@@ -73,7 +73,7 @@ rand_core = { version = "0.6.4", optional = true }
 
 # WASM
 wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = true}
-wasm-bindgen = {version = "=0.2.95", optional = true}
+wasm-bindgen = {version = "=0.2.101", optional = true}
 serde-wasm-bindgen = {version = "0.6", optional = true}
 web-sys = { version = "0.3", features = ['Performance'], optional = true }
 
