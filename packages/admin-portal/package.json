@@ -20,13 +20,15 @@
     "@sequentech/ui-core": "*",
     "@sequentech/ui-essentials": "*",
     "@tinymce/tinymce-react": "^4.3.2",
+    "tinymce": "^7.0.0",
     "@types/diff": "^5.0.8",
     "antd": "^5.21.5",
     "apexcharts": "3.41.1",
     "buffer": "^6.0.3",
     "diff": "^5.1.0",
+    "dompurify": "^3.2.4",
     "fs-extra": "^11.2.0",
-    "graphql": "16.7.1",
+    "graphql": "^16.8.1",
     "i18next": "^21.8.16",
     "i18next-browser-languagedetector": "^6.1.4",
     "intl-tel-input": "^24.5.0",
@@ -59,6 +61,12 @@
     "util": "^0.12.5",
     "uuid": "9.0.0",
     "web-vitals": "^2.1.0"
+  },
+  "resolutions": {
+    "graphql": "^16.8.1",
+    "dompurify": "^3.2.4",
+    "braces": "^3.0.3",
+    "tinymce": "^7.0.0"
   },
   "scripts": {
     "start": "PORT=3002 NODE_OPTIONS=--openssl-legacy-provider craco start",

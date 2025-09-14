@@ -45,6 +45,9 @@
     "@emotion/styled": "11.10.0",
     "@sequentech/ui-core": "*"
   },
+  "resolutions": {
+    "braces": "^3.0.3"
+  },
   "devDependencies": {
     "@babel/cli": "7.12.8",
     "@babel/core": "7.12.9",

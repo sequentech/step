@@ -39,6 +39,9 @@
     "react-router-dom": "6.11.2",
     "sequent-core": "file:./rust/sequent-core-0.1.0.tgz"
   },
+  "resolutions": {
+    "braces": "^3.0.3"
+  },
   "devDependencies": {
     "@babel/cli": "7.12.8",
     "@babel/core": "7.12.9",
