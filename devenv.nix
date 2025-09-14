@@ -67,6 +67,7 @@
     sqlite
 
     cargo-watch
+    cargo-license
 
     python3
     python3Packages.virtualenvwrapper
