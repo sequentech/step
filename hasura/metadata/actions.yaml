@@ -1313,7 +1313,7 @@ custom_types:
                 value: allow_early_voting
               - description: null
                 is_deprecated: null
-                value: no_early_vvoting
+                value: no_early_voting
         - name: ReportEncryptionPolicy
           values:
               - description: null

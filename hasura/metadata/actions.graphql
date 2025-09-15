@@ -638,7 +638,7 @@ type Mutation {
 
 enum EarlyVotingPolicy {
     allow_early_voting
-    no_early_vvoting
+    no_early_voting
 }
 
 enum ReportEncryptionPolicy {

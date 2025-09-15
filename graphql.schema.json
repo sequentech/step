@@ -1614,7 +1614,7 @@
             "deprecationReason": null
           },
           {
-            "name": "no_early_vvoting",
+            "name": "no_early_voting",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null

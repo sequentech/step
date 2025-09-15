@@ -403,6 +403,7 @@ pub enum CandidatesOrder {
     Eq,
     JsonSchema,
     Clone,
+    Copy,
     EnumString,
     Display,
     Default,
