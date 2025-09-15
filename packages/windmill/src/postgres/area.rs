@@ -616,8 +616,8 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
                     name = $3,
                     description = $4,
                     type = $5,
-                    parent_id = $6
-                    presentation = $7
+                    parent_id = $6,
+                    presentation = $10
                 WHERE id = $7 AND tenant_id = $8 AND election_event_id = $9;
                 "#,
         )
