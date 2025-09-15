@@ -52,6 +52,7 @@ import {
     ExportUsersMutation,
     GetUserProfileAttributesQuery,
     ImportUsersMutation,
+    ImportVotersDelegationMutation,
     ManualVerificationMutation,
     Sequent_Backend_Election_Event,
     UserProfileAttribute,
@@ -90,6 +91,7 @@ import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
+import {IMPORT_VOTERS_DELEGATION} from "@/queries/ImportVotersDelegation"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -149,6 +151,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
+    const [openImportDelegationsDrawer, setOpenImportDelegationsDrawer] = useState<boolean>(false)
     const [recordIds, setRecordIds] = useState<Array<Identifier>>([])
     const [userRecord, setUserRecord] = useState<RaRecord<Identifier> | undefined>()
     const authContext = useContext(AuthContext)
@@ -256,6 +259,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         showVotersFilters,
         showVotersLogs,
         canSendTemplates,
+        canImportVotersDelegations,
     } = useUsersPermissions()
     /**
      * Permissions
@@ -554,6 +558,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenImportDrawer(true)
     }
 
+    const handleClickImportDelegations = () => {
+        setOpenImportDelegationsDrawer(true)
+    }
+
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
@@ -635,6 +643,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [importUsers] = useMutation<ImportUsersMutation>(IMPORT_USERS)
+    const [importVotersDelegation] =
+        useMutation<ImportVotersDelegationMutation>(IMPORT_VOTERS_DELEGATION)
 
     /**
      * added custom filter actions menu
@@ -642,20 +652,29 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const buttonRef = useRef<HTMLButtonElement>(null)
 
     // state
-    const [listActions, setListActions] = useState<ReactElement[]>([
-        canSendTemplates ? (
-            <Button
-                key="send-notification"
-                onClick={() => {
-                    sendTemplateAction([], AudienceSelection.ALL_USERS)
-                }}
-            >
-                <ResourceListStyles.MailIcon />
-                {t("sendCommunication.send")}
-            </Button>
-        ) : (
-            <></>
-        ),
+    const [listActions, setListActions] = useState<ReactElement[]>(() => [
+        ...(canSendTemplates
+            ? [
+                  <Button
+                      key="send-notification"
+                      onClick={() => sendTemplateAction([], AudienceSelection.ALL_USERS)}
+                  >
+                      <ResourceListStyles.MailIcon />
+                      {t("sendCommunication.send")}
+                  </Button>,
+              ]
+            : []),
+        ...(canImportVotersDelegations
+            ? [
+                  <Button
+                      key="import"
+                      onClick={handleClickImportDelegations}
+                      className="voter-import-button"
+                  >
+                      Import Voters Delegations
+                  </Button>,
+              ]
+            : []),
     ])
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
     const [openCustomMenu, setOpenCustomMenu] = useState(false)
@@ -868,6 +887,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             console.log(`Election Event ID: ${electionEvent.id}`)
             console.log(``)
             console.log(`Error importing voters: ${err}`)
+            updateWidgetFail(currWidget.identifier)
+        }
+    }
+
+    const handleImportDelegations = async (documentId: string, sha256: string) => {
+        setOpenImportDelegationsDrawer(false)
+        const currWidget = addWidget(ETasksExecution.IMPORT_VOTERS_DELEGATIONS)
+        try {
+            let {data, errors} = await importVotersDelegation({
+                variables: {
+                    tenantId,
+                    documentId,
+                    electionEventId: electionEventId || undefined,
+                    sha256,
+                },
+            })
+            const task_id = data?.import_voters_delegation?.task_execution.id
+            setWidgetTaskId(currWidget.identifier, task_id)
+
+            refresh()
+
+            if (errors) {
+                // TODO: Change text
+                updateWidgetFail(currWidget.identifier)
+                notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+            }
+        } catch (err) {
             updateWidgetFail(currWidget.identifier)
         }
     }
@@ -1328,6 +1374,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionEventId={electionEventId}
                 />
             )}
+            {/** TODO: Change text */}
+            <ImportDataDrawer
+                open={openImportDelegationsDrawer}
+                closeDrawer={() => setOpenImportDelegationsDrawer(false)}
+                title="electionEventScreen.import.title"
+                subtitle="electionEventScreen.import.subtitle"
+                paragraph=""
+                doImport={handleImportDelegations}
+                errors={null}
+            />
         </>
     )
 }

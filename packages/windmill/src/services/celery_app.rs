@@ -38,6 +38,7 @@ use crate::tasks::import_application::import_applications;
 use crate::tasks::import_election_event::import_election_event;
 use crate::tasks::import_tenant_config::import_tenant_config;
 use crate::tasks::import_users::import_users;
+use crate::tasks::import_voters_delegation::import_voters_delegation_task;
 use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::manage_election_allow_tally::manage_election_allow_tally;
@@ -277,7 +278,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             electoral_log_batch_dispatcher,
             render_document_pdf,
             prepare_publication_preview,
-            export_tally_results_to_xlsx_task
+            export_tally_results_to_xlsx_task,
+            import_voters_delegation_task
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -325,6 +327,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),
             export_tally_results_to_xlsx_task::NAME => &Queue::ImportExport.queue_name(&slug),
+            import_voters_delegation_task::NAME => &Queue::ImportExport.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

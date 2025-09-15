@@ -43,6 +43,9 @@ use windmill::services::users::{
 use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
+use windmill::tasks::import_voters_delegation::{
+    self, ImportVotersDelegationInput, ImportVotersDelegationOutput,
+};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Deserialize, Debug)]
@@ -997,4 +1000,70 @@ pub async fn get_user_profile_attributes(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(attributes_res))
+}
+
+#[instrument(skip(claims))]
+#[post("/import-voters-delegation", format = "json", data = "<body>")]
+pub async fn import_voters_delegation_f(
+    claims: jwt::JwtClaims,
+    body: Json<ImportVotersDelegationInput>,
+) -> Result<Json<ImportVotersDelegationOutput>, (Status, String)> {
+    let input = body.clone().into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let election_event_id = input.election_event_id.clone();
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    // Insert the task execution record
+    let task_execution = post(
+        &tenant_id,
+        Some(&election_event_id),
+        ETasksExecution::IMPORT_VOTERS_DELEGATIONS,
+        &executer_name,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to insert task execution record: {error:?}"),
+        )
+    })?;
+
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::VOTER_DELEGATION_IMPORT],
+    )?;
+    let celery_app = get_celery_app().await;
+
+    let mut task_input = input.clone();
+
+    let _celery_task = match celery_app
+        .send_task(
+            import_voters_delegation::import_voters_delegation_task::new(
+                task_input,
+                task_execution.clone(),
+            ),
+        )
+        .await
+    {
+        Ok(celery_task) => celery_task,
+        Err(_) => {
+            return Ok(Json(ImportVotersDelegationOutput {
+                task_execution: task_execution.clone(),
+            }));
+        }
+    };
+
+    info!("Sent IMPORT_VOTERS_DELEGATIONS task {}", task_execution.id);
+
+    let output = ImportVotersDelegationOutput {
+        task_execution: task_execution.clone(),
+    };
+
+    Ok(Json(output))
 }

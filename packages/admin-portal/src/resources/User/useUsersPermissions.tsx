@@ -58,6 +58,12 @@ export function useUsersPermissions() {
         tenantId,
         IPermissions.NOTIFICATION_SEND
     )
+
+    const canImportVotersDelegations = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.VOTER_DELEGATION_IMPORT
+    )
     /**
      * Permissions
      */
@@ -77,5 +83,6 @@ export function useUsersPermissions() {
         showVotersFilters,
         showVotersLogs,
         canSendTemplates,
+        canImportVotersDelegations,
     }
 }

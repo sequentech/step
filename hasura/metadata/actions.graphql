@@ -417,6 +417,15 @@ type Mutation {
 }
 
 type Mutation {
+    import_voters_delegation(
+        tenant_id: String!
+        election_event_id: String!
+        document_id: String!
+        sha256: String
+    ): taskOutput
+}
+
+type Mutation {
     insertElectionEvent(
         object: CreateElectionEventInput!
     ): CreateElectionEventOutput
@@ -442,18 +451,6 @@ type Mutation {
 }
 
 type Query {
-    list_cast_vote_messages(
-        tenant_id: String!
-        election_event_id: String!
-        election_id: String
-        ballot_id: String!
-        limit: Int
-        offset: Int
-        order_by: ElectoralLogOrderBy
-    ): ListCastVoteMessagesOutput
-}
-
-type Query {
     listElectoralLog(
         limit: Int
         offset: Int
@@ -471,6 +468,18 @@ type Query {
         order_by: PgAuditOrderBy
         audit_table: PgAuditTable
     ): DataListPgAudit
+}
+
+type Query {
+    list_cast_vote_messages(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_id: String!
+        limit: Int
+        offset: Int
+        order_by: ElectoralLogOrderBy
+    ): ListCastVoteMessagesOutput
 }
 
 type Query {
