@@ -27,6 +27,7 @@ Usage: <#include "intl-tel-input.ftl"> and call renderIntlTelInput(id, name, val
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const telInputs = document.querySelectorAll('.intl-tel-input-field');
+
         telInputs.forEach(function(input) {
             window.intlTelInput(input, {
                 utilsScript: "${url.resourcesPath}/intl-tel-input-23.3.2/js/utils.js",

@@ -15,6 +15,9 @@ const tagalogTranslation: TranslationType = {
             confirmation: "Kumpirmasyon",
             audit: "Audit",
         },
+        footer: {
+            poweredBy: "Pinapagana ng <sequent />",
+        },
         votingScreen: {
             backButton: "Bumalik",
             reviewButton: "Susunod",
@@ -124,6 +127,14 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng error sa pagproseso ng iyong kahilingan. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_unexpected:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_timeout:
+                    "May error sa timeout sa pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Lumampas ka na sa limitasyon ng muling pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Lumampas ka na sa pinapayagang bilang ng muling pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Nakaboto ka na sa ibang lugar. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
@@ -146,6 +157,23 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng error sa pag-serialize ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helodesk para sa tulong.",
                 UNKNOWN_ERROR:
                     "Nagkaroon ng error. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
+                REAUTH_FAILED:
+                    "Nabigo ang authentication. Pakisubukan muli o makipag-ugnayan sa helpdesk para sa tulong.",
+                SESSION_EXPIRED:
+                    "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
+                CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
+                SESSION_STORAGE_ERROR:
+                    "Hindi magamit ang session storage. Pakisubukang muli o makipag-ugnayan sa support.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Nagkaroon ng error sa pag-parse ng data ng balota. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Ang data ng balota ay hindi wasto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "May error sa timeout sa pagkuha ng data. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "May error sa pag-convert sa hashable na balota. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                INTERNAL_ERROR:
+                    "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
         },
         confirmationScreen: {
@@ -311,6 +339,9 @@ const tagalogTranslation: TranslationType = {
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
+            ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
+            filterByBallotId: "Tumutugma sa Ballot ID",
+            totalBallots: "Kumulang mga balota: {{total}}",
             steps: {
                 lookup: "Hanapin ang Iyong Balota",
                 result: "Resulta",
@@ -320,6 +351,16 @@ const tagalogTranslation: TranslationType = {
                 content:
                     "Sa screen na ito maaring hanapin ng botante ang kaniyang boto gamit ang Ballot ID upang matagpuan ito. Sa ganitong pamamaraan, maaring suriin kung ang balota ay nai-submit nang tama at kung ang naitalang balota ay tumutugma sa encrypted na balota na kanilang ipinadala.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Lokaliseer uw Stembiljet",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Tijdstip",
+                username: "Gebruikersnaam",
+                ballot_id: "Stembiljet ID",
             },
         },
     },

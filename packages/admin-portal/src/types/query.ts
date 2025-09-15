@@ -107,6 +107,7 @@ export const sequent_backend_tally_session_execution: Sequent_Backend_Tally_Sess
     status: undefined,
     tally_session_id: "",
     tenant_id: "",
+    documents: undefined,
 }
 
 export const sequent_backend_tally_session_contest: Sequent_Backend_Tally_Session_Contest = {

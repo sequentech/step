@@ -94,6 +94,7 @@ impl CreateElectoralLogs {
             username: username.clone(),
             election_id: Some(election_id.to_string()),
             area_id: Some(area_id.to_string()),
+            ballot_id: None,
         };
 
         let board_message: ElectoralLogMessage = message.try_into().with_context(|| "")?;
@@ -109,7 +110,8 @@ impl CreateElectoralLogs {
         let tenant_id = config.tenant_id;
         let election_event_id = config.election_event_id;
         let election_id = config.election_id;
-        let immudb_db = get_event_board(&tenant_id, &election_event_id);
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let immudb_db = get_event_board(&tenant_id, &election_event_id, &slug);
         let area_id = config.area_id;
         let realm_name = config.realm_name;
 

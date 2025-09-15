@@ -36,7 +36,7 @@ export const triggerOverrideTranslations = (i18n: I18N) => {
         nl: dutchTranslation,
         eu: basqueTranslation,
     })
-    overwriteTranslations({presentation: {i18n}})
+    overwriteTranslations({i18n} as any, true)
 }
 
 export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr", "tl", "gl", "nl", "eu"]

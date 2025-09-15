@@ -56,13 +56,30 @@ export type {
 
 export type BallotSelection = Array<IDecodedVoteContest>
 
-export const initCore = () => {
-    try {
-        SequentCoreLibInit().then(set_hooks)
-    } catch (error) {
-        console.error("Error initializing SequentCoreLib:", error)
-        throw error
+// Create a variable to hold the singleton promise
+let initializationPromise: Promise<void> | null = null
+
+/**
+ * Initializes the Sequent Core WASM library.
+ * This function is a singleton and will only run the initialization once.
+ * @returns A promise that resolves when the library is ready.
+ */
+export const initCore = (): Promise<void> => {
+    // If the promise doesn't exist yet, create it
+    if (!initializationPromise) {
+        initializationPromise = SequentCoreLibInit()
+            .then((_core) => {
+                // The set_hooks function is often passed the core module itself
+                set_hooks()
+            })
+            .catch((error) => {
+                console.error("Error initializing SequentCoreLib:", error)
+                // Re-throw the error to let consumers handle it
+                throw error
+            })
     }
+    // Return the existing promise on subsequent calls
+    return initializationPromise
 }
 
 export const sortElectionList = (

@@ -68,6 +68,7 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
+    election_id: &str,
     output_file: &PathBuf,
 ) -> Result<()> {
     // COPY does not support parameters so we have to add them using format
@@ -75,14 +76,14 @@ pub async fn find_area_ballots(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         voter_id_string,
-                        election_id,
                         content
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = '{tenant_id}' AND
                         election_event_id = '{election_event_id}' AND
-                        area_id = '{area_id}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
+                        area_id = '{area_id}' AND
+                        election_id = '{election_id}'
+                    ORDER BY voter_id_string
                 "#
     );
 
@@ -107,7 +108,7 @@ pub async fn find_area_ballots(
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
-    debug!("bytes_copied: {bytes_copied}");
+    info!("ballot bytes_copied: {bytes_copied}");
 
     writer.flush().await?;
 

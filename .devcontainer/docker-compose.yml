@@ -139,30 +139,30 @@ services:
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
-  vault:
-    profiles: ["full", "base"]
-    container_name: vault
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
-    restart: on-failure:10
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - "8201:8201"
-      - "8200:8200"
-    environment:
-      VAULT_API_ADDR: 'http://0.0.0.0:8200'
-      VAULT_ADDR: 'http://0.0.0.0:8201'
-      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
-      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-volume:/vault
-    healthcheck:
-      retries: 5
-    entrypoint: /opt/vault/entrypoint.sh
+  # vault:
+  #   profiles: ["full", "base"]
+  #   container_name: vault
+  #   build:
+  #     context: ./vault
+  #     dockerfile: Dockerfile
+  #   restart: on-failure:10
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - "8201:8201"
+  #     - "8200:8200"
+  #   environment:
+  #     VAULT_API_ADDR: 'http://0.0.0.0:8200'
+  #     VAULT_ADDR: 'http://0.0.0.0:8201'
+  #     VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+  #     VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
+  #   cap_add:
+  #     - IPC_LOCK
+  #   volumes:
+  #     - vault-volume:/vault
+  #   healthcheck:
+  #     retries: 5
+  #   entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
     profiles: ["full", "base"]
@@ -293,6 +293,7 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
+      ENV_SLUG: ${ENV_SLUG}
     #volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       #- ./keycloak/import:/opt/keycloak/data/import:z
@@ -339,9 +340,10 @@ services:
   #   ports:
   #     - 3002:3000
   #   stdin_open: true
-  #   entrypoint: ["./init.sh", "start:admin:container"]
-  #   volumes:
-  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  #   entrypoint: ["/workspaces/step/packages/init.sh", "start:admin-portal"]
+  #   working_dir: /workspaces/step/packages
+  #   volumes_from:
+  #     - devcontainer
   #   environment:
   #       MAX_DIFF_LINES: ${MAX_DIFF_LINES}
   #       SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
@@ -415,6 +417,21 @@ services:
       MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
     ports:
      - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
+
+  janitor:
+    profiles: ["full"]
+    container_name: janitor
+    build:
+      context: ../packages/windmill/external-bin/janitor/scripts
+      dockerfile: Dockerfile.janitor
+    image: sequentech.local/janitor
+    stdin_open: true
+    tty: true
+    working_dir: /opt/sequent-step
+    entrypoint: ["/bin/bash"]
+    environment:
+      - PYTHONUNBUFFERED=1
+  
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -499,9 +516,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
@@ -517,6 +533,7 @@ services:
       B3_PG_PASSWORD: ${B3_PG_PASSWORD}
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      ENV_SLUG: ${ENV_SLUG}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -536,7 +553,7 @@ services:
       dockerfile: ./braid/Dockerfile
     environment:
         TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -561,7 +578,7 @@ services:
       - immudb
     environment:
         TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -583,7 +600,7 @@ services:
   #     - immudb
   #   environment:
   #       TRUSTEE_NAME: trustee3
-  #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
+  #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -859,9 +876,8 @@ services:
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
       KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
@@ -910,7 +926,7 @@ services:
       ENV_SLUG: ${ENV_SLUG}
 
   beat:
-    profiles: ["full"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
@@ -944,6 +960,7 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      ENV_SLUG: ${ENV_SLUG}
 
   postgres-b3:
     profiles: ["full", "base"]
@@ -1025,6 +1042,5 @@ volumes:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-  vault-volume:
   b3_db_logs:
   b3_db_data:

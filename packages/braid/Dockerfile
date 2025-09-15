@@ -13,13 +13,16 @@ COPY ./strand ./strand
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    protobuf-compiler \
-    libprotobuf-dev \
-    m4 \
-    make \
-    unzip \
-    curl \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends debian-archive-keyring \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        protobuf-compiler \
+        libprotobuf-dev \
+        m4 \
+        make \
+        unzip \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the specific nightly toolchain

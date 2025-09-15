@@ -76,7 +76,9 @@ const spanishTranslation: TranslationType = {
             points: "({{points}} Puntos)",
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
         },
-        poweredBy: "Funciona con",
+        footer: {
+            poweredBy: "Funciona con <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",

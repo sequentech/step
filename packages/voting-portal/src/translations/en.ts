@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
+
+import BallotLocator from "../routes/BallotLocator"
+
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
@@ -12,6 +15,9 @@ const englishTranslation = {
             review: "Review",
             confirmation: "Confirmation",
             audit: "Audit",
+        },
+        footer: {
+            poweredBy: "Powered by <sequent />",
         },
         votingScreen: {
             backButton: "Back",
@@ -121,6 +127,14 @@ const englishTranslation = {
                     "An error occurred processing your request. Please try again later or contact support for assistance.",
                 CAST_VOTE_unexpected:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_timeout:
+                    "Timeout error to cast the vote. Please try again later or contact support for assistance.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "You have exceeded the revotes limit. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "You have exceeded the allowed number of revotes. Please try again later or contact support for assistance.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "You have voted in another area already. Please try again later or contact support for assistance.",
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:
@@ -142,6 +156,22 @@ const englishTranslation = {
                     "There was an error serializing the ballot. Please try again later or contact support for assistance.",
                 UNKNOWN_ERROR:
                     "There was an error. Please try again later or contact support for assistance.",
+                REAUTH_FAILED:
+                    "Authentication failed. Please try again or contact support for assistance.",
+                SESSION_EXPIRED: "Your session has expired. Please try again from the beginning.",
+                CAST_VOTE_BallotIdMismatch: "The ballot id does not match with the cast vote.",
+                SESSION_STORAGE_ERROR:
+                    "Session storage is not available. Please try again or contact support.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Ballot data is not valid. Please try again later or contact support for assistance.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Timeout error to fetch the data. Please try again later or contact support for assistance.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Error converting to hashable ballot. Please try again later or contact support for assistance.",
+                INTERNAL_ERROR:
+                    "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
         },
         confirmationScreen: {
@@ -305,6 +335,10 @@ const englishTranslation = {
             notFound: "Your ballot ID {{ballotId}} has not been located",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Wrong format for Ballot ID",
+            ballotIdNotFoundAtFilter:
+                "Not found, check that your Ballot ID is correct and belongs to this user.",
+            filterByBallotId: "Filter by Ballot ID",
+            totalBallots: "Total Ballots: {{total}}",
             steps: {
                 lookup: "Locate your Ballot",
                 result: "Result",
@@ -314,6 +348,16 @@ const englishTranslation = {
                 content:
                     "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Ballot Locator",
+            },
+            column: {
+                statement_kind: "Statement kind",
+                statement_timestamp: "Statement Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
             },
         },
     },

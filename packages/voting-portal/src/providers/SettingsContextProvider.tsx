@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
-import Loader from "../components/Loader"
+import {Loader} from "@sequentech/ui-essentials"
 
 export interface GlobalSettings {
     DISABLE_AUTH: boolean
@@ -23,6 +23,8 @@ export interface GlobalSettings {
 interface SettingsContextValues {
     loaded: boolean
     globalSettings: GlobalSettings
+    defaultLanguageTouched: boolean
+    setDefaultLanguageTouched: (value: boolean) => void
     setDisableAuth: (disable: boolean) => void
 }
 
@@ -43,6 +45,8 @@ const defaultSettingsValues: SettingsContextValues = {
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
         POLLING_DURATION_TIMEOUT: 12000,
     },
+    defaultLanguageTouched: false,
+    setDefaultLanguageTouched: () => {},
     setDisableAuth: () => {},
 }
 
@@ -57,6 +61,7 @@ interface SettingsContextProviderProps {
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const [loaded, setLoaded] = useState<boolean>(false)
+    const [defaultLanguageTouched, setDefaultLanguageTouched] = useState<boolean>(false)
     const [globalSettings, setSettings] = useState<GlobalSettings>(
         defaultSettingsValues.globalSettings
     )
@@ -98,6 +103,8 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
                 loaded,
                 globalSettings,
                 setDisableAuth,
+                defaultLanguageTouched,
+                setDefaultLanguageTouched,
             }}
         >
             {props.children}
