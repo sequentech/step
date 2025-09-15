@@ -137,7 +137,7 @@
     "@types/node": "^16.7.13",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
-    "@types/sanitize-html": "2.9.0",
+    "@types/sanitize-html": "2.16.0",
     "@types/sql.js": "^1.4.9",
     "@types/uuid": "9.0.2",
     "@typescript-eslint/eslint-plugin": "^5.32.0",
@@ -167,7 +167,7 @@
     "ts-loader": "9.5.1",
     "ts-node": "^10.9.2",
     "typescript": "^4.4.2",
-    "webpack": "5.94.0",
+    "webpack": "5.101.3",
     "webpack-cli": "5.1.4",
     "webpack-dev-server": "^5.2.2"
   }
