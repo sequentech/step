@@ -7,12 +7,13 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::EarlyVotingPolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::postgres::area::{
     delete_area_contests, insert_area, update_area,
@@ -33,6 +34,7 @@ pub struct UpsertAreaInput {
     pub annotations: Option<JsonValue>,
     pub labels: Option<JsonValue>,
     pub r#type: Option<String>,
+    pub allow_early_voting: EarlyVotingPolicy,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,6 +55,7 @@ pub async fn upsert_area(
         vec![Permissions::AREA_CREATE],
     )?;
 
+    info!("Policy: {:#?}", body.allow_early_voting);
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()

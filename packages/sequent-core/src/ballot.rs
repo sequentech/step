@@ -407,6 +407,30 @@ pub enum CandidatesOrder {
     Display,
     Default,
 )]
+pub enum EarlyVotingPolicy {
+    #[strum(serialize = "allow_early_voting")]
+    #[serde(rename = "allow_early_voting")]
+    AllowEarlyVoting,
+    #[strum(serialize = "no_early_voting")]
+    #[serde(rename = "no_early_voting")]
+    #[default]
+    NoEarlyVoting,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
 pub enum ContestsOrder {
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
