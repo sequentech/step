@@ -94,7 +94,7 @@ const VotedContainer = styled(Box)<{hasvoted: string}>`
     align-items: center;
     gap: 4px;
     color: ${({hasvoted, theme}) =>
-        "true" === hasvoted ? theme.palette.brandSuccess : theme.palette.errorColor};
+        "true" === hasvoted ? theme.palette.green.dark : theme.palette.errorColor};
 `
 
 const StatusBanner = styled(Box)<{isopen: string}>`

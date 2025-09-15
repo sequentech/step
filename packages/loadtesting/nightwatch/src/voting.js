@@ -211,7 +211,7 @@ module.exports = {
                     console.log('Start voting button clicked via JavaScript:', result.value);
                 })
                 .pause(1000)
-                .saveScreenshot(`screenshots/afterStartVoting${iteration}.png`)
+                .perform(() => maybeScreenshot(`screenshots/afterStartVoting${iteration}.png`))
                 // Use browser.execute to dynamically discover contests and
                 // candidates; this makes the test robust to ballot changes
                 .execute(function () {
@@ -323,7 +323,7 @@ module.exports = {
                     console.log('Final logout button clicked via JavaScript:', result.value);
                 })
                 .pause(500)
-                .saveScreenshot(`screenshots/summaryPage${iteration}.png`)
+                .perform(() => maybeScreenshot(`screenshots/summaryPage${iteration}.png`))
                 .pause(500)
                 // Continue with logout flow or handle completion
                 .perform(() => {

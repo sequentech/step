@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+version: 2
+updates:
+  # Rust dependencies
+  - package-ecosystem: "cargo"
+    directory: "/packages"
+    target-branch: "feat/meta-154/main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      rust-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 1
+
+  # TypeScript/JavaScript dependencies
+  - package-ecosystem: "npm"
+    directory: "/packages/ui-core"
+    target-branch: "feat/meta-154/main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 1
+
+  - package-ecosystem: "npm"
+    directory: "/packages/ui-essentials"
+    target-branch: "feat/meta-154/main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 1
+
+  - package-ecosystem: "npm"
+    directory: "/packages/voting-portal"
+    target-branch: "feat/meta-154/main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 1
+
+  - package-ecosystem: "npm"
+    directory: "/packages/admin-portal"
+    target-branch: "feat/meta-154/main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 1
+
+  # Maven dependencies
+  - package-ecosystem: "maven"
+    directory: "/packages/keycloak-extensions"
+    target-branch: "feat/meta-154/main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      maven-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 1

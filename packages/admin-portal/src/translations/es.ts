@@ -81,7 +81,9 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
+                EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -1882,7 +1884,7 @@ const spanishTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lista de OV que se preinscribieron pero fueron rechazados",
                 LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                OV_TURNOUT_PERCENTAGE: "Participación de Votantes en el Extranjero",
+                VOTERS_TURNOUT_PERCENTAGE: "Participación de Votantes",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
