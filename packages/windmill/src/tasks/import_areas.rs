@@ -9,6 +9,7 @@ use crate::{postgres::document::get_document, services::documents::get_document_
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::{AreaPresentation, EarlyVotingPolicy};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
@@ -68,6 +69,7 @@ pub async fn import_areas_task(
         "EMB_CODE",
         "AREANAME",
         "isdelete",
+        "EARLY_VOTING_POLICY",
     ]);
 
     let mut areas: Vec<Area> = vec![];
@@ -83,6 +85,17 @@ pub async fn import_areas_task(
         if let Some(area_id) = record.get(0) {
             let area_name = record.get(3).map(|val| val.to_string());
             let new_area_id = Uuid::new_v4();
+            let early_voting_pol = record.get(5).map(|val| val.to_string());
+            let early_voting_pol = match early_voting_pol {
+                Some(early_voting_pol)
+                    if early_voting_pol == EarlyVotingPolicy::AllowEarlyVoting.to_string() =>
+                {
+                    EarlyVotingPolicy::AllowEarlyVoting
+                }
+                _ => EarlyVotingPolicy::default(),
+            };
+            let presentation = serde_json::to_value(AreaPresentation::new(early_voting_pol))
+                .map_err(|e| anyhow!("Error serializing AreaPresentation: {e:?}"))?;
             areas.push(Area {
                 id: new_area_id.to_string(),
                 tenant_id: tenant_id.to_string(),
@@ -95,6 +108,7 @@ pub async fn import_areas_task(
                 description: area_name,
                 r#type: None,
                 parent_id: None,
+                presentation: Some(presentation),
             });
             let new_area_contests: Vec<AreaContest> = contests
                 .clone()

@@ -1091,6 +1091,28 @@ impl Default for ElectionPresentation {
     Clone,
     Default,
 )]
+pub struct AreaPresentation {
+    pub allow_early_voting: EarlyVotingPolicy,
+}
+
+impl AreaPresentation {
+    pub fn new(allow_early_voting: EarlyVotingPolicy) -> AreaPresentation {
+        AreaPresentation { allow_early_voting }
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
 pub struct SubtypePresentation {
     pub name: Option<String>,
     pub name_i18n: Option<I18nContent<Option<String>>>,
