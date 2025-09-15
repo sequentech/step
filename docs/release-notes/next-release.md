@@ -131,3 +131,48 @@ To see the Immutable logs of the type `CastVote` go to the Voting Portal landing
 Voter logs related to Keycloak (login, login error, code to token) were being 
 published to the wrong rabbitmq queue. This has been fixed and now they are 
 published to the queue for the respective environment.
+
+## 🐞 Voting script for loadtesting takes screenshots when it shouldn't
+
+The loadtesting script for voting with nightwatch was saving some screenshots
+event when the screenshots option was disabled. This took a lot of space in the
+tests, filling in the disk.
+
+## 🐞 Error in Election name on Admin Portal Tally
+
+The election name shown in the section "Results & Participation" of the Tally in
+the Admin Portal is shown as 0 rather than its actual name.
+
+## ✨ Create a task for deleting events
+
+Event deletion is now managed as a task. It will report the result of the task if
+it goes correctly or the errors if not.
+
+## ✨ Standarize "Overseas voters turnout"
+
+Rename report to "Voters Turnout" and remove "Overseas", "OV" or other non standard
+ terminology from the report, admin portal and source code.
+Create documents and tutorials about the voters tab, adding User Attributes to keycloak,
+ or how to create reports and templates.
+
+## ✨Tally - Add the option to export event tally results in xlsx format
+In Results & Participation Section, Add a new action to ACTIONS button at the event level
+to export results in xlsx format. This will read the data from the sqlite file
+and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
+
+## 🐞 Multiple Finished Tally Ceremony logs
+
+Finished Tally Ceremony logs were repeated multiple times (each time the task is
+executed). Now the logs say "Updated Tally Ceremony" each time unless the
+Tally is completed.
+
+## ✨ Review UI accessibility
+
+Using the IBM tool https://www.ibm.com/able/toolkit/tools/#develop , review the
+accessibility for the Voting Portal and Ballot Verifier.
+
+## 🐞 Text gets out of the Publish buttons in the admin portal
+
+Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
+label of the Publish buttons are too long for a given language, i.e. spanish.
+Also shortened the spanish translations.

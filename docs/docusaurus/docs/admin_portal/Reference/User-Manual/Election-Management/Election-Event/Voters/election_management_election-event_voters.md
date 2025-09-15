@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 
-Displays the currently configured voters for this Election Event.
+This section displays the currently configured voters for this Election Event.
 
 ### Overview
 
@@ -40,7 +40,7 @@ The **Actions** column provides options to interact with voter records:
 
 ---
 
-### Send Notifications
+#### Send Notifications
 
 Use this tab to send notifications to voters through various methods, schedules, and templates.
 
@@ -55,7 +55,7 @@ Use this tab to send notifications to voters through various methods, schedules,
 
 ---
 
-### Manual Verification
+#### Manual Verification
 
 Confirm the voter's identity without requiring additional verification steps.
 
@@ -68,7 +68,7 @@ Confirm the voter's identity without requiring additional verification steps.
 
 ---
 
-### Change Password
+#### Change Password
 
 Change the voter's password.
 
@@ -77,7 +77,12 @@ Change the voter's password.
 
 ---
 
-### User’s Log
+#### User’s Log
 
 View logs of all actions performed by the voter.
 
+### Additional User Data Fields
+
+You can add additional fields like the voter's birthday or sex. [Check out the tutorial for that](../../../../../Tutorials/admin_portal_tutorials_add-user-attributes-to-keycloak.md).
+
+**Important:** Additional attributes for voters must be added before the enrollment process. For instance, if the sex attribute is not added, this trait will not be reflected in the reports and statistics.

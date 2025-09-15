@@ -81,7 +81,9 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
+                DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -1893,7 +1895,7 @@ const frenchTranslation: TranslationType = {
                 OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
                 LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                OV_TURNOUT_PERCENTAGE: "Participation des Électeurs à l'Étranger",
+                VOTERS_TURNOUT_PERCENTAGE: "Participation des Électeurs",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
