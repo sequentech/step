@@ -16,10 +16,10 @@ impl FromStr for update_event_voting_status::VotingStatus {
         match input {
             "OPEN" => Ok(VotingStatus::OPEN),
             "CLOSE" => Ok(VotingStatus::CLOSED),
-            "PAUSE" => Ok(VotingStatus::PAUSED),
+            "PAUSED" => Ok(VotingStatus::PAUSED),
             // …and so on for every variant in your schema’s VotingStatus enum
             _ => Err(format!(
-                "Invalid voting status, status must be one of: OPEN, CLOSE, PAUSE"
+                "Invalid voting status, status must be one of: OPEN, CLOSE, PAUSED"
             )),
         }
     }
