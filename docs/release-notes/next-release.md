@@ -110,3 +110,8 @@ Finished Tally Ceremony logs were repeated multiple times (each time the task is
 executed). Now the logs say "Updated Tally Ceremony" each time unless the
 Tally is completed.
 
+## 🐞 Text gets out of the Publish buttons in the admin portal
+
+Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
+label of the Publish buttons are too long for a given language, i.e. spanish.
+Also shortened the spanish translations.
