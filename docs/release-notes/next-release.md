@@ -170,3 +170,9 @@ Tally is completed.
 
 Using the IBM tool https://www.ibm.com/able/toolkit/tools/#develop , review the
 accessibility for the Voting Portal and Ballot Verifier.
+
+## 🐞 Text gets out of the Publish buttons in the admin portal
+
+Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
+label of the Publish buttons are too long for a given language, i.e. spanish.
+Also shortened the spanish translations.
