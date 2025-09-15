@@ -564,8 +564,10 @@ pub async fn update_tally_ceremony(
             .unwrap_or_default()
             .join(", ");
 
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+
         // Save this in the electoral log
-        let board_name: String = get_event_board(&tenant_id, &election_event_id);
+        let board_name: String = get_event_board(&tenant_id, &election_event_id, &slug);
         let electoral_log = ElectoralLog::for_admin_user(
             &hasura_transaction,
             board_name.as_str(),
