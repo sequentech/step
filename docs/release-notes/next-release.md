@@ -159,3 +159,8 @@ accessibility for the Voting Portal and Ballot Verifier.
 Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
 label of the Publish buttons are too long for a given language, i.e. spanish.
 Also shortened the spanish translations.
+
+## ✨ Improve tally events in the Activity Log
+
+Improve the details reported in the activity logs by adding more information like
+username, and reporting when the tally is started and completed.
