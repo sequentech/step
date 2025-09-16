@@ -54,6 +54,8 @@ async fn rocket() -> _ {
                 routes::ballot_publication::get_ballot_publication_changes,
                 routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
+                routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
+                routes::voter_electoral_log::list_cast_vote_messages,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
                 routes::elections::create_election,
@@ -135,6 +137,7 @@ async fn rocket() -> _ {
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
                 routes::set_voter_authentication::set_voter_authentication,
+                routes::export_tally_results::export_tally_results_route,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

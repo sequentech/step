@@ -16,34 +16,50 @@ module.exports = {
             'admin_portal/Reference/basic_navigation',
           {
             type: 'category',
-            label: 'Election Event', //TODO - Sort by order, add content
+            label: 'Election Event',
             items: [
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Approvals/election_management_election_event_approvals',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Areas/election_management_election_event_areas',
               'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Dashboard/election_management_election_event_dashboard',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Data/election_management_election_event_data',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Keys/election_management_election_event_keys',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Localization/election_management_election_event_localization',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Logs/election_management_election_event_logs',
               'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Monitoring/election_management_election_event_monitoring',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Publish/election_management_election_event_publish',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Reports/election_management_election_event_reports',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Scheduled-Events/election_management_election_event_scheduled_events',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tally/election_management_election_event_tally',
-              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tasks/election_management_election_event_tasks',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Data/election_management_election_event_data',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Localization/election_management_election_event_localization',
               'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Voters/election_management_election_event_voters',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Areas/election_management_election_event_areas',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Keys/election_management_election_event_keys',
+              {
+                type: 'category',
+                label: 'Tally',
+                items: [
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tally/election_management_election_event_tally',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tally/election_management_election_event_transmission',
+
+                ],
+              },
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Publish/election_management_election_event_publish',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Tasks/election_management_election_event_tasks',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Logs/election_management_election_event_logs',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Scheduled-Events/election_management_election_event_scheduled_events',
+              {
+                type: 'category',
+                label: 'Reports and Templates',
+                items: [
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Reports/election_management_election_event_reports',
+              'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Reports/election_management_election_event_templates',
+
+                ],
+              },
+             'admin_portal/Reference/User-Manual/Election-Management/Election-Event/Approvals/election_management_election_event_approvals',
             ],
           },
           {
             type: 'category',
-            label: 'Election', //TODO - Sort by order, add content
+            label: 'Election', //TODO - add content
             items: [
-              'admin_portal/Reference/User-Manual/Election-Management/Election/Approvals/election_management_election_approvals',
               'admin_portal/Reference/User-Manual/Election-Management/Election/Dashboard/election_management_election_dashboard',
-              'admin_portal/Reference/User-Manual/Election-Management/Election/Data/election_management_election_data',
               'admin_portal/Reference/User-Manual/Election-Management/Election/Monitoring/election_management_election_monitoring',
-              'admin_portal/Reference/User-Manual/Election-Management/Election/Publish/election_management_election_publish',
+              'admin_portal/Reference/User-Manual/Election-Management/Election/Data/election_management_election_data',
               'admin_portal/Reference/User-Manual/Election-Management/Election/Voters/election_management_election_voters',
+              'admin_portal/Reference/User-Manual/Election-Management/Election/Publish/election_management_election_publish',
+              'admin_portal/Reference/User-Manual/Election-Management/Election/Approvals/election_management_election_approvals',
             ],
           },
           {
@@ -72,9 +88,9 @@ module.exports = {
           'admin_portal/Tutorials/admin_portal_tutorials_setting-up-an-automated-election',
           'admin_portal/Tutorials/Reports-and-Templates/reports_and_templates',
           'admin_portal/Tutorials/Reports-and-Templates/value_to_template_association',
+          'admin_portal/Tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak',
           ],
         },
-        
       ],
     },
     {
@@ -122,6 +138,7 @@ module.exports = {
           items: [
             'developers/Voting-Portal/developers_voting_portal',
             'developers/Voting-Portal/cast_vote_errors',
+            'developers/Voting-Portal/demo_mode',
           ],
         },
         {
@@ -139,6 +156,12 @@ module.exports = {
           label: 'Windmill',
           items: ['developers/Windmill/developers_windmill'],
         },
+        {
+          type: 'category',
+          label: 'Braid',
+          items: ['developers/Braid/braid_trustees_configuration'],
+        },
+        'cli/Tutorials/Load-Testing/load_testing'
       ],
     },
     {
@@ -150,6 +173,7 @@ module.exports = {
       },
       items:[
         'reference/glossary',
+        'reference/product_lifecycle_and_release_cadence',
         {
           type: 'category',
           label: 'Tally Deep Dive',
@@ -181,7 +205,7 @@ module.exports = {
               items: [
                 'reference/cryptography_security/cryptography/mixnet',
                 'reference/cryptography_security/cryptography/proofs',
-                
+
               ],
             },
             {

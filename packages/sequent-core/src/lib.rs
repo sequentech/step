@@ -37,6 +37,8 @@ pub mod serialization;
 #[cfg(feature = "default_features")]
 pub mod services;
 
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
 pub mod util;
 
 #[cfg(all(feature = "reports", feature = "default_features"))]

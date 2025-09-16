@@ -184,7 +184,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                             >
                                 <iframe
                                     src={documentUrl}
-                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
+                                    title={`${t(
+                                        "materials.common.label"
+                                    )} tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     width="1400"
                                     height="800"
                                 ></iframe>
@@ -204,7 +206,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     width="800"
                                     height="500"
                                     src={documentUrl}
-                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
+                                    title={`${t(
+                                        "materials.common.label"
+                                    )} tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     referrerPolicy="origin"
                                     sandbox="allow-scripts allow-same-origin"
                                     allow="autoplay;"
@@ -225,7 +229,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     width="800"
                                     height="120"
                                     src={documentUrl}
-                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
+                                    title={`${t(
+                                        "materials.common.label"
+                                    )} tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     allow="autoplay"
                                 ></iframe>
                             </Box>

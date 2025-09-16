@@ -81,6 +81,9 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
+                DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
+                PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
+                EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -281,12 +284,23 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                showCastVoteLogs: {
+                    policyLabel: "Erakutsi Logs Bozketa Taba",
+                    options: {
+                        "show-logs-tab": "Erakutsi Logs Bozketa Taba",
+                        "hide-logs-tab": "Ez Erakutsi Logs Bozketa Taba",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Blokeo Egoera",
                     options: {
                         "locked-down": "Blokeatuta",
                         "not-locked-down": "Blokeatu gabe",
                     },
+                },
+                decodedBallots: {
+                    policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
+                    options: {"included": "Sartu", "not-included": "Ez sartu"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -323,6 +337,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         enabled: "Gaituta",
                         disabled: "Desgaituta",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Giltza/Zenbaketa zeremonien politika",
+                    options: {
+                        "automated-ceremonies": "Zeremonia automatikoak baimendu",
+                        "manual-ceremonies": "Eskuzko zeremoniak",
                     },
                 },
             },
@@ -534,6 +555,12 @@ const basqueTranslation: TranslationType = {
                 scheduledClosing: "Programatutako Itxiera",
                 alias: "Ezizena",
                 description: "Deskribapena",
+                securityConfirmationHtml: "Segurtasun-berrespena HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Segurtasun-berrespeneko kontrol-laukiaren politika",
+                none: "Bat ere ez",
+                mandatory: "Derrigorrezkoa",
             },
             error: {
                 fileError: "Errorea fitxategia igotzean",
@@ -574,6 +601,13 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "gold-level": "Urre maila Autentifikazioa",
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Hasierako pantailaren titulu politika",
+                options: {
+                    "election": "Hauteskundearen titulua",
+                    "election-event": "Hauteskunde-ekitaldiaren titulua",
                 },
             },
         },
@@ -982,6 +1016,8 @@ const basqueTranslation: TranslationType = {
                 incorectPassword: "Pasahitz okerra",
                 decryptFileTitle: "Nola deszifratzen den fitxategia",
                 decryptInstructions: `1. '-in' :Zifratutako fitxategiaren bidea. \n2. '-out' :Deszifratutako fitxategia gordeko den bidea. \n3. '-pass' :Fitxategia zifratzeko erabilitako pasahitza. \n`,
+                encryptSuccess: "Txostenaren enkriptatzea behar bezala konfiguratu da",
+                encryptError: "Errorea txostenaren enkriptatzea konfiguratzean",
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
@@ -1307,12 +1343,17 @@ const basqueTranslation: TranslationType = {
                     ok: "Bai, Sortu Giltzen Zeremonia",
                     cancel: "Ezeztatu",
                     title: "Ziur zaude Giltzen Zeremonia sortu nahi duzula?",
+                    automaticCeremonyTitle:
+                        "Ziur zaude giltza-ekitaldi automatiko bat sortu nahi duzula?",
                     description:
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
+                    automaticCeremonyDescription:
+                        "Giltza-ekitaldi automatiko bat sortzear zaude. Honek ez die arduradunei parte hartzeko jakinaraziko.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
                 errorPermisionLabels:
                     "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
+                automaticCeremonyToggle: "Zeremonia automatikoa",
             },
             ceremonyStep: {
                 cancel: "Ezeztatu Giltzen Zeremonia",
@@ -1531,6 +1572,8 @@ const basqueTranslation: TranslationType = {
                         "Zenbaketa zeremonia ezeztatuzera noa. Ekintza hau ezin da desegin.",
                     ceremony:
                         "Beharrezko fideikomisario guztiek beren giltza zatiak egiaztatu dituzte. Dena prest dago emaitzak jasotzen hasteko. Zenbaketa hasi nahi duzu?",
+                    startAutomatedTallyMessage:
+                        "Hautatu 'Start Tally' zenbaketa-prozesua exekutatzeko eta emaitzak bistaratzeko, edo 'Close' ezeztatzeko.",
                 },
             },
             table: {
@@ -1833,7 +1876,7 @@ const basqueTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
                 LIST_OF_OVERSEAS_VOTERS: "Atzerriko Bozkatzaileen Zerrenda",
-                OV_TURNOUT_PERCENTAGE: "Atzerriko Bozkatzaileen Parte-hartzea",
+                VOTERS_TURNOUT_PERCENTAGE: "Bozkatzaileen Parte-hartzea",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera eta Sexuaren arabera",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:

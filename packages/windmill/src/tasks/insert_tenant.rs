@@ -6,23 +6,38 @@ use crate::postgres::tenant::{
     get_tenant_by_id_if_exist, get_tenant_by_slug_if_exist, insert_tenant,
 };
 use crate::services::database::get_hasura_pool;
+use crate::services::import::import_election_event::remove_keycloak_realm_secrets;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::types::error::Result;
+use ::keycloak::types::RealmRepresentation;
+use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use std::{env, fs};
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
-pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
+pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_TENANT_REALM_CONFIG_PATH")
         .expect(&format!("KEYCLOAK_TENANT_REALM_CONFIG_PATH must be set"));
     let realm_config = fs::read_to_string(&realm_config_path)
-        .expect(&format!("Should have been able to read the configuration file at KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}"));
+        .map_err(|err| anyhow!("Should have been able to read the configuration file in KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}. Error: {err}"))?;
+
+    deserialize_str(&realm_config).map_err(|err| {
+        anyhow!("Error parsing KEYCLOAK_TENANT_REALM_CONFIG_PATH into RealmRepresentation: {err}")
+    })
+}
+
+#[instrument(err)]
+pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
+    let mut default_tenant = read_default_tenant_realm()?;
+    default_tenant = remove_keycloak_realm_secrets(&default_tenant)?;
+    let realm_config = serde_json::to_string(&default_tenant)?;
     let client = KeycloakAdminClient::new().await?;
     let realm = get_tenant_realm(tenant_id);
     client

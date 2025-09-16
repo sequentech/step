@@ -70,6 +70,13 @@ module.exports = function (env, argv) {
         },
         externals: {},
         resolve: {
+            fallback: {
+                fs: false,
+                path: require.resolve("path-browserify"),
+                crypto: require.resolve("crypto-browserify"),
+                vm: require.resolve("vm-browserify"),
+                stream: require.resolve("stream-browserify"),
+            },
             alias: {
                 "@root": path.resolve(__dirname, "src"),
                 "@": path.resolve(__dirname, "src"),

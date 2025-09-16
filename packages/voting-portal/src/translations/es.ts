@@ -15,6 +15,9 @@ const spanishTranslation: TranslationType = {
             confirmation: "Confirmación",
             audit: "Auditar",
         },
+        footer: {
+            poweredBy: "Funciona con <sequent />",
+        },
         votingScreen: {
             backButton: "Atrás",
             reviewButton: "Siguiente",
@@ -338,6 +341,10 @@ const spanishTranslation: TranslationType = {
             notFound: "Tu ID de Papeleta {{ballotId}} no ha sido localizada",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
+            ballotIdNotFoundAtFilter:
+                "No encontrado, compruebe que el ID de la Papeleta sea correcto y pertenezca a este usuario.",
+            filterByBallotId: "Filtrar por ID de Papeleta",
+            totalBallots: "Papeletas: {{total}}",
             steps: {
                 lookup: "Localiza tu Papeleta",
                 result: "Resultado",
@@ -347,6 +354,16 @@ const spanishTranslation: TranslationType = {
                 content:
                     "Esta pantalla le permite al votante encontrar su Papeleta utilizando el ID de la Papeleta para recuperarlo. Este procedimiento permite comprobar que su voto fue emitido correctamente y que el voto registrado coincide con el voto cifrado que emitió.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localizador de Papeletas",
+            },
+            column: {
+                statement_kind: "Tipo",
+                statement_timestamp: "Marca de tiempo",
+                username: "Usuario",
+                ballot_id: "ID de Papeleta",
             },
         },
     },

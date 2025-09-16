@@ -48,6 +48,9 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
+                DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -280,12 +283,24 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                showCastVoteLogs: {
+                    policyLabel: "Mostra els registres de votació",
+                    options: {
+                        "show-logs-tab": "Mostra els registres de votació",
+                        "hide-logs-tab": "Amaga els registres de votació",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estat de Confinament",
                     options: {
                         "locked-down": "Confinat",
                         "not-locked-down": "No Confinat",
                     },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclou les paperetes descodificades a la base de dades de resultats",
+                    options: {"included": "Inclou", "not-included": "No incloguis"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -322,6 +337,13 @@ const catalanTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitat",
                         disabled: "Deshabilitat",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de cerimònies de claus/recompte",
+                    options: {
+                        "automated-ceremonies": "Permetre cerimònies automàtiques",
+                        "manual-ceremonies": "Cerimònies manuals",
                     },
                 },
             },
@@ -533,6 +555,12 @@ const catalanTranslation: TranslationType = {
                 scheduledClosing: "Tancament Programat",
                 alias: "Àlies",
                 description: "Descripció",
+                securityConfirmationHtml: "Confirmació de seguretat HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casella de confirmació de seguretat",
+                none: "Cap",
+                mandatory: "Obligatori",
             },
             error: {
                 fileError: "Error al carregar el fitxer",
@@ -573,6 +601,13 @@ const catalanTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de títol de la pantalla d'inici",
+                options: {
+                    "election": "Títol de l'elecció",
+                    "election-event": "Títol de l'esdeveniment electoral",
                 },
             },
         },
@@ -996,6 +1031,8 @@ const catalanTranslation: TranslationType = {
                 decryptFileTitle: "Desxifrar arxiu",
                 decryptInstructions:
                     "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
+                encryptSuccess: "S'ha configurat correctament l'encriptació de l'informe",
+                encryptError: "Error en configurar l'encriptació de l'informe",
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
@@ -1319,12 +1356,17 @@ const catalanTranslation: TranslationType = {
                     ok: "Sí, Crear Cerimònia de Claus",
                     cancel: "Cancel·lar",
                     title: "Estàs segur de que vols Crear una Cerimònia de Claus?",
+                    automaticCeremonyTitle:
+                        "Estàs segur que vols crear una cerimònia de claus automàtica?",
                     description:
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
+                    automaticCeremonyDescription:
+                        "Estàs a punt de crear una cerimònia de claus automàtica. Això no notificarà als fideïcomissaris que hi participin.",
                 },
                 filterTrustees: "Filtrar Autoritats",
                 errorPermisionLabels:
                     "No es pot crear la cerimònia de claus: falta almenys una etiqueta de permís.",
+                automaticCeremonyToggle: "Cerimònia automàtica",
             },
             ceremonyStep: {
                 cancel: "Cancel·lar Cerimònia de Claus",
@@ -1544,6 +1586,8 @@ const catalanTranslation: TranslationType = {
                         "Estàs a punt de cancel·lar la cerimònia de recompte. Aquesta acció no es pot desfer.",
                     ceremony:
                         "Tots els trustees requerits han verificat els seus fragments de clau. Tot està a punt per començar a rebre resultats. Voleu iniciar el Recompte?",
+                    startAutomatedTallyMessage:
+                        "Seleccioneu 'Start Tally' per executar el procés de recompte i mostrar els resultats, o 'Close' per cancel·lar.",
                 },
             },
             table: {
@@ -1850,7 +1894,7 @@ const catalanTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Llista d'OV que es van preinscriure però van ser rebutjats",
                 LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
-                OV_TURNOUT_PERCENTAGE: "Participació dels Votants a l'Estranger",
+                VOTERS_TURNOUT_PERCENTAGE: "Participació dels Votants",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:

@@ -15,6 +15,9 @@ const basqueTranslation: TranslationType = {
             confirmation: "Berrespena",
             audit: "Auditoria",
         },
+        footer: {
+            poweredBy: "Honek bultzatuta: <sequent />",
+        },
         votingScreen: {
             backButton: "Atzera",
             reviewButton: "Hurrengoa",
@@ -336,6 +339,9 @@ const basqueTranslation: TranslationType = {
             notFound: "Zure bozketa IDa {{ballotId}} ez da lokalizatu",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
+            ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",
+            filterByBallotId: "Filtratu Bozketa IDa",
+            totalBallots: "Bozketa kopurua: {{total}}",
             steps: {
                 lookup: "Lokalizatu zure Bozketa",
                 result: "Emaitza",
@@ -345,6 +351,16 @@ const basqueTranslation: TranslationType = {
                 content:
                     "Pantaila honek bozkatzaileari bere botoa aurkitzeko aukera ematen dio Bozketa IDa erabiliz berreskuratzeko. Prozedura honek beren bozketa zuzen eman dela eta erregistratutako bozketa bidali zuten zifratutako bozketarekin bat datorrela egiaztatzeko aukera ematen du.",
                 ok: "Ados",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Bozketa Lokalizatzaile",
+            },
+            column: {
+                statement_kind: "Adierazpen mota",
+                statement_timestamp: "Adierazpen denbora-marka",
+                username: "Erabiltzaile izena",
+                ballot_id: "Bozketa IDa",
             },
         },
     },

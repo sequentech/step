@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
+
+import BallotLocator from "../routes/BallotLocator"
+
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
@@ -12,6 +15,9 @@ const englishTranslation = {
             review: "Review",
             confirmation: "Confirmation",
             audit: "Audit",
+        },
+        footer: {
+            poweredBy: "Powered by <sequent />",
         },
         votingScreen: {
             backButton: "Back",
@@ -329,6 +335,10 @@ const englishTranslation = {
             notFound: "Your ballot ID {{ballotId}} has not been located",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Wrong format for Ballot ID",
+            ballotIdNotFoundAtFilter:
+                "Not found, check that your Ballot ID is correct and belongs to this user.",
+            filterByBallotId: "Filter by Ballot ID",
+            totalBallots: "Total Ballots: {{total}}",
             steps: {
                 lookup: "Locate your Ballot",
                 result: "Result",
@@ -338,6 +348,16 @@ const englishTranslation = {
                 content:
                     "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Ballot Locator",
+            },
+            column: {
+                statement_kind: "Statement kind",
+                statement_timestamp: "Statement Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
             },
         },
     },

@@ -64,7 +64,9 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Pinapagana ng",
+        footer: {
+            poweredBy: "Pinapagana ng <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Hindi sapat ang mga pagpili upang ma-decode",

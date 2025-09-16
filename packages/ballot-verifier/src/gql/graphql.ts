@@ -76,6 +76,14 @@ export type Boolean_Comparison_Exp = {
     _nin?: InputMaybe<Array<Scalars["Boolean"]["input"]>>
 }
 
+export type CastVoteEntry = {
+    __typename?: "CastVoteEntry"
+    ballot_id: Scalars["String"]["output"]
+    statement_kind: Scalars["String"]["output"]
+    statement_timestamp: Scalars["Int"]["output"]
+    username: Scalars["String"]["output"]
+}
+
 export type CastVotesByIp = {
     __typename?: "CastVotesByIp"
     country?: Maybe<Scalars["String"]["output"]>
@@ -167,6 +175,7 @@ export type CreateElectionOutput = {
 export type CreateKeysCeremonyInput = {
     election_event_id: Scalars["String"]["input"]
     election_id?: InputMaybe<Scalars["String"]["input"]>
+    is_automatic_ceremony?: InputMaybe<Scalars["Boolean"]["input"]>
     name?: InputMaybe<Scalars["String"]["input"]>
     threshold: Scalars["Int"]["input"]
     trustee_names?: InputMaybe<Array<Scalars["String"]["input"]>>
@@ -202,7 +211,9 @@ export type DataListPgAudit = {
 
 export type DeleteElectionEvent = {
     __typename?: "DeleteElectionEvent"
+    error_msg?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type DeleteUserOutput = {
@@ -302,11 +313,13 @@ export type ElectoralLogFilter = {
 }
 
 export type ElectoralLogOrderBy = {
+    ballot_id?: InputMaybe<OrderDirection>
     created?: InputMaybe<OrderDirection>
     id?: InputMaybe<OrderDirection>
     statement_kind?: InputMaybe<OrderDirection>
     statement_timestamp?: InputMaybe<OrderDirection>
     user_id?: InputMaybe<OrderDirection>
+    username?: InputMaybe<OrderDirection>
 }
 
 export type ElectoralLogRow = {
@@ -363,6 +376,13 @@ export type ExportOptions = {
     s3_files?: InputMaybe<Scalars["Boolean"]["input"]>
     scheduled_events?: InputMaybe<Scalars["Boolean"]["input"]>
     tally?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+export type ExportTallyResultsOutput = {
+    __typename?: "ExportTallyResultsOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution: Tasks_Execution_Type
 }
 
 export type ExportTasksExecutionOutput = {
@@ -681,6 +701,12 @@ export type LimitAccessByCountriesOutput = {
     success?: Maybe<Scalars["Boolean"]["output"]>
 }
 
+export type ListCastVoteMessagesOutput = {
+    __typename?: "ListCastVoteMessagesOutput"
+    list: Array<Maybe<CastVoteEntry>>
+    total: Scalars["Int"]["output"]
+}
+
 export type ListKeysCeremonyOutput = {
     __typename?: "ListKeysCeremonyOutput"
     items: Array<KeysCeremony>
@@ -790,6 +816,13 @@ export enum PgAuditTable {
 export type PluginsRouteOutput = {
     __typename?: "PluginsRouteOutput"
     data?: Maybe<Scalars["jsonb"]["output"]>
+}
+
+export type PrepareBallotPublicationPreviewOutput = {
+    __typename?: "PrepareBallotPublicationPreviewOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type PublishBallotOutput = {
@@ -1250,6 +1283,7 @@ export type Mutation_Root = {
     export_election_event?: Maybe<ExportElectionEventOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
+    export_tally_results?: Maybe<ExportTallyResultsOutput>
     export_tasks_execution?: Maybe<ExportTasksExecutionOutput>
     export_template?: Maybe<ExportTemplateOutput>
     export_tenant_config?: Maybe<DocumentTaskOutput>
@@ -1425,6 +1459,7 @@ export type Mutation_Root = {
     insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>
     limit_access_by_countries?: Maybe<LimitAccessByCountriesOutput>
     manage_election_dates?: Maybe<ManageElectionDatesOutput>
+    prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>
     publish_ballot?: Maybe<PublishBallotOutput>
     /** publish_tally_sheet */
     publish_tally_sheet?: Maybe<PublishTallyOutput>
@@ -2325,6 +2360,12 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootExport_Tally_ResultsArgs = {
+    election_event_id: Scalars["String"]["input"]
+    tally_session_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootExport_Tasks_ExecutionArgs = {
     election_event_id: Scalars["String"]["input"]
     tenant_id: Scalars["String"]["input"]
@@ -2939,6 +2980,12 @@ export type Mutation_RootManage_Election_DatesArgs = {
     election_id?: InputMaybe<Scalars["String"]["input"]>
     event_processor: Scalars["String"]["input"]
     scheduled_date?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootPrepare_Ballot_Publication_PreviewArgs = {
+    ballot_publication_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -4092,6 +4139,8 @@ export type Query_Root = {
     listElectoralLog?: Maybe<DataListElectoralLog>
     /** List PostgreSQL audit logs */
     listPgaudit?: Maybe<DataListPgAudit>
+    /** List electoral log entries of statement_kind CastVote */
+    list_cast_vote_messages?: Maybe<ListCastVoteMessagesOutput>
     list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>
     list_user_roles: Array<KeycloakRole>
     /** log an event in immudb */
@@ -4375,6 +4424,16 @@ export type Query_RootListPgauditArgs = {
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
     order_by?: InputMaybe<PgAuditOrderBy>
+}
+
+export type Query_RootList_Cast_Vote_MessagesArgs = {
+    ballot_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<ElectoralLogOrderBy>
+    tenant_id: Scalars["String"]["input"]
 }
 
 export type Query_RootList_Keys_CeremonyArgs = {

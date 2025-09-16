@@ -244,6 +244,15 @@ fn get_insert_user_query(
             }
         })
         .collect();
+
+    // Conditionally create the SELECT statement for email_verified.
+    // If the column doesn't exist in the source table, default to true.
+    let email_verified_select = if voters_table_columns.contains(&"email_verified".to_string()) {
+        "COALESCE(email_verified::boolean, true)".to_string()
+    } else {
+        "true".to_string()
+    };
+
     let user_entity_query = format!(
         r#"INSERT INTO user_entity (
                     realm_id,
@@ -253,7 +262,7 @@ fn get_insert_user_query(
                 )
                 SELECT
                     '{realm_id}',
-                    COALESCE(email_verified::boolean, true),
+                    {email_verified_select},
                     (extract(epoch from now()) * 1000)::bigint,
                     {}
                 FROM
