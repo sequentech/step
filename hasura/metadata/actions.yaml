@@ -1360,6 +1360,9 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: KIOSK
+              - description: null
+                is_deprecated: null
+                value: EARLY_VOTING
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter

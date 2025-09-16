@@ -81,7 +81,9 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
     })
 
     const getAllowEarlyVotingDefaultValue = () => {
-        return area_presentation ? area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING : false
+        return area_presentation
+            ? area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
+            : false
     }
 
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
@@ -121,7 +123,9 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     annotations: values.annotations,
                     labels: values.labels,
                     type: values.type,
-                    allow_early_voting: values.allow_early_voting_boolean ? EarlyVotingPolicy.AllowEarlyVoting : EarlyVotingPolicy.NoEarlyVoting,
+                    allow_early_voting: values.allow_early_voting_boolean
+                        ? EarlyVotingPolicy.AllowEarlyVoting
+                        : EarlyVotingPolicy.NoEarlyVoting,
                 },
             })
             refresh()

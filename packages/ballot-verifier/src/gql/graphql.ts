@@ -988,6 +988,7 @@ export enum VotingStatus {
 }
 
 export enum VotingStatusChannel {
+    EarlyVoting = "EARLY_VOTING",
     Kiosk = "KIOSK",
     Online = "ONLINE",
 }

@@ -7771,6 +7771,12 @@
         "interfaces": null,
         "enumValues": [
           {
+            "name": "EARLY_VOTING",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "KIOSK",
             "description": null,
             "isDeprecated": false,
