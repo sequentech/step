@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
-import {UpsertAreaMutation} from "@/gql/graphql"
+import {EarlyVotingPolicy, UpsertAreaMutation} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {UPSERT_AREA} from "@/queries/UpsertArea"
@@ -53,7 +53,7 @@ const StyledCheckbox = styled(Checkbox)({
  * - Supports contest selection with autocomplete and filtering.
  */
 export const FormContent: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close} = props
+    const {record, id, electionEventId, close, area_presentation} = props
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -80,6 +80,10 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
         ],
     })
 
+    const getAllowEarlyVotingDefaultValue = () => {
+        return area_presentation ? area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING : false
+    }
+
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
         variables: {
             electionEventId,
@@ -88,20 +92,6 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
     })
     const parseValues = (incoming: any) => {
         const temp = {...incoming}
-        console.log(temp.presentation)
-        
-        // Parse existing presentation to set initial allowEarlyVoting value
-        if (temp.presentation) {
-            try {
-                const presentation: IAreaPresentation = JSON.parse(temp.presentation)
-                temp.allowEarlyVoting = presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
-            } catch (e) {
-                temp.allowEarlyVoting = false
-            }
-        } else {
-            temp.allowEarlyVoting = false
-        }
-
         temp.area_contest_ids = areas?.sequent_backend_area_contest?.map(
             (area: any) => area.contest.id
         )
@@ -118,11 +108,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     return
                 }
             }
-            
-            const allow_early_voting = values.allowEarlyVoting 
-                    ? EEarlyVotingPolicy.ALLOW_EARLY_VOTING 
-                    : EEarlyVotingPolicy.NO_EARLY_VOTING
-            
+
             const {data} = await upsertArea({
                 variables: {
                     id: values.id,
@@ -135,7 +121,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     annotations: values.annotations,
                     labels: values.labels,
                     type: values.type,
-                    allow_early_voting,
+                    allow_early_voting: values.allow_early_voting_boolean ? EarlyVotingPolicy.AllowEarlyVoting : EarlyVotingPolicy.NoEarlyVoting,
                 },
             })
             refresh()
@@ -160,7 +146,6 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming)
-                console.log(parsedValue)
                 return (
                     <SimpleForm
                         record={parsedValue}
@@ -219,8 +204,9 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                                 />
                             </>
                         ) : null}
-                        <BooleanInput 
-                            source="allowEarlyVoting" 
+                        <BooleanInput
+                            source="allow_early_voting_boolean"
+                            defaultValue={getAllowEarlyVotingDefaultValue()}
                             label={t("areas.formImputs.allowEarlyVoting")}
                         />
                     </SimpleForm>
