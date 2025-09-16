@@ -1958,6 +1958,7 @@ pub struct BallotStyle {
     pub description: Option<String>,
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: String,
+    pub area_presentation: Option<AreaPresentation>,
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
