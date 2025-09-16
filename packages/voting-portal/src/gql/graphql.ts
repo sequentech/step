@@ -226,7 +226,7 @@ export type DeleteUsersOutput = {
 
 export enum EarlyVotingPolicy {
   AllowEarlyVoting = 'allow_early_voting',
-  NoEarlyVvoting = 'no_early_vvoting'
+  NoEarlyVoting = 'no_early_voting'
 }
 
 export type EditUsersInput = {
