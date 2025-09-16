@@ -284,7 +284,8 @@ pub async fn get_area_by_id(
                 name,
                 description,
                 type,
-                parent_id
+                parent_id,
+                presentation
             FROM
                 sequent_backend.area
             WHERE
@@ -373,9 +374,9 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
         .prepare(
             r#"
                 INSERT INTO sequent_backend.area
-                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id)
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id, presentation)
                 VALUES
-                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9);
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10);
             "#,
         )
         .await?;
@@ -399,6 +400,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
                     &area.description,
                     &area.r#type,
                     &parent_id,
+                    &area.presentation,
                 ],
             )
             .await
