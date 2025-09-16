@@ -20,6 +20,7 @@ const IMMUDB_DEFAULT_OFFSET: usize = 0;
 const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;
+const ELECTION_IDS_LENGTH: usize = 256;
 /// Longest possible statement kind must be < 40
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
@@ -664,6 +665,7 @@ impl BoardClient {
         Ok(())
     }
 
+    #[instrument(skip(self, messages))]
     pub async fn insert_electoral_log_messages(
         &mut self,
         board_db: &str,
@@ -837,7 +839,7 @@ impl BoardClient {
             version VARCHAR,
             user_id VARCHAR[{ID_VARCHAR_LENGTH}],
             username VARCHAR,
-            election_id VARCHAR[{ID_VARCHAR_LENGTH}],
+            election_id VARCHAR[{ELECTION_IDS_LENGTH}],
             area_id VARCHAR[{ID_VARCHAR_LENGTH}],
             ballot_id VARCHAR[{BALLOT_ID_VARCHAR_LENGTH}],
             PRIMARY KEY id

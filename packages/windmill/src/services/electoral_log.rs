@@ -631,6 +631,7 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
