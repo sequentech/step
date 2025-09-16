@@ -1487,8 +1487,10 @@ pub struct ElectionEventStatus {
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
     pub kiosk_voting_status: VotingStatus,
+    pub early_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
+    pub early_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionEventStatus {
@@ -1497,8 +1499,10 @@ impl Default for ElectionEventStatus {
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
+            early_voting_period_dates: Default::default(),
         }
     }
 }
@@ -1511,6 +1515,9 @@ impl ElectionEventStatus {
         match channel {
             &VotingStatusChannel::ONLINE => self.voting_status.clone(),
             &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            &VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status.clone()
+            }
         }
     }
 
@@ -1527,6 +1534,10 @@ impl ElectionEventStatus {
             &VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_status = new_status.clone();
                 &mut self.kiosk_voting_period_dates
+            }
+            &VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status = new_status.clone();
+                &mut self.early_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
@@ -1604,6 +1615,7 @@ pub enum AllowTallyStatus {
 pub enum VotingStatusChannel {
     ONLINE,
     KIOSK,
+    EARLY_VOTING,
 }
 
 impl VotingStatusChannel {
@@ -1614,6 +1626,7 @@ impl VotingStatusChannel {
         match self {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
             &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
+            &VotingStatusChannel::EARLY_VOTING => channels.early_voting.clone(),
         }
     }
 }
@@ -1878,8 +1891,10 @@ pub struct ElectionStatus {
     pub voting_status: VotingStatus,
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
+    pub early_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
+    pub early_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
 }
 
@@ -1890,8 +1905,10 @@ impl Default for ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
+            early_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
         }
     }
@@ -1905,6 +1922,9 @@ impl ElectionStatus {
         match channel {
             &VotingStatusChannel::ONLINE => self.voting_status.clone(),
             &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            &VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status.clone()
+            }
         }
     }
 
@@ -1916,6 +1936,9 @@ impl ElectionStatus {
             &VotingStatusChannel::ONLINE => self.voting_period_dates.clone(),
             &VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_period_dates.clone()
+            }
+            &VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_period_dates.clone()
             }
         }
     }
@@ -1933,6 +1956,10 @@ impl ElectionStatus {
             &VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_status = new_status.clone();
                 &mut self.kiosk_voting_period_dates
+            }
+            &VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status = new_status.clone();
+                &mut self.early_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
