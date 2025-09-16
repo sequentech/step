@@ -156,6 +156,7 @@ Create documents and tutorials about the voters tab, adding User Attributes to k
  or how to create reports and templates.
 
 ## ✨Tally - Add the option to export event tally results in xlsx format
+
 In Results & Participation Section, Add a new action to ACTIONS button at the event level
 to export results in xlsx format. This will read the data from the sqlite file
 and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
@@ -165,3 +166,20 @@ and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
 Add a class name and the is-start attribute to the HTML of the select elections
  screen at the voting portal to control the CSS from the admin portal.
 "is-start" attribute added to the SelectElection component in ui-essentials.
+
+## 🐞 Multiple Finished Tally Ceremony logs
+
+Finished Tally Ceremony logs were repeated multiple times (each time the task is
+executed). Now the logs say "Updated Tally Ceremony" each time unless the
+Tally is completed.
+
+## ✨ Review UI accessibility
+
+Using the IBM tool https://www.ibm.com/able/toolkit/tools/#develop , review the
+accessibility for the Voting Portal and Ballot Verifier.
+
+## 🐞 Text gets out of the Publish buttons in the admin portal
+
+Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
+label of the Publish buttons are too long for a given language, i.e. spanish.
+Also shortened the spanish translations.

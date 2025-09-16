@@ -11,6 +11,6 @@ const PageBanner = styled(Stack)`
     margin-right: auto;
     margin-left: auto;
     align-items: center;
-`
+` as typeof Stack
 
 export default PageBanner
