@@ -646,6 +646,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [importVotersDelegation] =
         useMutation<ImportVotersDelegationMutation>(IMPORT_VOTERS_DELEGATION)
 
+    const enabledVotersDelegationsPolicy =
+        electionEvent?.presentation?.delegations_policy === "enabled"
+
     /**
      * added custom filter actions menu
      */
@@ -664,13 +667,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                   </Button>,
               ]
             : []),
-        ...(canImportVotersDelegations
+        ...(canImportVotersDelegations && electionEventId && enabledVotersDelegationsPolicy
             ? [
                   <Button
                       key="import"
                       onClick={handleClickImportDelegations}
                       className="voter-import-button"
                   >
+                      {/** TODO: add translations */}
                       Import Voters Delegations
                   </Button>,
               ]
@@ -891,30 +895,31 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }
 
-    const handleImportDelegations = async (documentId: string, sha256: string) => {
+    const handleImportDelegations = async (documentId: string) => {
         setOpenImportDelegationsDrawer(false)
-        const currWidget = addWidget(ETasksExecution.IMPORT_VOTERS_DELEGATIONS)
-        try {
-            let {data, errors} = await importVotersDelegation({
-                variables: {
-                    tenantId,
-                    documentId,
-                    electionEventId: electionEventId || undefined,
-                    sha256,
-                },
-            })
-            const task_id = data?.import_voters_delegation?.task_execution.id
-            setWidgetTaskId(currWidget.identifier, task_id)
+        if (electionEventId) {
+            const currWidget = addWidget(ETasksExecution.IMPORT_VOTERS_DELEGATIONS)
+            try {
+                let {data, errors} = await importVotersDelegation({
+                    variables: {
+                        tenantId,
+                        documentId,
+                        electionEventId: electionEventId,
+                    },
+                })
+                const task_id = data?.import_voters_delegation?.task_execution.id
+                setWidgetTaskId(currWidget.identifier, task_id)
 
-            refresh()
+                refresh()
 
-            if (errors) {
-                // TODO: Change text
+                if (errors) {
+                    // TODO: Change text
+                    updateWidgetFail(currWidget.identifier)
+                    notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
+                }
+            } catch (err) {
                 updateWidgetFail(currWidget.identifier)
-                notify(t("electionEventScreen.import.importVotersError"), {type: "error"})
             }
-        } catch (err) {
-            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -1383,6 +1388,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 paragraph=""
                 doImport={handleImportDelegations}
                 errors={null}
+                enableSha={false}
             />
         </>
     )

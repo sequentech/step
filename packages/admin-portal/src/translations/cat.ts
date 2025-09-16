@@ -346,6 +346,13 @@ const catalanTranslation: TranslationType = {
                         "manual-ceremonies": "Cerimònies manuals",
                     },
                 },
+                delegationsPolicy: {
+                    policyLabel: "Política de Delegacions dels Votants",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",

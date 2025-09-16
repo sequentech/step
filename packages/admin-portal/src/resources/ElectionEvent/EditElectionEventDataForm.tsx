@@ -54,6 +54,7 @@ import {
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
+    EElectionEventDelegationsPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -636,6 +637,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const delegationPolicyOptions = () => {
+        return Object.values(EElectionEventDelegationsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.delegationsPolicy.options.${value}`),
+        }))
+    }
+
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
     const updateCustomFilters = (
@@ -1158,6 +1166,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         defaultValue={
                                             EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
                                         }
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.delegations_policy"}
+                                        choices={delegationPolicyOptions()}
+                                        label={t(
+                                            "electionEventScreen.field.delegationsPolicy.policyLabel"
+                                        )}
                                         emptyText={undefined}
                                         validate={required()}
                                     />

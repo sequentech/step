@@ -2565,7 +2565,6 @@ export type Mutation_RootImport_UsersArgs = {
 export type Mutation_RootImport_Voters_DelegationArgs = {
   document_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
-  sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 

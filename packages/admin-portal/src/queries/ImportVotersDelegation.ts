@@ -8,13 +8,11 @@ export const IMPORT_VOTERS_DELEGATION = gql`
         $tenantId: String!
         $electionEventId: String!
         $documentId: String!
-        $sha256: String
     ) {
         import_voters_delegation(
             tenant_id: $tenantId
             election_event_id: $electionEventId
             document_id: $documentId
-            sha256: $sha256
         ) {
             task_execution {
                 id

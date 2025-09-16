@@ -346,6 +346,13 @@ const spanishTranslation: TranslationType = {
                         "manual-ceremonies": "Ceremonias manuales",
                     },
                 },
+                delegationsPolicy: {
+                    policyLabel: "Política de Delegaciones de los Votantes",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",

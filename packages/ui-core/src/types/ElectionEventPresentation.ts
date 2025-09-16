@@ -75,6 +75,11 @@ export enum EElectionEventCeremoniesPolicy {
     AUTOMATED_CEREMONIES = "automated-ceremonies",
 }
 
+export enum EElectionEventDelegationsPolicy {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -94,4 +99,5 @@ export interface IElectionEventPresentation {
     enrollment: EElectionEventEnrollment
     otp: EElectionEventOTP
     ceremonies_policy: EElectionEventCeremoniesPolicy
+    delegations_policy: EElectionEventDelegationsPolicy
 }

@@ -346,6 +346,13 @@ const basqueTranslation: TranslationType = {
                         "manual-ceremonies": "Eskuzko zeremoniak",
                     },
                 },
+                delegationsPolicy: {
+                    policyLabel: "Boto-emaileen Ordezkaritza Politika",
+                    options: {
+                        enabled: "Gaituta",
+                        disabled: "Desgaituta",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",

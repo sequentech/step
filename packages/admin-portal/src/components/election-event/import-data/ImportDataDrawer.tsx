@@ -21,6 +21,7 @@ interface ImportVotersTabsProps {
     disableImport?: boolean
     uploadCallback?: (documentId: string) => Promise<void> | null
     errors?: string | null
+    enableSha?: boolean
 }
 
 export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
@@ -33,6 +34,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
     disableImport,
     uploadCallback = null,
     errors,
+    enableSha = true,
 }) => {
     const {t} = useTranslation()
 
@@ -70,6 +72,7 @@ export const ImportDataDrawer: React.FC<ImportVotersTabsProps> = ({
                                 disableImport={disableImport || !!importErrors}
                                 uploadCallback={uploadCallback ? uploadCallback : doUploadCallback}
                                 errors={errors || importErrors}
+                                enableSha={enableSha}
                             />
                         </>
                     </DrawerStyles.Wrapper>

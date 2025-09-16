@@ -346,6 +346,13 @@ const galegoTranslation: TranslationType = {
                         "manual-ceremonies": "Cerimonias manuais",
                     },
                 },
+                delegationsPolicy: {
+                    policyLabel: "Política de Delegacións dos Votantes",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
             },
             error: {
                 endDate: "A data de fin debe ser posterior á data de inicio",

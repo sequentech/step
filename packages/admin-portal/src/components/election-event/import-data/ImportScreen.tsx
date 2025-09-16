@@ -19,6 +19,7 @@ interface ImportScreenProps {
     errors: string | null
     disableImport?: boolean
     refresh?: string
+    enableSha?: boolean
 }
 
 export const ImportStyles = {
@@ -40,7 +41,15 @@ const PasswordInputStyle = styled(FormStyles.PasswordInput)`
 
 export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
     (props: ImportScreenProps): React.JSX.Element => {
-        const {doCancel, uploadCallback, doImport, disableImport, refresh, errors} = props
+        const {
+            doCancel,
+            uploadCallback,
+            doImport,
+            disableImport,
+            refresh,
+            errors,
+            enableSha = true,
+        } = props
         const {t} = useTranslation()
         const notify = useNotify()
         const [loading, setLoading] = useState<boolean>(false)
@@ -144,15 +153,17 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
 
         return (
             <Box sx={{padding: "0"}}>
-                <TextField
-                    disabled={isWorking()}
-                    label={t("electionEventScreen.import.sha")}
-                    size="small"
-                    value={shaField}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                        setShaField(e.target.value)
-                    }
-                />
+                {enableSha && (
+                    <TextField
+                        disabled={isWorking()}
+                        label={t("electionEventScreen.import.sha")}
+                        size="small"
+                        value={shaField}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setShaField(e.target.value)
+                        }
+                    />
+                )}
 
                 <DropFile handleFiles={async (files) => handleFiles(files)} />
 

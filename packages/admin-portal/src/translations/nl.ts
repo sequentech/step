@@ -344,6 +344,13 @@ const dutchTranslation: TranslationType = {
                         "manual-ceremonies": "Handmatige ceremonies",
                     },
                 },
+                delegationsPolicy: {
+                    policyLabel: "Beleid voor Kiezersdelegaties",
+                    options: {
+                        enabled: "Ingeschakeld",
+                        disabled: "Uitgeschakeld",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",

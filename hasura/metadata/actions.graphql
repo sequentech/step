@@ -421,7 +421,6 @@ type Mutation {
         tenant_id: String!
         election_event_id: String!
         document_id: String!
-        sha256: String
     ): taskOutput
 }
 

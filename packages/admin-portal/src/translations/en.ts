@@ -345,6 +345,13 @@ const englishTranslation = {
                         "manual-ceremonies": "Manual Ceremonies",
                     },
                 },
+                delegationsPolicy: {
+                    policyLabel: "Voters Delegations Policy",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",

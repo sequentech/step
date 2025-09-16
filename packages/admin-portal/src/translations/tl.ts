@@ -345,6 +345,13 @@ const tagalogTranslation: TranslationType = {
                         "manual-ceremonies": "Mga Manu-manong Seremonya",
                     },
                 },
+                delegationsPolicy: {
+                    policyLabel: "Patakaran sa Delegasyon ng mga Botante",
+                    options: {
+                        enabled: "Naka-enable",
+                        disabled: "Naka-disable",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",
