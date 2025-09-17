@@ -160,6 +160,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             return (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
         }
 
+        const onlineModeEnabled = () => {
+            return (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
+        }
+
+        const earlyVotingEnabled = () => {
+            return (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
+        }
+
         const onGenerate = async () => {
             try {
                 setViewMode(ViewMode.Edit)
@@ -427,6 +435,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         publishType={type}
                         canWrite={canWrite}
                         kioskModeEnabled={kioskModeEnabled()}
+                        onlineModeEnabled={onlineModeEnabled()}
+                        earlyVotingEnabled={earlyVotingEnabled()}
                         changingStatus={changingStatus}
                         electionId={electionId}
                         onGenerate={onGenerate}

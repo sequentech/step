@@ -49,6 +49,8 @@ type TPublishList = {
     canRead: boolean
     canWrite: boolean
     kioskModeEnabled: boolean
+    onlineModeEnabled: boolean
+    earlyVotingEnabled: boolean
     changingStatus: boolean
     publishType: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
@@ -65,6 +67,8 @@ export const PublishList: React.FC<TPublishList> = ({
     electionId,
     electionEventId,
     kioskModeEnabled,
+    onlineModeEnabled,
+    earlyVotingEnabled,
     changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
@@ -152,6 +156,8 @@ export const PublishList: React.FC<TPublishList> = ({
                         electionPresentation={electionPresentation}
                         changingStatus={changingStatus}
                         kioskModeEnabled={kioskModeEnabled}
+                        onlineModeEnabled={onlineModeEnabled}
+                        earlyVotingEnabled={earlyVotingEnabled}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         type={EPublishActionsType.List}

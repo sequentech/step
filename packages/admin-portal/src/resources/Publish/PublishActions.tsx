@@ -7,7 +7,7 @@ import React, {useContext, useEffect, useState} from "react"
 import styled from "@emotion/styled"
 import {styled as muiStyled} from "@mui/material/styles"
 
-import {CircularProgress, Typography} from "@mui/material"
+import {CircularProgress, Typography, Menu, MenuItem} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -64,6 +64,8 @@ export type PublishActionsProps = {
     electionStatus: IElectionStatus | null
     electionPresentation: IElectionPresentation | null
     kioskModeEnabled: boolean
+    onlineModeEnabled: boolean
+    earlyVotingEnabled: boolean
     changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void
@@ -77,6 +79,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     type,
     status,
     kioskModeEnabled,
+    onlineModeEnabled,
+    earlyVotingEnabled,
     electionStatus,
     electionPresentation,
     changingStatus,
@@ -102,6 +106,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
+    const [startAnchorEl, setStartAnchorEl] = useState<null | HTMLElement>(null)
+    const startMenuOpen = Boolean(startAnchorEl)
 
     const {
         canPublishRegenerate,
@@ -178,7 +184,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     // Handler for navigating after a re-authentication action.
-    let reauthCallback = (baseUrl: URL, action: EPublishActions) => {
+    let reauthCallback = (
+        baseUrl: URL,
+        action: EPublishActions,
+        voting_channels?: VotingStatusChannel[]
+    ) => {
         if (publishType === EPublishType.Event) {
             const electionEventPublishTabIndex = localStorage.getItem(
                 "electionEventPublishTabIndex"
@@ -189,6 +199,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
         }
         sessionStorage.setItem(action, "true")
+        if (voting_channels && action === EPublishActions.PENDING_START_VOTING) {
+            try {
+                sessionStorage.setItem(
+                    `${EPublishActions.PENDING_START_VOTING}_CHANNELS`,
+                    JSON.stringify(voting_channels)
+                )
+            } catch (e) {
+                console.warn("Could not persist selected channels for re-auth", e)
+            }
+        }
     }
 
     /**
@@ -220,7 +240,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    reauthCallback(baseUrl, action)
+                    reauthCallback(baseUrl, action, voting_channels)
                     await reauthWithGold(baseUrl.toString())
                 } else {
                     onChangeStatus(status, voting_channels)
@@ -303,8 +323,20 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
             const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
             if (pendingStart) {
-                isGold && onChangeStatus(ElectionEventStatus.Open)
+                let selectedChannels: VotingStatusChannel[] | undefined = undefined
+                try {
+                    const channelsStr = sessionStorage.getItem(
+                        `${EPublishActions.PENDING_START_VOTING}_CHANNELS`
+                    )
+                    if (channelsStr) {
+                        selectedChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
+                    }
+                } catch (e) {
+                    console.warn("Could not restore selected channels after re-auth", e)
+                }
+                isGold && onChangeStatus(ElectionEventStatus.Open, selectedChannels)
                 sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
+                sessionStorage.removeItem(`${EPublishActions.PENDING_START_VOTING}_CHANNELS`)
             }
 
             const pendingPause = sessionStorage.getItem(EPublishActions.PENDING_PAUSE_VOTING)
@@ -357,27 +389,75 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {showPublishColumns ? <SelectColumnsButton /> : null}
                             {showPublishFilters ? <FilterButton /> : null}
                             {canChangeStatus && canPublishStartVoting && (
-                                <StatusButton
-                                    onClick={() =>
-                                        handleChangeVotingPeriod(
-                                            EPublishActions.PENDING_START_VOTING,
-                                            ElectionEventStatus.Open
-                                        )
-                                    }
-                                    label={t("publish.action.startVotingPeriod")}
-                                    st={PublishStatus.Started}
-                                    Icon={PlayCircle}
-                                    disabledStatus={[
-                                        PublishStatus.Stopped,
-                                        PublishStatus.Started,
-                                        PublishStatus.GeneratedLoading,
-                                    ]}
-                                    disabled={
-                                        record?.presentation?.initialization_report_policy ===
-                                            EInitializeReportPolicy.REQUIRED &&
-                                        !record?.initialization_report_generated
-                                    }
-                                />
+                                <>
+                                    <StyledStatusButton
+                                        onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
+                                            setStartAnchorEl(e.currentTarget)
+                                        }
+                                        className={"startVotingMenu"}
+                                        label={t("publish.action.startVotingPeriod")}
+                                        disabled={
+                                            changingStatus ||
+                                            [
+                                                PublishStatus.Stopped,
+                                                PublishStatus.Started,
+                                                PublishStatus.GeneratedLoading,
+                                            ].includes(status) ||
+                                            (record?.presentation?.initialization_report_policy ===
+                                                EInitializeReportPolicy.REQUIRED &&
+                                                !record?.initialization_report_generated)
+                                        }
+                                    >
+                                        <IconOrProgress st={PublishStatus.Started} Icon={PlayCircle} />
+                                    </StyledStatusButton>
+                                    <Menu
+                                        anchorEl={startAnchorEl}
+                                        open={startMenuOpen}
+                                        onClose={() => setStartAnchorEl(null)}
+                                        anchorOrigin={{vertical: "bottom", horizontal: "right"}}
+                                        transformOrigin={{vertical: "top", horizontal: "right"}}
+                                    >
+                                        <MenuItem
+                                            disabled={!kioskModeEnabled}
+                                            onClick={() => {
+                                                setStartAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_START_VOTING,
+                                                    ElectionEventStatus.Open,
+                                                    [VotingStatusChannel.Kiosk]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.startKioskVoting")}
+                                        </MenuItem>
+                                        <MenuItem
+                                            disabled={!onlineModeEnabled}
+                                            onClick={() => {
+                                                setStartAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_START_VOTING,
+                                                    ElectionEventStatus.Open,
+                                                    [VotingStatusChannel.Online]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.startOnlineVoting")}
+                                        </MenuItem>
+                                        <MenuItem
+                                            disabled={!earlyVotingEnabled}
+                                            onClick={() => {
+                                                setStartAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_START_VOTING,
+                                                    ElectionEventStatus.Open,
+                                                    [VotingStatusChannel.EarlyVoting]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.startEarlyVoting")}
+                                        </MenuItem>
+                                    </Menu>
+                                </>
                             )}
 
                             {canChangeStatus && canPublishPauseVoting && (
