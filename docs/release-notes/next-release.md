@@ -115,3 +115,9 @@ Tally is completed.
 Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
 label of the Publish buttons are too long for a given language, i.e. spanish.
 Also shortened the spanish translations.
+
+## 🐞 Error message in voting portal should be a warning
+
+Sometimes the voting portal shows an alert dialog but the ballot is a valid
+ballot. In this case the dialog text should be different than in the case of
+an invalid/blank ballot.

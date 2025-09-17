@@ -271,6 +271,7 @@ const VotingScreen: React.FC = () => {
     let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
+    const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
     const {
@@ -317,15 +318,16 @@ const VotingScreen: React.FC = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
-    function handlePrev() {
-        dispatch(clearIsVoted())
-    }
-
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         } else if (showNextDialog() || disableNextButton()) {
             setOpenNonVoted(true)
+
+            const newHasInvalidErrors = Object.values(decodedContests).some(
+                (a) => a?.invalid_errors.length > 0
+            )
+            setHasInvalidErrors(newHasInvalidErrors)
         } else {
             finallyEncryptAndReview()
         }
@@ -484,12 +486,30 @@ const VotingScreen: React.FC = () => {
                 <Dialog
                     handleClose={(value) => warnAllowContinue(value)}
                     open={openNotVoted}
-                    title={t("votingScreen.nonVotedDialog.title")}
-                    ok={t("votingScreen.nonVotedDialog.continue")}
-                    cancel={t("votingScreen.nonVotedDialog.cancel")}
+                    title={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.title"
+                            : "votingScreen.warningDialog.title"
+                    )}
+                    ok={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.continue"
+                            : "votingScreen.warningDialog.continue"
+                    )}
+                    cancel={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.cancel"
+                            : "votingScreen.warningDialog.cancel"
+                    )}
                     variant="action"
                 >
-                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                    {stringToHtml(
+                        t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.content"
+                                : "votingScreen.warningDialog.content"
+                        )
+                    )}
                 </Dialog>
             )}
         </PageLimit>

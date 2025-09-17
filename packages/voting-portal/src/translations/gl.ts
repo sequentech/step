@@ -34,6 +34,14 @@ const galegoTranslation: TranslationType = {
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
+            warningDialog: {
+                title: "Revisa a túa papeleta",
+                content:
+                    "A túa papeleta contén seleccións que poden necesitar a túa atención (como seleccionar menos opcións das permitidas). A túa papeleta é válida e contarase tal como se enviou.",
+                ok: "Voltar e revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
         },
         startScreen: {
             startButton: "Comezar a votar",
