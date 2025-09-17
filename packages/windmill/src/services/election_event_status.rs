@@ -87,7 +87,11 @@ pub async fn update_event_voting_status(
     } else {
         info!("Default voting channels");
         // Update all if none are configured
-        vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+        vec![
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+            VotingStatusChannel::EARLY_VOTING,
+        ]
     };
 
     if election_event.is_archived {
