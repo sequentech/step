@@ -454,6 +454,7 @@ pub async fn create_keys_ceremony(
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let election_ids = election_id.clone().map(|id| vec![id]);
     let electoral_log = ElectoralLog::for_admin_user(
         &transaction,
         &board_name,
@@ -461,7 +462,7 @@ pub async fn create_keys_ceremony(
         &election_event.id,
         user_id,
         Some(username.to_string()),
-        election_id.clone(),
+        election_ids.clone(),
         None,
     )
     .await?;

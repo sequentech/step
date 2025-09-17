@@ -164,3 +164,10 @@ Also shortened the spanish translations.
 
 Improve the details reported in the activity logs by adding more information like
 username, and reporting when the tally is started and completed.
+
+## 🐞 Can't create tally
+
+After adding indexes for the Electoral Log, the election_id field was limited to
+the size of one UUID but multiple UUIDs were stored when the Keys Ceremony was
+at Event level and there were multiple elections. Now only one or no election id is
+saved.
