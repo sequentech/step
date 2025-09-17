@@ -203,12 +203,13 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
         }
         sessionStorage.setItem(action, "true")
-        if (voting_channels && action === EPublishActions.PENDING_START_VOTING) {
+        if (voting_channels && (
+            action === EPublishActions.PENDING_START_VOTING ||
+            action === EPublishActions.PENDING_PAUSE_VOTING ||
+            action === EPublishActions.PENDING_STOP_VOTING
+        )) {
             try {
-                sessionStorage.setItem(
-                    `${EPublishActions.PENDING_START_VOTING}_CHANNELS`,
-                    JSON.stringify(voting_channels)
-                )
+                sessionStorage.setItem(`${action}_CHANNELS`, JSON.stringify(voting_channels))
             } catch (e) {
                 console.warn("Could not persist selected channels for re-auth", e)
             }
@@ -345,14 +346,38 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
             const pendingPause = sessionStorage.getItem(EPublishActions.PENDING_PAUSE_VOTING)
             if (pendingPause) {
-                isGold && onChangeStatus(ElectionEventStatus.Paused)
+                let selectedPauseChannels: VotingStatusChannel[] | undefined = undefined
+                try {
+                    const channelsStr = sessionStorage.getItem(
+                        `${EPublishActions.PENDING_PAUSE_VOTING}_CHANNELS`
+                    )
+                    if (channelsStr) {
+                        selectedPauseChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
+                    }
+                } catch (e) {
+                    console.warn("Could not restore selected pause channels after re-auth", e)
+                }
+                isGold && onChangeStatus(ElectionEventStatus.Paused, selectedPauseChannels)
                 sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
+                sessionStorage.removeItem(`${EPublishActions.PENDING_PAUSE_VOTING}_CHANNELS`)
             }
 
             const pendingStop = sessionStorage.getItem(EPublishActions.PENDING_STOP_VOTING)
             if (pendingStop) {
-                isGold && onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Online])
+                let selectedStopChannels: VotingStatusChannel[] | undefined = undefined
+                try {
+                    const channelsStr = sessionStorage.getItem(
+                        `${EPublishActions.PENDING_STOP_VOTING}_CHANNELS`
+                    )
+                    if (channelsStr) {
+                        selectedStopChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
+                    }
+                } catch (e) {
+                    console.warn("Could not restore selected stop channels after re-auth", e)
+                }
+                isGold && onChangeStatus(ElectionEventStatus.Closed, selectedStopChannels)
                 sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
+                sessionStorage.removeItem(`${EPublishActions.PENDING_STOP_VOTING}_CHANNELS`)
             }
 
             const pendingStopKiosk = sessionStorage.getItem(
