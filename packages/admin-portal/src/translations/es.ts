@@ -1635,6 +1635,9 @@ const spanishTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Generar Informe de Inicialización",
                 startVotingPeriod: "Comenzar votación",
+                startKioskVoting: "Comenzar Votación en Quiosco",
+                startOnlineVoting: "Comenzar Votación en Línea",
+                startEarlyVoting: "Comenzar Votación Anticipada",
                 stopVotingPeriod: "Detener votación",
                 stopKioskVotingPeriod: "Cerrar Quiosco",
                 pauseVotingPeriod: "Pausar votación",

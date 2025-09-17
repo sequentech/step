@@ -29,6 +29,7 @@ export enum EVotingStatus {
 export interface IVotingChannelsConfig {
     kiosk: boolean
     online: boolean
+    early_voting: boolean
 }
 
 export interface IPeriodDates {

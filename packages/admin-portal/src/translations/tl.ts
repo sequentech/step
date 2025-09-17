@@ -1638,6 +1638,9 @@ const tagalogTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
+                startKioskVoting: "Simulan ang Pagboto sa Kiosk",
+                startOnlineVoting: "Simulan ang Pagboto Online",
+                startEarlyVoting: "Simulan ang Maagang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
                 pauseVotingPeriod: "I-pause ang Pagboto",

@@ -1645,6 +1645,9 @@ const catalanTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
+                startKioskVoting: "Començar Votació al Quiosc",
+                startOnlineVoting: "Començar Votació en Línia",
+                startEarlyVoting: "Començar Votació Anticipada",
                 stopVotingPeriod: "Detenir el període de votació",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
                 pauseVotingPeriod: "Pausar el període de votació",

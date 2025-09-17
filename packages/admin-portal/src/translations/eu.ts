@@ -1631,6 +1631,9 @@ const basqueTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Sortu Hasierako Txostena",
                 startVotingPeriod: "Hasi Bozketa",
+                startKioskVoting: "Hasi Kiosko Bozketa",
+                startOnlineVoting: "Hasi Online Bozketa",
+                startEarlyVoting: "Hasi Aurre-botoa",
                 stopVotingPeriod: "Gelditu Bozketa",
                 stopKioskVotingPeriod: "Gelditu Kiosko Bozketa",
                 pauseVotingPeriod: "Pausatu Bozketa",

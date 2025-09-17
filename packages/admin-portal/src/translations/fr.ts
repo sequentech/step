@@ -1647,6 +1647,9 @@ const frenchTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
+                startKioskVoting: "Commencer Vote au Kiosque",
+                startOnlineVoting: "Commencer Vote en Ligne",
+                startEarlyVoting: "Commencer Vote Anticipé",
                 stopVotingPeriod: "Arrêter la période de vote",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
                 pauseVotingPeriod: "Mettre en pause la période de vote",

@@ -1636,6 +1636,9 @@ const galegoTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Xerar Informe de Inicialización",
                 startVotingPeriod: "Iniciar Votación",
+                startKioskVoting: "Iniciar Votación en Quiosco",
+                startOnlineVoting: "Iniciar Votación en Liña",
+                startEarlyVoting: "Iniciar Votación Anticipada",
                 stopVotingPeriod: "Detener Votación",
                 stopKioskVotingPeriod: "Detener Votación en Quiosco",
                 pauseVotingPeriod: "Pausar Votación",

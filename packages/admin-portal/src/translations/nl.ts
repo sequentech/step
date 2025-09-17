@@ -1631,6 +1631,9 @@ const dutchTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Initialisatierapport Genereren",
                 startVotingPeriod: "Stemperiode Starten",
+                startKioskVoting: "Kioskstemmen Starten",
+                startOnlineVoting: "Online Stemmen Starten",
+                startEarlyVoting: "Vroeg Stemmen Starten",
                 stopVotingPeriod: "Stemperiode Stoppen",
                 stopKioskVotingPeriod: "Kiosk Stemmen Stoppen",
                 pauseVotingPeriod: "Stemperiode Pauzeren",

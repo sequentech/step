@@ -1622,6 +1622,9 @@ const englishTranslation = {
             action: {
                 generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
+                startKioskVoting: "Start Kiosk Voting",
+                startOnlineVoting: "Start Online Voting",
+                startEarlyVoting: "Start Early Voting",
                 stopVotingPeriod: "Stop Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
