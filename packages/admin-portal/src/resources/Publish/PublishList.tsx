@@ -30,7 +30,7 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
-import {IElectionPresentation, IElectionStatus} from "@sequentech/ui-core"
+import {IElectionPresentation, IElectionStatus, IChannelButtonInfo} from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
 
 const OMIT_FIELDS: string[] = []
@@ -48,9 +48,9 @@ type TPublishList = {
     electionEventId: number | string | undefined
     canRead: boolean
     canWrite: boolean
-    kioskModeEnabled: boolean
-    onlineModeEnabled: boolean
-    earlyVotingEnabled: boolean
+    kioskModeEnabled: IChannelButtonInfo
+    onlineModeEnabled: IChannelButtonInfo
+    earlyVotingEnabled: IChannelButtonInfo
     changingStatus: boolean
     publishType: EPublishType.Election | EPublishType.Event
     onGenerate: () => void

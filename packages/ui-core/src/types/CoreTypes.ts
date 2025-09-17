@@ -32,6 +32,11 @@ export interface IVotingChannelsConfig {
     early_voting: boolean
 }
 
+export interface IChannelButtonInfo {
+    status: EVotingStatus
+    is_channel_enabled: boolean
+}
+
 export interface IPeriodDates {
     first_started_at?: string
     last_started_at?: string
@@ -50,8 +55,10 @@ export interface IElectionStatus {
     is_published?: boolean
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
+    early_voting_status: EVotingStatus
     voting_period_dates: IPeriodDates
     kiosk_voting_period_dates: IPeriodDates
+    early_voting_period_dates: IPeriodDates
 }
 
 export interface IElectionEventStatistics {

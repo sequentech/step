@@ -29,6 +29,7 @@ import {
     EVotingStatus,
     IElectionPresentation,
     IElectionStatus,
+    IChannelButtonInfo,
 } from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
@@ -63,9 +64,9 @@ export type PublishActionsProps = {
     publishType: EPublishType.Election | EPublishType.Event
     electionStatus: IElectionStatus | null
     electionPresentation: IElectionPresentation | null
-    kioskModeEnabled: boolean
-    onlineModeEnabled: boolean
-    earlyVotingEnabled: boolean
+    kioskModeEnabled: IChannelButtonInfo
+    onlineModeEnabled: IChannelButtonInfo
+    earlyVotingEnabled: IChannelButtonInfo
     changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void

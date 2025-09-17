@@ -45,6 +45,7 @@ import {
     IElectionPresentation,
     IElectionStatus,
     IVotingChannelsConfig,
+    IChannelButtonInfo,
 } from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
@@ -157,15 +158,30 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const kioskModeEnabled = () => {
-            return (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
+            let status = (record?.status as IElectionStatus)?.kiosk_voting_status ?? EVotingStatus.CLOSED
+            let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
         }
 
         const onlineModeEnabled = () => {
-            return (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
+            let status = (record?.status as IElectionStatus)?.voting_status ?? EVotingStatus.CLOSED
+            let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
         }
 
         const earlyVotingEnabled = () => {
-            return (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
+            let status = (record?.status as IElectionStatus)?.early_voting_status ?? EVotingStatus.CLOSED
+            let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
         }
 
         const onGenerate = async () => {
