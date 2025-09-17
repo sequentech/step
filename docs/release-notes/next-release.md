@@ -121,3 +121,7 @@ Also shortened the spanish translations.
 Sometimes the voting portal shows an alert dialog but the ballot is a valid
 ballot. In this case the dialog text should be different than in the case of
 an invalid/blank ballot.
+
+## 🐞Candidates list top border missing
+
+On Candidate Lists for the Voting Portal, the top border was missing.
