@@ -36,6 +36,14 @@ const frenchTranslation: TranslationType = {
                 continue: "Continuer",
                 cancel: "Annuler",
             },
+            warningDialog: {
+                title: "Vérifiez votre bulletin",
+                content:
+                    "Votre bulletin contient des sélections qui peuvent nécessiter votre attention (comme sélectionner moins d'options que permis). Votre bulletin est valide et sera compté tel que soumis.",
+                ok: "Retour et vérification",
+                continue: "Continuer",
+                cancel: "Annuler",
+            },
         },
         startScreen: {
             startButton: "Commencer à voter",
