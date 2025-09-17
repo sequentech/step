@@ -171,3 +171,9 @@ After adding indexes for the Electoral Log, the election_id field was limited to
 the size of one UUID but multiple UUIDs were stored when the Keys Ceremony was
 at Event level and there were multiple elections. Now only one or no election id is
 saved.
+
+## 🐞 Error message in voting portal should be a warning
+
+Sometimes the voting portal shows an alert dialog but the ballot is a valid
+ballot. In this case the dialog text should be different than in the case of
+an invalid/blank ballot.
