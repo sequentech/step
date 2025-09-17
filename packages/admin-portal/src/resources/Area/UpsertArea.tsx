@@ -23,8 +23,8 @@ export interface UpsertAreaProps {
  * Wrapper component that accesses the record context to pass presentation data
  */
 const FormContentWrapper: React.FC<UpsertAreaProps> = (props) => {
-    const record = useRecordContext()
-    return <FormContent {...props} area_presentation={record?.presentation} />
+    const area_record = useRecordContext()
+    return <FormContent {...props} area_presentation={area_record?.presentation} />
 }
 
 /**

@@ -86,6 +86,10 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
             : false
     }
 
+    const isEarlyVotingChannelEnabled = () => {
+        return record?.voting_channels?.early_voting == true
+    }
+
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
         variables: {
             electionEventId,
@@ -212,6 +216,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                             source="allow_early_voting_boolean"
                             defaultValue={getAllowEarlyVotingDefaultValue()}
                             label={t("areas.formImputs.allowEarlyVoting")}
+                            disabled={!isEarlyVotingChannelEnabled()}
                         />
                     </SimpleForm>
                 )

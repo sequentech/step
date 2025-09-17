@@ -1131,7 +1131,7 @@ const englishTranslation = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
-                earlyVoting: "Early voting",
+                early_voting: "Early voting",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",

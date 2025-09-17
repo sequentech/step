@@ -1138,7 +1138,7 @@ const dutchTranslation: TranslationType = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
-                earlyVoting: "Vroeg stemmen",
+                early_voting: "Vroeg stemmen",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",

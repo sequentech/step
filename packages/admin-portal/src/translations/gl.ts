@@ -1143,7 +1143,7 @@ const galegoTranslation: TranslationType = {
             channel: {
                 online: "En Liña",
                 kiosk: "Quiosco",
-                earlyVoting: "Votación anticipada",
+                early_voting: "Votación anticipada",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",

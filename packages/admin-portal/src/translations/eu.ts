@@ -1138,7 +1138,7 @@ const basqueTranslation: TranslationType = {
             channel: {
                 online: "Linea",
                 kiosk: "Kiosko",
-                earlyVoting: "Aurre-botoa",
+                early_voting: "Aurre-botoa",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",

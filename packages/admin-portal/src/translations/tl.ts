@@ -1144,7 +1144,7 @@ const tagalogTranslation: TranslationType = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
-                earlyVoting: "Maagang pagboto",
+                early_voting: "Maagang pagboto",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
