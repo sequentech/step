@@ -325,10 +325,6 @@ const VotingScreen: React.FC = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
-    function handlePrev() {
-        dispatch(clearIsVoted())
-    }
-
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
@@ -336,9 +332,9 @@ const VotingScreen: React.FC = () => {
             setOpenNonVoted(true)
 
             const newHasInvalidErrors = Object.values(decodedContests).some(
-                (a) => a?.invalid_errors
+                (a) => a?.invalid_errors.length > 0
             )
-            setHasInvalidErrors(hasInvalidErrors)
+            setHasInvalidErrors(newHasInvalidErrors)
         } else {
             finallyEncryptAndReview()
         }
@@ -499,26 +495,26 @@ const VotingScreen: React.FC = () => {
                     open={openNotVoted}
                     title={t(
                         hasInvalidErrors
-                            ? "votingScreen.warningDialog.title"
-                            : "votingScreen.nonVotedDialog.title"
+                            ? "votingScreen.nonVotedDialog.title"
+                            : "votingScreen.warningDialog.title"
                     )}
                     ok={t(
                         hasInvalidErrors
-                            ? "votingScreen.warningDialog.continue"
-                            : "votingScreen.nonVotedDialog.continue"
+                            ? "votingScreen.nonVotedDialog.continue"
+                            : "votingScreen.warningDialog.continue"
                     )}
                     cancel={t(
                         hasInvalidErrors
-                            ? "votingScreen.warningDialog.cancel"
-                            : "votingScreen.nonVotedDialog.cancel"
+                            ? "votingScreen.nonVotedDialog.cancel"
+                            : "votingScreen.warningDialog.cancel"
                     )}
                     variant="action"
                 >
                     {stringToHtml(
                         t(
                             hasInvalidErrors
-                                ? "votingScreen.warningDialog.content"
-                                : "votingScreen.nonVotedDialog.content"
+                                ? "votingScreen.nonVotedDialog.content"
+                                : "votingScreen.warningDialog.content"
                         )
                     )}
                 </Dialog>
