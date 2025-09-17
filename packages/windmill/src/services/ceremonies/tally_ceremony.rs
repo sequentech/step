@@ -449,8 +449,6 @@ pub async fn create_tally_ceremony(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let election_ids_str = election_ids.join(", ");
-
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
         transaction,
@@ -459,7 +457,7 @@ pub async fn create_tally_ceremony(
         &election_event_id,
         user_id,
         Some(username.clone()),
-        Some(election_ids_str.clone()),
+        Some(election_ids.clone()),
         None,
     )
     .await?;
@@ -468,7 +466,7 @@ pub async fn create_tally_ceremony(
             election_event_id.clone(),
             Some(user_id.to_string()),
             Some(username),
-            Some(election_ids_str),
+            Some(election_ids),
         )
         .await
         .with_context(|| "error posting to the electoral log")?;
@@ -558,11 +556,7 @@ pub async fn update_tally_ceremony(
     .await?;
 
     if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
-        let tally_elections_ids = tally_session
-            .election_ids
-            .clone()
-            .unwrap_or_default()
-            .join(", ");
+        let tally_elections_ids = tally_session.election_ids.clone();
 
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
@@ -575,7 +569,7 @@ pub async fn update_tally_ceremony(
             &election_event_id,
             &user_id,
             Some(username.clone()),
-            None,
+            tally_elections_ids.clone(),
             None,
         )
         .await?;
@@ -583,7 +577,7 @@ pub async fn update_tally_ceremony(
         electoral_log
             .post_tally_open(
                 election_event_id.to_string(),
-                Some(tally_elections_ids),
+                tally_elections_ids.clone(),
                 Some(user_id),
                 Some(username),
             )
@@ -747,11 +741,7 @@ pub async fn set_private_key(
     let user_id = &claims.hasura_claims.user_id;
     let username = &claims.preferred_username;
 
-    let tally_elections_ids = tally_session
-        .election_ids
-        .clone()
-        .unwrap_or_default()
-        .join(", ");
+    let tally_elections_ids = tally_session.election_ids.clone();
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
@@ -761,7 +751,7 @@ pub async fn set_private_key(
         election_event_id,
         user_id,
         username.clone(),
-        Some(tally_elections_ids.clone()),
+        tally_elections_ids.clone(),
         None,
     )
     .await?;
@@ -835,16 +825,12 @@ pub async fn set_tally_session_completed(
         )
         .await?;
 
-        let tally_elections_ids = tally_session
-            .election_ids
-            .clone()
-            .unwrap_or_default()
-            .join(", ");
+        let tally_elections_ids = tally_session.election_ids.clone();
 
         electoral_log
             .post_tally_close(
                 election_event_id.to_string(),
-                Some(tally_elections_ids),
+                tally_elections_ids,
                 user_id,
                 username,
             )
