@@ -6,6 +6,8 @@ use crate::types::results::ResultsAreaContestCandidate;
 use anyhow::Result;
 use rusqlite::{params, Transaction};
 use tracing::instrument;
+use crate::types::results::ResultDocuments;
+use serde_json::from_str; 
 
 #[instrument(err, skip_all)]
 pub async fn create_results_area_contest_candidates_sqlite(
@@ -66,4 +68,48 @@ pub async fn create_results_area_contest_candidates_sqlite(
     }
 
     Ok(())
+}
+
+#[instrument(err, skip_all)]
+pub async fn get_all_documents(
+    sqlite_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+) -> Result<Vec<ResultDocuments>> {
+    let mut statement = sqlite_transaction.prepare(
+        "
+        SELECT 
+            documents 
+        FROM 
+            results_area_contest_candidate
+        WHERE
+            tenant_id = ?1
+            AND election_event_id = ?2
+            AND results_event_id = ?3;
+        ",
+    )?;
+
+    // Use query_map to get an iterator of documents
+    let document_rows = statement.query_map(
+        params![tenant_id, election_event_id, results_event_id],
+        |row| {
+            // Get the documents as a String from the TEXT column
+            let documents_text: String = row.get(0)?;
+            
+            // Deserialize the JSON string into your ResultDocuments struct
+            from_str(&documents_text)
+                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e)))
+        },
+    )?;
+
+    // Collect the MappedRows iterator into a Vec<Result<ResultDocuments, rusqlite::Error>>
+    let mut documents = Vec::new();
+    for row in document_rows {
+        // The row itself is a Result, so we need to unwrap it with '?'
+        documents.push(row?);
+    }
+    
+    // Return the collected Vec
+    Ok(documents)
 }
