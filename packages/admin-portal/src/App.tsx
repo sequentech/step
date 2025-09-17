@@ -72,7 +72,7 @@ const StyledApp = styled(Box)<{css: string}>`
 export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
-        <StyledApp className="felix-ttt" css={css}>
+        <StyledApp className="styled-app-atom" css={css}>
             {children}
         </StyledApp>
     )

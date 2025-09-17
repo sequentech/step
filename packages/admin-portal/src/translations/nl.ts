@@ -82,6 +82,7 @@ const dutchTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -1880,7 +1881,7 @@ const dutchTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven maar afgekeurd",
                 LIST_OF_OVERSEAS_VOTERS: "Lijst van buitenlandse kiezers",
-                OV_TURNOUT_PERCENTAGE: "Opkomst Buitenlandse Kiezers",
+                VOTERS_TURNOUT_PERCENTAGE: "Opkomst Kiezers",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Opkomst Buitenlandse Kiezers - per Status aan Boord en Geslacht",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:

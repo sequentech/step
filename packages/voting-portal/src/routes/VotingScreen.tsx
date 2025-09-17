@@ -46,6 +46,13 @@ import {sortContestList} from "@sequentech/ui-core"
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
     text-decoration: none;
+    /* ensure the link contains only a single tabbable element: the button below */
+    &:focus {
+        outline: none;
+    }
+    & *[tabindex] {
+        outline: none;
+    }
 `
 
 const StyledTitle = styled(Typography)`

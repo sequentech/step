@@ -20,7 +20,7 @@ export interface DownloadDocumentProps {
     documentId: string
     electionEventId?: string
     withProgress?: boolean
-    onSucess?: () => void
+    onSuccess?: () => void
 }
 
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
@@ -29,13 +29,17 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     documentId,
     electionEventId,
     withProgress,
-    onSucess,
+    onSuccess,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
 
-    const {data: documents, refetch: hasuraRefetch} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
+    const {
+        data: documents,
+        refetch: hasuraRefetch,
+        stopPolling,
+    } = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
         variables: {
             id: documentId,
             tenantId: tenantId,
@@ -45,9 +49,15 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         onError: (error: any) => {
             console.log(`error downloading doc: ${error.message}`)
         },
-        onCompleted: () => {
+        onCompleted: (data) => {
             console.log(`success downloading doc`)
-            harvestRefetch()
+            const document = data?.sequent_backend_document?.[0]
+            if (document) {
+                // Document found, stop polling and trigger the next query
+                console.log("Document found, stopping polling.")
+                stopPolling()
+                harvestRefetch()
+            }
         },
     })
 
@@ -65,23 +75,24 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
         onCompleted: () => {
             console.log(`completed fetching document`)
-            harvestRefetch()
+            //harvestRefetch()
         },
     })
 
     let document = documents?.sequent_backend_document?.[0]
 
-    console.log({name: document?.name})
-
     useEffect(() => {
         if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
-            onSucess && onSucess()
+            onSuccess?.()
             console.log("setting downloaded true")
-            setDownloaded(true)
 
             let name = fileName || document?.name || "file"
             console.log("calling downloadUrl")
-            downloadUrl(data.fetchDocument.url, name).then(() => onDownload())
+            downloadUrl(data.fetchDocument.url, name)
+                .then(() => onDownload())
+                .finally(() => {
+                    setDownloaded(true)
+                })
         }
     }, [
         data,
