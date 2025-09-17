@@ -402,6 +402,88 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
+    // Per-channel menu item disable logic
+    const isStartChannelDisabled = (info?: IChannelButtonInfo): boolean => {
+        const channelEnabled = info?.is_channel_enabled ?? false
+        const st = info?.status
+        return !channelEnabled || st === EVotingStatus.OPEN || st === EVotingStatus.CLOSED
+    }
+
+    const isPauseChannelDisabled = (info?: IChannelButtonInfo): boolean => {
+        const channelEnabled = info?.is_channel_enabled ?? false
+        const st = info?.status
+        return !channelEnabled || st === EVotingStatus.PAUSED || st === EVotingStatus.CLOSED
+    }
+
+    const isStopChannelDisabled = (info?: IChannelButtonInfo): boolean => {
+        const channelEnabled = info?.is_channel_enabled ?? false
+        const st = info?.status
+        return !channelEnabled || st === EVotingStatus.CLOSED || st === EVotingStatus.NOT_STARTED
+    }
+
+    // Encapsulated original disabled logic for each main action button
+    const isStartButtonDisabled = (): boolean => {
+        const allChannelsDisabled =
+            isStartChannelDisabled(kioskModeEnabled) &&
+            isStartChannelDisabled(onlineModeEnabled) &&
+            isStartChannelDisabled(earlyVotingEnabled)
+
+        return (
+            changingStatus ||
+            [
+                PublishStatus.Stopped,
+                PublishStatus.Started,
+                PublishStatus.GeneratedLoading,
+            ].includes(status) ||
+            (
+                record?.presentation?.initialization_report_policy ===
+                    EInitializeReportPolicy.REQUIRED &&
+                !record?.initialization_report_generated
+            ) ||
+            allChannelsDisabled
+        )
+    }
+
+    const isPauseButtonDisabled = (): boolean => {
+        const allChannelsDisabled =
+            isPauseChannelDisabled(kioskModeEnabled) &&
+            isPauseChannelDisabled(onlineModeEnabled) &&
+            isPauseChannelDisabled(earlyVotingEnabled)
+
+        return (
+            changingStatus ||
+            [
+                PublishStatus.Void,
+                PublishStatus.Paused,
+                PublishStatus.Stopped,
+                PublishStatus.Generated,
+                PublishStatus.GeneratedLoading,
+            ].includes(status) ||
+            allChannelsDisabled
+        )
+    }
+
+    const isStopButtonDisabled = (): boolean => {
+        const allChannelsDisabled =
+            isStopChannelDisabled(kioskModeEnabled) &&
+            isStopChannelDisabled(onlineModeEnabled) &&
+            isStopChannelDisabled(earlyVotingEnabled)
+
+        return (
+            changingStatus ||
+            [
+                PublishStatus.Void,
+                PublishStatus.Stopped,
+                PublishStatus.Generated,
+                PublishStatus.GeneratedLoading,
+            ].includes(status) ||
+            isVotingPeriodEndDisallowed ||
+            allChannelsDisabled
+        )
+    }
+
+    
+
     return (
         <>
             <PublishActionsStyled.Container>
@@ -426,17 +508,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         }
                                         className={"startVotingMenu"}
                                         label={t("publish.action.startVotingPeriod")}
-                                        disabled={
-                                            changingStatus ||
-                                            [
-                                                PublishStatus.Stopped,
-                                                PublishStatus.Started,
-                                                PublishStatus.GeneratedLoading,
-                                            ].includes(status) ||
-                                            (record?.presentation?.initialization_report_policy ===
-                                                EInitializeReportPolicy.REQUIRED &&
-                                                !record?.initialization_report_generated)
-                                        }
+                                        disabled={isStartButtonDisabled()}
                                     >
                                         <IconOrProgress st={PublishStatus.Started} Icon={PlayCircle} />
                                     </StyledStatusButton>
@@ -448,7 +520,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         transformOrigin={{vertical: "top", horizontal: "right"}}
                                     >
                                         <MenuItem
-                                            disabled={!kioskModeEnabled}
+                                            disabled={isStartChannelDisabled(kioskModeEnabled)}
                                             onClick={() => {
                                                 setStartAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -461,7 +533,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             {t("publish.action.startKioskVoting")}
                                         </MenuItem>
                                         <MenuItem
-                                            disabled={!onlineModeEnabled}
+                                            disabled={isStartChannelDisabled(onlineModeEnabled)}
                                             onClick={() => {
                                                 setStartAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -474,7 +546,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             {t("publish.action.startOnlineVoting")}
                                         </MenuItem>
                                         <MenuItem
-                                            disabled={!earlyVotingEnabled}
+                                            disabled={isStartChannelDisabled(earlyVotingEnabled)}
                                             onClick={() => {
                                                 setStartAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -498,16 +570,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         }
                                         className={"pauseVotingMenu"}
                                         label={t("publish.action.pauseVotingPeriod")}
-                                        disabled={
-                                            changingStatus ||
-                                            [
-                                                PublishStatus.Void,
-                                                PublishStatus.Paused,
-                                                PublishStatus.Stopped,
-                                                PublishStatus.Generated,
-                                                PublishStatus.GeneratedLoading,
-                                            ].includes(status)
-                                        }
+                                        disabled={isPauseButtonDisabled()}
                                     >
                                         <IconOrProgress st={PublishStatus.Paused} Icon={PauseCircle} />
                                     </StyledStatusButton>
@@ -519,7 +582,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         transformOrigin={{vertical: "top", horizontal: "right"}}
                                     >
                                         <MenuItem
-                                            disabled={!kioskModeEnabled}
+                                            disabled={isPauseChannelDisabled(kioskModeEnabled)}
                                             onClick={() => {
                                                 setPauseAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -532,7 +595,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             {t("publish.action.pauseKioskVoting")}
                                         </MenuItem>
                                         <MenuItem
-                                            disabled={!onlineModeEnabled}
+                                            disabled={isPauseChannelDisabled(onlineModeEnabled)}
                                             onClick={() => {
                                                 setPauseAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -545,7 +608,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             {t("publish.action.pauseOnlineVoting")}
                                         </MenuItem>
                                         <MenuItem
-                                            disabled={!earlyVotingEnabled}
+                                            disabled={isPauseChannelDisabled(earlyVotingEnabled)}
                                             onClick={() => {
                                                 setPauseAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -569,16 +632,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         }
                                         className={"stopVotingMenu"}
                                         label={t("publish.action.stopVotingPeriod")}
-                                        disabled={
-                                            changingStatus ||
-                                            [
-                                                PublishStatus.Void,
-                                                PublishStatus.Stopped,
-                                                PublishStatus.Generated,
-                                                PublishStatus.GeneratedLoading,
-                                            ].includes(status) ||
-                                            isVotingPeriodEndDisallowed
-                                        }
+                                        disabled={isStopButtonDisabled()}
                                     >
                                         <IconOrProgress st={PublishStatus.Stopped} Icon={StopCircle} />
                                     </StyledStatusButton>
@@ -590,7 +644,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         transformOrigin={{vertical: "top", horizontal: "right"}}
                                     >
                                         <MenuItem
-                                            disabled={!onlineModeEnabled}
+                                            disabled={isStopChannelDisabled(onlineModeEnabled)}
                                             onClick={() => {
                                                 setStopAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -603,7 +657,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             {t("publish.action.stopOnlineVoting")}
                                         </MenuItem>
                                         <MenuItem
-                                            disabled={!kioskModeEnabled}
+                                            disabled={isStopChannelDisabled(kioskModeEnabled)}
                                             onClick={() => {
                                                 setStopAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -616,7 +670,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             {t("publish.action.stopKioskVotingPeriod")}
                                         </MenuItem>
                                         <MenuItem
-                                            disabled={!earlyVotingEnabled}
+                                            disabled={isStopChannelDisabled(earlyVotingEnabled)}
                                             onClick={() => {
                                                 setStopAnchorEl(null)
                                                 handleChangeVotingPeriod(
