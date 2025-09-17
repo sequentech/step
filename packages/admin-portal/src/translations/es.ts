@@ -1142,6 +1142,7 @@ const spanishTranslation: TranslationType = {
             channel: {
                 online: "En línea",
                 kiosk: "Kiosco",
+                earlyVoting: "Votación anticipada",
             },
             message: {
                 delete: "¿Estás seguro que quieres borrar este elemento?",

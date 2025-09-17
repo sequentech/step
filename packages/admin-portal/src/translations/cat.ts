@@ -1152,6 +1152,7 @@ const catalanTranslation: TranslationType = {
             channel: {
                 online: "En línia",
                 kiosk: "Quiosc",
+                earlyVoting: "Votació anticipada",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
