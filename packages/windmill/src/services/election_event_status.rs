@@ -76,6 +76,13 @@ pub async fn update_event_voting_status(
             event_channels.push(VotingStatusChannel::KIOSK)
         }
 
+        if VotingStatusChannel::EARLY_VOTING
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            event_channels.push(VotingStatusChannel::EARLY_VOTING)
+        }
+
         event_channels
     } else {
         info!("Default voting channels");
