@@ -18,6 +18,7 @@ import {
     TextInput,
     AutocompleteArrayInput,
     ReferenceArrayInput,
+    NumberInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {UpsertAreaProps} from "./UpsertArea"
@@ -45,7 +46,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
  * - Supports contest selection with autocomplete and filtering.
  */
 export const FormContent: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close} = props
+    const {record, id, electionEventId, close, weightedVotingForAreas} = props
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -192,6 +193,14 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                                 />
                             </>
                         ) : null}
+                        {weightedVotingForAreas && (
+                            <NumberInput
+                                label="Weight"
+                                source="annotations.weight"
+                                format={(value) => Math.floor(value)}
+                                min={1}
+                            />
+                        )}
                     </SimpleForm>
                 )
             }}

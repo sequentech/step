@@ -346,6 +346,13 @@ const frenchTranslation: TranslationType = {
                         "manual-ceremonies": "Cérémonies manuelles",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Politique de Vote Pondéré",
+                    options: {
+                        "areas-weighted-voting": "Vote Pondéré par Zones",
+                        "disabled-weighted-voting": "Vote Pondéré Désactivé",
+                    },
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",

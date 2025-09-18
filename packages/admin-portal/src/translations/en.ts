@@ -345,6 +345,13 @@ const englishTranslation = {
                         "manual-ceremonies": "Manual Ceremonies",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Weighted Voting Policy",
+                    options: {
+                        "areas-weighted-voting": "Weighted Voting for Areas",
+                        "disabled-weighted-voting": "Disabled Weighted Voting",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",

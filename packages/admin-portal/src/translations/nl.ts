@@ -344,6 +344,13 @@ const dutchTranslation: TranslationType = {
                         "manual-ceremonies": "Handmatige ceremonies",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Beleid voor Gewogen Stemmen",
+                    options: {
+                        "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",

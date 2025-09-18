@@ -346,6 +346,13 @@ const basqueTranslation: TranslationType = {
                         "manual-ceremonies": "Eskuzko zeremoniak",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Bozketa Ponderatuaren Politika",
+                    options: {
+                        "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",

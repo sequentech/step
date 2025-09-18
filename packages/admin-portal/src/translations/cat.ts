@@ -346,6 +346,13 @@ const catalanTranslation: TranslationType = {
                         "manual-ceremonies": "Cerimònies manuals",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votació Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votació Ponderada per Àrees",
+                        "disabled-weighted-voting": "Votació Ponderada Desactivada",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",

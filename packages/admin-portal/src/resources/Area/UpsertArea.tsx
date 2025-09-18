@@ -15,6 +15,7 @@ export interface UpsertAreaProps {
     id?: Identifier | undefined
     electionEventId: Identifier | undefined
     close?: () => void
+    weightedVotingForAreas?: boolean
 }
 
 /**
@@ -33,7 +34,7 @@ export interface UpsertAreaProps {
  * @returns A React element that renders the Area form for creation or editing, or null while loading.
  */
 export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close} = props
+    const {record, id, electionEventId, close, weightedVotingForAreas} = props
 
     const [renderUI, setRenderUI] = useState(false)
 
@@ -66,6 +67,7 @@ export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
                                 id={id}
                                 electionEventId={electionEventId}
                                 close={close}
+                                weightedVotingForAreas={weightedVotingForAreas}
                             />
                         </PageHeaderStyles.Wrapper>
                     </EditBase>
@@ -77,6 +79,7 @@ export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
                                 id={id}
                                 electionEventId={electionEventId}
                                 close={close}
+                                weightedVotingForAreas={weightedVotingForAreas}
                             />
                         </PageHeaderStyles.Wrapper>
                     </Create>

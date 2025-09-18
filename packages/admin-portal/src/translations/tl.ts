@@ -345,6 +345,13 @@ const tagalogTranslation: TranslationType = {
                         "manual-ceremonies": "Mga Manu-manong Seremonya",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Patakaran sa Timbang na Pagboto",
+                    options: {
+                        "areas-weighted-voting": "Timbang na Pagboto ayon sa mga Lugar",
+                        "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",
