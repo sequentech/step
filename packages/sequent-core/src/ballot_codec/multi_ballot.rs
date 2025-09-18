@@ -1023,7 +1023,7 @@ mod tests {
             // Set this
             public_key: None,
             area_id: s(),
-            area_presentation: AreaPresentation::default(),
+            area_presentation: Some(AreaPresentation::default()),
             contests,
             election_event_presentation: None,
             election_presentation: None,
