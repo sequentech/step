@@ -130,11 +130,32 @@ pub async fn update_event_voting_status(
 
         status.set_status_by_channel(&channel, new_status.clone());
 
+        // Close EARLY_VOTING channel's status automatically if the new online status is OPEN or CLOSED
+        let should_close_early_voting = channel == VotingStatusChannel::ONLINE
+            && (new_status == &VotingStatus::OPEN || new_status == &VotingStatus::CLOSED);
+
+        if should_close_early_voting
+            && status.status_by_channel(&VotingStatusChannel::EARLY_VOTING)
+                != VotingStatus::NOT_STARTED
+        {
+            status.set_status_by_channel(&VotingStatusChannel::EARLY_VOTING, VotingStatus::CLOSED);
+        }
+
         let mut elections_ids: Vec<String> = Vec::new();
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
                 if let Some(status) = elections_status.get_mut(&election.id) {
                     status.set_status_by_channel(&channel, new_status.clone());
+                }
+
+                if should_close_early_voting
+                    && status.status_by_channel(&VotingStatusChannel::EARLY_VOTING)
+                        != VotingStatus::NOT_STARTED
+                {
+                    status.set_status_by_channel(
+                        &VotingStatusChannel::EARLY_VOTING,
+                        VotingStatus::CLOSED,
+                    );
                 }
 
                 elections_ids.push(election.id.clone());
