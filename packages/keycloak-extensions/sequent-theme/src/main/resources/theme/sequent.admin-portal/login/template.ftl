@@ -210,7 +210,7 @@ SPDX-License-Identifier: AGPL-3.0-only
     </div>
     </#if>
     <div class="footer">
-        <p>${msg("loginFooter")}</p>
+        <p>${kcSanitize(msg("loginFooter"))?no_esc}</p>
     </div>
   </main>
 </body>
