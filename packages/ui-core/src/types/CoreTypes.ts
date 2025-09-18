@@ -5,6 +5,7 @@
 import {TranslationDict} from "../services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
 import {IContestPresentation} from "./ContestPresentation"
+import {IAreaPresentation} from "./AreaPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
@@ -49,6 +50,8 @@ export interface IPeriodDates {
 export interface IElectionEventStatus {
     is_published?: boolean
     voting_status: EVotingStatus
+    kiosk_voting_status: EVotingStatus
+    early_voting_status: EVotingStatus
 }
 
 export interface IElectionStatus {
@@ -133,6 +136,7 @@ export interface IBallotStyle {
     description?: string
     public_key?: IPublicKeyConfig
     area_id: string
+    area_presentation: IAreaPresentation
     contests: Array<IContest>
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
