@@ -67,7 +67,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </head>
 
 <body class="${properties.kcBodyClass!}">
-<div class="${properties.kcLoginClass!}">
+<main class="${properties.kcLoginClass!}">
     <div id="kc-header" class="${properties.kcHeaderClass!}">
         <div id="kc-header-wrapper"
              class="${properties.kcHeaderWrapperClass!}">
@@ -88,9 +88,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <div class="${properties.kcLocaleMainClass!}" id="kc-locale">
                     <div id="kc-locale-wrapper" class="${properties.kcLocaleWrapperClass!}">
                         <div id="kc-locale-dropdown" class="menu-button-links ${properties.kcLocaleDropDownClass!}">
-                            <button tabindex="1" id="kc-current-locale-link" aria-label="${msg("languages")}" aria-haspopup="true" aria-expanded="false" aria-controls="language-switch1">
+                            <button tabindex="1" id="kc-current-locale-link" aria-labelledby="profile-language-current" aria-haspopup="true" aria-expanded="false" aria-controls="language-switch1">
                             <img src= "data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJsYW5ndWFnZSIgY2xhc3M9InByZWZpeF9fc3ZnLWlubGluZS0tZmEgcHJlZml4X19mYS1sYW5ndWFnZSBwcmVmaXhfX2ZhLWxnIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NDAgNTEyIj48cGF0aCBmaWxsPSJjdXJyZW50Q29sb3IiIGQ9Ik0wIDEyOGMwLTM1LjMgMjguNy02NCA2NC02NGg1MTJjMzUuMyAwIDY0IDI4LjcgNjQgNjR2MjU2YzAgMzUuMy0yOC43IDY0LTY0IDY0SDY0Yy0zNS4zIDAtNjQtMjguNy02NC02NFYxMjh6bTMyMCAwdjI1NmgyNTZWMTI4SDMyMHptLTE0MS43IDQ3LjljLTMuMi03LjItMTAuNC0xMS45LTE4LjMtMTEuOXMtMTUuMSA0LjctMTguMyAxMS45bC02NCAxNDRjLTQuNSAxMC4xLjEgMjEuOSAxMC4yIDI2LjRzMjEuOS0uMSAyNi40LTEwLjJsOC45LTIwLjFoNzMuNmw4LjkgMjAuMWM0LjUgMTAuMSAxNi4zIDE0LjYgMjYuNCAxMC4yczE0LjYtMTYuMyAxMC4yLTI2LjRsLTY0LTE0NHpNMTYwIDIzMy4ybDE5IDQyLjhoLTM4bDE5LTQyLjh6TTQ0OCAxNjRjMTEgMCAyMCA5IDIwIDIwdjRoNjBjMTEgMCAyMCA5IDIwIDIwcy05IDIwLTIwIDIwaC0ybC0xLjYgNC41Yy04LjkgMjQuNC0yMi40IDQ2LjYtMzkuNiA2NS40LjkuNiAxLjggMS4xIDIuNyAxLjZsMTguOSAxMS4zYzkuNSA1LjcgMTIuNSAxOCA2LjkgMjcuNHMtMTggMTIuNS0yNy40IDYuOUw0NjcgMzMzLjhjLTQuNS0yLjctOC44LTUuNS0xMy4xLTguNS0xMC42IDcuNS0yMS45IDE0LTM0IDE5LjRsLTMuNiAxLjZjLTEwLjEgNC41LTIxLjktLjEtMjYuNC0xMC4ycy4xLTIxLjkgMTAuMi0yNi40bDMuNi0xLjZjNi40LTIuOSAxMi42LTYuMSAxOC41LTkuOEw0MTAgMjg2LjFjLTcuOC03LjgtNy44LTIwLjUgMC0yOC4zczIwLjUtNy44IDI4LjMgMGwxNC42IDE0LjYuNS41YzEyLjQtMTMuMSAyMi41LTI4LjMgMjkuOC00NUgzNzZjLTExIDAtMjAtOS0yMC0yMHM5LTIwIDIwLTIwaDUydi00YzAtMTEgOS0yMCAyMC0yMHoiLz48L3N2Zz4="/>
-                            <span>
+                            <span id="profile-language-current">
                             ${locale.current}
                             </span>
                             <img src= "data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJjYXJldC1kb3duIiBjbGFzcz0icHJlZml4X19zdmctaW5saW5lLS1mYSBwcmVmaXhfX2ZhLWNhcmV0LWRvd24gcHJlZml4X19mYS1sZyIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMzIwIDUxMiI+PHBhdGggZmlsbD0iY3VycmVudENvbG9yIiBkPSJNMTM3LjQgMzc0LjZjMTIuNSAxMi41IDMyLjggMTIuNSA0NS4zIDBsMTI4LTEyOGM5LjItOS4yIDExLjktMjIuOSA2LjktMzQuOVMzMDEgMTkxLjkgMjg4IDE5MS45TDMyIDE5MmMtMTIuOSAwLTI0LjYgNy44LTI5LjYgMTkuOHMtMi4yIDI1LjcgNi45IDM0LjlsMTI4IDEyOHoiLz48L3N2Zz4="/>
@@ -210,9 +210,9 @@ SPDX-License-Identifier: AGPL-3.0-only
     </div>
     </#if>
     <div class="footer">
-        <p>${msg("loginFooter")}</p>
+        <p>${kcSanitize(msg("loginFooter"))?no_esc}</p>
     </div>
-  </div>
+  </main>
 </body>
 </html>
 </#macro>

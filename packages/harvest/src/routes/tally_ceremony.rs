@@ -128,6 +128,12 @@ pub async fn update_tally_ceremony(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
+    let user_id = claims.clone().hasura_claims.user_id;
+    let username = claims
+        .clone()
+        .preferred_username
+        .unwrap_or(claims.name.clone().unwrap_or_else(|| user_id.clone()));
+
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
             (
@@ -208,7 +214,7 @@ pub async fn update_tally_ceremony(
         }
     });
 
-    if (!is_tally_allowed) {
+    if !is_tally_allowed {
         return Err((
             Status::InternalServerError,
             format!(
@@ -224,6 +230,8 @@ pub async fn update_tally_ceremony(
         input.election_event_id.clone(),
         tally_session.clone(),
         input.status.clone(),
+        user_id.clone(),
+        username.clone(),
     )
     .await
     .map_err(|e| {
@@ -233,7 +241,7 @@ pub async fn update_tally_ceremony(
         )
     })?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
@@ -309,7 +317,7 @@ pub async fn restore_private_key(
         is_valid,
     );
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
     Ok(Json(SetPrivateKeyOutput { is_valid }))
