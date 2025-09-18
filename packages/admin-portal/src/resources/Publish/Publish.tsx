@@ -158,8 +158,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const kioskModeEnabled = () => {
-            let status = (record?.status as IElectionStatus)?.kiosk_voting_status ?? EVotingStatus.NOT_STARTED
-            let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
+            let status =
+                (record?.status as IElectionStatus)?.kiosk_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
             return {
                 status,
                 is_channel_enabled,
@@ -167,8 +170,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const onlineModeEnabled = () => {
-            let status = (record?.status as IElectionStatus)?.voting_status ?? EVotingStatus.NOT_STARTED
-            let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
+            let status =
+                (record?.status as IElectionStatus)?.voting_status ?? EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
             return {
                 status,
                 is_channel_enabled,
@@ -176,8 +181,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const earlyVotingEnabled = () => {
-            let status = (record?.status as IElectionStatus)?.early_voting_status ?? EVotingStatus.NOT_STARTED
-            let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
+            let status =
+                (record?.status as IElectionStatus)?.early_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
             console.log("earlyVotingEnabled", status, is_channel_enabled) // TODO: Test if it´s being updated
             return {
                 status,

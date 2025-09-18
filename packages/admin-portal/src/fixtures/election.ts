@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ICountingAlgorithm, IVotingType} from "@/resources/Contest/constants"
-import {IBallotStyle, EInvalidVotePolicy, EEnableCheckableLists, EEarlyVotingPolicy} from "@sequentech/ui-core"
+import {
+    IBallotStyle,
+    EInvalidVotePolicy,
+    EEnableCheckableLists,
+    EEarlyVotingPolicy,
+} from "@sequentech/ui-core"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",

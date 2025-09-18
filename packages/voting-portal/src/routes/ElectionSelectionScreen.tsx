@@ -15,7 +15,7 @@ import {
     isUndefined,
     IElectionStatus,
     EEarlyVotingPolicy,
-    IAreaPresentation
+    IAreaPresentation,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -136,21 +136,25 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
 
     const electionStatus = election?.status as IElectionStatus | null
     const isVotingOpen = () => {
-        let isOnlineVotingOpen: boolean = (electionStatus?.voting_status as EVotingStatus) === EVotingStatus.OPEN
+        let isOnlineVotingOpen: boolean =
+            (electionStatus?.voting_status as EVotingStatus) === EVotingStatus.OPEN
         let openForKiosk: boolean = isKiosk && isKiosOpen()
 
-        return  ((isOnlineVotingOpen && isElectionEventOnlineVotingOpen(electionEvent)) ||
+        return (
+            (isOnlineVotingOpen && isElectionEventOnlineVotingOpen(electionEvent)) ||
             (isEarlyVotingOpen() && isElectionEventEarlyVotingOpen(electionEvent)) ||
-            (openForKiosk && isElectionEventKioskOpen(electionEvent)))
+            (openForKiosk && isElectionEventKioskOpen(electionEvent))
+        )
     }
 
     const isKiosOpen = () => {
-        return electionStatus?.kiosk_voting_status as EVotingStatus === EVotingStatus.OPEN
+        return (electionStatus?.kiosk_voting_status as EVotingStatus) === EVotingStatus.OPEN
     }
 
     const isEarlyVotingOpen = () => {
         let area_presentation = ballotStyle?.ballot_eml?.area_presentation as IAreaPresentation
-        let policyEnabled = area_presentation.allow_early_voting  === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
+        let policyEnabled =
+            area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
         let isOpen = electionStatus?.early_voting_status === EVotingStatus.OPEN
         return policyEnabled && isOpen
     }
@@ -167,7 +171,8 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
 
         return (
             isPreview ||
-            (castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) && isVotingOpen())
+            (castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) &&
+                isVotingOpen())
         )
     }
 

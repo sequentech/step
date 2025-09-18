@@ -314,7 +314,12 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <UpsertArea record={record} id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
+                <UpsertArea
+                    record={record}
+                    id={recordId}
+                    electionEventId={id}
+                    close={handleCloseEditDrawer}
+                />
             </Drawer>
             <Drawer
                 anchor="right"
