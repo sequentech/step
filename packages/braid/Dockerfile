@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rustlang/rust:nightly-slim
+FROM rustlang/rust:nightly-bookworm-slim
 
 # Copy projects
 WORKDIR /app
