@@ -210,6 +210,13 @@ pub async fn insert_cast_vote(
                     ErrorCode::DeserializeContestsFailed,
                 )
             }
+            CastVoteError::DeserializeAreaPresentationFailed(_) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    ErrorCode::DeserializeAreaPresentationFailed.to_string().as_str(),
+                    ErrorCode::DeserializeAreaPresentationFailed,
+                )
+            }
             CastVoteError::SerializeVoterIdFailed(_) => {
                 ErrorResponse::new(
                     Status::InternalServerError,
