@@ -158,7 +158,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const kioskModeEnabled = () => {
-            let status = (record?.status as IElectionStatus)?.kiosk_voting_status ?? EVotingStatus.CLOSED
+            let status = (record?.status as IElectionStatus)?.kiosk_voting_status ?? EVotingStatus.NOT_STARTED
             let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
             return {
                 status,
@@ -167,7 +167,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const onlineModeEnabled = () => {
-            let status = (record?.status as IElectionStatus)?.voting_status ?? EVotingStatus.CLOSED
+            let status = (record?.status as IElectionStatus)?.voting_status ?? EVotingStatus.NOT_STARTED
             let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
             return {
                 status,
@@ -176,8 +176,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const earlyVotingEnabled = () => {
-            let status = (record?.status as IElectionStatus)?.early_voting_status ?? EVotingStatus.CLOSED
+            let status = (record?.status as IElectionStatus)?.early_voting_status ?? EVotingStatus.NOT_STARTED
             let is_channel_enabled = (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
+            console.log("earlyVotingEnabled", status, is_channel_enabled) // TODO: Test if it´s being updated
             return {
                 status,
                 is_channel_enabled,
@@ -240,10 +241,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         votingChannel,
                     },
                 })
-                // TODO: Right now if we are opening or pausing for online, we
-                // also do it for kiosk if kiosk mode is enabled. In the future,
-                // we should be able to do this individually in the UI for each
-                // channel separatedly.
+                // No matter the channel, we need to update the general publish status.
+                // That´s used to control the loading icon in the buttons for the transitions.
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
                 setChangingStatus(false)
                 refresh()
@@ -486,6 +485,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}
                         onPreview={onPreview}
+                        kioskModeEnabled={kioskModeEnabled()}
+                        onlineModeEnabled={onlineModeEnabled()}
+                        earlyVotingEnabled={earlyVotingEnabled()}
                     />
                 )}
                 <FormDialog

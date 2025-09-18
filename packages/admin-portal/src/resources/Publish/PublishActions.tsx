@@ -412,13 +412,19 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const isPauseChannelDisabled = (info?: IChannelButtonInfo): boolean => {
         const channelEnabled = info?.is_channel_enabled ?? false
         const st = info?.status
-        return !channelEnabled || st === EVotingStatus.PAUSED || st === EVotingStatus.CLOSED
+        return !channelEnabled || st === EVotingStatus.NOT_STARTED || st === EVotingStatus.PAUSED || st === EVotingStatus.CLOSED
     }
 
     const isStopChannelDisabled = (info?: IChannelButtonInfo): boolean => {
         const channelEnabled = info?.is_channel_enabled ?? false
         const st = info?.status
         return !channelEnabled || st === EVotingStatus.CLOSED || st === EVotingStatus.NOT_STARTED
+    }
+
+    const initializationReportNotGenerated = (): boolean => {
+        return record?.presentation?.initialization_report_policy ===
+                        EInitializeReportPolicy.REQUIRED &&
+                    !record?.initialization_report_generated
     }
 
     // Encapsulated original disabled logic for each main action button
@@ -431,15 +437,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         return (
             changingStatus ||
             [
-                PublishStatus.Stopped,
-                PublishStatus.Started,
                 PublishStatus.GeneratedLoading,
             ].includes(status) ||
-            (
-                record?.presentation?.initialization_report_policy ===
-                    EInitializeReportPolicy.REQUIRED &&
-                !record?.initialization_report_generated
-            ) ||
             allChannelsDisabled
         )
     }
@@ -453,9 +452,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         return (
             changingStatus ||
             [
-                PublishStatus.Void,
-                PublishStatus.Paused,
-                PublishStatus.Stopped,
+                // PublishStatus.Void,
                 PublishStatus.Generated,
                 PublishStatus.GeneratedLoading,
             ].includes(status) ||
@@ -472,12 +469,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         return (
             changingStatus ||
             [
-                PublishStatus.Void,
-                PublishStatus.Stopped,
+                // PublishStatus.Void,
                 PublishStatus.Generated,
                 PublishStatus.GeneratedLoading,
             ].includes(status) ||
-            isVotingPeriodEndDisallowed ||
             allChannelsDisabled
         )
     }
@@ -516,8 +511,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorEl={startAnchorEl}
                                         open={startMenuOpen}
                                         onClose={() => setStartAnchorEl(null)}
-                                        anchorOrigin={{vertical: "bottom", horizontal: "right"}}
-                                        transformOrigin={{vertical: "top", horizontal: "right"}}
+                                        anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                                        transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
                                         <MenuItem
                                             disabled={isStartChannelDisabled(kioskModeEnabled)}
@@ -533,7 +528,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             {t("publish.action.startKioskVoting")}
                                         </MenuItem>
                                         <MenuItem
-                                            disabled={isStartChannelDisabled(onlineModeEnabled)}
+                                            disabled={isStartChannelDisabled(onlineModeEnabled) || initializationReportNotGenerated()}
                                             onClick={() => {
                                                 setStartAnchorEl(null)
                                                 handleChangeVotingPeriod(
@@ -578,8 +573,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorEl={pauseAnchorEl}
                                         open={pauseMenuOpen}
                                         onClose={() => setPauseAnchorEl(null)}
-                                        anchorOrigin={{vertical: "bottom", horizontal: "right"}}
-                                        transformOrigin={{vertical: "top", horizontal: "right"}}
+                                        anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                                        transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
                                         <MenuItem
                                             disabled={isPauseChannelDisabled(kioskModeEnabled)}
@@ -640,11 +635,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorEl={stopAnchorEl}
                                         open={stopMenuOpen}
                                         onClose={() => setStopAnchorEl(null)}
-                                        anchorOrigin={{vertical: "bottom", horizontal: "right"}}
-                                        transformOrigin={{vertical: "top", horizontal: "right"}}
+                                        anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                                        transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
                                         <MenuItem
-                                            disabled={isStopChannelDisabled(onlineModeEnabled)}
+                                            disabled={isStopChannelDisabled(onlineModeEnabled) || isVotingPeriodEndDisallowed}
                                             onClick={() => {
                                                 setStopAnchorEl(null)
                                                 handleChangeVotingPeriod(
