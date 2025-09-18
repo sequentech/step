@@ -6,7 +6,9 @@ use std::num::TryFromIntError;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::bigint;
 use super::{vec, RawBallotContest};
-use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
+use crate::ballot::{
+    AreaPresentation, BallotStyle, Candidate, Contest, EUnderVotePolicy,
+};
 use crate::mixed_radix;
 use crate::plaintext::{
     DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
@@ -1021,6 +1023,7 @@ mod tests {
             // Set this
             public_key: None,
             area_id: s(),
+            area_presentation: AreaPresentation::default(),
             contests,
             election_event_presentation: None,
             election_presentation: None,
