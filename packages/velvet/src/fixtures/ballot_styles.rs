@@ -36,6 +36,7 @@ pub fn get_ballot_style_1(
         election_event_presentation: None,
         election_presentation: None,
         election_dates: None,
+        area_annotations: None,
     }
 }
 
@@ -65,5 +66,6 @@ pub fn generate_ballot_style(
         election_dates: None,
         election_event_annotations: Default::default(),
         election_annotations: Default::default(),
+        area_annotations: None,
     }
 }

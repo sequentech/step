@@ -11,6 +11,7 @@ use crate::ballot::{
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Context, Result};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 
@@ -101,6 +102,21 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
+    println!("Before area annotations parse");
+
+    let area_annotations: HashMap<String, String> = area
+        .annotations
+        .clone()
+        .map(|annotations| {
+            serde_json::from_value::<HashMap<String, Value>>(annotations)
+        })
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing area annotations: {:?}", err))?
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(k, v)| (k, v.to_string()))
+        .collect();
+
     Ok(ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
@@ -126,6 +142,7 @@ pub fn create_ballot_style(
         election_dates: Some(election_dates),
         election_event_annotations: Some(election_event_annotations),
         election_annotations: Some(election_annotations),
+        area_annotations: Some(area_annotations),
     })
 }
 

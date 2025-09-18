@@ -447,6 +447,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 columns: None,
             }),
         }],
+        area_annotations: None,
     }
 }
 

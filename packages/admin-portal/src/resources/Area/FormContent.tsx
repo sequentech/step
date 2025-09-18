@@ -199,6 +199,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                                 source="annotations.weight"
                                 format={(value) => Math.floor(value)}
                                 min={1}
+                                defaultValue={1}
                             />
                         )}
                     </SimpleForm>
