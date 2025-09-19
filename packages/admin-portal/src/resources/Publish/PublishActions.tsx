@@ -57,6 +57,31 @@ export const StyledStatusButton = muiStyled(Button)`
     }
 `
 
+export const StyledMenuItem = muiStyled(MenuItem)`
+    &.MuiMenuItem-root {
+        text-transform: uppercase;
+        border: 1px solid rgba(0, 0, 0, 0.23);
+        margin: 2px 4px;
+        border-radius: 4px;
+        min-width: 140px;
+        padding: 6px 16px;
+        line-height: 1;
+        color: #0F054C;
+        
+        &:hover {
+            border-color: rgba(0, 0, 0, 0.87);
+            background-color: rgba(0, 0, 0, 0.04);
+            color: #0F054C;
+        }
+        
+        &.Mui-disabled {
+            color: #ccc;
+            border-color: #eee;
+            background-color: #f5f5f5;
+        }
+    }
+`
+
 export type PublishActionsProps = {
     ballotPublicationId?: string | Identifier | null
     data?: any
@@ -520,7 +545,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorOrigin={{vertical: "bottom", horizontal: "left"}}
                                         transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
-                                        <MenuItem
+                                        <StyledMenuItem
                                             disabled={isStartChannelDisabled(kioskModeEnabled)}
                                             onClick={() => {
                                                 setStartAnchorEl(null)
@@ -532,8 +557,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.startKioskVoting")}
-                                        </MenuItem>
-                                        <MenuItem
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
                                             disabled={
                                                 isStartChannelDisabled(onlineModeEnabled) ||
                                                 initializationReportNotGenerated()
@@ -548,8 +573,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.startOnlineVoting")}
-                                        </MenuItem>
-                                        <MenuItem
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
                                             disabled={isStartChannelDisabled(earlyVotingEnabled)}
                                             onClick={() => {
                                                 setStartAnchorEl(null)
@@ -561,7 +586,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.startEarlyVoting")}
-                                        </MenuItem>
+                                        </StyledMenuItem>
                                     </Menu>
                                 </>
                             )}
@@ -588,7 +613,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorOrigin={{vertical: "bottom", horizontal: "left"}}
                                         transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
-                                        <MenuItem
+                                        <StyledMenuItem
                                             disabled={isPauseChannelDisabled(kioskModeEnabled)}
                                             onClick={() => {
                                                 setPauseAnchorEl(null)
@@ -600,8 +625,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.pauseKioskVoting")}
-                                        </MenuItem>
-                                        <MenuItem
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
                                             disabled={isPauseChannelDisabled(onlineModeEnabled)}
                                             onClick={() => {
                                                 setPauseAnchorEl(null)
@@ -613,8 +638,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.pauseOnlineVoting")}
-                                        </MenuItem>
-                                        <MenuItem
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
                                             disabled={isPauseChannelDisabled(earlyVotingEnabled)}
                                             onClick={() => {
                                                 setPauseAnchorEl(null)
@@ -626,7 +651,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.pauseEarlyVoting")}
-                                        </MenuItem>
+                                        </StyledMenuItem>
                                     </Menu>
                                 </>
                             )}
@@ -653,7 +678,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorOrigin={{vertical: "bottom", horizontal: "left"}}
                                         transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
-                                        <MenuItem
+                                        <StyledMenuItem
                                             disabled={
                                                 isStopChannelDisabled(onlineModeEnabled) ||
                                                 isVotingPeriodEndDisallowed
@@ -668,8 +693,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.stopOnlineVoting")}
-                                        </MenuItem>
-                                        <MenuItem
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
                                             disabled={isStopChannelDisabled(kioskModeEnabled)}
                                             onClick={() => {
                                                 setStopAnchorEl(null)
@@ -681,8 +706,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.stopKioskVotingPeriod")}
-                                        </MenuItem>
-                                        <MenuItem
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
                                             disabled={isStopChannelDisabled(earlyVotingEnabled)}
                                             onClick={() => {
                                                 setStopAnchorEl(null)
@@ -694,7 +719,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             }}
                                         >
                                             {t("publish.action.stopEarlyVoting")}
-                                        </MenuItem>
+                                        </StyledMenuItem>
                                     </Menu>
                                 </>
                             )}
