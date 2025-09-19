@@ -1510,32 +1510,54 @@ impl Default for ElectionEventStatus {
 impl ElectionEventStatus {
     pub fn status_by_channel(
         &self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
     ) -> VotingStatus {
         match channel {
-            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
-            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
-            &VotingStatusChannel::EARLY_VOTING => {
+            VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
             }
         }
     }
 
+    /// Close EARLY_VOTING channel's status automatically if the new online
+    /// status is OPEN or CLOSED
+    pub fn close_early_voting_if_online_status_change(
+        &mut self,
+        channel: VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
+        let should_close_early_voting = channel == VotingStatusChannel::ONLINE
+            && (new_status == VotingStatus::OPEN
+                || new_status == VotingStatus::CLOSED);
+
+        if should_close_early_voting
+            && self.status_by_channel(VotingStatusChannel::EARLY_VOTING)
+                != VotingStatus::NOT_STARTED
+        {
+            self.set_status_by_channel(
+                VotingStatusChannel::EARLY_VOTING,
+                VotingStatus::CLOSED,
+            );
+        }
+    }
+
     pub fn set_status_by_channel(
         &mut self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
         new_status: VotingStatus,
     ) {
         let mut period_dates = match channel {
-            &VotingStatusChannel::ONLINE => {
+            VotingStatusChannel::ONLINE => {
                 self.voting_status = new_status.clone();
                 &mut self.voting_period_dates
             }
-            &VotingStatusChannel::KIOSK => {
+            VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_status = new_status.clone();
                 &mut self.kiosk_voting_period_dates
             }
-            &VotingStatusChannel::EARLY_VOTING => {
+            VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
             }
@@ -1608,6 +1630,7 @@ pub enum AllowTallyStatus {
     PartialEq,
     Eq,
     Clone,
+    Copy,
     EnumString,
     JsonSchema,
     IntoStaticStr,
@@ -1917,12 +1940,12 @@ impl Default for ElectionStatus {
 impl ElectionStatus {
     pub fn status_by_channel(
         &self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
     ) -> VotingStatus {
         match channel {
-            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
-            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
-            &VotingStatusChannel::EARLY_VOTING => {
+            VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status.clone()
             }
         }
@@ -1930,34 +1953,56 @@ impl ElectionStatus {
 
     pub fn dates_by_channel(
         &self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
     ) -> PeriodDates {
         match channel {
-            &VotingStatusChannel::ONLINE => self.voting_period_dates.clone(),
-            &VotingStatusChannel::KIOSK => {
+            VotingStatusChannel::ONLINE => self.voting_period_dates.clone(),
+            VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_period_dates.clone()
             }
-            &VotingStatusChannel::EARLY_VOTING => {
+            VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_period_dates.clone()
             }
         }
     }
 
+    /// Close EARLY_VOTING channel's status automatically if the new online
+    /// status is OPEN or CLOSED
+    pub fn close_early_voting_if_online_status_change(
+        &mut self,
+        channel: VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
+        let should_close_early_voting = channel == VotingStatusChannel::ONLINE
+            && (new_status == VotingStatus::OPEN
+                || new_status == VotingStatus::CLOSED);
+
+        if should_close_early_voting
+            && self.status_by_channel(VotingStatusChannel::EARLY_VOTING)
+                != VotingStatus::NOT_STARTED
+        {
+            self.set_status_by_channel(
+                VotingStatusChannel::EARLY_VOTING,
+                VotingStatus::CLOSED,
+            );
+        }
+    }
+
     pub fn set_status_by_channel(
         &mut self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
         new_status: VotingStatus,
     ) {
         let period_dates = match channel {
-            &VotingStatusChannel::ONLINE => {
+            VotingStatusChannel::ONLINE => {
                 self.voting_status = new_status.clone();
                 &mut self.voting_period_dates
             }
-            &VotingStatusChannel::KIOSK => {
+            VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_status = new_status.clone();
                 &mut self.kiosk_voting_period_dates
             }
-            &VotingStatusChannel::EARLY_VOTING => {
+            VotingStatusChannel::EARLY_VOTING => {
                 self.early_voting_status = new_status.clone();
                 &mut self.early_voting_period_dates
             }

@@ -86,7 +86,7 @@ pub async fn update_election_status(
         vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
     };
 
-    for voting_channel in &voting_channels {
+    for voting_channel in voting_channels {
         election_event_status::update_election_voting_status_impl(
             tenant_id.clone(),
             user_id,

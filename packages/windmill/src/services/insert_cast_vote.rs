@@ -201,7 +201,7 @@ pub async fn try_insert_cast_vote(
     tenant_id: &str,
     voter_id: &str,
     area_id: &str,
-    voting_channel: &VotingStatusChannel,
+    voting_channel: VotingStatusChannel,
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
@@ -583,7 +583,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     input: InsertCastVoteInput,
     hasura_transaction: Transaction<'_>,
     election_event: ElectionEvent,
-    voting_channel: &VotingStatusChannel,
+    voting_channel: VotingStatusChannel,
     ids: CastVoteIds<'a>,
     signing_key: StrandSignatureSk,
     auth_time: &Option<i64>,
@@ -709,7 +709,7 @@ async fn check_status(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     auth_time: &Option<i64>,
-    voting_channel: &VotingStatusChannel,
+    voting_channel: VotingStatusChannel,
     is_early_voting_area: bool,
 ) -> Result<(), CastVoteError> {
     if election_event.is_archived {
@@ -826,9 +826,9 @@ async fn check_status(
         .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
 
     let allow_early_voting = is_early_voting_area
-        && election_status.status_by_channel(&VotingStatusChannel::EARLY_VOTING)
+        && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
             == VotingStatus::OPEN
-        && election_status.status_by_channel(&VotingStatusChannel::ONLINE)
+        && election_status.status_by_channel(VotingStatusChannel::ONLINE)
             == VotingStatus::NOT_STARTED;
 
     // We can only calculate grace period if there's a close date
@@ -838,7 +838,7 @@ async fn check_status(
         // 2. Voting Channel is ONLINE
         // 3. Current Voting Status is not PAUSED
         let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
-            && voting_channel == &VotingStatusChannel::ONLINE
+            && voting_channel == VotingStatusChannel::ONLINE
             && current_voting_status != VotingStatus::PAUSED;
         let grace_period_duration = Duration::seconds(grace_period_secs as i64);
         let close_date_plus_grace_period = close_date + grace_period_duration;
