@@ -151,17 +151,20 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         return (electionStatus?.kiosk_voting_status as EVotingStatus) === EVotingStatus.OPEN
     }
 
-    const isEarlyVotingOpen = () => {
+    const isEarlyVotingPolicyEnabled = () => {
         let area_presentation = ballotStyle?.ballot_eml?.area_presentation as IAreaPresentation
-        let policyEnabled =
-            area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
+        return area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
+    }
+    const isEarlyVotingOpen = () => {
         let isOpen = electionStatus?.early_voting_status === EVotingStatus.OPEN
-        return policyEnabled && isOpen
+        return isEarlyVotingPolicyEnabled() && isOpen
     }
 
-    const isVotingStarted =
-        electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
-        (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED)
+    const isVotingStarted = () => {
+        return electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
+        (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED) ||
+        (isEarlyVotingPolicyEnabled() && electionStatus?.early_voting_status !== EVotingStatus.NOT_STARTED)
+    }
 
     const isPreview = sessionStorage.getItem("isDemo") === "true"
     const canVote = () => {
@@ -216,7 +219,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             electionDates={ballotStyle?.ballot_eml?.election_dates}
-            isStarted={isVotingStarted}
+            isStarted={isVotingStarted()}
         />
     )
 }
