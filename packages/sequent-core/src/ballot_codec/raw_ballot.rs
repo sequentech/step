@@ -395,14 +395,17 @@ impl RawBallotCodec for Contest {
 
         if let Some(presentation) = &self.presentation {
             if let Some(max_votes) = max_votes {
-                if num_selected_candidates >= max_votes {
-                    decoded_contest = handle_over_vote_policy(
-                        &decoded_contest,
-                        &presentation,
-                        num_selected_candidates,
-                        max_votes,
-                    );
-                }
+                let overvote_check = check_over_vote_policy(
+                    &presentation,
+                    num_selected_candidates,
+                    max_votes,
+                );
+                decoded_contest
+                    .invalid_alerts
+                    .extend(overvote_check.invalid_alerts);
+                decoded_contest
+                    .invalid_errors
+                    .extend(overvote_check.invalid_errors);
             }
             if let Some(min_votes) = min_votes {
                 if num_selected_candidates < min_votes {
@@ -458,6 +461,18 @@ impl RawBallotCodec for Contest {
             }
 
             // handle blank vote policy
+            let blankVoteErrors = check_blank_vote_policy(
+                presentation,
+                num_selected_candidates,
+                is_explicit_invalid,
+            );
+            decoded_contest
+                .invalid_errors
+                .extend(blankVoteErrors.invalid_errors);
+            decoded_contest
+                .invalid_alerts
+                .extend(blankVoteErrors.invalid_alerts);
+
             if let Some(blank_vote_policy) = presentation.blank_vote_policy {
                 if num_selected_candidates == 0 && !is_explicit_invalid {
                     (match blank_vote_policy {
@@ -484,72 +499,6 @@ impl RawBallotCodec for Contest {
 
         Ok(decoded_contest)
     }
-}
-
-fn handle_over_vote_policy(
-    decoded_contest: &DecodedVoteContest,
-    presentation: &ContestPresentation,
-    num_selected_candidates: usize,
-    max_votes: usize,
-) -> DecodedVoteContest {
-    let mut new_decoded_contest = decoded_contest.clone();
-    if num_selected_candidates == max_votes
-        && presentation.over_vote_policy
-            == Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE)
-    {
-        new_decoded_contest
-            .invalid_alerts
-            .push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::Implicit,
-                candidate_id: None,
-                message: Some("errors.implicit.overVoteDisabled".to_string()),
-                message_map: HashMap::from([
-                    ("type".to_string(), "alert".to_string()),
-                    (
-                        "numSelected".to_string(),
-                        num_selected_candidates.to_string(),
-                    ),
-                    ("max".to_string(), max_votes.to_string()),
-                ]),
-            });
-    } else if num_selected_candidates > max_votes {
-        let text_error = || InvalidPlaintextError {
-            error_type: InvalidPlaintextErrorType::Implicit,
-            candidate_id: None,
-            message: Some("errors.implicit.selectedMax".to_string()),
-            message_map: HashMap::from([
-                (
-                    "numSelected".to_string(),
-                    num_selected_candidates.to_string(),
-                ),
-                ("max".to_string(), max_votes.to_string()),
-            ]),
-        };
-
-        // for errors, we use only invalid_vote_policy. Overvote policy is going
-        // to be used only for alerts
-        if presentation.invalid_vote_policy != Some(InvalidVotePolicy::ALLOWED)
-        {
-            new_decoded_contest.invalid_errors.push(text_error());
-        }
-
-        match presentation.over_vote_policy.unwrap_or_default() {
-            EOverVotePolicy::ALLOWED => (),
-            EOverVotePolicy::ALLOWED_WITH_MSG => {
-                new_decoded_contest.invalid_alerts.push(text_error())
-            }
-            EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT => {
-                new_decoded_contest.invalid_alerts.push(text_error())
-            }
-            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT => {
-                new_decoded_contest.invalid_alerts.push(text_error());
-            }
-            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE => {
-                new_decoded_contest.invalid_alerts.push(text_error());
-            }
-        };
-    }
-    new_decoded_contest
 }
 
 #[cfg(test)]

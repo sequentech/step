@@ -7,6 +7,7 @@ use std::num::TryFromIntError;
 use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
+use crate::ballot_codec::check_blank_vote_policy;
 use crate::mixed_radix;
 use crate::plaintext::{
     DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
@@ -470,8 +471,11 @@ impl BallotChoices {
                 contest.max_votes.try_into().map_err(|_| {
                     format!("i64 -> usize conversion on contest max_votes")
                 })?;
-            let next =
-                Self::decode_contest(&contest, &choices[choice_index..])?;
+            let next = Self::decode_contest(
+                &contest,
+                &choices[choice_index..],
+                is_explicit_invalid,
+            )?;
             choice_index += max_votes;
             contest_choices.push(next);
         }
@@ -505,6 +509,7 @@ impl BallotChoices {
     fn decode_contest(
         contest: &Contest,
         choices: &[u64],
+        is_explicit_invalid: bool,
     ) -> Result<DecodedContestChoices, String> {
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id.
@@ -579,9 +584,18 @@ impl BallotChoices {
         }
 
         let presentation = contest.presentation.clone().unwrap_or_default();
+
+        // handle blank vote policy
+        let blankVoteErrors = check_blank_vote_policy(
+            &presentation,
+            num_selected_candidates,
+            is_explicit_invalid,
+        );
+        invalid_errors.extend(blankVoteErrors.invalid_errors);
+        invalid_alerts.extend(blankVoteErrors.invalid_alerts);
+
         let under_vote_policy =
             presentation.under_vote_policy.clone().unwrap_or_default();
-
         if under_vote_policy != EUnderVotePolicy::ALLOWED
             && num_selected_candidates < max_votes
             && num_selected_candidates >= min_votes
