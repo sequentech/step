@@ -156,9 +156,16 @@ Create documents and tutorials about the voters tab, adding User Attributes to k
  or how to create reports and templates.
 
 ## ✨Tally - Add the option to export event tally results in xlsx format
+
 In Results & Participation Section, Add a new action to ACTIONS button at the event level
 to export results in xlsx format. This will read the data from the sqlite file
 and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
+
+## ✨ Configure election screen on closed event
+
+Add a class name and the is-start attribute to the HTML of the select elections
+ screen at the voting portal to control the CSS from the admin portal.
+"is-start" attribute added to the SelectElection component in ui-essentials.
 
 ## 🐞 Multiple Finished Tally Ceremony logs
 
