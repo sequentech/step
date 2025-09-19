@@ -143,6 +143,12 @@ tests, filling in the disk.
 The election name shown in the section "Results & Participation" of the Tally in
 the Admin Portal is shown as 0 rather than its actual name.
 
+## ✨ Configure election screen on closed event
+
+Add a class name and the is-start attribute to the HTML of the select elections
+ screen at the voting portal to control the CSS from the admin portal.
+"is-start" attribute added to the SelectElection component in ui-essentials.
+
 ## 🐞 Multiple Finished Tally Ceremony logs
 
 Finished Tally Ceremony logs were repeated multiple times (each time the task is
