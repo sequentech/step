@@ -7,7 +7,7 @@ use std::num::TryFromIntError;
 use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
-use crate::ballot_codec::check_blank_vote_policy;
+use crate::ballot_codec::{check_blank_vote_policy, check_invalid_vote_policy};
 use crate::mixed_radix;
 use crate::plaintext::{
     DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
@@ -584,6 +584,11 @@ impl BallotChoices {
         }
 
         let presentation = contest.presentation.clone().unwrap_or_default();
+
+        let invalid_vote_policy_errors =
+            check_invalid_vote_policy(&presentation, is_explicit_invalid);
+        invalid_errors.extend(invalid_vote_policy_errors.invalid_errors);
+        invalid_alerts.extend(invalid_vote_policy_errors.invalid_alerts);
 
         // handle blank vote policy
         let blankVoteErrors = check_blank_vote_policy(
