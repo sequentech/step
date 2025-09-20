@@ -597,14 +597,6 @@ impl BallotChoices {
             check_invalid_vote_policy(&presentation, is_explicit_invalid);
         decoded_contest.update(invalid_vote_policy_check);
 
-        // handle blank vote policy
-        let blank_vote_check = check_blank_vote_policy(
-            &presentation,
-            num_selected_candidates,
-            is_explicit_invalid,
-        );
-        decoded_contest.update(blank_vote_check);
-
         let min_check =
             check_min_vote_policy(num_selected_candidates, min_votes);
         decoded_contest.update(min_check);
@@ -616,6 +608,14 @@ impl BallotChoices {
             Some(max_votes.clone()),
         );
         decoded_contest.update(under_vote_check);
+
+        // handle blank vote policy
+        let blank_vote_check = check_blank_vote_policy(
+            &presentation,
+            num_selected_candidates,
+            is_explicit_invalid,
+        );
+        decoded_contest.update(blank_vote_check);
 
         Ok(decoded_contest)
     }

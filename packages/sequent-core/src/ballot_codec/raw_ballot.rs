@@ -341,7 +341,7 @@ impl RawBallotCodec for Contest {
             check_max_min_votes_policy(self.max_votes, self.min_votes);
         decoded_contest.update(maxmin_errors);
 
-        if let Some(max_votes) = max_votes {
+        if let Some(max_votes) = max_votes.clone() {
             let overvote_check = check_over_vote_policy(
                 &presentation,
                 num_selected_candidates,
@@ -349,7 +349,7 @@ impl RawBallotCodec for Contest {
             );
             decoded_contest.update(overvote_check);
         }
-        if let Some(min_votes) = min_votes {
+        if let Some(min_votes) = min_votes.clone() {
             let min_check =
                 check_min_vote_policy(num_selected_candidates, min_votes);
             decoded_contest.update(min_check);
