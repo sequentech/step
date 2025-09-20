@@ -7,7 +7,10 @@ use std::num::TryFromIntError;
 use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
-use crate::ballot_codec::{check_blank_vote_policy, check_invalid_vote_policy};
+use crate::ballot_codec::{
+    check_blank_vote_policy, check_invalid_vote_policy, check_min_vote_policy,
+    check_under_vote_policy,
+};
 use crate::mixed_radix;
 use crate::plaintext::{
     DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
@@ -511,10 +514,14 @@ impl BallotChoices {
         choices: &[u64],
         is_explicit_invalid: bool,
     ) -> Result<DecodedContestChoices, String> {
+        let mut decoded_contest = DecodedContestChoices::new(
+            contest.id.clone(),
+            vec![],
+            vec![],
+            vec![],
+        );
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id.
-        let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
-        let mut invalid_alerts: Vec<InvalidPlaintextError> = vec![];
         let mut sorted_candidates: Vec<Candidate> = contest
             .candidates
             .clone()
@@ -565,6 +572,7 @@ impl BallotChoices {
         // Duplicate values will be ignored
         let unique: HashSet<DecodedContestChoice> =
             HashSet::from_iter(next_choices.iter().cloned());
+        decoded_contest.choices = unique.clone().into_iter().collect();
 
         let num_selected_candidates = next_choices.len();
 
@@ -585,50 +593,31 @@ impl BallotChoices {
 
         let presentation = contest.presentation.clone().unwrap_or_default();
 
-        let invalid_vote_policy_errors =
+        let invalid_vote_policy_check =
             check_invalid_vote_policy(&presentation, is_explicit_invalid);
-        invalid_errors.extend(invalid_vote_policy_errors.invalid_errors);
-        invalid_alerts.extend(invalid_vote_policy_errors.invalid_alerts);
+        decoded_contest.update(invalid_vote_policy_check);
 
         // handle blank vote policy
-        let blankVoteErrors = check_blank_vote_policy(
+        let blank_vote_check = check_blank_vote_policy(
             &presentation,
             num_selected_candidates,
             is_explicit_invalid,
         );
-        invalid_errors.extend(blankVoteErrors.invalid_errors);
-        invalid_alerts.extend(blankVoteErrors.invalid_alerts);
+        decoded_contest.update(blank_vote_check);
 
-        let under_vote_policy =
-            presentation.under_vote_policy.clone().unwrap_or_default();
-        if under_vote_policy != EUnderVotePolicy::ALLOWED
-            && num_selected_candidates < max_votes
-            && num_selected_candidates >= min_votes
-        {
-            invalid_alerts.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::Implicit,
-                candidate_id: None,
-                message: Some("errors.implicit.underVote".to_string()),
-                message_map: HashMap::from([
-                    ("type".to_string(), "alert".to_string()),
-                    (
-                        "numSelected".to_string(),
-                        num_selected_candidates.to_string(),
-                    ),
-                    ("min".to_string(), min_votes.to_string()),
-                    ("max".to_string(), max_votes.to_string()),
-                ]),
-            });
-        }
+        let min_check =
+            check_min_vote_policy(num_selected_candidates, min_votes);
+        decoded_contest.update(min_check);
 
-        let c = DecodedContestChoices::new(
-            contest.id.clone(),
-            unique.into_iter().collect(),
-            invalid_errors,
-            invalid_alerts,
+        let under_vote_check = check_under_vote_policy(
+            &presentation,
+            num_selected_candidates,
+            Some(max_votes.clone()),
+            Some(max_votes.clone()),
         );
+        decoded_contest.update(under_vote_check);
 
-        Ok(c)
+        Ok(decoded_contest)
     }
 
     // We are using a "sparse" mixed radix encoding of
