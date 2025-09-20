@@ -338,43 +338,9 @@ impl RawBallotCodec for Contest {
             choices: sorted_choices,
         };
 
-        let max_votes: Option<usize> = match usize::try_from(self.max_votes) {
-            Ok(val) => Some(val),
-            Err(_) => {
-                decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::EncodingError,
-                    candidate_id: None,
-                    message: Some(
-                        "errors.encoding.invalidMaxVotes".to_string(),
-                    ),
-                    message_map: HashMap::from([(
-                        "max".to_string(),
-                        self.max_votes.to_string(),
-                    )]),
-                });
-
-                None
-            }
-        };
-
-        let min_votes: Option<usize> = match usize::try_from(self.min_votes) {
-            Ok(val) => Some(val),
-            Err(_) => {
-                decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::EncodingError,
-                    candidate_id: None,
-                    message: Some(
-                        "errors.encoding.invalidMinVotes".to_string(),
-                    ),
-                    message_map: HashMap::from([(
-                        "min".to_string(),
-                        self.min_votes.to_string(),
-                    )]),
-                });
-
-                None
-            }
-        };
+        let (max_votes, min_votes, maxmin_errors) = check_max_min_votes_policy(self.max_votes, self.min_votes);
+        decoded_contest.invalid_errors.extend(maxmin_errors.invalid_errors);
+        decoded_contest.invalid_alerts.extend(maxmin_errors.invalid_alerts);
 
         if let Some(max_votes) = max_votes {
             let overvote_check = check_over_vote_policy(
