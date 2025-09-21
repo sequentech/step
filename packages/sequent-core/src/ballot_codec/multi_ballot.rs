@@ -605,7 +605,7 @@ impl BallotChoices {
             &presentation,
             num_selected_candidates,
             Some(max_votes.clone()),
-            Some(max_votes.clone()),
+            Some(min_votes.clone()),
         );
         decoded_contest.update(under_vote_check);
 

@@ -359,7 +359,7 @@ impl RawBallotCodec for Contest {
             &presentation,
             num_selected_candidates,
             max_votes.clone(),
-            max_votes.clone(),
+            min_votes.clone(),
         );
         decoded_contest.update(under_vote_check);
 

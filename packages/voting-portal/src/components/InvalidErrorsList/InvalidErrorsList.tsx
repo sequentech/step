@@ -16,12 +16,15 @@ import {
     EUnderVotePolicy,
     EElectionEventContestEncryptionPolicy,
     BallotSelection,
+    EInvalidVotePolicy,
+    EOverVotePolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {isVotedByElectionId} from "../../store/extra/extraSlice"
 import {useParams} from "react-router-dom"
 import {error} from "console"
+import {IInvalidPlaintextErrorType} from "sequent-core"
 
 const ErrorWrapper = styled(Box)`
     display: flex;
@@ -38,6 +41,8 @@ export interface IInvalidErrorsListProps {
     setDecodedContests: (input: IDecodedVoteContest) => void
     isReview: boolean
     errorSelectionState: BallotSelection
+    isTouched: boolean
+    setIsTouched: (value: boolean) => void
 }
 
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
@@ -49,10 +54,11 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     setDecodedContests,
     isReview,
     errorSelectionState,
+    isTouched,
+    setIsTouched,
 }) => {
     const {t} = useTranslation()
     // Note that if we have reviewed, then we can asume we have touched
-    const [isTouched, setIsTouched] = useState(isReview)
     const {electionId} = useParams<{electionId?: string}>()
     const isVotedState = useAppSelector(isVotedByElectionId(electionId))
     const {
@@ -65,6 +71,10 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         question?.presentation?.under_vote_policy ?? undefined
     let blank_vote_policy: EBlankVotePolicy | undefined =
         question?.presentation?.blank_vote_policy ?? undefined
+    let invalid_vote_policy: EInvalidVotePolicy | undefined =
+        question?.presentation?.invalid_vote_policy ?? undefined
+    let over_vote_policy: EOverVotePolicy | undefined =
+        question?.presentation?.over_vote_policy ?? undefined
 
     const decodedContestSelection = errorSelectionState.find(
         (selection) => selection.contest_id === question.id
@@ -84,37 +94,13 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         isVotedState: boolean,
         isReview: boolean,
         under_vote_policy?: EUnderVotePolicy,
-        blank_vote_policy?: EBlankVotePolicy
+        blank_vote_policy?: EBlankVotePolicy,
+        invalid_vote_policy?: EInvalidVotePolicy,
+        over_vote_policy?: EOverVotePolicy
     ) => {
         if (!state) return undefined
         var ret = {
             ...state,
-            invalid_errors:
-                state?.invalid_errors.filter(
-                    // !() is used so that function instead of behaving like
-                    // "show error when this happens" behaves more like "hide
-                    // error when this happens"
-                    (error) => {
-                        let ret = !(
-                            // If no interaction is made and not in review screen,
-                            // filter out selectedMin & blank vote errors
-                            (
-                                ["errors.implicit.selectedMin", "errors.implicit.blankVote"].find(
-                                    (e) => e === error.message
-                                ) &&
-                                !isReview &&
-                                !isTouched &&
-                                !isVotedState
-                            )
-                        )
-                        if (!ret) {
-                            console.log(`invalid_errors: filtering out error: ${error.message}`)
-                        } else {
-                            console.log(`invalid_errors: NOT filtering out error: ${error.message}`)
-                        }
-                        return ret
-                    }
-                ) || [],
             invalid_alerts:
                 state?.invalid_alerts.filter(
                     // !() is used so that function instead of behaving like
@@ -122,22 +108,12 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     // error when this happens"
                     (error) => {
                         let ret = !(
-                            ("errors.implicit.selectedMin" === error.message &&
-                                !isReview &&
-                                !isTouched &&
-                                !isVotedState) ||
                             ("errors.implicit.underVote" === error.message &&
-                                ((!isReview && !isTouched && !isVotedState) ||
-                                    (!isReview &&
-                                        under_vote_policy ===
-                                            EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
-                                    under_vote_policy === EUnderVotePolicy.ALLOWED)) ||
+                                !isReview &&
+                                under_vote_policy === EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
                             ("errors.implicit.blankVote" === error.message &&
-                                ((!isReview && !isTouched && !isVotedState) ||
-                                    (!isReview &&
-                                        blank_vote_policy ===
-                                            EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||
-                                    blank_vote_policy === EBlankVotePolicy.ALLOWED)) ||
+                                !isReview &&
+                                blank_vote_policy === EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||
                             (error.message === "errors.implicit.overVoteDisabled" && isReview)
                         )
                         if (!ret) {
@@ -157,6 +133,10 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     }
                 ) || [],
         }
+        if (!isReview && !isTouched) {
+            ret.invalid_alerts = []
+            ret.invalid_errors = []
+        }
 
         // remove duplicates
         ret.invalid_alerts = ret.invalid_alerts.filter(
@@ -172,6 +152,17 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     )
                 )
         )
+        ret.invalid_errors = ret.invalid_errors.filter((error) => {
+            let ret = !(
+                invalid_vote_policy === EInvalidVotePolicy.ALLOWED &&
+                !(
+                    "errors.implicit.selectedMax" === error.message &&
+                    over_vote_policy !== EOverVotePolicy.ALLOWED
+                )
+            )
+            return ret
+        })
+
         return ret
     }
 
@@ -183,7 +174,9 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                 isVotedState,
                 isReview,
                 under_vote_policy,
-                blank_vote_policy
+                blank_vote_policy,
+                invalid_vote_policy,
+                over_vote_policy
             ),
         [
             decodedContestSelection,

@@ -169,10 +169,7 @@ pub fn check_over_vote_policy(
 
         // for errors, we use only invalid_vote_policy. Overvote policy is going
         // to be used only for alerts
-        if presentation.invalid_vote_policy != Some(InvalidVotePolicy::ALLOWED)
-        {
-            checker_result.invalid_errors.push(text_error());
-        }
+        checker_result.invalid_errors.push(text_error());
 
         match presentation.over_vote_policy.unwrap_or_default() {
             EOverVotePolicy::ALLOWED => (),

@@ -90,6 +90,20 @@ const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
     }
 `
 
+const InvalidBlankWrapper = emotionStyled.ul<{columnCount: number}>`
+    list-style: none;
+    padding-inline-start: 0;
+    column-gap: 0;
+    margin: 0;
+    
+    @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
+        column-count: ${(data) => data.columnCount};
+    }
+
+    li + li {
+        margin-top: 12px;
+    }
+`
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
     question: IContest
@@ -110,15 +124,14 @@ export const Question: React.FC<IQuestionProps> = ({
     // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
+    const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let [selectedChoicesSum, setSelectedChoicesSum] = useState(0)
     let [disableSelect, setDisableSelect] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
-    let hasBlankCandidate = invalidOrBlankCandidates.some((candidate) =>
-        checkIsExplicitBlankVote(candidate)
-    )
+    const [isTouched, setIsTouched] = useState(isReview)
     const contestState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
@@ -217,6 +230,8 @@ export const Question: React.FC<IQuestionProps> = ({
                 setDecodedContests={setDecodedContests}
                 isReview={isReview}
                 errorSelectionState={errorSelectionState}
+                isTouched={isTouched}
+                setIsTouched={setIsTouched}
             />
             {isBlank ? <BlankAnswer /> : null}
             <CandidatesWrapper className="candidates-container">
@@ -233,24 +248,31 @@ export const Question: React.FC<IQuestionProps> = ({
                 >
                     {translate(question, "name", i18n.language) || ""}
                 </Box>
-                {invalidTopCandidates.map((answer, answerIndex) => (
-                    <Answer
-                        ballotStyle={ballotStyle}
-                        answer={answer}
-                        contestId={question.id}
-                        key={answerIndex}
-                        index={answerIndex}
-                        isActive={!isReview}
-                        isReview={isReview}
-                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
-                        isRadioSelection={isRadioSelection}
-                        contest={question}
-                        selectedChoicesSum={selectedChoicesSum}
-                        setSelectedChoicesSum={setSelectedChoicesSum}
-                        disableSelect={disableSelect}
-                        iconCheckboxPolicy={iconCheckboxPolicy}
-                    />
-                ))}
+                {invalidTopCandidates.length ? (
+                    <InvalidBlankWrapper className="candidates-top-blank-invalid" columnCount={1}>
+                        {invalidTopCandidates.map((answer, answerIndex) => (
+                            <Answer
+                                ballotStyle={ballotStyle}
+                                answer={answer}
+                                contestId={question.id}
+                                key={answerIndex}
+                                index={answerIndex}
+                                isActive={!isReview}
+                                isReview={isReview}
+                                isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
+                                isRadioSelection={isRadioSelection}
+                                contest={question}
+                                selectedChoicesSum={selectedChoicesSum}
+                                setSelectedChoicesSum={setSelectedChoicesSum}
+                                disableSelect={disableSelect}
+                                iconCheckboxPolicy={iconCheckboxPolicy}
+                                explicitBlank={explicitBlank}
+                                setExplicitBlank={setExplicitBlank}
+                                setIsTouched={setIsTouched}
+                            />
+                        ))}
+                    </InvalidBlankWrapper>
+                ) : null}
                 <CandidateListsWrapper className="candidates-lists-container">
                     {categoriesMapOrder &&
                         Object.entries(categoriesMapOrder).map(
@@ -272,6 +294,9 @@ export const Question: React.FC<IQuestionProps> = ({
                                     setSelectedChoicesSum={setSelectedChoicesSum}
                                     disableSelect={disableSelect}
                                     iconCheckboxPolicy={iconCheckboxPolicy}
+                                    explicitBlank={explicitBlank}
+                                    setExplicitBlank={setExplicitBlank}
+                                    setIsTouched={setIsTouched}
                                 />
                             )
                         )}
@@ -299,28 +324,41 @@ export const Question: React.FC<IQuestionProps> = ({
                                 setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
                                 iconCheckboxPolicy={iconCheckboxPolicy}
+                                explicitBlank={explicitBlank}
+                                setExplicitBlank={setExplicitBlank}
+                                setIsTouched={setIsTouched}
                             />
                         ))}
                 </CandidatesSingleWrapper>
-                {invalidBottomCandidates.map((answer, answerIndex) => (
-                    <Answer
-                        ballotStyle={ballotStyle}
-                        answer={answer}
-                        contestId={question.id}
-                        index={answerIndex}
-                        key={answerIndex}
-                        isActive={!isReview}
-                        isReview={isReview}
-                        isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
-                        isInvalidWriteIns={false}
-                        isRadioSelection={isRadioSelection}
-                        contest={question}
-                        selectedChoicesSum={selectedChoicesSum}
-                        setSelectedChoicesSum={setSelectedChoicesSum}
-                        disableSelect={disableSelect}
-                        iconCheckboxPolicy={iconCheckboxPolicy}
-                    />
-                ))}
+                {invalidBottomCandidates.length ? (
+                    <InvalidBlankWrapper
+                        className="candidates-bottom-blank-invalid"
+                        columnCount={1}
+                    >
+                        {invalidBottomCandidates.map((answer, answerIndex) => (
+                            <Answer
+                                ballotStyle={ballotStyle}
+                                answer={answer}
+                                contestId={question.id}
+                                index={answerIndex}
+                                key={answerIndex}
+                                isActive={!isReview}
+                                isReview={isReview}
+                                isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
+                                isInvalidWriteIns={false}
+                                isRadioSelection={isRadioSelection}
+                                contest={question}
+                                selectedChoicesSum={selectedChoicesSum}
+                                setSelectedChoicesSum={setSelectedChoicesSum}
+                                disableSelect={disableSelect}
+                                iconCheckboxPolicy={iconCheckboxPolicy}
+                                explicitBlank={explicitBlank}
+                                setExplicitBlank={setExplicitBlank}
+                                setIsTouched={setIsTouched}
+                            />
+                        ))}
+                    </InvalidBlankWrapper>
+                ) : null}
             </CandidatesWrapper>
         </Box>
     )
