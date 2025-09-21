@@ -158,6 +158,10 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                 !(
                     "errors.implicit.selectedMax" === error.message &&
                     over_vote_policy !== EOverVotePolicy.ALLOWED
+                ) &&
+                !(
+                    "errors.implicit.blankVote" === error.message &&
+                    blank_vote_policy === EBlankVotePolicy.NOT_ALLOWED
                 )
             )
             return ret
