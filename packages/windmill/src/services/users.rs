@@ -1811,8 +1811,7 @@ pub async fn list_users_has_voted(
     let final_total = if let Some(true) = filter.has_voted {
         min(total_users_from_filter, count_total_voted as i32)
     } else {
-        min(
-            total_users_from_filter, count_total_not_voted as i32)
+        min(total_users_from_filter, count_total_not_voted as i32)
     };
 
     Ok((final_users, final_total))
