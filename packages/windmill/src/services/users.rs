@@ -32,6 +32,7 @@ use tokio_util::io::StreamReader;
 use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
+use std::cmp::min;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
@@ -744,7 +745,7 @@ pub async fn list_users(
         ) attr_json ON TRUE;
         "#
     );
-    debug!("statement_str {statement_str:?}");
+    info!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
@@ -1548,7 +1549,7 @@ pub async fn get_ids_filtered_and_sorted(
     hasura_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<Vec<String>> {
-        info!("filter: {filter:?}");
+    info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -1710,7 +1711,9 @@ pub async fn get_ids_filtered_and_sorted(
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_have_voted(hasura_transaction: &Transaction<'_>) -> Result<(i32)> {
     let statement = hasura_transaction
-        .prepare("SELECT COUNT(DISTINCT voter_id_string) as total_count FROM sequent_backend.cast_vote")
+        .prepare(
+            "SELECT COUNT(DISTINCT voter_id_string) as total_count FROM sequent_backend.cast_vote",
+        )
         .await?;
     let count_row = hasura_transaction.query_one(&statement, &[]).await?;
     let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
@@ -1723,43 +1726,75 @@ pub async fn list_users_has_voted(
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<(Vec<User>, i32)> {
-    // Get how many voters have voted
-    let count_voted = count_have_voted(hasura_transaction).await?;
-    let mut count_max_voters = 0;
     let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
-    let real_offset = if let Some(offset) = filter.offset {
-        offset
-    } else {
-        0
-    };
+    let real_offset = filter.offset.unwrap_or(0);
+
+    // We need to fetch enough users to cover the offset plus the limit.
+    let required_users = limit + real_offset as usize;
+    // Get how many voters have voted
+    let count_voted = count_have_voted(hasura_transaction).await? as usize;
+
+    let mut users_list = Vec::with_capacity(required_users);
     
-    let mut offset = 0;
-    let mut users_list = Vec::with_capacity(limit);
-    let has_voted = filter.has_voted.ok_or(anyhow!("Has voted not specified."))?;
+    let mut fetch_offset = 0; // This is the offset for the database query.
+    let mut total_users_from_db = 0;
 
-    while users_list.len() < count_voted as usize || users_list.len() < limit {
-        info!("users_list.len() {} count_voted {} limit {}", users_list.len(), count_voted, limit);
-        let mut filter = filter.clone();
-        filter.offset = Some(offset as i32);
+    // Loop until we have enough users for the requested page OR there are no more users to fetch.
+    while (users_list.len() < required_users) && (users_list.len() < count_voted) {
+        info!("******** users_list: {} fetch_offset: {} required_users: {} ******", users_list.len(), fetch_offset, required_users);
 
-        // Get a batch of users
-        let (mut voters, count_voters) = list_users_with_vote_info(hasura_transaction, keycloak_transaction, filter).await?;
-        count_max_voters = count_voters;
+        let mut batch_filter = filter.clone();
+        // Use a separate offset for fetching batches from the database.
+        batch_filter.offset = Some(fetch_offset);
 
-        // Check if have voted
-        voters.retain(|voter| {
-            offset += 1;
-            info!("RETAIN --------- offset: {offset} real_offset: {real_offset}");
-            offset as i32 > real_offset 
+        // Get a batch of users.
+        let (mut voters, count_voters) =
+            list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter).await?;
+        
+        // This is the total count of all users matching the filter criteria in the DB.
+        // It should only be set once.
+        if total_users_from_db == 0 {
+            total_users_from_db = count_voters;
+        }
+
+        info!("voters: {}", voters.len());
+        let fetched_count = voters.len();
+        // **CRITICAL FIX**: If the database returns no users, we must break the loop.
+        if fetched_count == 0 {
+            break;
+        }
+
+        // **CORRECTED OFFSET LOGIC**: Increment the fetch offset by the number of items in the batch.
+        fetch_offset += fetched_count as i32;
+
+        // filter by has_voted, if needed - keep only users with at least one vote
+        if let Some(has_voted) = filter.has_voted {
+            voters.retain(|voter| {
+                let info_count = voter.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
+                if has_voted {
+                    info_count > 0
+                } else {
+                    info_count == 0
+                }
             });
-        let new_voters_count = voters.len();
+        }
 
-        offset += new_voters_count;
-
-        // Add them to users_list
+        // Add the filtered batch to our main list.
         users_list.append(&mut voters);
     }
 
-    // Repeat till have a page.
-    Ok((users_list, count_max_voters))
+    info!("users_list: {:?}", users_list);
+    info!("users_list_len: {}", users_list.len());
+    info!("skip {}", real_offset);
+    info!("take {}", limit);
+
+    // Now, apply the final pagination (offset and limit) to the collected list.
+    let final_users: Vec<User> = users_list
+        .into_iter()
+        .skip(real_offset as usize) // Apply the user's requested offset.
+        .take(limit) // Take the number of items for the page.
+        .collect();
+    let total_users_from_db = min(total_users_from_db, count_voted as i32);
+
+    Ok((final_users, total_users_from_db))
 }
