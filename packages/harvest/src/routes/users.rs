@@ -365,6 +365,7 @@ pub async fn get_users(
         true =>
         // If show_vote_info is true, call list_users_with_vote_info()
         {
+            info!("TEST");
             list_users_with_vote_info(
                 &hasura_transaction,
                 &keycloak_transaction,

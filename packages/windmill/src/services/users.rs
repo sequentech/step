@@ -1542,25 +1542,13 @@ pub async fn get_user_area_id(
     }
 }
 
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+#[instrument(skip(keycloak_transaction), err)]
 pub async fn get_ids_filtered_and_sorted(
-    hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
+    hasura_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
 ) -> Result<Vec<String>> {
-    todo!("TODO")
-}
-
-#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
-pub async fn list_users_has_voted(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    filter: ListUsersFilter,
-) -> Result<(Vec<User>, i32)> {
-    // Get how many voters have voted
-    let count_voted = count_have_voted(hasura_transaction).await?;
-
-    info!("filter: {filter:?}");
+        info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 =
@@ -1708,103 +1696,70 @@ pub async fn list_users_has_voted(
             LIMIT {query_limit} OFFSET {query_offset}
         "#
     );
-    debug!("statement_str {statement_str:?}");
+    info!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
         .query(&statement, &params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
-    let realm: &str = &filter.realm;
-    info!(
-        "Count rows {} for realm={realm}, query_limit={query_limit}",
-        rows.len()
-    );
 
-    // Count the amount of users for pagination
-    let count_statement_str = format!(
-        r#"
-    SELECT
-        COUNT(*) as total_count
-    FROM
-        user_entity AS u
-    INNER JOIN
-        realm AS ra ON ra.id = u.realm_id
-    {area_ids_join_clause}
-    {authorized_alias_join_clause}
-    WHERE
-        ra.name = $1 AND
-        {filters_clause}
-        (u.id = ANY($2) OR $2 IS NULL)
-        {area_ids_where_clause}
-        {authorized_alias_where_clause}
-        {enabled_condition}
-        {email_verified_condition}
-        {dynamic_attr_clause}
-    ;
-    "#
-    );
-    debug!("statement_str {count_statement_str:?}");
-
-    let count_statement = keycloak_transaction
-        .prepare(count_statement_str.as_str())
-        .await?;
-    let count_row: Row = keycloak_transaction
-        .query_one(&count_statement, &params)
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-
-    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
-
-    // Process the users
-    let users = rows
-        .into_iter()
-        .map(|row| -> Result<User> { row.try_into() })
-        .collect::<Result<Vec<User>>>()?;
-    if let Some(ref some_election_event_id) = filter.election_event_id {
-        let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
-        let areas_by_ids = get_areas(
-            hasura_transaction,
-            filter.tenant_id.as_str(),
-            some_election_event_id.as_str(),
-            &area_ids,
-        )
-        .await
-        .with_context(|| "can't find areas by ids")?;
-        let get_area = |user: &User| {
-            let area_id = user.get_area_id()?;
-            return areas_by_ids.iter().find_map(|area| {
-                let Some(ref area_dot_id) = area.id else {
-                    return None;
-                };
-                if area_dot_id == &area_id {
-                    Some(area.clone())
-                } else {
-                    None
-                }
-            });
-        };
-        let users_with_area = users
-            .into_iter()
-            .map(|user| {
-                let area = get_area(&user);
-                User {
-                    area: area,
-                    ..user.clone()
-                }
-            })
-            .collect();
-        Ok((users_with_area, count))
-    } else {
-        Ok((users, count))
-    }
+    todo!("DO SOMETHING")
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn count_have_voted(hasura_transaction: &Transaction<'_>) -> Result<(i32)> {
     let statement = hasura_transaction
-        .prepare("SELECT COUNT(DISTINCT voter_id_string) FROM cast_vote")
+        .prepare("SELECT COUNT(DISTINCT voter_id_string) as total_count FROM sequent_backend.cast_vote")
         .await?;
     let count_row = hasura_transaction.query_one(&statement, &[]).await?;
     let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
     Ok(count)
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn list_users_has_voted(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<(Vec<User>, i32)> {
+    // Get how many voters have voted
+    let count_voted = count_have_voted(hasura_transaction).await?;
+    let mut count_max_voters = 0;
+    let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
+    let real_offset = if let Some(offset) = filter.offset {
+        offset
+    } else {
+        0
+    };
+    
+    let mut offset = 0;
+    let mut users_list = Vec::with_capacity(limit);
+    let has_voted = filter.has_voted.ok_or(anyhow!("Has voted not specified."))?;
+
+    while users_list.len() < count_voted as usize || users_list.len() < limit {
+        info!("users_list.len() {} count_voted {} limit {}", users_list.len(), count_voted, limit);
+        let mut filter = filter.clone();
+        filter.offset = Some(offset as i32);
+
+        // Get a batch of users
+        let (mut voters, count_voters) = list_users_with_vote_info(hasura_transaction, keycloak_transaction, filter).await?;
+        count_max_voters = count_voters;
+
+        // Check if have voted
+        voters.retain(|voter| {
+            offset += 1;
+            info!("RETAIN --------- offset: {offset} real_offset: {real_offset}");
+            offset as i32 > real_offset 
+            });
+        let new_voters_count = voters.len();
+
+        offset += new_voters_count;
+
+        // Add them to users_list
+        users_list.append(&mut voters);
+    }
+
+    // Repeat till have a page.
+    Ok((users_list, count_max_voters))
 }
