@@ -1560,8 +1560,6 @@ pub async fn list_users_has_voted(
     // Get how many voters have voted
     let count_voted = count_have_voted(hasura_transaction).await?;
 
-    
-
     info!("filter: {filter:?}");
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
@@ -1802,10 +1800,10 @@ pub async fn list_users_has_voted(
     }
 }
 
-pub async fn count_have_voted(
-    hasura_transaction: &Transaction<'_>
-) -> Result<(i32)> {
-    let statement = hasura_transaction.prepare("SELECT COUNT(DISTINCT voter_id_string) FROM cast_vote").await?;
+pub async fn count_have_voted(hasura_transaction: &Transaction<'_>) -> Result<(i32)> {
+    let statement = hasura_transaction
+        .prepare("SELECT COUNT(DISTINCT voter_id_string) FROM cast_vote")
+        .await?;
     let count_row = hasura_transaction.query_one(&statement, &[]).await?;
     let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
     Ok(count)

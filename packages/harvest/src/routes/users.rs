@@ -37,6 +37,7 @@ use windmill::services::export::export_users::{
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
+use windmill::services::users::list_users_has_voted;
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
@@ -44,7 +45,6 @@ use windmill::services::users::{FilterOption, ListUsersFilter};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
-use windmill::services::users::list_users_has_voted;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -338,25 +338,27 @@ pub async fn get_users(
     };
 
     if let Some(has_voted) = input.has_voted {
-        let (users, count) = list_users_has_voted(                &hasura_transaction,
-                &keycloak_transaction,
-                filter,)
-            .await
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error listing users that has_voted {:?}", e),
-                )
-            })?;
+        let (users, count) = list_users_has_voted(
+            &hasura_transaction,
+            &keycloak_transaction,
+            filter,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error listing users that has_voted {:?}", e),
+            )
+        })?;
 
         return Ok(Json(DataList {
-        items: users,
-        total: TotalAggregate {
-            aggregate: Aggregate {
-                count: count as i64,
+            items: users,
+            total: TotalAggregate {
+                aggregate: Aggregate {
+                    count: count as i64,
+                },
             },
-        },
-    }))
+        }));
     }
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {
