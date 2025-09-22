@@ -460,7 +460,7 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
-        const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES)
+        const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES, undefined)
         try {
             let {data, errors} = await importCandidates({
                 variables: {

@@ -9,7 +9,7 @@ import {WidgetsStack} from "@/components/WidgetsStack"
 import {WidgetProps} from "@/components/Widget"
 
 interface WidgetContextProps {
-    addWidget: (type: ETasksExecution) => WidgetProps
+    addWidget: (type: ETasksExecution, automaticallyDownload: boolean | undefined) => WidgetProps
     setWidgetTaskId: (widgetIdentifier: string, taskId: string, onSuccess?: () => void) => void
     updateWidgetFail: (widgetIdentifier: string) => void
 }
@@ -29,12 +29,16 @@ export const WidgetsContextProvider: React.FC<{children: React.ReactNode}> = ({c
         return `widget_${formattedDate}`
     }
 
-    const addWidget = (type: ETasksExecution): WidgetProps => {
+    const addWidget = (
+        type: ETasksExecution,
+        automaticallyDownload: boolean | undefined = false
+    ): WidgetProps => {
         const newWidget: WidgetProps = {
             type,
             status: ETaskExecutionStatus.IN_PROGRESS,
             onClose: onClose,
             identifier: generateWidgetId(),
+            automaticallyDownload,
         }
 
         setWidgetsState((prevState) => new Map(prevState.set(newWidget.identifier, newWidget)))
