@@ -1541,3 +1541,272 @@ pub async fn get_user_area_id(
         Ok(None)
     }
 }
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn get_ids_filtered_and_sorted(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<Vec<String>> {
+    todo!("TODO")
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn list_users_has_voted(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+) -> Result<(Vec<User>, i32)> {
+    // Get how many voters have voted
+    let count_voted = count_have_voted(hasura_transaction).await?;
+
+    
+
+    info!("filter: {filter:?}");
+    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let query_limit: i64 =
+        std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
+    let query_offset: i64 = filter.offset.unwrap_or(0).into();
+
+    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
+    let mut next_param_number = 3;
+
+    let mut filters_clause = "".to_string();
+    let mut filter_params: Vec<String> = vec![];
+    for tuple in [
+        ("email", &filter.email),
+        ("first_name", &filter.first_name),
+        ("last_name", &filter.last_name),
+        ("username", &filter.username),
+    ] {
+        let (col_name, filter_option) = tuple;
+        match filter_option {
+            Some(filter_obj) => {
+                let (clause, param) =
+                    filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+                filters_clause.push_str(&clause);
+                if let Some(param) = param {
+                    next_param_number += 1;
+                    filter_params.push(param.to_string());
+                }
+            }
+            None => {}
+        }
+    }
+    for filt_param in filter_params.iter() {
+        params.push(filt_param);
+    }
+
+    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
+        hasura_transaction,
+        filter.election_id.clone(),
+        filter.area_id.clone(),
+        next_param_number,
+    )
+    .await?;
+
+    if let Some(area_ids) = &area_ids {
+        params.push(area_ids);
+        next_param_number += 1;
+    }
+
+    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
+        .authorized_to_election_alias
+    {
+        Some(election_alias) => (
+            Some(election_alias),
+            format!(
+                r#"
+            LEFT JOIN 
+                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
+            "#,
+                next_param_number
+            ),
+            format!(
+                r#"
+            AND (
+                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
+            )
+            "#,
+                next_param_number + 1
+            ),
+        ),
+        None => (None, "".to_string(), "".to_string()),
+    };
+
+    if election_alias.is_some() {
+        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
+        params.push(&election_alias);
+        next_param_number += 2;
+    }
+
+    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
+    let email_verified_condition =
+        get_query_bool_condition("email_verified", filter.email_verified);
+
+    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
+    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
+
+    if let Some(attributes) = &filter.attributes {
+        for (key, value) in attributes {
+            dynamic_attr_conditions.push(format!(
+                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                next_param_number,
+                next_param_number + 1
+            ));
+            let val = Some(format!("%{value}%"));
+            let formatted_keyy = key.trim_matches('\'').to_string();
+            dynamic_attr_params.push(Some(formatted_keyy.clone()));
+            dynamic_attr_params.push(val.clone());
+            next_param_number += 2;
+        }
+    }
+    for value in &dynamic_attr_params {
+        params.push(value);
+    }
+
+    let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
+        true => "".to_string(),
+        false => {
+            format!(r#"AND({})"#, dynamic_attr_conditions.join(" OR "))
+        }
+    };
+
+    let mut sort_params: Vec<Option<String>> = vec![];
+    let (sort_clause, field_param) =
+        get_sort_clause_and_field_param(filter.sort, next_param_number);
+
+    if field_param.is_some() {
+        sort_params.push(field_param);
+        next_param_number += 1;
+    }
+    for value in &sort_params {
+        params.push(value);
+    }
+
+    debug!("parameters count: {}", next_param_number - 1);
+    debug!("params {:?}", params);
+    let statement_str = format!(
+        r#"
+            SELECT
+                u.id
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm AS ra ON ra.id = u.realm_id
+            {area_ids_join_clause}
+            {authorized_alias_join_clause}
+            WHERE
+                ra.name = $1 AND
+                {filters_clause}
+                (u.id = ANY($2) OR $2 IS NULL)
+                {area_ids_where_clause}
+                {authorized_alias_where_clause}
+                {enabled_condition}
+                {email_verified_condition}
+                {dynamic_attr_clause}
+            {sort_clause}
+            LIMIT {query_limit} OFFSET {query_offset}
+        "#
+    );
+    debug!("statement_str {statement_str:?}");
+
+    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
+    let rows: Vec<Row> = keycloak_transaction
+        .query(&statement, &params.as_slice())
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+    let realm: &str = &filter.realm;
+    info!(
+        "Count rows {} for realm={realm}, query_limit={query_limit}",
+        rows.len()
+    );
+
+    // Count the amount of users for pagination
+    let count_statement_str = format!(
+        r#"
+    SELECT
+        COUNT(*) as total_count
+    FROM
+        user_entity AS u
+    INNER JOIN
+        realm AS ra ON ra.id = u.realm_id
+    {area_ids_join_clause}
+    {authorized_alias_join_clause}
+    WHERE
+        ra.name = $1 AND
+        {filters_clause}
+        (u.id = ANY($2) OR $2 IS NULL)
+        {area_ids_where_clause}
+        {authorized_alias_where_clause}
+        {enabled_condition}
+        {email_verified_condition}
+        {dynamic_attr_clause}
+    ;
+    "#
+    );
+    debug!("statement_str {count_statement_str:?}");
+
+    let count_statement = keycloak_transaction
+        .prepare(count_statement_str.as_str())
+        .await?;
+    let count_row: Row = keycloak_transaction
+        .query_one(&count_statement, &params)
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let count: i32 = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
+
+    // Process the users
+    let users = rows
+        .into_iter()
+        .map(|row| -> Result<User> { row.try_into() })
+        .collect::<Result<Vec<User>>>()?;
+    if let Some(ref some_election_event_id) = filter.election_event_id {
+        let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
+        let areas_by_ids = get_areas(
+            hasura_transaction,
+            filter.tenant_id.as_str(),
+            some_election_event_id.as_str(),
+            &area_ids,
+        )
+        .await
+        .with_context(|| "can't find areas by ids")?;
+        let get_area = |user: &User| {
+            let area_id = user.get_area_id()?;
+            return areas_by_ids.iter().find_map(|area| {
+                let Some(ref area_dot_id) = area.id else {
+                    return None;
+                };
+                if area_dot_id == &area_id {
+                    Some(area.clone())
+                } else {
+                    None
+                }
+            });
+        };
+        let users_with_area = users
+            .into_iter()
+            .map(|user| {
+                let area = get_area(&user);
+                User {
+                    area: area,
+                    ..user.clone()
+                }
+            })
+            .collect();
+        Ok((users_with_area, count))
+    } else {
+        Ok((users, count))
+    }
+}
+
+pub async fn count_have_voted(
+    hasura_transaction: &Transaction<'_>
+) -> Result<(i32)> {
+    let statement = hasura_transaction.prepare("SELECT COUNT(DISTINCT voter_id_string) FROM cast_vote").await?;
+    let count_row = hasura_transaction.query_one(&statement, &[]).await?;
+    let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
+    Ok(count)
+}
