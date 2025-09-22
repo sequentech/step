@@ -755,7 +755,7 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
-            const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
+            const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE, undefined)
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {

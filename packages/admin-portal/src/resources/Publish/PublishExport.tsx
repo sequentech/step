@@ -50,7 +50,7 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
     const confirmExportAction = async () => {
         let currWidget: WidgetProps | undefined
         try {
-            currWidget = addWidget(ETasksExecution.EXPORT_BALLOT_PUBLICATION)
+            currWidget = addWidget(ETasksExecution.EXPORT_BALLOT_PUBLICATION, undefined)
 
             const {data: ballotResponse, errors} = await ExportBallotPublication({
                 variables: {
