@@ -567,7 +567,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setExporting(true)
 
             if (electionEventId) {
-                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS)
+                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, undefined)
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
                 })
@@ -843,7 +843,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const handleImportVoters = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
-        const currWidget = addWidget(ETasksExecution.IMPORT_USERS)
+        const currWidget = addWidget(ETasksExecution.IMPORT_USERS, undefined)
         try {
             let {data, errors} = await importUsers({
                 variables: {
