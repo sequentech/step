@@ -86,7 +86,10 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
     // This useEffect handles file upload
     useEffect(() => {
         const preparePreviewData = async () => {
-            let currWidget: WidgetProps = addWidget(ETasksExecution.PREPARE_PUBLICATION_PREVIEW)
+            let currWidget: WidgetProps = addWidget(
+                ETasksExecution.PREPARE_PUBLICATION_PREVIEW,
+                undefined
+            )
             try {
                 let {data} = await preparePreview({
                     variables: {
