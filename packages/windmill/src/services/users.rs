@@ -17,6 +17,7 @@ use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use std::cmp::min;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
@@ -32,7 +33,6 @@ use tokio_util::io::StreamReader;
 use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
-use std::cmp::min;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
@@ -1729,45 +1729,59 @@ pub async fn list_users_has_voted(
     let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
     let real_offset = filter.offset.unwrap_or(0);
 
-    // We need to fetch enough users to cover the offset plus the limit.
-    let required_users = limit + real_offset as usize;
-    // Get how many voters have voted
-    let count_voted = count_have_voted(hasura_transaction).await? as usize;
+    // Get the total number of users who have actually voted.
+    let count_total_voted = count_have_voted(hasura_transaction).await? as usize;
+    // Get the total voters
+    let count_total_voters =
+        count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
+    let count_total_not_voted = count_total_voters - count_total_voted;
 
-    let mut users_list = Vec::with_capacity(required_users);
-    
-    let mut fetch_offset = 0; // This is the offset for the database query.
-    let mut total_users_from_db = 0;
+    // --- State for memory-efficient skipping ---
+    // This will only store the final page of users.
+    let mut final_users = Vec::with_capacity(limit);
+    // Counter for how many users we still need to skip *after filtering*.
+    let mut users_to_skip = real_offset as usize;
+    // Counter for total users found that match the filter, to respect `count_voted`.
+    let mut matching_users_found = 0;
 
-    // Loop until we have enough users for the requested page OR there are no more users to fetch.
-    while (users_list.len() < required_users) && (users_list.len() < count_voted) {
-        info!("******** users_list: {} fetch_offset: {} required_users: {} ******", users_list.len(), fetch_offset, required_users);
+    let mut fetch_offset = 0; // The offset for the database query.
+    let mut total_users_from_filter = 0;
 
-        let mut batch_filter = filter.clone();
-        // Use a separate offset for fetching batches from the database.
-        batch_filter.offset = Some(fetch_offset);
-
-        // Get a batch of users.
-        let (mut voters, count_voters) =
-            list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter).await?;
-        
-        // This is the total count of all users matching the filter criteria in the DB.
-        // It should only be set once.
-        if total_users_from_db == 0 {
-            total_users_from_db = count_voters;
-        }
-
-        info!("voters: {}", voters.len());
-        let fetched_count = voters.len();
-        // **CRITICAL FIX**: If the database returns no users, we must break the loop.
-        if fetched_count == 0 {
+    // --- Optimized Loop ---
+    // Loop until the page is full or we run out of potential users.
+    while final_users.len() < limit {
+        // Optimization: If we've already processed all possible voted users, stop.
+        if matching_users_found >= count_total_voted && Some(true) == filter.has_voted {
+            info!("matching_users_found >= count_total_voted => {}", matching_users_found >= count_total_voted);
             break;
         }
 
-        // **CORRECTED OFFSET LOGIC**: Increment the fetch offset by the number of items in the batch.
+        // Optimization: If we've already processed all possible non voted users, stop.
+        if matching_users_found >= count_total_not_voted && Some(false) == filter.has_voted {
+            info!("matching_users_found >= count_total_voted => {}", matching_users_found >= count_total_voted);
+            break;
+        }
+
+        let mut batch_filter = filter.clone();
+        batch_filter.offset = Some(fetch_offset);
+
+        let (mut voters, count_voters) =
+            list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter)
+                .await?;
+
+        if total_users_from_filter == 0 {
+            total_users_from_filter = count_voters;
+        }
+
+        let fetched_count = voters.len();
+        if fetched_count == 0 {
+            info!("fetched_count == 0 => {}", fetched_count == 0);
+            break; // No more users available from the source.
+        }
+
         fetch_offset += fetched_count as i32;
 
-        // filter by has_voted, if needed - keep only users with at least one vote
+        // Filter the batch by the `has_voted` criteria.
         if let Some(has_voted) = filter.has_voted {
             voters.retain(|voter| {
                 let info_count = voter.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
@@ -1779,22 +1793,38 @@ pub async fn list_users_has_voted(
             });
         }
 
-        // Add the filtered batch to our main list.
-        users_list.append(&mut voters);
+        // --- Core Optimization Logic ---
+        // Process the filtered batch, skipping or collecting each user.
+        for voter in voters {
+            matching_users_found += 1;
+
+            if users_to_skip > 0 {
+                users_to_skip -= 1;
+                info!("Skipping matching user found: {matching_users_found}");
+                continue; // Skip this user and move to the next.
+            }
+
+            // If skipping is done, start collecting.
+            info!("Pushing matching user found: {matching_users_found}");
+            final_users.push(voter);
+
+            // If the page is full, we can stop entirely.
+            if final_users.len() == limit {
+                info!("final_users.len() == limit => {}", final_users.len() == limit);
+                break;
+            }
+        }
+
+        info!("final_users.len() < limit => {}", final_users.len() < limit);
     }
 
-    info!("users_list: {:?}", users_list);
-    info!("users_list_len: {}", users_list.len());
-    info!("skip {}", real_offset);
-    info!("take {}", limit);
+    // The total count should not exceed the number of users who have actually voted or not voted.
+    let final_total = if let Some(true) = filter.has_voted {
+        min(total_users_from_filter, count_total_voted as i32)
+    } else {
+        min(
+            total_users_from_filter, count_total_not_voted as i32)
+    };
 
-    // Now, apply the final pagination (offset and limit) to the collected list.
-    let final_users: Vec<User> = users_list
-        .into_iter()
-        .skip(real_offset as usize) // Apply the user's requested offset.
-        .take(limit) // Take the number of items for the page.
-        .collect();
-    let total_users_from_db = min(total_users_from_db, count_voted as i32);
-
-    Ok((final_users, total_users_from_db))
+    Ok((final_users, final_total))
 }
