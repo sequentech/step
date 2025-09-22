@@ -410,8 +410,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           }
         ],
         "interfaces": null,
@@ -486,7 +484,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "inputFields": null,
@@ -1242,8 +1239,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "election_id",
@@ -1274,7 +1269,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "threshold",
@@ -1698,8 +1692,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "temporary",
@@ -1710,7 +1702,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -1802,8 +1793,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "user_timezone",
@@ -2056,7 +2045,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "inputFields": null,
@@ -2220,8 +2208,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "user_timezone",
@@ -2306,7 +2292,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "inputFields": null,
@@ -2402,8 +2387,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "statement_kind",
@@ -2434,7 +2417,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -2496,8 +2478,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "user_id",
@@ -2518,7 +2498,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -4053,8 +4032,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "email_verified",
@@ -4075,7 +4052,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "first_name",
@@ -4086,8 +4062,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "has_voted",
@@ -4098,7 +4072,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "last_name",
@@ -4149,8 +4122,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "sort",
@@ -4161,7 +4132,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -8718,8 +8688,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           }
         ],
         "interfaces": null,
@@ -8770,7 +8738,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "inputFields": null,
@@ -9730,8 +9697,6 @@
             "description": null,
             "args": [
               {
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
                 "name": "configuration",
                 "description": null,
                 "type": {
@@ -9742,7 +9707,6 @@
                 "defaultValue": null
               },
               {
->>>>>>> origin/main:graphql.schema.json
                 "name": "election_event_id",
                 "description": null,
                 "type": {
@@ -9777,8 +9741,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "tally_type",
@@ -9789,7 +9751,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -9924,8 +9885,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "user_roles_ids",
@@ -9944,7 +9903,6 @@
                   }
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -9964,37 +9922,6 @@
             "description": null,
             "args": [
               {
-<<<<<<< HEAD:packages/graphql.schema.json
-                "name": "ballot_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "ballot_tracker_url",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-=======
->>>>>>> origin/main:graphql.schema.json
                 "name": "election_event_id",
                 "description": null,
                 "type": {
@@ -10007,37 +9934,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-              },
-              {
-                "name": "election_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "tenant_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -10300,7 +10196,7 @@
             "args": [
               {
                 "name": "election_event_id",
-                "description": "Reference to the election event the area is a part of",
+                "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
@@ -10732,77 +10628,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-            "name": "delete_sequent_backend_communication_template",
-            "description": "delete data from the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "where",
-                "description": "filter the rows which have to be deleted",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_bool_exp",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_mutation_response",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "delete_sequent_backend_communication_template_by_pk",
-            "description": "delete single row from the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "tenant_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-=======
->>>>>>> origin/main:graphql.schema.json
             "name": "delete_sequent_backend_contest",
             "description": "delete data from the table: \"sequent_backend.contest\"",
             "args": [
@@ -13341,8 +13166,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "export_configurations",
@@ -13353,7 +13176,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -13381,8 +13203,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "format",
@@ -13397,7 +13217,6 @@
                   }
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -13920,8 +13739,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "limit",
@@ -13932,7 +13749,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -14010,8 +13826,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "is_local",
@@ -14022,7 +13836,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               },
               {
                 "name": "is_public",
@@ -14273,8 +14086,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "sha256",
@@ -14285,7 +14096,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -14327,8 +14137,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "sha256",
@@ -14339,7 +14147,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -14377,8 +14184,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "password",
@@ -14399,7 +14204,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               },
               {
                 "name": "tenant_id",
@@ -14563,8 +14367,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "sha256",
@@ -14575,7 +14377,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               },
               {
                 "name": "tenant_id",
@@ -15284,91 +15085,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-            "name": "insert_sequent_backend_communication_template",
-            "description": "insert data into the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "objects",
-                "description": "the rows to be inserted",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "NON_NULL",
-                      "name": null,
-                      "ofType": {
-                        "kind": "INPUT_OBJECT",
-                        "name": "sequent_backend_communication_template_insert_input",
-                        "ofType": null
-                      }
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "on_conflict",
-                "description": "upsert condition",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_on_conflict",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_mutation_response",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "insert_sequent_backend_communication_template_one",
-            "description": "insert a single row into the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "object",
-                "description": "the row to be inserted",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_insert_input",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "on_conflict",
-                "description": "upsert condition",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_on_conflict",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-=======
->>>>>>> origin/main:graphql.schema.json
             "name": "insert_sequent_backend_contest",
             "description": "insert data into the table: \"sequent_backend.contest\"",
             "args": [
@@ -17854,19 +17570,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-              },
-              {
-                "name": "is_unset",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
               }
             ],
             "type": {
@@ -18418,8 +18121,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "voting_channels",
@@ -18434,7 +18135,6 @@
                   }
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               },
               {
                 "name": "voting_status",
@@ -18476,8 +18176,6 @@
                   }
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "voting_channels",
@@ -18492,7 +18190,6 @@
                   }
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               },
               {
                 "name": "voting_status",
@@ -20009,222 +19706,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-            "name": "update_sequent_backend_communication_template",
-            "description": "update data of the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "_append",
-                "description": "append existing jsonb value of filtered columns with new jsonb value",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_append_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_delete_at_path",
-                "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_at_path_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_delete_elem",
-                "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_elem_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_delete_key",
-                "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_key_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_prepend",
-                "description": "prepend existing jsonb value of filtered columns with new jsonb value",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_prepend_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_set",
-                "description": "sets the columns of the filtered rows to the given values",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_set_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "where",
-                "description": "filter the rows which have to be updated",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_bool_exp",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_mutation_response",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "update_sequent_backend_communication_template_by_pk",
-            "description": "update single row of the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "_append",
-                "description": "append existing jsonb value of filtered columns with new jsonb value",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_append_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_delete_at_path",
-                "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_at_path_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_delete_elem",
-                "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_elem_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_delete_key",
-                "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_delete_key_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_prepend",
-                "description": "prepend existing jsonb value of filtered columns with new jsonb value",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_prepend_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "_set",
-                "description": "sets the columns of the filtered rows to the given values",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_set_input",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "pk_columns",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "sequent_backend_communication_template_pk_columns_input",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "update_sequent_backend_communication_template_many",
-            "description": "update multiples rows of table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "updates",
-                "description": "updates to execute, in order",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "NON_NULL",
-                      "name": null,
-                      "ofType": {
-                        "kind": "INPUT_OBJECT",
-                        "name": "sequent_backend_communication_template_updates",
-                        "ofType": null
-                      }
-                    }
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "sequent_backend_communication_template_mutation_response",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-=======
->>>>>>> origin/main:graphql.schema.json
             "name": "update_sequent_backend_contest",
             "description": "update data of the table: \"sequent_backend.contest\"",
             "args": [
@@ -26158,8 +25639,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "_inc",
@@ -26170,7 +25649,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               },
               {
                 "name": "_prepend",
@@ -26258,8 +25736,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
               },
               {
                 "name": "_inc",
@@ -26270,7 +25746,6 @@
                   "ofType": null
                 },
                 "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
               },
               {
                 "name": "_prepend",
@@ -28204,7 +27679,7 @@
             "args": [
               {
                 "name": "election_event_id",
-                "description": "Reference to the election event the area is a part of",
+                "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
@@ -29371,224 +28846,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-            "name": "sequent_backend_communication_template",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "distinct_on",
-                "description": "distinct select on columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "limit",
-                "description": "limit the number of rows returned",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "offset",
-                "description": "skip the first n rows. Use only with order_by",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "order_by",
-                "description": "sort the rows by one or more columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "where",
-                "description": "filter the rows returned",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "sequent_backend_communication_template_aggregate",
-            "description": "fetch aggregated fields from the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "distinct_on",
-                "description": "distinct select on columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "limit",
-                "description": "limit the number of rows returned",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "offset",
-                "description": "skip the first n rows. Use only with order_by",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "order_by",
-                "description": "sort the rows by one or more columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "where",
-                "description": "filter the rows returned",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "sequent_backend_communication_template_aggregate",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "sequent_backend_communication_template_by_pk",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\" using primary key columns",
-            "args": [
-              {
-                "name": "id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "tenant_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-=======
->>>>>>> origin/main:graphql.schema.json
             "name": "sequent_backend_contest",
             "description": "fetch data from the table: \"sequent_backend.contest\"",
             "args": [
@@ -38081,7 +37338,7 @@
       {
         "kind": "OBJECT",
         "name": "sequent_backend_area",
-        "description": "Areas allowed to vote in for an election event",
+        "description": "columns and relationships of \"sequent_backend.area\"",
         "fields": [
           {
             "name": "annotations",
@@ -38132,7 +37389,7 @@
           },
           {
             "name": "election_event_id",
-            "description": "Reference to the election event the area is a part of",
+            "description": null,
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -40412,7 +39669,7 @@
           },
           {
             "name": "election_event_id",
-            "description": "Reference to the election event the area is a part of",
+            "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
@@ -40526,7 +39783,7 @@
           },
           {
             "name": "election_event_id",
-            "description": "Reference to the election event the area is a part of",
+            "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -40645,7 +39902,7 @@
           },
           {
             "name": "election_event_id",
-            "description": "Reference to the election event the area is a part of",
+            "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -41005,7 +40262,7 @@
         "inputFields": [
           {
             "name": "election_event_id",
-            "description": "Reference to the election event the area is a part of",
+            "description": null,
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -41196,7 +40453,7 @@
           },
           {
             "name": "election_event_id",
-            "description": "Reference to the election event the area is a part of",
+            "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
@@ -41352,7 +40609,7 @@
           },
           {
             "name": "election_event_id",
-            "description": "Reference to the election event the area is a part of",
+            "description": null,
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
@@ -50430,1778 +49687,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_communication_template",
-        "description": "columns and relationships of \"sequent_backend.communication_template\"",
-        "fields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "args": [
-              {
-                "name": "path",
-                "description": "JSON select path",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_method",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "timestamptz",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "args": [
-              {
-                "name": "path",
-                "description": "JSON select path",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "args": [
-              {
-                "name": "path",
-                "description": "JSON select path",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "jsonb",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "timestamptz",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_aggregate",
-        "description": "aggregated selection of \"sequent_backend.communication_template\"",
-        "fields": [
-          {
-            "name": "aggregate",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_aggregate_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "nodes",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_aggregate_fields",
-        "description": "aggregate fields of \"sequent_backend.communication_template\"",
-        "fields": [
-          {
-            "name": "count",
-            "description": null,
-            "args": [
-              {
-                "name": "columns",
-                "description": null,
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "distinct",
-                "description": null,
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Int",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "max",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_max_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "min",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template_min_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_append_input",
-        "description": "append existing jsonb value of filtered columns with new jsonb value",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_bool_exp",
-        "description": "Boolean expression to filter rows from the table \"sequent_backend.communication_template\". All fields are combined with a logical 'AND'.",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "_and",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "_not",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_bool_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "_or",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "jsonb_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_method",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "timestamptz_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "uuid_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "jsonb_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "jsonb_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "uuid_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "timestamptz_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "ENUM",
-        "name": "sequent_backend_communication_template_constraint",
-        "description": "unique or primary key constraints on table \"sequent_backend.communication_template\"",
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "communication_template_pkey",
-            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\"",
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_delete_at_path_input",
-        "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_delete_elem_input",
-        "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_delete_key_input",
-        "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_insert_input",
-        "description": "input type for inserting data into table \"sequent_backend.communication_template\"",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_method",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_max_fields",
-        "description": "aggregate max on columns",
-        "fields": [
-          {
-            "name": "communication_method",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_min_fields",
-        "description": "aggregate min on columns",
-        "fields": [
-          {
-            "name": "communication_method",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_communication_template_mutation_response",
-        "description": "response of any mutation on the table \"sequent_backend.communication_template\"",
-        "fields": [
-          {
-            "name": "affected_rows",
-            "description": "number of rows affected by the mutation",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "Int",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "returning",
-            "description": "data from the rows affected by the mutation",
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_on_conflict",
-        "description": "on_conflict condition type for table \"sequent_backend.communication_template\"",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "constraint",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "ENUM",
-                "name": "sequent_backend_communication_template_constraint",
-                "ofType": null
-              }
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "update_columns",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "sequent_backend_communication_template_update_column",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "defaultValue": "[]"
-          },
-          {
-            "name": "where",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_bool_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_order_by",
-        "description": "Ordering options when selecting data from \"sequent_backend.communication_template\".",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_method",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_pk_columns_input",
-        "description": "primary key columns input for table: sequent_backend.communication_template",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "id",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_prepend_input",
-        "description": "prepend existing jsonb value of filtered columns with new jsonb value",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "ENUM",
-        "name": "sequent_backend_communication_template_select_column",
-        "description": "select columns of table \"sequent_backend.communication_template\"",
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "annotations",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_method",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_type",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_by",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "labels",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "template",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "updated_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_set_input",
-        "description": "input type for updating data in table \"sequent_backend.communication_template\"",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_method",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_stream_cursor_input",
-        "description": "Streaming cursor of the table \"sequent_backend_communication_template\"",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "initial_value",
-            "description": "Stream column input with initial value",
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "INPUT_OBJECT",
-                "name": "sequent_backend_communication_template_stream_cursor_value_input",
-                "ofType": null
-              }
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "ordering",
-            "description": "cursor ordering",
-            "type": {
-              "kind": "ENUM",
-              "name": "cursor_ordering",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_stream_cursor_value_input",
-        "description": "Initial value of the column from where the streaming should start",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "annotations",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_method",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "communication_type",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "created_by",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "template",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "updated_at",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "ENUM",
-        "name": "sequent_backend_communication_template_update_column",
-        "description": "update columns of table \"sequent_backend.communication_template\"",
-        "fields": null,
-        "inputFields": null,
-        "interfaces": null,
-        "enumValues": [
-          {
-            "name": "annotations",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_method",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "communication_type",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "created_by",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "labels",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "template",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "updated_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_communication_template_updates",
-        "description": null,
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "_append",
-            "description": "append existing jsonb value of filtered columns with new jsonb value",
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_append_input",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "_delete_at_path",
-            "description": "delete the field or element with specified path (for JSON arrays, negative integers count from the end)",
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_delete_at_path_input",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "_delete_elem",
-            "description": "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array",
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_delete_elem_input",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "_delete_key",
-            "description": "delete key/value pair or string element. key/value pairs are matched based on their key value",
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_delete_key_input",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "_prepend",
-            "description": "prepend existing jsonb value of filtered columns with new jsonb value",
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_prepend_input",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "_set",
-            "description": "sets the columns of the filtered rows to the given values",
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_communication_template_set_input",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "where",
-            "description": "filter the rows which have to be updated",
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "INPUT_OBJECT",
-                "name": "sequent_backend_communication_template_bool_exp",
-                "ofType": null
-              }
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -59427,32 +56912,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-            "name": "dates",
-            "description": null,
-            "args": [
-              {
-                "name": "path",
-                "description": "JSON select path",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-=======
->>>>>>> origin/main:graphql.schema.json
             "name": "description",
             "description": null,
             "args": [],
@@ -60373,19 +57832,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -60640,19 +58086,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "jsonb_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -60703,8 +58136,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "initialization_report_generated",
@@ -60715,7 +58146,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "is_consolidated_ballot_encoding",
@@ -60736,8 +58166,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "keys_ceremony_id",
@@ -60748,7 +58176,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -60789,8 +58216,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -60801,7 +58226,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "presentation",
@@ -60918,27 +58342,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -61068,19 +58471,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -61162,19 +58552,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -61329,32 +58706,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-            "name": "dates",
-            "description": null,
-            "args": [
-              {
-                "name": "path",
-                "description": "JSON select path",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-=======
->>>>>>> origin/main:graphql.schema.json
             "name": "description",
             "description": null,
             "args": [],
@@ -61941,19 +59292,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -62111,19 +59449,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "jsonb_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -62358,27 +59683,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "LIST",
-              "name": null,
-              "ofType": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              }
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -62500,19 +59804,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -62594,19 +59885,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -62718,19 +59996,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -63346,19 +60611,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -63575,19 +60827,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -63830,19 +61069,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -64089,19 +61315,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -64540,19 +61753,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -64603,8 +61803,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "initialization_report_generated",
@@ -64615,7 +61813,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "is_consolidated_ballot_encoding",
@@ -64636,8 +61833,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "keys_ceremony_id",
@@ -64648,7 +61843,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -64689,8 +61883,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -64701,7 +61893,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "presentation",
@@ -65020,8 +62211,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "keys_ceremony_id",
@@ -65032,7 +62221,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "last_updated_at",
@@ -65063,8 +62251,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -65075,7 +62261,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -65334,8 +62519,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "keys_ceremony_id",
@@ -65346,7 +62529,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "last_updated_at",
@@ -65377,8 +62559,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -65389,7 +62569,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -65559,19 +62738,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -65622,8 +62788,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "initialization_report_generated",
@@ -65634,7 +62798,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "is_consolidated_ballot_encoding",
@@ -65655,8 +62818,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "keys_ceremony_id",
@@ -65667,7 +62828,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -65708,8 +62868,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -65720,7 +62878,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "presentation",
@@ -65865,19 +63022,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -68103,19 +65247,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -68166,8 +65297,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "initialization_report_generated",
@@ -68178,7 +65307,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "is_consolidated_ballot_encoding",
@@ -68199,8 +65327,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "keys_ceremony_id",
@@ -68211,7 +65337,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -68252,8 +65377,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -68264,7 +65387,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "presentation",
@@ -68543,19 +65665,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-          },
-          {
-            "name": "dates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-=======
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "description",
@@ -68606,8 +65715,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "initialization_report_generated",
@@ -68618,7 +65725,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "is_consolidated_ballot_encoding",
@@ -68639,8 +65745,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "keys_ceremony_id",
@@ -68651,7 +65755,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -68692,8 +65795,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -68704,7 +65805,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "presentation",
@@ -73200,8 +70300,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "settings",
@@ -73212,7 +70310,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -73353,8 +70450,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "is_default",
@@ -73365,7 +70460,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "keys_ceremony_trustee_ids",
@@ -73406,8 +70500,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "name",
@@ -73438,7 +70530,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -73543,8 +70634,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "settings",
@@ -73563,7 +70652,6 @@
               }
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -73613,8 +70701,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "settings",
@@ -73625,7 +70711,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -73667,8 +70752,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "settings",
@@ -73679,7 +70762,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -73772,8 +70854,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "is_default",
@@ -73784,7 +70864,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "keys_ceremony_trustee_ids",
@@ -73815,8 +70894,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "name",
@@ -73855,7 +70932,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -74367,8 +71443,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "is_default",
@@ -74379,7 +71453,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "keys_ceremony_trustee_ids_aggregate",
@@ -74410,8 +71483,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "name",
@@ -74442,7 +71513,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -74567,8 +71637,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "settings",
@@ -74579,7 +71647,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -74752,8 +71819,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "is_default",
@@ -74764,7 +71829,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -74785,8 +71849,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "name",
@@ -74825,7 +71887,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -75039,8 +72100,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "is_default",
@@ -75051,7 +72110,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -75072,8 +72130,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "name",
@@ -75112,7 +72168,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "status",
@@ -76454,8 +73509,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           }
         ],
         "interfaces": null,
@@ -80051,7 +77104,6 @@
               }
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -80348,6 +77400,30 @@
                 "name": "uuid",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -80784,6 +77860,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -81102,8 +78202,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -81124,7 +78222,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -84542,8 +81639,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -84564,7 +81659,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -84826,8 +81920,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -84848,7 +81940,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -85107,6 +82198,30 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
               "ofType": null
             },
             "isDeprecated": false,
@@ -85382,6 +82497,30 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
               "ofType": null
             },
             "isDeprecated": false,
@@ -85768,8 +82907,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -85790,7 +82927,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -86088,6 +83224,18 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": "column name",
             "isDeprecated": false,
@@ -86321,8 +83469,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -86343,7 +83489,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -86489,6 +83634,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -86667,6 +83836,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -86823,6 +84016,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -87141,8 +84358,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -87163,7 +84378,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -87309,6 +84523,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -87515,6 +84753,18 @@
           },
           {
             "name": "tenant_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -87743,6 +84993,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -87910,6 +85184,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -88066,6 +85364,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -88452,6 +85774,30 @@
                 "name": "uuid",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -88900,6 +86246,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -89228,8 +86598,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -89250,7 +86618,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -92576,8 +89943,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -92598,7 +89963,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -92870,8 +90234,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -92892,7 +90254,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -93173,6 +90534,30 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
               "ofType": null
             },
             "isDeprecated": false,
@@ -93472,6 +90857,30 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
               "ofType": null
             },
             "isDeprecated": false,
@@ -93880,8 +91289,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -93902,7 +91309,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -94216,6 +91622,18 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": "column name",
             "isDeprecated": false,
@@ -94465,8 +91883,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -94487,7 +91903,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -94643,6 +92058,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -94821,6 +92260,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -94977,6 +92440,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -95305,8 +92792,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "total_auditable_votes",
@@ -95327,7 +92812,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "total_invalid_votes",
@@ -95483,6 +92967,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "numeric",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -95695,6 +93203,18 @@
           },
           {
             "name": "tenant_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -95929,6 +93449,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -96096,6 +93640,30 @@
             "deprecationReason": null
           },
           {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "total_invalid_votes",
             "description": null,
             "args": [],
@@ -96252,6 +93820,30 @@
           },
           {
             "name": "implicit_invalid_votes_percent",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "total_auditable_votes_percent",
             "description": null,
             "args": [],
             "type": {
@@ -96830,8 +94422,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           }
         ],
         "interfaces": null,
@@ -98545,7 +96135,6 @@
               }
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -102875,8 +100464,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "archived_at",
@@ -102887,7 +100474,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -103221,8 +100807,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "archived_at",
@@ -103233,7 +100817,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -103711,8 +101294,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "archived_at",
@@ -103723,7 +101304,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -104020,8 +101600,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "archived_at",
@@ -104032,7 +101610,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -104199,8 +101776,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "archived_at",
@@ -104211,7 +101786,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -104496,8 +102070,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           }
         ],
         "interfaces": null,
@@ -106006,7 +103578,6 @@
               }
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -107923,8 +105494,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
             "name": "configuration",
             "description": null,
             "args": [
@@ -107948,7 +105517,6 @@
             "deprecationReason": null
           },
           {
->>>>>>> origin/main:graphql.schema.json
             "name": "created_at",
             "description": null,
             "args": [],
@@ -108399,8 +105967,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -108411,7 +105977,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -108522,8 +106087,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -108534,7 +106097,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -108625,8 +106187,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -108647,7 +106207,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -110955,8 +108514,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -110975,7 +108532,6 @@
               }
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -111015,8 +108571,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -111027,7 +108581,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -111059,8 +108612,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -111071,7 +108622,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -111565,8 +109115,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -111577,7 +109125,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -111708,8 +109255,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -111720,7 +109265,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "election_event_id",
@@ -111857,8 +109401,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -111877,7 +109419,6 @@
               }
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -111935,8 +109476,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -111947,7 +109486,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -111989,8 +109527,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -112001,7 +109537,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -112084,8 +109619,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -112096,7 +109629,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "election_event_id",
@@ -112598,8 +110130,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -112610,7 +110140,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "election_event_id",
@@ -112775,8 +110304,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -112787,7 +110314,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -112938,8 +110464,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -112950,7 +110474,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "election_event_id",
@@ -113194,8 +110717,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "documents",
@@ -113206,7 +110727,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "election_event_id",
@@ -113641,8 +111161,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -113653,7 +111171,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -113752,8 +111269,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -113782,7 +111297,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -114300,8 +111814,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -114312,7 +111824,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -114403,8 +111914,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -114425,7 +111934,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -114520,8 +112028,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -114532,7 +112038,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "labels",
@@ -114565,6 +112070,12 @@
           },
           {
             "name": "area_ids",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "configuration",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -114683,8 +112194,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -114695,7 +112204,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -114794,8 +112302,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -114824,7 +112330,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -114988,8 +112493,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "configuration",
@@ -115000,7 +112503,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "created_at",
@@ -115099,8 +112601,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "permission_label",
@@ -115129,7 +112629,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "tenant_id",
@@ -115195,6 +112694,12 @@
           },
           {
             "name": "area_ids",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "configuration",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -117813,8 +115318,6 @@
               }
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           }
         ],
         "interfaces": null,
@@ -121733,7 +119236,6 @@
               }
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -121879,6 +119381,18 @@
             "deprecationReason": null
           },
           {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "updated_at",
             "description": null,
             "args": [],
@@ -121976,6 +119490,18 @@
         "description": "aggregate fields of \"sequent_backend.tenant\"",
         "fields": [
           {
+            "name": "avg",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_avg_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "count",
             "description": null,
             "args": [
@@ -122043,6 +119569,90 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "stddev",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_stddev_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "stddev_pop",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_stddev_pop_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "stddev_samp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_stddev_samp_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "sum",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_sum_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "var_pop",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_var_pop_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "var_samp",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_var_samp_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "variance",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_tenant_variance_fields",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -122098,6 +119708,29 @@
           }
         ],
         "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_avg_fields",
+        "description": "aggregate avg on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -122222,8 +119855,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "test",
@@ -122234,7 +119865,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "updated_at",
@@ -122463,8 +120093,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           }
         ],
         "interfaces": null,
@@ -122486,7 +120114,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           }
         ],
         "interfaces": null,
@@ -122568,8 +120195,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "test",
@@ -122580,7 +120205,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "updated_at",
@@ -122649,6 +120273,18 @@
             "deprecationReason": null
           },
           {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "updated_at",
             "description": null,
             "args": [],
@@ -122702,6 +120338,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
               "ofType": null
             },
             "isDeprecated": false,
@@ -122943,8 +120591,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "test",
@@ -122955,7 +120601,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "updated_at",
@@ -123109,6 +120754,12 @@
             "deprecationReason": null
           },
           {
+            "name": "test",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "updated_at",
             "description": "column name",
             "isDeprecated": false,
@@ -123198,8 +120849,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "test",
@@ -123210,7 +120859,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "updated_at",
@@ -123234,6 +120882,75 @@
           }
         ],
         "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_stddev_fields",
+        "description": "aggregate stddev on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_stddev_pop_fields",
+        "description": "aggregate stddev_pop on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_stddev_samp_fields",
+        "description": "aggregate stddev_samp on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -123347,8 +121064,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "test",
@@ -123359,7 +121074,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "updated_at",
@@ -123383,6 +121097,29 @@
           }
         ],
         "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_sum_fields",
+        "description": "aggregate sum on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -123432,6 +121169,12 @@
           },
           {
             "name": "slug",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "test",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -123496,8 +121239,6 @@
               "ofType": null
             },
             "defaultValue": null
-<<<<<<< HEAD:packages/graphql.schema.json
-=======
           },
           {
             "name": "_inc",
@@ -123508,7 +121249,6 @@
               "ofType": null
             },
             "defaultValue": null
->>>>>>> origin/main:graphql.schema.json
           },
           {
             "name": "_prepend",
@@ -123546,6 +121286,75 @@
           }
         ],
         "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_var_pop_fields",
+        "description": "aggregate var_pop on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_var_samp_fields",
+        "description": "aggregate var_samp on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "sequent_backend_tenant_variance_fields",
+        "description": "aggregate variance on columns",
+        "fields": [
+          {
+            "name": "test",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Float",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -125826,7 +123635,7 @@
             "args": [
               {
                 "name": "election_event_id",
-                "description": "Reference to the election event the area is a part of",
+                "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
@@ -127395,291 +125204,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD:packages/graphql.schema.json
-            "name": "sequent_backend_communication_template",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "distinct_on",
-                "description": "distinct select on columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "limit",
-                "description": "limit the number of rows returned",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "offset",
-                "description": "skip the first n rows. Use only with order_by",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "order_by",
-                "description": "sort the rows by one or more columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "where",
-                "description": "filter the rows returned",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "sequent_backend_communication_template_aggregate",
-            "description": "fetch aggregated fields from the table: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "distinct_on",
-                "description": "distinct select on columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "sequent_backend_communication_template_select_column",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "limit",
-                "description": "limit the number of rows returned",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "offset",
-                "description": "skip the first n rows. Use only with order_by",
-                "type": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "order_by",
-                "description": "sort the rows by one or more columns",
-                "type": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_order_by",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "where",
-                "description": "filter the rows returned",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "OBJECT",
-                "name": "sequent_backend_communication_template_aggregate",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "sequent_backend_communication_template_by_pk",
-            "description": "fetch data from the table: \"sequent_backend.communication_template\" using primary key columns",
-            "args": [
-              {
-                "name": "id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "tenant_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_communication_template",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "sequent_backend_communication_template_stream",
-            "description": "fetch data from the table in a streaming manner: \"sequent_backend.communication_template\"",
-            "args": [
-              {
-                "name": "batch_size",
-                "description": "maximum number of rows returned in a single batch",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "cursor",
-                "description": "cursor to stream the results returned by the query",
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "INPUT_OBJECT",
-                      "name": "sequent_backend_communication_template_stream_cursor_input",
-                      "ofType": null
-                    }
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "where",
-                "description": "filter the rows returned",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_communication_template_bool_exp",
-                  "ofType": null
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "OBJECT",
-                    "name": "sequent_backend_communication_template",
-                    "ofType": null
-                  }
-                }
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-=======
->>>>>>> origin/main:graphql.schema.json
             "name": "sequent_backend_contest",
             "description": "fetch data from the table: \"sequent_backend.contest\"",
             "args": [

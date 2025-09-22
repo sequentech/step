@@ -4,8 +4,8 @@
 
 spectaql:
   targetDir: './docs'
-  faviconFile: '/workspaces/step/packages/admin-portal/public/sequent.png'
-  logoFile: '/workspaces/step/packages/admin-portal/public/Sequent_logo_small.png'
+  faviconFile: '../packages/admin-portal/public/sequent.png'
+  logoFile: '../packages/admin-portal/public/Sequent_logo_small.png'
 
 introspection:
   schemaFile: "./docs/processed-schema.graphql"
@@ -17,7 +17,7 @@ template:
   name: "spectaql"
 
 info:
-  title: "Your API Documentation"
-  description: "Detailed description of your API"
+  title: "Sequent Voting Platform GraphQL API Documentation"
+  description: "Detailed description of the API"
   version: "1.0.0"
-  x-url: "https://sequent.io"
+  x-url: "https://sequentech.io"

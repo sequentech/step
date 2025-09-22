@@ -29,7 +29,7 @@ jobs:
 
     - name: Generate GraphQL documentation
       run: yarn run generate-full-docs
-      working-directory: ./packages/api-docs/graphql
+      working-directory: ./docs/api/graphql
 
     - name: Commit changes
       uses: stefanzweifel/git-auto-commit-action@v4
@@ -37,7 +37,7 @@ jobs:
     - name: Upload pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ./packages/api-docs/graphql/docs
+        path: ./docs/api/graphql/docs
         retention-days: 365
 
     - name: Deploy to GitHub Pages

@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { buildClientSchema, printSchema, visit, parse, print } = require('graphql');
 
-const schemaFile = path.resolve(__dirname, '../../admin-portal/graphql.schema.json');
+const schemaFile = path.resolve(__dirname, '../../../packages/graphql.schema.json');
 const outputSchemaFile = path.resolve(__dirname, './docs/processed-schema.graphql');
 
 const docsDirectory = path.dirname(outputSchemaFile);
