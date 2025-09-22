@@ -16,16 +16,16 @@ jobs:
       contents: write
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install dependencies
       run: yarn install
       working-directory: ./packages/api-docs/graphql
 
-    - name: Set Node.js 20.x
+    - name: Set Node.js 22.x
       uses: actions/setup-node@v3
       with:
-        node-version: 20.x
+        node-version: 22.x
 
     - name: Generate GraphQL documentation
       run: yarn run generate-full-docs
@@ -35,7 +35,7 @@ jobs:
       uses: stefanzweifel/git-auto-commit-action@v4
 
     - name: Upload pages artifact
-      uses: actions/upload-pages-artifact@v1
+      uses: actions/upload-pages-artifact@v3
       with:
         path: ./packages/api-docs/graphql/docs
         retention-days: 365
