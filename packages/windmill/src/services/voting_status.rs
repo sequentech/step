@@ -79,11 +79,22 @@ pub async fn update_election_status(
             election_channels.push(VotingStatusChannel::KIOSK)
         }
 
+        if VotingStatusChannel::EARLY_VOTING
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::EARLY_VOTING)
+        }
+
         election_channels
     } else {
         info!("Default voting channels");
         // Update all if none are configured
-        vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+        vec![
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+            VotingStatusChannel::EARLY_VOTING,
+        ]
     };
 
     for voting_channel in voting_channels {

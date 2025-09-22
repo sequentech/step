@@ -132,7 +132,7 @@ pub async fn update_event_voting_status(
             && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
         {
             return Err(anyhow!(
-                "Is not allowed to start EARLY_VOTING channel if ONLINE channel is not NOT_STARTED",
+                "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
             ));
         }
 
@@ -285,6 +285,15 @@ pub async fn update_election_voting_status_impl(
         ));
     }
 
+    if channel == VotingStatusChannel::EARLY_VOTING
+        && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
+    {
+        return Err(anyhow!(
+            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
+        ));
+    }
+
+    status.close_early_voting_if_online_status_change(channel, new_status.clone());
     status.set_status_by_channel(channel, new_status.clone());
 
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
