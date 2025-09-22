@@ -40,7 +40,7 @@ base64 = "0.21.0"
 celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }
 lapin = "2.5"
 rayon = "1.5"
-tokio = { version = "1.32.0", features = ["full"] }
+tokio = { version = "1.44.2", features = ["full"] }
 async-trait = "0.1.74"
 structopt = "0.3.26"
 clap = { version = "4.4", features = ["derive"] } # Added for generate_logs binary
@@ -63,7 +63,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] } # Add
 thiserror = "1.0.50"
 
 # time
-time = "0.3.31"
+time = "0.3.44"
 
 # for sending emails and sms
 lettre = { version = "0.11", features = ["rustls-tls", "smtp-transport", "builder"] }
@@ -98,7 +98,7 @@ postgres-openssl = { version = "0.5.0", optional = true }
 # OpenSSL needs to be configured to operate in FIPS mode
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10.57", optional = true }
+openssl = { version = "0.10.72", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 ecies = { version = "0.2", optional = true }
