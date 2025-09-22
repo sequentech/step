@@ -109,7 +109,10 @@ pub fn check_blank_vote_policy(
     let blank_vote_policy =
         presentation.blank_vote_policy.clone().unwrap_or_default();
 
-    if num_selected_candidates == 0 && !is_explicit_invalid {
+    if num_selected_candidates == 0
+        && !is_explicit_invalid
+        && EBlankVotePolicy::ALLOWED != blank_vote_policy
+    {
         (match blank_vote_policy {
             EBlankVotePolicy::NOT_ALLOWED => &mut checker_result.invalid_errors,
             _ => &mut checker_result.invalid_alerts,
