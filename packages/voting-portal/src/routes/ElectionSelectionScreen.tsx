@@ -138,16 +138,18 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const isVotingOpen = () => {
         let isOnlineVotingOpen: boolean =
             (electionStatus?.voting_status as EVotingStatus) === EVotingStatus.OPEN
-        let openForKiosk: boolean = isKiosk && isKiosOpen()
 
-        return (
-            (isOnlineVotingOpen && isElectionEventOnlineVotingOpen(electionEvent)) ||
-            (isEarlyVotingOpen() && isElectionEventEarlyVotingOpen(electionEvent)) ||
-            (openForKiosk && isElectionEventKioskOpen(electionEvent))
-        )
+        if (isKiosk) {
+            return isKioskOpen() && isElectionEventKioskOpen(electionEvent)
+        } else {
+            return (
+                (isOnlineVotingOpen && isElectionEventOnlineVotingOpen(electionEvent)) ||
+                (isEarlyVotingOpen() && isElectionEventEarlyVotingOpen(electionEvent))
+            )
+        }
     }
 
-    const isKiosOpen = () => {
+    const isKioskOpen = () => {
         return (electionStatus?.kiosk_voting_status as EVotingStatus) === EVotingStatus.OPEN
     }
 
@@ -161,12 +163,15 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const isVotingStarted = () => {
-        return (
-            electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
-            (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED) ||
-            (isEarlyVotingPolicyEnabled() &&
-                electionStatus?.early_voting_status !== EVotingStatus.NOT_STARTED)
-        )
+        if (isKiosk) {
+            return electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED
+        } else {
+            return (
+                electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
+                (isEarlyVotingPolicyEnabled() &&
+                    electionStatus?.early_voting_status !== EVotingStatus.NOT_STARTED)
+            )
+        }
     }
 
     const isPreview = sessionStorage.getItem("isDemo") === "true"
