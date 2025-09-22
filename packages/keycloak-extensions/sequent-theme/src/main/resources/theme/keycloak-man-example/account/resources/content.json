@@ -1,0 +1,49 @@
+[
+    {
+      "id": "keycloak-man",
+      "icon": "pf-icon-key",
+      "label": "Keycloak Man",
+      "descriptionLabel": "Let Keycloak Man teach you how to theme and extend the Account Console.",
+      "children": [
+        {
+          "path": "content/keycloak-man",
+          "label": "Who is Keycloak Man?",
+          "modulePath": "/content/keycloak-man/who-is-keycloak-man.js"
+        },
+        {
+          "path": "content/sample-overview",
+          "label": "Overview of this extension",
+          "modulePath": "/content/keycloak-man/sample-overview.js"
+        },
+        {
+          "path": "content/keycloak-man-loves-jsx",
+          "label": "Keycloak Man Loves JSX",
+          "modulePath": "/content/keycloak-man/KeycloakManLovesJsx.js"
+        }
+      ]
+    },
+    { "label": "personalInfo", "path": "/" },
+    {
+      "label": "accountSecurity",
+      "children": [
+        { "label": "signingIn", "path": "account-security/signing-in" },
+        { "label": "deviceActivity", "path": "account-security/device-activity" },
+        {
+          "label": "linkedAccounts",
+          "path": "account-security/linked-accounts",
+          "isVisible": "isLinkedAccountsEnabled"
+        }
+      ]
+    },
+    { "label": "applications", "path": "applications" },
+    {
+      "label": "groups",
+      "path": "groups",
+      "isVisible": "isViewGroupsEnabled"
+    },
+    {
+      "label": "resources",
+      "path": "resources",
+      "isVisible": "isMyResourcesEnabled"
+    }
+  ]

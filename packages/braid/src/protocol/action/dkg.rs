@@ -5,13 +5,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
-use anyhow::anyhow;
-use anyhow::Context;
+use crate::protocol::datalog;
 use anyhow::Result;
-use board_messages::braid::artifact::Channel;
+use b3::messages::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 
+/// Generates a private communication channel for this trustee.
+///
+/// Used to send shares privately to this trustee. A trustee will
+/// receive a share from each of its peers. These shares are elgamal
+/// encrypted with the Channel's public key. The corresponding
+/// private key is symmetrically encrypted with an private symmetric
+/// key belonging to the trustee, and is also part of the Channel data.
+/// This allows restoring all information from the bulletin board, as well
+/// as securely downloading a Channel by its trustee during the key
+/// ceremony.
+///
+/// Channels include a schnorr proof for knowledge of the secret
+/// key corresponding to the public key.
+///
+/// Returns a Message of type Channel signed by this trustee.
 pub(super) fn gen_channel<C: Ctx>(
     configuration_hash: &ConfigurationHash,
     trustee: &Trustee<C>,
@@ -32,16 +46,30 @@ pub(super) fn gen_channel<C: Ctx>(
     Ok(vec![m])
 }
 
-// FIXME Sign the channels only if they contain our channel in the right position
+/// Verifies all the posted Channels.
+///
+/// Channel verification checks schnorr proofs for the
+/// public keys. Additionally, each trustee self verifies
+/// their own Channel's private key by decrypting it.
+///
+/// Returns a Message of type ChannelsAllSigned signed by this trustee.
 pub(super) fn sign_channels<C: Ctx>(
     configuration_h: &ConfigurationHash,
     channels_hs: &ChannelsHashes,
+    self_pos: &TrusteePosition,
+    num_trustees: &TrusteeCount,
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let ctx: C = Default::default();
     let cfg = trustee.get_configuration(configuration_h)?;
     let zkp = Zkp::new(&ctx);
     let label = cfg.label(0, format!("channel pk proof"));
+
+    assert_eq!(
+        datalog::hashes_count(&channels_hs.0),
+        *num_trustees,
+        "Unexpected number of channels"
+    );
 
     for (i, h) in channels_hs
         .0
@@ -51,16 +79,39 @@ pub(super) fn sign_channels<C: Ctx>(
     {
         let hash = *h;
         let channel = trustee.get_channel(&ChannelHash(hash), i)?;
-        let pk_element = channel.channel_pk;
+        let pk_element = channel.channel_pk.clone();
         let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
-        // FIXME assert
-        assert!(ok);
+        if !ok {
+            return Err(ProtocolError::VerificationError(format!(
+                "Failed to verify schnorr proof on channel"
+            )));
+        }
+
+        // Check that our own Channel is at the correct posistion and decrypts correctly
+        if i == *self_pos {
+            let sk = trustee.decrypt_share_sk(&channel, cfg)?;
+            if *sk.pk_element() != pk_element {
+                return Err(ProtocolError::VerificationError(format!(
+                    "Failed to decrypt self channel"
+                )));
+            }
+        }
     }
 
     let m = Message::channels_all_signed_msg(cfg, channels_hs, trustee)?;
     Ok(vec![m])
 }
 
+/// Computes the shares for all trustees.
+///
+/// Each trustee computes a share and commitments for all trustees
+/// including itself. These shares are encrypted with the recipient's public
+/// key as present in their Channel. Shares are verified by their
+/// recipient trustees as part of their public key verification.
+///
+/// Returns a Message of type Shares signed by this trustee.
+///
+/// As described in Cortier et al.; based on Pedersen.
 pub(super) fn compute_shares<C: Ctx>(
     configuration_h: &ConfigurationHash,
     channels_hs: &ChannelsHashes,
@@ -103,6 +154,12 @@ pub(super) fn compute_shares<C: Ctx>(
     Ok(vec![m])
 }
 
+/// Computes the public key corresponding to the shares.
+///
+/// Includes verifying this trustee's shares.
+///
+/// Returns a Message of type PublicKey signed by
+/// this trustee.
 pub(super) fn compute_pk<C: Ctx>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
@@ -128,17 +185,14 @@ pub(super) fn compute_pk<C: Ctx>(
 
     let m = Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
     Ok(vec![m])
-
-    /* if let Ok(pk) = pk {
-        let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
-
-        let m = Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
-        Ok(vec![m])
-    } else {
-        Err(anyhow!("Could not compute pk {:?}", pk))
-    }*/
 }
 
+/// Verifies the public key re-computing it independently.
+///
+/// Includes verifying this trustee's shares.
+///
+/// Returns a Message of type PublicKeySigned signed by
+/// this trustee.
 pub(super) fn sign_pk<C: Ctx>(
     cfg_h: &ConfigurationHash,
     pk_h: &PublicKeyHash,
@@ -185,6 +239,19 @@ pub(super) fn sign_pk<C: Ctx>(
     }
 }
 
+/// Computes the public key from the shares.
+///
+/// First this trustee's Channel is retrieved, and the private
+/// key is decrypted. This key is then used to decrypts the shares
+/// sent to this trustee, which are verified using the commitments.
+/// The share commitments are then used to compute the public key as
+/// well as the all trustee's verification keys (used to verify
+/// decryptions).
+///
+/// Returns the public key and the verification keys for
+/// all trustees.
+///
+/// As described in Cortier et al.; based on Pedersen.
 fn compute_pk_<C: Ctx>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
@@ -203,8 +270,6 @@ fn compute_pk_<C: Ctx>(
     for (i, _h) in shares_hs.0.iter().filter(|h| **h != NULL_HASH).enumerate() {
         let share_h = shares_hs.0[i];
         let share = trustee.get_shares(&SharesHash(share_h), i)?;
-
-        // let share = share.with_context(|| "Failed to retrieve shares")?;
 
         pk = pk.mul(&share.commitments[0]).modp(&ctx);
 
@@ -242,7 +307,7 @@ fn compute_pk_<C: Ctx>(
                         j, i
                     )));
                 }
-                info!("Trustee {} verified share received from {}", j, i);
+                trace!("Trustee {} verified share received from {}", j, i);
             }
         }
     }

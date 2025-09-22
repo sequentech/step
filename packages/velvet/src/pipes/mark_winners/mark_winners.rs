@@ -10,6 +10,7 @@ use sequent_core::util::path::list_subfolders;
 use serde::Serialize;
 use tracing::{event, instrument, Level};
 
+use crate::pipes::do_tally::CandidateResult;
 use crate::pipes::do_tally::{list_tally_sheet_subfolders, OUTPUT_BREAKDOWNS_FOLDER};
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
@@ -36,8 +37,10 @@ impl MarkWinners {
     }
 
     #[instrument(skip_all)]
-    fn get_winners(&self, contest_result: &ContestResult) -> Vec<WinnerResult> {
+    pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut winners = contest_result.candidate_result.clone();
+
+        winners.retain(|w| !w.candidate.is_explicit_blank() && !w.candidate.is_explicit_invalid());
 
         winners.sort_by(|a, b| {
             match b.total_count.cmp(&a.total_count) {
@@ -59,8 +62,8 @@ impl MarkWinners {
             .collect()
     }
 
-    fn create_breakdown_winners(
-        &self,
+    #[instrument(err, skip_all)]
+    pub fn create_breakdown_winners(
         base_input_path: &PathBuf,
         base_output_path: &PathBuf,
     ) -> Result<()> {
@@ -73,7 +76,7 @@ impl MarkWinners {
                 .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
             let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-            let winners = self.get_winners(&contest_result);
+            let winners = MarkWinners::get_winners(&contest_result);
 
             let subfolder_name = subfolder.file_name().unwrap();
             let output_subfolder = base_output_breakdown_path.join(subfolder_name);
@@ -87,7 +90,7 @@ impl MarkWinners {
 }
 
 impl Pipe for MarkWinners {
-    #[instrument(skip_all, name = "MarkWinners::new")]
+    #[instrument(err, skip_all, name = "MarkWinners::new")]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs
@@ -129,7 +132,7 @@ impl Pipe for MarkWinners {
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                         let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                        let winners = self.get_winners(&contest_result);
+                        let winners = MarkWinners::get_winners(&contest_result);
 
                         let aggregate_output_path = base_output_path
                             .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -151,7 +154,7 @@ impl Pipe for MarkWinners {
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                         let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                        let winners = self.get_winners(&contest_result);
+                        let winners = MarkWinners::get_winners(&contest_result);
 
                         let Some(tally_sheet_id) =
                             PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_folder)
@@ -178,7 +181,7 @@ impl Pipe for MarkWinners {
                         .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                     let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-                    let winners = self.get_winners(&contest_result);
+                    let winners = MarkWinners::get_winners(&contest_result);
 
                     fs::create_dir_all(&base_output_path)?;
                     let winners_file_path = base_output_path.join(OUTPUT_WINNERS);
@@ -199,7 +202,7 @@ impl Pipe for MarkWinners {
                     .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                 let contest_result: ContestResult = parse_file(f)?;
 
-                let winner = self.get_winners(&contest_result);
+                let winner = MarkWinners::get_winners(&contest_result);
 
                 let winner_folder = PipeInputs::build_path(
                     &output_dir,
@@ -215,7 +218,7 @@ impl Pipe for MarkWinners {
                 serde_json::to_writer(winner_file, &winner)?;
 
                 // do breakdown winners
-                self.create_breakdown_winners(&contest_result_path, &winner_folder)?;
+                MarkWinners::create_breakdown_winners(&contest_result_path, &winner_folder)?;
             }
         }
 
@@ -223,7 +226,7 @@ impl Pipe for MarkWinners {
     }
 }
 
-#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub struct WinnerResult {
     pub candidate: Candidate,
     pub total_count: u64,

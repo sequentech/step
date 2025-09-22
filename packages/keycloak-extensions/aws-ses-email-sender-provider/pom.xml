@@ -5,7 +5,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-
+ 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -19,12 +19,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<aws.version>2.25.23</aws.version>
 		<aws.sts.version>1.12.674</aws.sts.version>
-		<keycloak.version>22.0.0</keycloak.version>
+		<keycloak.version>24.0.0</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
 		<jakarta.validation.version>3.0.2</jakarta.validation.version>
 		<jakarta.mail.version>2.1.3</jakarta.mail.version>
 		<maven.compiler.version>3.11.0</maven.compiler.version>
-		<maven.shade.version>3.2.4</maven.shade.version>
+		<maven.shade.version>3.2.4</maven.shade.version>		
+		<junit.version>5.8.1</junit.version>
+        <mockito.version>3.12.4</mockito.version>
 	</properties>
 
 	<dependencyManagement>
@@ -78,6 +80,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</exclusion>
 			</exclusions>
 		</dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>${aws.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
@@ -90,7 +97,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<groupId>com.sun.mail</groupId>
 			<artifactId>javax.mail</artifactId>
 			<version>1.6.2</version>
-		</dependency>
+		</dependency>		
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
 	</dependencies>
 
 	<build>
@@ -99,7 +130,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>${maven.compiler.version}</version>
+				<version>${maven.compiler.version}</version>				
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -122,6 +153,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>2.43.0</version>
+				<configuration>
+					<java>
+						<googleJavaFormat>
+							<version>1.23.0</version>
+							<style>GOOGLE</style>
+					</googleJavaFormat>
+					</java>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

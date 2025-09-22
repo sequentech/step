@@ -6,8 +6,12 @@ import React from "react"
 import styled from "@emotion/styled"
 
 const StyledContainer = styled.div`
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0; /* Behind the .main div */
     background: #e0e0e000;
     border-radius: 5px;
     overflow: hidden;

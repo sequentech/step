@@ -8,9 +8,11 @@ resources/test/git_bb.json
 result
 /.vscode
 /tla
+/demo
 Cargo.lock
 *.pdf
 *.ps1
+*.cmd
 trustee.toml
 pm.toml
 config.bin

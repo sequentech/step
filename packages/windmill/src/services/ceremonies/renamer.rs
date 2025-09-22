@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use tracing::instrument;
+use tracing::{info, instrument};
 use walkdir::{DirEntry, WalkDir};
+
+pub const FOLDER_MAX_CHARS: usize = 200;
 
 #[instrument(skip_all, err)]
 pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &PathBuf) -> Result<()> {
@@ -30,7 +32,7 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
         new_dir_name = sanitize_filename(&new_dir_name);
         if new_dir_name != dir_name {
             let new_path = old_path.with_file_name(new_dir_name);
-            println!("Renaming {:?} to {:?}", old_path, new_path);
+            info!("Renaming {:?} to {:?}", old_path, new_path);
             fs::rename(&old_path, &new_path)?;
         }
     }
@@ -38,9 +40,23 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
     Ok(())
 }
 
+pub fn take_last_n_chars(s: &str, n: usize) -> String {
+    s.chars()
+        .rev()
+        .take(n)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect()
+}
+
+pub fn take_first_n_chars(s: &str, n: usize) -> String {
+    s.chars().take(n).collect()
+}
+
 // Function to sanitize filenames
 fn sanitize_filename(filename: &str) -> String {
-    filename
+    let sanitized = filename
         .replace("/", "_") // Linux and macOS directory separator
         .replace("\\", "_") // Windows directory separator
         .replace(":", "_") // Windows and classic macOS
@@ -51,5 +67,7 @@ fn sanitize_filename(filename: &str) -> String {
         .replace(">", "_")
         .replace("|", "_")
         .trim_end_matches(&[' ', '.'][..]) // Trim trailing spaces and dots (Windows)
-        .to_string()
+        .to_string();
+
+    take_last_n_chars(&sanitized, FOLDER_MAX_CHARS)
 }

@@ -7,7 +7,7 @@ import {
     IContest,
     ECandidatesSelectionPolicy,
     EEnableCheckableLists,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
 
 export const findUrlByTitle = (answer: ICandidate, urlTitle: string): string | undefined =>
     answer.presentation?.urls?.find((url) => urlTitle === url.title)?.url

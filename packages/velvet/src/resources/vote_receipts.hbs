@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Vote receipts</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.js"></script>
+  <script src="{{data.file_qrcode_lib}}"></script>
     
     <style>
         body {
@@ -209,7 +209,9 @@ SPDX-License-Identifier: AGPL-3.0-only
     <div class="content">
       <div class="logo"></div>
       <h1 class="text-center">Vote Receipts</h1>
-      <div id="dateDiv"></div>
+       <div id="dateDiv">
+        {{ timestamp }}
+      </div>
       <div class="next-page"></div>
       
       {{#each data.receipts}}
@@ -293,24 +295,5 @@ SPDX-License-Identifier: AGPL-3.0-only
       {{/each}}
     </script>
 
-    <!-- Report date -->
-    <script>
-      // Get the current date
-      var currentDate = new Date();
-
-      // Format the date as a string (e.g., "April 11, 2024")
-      var dateString = currentDate.toLocaleDateString('en-US', {
-          year: 'numeric', // Four digit year
-          month: 'long', // Full name of the month
-          day: 'numeric', // Day of the month
-          hour: '2-digit',
-          minute: '2-digit',
-          timeZoneName: 'short',
-          timeZone: 'Asia/Manila'
-      });
-
-      // Set the text of the div to the formatted date string
-      document.getElementById('dateDiv').textContent = dateString;
-    </script>
   </body>
 </html>

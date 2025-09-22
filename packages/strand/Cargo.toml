@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 [package]
 name = "strand"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
   "David Ruescas <david@sequenttech.io>",
   "Eduardo Robles <edulix@sequenttech.io>"
@@ -21,13 +21,14 @@ bench = false
 rayon = ["dep:rayon"]
 wasmrayon = ["rayon", "wasm", "dep:wasm-bindgen-rayon"]
 wasmtest = ["wasm", "dep:web-sys"]
-wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "malachite"]
+wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "getrandom/js"]
 num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
 malachite = ["dep:malachite"]
 openssl_core = ["dep:openssl", "dep:rand_core"]
 openssl_full = ["dep:openssl", "dep:rand_core"]
 fips_core = ["openssl_core"]
 fips_full = ["openssl_full"]
+rustcrypto_interop_test = []
 
 [dependencies]
 
@@ -42,6 +43,7 @@ malachite = { version = "0.3.2", default-features = false, features = [ "natural
 rug = { version = "~1.23.0", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
+# ed25519-dalek = { version = "=2.1.1", features = ["rand_core", "pkcs8"] }
 ed25519-dalek = { version = "=2.1.1", features = ["rand_core", "pkcs8"] }
 ecdsa = {version = "0.16.8", features = ["signing"] }
 p384 = "0.13.0"
@@ -50,27 +52,28 @@ p384 = "0.13.0"
 x509-parser = "0.15.1"
 rcgen = {version = "0.11.3", features = ["x509-parser"] }
 
-# symmetric 
+# symmetric
 chacha20poly1305 = "0.10.1"
 generic-array = "0.14.6"
 
-# Hashing 
+# Hashing
 sha2 = "0.10.7"
 # Needed for extendable hashing function when deriving generators for ristretto
 sha3 = "0.10"
 
 # Serialization
-borsh = "0.9.3"
-base64 = "0.21"
+# borsh = "0.9.3"
+borsh = { version = "1.5", features = ["derive"] }
+base64 = "0.22.1"
 
 # RNG
 rand = { package="rand", version = "0.8" }
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2" }
 rand_core = { version = "0.6.4", optional = true }
 
 # WASM
 wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = true}
-wasm-bindgen = {version = "=0.2.79", optional = true}
+wasm-bindgen = {version = "=0.2.100", optional = true}
 serde-wasm-bindgen = {version = "0.4", optional = true}
 web-sys = { version = "0.3", features = ['Performance'], optional = true }
 
@@ -101,10 +104,14 @@ rustc_version = "0.4.0"
 name = "shuffle"
 harness = false
 # remove this to run benchmark
-bench = false
+# bench = false
 
 [[bench]]
 name = "encrypt"
 harness = false
+
+[[bench]]
+name = "verify_ballot"
+harness = false
 # remove this to run benchmark
-bench = false
+# bench = false

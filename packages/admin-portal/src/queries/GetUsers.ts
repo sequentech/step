@@ -3,72 +3,127 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const getUsers = (fields: any) => {
-    let electionEventId = fields.filter?.election_event_id
-        ? `"${fields.filter?.election_event_id}"`
-        : "null"
-    let showVotesInfo = fields.filter?.election_event_id ? "true" : "false"
-    let electionId = fields.filter?.election_id ? `"${fields.filter?.election_id}"` : "null"
-    let email = fields.filter?.email ? `"${fields.filter?.email}"` : "null"
-    let username = fields.filter?.username ? `"${fields.filter?.username}"` : "null"
-    let first_name = fields.filter?.first_name ? `"${fields.filter?.first_name}"` : "null"
-    let last_name = fields.filter?.last_name ? `"${fields.filter?.last_name}"` : "null"
-    let offset: number | null =
-        fields.pagination?.page && fields.pagination?.perPage
-            ? (fields.pagination.page - 1) * fields.pagination.perPage
-            : null
-    let limit: number | null = fields.pagination?.perPage ? fields.pagination?.perPage : null
-    return gql`
-        query getUsers(
-            $tenant_id: uuid! = "${fields.filter.tenant_id}"
-            $election_event_id: uuid = ${electionEventId}
-            $election_id: uuid = ${electionId}
-            $email: String = ${email}
-            $username: String = ${username}
-            $first_name: String = ${first_name}
-            $last_name: String = ${last_name}
-            $limit: Int = ${limit}
-            $offset: Int = ${offset}
-            $showVotesInfo: Boolean = ${showVotesInfo}
-        ) {
-            get_users(body: {
-                tenant_id: $tenant_id,
-                election_event_id: $election_event_id,
-                election_id: $election_id,
-                email: $email,
-                username: $username,
-                first_name: $first_name,
-                last_name: $last_name,
-                limit: $limit,
-                offset: $offset,
+export const LIST_USERS = gql`
+    query getUsers(
+        $tenant_id: uuid!
+        $election_event_id: uuid
+        $election_id: uuid
+        $email: jsonb
+        $username: jsonb
+        $first_name: jsonb
+        $last_name: jsonb
+        $limit: Int
+        $offset: Int
+        $showVotesInfo: Boolean
+        $attributes: jsonb
+        $enabled: Boolean
+        $email_verified: Boolean
+        $sort: jsonb
+        $has_voted: Boolean
+    ) {
+        get_users(
+            body: {
+                tenant_id: $tenant_id
+                election_event_id: $election_event_id
+                election_id: $election_id
+                email: $email
+                username: $username
+                first_name: $first_name
+                last_name: $last_name
+                limit: $limit
+                offset: $offset
                 show_votes_info: $showVotesInfo
-            }) {
-                items {
+                attributes: $attributes
+                enabled: $enabled
+                email_verified: $email_verified
+                sort: $sort
+                has_voted: $has_voted
+            }
+        ) {
+            items {
+                id
+                attributes
+                email
+                email_verified
+                enabled
+                first_name
+                groups
+                last_name
+                username
+                area {
                     id
-                    attributes
-                    email
-                    email_verified
-                    enabled
-                    first_name
-                    groups
-                    last_name
-                    username
-                    area {
-                        id
-                        name
-                    }
-                    votes_info {
-                        election_id
-                        num_votes
-                        last_voted_at
-                    }
+                    name
                 }
-                total {
-                    aggregate {
-                        count
-                    }
+                votes_info {
+                    election_id
+                    num_votes
+                    last_voted_at
+                }
+            }
+            total {
+                aggregate {
+                    count
                 }
             }
         }
-        `
+    }
+`
+
+/* take attributes obj when key is attribute field.
+if for example, originally the field looks like sequent.read-only.otp-method,
+we will receive it as sequent%read-only%otp-method
+*/
+export const formatUserAtributesToJsonb = (attributes: any) => {
+    const newUserAttributesObject: Record<string, any> = {}
+    if (attributes) {
+        Object.entries(attributes).forEach(([key, value]) => {
+            const convertedKey = key.replaceAll("%", ".")
+            newUserAttributesObject[`'${convertedKey}'`] = value
+        })
+        return newUserAttributesObject
+    }
+    return null
 }
+
+const ATTRIBUTES = "attributes"
+export const formatUserSortToJsonb = (sort: Record<string, string>) => {
+    const newUserSortObject: Record<string, string> = {}
+    if (sort) {
+        Object.entries(sort).forEach(([key, value]) => {
+            let actuallValue = value
+            // if value is as attributes['field'] it shoulde be just field
+            if (value.includes(ATTRIBUTES)) {
+                actuallValue = value.substring(ATTRIBUTES.length + 2, value.length - 2)
+            }
+            newUserSortObject[`'${key}'`] = actuallValue
+        })
+        return newUserSortObject
+    }
+    return null
+}
+
+export const customBuildGetUsersVariables =
+    (introspectionResults: any) =>
+    (resource: any, raFetchType: any, params: any, nullParam: any) => {
+        const {filter, pagination, sort} = params
+        return {
+            tenant_id: filter.tenant_id || null,
+            election_event_id: filter.election_event_id || null,
+            election_id: filter.election_id || null,
+            email: filter.email || null,
+            username: filter.username || null,
+            first_name: filter.first_name || null,
+            last_name: filter.last_name || null,
+            limit: pagination?.perPage ? pagination?.perPage : null,
+            offset:
+                pagination?.page && pagination?.perPage
+                    ? (pagination.page - 1) * pagination.perPage
+                    : null,
+            showVotesInfo: filter.election_event_id ? true : false,
+            attributes: filter.attributes ? formatUserAtributesToJsonb(filter.attributes) : null,
+            enabled: filter.enabled ?? null,
+            email_verified: filter.email_verified ?? null,
+            sort: sort ? formatUserSortToJsonb(sort) : null,
+            has_voted: filter.has_voted ?? null,
+        }
+    }

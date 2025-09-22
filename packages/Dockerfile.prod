@@ -7,6 +7,7 @@ WORKDIR /usr/src/app/
 
 
 #copy only necessary files, exclude source code from the runtime image
+COPY ./ui-core ./ui-core
 COPY ./ui-essentials ./ui-essentials
 COPY ./voting-portal ./voting-portal
 COPY ./admin-portal ./admin-portal
@@ -20,6 +21,7 @@ RUN yarn install --frozen-lockfile --non-interactive
 ARG SPA_NAME
 
 # Build the specified SPA with release optimizations
+RUN yarn build:ui-core
 RUN yarn build:ui-essentials
 RUN yarn build:${SPA_NAME}
 

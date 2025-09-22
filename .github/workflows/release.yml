@@ -3,49 +3,72 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 name: Automated Release Process
-run-name: ${{ format('Automated Release Process - {0}', inputs.releaseType )}}
+run-name: 'Automated Release Process'
 on:
   workflow_dispatch:
     inputs:
-      releaseType:
-        description: 'Release Type (major, minor, patch). For example, if last version was 1.9.0 and release type is minor, the new release will be 1.10.0'
-        required: true
-        type: choice
-        default: 'patch'
-        options:
-          - patch
-          - minor
-          - major
+      createMajorReleaseBranch:
+        description: 'Create a major release branch from the main branch, then release (or pre-release) it. Run it only from the main branch'
+        required: false
+        type: boolean
+        default: false
+      createMinorReleaseBranch:
+        description: 'Create a minor release branch from the main branch, then release (or pre-release) it. Run it only from the main branch'
+        required: false
+        type: boolean
+        default: false
       preRelease:
         description: 'Pre-release - If true, the release will be marked as pre-release'
         required: false
         type: boolean
-        default: false
-      incrementPreRelease:
-        description: 'Increment Pre-release. Only applicable if Pre-release is true. If true, the pre-release version type will be incremented. For example, if last version was 1.9.0, releaseType is minor, preRelease is true and increment pre-release is true, the new release will be 1.10.0-rc.0. If Increment Pre-release is false, the new release will be 1.9.0-rc.0'
+        default: true
+      infra_only:
+        description: 'Beyond-Infra Deployment Only'
         required: false
         type: boolean
         default: false
+
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  create-release-branch:
+    runs-on:
+      - env=infra-euw1
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     outputs:
-      VERSION: ${{ steps.Release.outputs.VERSION }}
+      NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
+      DEPLOYER_BRANCH: ${{ steps.CreateReleaseBranch.outputs.DEPLOYER_BRANCH }}
     steps:
+    - name: Input Validation
+      run: |
+        # Validate inputs, check its none or it is one of createMajorReleaseBranch or createMinorReleaseBranch and it is triggered from main branch
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] && [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          echo "Error: Both createMajorReleaseBranch and createMinorReleaseBranch cannot be true at the same time"
+          exit 1
+        fi
+        # Detect if at least one of the inputs is true, if so, check it has been triggered from main branch
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "Error: This action can only be triggered from the main branch"
+            exit 1
+          fi
+          # Check the preRelease input is false, otherwise, fail
+          #if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          #  echo "Error: Pre-release is not supported for the first release on a new release branch. Please set preRelease to false"
+          #  echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
+          #  exit 1
+          #fi
+        fi
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0 # Fetches all history for all tags and branches
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
 
     - name: Configure Git
       run: |
@@ -53,54 +76,235 @@ jobs:
         git config --local user.name "GitHub Action"
 
     - name: Install release-it
-      run: npm install --global release-it
+      run: npm install --global release-it@19.0.3
+
+    - name: Create Release Branch if required
+      id: CreateReleaseBranch
+      run: |
+        releaseBranchVersion=""
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
+          releaseBranchVersion=$(release-it -i major --release-version --git.getLatestTagFromAllRefs --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --no-git.requireCommits | tail -n 1)
+        elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          releaseBranchVersion=$(release-it -i minor --release-version --git.getLatestTagFromAllRefs --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --no-git.requireCommits | tail -n 1)
+        fi
+
+        releaseBranchName="${{ github.ref_name }}"
+        # Check if releaseBranchVersion is not empty
+        if [ ! -z "$releaseBranchVersion" ]; then
+          # Trim the patch version from $releaseBranchVersion
+          releaseBranchVersion=$(echo $releaseBranchVersion | cut -d. -f1,2)
+          releaseBranchName="release/$releaseBranchVersion"
+        fi
+        echo DEPLOYER_BRANCH=$releaseBranchName | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+
+        # Create the branch if createMajorReleaseBranch or createMinorReleaseBranch is true
+        if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ] || [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+          # Due to an incompatibility with the release-it, we can not create a new minor or major release branch from the main branch if the latest tag is a pre-release
+          latestRelease=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" refs/tags/v[0-9]*.[0-9]*.[0-9]*)
+          # Check if latestRelease contains "-rc."
+          if [[ $latestRelease == *-rc.* ]]; then
+            echo "Error: You can not create a new release branch from the main branch if the latest tag is a pre-release"
+            echo "Warning: Please release the pre-release version on the existing release branch before creating a new release branch"
+            exit 1
+          fi
+          # Check if the branch already exists without failing
+          branchExists=$(git ls-remote --heads origin $releaseBranchName)
+          if [ -n "$branchExists" ]; then
+            echo "Info: Branch $releaseBranchName already exists"
+            # echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
+            # exit 1
+          else
+            git checkout -b $releaseBranchName
+            # Add an empty commit to the new branch
+            git commit --allow-empty -m "Release branch $releaseBranchName"
+            git push origin $releaseBranchName
+          fi
+          echo NEW_RELEASE_BRANCH=$releaseBranchName | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        else
+          echo NEW_RELEASE_BRANCH="" | tee -a $GITHUB_ENV $GITHUB_OUTPUT
+        fi
+
+  release:
+    runs-on:
+      - env=infra-euw1
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
+    needs: create-release-branch
+    outputs:
+      VERSION: ${{ steps.Release.outputs.VERSION }}
+      HASH: ${{ steps.Release.outputs.HASH }}
+    steps:
+
+    - name: Checkout new release branch
+      # If the output of the previous job is not empty, then checkout the new branch
+      if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH != ''
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+        ref: ${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}
+
+    - name: Checkout selected branch
+      # If the output of the previous job is empty, then checkout as usual
+      if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH == ''
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Fetches all history for all tags and branches
+
+    - name: Fetch main branch
+      run: git fetch origin main:main
+      if: github.ref != 'refs/heads/main' || needs.create-release-branch.outputs.NEW_RELEASE_BRANCH != ''
+
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+
+    - name: Install release tools
+      run: |
+        npm install --global release-it@16.2.1
+
+    - name: Determine Release Increment
+      id: CheckLatestRelease
+      run: |
+        # Only check for a pre-release if we are NOT creating a new release branch
+        if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
+          # For patch releases, we need to consider if we're on main or a release branch
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            # On main branch, use global latest tag to determine the correct base version
+            latestTag=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" refs/tags/v[0-9]*.[0-9]*.[0-9]*)
+          else
+            # On release branches, use the latest tag reachable from current branch
+            latestTag=$(git describe --tags --abbrev=0)
+          fi
+          if [[ $latestTag == *-* ]]; then
+            echo "Latest tag is a pre-release, will increment pre-release version."
+            echo "latestReleaseIsPreRelease=true" | tee -a $GITHUB_OUTPUT
+          else
+            echo "Latest tag is a final release, will create a new pre-release."
+            echo "latestReleaseIsPreRelease=false" | tee -a $GITHUB_OUTPUT
+          fi
+        fi
 
     - name: Release
       id: Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-          if [ "${{ github.event.inputs.incrementPreRelease }}" = "true" ]; then
-            release-it --ci --increment=${{ github.event.inputs.releaseType }} --preRelease=rc
+        # If the new release branch is not created, then increment the patch version
+        if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
+          if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+            # Check if the latest tag is a pre-release
+            if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
+              # Then increment the pre-release version
+              release-it --ci --increment=pre --preRelease=rc --verbose
+            else
+              release-it --ci --increment=patch --preRelease=rc --verbose
+            fi
           else
-            release-it --ci --preRelease
+            release-it --ci --increment=patch --verbose
           fi
         else
-          release-it --ci --increment=${{ github.event.inputs.releaseType }}
+          # If the new release branch is created, then increment the minor or major version
+          # Currently, no pre-release is supported for major or minor releases from the main branch
+          if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
+            if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+              release-it --ci --increment=premajor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            else
+              release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            fi
+          elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
+            if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+              release-it --ci --increment=preminor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            else
+              release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            fi
+          fi
         fi
-        # Capture the Release Version
-        echo VERSION=$(git describe --tags --abbrev=0) | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
+        # Get the version from the newly created tag
+        VERSION=$(git describe --tags --abbrev=0)
+        echo VERSION=$VERSION | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
+        # Get the short hash of the commit pointed to by the new tag
+        # This is the correct and reliable way to get the release hash.
+        HASH=$(git rev-parse --short $VERSION)
+        echo "HASH=$HASH" | tee -a $GITHUB_OUTPUT
+
+        echo "Release Version (is prerelease: ${{ inputs.preRelease }}): $VERSION"
+        echo "Release Hash: $HASH"
 
   # Build & Push the images
 
   build-and-push:
+    if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push.yml
     needs: release
     secrets: inherit
     with:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
-  
+
+  build-and-push-root-account:
+    if: ${{ github.event.inputs.infra_only == 'false' }}
+    uses: ./.github/workflows/reusable_build_push_root.yml
+    needs: release
+    secrets: inherit
+    with:
+      tag: ${{ needs.release.outputs.VERSION }}
+      push: true
+
+  trigger-beyond-release:
+    needs: [release]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on:
+      - env=infra-euw1
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
+    steps:
+    - name: Trigger Beyond Release Workflow
+      uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
+      with:
+        repo: 'sequentech/beyond'
+        ref: ${{ github.ref }}
+        workflow: 'Automated Release Process'
+        token: ${{ secrets.PAT }}
+        inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
+        wait-for-completion: true
+
   trigger-deployer:
-    needs: [release, build-and-push]
-    runs-on: ubuntu-latest
+    needs: [release, create-release-branch, trigger-beyond-release]
+    if: ${{ always() && needs.release.result == 'success' && needs.create-release-branch.result == 'success' }}
+    runs-on:
+      - env=infra-euw1
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
     - name: Trigger Deployer Workflow
-      run: |
-        curl -f -X POST \
-          -H "Authorization: token ${{ secrets.PAT }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "${{ secrets.GH_API_URL }}" \
-          --data '{"event_type": "new-release-trigger", "client_payload": {"version": "${{ needs.release.outputs.VERSION }}", "repository": "step"}}'
+      uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
+      with:
+        repo: sequentech/gitops
+        ref: main # always use main for now #${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }} 
+        workflow: Deployer Workflow
+        token: ${{ secrets.PAT }}
+        inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}", "infra_only":"${{ github.event.inputs.infra_only }}" }'
 
   cleanup:
     if: failure()
     # Here define the depenency jobs
-    needs: [release,build-and-push]
-    runs-on: ubuntu-latest
+    needs: [release]
+    runs-on:
+      - env=infra-euw1
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -115,8 +319,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   slack-report:
-    needs: [release, build-and-push, trigger-deployer, cleanup]
-    runs-on: ubuntu-latest
+    needs: [release, trigger-deployer, cleanup]
+    runs-on:
+      - env=infra-euw1
+      - runs-on=${{ github.run_id }}
+      - runner=2cpu-linux-x64
+      - image=ubuntu24-full-x64
     timeout-minutes: 20
     if: always()
     steps:
@@ -126,7 +334,7 @@ jobs:
           # Required Input
           repo_token: ${{secrets.GITHUB_TOKEN}}
           slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
-          # Optional Input 
+          # Optional Input
           name: 'Github Actions'
 
       - name: Slack additional info

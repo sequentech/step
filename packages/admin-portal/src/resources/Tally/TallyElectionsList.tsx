@@ -1,57 +1,61 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {useGetOne, useGetList} from "react-admin"
-
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-
-interface TallyElectionsListProps {
-    electionEventId: string
-    disabled?: boolean
-    update: (elections: Array<string>) => void
-}
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
     id: string
     active: boolean
 }
+interface TallyElectionsListProps {
+    elections: Sequent_Backend_Election[] | undefined
+    electionEventId: string
+    disabled?: boolean
+    update: (elections: Array<string>) => void
+    keysCeremonyId: string | null
+    tallySession?: Sequent_Backend_Tally_Session
+}
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {disabled, update, electionEventId} = props
+    const {disabled, elections, update, keysCeremonyId, tallySession: tallyData} = props
 
-    const {tallyId} = useElectionEventTallyStore()
-    const [tenantId] = useTenantStore()
     const {t} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
 
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
 
-    const {data: tallyData} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        },
-        {
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
+    const filteredElections = useMemo(() => {
+        if (!keysCeremonyId || tallyData) {
+            return elections
         }
-    )
+        return elections?.filter((election) => election.keys_ceremony_id === keysCeremonyId)
+    }, [elections, keysCeremonyId, tallyData])
 
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventId, tenant_id: tenantId},
-    })
+    const sortedfilteredElections = useMemo(() => {
+        // Ensure filteredElections and its nested properties exist
+        const items = filteredElections
+        if (!items) return []
+
+        // Create a shallow copy and sort it
+        return [...items].sort((a, b) => {
+            if (!a?.name || !b?.name) return 0
+            return a.name.localeCompare(b.name)
+        })
+        // Dependency array: re-run only when the original items array changes
+    }, [filteredElections])
 
     useEffect(() => {
-        if (elections) {
-            const temp: Array<Sequent_Backend_Election_Extended> = (elections || [])
+        if (filteredElections) {
+            const temp: Array<Sequent_Backend_Election_Extended> = sortedfilteredElections
                 .map((election, index) => ({
                     ...election,
                     rowId: index,
@@ -64,7 +68,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                 )
             setElectionsData(temp)
         }
-    }, [elections])
+    }, [filteredElections])
 
     useEffect(() => {
         if (electionsData) {
@@ -81,6 +85,9 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
+            valueGetter(params) {
+                return aliasRenderer(params.row)
+            },
         },
         {
             field: "active",

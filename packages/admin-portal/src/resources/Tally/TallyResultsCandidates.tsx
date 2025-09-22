@@ -24,7 +24,7 @@ import {
 } from "@mui/material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
-import {formatPercentOne, isNumber} from "@sequentech/ui-essentials"
+import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 
@@ -102,8 +102,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     }
                 }
             )
-
-            console.log("TallyResultsGlobalCandidates :: temp", temp)
 
             setResultsData(temp)
         }

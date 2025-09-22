@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IAuditableBallot} from "@sequentech/ui-essentials"
+import {IAuditableBallot} from "@sequentech/ui-core"
 
 export interface AuditableBallotsState {
     [ballotStyleId: string]: IAuditableBallot | undefined

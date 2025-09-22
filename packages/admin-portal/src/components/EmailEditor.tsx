@@ -8,7 +8,7 @@ import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
-import {IEmail} from "@/types/communications"
+import {IEmail} from "@/types/templates"
 
 interface EmailEditorProps {
     record: IEmail
@@ -57,6 +57,7 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
                     onChange={handleChange}
                     multiline={true}
                     minRows={6}
+                    maxRows={20}
                 />
             </CustomTabPanel>
             <CustomTabPanel key="richtext" value={tab} index={1}>

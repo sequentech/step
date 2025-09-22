@@ -1,0 +1,106 @@
+
+<div class="content">
+  <h1 class="title">Election Results "{{ reports.0.election_name }}"</h1>
+  <div id="dateDiv">
+    {{ timestamp }}
+  </div>
+  
+  {{ #each reports as |report| }}
+    {{#if report.channel_type}}
+      <h2>Channel: {{ sanitize_html report.channel_type }}</h2>
+    {{/if}}
+    <h2>Question: {{ sanitize_html report.contest.name }}</h2>
+    {{#if report.area}}
+      <h2>Area: {{ report.area.name}}</h2>
+    {{/if}}
+    <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
+
+    <table>
+      <tr>
+        <th colspan="2">Configuration Data</th>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Tally System</td>
+        <td style="width: 45%;">
+          {{ report.contest.voting_type }},
+          {{ report.contest.counting_algorithm }}
+        </td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Minimum number of candidates a voter can select</td>
+        <td style="width: 45%;">{{ format_u64 report.contest.min_votes }}</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Maximum number of candidates a voter can select</td>
+        <td style="width: 45%;">{{ format_u64 report.contest.max_votes }}</td>
+      </tr>
+    </table>
+
+    <table>
+      <tr>
+        <th colspan="3">Participation</th>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Summary</td>
+        <td style="width: 22.5%;">Total</td>
+        <td style="width: 22.5%;">%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Census</td>
+        <td style="width: 22.5%;">{{ format_u64 report.contest_result.census }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_census }}%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Auditable votes</td>
+        <td style="width: 22.5%;">{{ format_u64 report.contest_result.auditable_votes}}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_auditable_votes }}%</td> 
+      </tr>
+      <tr>
+        <td style="width: 55%;">Total number of votes counted</td>
+        <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_votes }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_votes }}%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Total number of valid votes</td>
+        <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_valid_votes }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_valid_votes }}%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Blank votes (total)</td>
+        <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_blank_votes }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_blank_votes }}%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Explicit invalid votes</td>
+        <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_explicit }}%</td>
+      </tr>
+      <tr>
+        <td style="width: 55%;">Implicit invalid votes</td>
+        <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
+        <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> 
+      </tr>
+    </table>
+
+    <table>
+      <tr>
+        <th colspan="4">Candidate result</th>
+      </tr>
+      <tr class="">
+        <td style="width: 55%;">Name</td>
+        <td style="width: 15%;">Votes</td>
+        <td style="width: 15%;">Percent of votes</td>
+        <td style="width: 15%;">Winning Position</td>
+      </tr>
+      {{#each report.candidate_result as |candidate|}}
+        <tr class="">
+          <td style="width: 55%;">{{{ candidate.candidate.name }}}</td>
+          <td style="width: 15%;">{{ format_u64 candidate.total_count }}</td>
+          <td style="width: 15%;">{{ format_percentage candidate.percentage_votes }}%</td>
+          <td style="width: 15%;">{{ candidate.winning_position }}</td>
+        </tr>
+      {{/each}}
+    </table>
+  {{/each}}
+
+</div>

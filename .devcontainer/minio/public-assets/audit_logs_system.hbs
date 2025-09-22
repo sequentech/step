@@ -1,0 +1,286 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+  SPDX-License-Identifier: AGPL-3.0-only
+--}}
+  <!doctype html>
+  <html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="{{file_qrcode_lib}}"></script>
+    <style type="text/css" id="page-style">
+      body {
+        font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 1024px;
+        padding: 0 48px;
+      }
+
+      @media print {
+
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
+        body {
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
+        }
+      }
+
+      .report {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        display: block;
+        width: 100%;
+        height: auto !important;
+      }
+
+      .top-header .left {
+        font-family: Arial, sans-serif;
+        text-align: left;
+        margin: 16px 0;
+        margin-top: 5px;
+        font-size: 10pt;
+        font-style: italic;
+
+      }
+
+      .top-header .right {
+        font-family: Arial, sans-serif;
+        text-transform: uppercase;
+        text-align: right;
+        margin: 16px 0;
+        margin-top: 5px;
+        font-size: 10pt;
+      }
+
+      .main-header {
+        width: 100%;
+      }
+
+      .main-header .left img {
+        max-width: 100px;
+        margin-top: 8px;
+        text-align: left;
+        vertical-align: top;
+
+      }
+
+      .main-header .center {
+        text-align: center;
+        padding-top: 10px;
+      }
+
+      .main-header .right img {
+        max-width: 90px;
+        margin-top: 8px;
+        text-align: right;
+        vertical-align: top;
+      }
+
+      .main-header .center {
+        font-size: 10pt;
+      }
+
+      .main-header .center .country {
+        font-weight: 100;
+        font-size: 11pt;
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+      }
+
+      .main-header .center .commission {
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+        font-size: 12pt;
+
+      }
+
+      .main-header .center .election-date {
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+
+      }
+
+      .main-header .center .election-name {
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+      }
+
+      .main-header .center .online {
+        padding-top: 25px;
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+      }
+
+      .main-header .center .voting-period {
+        padding-top: 3px;
+        font-family: Arial, sans-serif;
+        font-size: 10pt;
+        font-weight: lighter;
+        font-style: italic;
+      }
+
+      .main-title {
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+        font-size: 12pt;
+      }
+
+      .stats-table {
+        width: 100%;
+        margin: 32px 10px;
+      }
+
+      .stats-table .key {
+        margin-left: 15px;
+        font-family: Arial, sans-serif;
+        font-size: 10pt;
+        font-weight: bold;
+        text-align: right;
+        vertical-align: top;
+        width: 50%;
+      }
+
+      .stats-table .value {
+        font-family: Arial, sans-serif;
+        font-size: 10pt;
+        text-align: left;
+        width: 50%;
+      }
+
+      .paragraph {
+        font-family: Arial, sans-serif;
+        font-size: 10pt;
+        margin-top: 12px;
+        margin-bottom: 12px;
+        text-align: left;
+      }
+
+      .paragraph strong::first-line {
+        text-indent: 50px;
+      }
+
+      .sequences-title {
+        text-align: center;
+        padding: 15px;
+        font-family: serif;
+        font-size: 12pt
+      }
+
+      .sequences {
+          width: 100%;
+          table-layout: fixed;
+          border-collapse: collapse;
+          font-size: 8px;
+      }
+
+
+      .sequences-container {
+        width: 100%;
+      }
+      .sequences th, .sequences td {
+        padding: 2px 3px;
+        border: 1px solid black;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .inspectors-title,
+      .inspector-signature {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        font-family: Arial, sans-serif;
+        font-size: 10pt;
+      }
+
+      .inspectors-title {
+        text-transform: uppercase;
+        text-align: center;
+        padding: 30px;
+        font-size: 11pt;
+      }
+
+      .inspector-name {
+        text-decoration: underline;
+      }
+
+      .inspector-signature {
+        text-align: center;
+        margin: 0 auto;
+        padding: 15px;
+      }
+
+      .inspector-signature .box {
+        margin: 0 auto;
+        width: 120px;
+        height: 120px;
+        border: 1px solid black;
+      }
+
+      .inspector-signature strong {
+        text-transform: uppercase;
+      }
+
+      .qr-codes {
+        text-align: center;
+        padding: 12px;
+        height: 180px;
+      }
+
+      .qrcode {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        page-break-inside: avoid;
+      }
+
+      .sys-info {
+        page-break-inside: avoid;
+        text-align: center;
+        margin-top: 10px;
+      }
+
+    .sys-info div {
+      font-family: "Arial", sans-serif;
+      font-size: 11pt;
+      text-align: center;
+      margin-top: 24px;
+      line-height: 15pt;
+      padding-bottom: 40px;
+    }
+
+
+      .report-end {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin: 16px 0;
+        margin-top: 30px;
+        text-transform: uppercase;
+      }
+
+      .report-end hr {
+        text-align: center;
+        margin: 0 24px;
+        border-top: 3px solid black;
+      }
+
+      .word-break {
+        word-break: break-all;
+      }
+    </style>
+  </head>
+
+  <body style="background-color: #ffffff">
+    {{{rendered_user_template}}}
+  </body>
+
+  </html>

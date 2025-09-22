@@ -1,245 +1,245 @@
 table:
-  name: results_area_contest
-  schema: sequent_backend
+    name: results_area_contest
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - area_id
-    - blank_votes
-    - blank_votes_percent
-    - contest_id
-    - created_at
-    - documents
-    - election_event_id
-    - election_id
-    - elegible_census
-    - explicit_invalid_votes
-    - explicit_invalid_votes_percent
-    - id
-    - implicit_invalid_votes
-    - implicit_invalid_votes_percent
-    - labels
-    - last_updated_at
-    - results_event_id
-    - tenant_id
-    - total_auditable_votes
-    - total_auditable_votes_percent
-    - total_invalid_votes
-    - total_invalid_votes_percent
-    - total_valid_votes
-    - total_valid_votes_percent
-    - total_votes
-    - total_votes_percent
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - area_id
-    - blank_votes
-    - blank_votes_percent
-    - contest_id
-    - created_at
-    - documents
-    - election_event_id
-    - election_id
-    - elegible_census
-    - explicit_invalid_votes
-    - explicit_invalid_votes_percent
-    - id
-    - implicit_invalid_votes
-    - implicit_invalid_votes_percent
-    - labels
-    - last_updated_at
-    - results_event_id
-    - tenant_id
-    - total_auditable_votes
-    - total_auditable_votes_percent
-    - total_invalid_votes
-    - total_invalid_votes_percent
-    - total_valid_votes
-    - total_valid_votes_percent
-    - total_votes
-    - total_votes_percent
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - area_id
+              - blank_votes
+              - blank_votes_percent
+              - contest_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - elegible_census
+              - explicit_invalid_votes
+              - explicit_invalid_votes_percent
+              - id
+              - implicit_invalid_votes
+              - implicit_invalid_votes_percent
+              - labels
+              - last_updated_at
+              - results_event_id
+              - tenant_id
+              - total_auditable_votes
+              - total_auditable_votes_percent
+              - total_invalid_votes
+              - total_invalid_votes_percent
+              - total_valid_votes
+              - total_valid_votes_percent
+              - total_votes
+              - total_votes_percent
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - area_id
+              - blank_votes
+              - blank_votes_percent
+              - contest_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - elegible_census
+              - explicit_invalid_votes
+              - explicit_invalid_votes_percent
+              - id
+              - implicit_invalid_votes
+              - implicit_invalid_votes_percent
+              - labels
+              - last_updated_at
+              - results_event_id
+              - tenant_id
+              - total_auditable_votes
+              - total_auditable_votes_percent
+              - total_invalid_votes
+              - total_invalid_votes_percent
+              - total_valid_votes
+              - total_valid_votes_percent
+              - total_votes
+              - total_votes_percent
+      role: service-account
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - area_id
-    - blank_votes
-    - blank_votes_percent
-    - contest_id
-    - created_at
-    - documents
-    - election_event_id
-    - election_id
-    - elegible_census
-    - explicit_invalid_votes
-    - explicit_invalid_votes_percent
-    - id
-    - implicit_invalid_votes
-    - implicit_invalid_votes_percent
-    - labels
-    - last_updated_at
-    - results_event_id
-    - tenant_id
-    - total_auditable_votes
-    - total_auditable_votes_percent
-    - total_invalid_votes
-    - total_invalid_votes_percent
-    - total_valid_votes
-    - total_valid_votes_percent
-    - total_votes
-    - total_votes_percent
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - area_id
-    - blank_votes
-    - blank_votes_percent
-    - contest_id
-    - created_at
-    - documents
-    - election_event_id
-    - election_id
-    - elegible_census
-    - explicit_invalid_votes
-    - explicit_invalid_votes_percent
-    - id
-    - implicit_invalid_votes
-    - implicit_invalid_votes_percent
-    - labels
-    - last_updated_at
-    - results_event_id
-    - tenant_id
-    - total_auditable_votes
-    - total_auditable_votes_percent
-    - total_invalid_votes
-    - total_invalid_votes_percent
-    - total_valid_votes
-    - total_valid_votes_percent
-    - total_votes
-    - total_votes_percent
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - area_id
-    - blank_votes
-    - blank_votes_percent
-    - contest_id
-    - created_at
-    - documents
-    - election_event_id
-    - election_id
-    - elegible_census
-    - explicit_invalid_votes
-    - explicit_invalid_votes_percent
-    - id
-    - implicit_invalid_votes
-    - implicit_invalid_votes_percent
-    - labels
-    - last_updated_at
-    - results_event_id
-    - tenant_id
-    - total_auditable_votes
-    - total_auditable_votes_percent
-    - total_invalid_votes
-    - total_invalid_votes_percent
-    - total_valid_votes
-    - total_valid_votes_percent
-    - total_votes
-    - total_votes_percent
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: tally-results-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - area_id
+              - blank_votes
+              - blank_votes_percent
+              - contest_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - elegible_census
+              - explicit_invalid_votes
+              - explicit_invalid_votes_percent
+              - id
+              - implicit_invalid_votes
+              - implicit_invalid_votes_percent
+              - labels
+              - last_updated_at
+              - results_event_id
+              - tenant_id
+              - total_auditable_votes
+              - total_auditable_votes_percent
+              - total_invalid_votes
+              - total_invalid_votes_percent
+              - total_valid_votes
+              - total_valid_votes_percent
+              - total_votes
+              - total_votes_percent
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - area_id
+              - blank_votes
+              - blank_votes_percent
+              - contest_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - elegible_census
+              - explicit_invalid_votes
+              - explicit_invalid_votes_percent
+              - id
+              - implicit_invalid_votes
+              - implicit_invalid_votes_percent
+              - labels
+              - last_updated_at
+              - results_event_id
+              - tenant_id
+              - total_auditable_votes
+              - total_auditable_votes_percent
+              - total_invalid_votes
+              - total_invalid_votes_percent
+              - total_valid_votes
+              - total_valid_votes_percent
+              - total_votes
+              - total_votes_percent
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - area_id
+              - blank_votes
+              - blank_votes_percent
+              - contest_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - elegible_census
+              - explicit_invalid_votes
+              - explicit_invalid_votes_percent
+              - id
+              - implicit_invalid_votes
+              - implicit_invalid_votes_percent
+              - labels
+              - last_updated_at
+              - results_event_id
+              - tenant_id
+              - total_auditable_votes
+              - total_auditable_votes_percent
+              - total_invalid_votes
+              - total_invalid_votes_percent
+              - total_valid_votes
+              - total_valid_votes_percent
+              - total_votes
+              - total_votes_percent
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-results-read
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - area_id
-    - blank_votes
-    - blank_votes_percent
-    - contest_id
-    - created_at
-    - documents
-    - election_event_id
-    - election_id
-    - elegible_census
-    - explicit_invalid_votes
-    - explicit_invalid_votes_percent
-    - id
-    - implicit_invalid_votes
-    - implicit_invalid_votes_percent
-    - labels
-    - last_updated_at
-    - results_event_id
-    - tenant_id
-    - total_auditable_votes
-    - total_auditable_votes_percent
-    - total_invalid_votes
-    - total_invalid_votes_percent
-    - total_valid_votes
-    - total_valid_votes_percent
-    - total_votes
-    - total_votes_percent
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - area_id
-    - blank_votes
-    - blank_votes_percent
-    - contest_id
-    - created_at
-    - documents
-    - election_event_id
-    - election_id
-    - elegible_census
-    - explicit_invalid_votes
-    - explicit_invalid_votes_percent
-    - id
-    - implicit_invalid_votes
-    - implicit_invalid_votes_percent
-    - labels
-    - last_updated_at
-    - results_event_id
-    - tenant_id
-    - total_auditable_votes
-    - total_auditable_votes_percent
-    - total_invalid_votes
-    - total_invalid_votes_percent
-    - total_valid_votes
-    - total_valid_votes_percent
-    - total_votes
-    - total_votes_percent
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - area_id
+              - blank_votes
+              - blank_votes_percent
+              - contest_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - elegible_census
+              - explicit_invalid_votes
+              - explicit_invalid_votes_percent
+              - id
+              - implicit_invalid_votes
+              - implicit_invalid_votes_percent
+              - labels
+              - last_updated_at
+              - results_event_id
+              - tenant_id
+              - total_auditable_votes
+              - total_auditable_votes_percent
+              - total_invalid_votes
+              - total_invalid_votes_percent
+              - total_valid_votes
+              - total_valid_votes_percent
+              - total_votes
+              - total_votes_percent
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - area_id
+              - blank_votes
+              - blank_votes_percent
+              - contest_id
+              - created_at
+              - documents
+              - election_event_id
+              - election_id
+              - elegible_census
+              - explicit_invalid_votes
+              - explicit_invalid_votes_percent
+              - id
+              - implicit_invalid_votes
+              - implicit_invalid_votes_percent
+              - labels
+              - last_updated_at
+              - results_event_id
+              - tenant_id
+              - total_auditable_votes
+              - total_auditable_votes_percent
+              - total_invalid_votes
+              - total_invalid_votes_percent
+              - total_valid_votes
+              - total_valid_votes_percent
+              - total_votes
+              - total_votes_percent
+          filter: {}
+      role: service-account

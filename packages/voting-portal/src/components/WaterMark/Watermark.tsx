@@ -5,10 +5,15 @@
 import React, {useCallback, useMemo} from "react"
 import demoBanner from "./assets/demo-banner.png"
 import {useAppSelector} from "../../store/hooks"
-import {selectFirstBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import {
+    selectAllBallotStyles,
+    selectFirstBallotStyle,
+    showDemo,
+} from "../../store/ballotStyles/ballotStylesSlice"
 import styled from "@emotion/styled"
 import {Box} from "@mui/material"
 import {SystemProps} from "@mui/system"
+import {useParams} from "react-router-dom"
 
 interface BackgroundProps extends SystemProps {
     imageUrl: string | undefined
@@ -35,18 +40,13 @@ const Background = styled(Box)<{imageUrl: string | undefined}>`
     }
 `
 
-const WatermarkBackground: React.FC = () => {
-    const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    const isDemo = useMemo(() => {
-        return oneBallotStyle?.ballot_eml.public_key?.is_demo
-    }, [oneBallotStyle])
-    const imageUrlPath = useCallback(() => {
-        if (isDemo) {
-            return "/demo-banner.png"
-        }
-    }, [isDemo])
+const DEMO_URL_PATH = "/demo-banner.png"
 
-    return imageUrlPath() ? <Background imageUrl={imageUrlPath()} /> : null
+const WatermarkBackground: React.FC = () => {
+    const {electionId} = useParams<{electionId?: string}>()
+    const isDemo = useAppSelector(showDemo(electionId))
+
+    return isDemo ? <Background imageUrl={DEMO_URL_PATH} className="watermark-background" /> : null
 }
 
 export default WatermarkBackground

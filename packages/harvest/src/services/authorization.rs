@@ -1,33 +1,54 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::Context;
 use rocket::http::Status;
+use rocket::response::status::Unauthorized;
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
 use std::collections::HashSet;
 use std::env;
-use tracing::instrument;
+use tracing::{error, info, instrument};
 
 #[instrument(skip(claims))]
 pub fn authorize(
     claims: &JwtClaims,
-    check_super_admin: bool,
+    allow_super_admin_auth: bool, // Allow authorizing super admin tenant
     tenant_id_opt: Option<String>,
     permissions: Vec<Permissions>,
 ) -> Result<(), (Status, String)> {
-    let super_admin_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
-    let is_super_admin =
-        super_admin_tenant_id == claims.hasura_claims.tenant_id;
-    let is_valid_tenant = tenant_id_opt
-        .clone()
-        .map(|tenant_id| tenant_id == claims.hasura_claims.tenant_id)
-        .unwrap_or(false);
-    if !((check_super_admin && is_super_admin)
-        || (tenant_id_opt.is_some() && is_valid_tenant))
-    {
-        return Err((Status::Unauthorized, "".into()));
+    // Verify tenant id
+    let allowed = match (tenant_id_opt.clone(), allow_super_admin_auth) {
+        (Some(tenant_id), _)
+            if tenant_id.eq(&claims.hasura_claims.tenant_id) =>
+        {
+            true // is valid tenant
+        }
+
+        (_, true) => {
+            let super_admin_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
+                .map_err(|_| {
+                    (
+                        Status::Unauthorized,
+                        format!("SUPER_ADMIN_TENANT_ID must be set"),
+                    )
+                })?;
+            info!("super_admin_tenant_id: {super_admin_tenant_id}");
+            super_admin_tenant_id == claims.hasura_claims.tenant_id // is super admin?
+        }
+        (_, _) => false, // Is not valid tenant nor super admin
+    };
+
+    if !allowed {
+        error!(
+            "Not authorized: allow_super_admin_auth: {allow_super_admin_auth}, 
+            tenant_id_opt: {tenant_id_opt:?}, claims tenant_id: {}",
+            claims.hasura_claims.tenant_id
+        );
+        return Err((Status::Unauthorized, format!("Unathorized: not a super admin or invalid tenant_id {tenant_id_opt:?}")));
     }
+
     let perms_str: Vec<String> = permissions
         .into_iter()
         .map(|permission| permission.to_string())
@@ -38,7 +59,10 @@ pub fn authorize(
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
     if !all_contained {
-        Err((Status::Unauthorized, "".into()))
+        Err((
+            Status::Unauthorized,
+            format!("Unathorized: {perms_str:?} not in {permissions_set:?}"),
+        ))
     } else {
         Ok(())
     }
@@ -46,10 +70,11 @@ pub fn authorize(
 
 // returns area_id
 #[instrument(skip(claims))]
-pub fn authorize_voter(
+pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
-) -> Result<String, (Status, String)> {
+    election_id: &String,
+) -> Result<(String, VotingStatusChannel), (Status, String)> {
     let perms_str: Vec<String> = permissions
         .into_iter()
         .map(|permission| permission.to_string())
@@ -67,5 +92,24 @@ pub fn authorize_voter(
         return Err((Status::Unauthorized, "Missing area_id".into()));
     };
 
-    Ok(area_id)
+    // Check election id checks
+    if claims.hasura_claims.authorized_election_ids.is_none()
+        || !claims
+            .hasura_claims
+            .authorized_election_ids
+            .as_ref()
+            .unwrap_or(&Vec::new())
+            .contains(election_id)
+    {
+        return Err((
+            Status::Unauthorized,
+            "Not authorized to election".into(),
+        ));
+    }
+
+    match claims.azp.as_str() {
+        "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),
+        "voting-portal-kiosk" => Ok((area_id, VotingStatusChannel::KIOSK)),
+        _ => Err((Status::Unauthorized, "Unknown Client".into())),
+    }
 }

@@ -5,9 +5,9 @@ import React, {ReactElement, useContext, useEffect} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import AddIcon from "@mui/icons-material/Add"
 
-import {Box, Button, Drawer, Typography} from "@mui/material"
+import {Box, Button, Drawer, Icon, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
@@ -24,7 +24,7 @@ import {IPermissions} from "@/types/keycloak"
 import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
 import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
 
-const EmptyBox = styled(Box)`
+export const EmptyBox = styled(Box)`
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -103,8 +103,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     ]
 
     const CreateButton = () => (
-        <Button onClick={handleOpenCreateDrawer}>
-            <IconButton icon={faPlus} fontSize="24px" />
+        <Button onClick={handleOpenCreateDrawer} startIcon={<AddIcon sx={{fontSize: "24px"}} />}>
             {t("electionTypeScreen.common.createNew")}
         </Button>
     )

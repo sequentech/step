@@ -2,14 +2,18 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-version: "3.6"
 services:
   devcontainer:
     profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv:latest
+    image: ghcr.io/cachix/devenv:v1.0.7
     container_name: devcontainer
     volumes:
-      - ../..:/workspaces:cached
+    - type: bind
+      source: ../..
+      target: /workspaces
+      bind:
+        create_host_path: true
+        selinux: z
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
      - SYS_PTRACE
@@ -18,25 +22,38 @@ services:
     environment:
       # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
-      # this env var can be used to add the above postgres database to Hasura 
+      # this env var can be used to add the above postgres database to Hasura
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
+
+  simplesaml:
+    profiles: ["full"]
+    image: kenchan0130/simplesamlphp
+    container_name: simplesamlphp
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
+      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
     profiles: ["full", "base"]
     image: alpine
     container_name: postgres-volume-init
-    volumes: 
+    volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
+      - b3_db_logs:/b3_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b3_logs
 
   postgres:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres
     build:
@@ -82,7 +99,13 @@ services:
     #restart: always
     #depends_on:
     #  - graphql-engine
-  
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
+
   # used to add headers to minio
   minio-proxy:
     profiles: ["full", "base"]
@@ -92,18 +115,19 @@ services:
       - "9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
+    #image: minio/mc
     depends_on:
       - minio
-  
+
   configure-minio:
     profiles: ["full", "base"]
     container_name: configure-minio
     build:
       context: ./minio
       dockerfile: Dockerfile
-    #image: minio/mc
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       - MINIO_ROOT_USER=${AWS_S3_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD}
@@ -115,30 +139,30 @@ services:
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
-  vault:
-    profiles: ["full", "base"]
-    container_name: vault
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
-    restart: on-failure:10
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - "8201:8201"
-      - "8200:8200"
-    environment:
-      VAULT_API_ADDR: 'http://0.0.0.0:8200'
-      VAULT_ADDR: 'http://0.0.0.0:8201'
-      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
-      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-volume:/vault
-    healthcheck:
-      retries: 5
-    entrypoint: /opt/vault/entrypoint.sh
+  # vault:
+  #   profiles: ["full", "base"]
+  #   container_name: vault
+  #   build:
+  #     context: ./vault
+  #     dockerfile: Dockerfile
+  #   restart: on-failure:10
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - "8201:8201"
+  #     - "8200:8200"
+  #   environment:
+  #     VAULT_API_ADDR: 'http://0.0.0.0:8200'
+  #     VAULT_ADDR: 'http://0.0.0.0:8201'
+  #     VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+  #     VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
+  #   cap_add:
+  #     - IPC_LOCK
+  #   volumes:
+  #     - vault-volume:/vault
+  #   healthcheck:
+  #     retries: 5
+  #   entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
     profiles: ["full", "base"]
@@ -147,21 +171,20 @@ services:
     ports:
       - "8080:8080"
     restart: always
-    volumes:
-      - ../hasura/metadata/:/hasura-metadata:cached
-      - ../hasura/migrations/:/hasura-migrations:cached
+    volumes_from:
+    - devcontainer
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
-      HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
-      HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
+      HASURA_GRAPHQL_MIGRATIONS_DIR: /workspaces/step/hasura/migrations
+      HASURA_GRAPHQL_METADATA_DIR: /workspaces/step/hasura/metadata
       ## postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
       ## enable the console served by server
       # set to "false" to disable console
-      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE}
       ## enable debugging mode. It is recommended to disable this in production
       HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
       # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
@@ -169,16 +192,24 @@ services:
       HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: ${HASURA_GRAPHQL_CONSOLE_ASSETS_DIR}
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: ${HASURA_GRAPHQL_ENABLED_LOG_TYPES}
       HASURA_GRAPHQL_METADATA_DEFAULTS: ${HASURA_GRAPHQL_METADATA_DEFAULTS}
+      # Hasura role for unauthorized users
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: "unauthorized"
       # keycloak jwks endpoint
       HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
       HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       HARVEST_DOMAIN: ${HARVEST_DOMAIN}
     depends_on:
+      devcontainer:
+        condition: service_started
       data-connector-agent:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -201,6 +232,8 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
+    # Required by VACUUM ANALYZE to work properly
+    shm_size: 256m
     image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
@@ -234,10 +267,12 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     environment:
+      AMQP_ADDR: ${AMQP_ADDR}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
       KC_DB: ${KC_DB}
+      KC_LOG_LEVEL: ${LOG_LEVEL}
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_DB_SCHEMA: ${KC_DB_SCHEMA}
@@ -246,9 +281,22 @@ services:
       KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE}
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-    volumes:
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      APP_VERSION: ${APP_VERSION}
+      APP_HASH: ${APP_HASH}
+      KC_OTP_RESEND_INTERVAL: ${KC_OTP_RESEND_INTERVAL}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
+      ENV_SLUG: ${ENV_SLUG}
+    #volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
-      - ./keycloak/import:/opt/keycloak/data/import
+      #- ./keycloak/import:/opt/keycloak/data/import:z
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -279,45 +327,46 @@ services:
       retries: 25
       start_period: 5s
 
-  admin-portal:
-    profiles: ["full"]
-    image: sequentech.local/frontend
-    container_name: admin-portal
-    build:
-      context: ../packages/
-      dockerfile: Dockerfile
-    #restart: always
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3002:3000
-    stdin_open: true
-    entrypoint: ["./init.sh", "start:admin:container"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
-    environment:
-        MAX_DIFF_LINES: ${MAX_DIFF_LINES}
-        SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
-        SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
+  # admin-portal:
+  #   profiles: ["full"]
+  #   image: sequentech.local/frontend
+  #   container_name: admin-portal
+  #   build:
+  #     context: ../packages/
+  #     dockerfile: Dockerfile
+  #   #restart: always
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - 3002:3000
+  #   stdin_open: true
+  #   entrypoint: ["/workspaces/step/packages/init.sh", "start:admin-portal"]
+  #   working_dir: /workspaces/step/packages
+  #   volumes_from:
+  #     - devcontainer
+  #   environment:
+  #       MAX_DIFF_LINES: ${MAX_DIFF_LINES}
+  #       SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
+  #       SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
 
-  voting-portal:
-    profiles: ["full"]
-    image: sequentech.local/frontend
-    container_name: voting-portal
-    # depending on the `admin-portal` container to ensure that the
-    # `sequentech.local/frontend` image is locally build, so that we can reuse
-    # it:
-    depends_on:
-      - admin-portal
-    #restart: always
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3000:3000
-    stdin_open: true
-    entrypoint: ["./init.sh", "start"]
-    volumes:
-       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+  # voting-portal:
+  #   profiles: ["full"]
+  #   image: sequentech.local/frontend
+  #   container_name: voting-portal
+  #   # depending on the `admin-portal` container to ensure that the
+  #   # `sequentech.local/frontend` image is locally build, so that we can reuse
+  #   # it:
+  #   depends_on:
+  #     - admin-portal
+  #   #restart: always
+  #   #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+  #   #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+  #   ports:
+  #     - 3000:3000
+  #   stdin_open: true
+  #   entrypoint: ["./init.sh", "start"]
+  #   volumes:
+  #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   immudb:
     profiles: ["full", "base"]
@@ -333,25 +382,24 @@ services:
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
       - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
+      - 3324:9497 # prometheus
       - 3325:8080 # web console
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
     depends_on:
       - immudb-init
-  
-  harvest:
-    profiles: ["full", "base"]
+
+  mock_server:
+    profiles: ["full"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: harvest
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
-    volumes:
-      - ../packages/:/app
-    working_dir: /app/harvest
+    container_name: mock_server
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/e2e/src/mock_server
     entrypoint: [
       "cargo",
       "watch",
@@ -364,6 +412,53 @@ services:
       "run"
     ]
     environment:
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${MOCK_SERVER_PORT}
+      MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
+    ports:
+     - ${MOCK_SERVER_PORT}:${MOCK_SERVER_PORT}
+
+  janitor:
+    profiles: ["full"]
+    container_name: janitor
+    build:
+      context: ../packages/windmill/external-bin/janitor/scripts
+      dockerfile: Dockerfile.janitor
+    image: sequentech.local/janitor
+    stdin_open: true
+    tty: true
+    working_dir: /opt/sequent-step
+    entrypoint: ["/bin/bash"]
+    environment:
+      - PYTHONUNBUFFERED=1
+  
+  harvest:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: harvest
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+    working_dir: /workspaces/step/packages/harvest
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "-x",
+      "run"
+    ]
+    environment:
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -373,6 +468,10 @@ services:
       IMMUDB_USER: ${IMMUDB_USER}
       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
       IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
+      AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
+      EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
+      EMAIL_FROM: ${EMAIL_FROM}
       KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
       KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
       KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
@@ -387,12 +486,15 @@ services:
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
       HASURA_DB__HOST: ${HASURA_DB__HOST}
       HASURA_DB__PORT: ${HASURA_DB__PORT}
       HASURA_DB__DBNAME: ${HASURA_DB__DBNAME}
       HASURA_DB__MANAGER__RECYCLING_METHOD: ${HASURA_DB__MANAGER__RECYCLING_METHOD}
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
@@ -406,6 +508,7 @@ services:
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
+      PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
 
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
@@ -413,14 +516,24 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
       AWS_REGION: ${AWS_REGION}
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
+
+      CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
+      CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
+      CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      ENV_SLUG: ${ENV_SLUG}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -439,19 +552,17 @@ services:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee1
-        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
     depends_on:
       - immudb
-  
+      - b3
+
   trustee2:
     profiles: ["full"]
     stdin_open: true
@@ -466,41 +577,35 @@ services:
       - trustee1
       - immudb
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee2
-        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
-  
-  trustee3:
-    profiles: ["full"]
-    stdin_open: true
-    image: sequentech.local/braid
-    container_name: trustee3
-    volumes:
-      - trustee3_data:/opt/braid
-    # depending on the `trustee1` container to ensure that the
-    # `sequentech.local/braid` image is locally build, so that we can reuse
-    # it:
-    depends_on:
-      - trustee1
-      - immudb
-    environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-        TRUSTEE_NAME: trustee3
-        TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
-        IGNORE_BOARDS: ${IGNORE_BOARDS}
-        SECRETS_BACKEND: ${SECRETS_BACKEND}
-        VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-        VAULT_TOKEN: ${VAULT_TOKEN}
+        B3_URL: ${B3_URL}
+
+  # trustee3:
+  #   profiles: ["full"]
+  #   stdin_open: true
+  #   image: sequentech.local/braid
+  #   container_name: trustee3
+  #   volumes:
+  #     - trustee3_data:/opt/braid
+  #   # depending on the `trustee1` container to ensure that the
+  #   # `sequentech.local/braid` image is locally build, so that we can reuse
+  #   # it:
+  #   depends_on:
+  #     - trustee1
+  #     - immudb
+  #   environment:
+  #       TRUSTEE_NAME: trustee3
+  #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
+  #       IGNORE_BOARDS: ${IGNORE_BOARDS}
+  #       SECRETS_BACKEND: ${SECRETS_BACKEND}
+  #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+  #       VAULT_TOKEN: ${VAULT_TOKEN}
+  #       B3_URL: ${B3_URL}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -539,7 +644,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -588,7 +693,7 @@ services:
       --immudb-host ${IMMUDB_HOST}
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
-    volumes: 
+    volumes:
       - 'keycloak_immudb_log_audit_data:/data'
       - 'keycloak_db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
@@ -599,10 +704,9 @@ services:
       - immudb
       - immudb-log-audit-init-keycloak
 
-
   rabbitmq:
     profiles: ["full", "base"]
-    image: rabbitmq:management
+    image: rabbitmq:3.12.11-management
     container_name: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
@@ -622,8 +726,8 @@ services:
     depends_on:
       - harvest
     volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
+      - ./keycloak/import:/import:z
+      - ../packages/:/app:z
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -638,14 +742,76 @@ services:
       "${IMMUDB_USER}",
       "--password",
       "${IMMUDB_PASSWORD}",
-      "--index-dbname",
-      "${IMMUDB_INDEX_DB}",
       "--board-dbname",
       "${IMMUDB_BOARD_DB_NAME}",
       "--cache-dir",
       "/tmp/immu-board",
-      "upsert-init-db"
+      "upsert-board-db"
     ]
+    env_file:
+      - .env
+
+  registry:
+    profiles: ["full", "lambdas"]
+    container_name: registry
+    image: registry:2
+    network_mode: host
+
+  openwhisk:
+    profiles: ["full", "lambdas"]
+    container_name: openwhisk
+    image: openwhisk/standalone:nightly
+    volumes:
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
+    network_mode: host
+
+  doc_renderer_lambda_build:
+    profiles: ["full", "lambdas"]
+    container_name: doc_renderer_lambda_build
+    image: ${REGISTRY}/doc_renderer:latest
+    build:
+      context: ./../packages
+      dockerfile: ./../packages/orare/doc_renderer/Dockerfile
+      network: host
+      args:
+        - BASE_IMAGE=alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989
+        - FEATURES=openwhisk
+    # This is not meant to be a running container, but rather a
+    # trigger to build the lambda to a container image that will later
+    # on be pulled by OpenWhisk
+    entrypoint: ["true"]
+    env_file:
+      - .env
+
+  doc_renderer_lambda_publish_locally:
+    profiles: ["full", "lambdas"]
+    image: docker:latest
+    command: |
+      push ${REGISTRY}/doc_renderer:latest
+    depends_on:
+      - registry
+      - doc_renderer_lambda_build
+    volumes:
+    - type: bind
+      source: /var/run/docker.sock
+      target: /var/run/docker.sock
+
+  doc_renderer:
+    profiles: ["full", "lambdas"]
+    container_name: doc_renderer
+    image: openwhisk/standalone:nightly
+    network_mode: host
+    entrypoint: /bin/deploy-doc_renderer.sh
+    volumes:
+      - ./openwhisk/deploy-doc_renderer.sh:/bin/deploy-doc_renderer.sh
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - openwhisk
+      - registry
+      - doc_renderer_lambda_publish_locally
     env_file:
       - .env
 
@@ -658,8 +824,9 @@ services:
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     restart: always
-    working_dir: /app/windmill
-    entrypoint: [
+    working_dir: /workspaces/step/packages/windmill
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
       "cargo",
       "watch",
       "--why",
@@ -667,12 +834,17 @@ services:
       # otherwise triggers a rebuild all the time (probably rust analyzer)
       "--ignore",
       "rust-local-target/",
+      "--ignore",
+      "windmill/core",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue import_export_queue"
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
-    volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
+    volumes_from:
+      - devcontainer
+    depends_on:
+      - devcontainer
+      #- postgres
+      #- postgres-keycloak
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -704,9 +876,8 @@ services:
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
       KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
@@ -716,6 +887,7 @@ services:
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -738,31 +910,37 @@ services:
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
+      APP_VERSION: ${APP_VERSION}
+      APP_HASH: ${APP_HASH}
 
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
-      PUBLIC_ASSETS_LOGO_IMG: ${PUBLIC_ASSETS_LOGO_IMG}
-      PUBLIC_ASSETS_QRCODE_LIB: ${PUBLIC_ASSETS_QRCODE_LIB}
-      PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE: ${PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE}
-      PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT: ${PUBLIC_ASSETS_VOTE_RECEIPT_TEMPLATE_CONTENT}
-      PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE: ${PUBLIC_ASSETS_VELVET_VOTE_RECEIPTS_TEMPLATE}
-      VOTE_RECEIPT_TEMPLATE_TITLE: ${VOTE_RECEIPT_TEMPLATE_TITLE}
-      VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE: ${VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE}
        #Demo key
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
-      
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+      ENV_SLUG: ${ENV_SLUG}
 
   beat:
-    profiles: ["full"]
+    profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: beat
+    volumes_from:
+      - devcontainer
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     depends_on:
+      - devcontainer
       - harvest
-    working_dir: /app/windmill
-    entrypoint: [
+    working_dir: /workspaces/step/packages/windmill
+    entrypoint: ["/usr/local/bin/entrypoint.sh"]
+    command: [
       "cargo",
       "watch",
       "--why",
@@ -773,9 +951,6 @@ services:
       "-x",
       "run --bin beat"
     ]
-    volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
@@ -785,6 +960,73 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      ENV_SLUG: ${ENV_SLUG}
+
+  postgres-b3:
+    profiles: ["full", "base"]
+    image: sequentech.local/postgresql-b3
+    container_name: postgres-b3
+    build:
+      context: ./postgresql-b3
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - b3_db_data:/var/lib/postgresql/data
+      - b3_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    environment:
+      POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
+    user: "999:999"  # This ensures that the postgres user inside the container is used
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    depends_on:
+      - postgres-volume-init
+
+  b3:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: b3
+    restart: always
+    ports:
+      - "50051:50051"
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    volumes_from:
+      - devcontainer
+    depends_on:
+      #- devcontainer
+      - postgres-b3
+    working_dir: /workspaces/step/packages/b3
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
+      "--features",
+      "\"server sqlcopy\"",
+      "-x",
+      "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
+    ]
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      B3_PG_HOST: ${B3_PG_HOST}
+      B3_PG_PORT: ${B3_PG_PORT}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_BIND: ${B3_BIND}
 
 volumes:
   db_data:
@@ -800,4 +1042,5 @@ volumes:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-  vault-volume:
+  b3_db_logs:
+  b3_db_data:

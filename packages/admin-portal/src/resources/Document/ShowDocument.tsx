@@ -10,7 +10,7 @@ import {useQuery} from "@apollo/client"
 import {FetchDocumentQuery, Sequent_Backend_Document} from "../../gql/graphql"
 import {FETCH_DOCUMENT} from "../../queries/FetchDocument"
 import {CircularProgress} from "@mui/material"
-import {downloadUrl} from "@sequentech/ui-essentials"
+import {downloadUrl} from "@sequentech/ui-core"
 
 interface PerformDownloadProps {
     onDownload: () => void

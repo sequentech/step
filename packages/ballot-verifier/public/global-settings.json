@@ -6,5 +6,6 @@
     "ONLINE_VOTING_CLIENT_ID": "voting-portal",
     "KEYCLOAK_URL": "http://127.0.0.1:8090/",
     "HASURA_URL": "http://localhost:8080/v1/graphql",
-    "APP_VERSION": "10.0.0"
+    "APP_VERSION": "dev",
+    "APP_HASH": "dev"
 }

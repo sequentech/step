@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
+const validOrderBy = ["id", "created", "statement_timestamp", "statement_kind", "user_id"]
+
 export const getElectoralLogVariables = (input: any) => {
     return {
+        ...input,
         filter: input?.where?._and?.reduce((acc: any, condition: any) => {
             Object.keys(condition).forEach((key) => {
                 if (key !== "election_event_id") {
@@ -13,7 +16,10 @@ export const getElectoralLogVariables = (input: any) => {
             })
             return acc
         }, {}),
-        ...input,
+        order_by:
+            Object.fromEntries(
+                Object.entries(input?.order_by || {}).filter(([key]) => validOrderBy.includes(key))
+            ) ?? undefined,
     }
 }
 
@@ -40,6 +46,7 @@ export const getElectoralLog = (fields: any) => {
                     statement_timestamp
                     statement_kind
                     message
+                    user_id
                 }
                 total {
                     aggregate {

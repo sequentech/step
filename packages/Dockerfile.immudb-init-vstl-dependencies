@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rust:1.82.0-slim-bookworm
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
+
+# copy projects
+#TODO: Copy only necessary files
+WORKDIR /app
+COPY ./braid/scripts/Cargo-init.toml ./Cargo.toml
+COPY ./braid/Cargo.toml ./braid/Cargo.toml
+COPY ./b3/Cargo.toml ./b3/Cargo.toml
+COPY ./sequent-core/Cargo.toml ./sequent-core/Cargo.toml
+COPY ./immu-board/Cargo.toml ./immu-board/Cargo.toml
+COPY ./immudb-rs/Cargo.toml ./immudb-rs/Cargo.toml
+COPY ./strand/Cargo.toml ./strand/Cargo.toml
+COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+RUN mkdir ./immu-board/src \
+    && echo "// dummy file" > ./immu-board/src/lib.rs
+RUN mkdir ./immudb-rs/src \
+    && echo "// dummy file" > ./immudb-rs/src/lib.rs
+RUN mkdir ./strand/src \
+    && echo "// dummy file" > ./strand/src/lib.rs
+RUN mkdir ./strand/benches \
+    && echo "// dummy file" > ./strand/benches/encrypt.rs \
+    && echo "// dummy file" > ./strand/benches/shuffle.rs \
+    && echo "// dummy file" > ./strand/benches/verify_ballot.rs
+RUN mkdir ./b3/src \
+    && echo "// dummy file" > ./b3/src/lib.rs
+RUN mkdir ./sequent-core/src \
+    && echo "// dummy file" > ./sequent-core/src/lib.rs
+RUN mkdir ./wrap-map-err/src \
+    && echo "// dummy file" > ./wrap-map-err/src/lib.rs
+RUN mkdir ./braid/src \
+    && echo "// dummy file" > ./braid/src/lib.rs
+
+# build projects
+WORKDIR /app/immu-board
+RUN cargo fetch

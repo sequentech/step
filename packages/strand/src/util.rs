@@ -100,3 +100,36 @@ pub fn random_ciphertexts<C: Ctx>(n: usize, ctx: &C) -> Vec<Ciphertext<C>> {
         })
         .collect()
 }
+
+cfg_if::cfg_if! {
+if #[cfg(not(feature = "wasm"))] {
+use crate::shuffler_product::StrandRectangle;
+
+/// Fast generation of product ciphertexts using random group elements.
+pub fn random_product_ciphertexts<C: Ctx>(
+    n: usize,
+    width: usize,
+    ctx: &C,
+) -> StrandRectangle<Ciphertext<C>> {
+    let rng = Arc::new(Mutex::new(ctx.get_rng()));
+
+    let rows: Vec<Vec<Ciphertext<C>>> = (0..n)
+        .par()
+        .map(|_| {
+            let mut rng_ = rng.lock().unwrap();
+
+            let ret: Vec<Ciphertext<C>> = (0..width)
+                .map(|_| Ciphertext {
+                    mhr: ctx.rnd(&mut rng_),
+                    gr: ctx.rnd(&mut rng_),
+                })
+                .collect();
+
+            ret
+        })
+        .collect();
+
+    StrandRectangle::new_unchecked(rows)
+}
+
+}}

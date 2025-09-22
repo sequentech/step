@@ -1,3 +1,3 @@
 table:
-  name: area_context
-  schema: sequent_backend
+    name: area_context
+    schema: sequent_backend

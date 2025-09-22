@@ -5,7 +5,7 @@ import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler
 import styledEmotion from "@emotion/styled"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
-import {useForwardedRef} from "../../utils/ref"
+import {useForwardedRef} from "@sequentech/ui-core"
 import {Typography} from "@mui/material"
 import theme from "../../services/theme"
 
@@ -15,7 +15,6 @@ const StyledForm = styledEmotion.form`
     max-width: 100%;
     text-align: center;
     position: relative;
-    z-index: 10;
     margin-bottom: 16px;
 `
 
@@ -96,6 +95,9 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         // triggers the input when the button is clicked
         const onButtonClick = () => {
             setFileName("")
+            if (innerRef.current?.value) {
+                innerRef.current.value = ""
+            }
             innerRef.current?.click()
         }
 
@@ -104,7 +106,8 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 <StyledForm
                     onDragEnter={handleDrag}
                     onSubmit={(e) => e.preventDefault()}
-                    className="drop-file-form"
+                    // className="drop-file-form"
+                    className="drop-file-dropzone"
                 >
                     <StyledInput
                         className="drop-input-file"

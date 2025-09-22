@@ -1,167 +1,171 @@
 table:
-  name: cast_vote
-  schema: sequent_backend
+    name: cast_vote
+    schema: sequent_backend
 configuration:
-  column_config:
-    content:
-      custom_name: content
-  custom_column_names:
-    content: content
-  custom_root_fields: {}
+    column_config:
+        content:
+            custom_name: content
+    custom_column_names:
+        content: content
+    custom_root_fields: {}
 insert_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - cast_ballot_signature
-    - voter_id_string
-    - annotations
-    - labels
-    - ballot_id
-    - content
-    - created_at
-    - last_updated_at
-    - area_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-  role: service-account
-- comment: ""
-  permission:
-    check:
-      _and:
-      - area_id:
-          _eq: X-Hasura-Area-Id
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - area_id
-    - ballot_id
-    - cast_ballot_signature
-    - content
-    - created_at
-    - election_event_id
-    - election_id
-    - id
-    - labels
-    - last_updated_at
-    - tenant_id
-    - voter_id_string
-    set:
-      voter_id_string: x-hasura-User-Id
-  role: user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - cast_ballot_signature
+              - voter_id_string
+              - annotations
+              - labels
+              - ballot_id
+              - content
+              - created_at
+              - last_updated_at
+              - area_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+      role: service-account
+    - comment: ""
+      permission:
+          check:
+              _and:
+                  - area_id:
+                        _eq: X-Hasura-Area-Id
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - election_id:
+                        _in: X-Hasura-Authorized-Election-Ids
+          columns:
+              - annotations
+              - area_id
+              - ballot_id
+              - cast_ballot_signature
+              - content
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - labels
+              - last_updated_at
+              - tenant_id
+              - voter_id_string
+          set:
+              voter_id_string: x-hasura-User-Id
+      role: user
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - cast_ballot_signature
-    - voter_id_string
-    - annotations
-    - labels
-    - ballot_id
-    - content
-    - created_at
-    - last_updated_at
-    - area_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - cast_ballot_signature
-    - voter_id_string
-    - annotations
-    - labels
-    - ballot_id
-    - content
-    - created_at
-    - last_updated_at
-    - area_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: cast-vote-read
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - cast_ballot_signature
-    - voter_id_string
-    - annotations
-    - labels
-    - ballot_id
-    - content
-    - created_at
-    - last_updated_at
-    - area_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - area_id
-    - ballot_id
-    - cast_ballot_signature
-    - content
-    - created_at
-    - election_event_id
-    - election_id
-    - id
-    - labels
-    - last_updated_at
-    - tenant_id
-    - voter_id_string
-    filter:
-      _and:
-      - area_id:
-          _eq: X-Hasura-Area-Id
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-      - voter_id_string:
-          _eq: X-Hasura-User-Id
-  role: user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - cast_ballot_signature
+              - voter_id_string
+              - annotations
+              - labels
+              - ballot_id
+              - content
+              - created_at
+              - last_updated_at
+              - area_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - cast_ballot_signature
+              - voter_id_string
+              - annotations
+              - labels
+              - ballot_id
+              - content
+              - created_at
+              - last_updated_at
+              - area_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: cast-vote-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - cast_ballot_signature
+              - voter_id_string
+              - annotations
+              - labels
+              - ballot_id
+              - content
+              - created_at
+              - last_updated_at
+              - area_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - area_id
+              - ballot_id
+              - cast_ballot_signature
+              - content
+              - created_at
+              - election_event_id
+              - election_id
+              - id
+              - labels
+              - last_updated_at
+              - tenant_id
+              - voter_id_string
+          filter:
+              _and:
+                  - area_id:
+                        _eq: X-Hasura-Area-Id
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - voter_id_string:
+                        _eq: X-Hasura-User-Id
+                  - election_id:
+                        _in: X-Hasura-Authorized-Election-Ids
+      role: user
 update_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - cast_ballot_signature
-    - voter_id_string
-    - annotations
-    - labels
-    - ballot_id
-    - content
-    - created_at
-    - last_updated_at
-    - area_id
-    - election_event_id
-    - election_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - cast_ballot_signature
+              - voter_id_string
+              - annotations
+              - labels
+              - ballot_id
+              - content
+              - created_at
+              - last_updated_at
+              - area_id
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

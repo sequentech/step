@@ -4,7 +4,7 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 use warp::Future;
 use warp::{http::Response, Filter};
@@ -13,8 +13,26 @@ pub struct ProbeHandler {
     address: SocketAddr,
     live_path: String,
     ready_path: String,
-    is_live: Arc<Mutex<Box<dyn Fn() -> bool + Send + Sync>>>,
-    is_ready: Arc<Mutex<Box<dyn Fn() -> bool + Send + Sync>>>,
+    is_live: Arc<
+        Mutex<
+            Box<
+                dyn Fn() -> std::pin::Pin<
+                        Box<dyn std::future::Future<Output = bool> + Send>,
+                    > + Send
+                    + Sync,
+            >,
+        >,
+    >,
+    is_ready: Arc<
+        Mutex<
+            Box<
+                dyn Fn() -> std::pin::Pin<
+                        Box<dyn std::future::Future<Output = bool> + Send>,
+                    > + Send
+                    + Sync,
+            >,
+        >,
+    >,
 }
 
 impl ProbeHandler {
@@ -27,8 +45,12 @@ impl ProbeHandler {
             address: address.into(),
             live_path: live_path.to_string(),
             ready_path: ready_path.to_string(),
-            is_live: Arc::new(Mutex::new(Box::new(|| false))),
-            is_ready: Arc::new(Mutex::new(Box::new(|| false))),
+            is_live: Arc::new(Mutex::new(Box::new(|| {
+                Box::pin(async { false })
+            }))),
+            is_ready: Arc::new(Mutex::new(Box::new(|| {
+                Box::pin(async { false })
+            }))),
         }
     }
 
@@ -36,48 +58,83 @@ impl ProbeHandler {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);
 
-        let filter = warp::get().and(
-            warp::path(self.live_path.to_string())
-                .map(move || {
-                    let is_live = il.lock().unwrap();
-                    // "Any code greater than or equal to 200 and less than 400
-                    // indicates success. Any other code indicates failure". https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-                    if is_live() {
-                        Response::builder()
-                            .status(warp::http::StatusCode::OK)
-                            .body("Live")
-                    } else {
-                        Response::builder()
-                            .status(warp::http::StatusCode::BAD_REQUEST)
-                            .body("Not live")
-                    }
-                })
-                .or(warp::path(self.ready_path.to_string()).map(move || {
-                    let is_ready = ir.lock().unwrap();
-                    // "Any code greater than or equal to 200 and less than 400
-                    // indicates success. Any other code indicates failure". https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-                    if is_ready() {
-                        Response::builder()
-                            .status(warp::http::StatusCode::OK)
-                            .body("Ready")
-                    } else {
-                        Response::builder()
-                            .status(warp::http::StatusCode::BAD_REQUEST)
-                            .body("Not ready")
-                    }
-                })),
-        );
+        let filter =
+            warp::get().and(
+                warp::path(self.live_path.to_string())
+                    .and_then(move || {
+                        // "Any code greater than or equal to 200 and less than
+                        // 400 indicates success. Any other code indicates failure". https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+                        let il = Arc::clone(&il);
+                        async move {
+                            let is_live = il.lock().await;
+                            let is_live_future = is_live();
+                            if is_live_future.await {
+                                Ok::<_, warp::Rejection>(
+                                    Response::builder()
+                                        .status(warp::http::StatusCode::OK)
+                                        .body("Live")
+                                        .unwrap(),
+                                )
+                            } else {
+                                Ok::<_, warp::Rejection>(
+                                    Response::builder()
+                                        .status(
+                                            warp::http::StatusCode::BAD_REQUEST,
+                                        )
+                                        .body("Not live")
+                                        .unwrap(),
+                                )
+                            }
+                        }
+                    })
+                    .or(warp::path(self.ready_path.to_string()).and_then(
+                        move || {
+                            let ir = Arc::clone(&ir);
+                            async move {
+                                let is_ready = ir.lock().await;
+                                let is_ready_future = is_ready();
+                                if is_ready_future.await {
+                                    Ok::<_, warp::Rejection>(
+                                        Response::builder()
+                                            .status(warp::http::StatusCode::OK)
+                                            .body("Ready")
+                                            .unwrap(),
+                                    )
+                                } else {
+                                    Ok::<_, warp::Rejection>(Response::builder()
+                                .status(warp::http::StatusCode::BAD_REQUEST)
+                                .body("Not ready")
+                                .unwrap())
+                                }
+                            }
+                        },
+                    )),
+            );
 
         warp::serve(filter).bind(self.address)
     }
 
-    pub fn set_live(&mut self, f: impl Fn() -> bool + Send + Sync + 'static) {
-        let mut l = self.is_live.lock().unwrap();
+    pub async fn set_live(
+        &self,
+        f: impl Fn() -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = bool> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    ) {
+        let mut l = self.is_live.lock().await;
         *l = Box::new(f);
     }
 
-    pub fn set_ready(&mut self, f: impl Fn() -> bool + Send + Sync + 'static) {
-        let mut r = self.is_ready.lock().unwrap();
+    pub async fn set_ready(
+        &self,
+        f: impl Fn() -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = bool> + Send>,
+            > + Send
+            + Sync
+            + 'static,
+    ) {
+        let mut r = self.is_ready.lock().await;
         *r = Box::new(f);
     }
 }
@@ -92,18 +149,17 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_probe() {
-        let mut ph = ProbeHandler::new("live", "ready", ([127, 0, 0, 1], 3030));
+        let ph = ProbeHandler::new("live", "ready", ([127, 0, 0, 1], 3030));
 
         let f = ph.future();
         let handle = tokio::spawn(f);
 
-        let t = true;
         sleep(Duration::from_secs(20)).await;
         // curl localhost:3030/live
-        ph.set_live(move || t);
+        ph.set_live(move || Box::pin(async { true })).await;
         sleep(Duration::from_secs(20)).await;
         // curl localhost:3030/ready
-        ph.set_ready(move || t);
+        ph.set_ready(move || Box::pin(async { true })).await;
         handle.await.unwrap()
     }
 }

@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
     Dialog,
-    sleep,
+    DropFile,
     theme,
 } from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -20,8 +20,15 @@ import {
     MenuItem,
     Select,
     FormControl,
+    Button,
+    Box,
+    CircularProgress,
+    styled,
+    Alert,
 } from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
@@ -35,64 +42,118 @@ import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
-import {useMutation} from "@apollo/client"
-import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
+import {useMutation, useQuery} from "@apollo/client"
+import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
+import {
+    EAllowTally,
+    EElectionEventCeremoniesPolicy,
+    EInitializeReportPolicy,
+    EInitReport,
+    EVotingStatus,
+    isArray,
+} from "@sequentech/ui-core"
+
 import {
     CreateTallyCeremonyMutation,
-    Sequent_Backend_Communication_Template,
+    CreateTransmissionPackageMutation,
+    SendTransmissionPackageMutation,
+    Sequent_Backend_Area,
+    Sequent_Backend_Template,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
-    Sequent_Backend_Results_Election,
     Sequent_Backend_Results_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
     UpdateTallyCeremonyMutation,
+    ListKeysCeremonyQuery,
+    Sequent_Backend_Contest,
 } from "@/gql/graphql"
-import {CancelButton, NextButton, StyledTitle} from "./styles"
+import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {ResultsDataLoader} from "./ResultsDataLoader"
-import {ICommunicationType} from "@/types/communications"
+import {
+    IMiruTallySessionData,
+    IMiruTransmissionPackageData,
+    MIRU_TALLY_SESSION_ANNOTATION_KEY,
+} from "@/types/miru"
+import {IPermissions} from "@/types/keycloak"
+import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 const WizardSteps = {
     Start: 0,
     Ceremony: 1,
     Tally: 2,
     Results: 3,
+    Export: 4,
 }
 
-interface IExpanded {
+const StyledCircularProgress = styled(CircularProgress)`
+    width: 14px !important;
+    height: 14px !important;
+`
+export interface IExpanded {
     [key: string]: boolean
 }
 
 export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-
     const {t, i18n} = useTranslation()
-    const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+    const {
+        tallyId,
+        setTallyId,
+        creatingType,
+        setCreatingFlag,
+        setElectionEventIdFlag,
+        setMiruAreaId,
+        selectedTallySessionData,
+        setSelectedTallySessionData,
+    } = useElectionEventTallyStore()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
 
+    // const [selectedTallySessionData, setSelectedTallySessionData] =
+    // useState<IMiruTransmissionPackageData | null>(null)
     const [openModal, setOpenModal] = useState(false)
+    const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
+    const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
+    const [pristine, setPristine] = useState<boolean>(true)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
+    const [nextDisabledReason, setNextDisabledReason] = useState<string | null>("")
     const [templateId, setTemplateId] = useState<string | undefined>(undefined)
     const [isTallyElectionListDisabled, setIsTallyElectionListDisabled] = useState<boolean>(false)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
     const [tenantId] = useTenantStore()
-
-    const [selectedElections, setSelectedElections] = useState<string[]>([])
+    const authContext = useContext(AuthContext)
+    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const [selectedElections, setSelectedElections] = useState<string[] | undefined>(undefined)
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
-
+    const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
+    const [isConfirming, setIsConfirming] = useState<boolean>(false)
+    const allowTallyCeremonyCreation = useRef<boolean>(true)
+    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
+
+    const {canExportCeremony, showTallyBackButton} = useKeysPermissions()
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -108,28 +169,83 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-results": true,
     })
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+    const {data: tallySession, refetch: refetchTallySession} =
+        useGetOne<Sequent_Backend_Tally_Session>(
+            "sequent_backend_tally_session",
+            {
+                id: localTallyId || tallyId,
+            },
+            {
+                refetchInterval: isTallyCompleted
+                    ? undefined
+                    : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                refetchIntervalInBackground: true,
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+                refetchOnMount: false,
+                enabled: !!localTallyId || !!tallyId,
+            }
+        )
+
+    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: record?.id,
+        },
+        context: {
+            headers: {
+                "x-hasura-role": isTrustee
+                    ? IPermissions.TRUSTEE_CEREMONY
+                    : IPermissions.ADMIN_CEREMONY,
+            },
+        },
+    })
+
+    // TODO: fix the "perPage 9999"
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {
+            election_event_id: record?.id,
+            tenant_id: tenantId,
+            id: tallySession
+                ? {
+                      format: "hasura-raw-query",
+                      value: {
+                          _in: tallySession?.election_ids ?? [],
+                      },
+                  }
+                : undefined,
+        },
+    })
+
+    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {
+            election_event_id: record?.id,
+            tenant_id: tenantId,
+            election_id: {
+                format: "hasura-raw-query",
+                value: {
+                    _in: tallySession?.election_ids ?? [],
+                },
+            },
+        },
+    })
+
+    const {data: allTallySessions} = useGetList<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
-            id: localTallyId || tallyId,
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                election_event_id: record?.id,
+                tenant_id: tenantId,
+            },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchIntervalInBackground: true,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
-    const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
-        "sequent_backend_keys_ceremony",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {election_event_id: record?.id, tenant_id: tenantId},
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -147,14 +263,52 @@ export const TallyCeremony: React.FC = () => {
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: !!tallyId && !!tenantId,
         }
     )
 
     let resultsEventId = tallySessionExecutions?.[0]?.results_event_id ?? null
+
+    const resultsSQLiteDocumentId = tallySessionExecutions?.[0]?.documents?.sqlite ?? null
+
+    const tallySessionData = useMemo(() => {
+        try {
+            let strData = tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]
+            if (!strData) {
+                return []
+            }
+            let parsed = JSON.parse(strData) as IMiruTallySessionData
+            return parsed
+        } catch (e) {
+            return []
+        }
+    }, [tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
+    const tallySessionDataRef = useRef(tallySessionData)
+
+    useEffect(() => {
+        tallySessionDataRef.current = tallySessionData
+    }, [tallySessionData])
+
+    useEffect(() => {
+        if (!selectedTallySessionData || !tallySessionData) {
+            return
+        }
+        let found = tallySessionData.find(
+            (el) =>
+                el.area_id === selectedTallySessionData.area_id &&
+                el.election_id === selectedTallySessionData.election_id
+        )
+        if (found && JSON.stringify(found) !== JSON.stringify(selectedTallySessionData)) {
+            setSelectedTallySessionData(found ?? null)
+            setElectionEventIdFlag(record?.id)
+        }
+    }, [tallySessionData, selectedTallySessionData])
 
     const {data: resultsEvent, refetch} = useGetList<Sequent_Backend_Results_Event>(
         "sequent_backend_results_event",
@@ -170,60 +324,263 @@ export const TallyCeremony: React.FC = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            enabled: !!tenantId && record?.id && !!resultsEventId,
         }
     )
 
-    const {data: tallyTemplates} = useGetList<Sequent_Backend_Communication_Template>(
-        "sequent_backend_communication_template",
-        {
-            filter: {
-                tenant_id: tenantId,
-                communication_type: ICommunicationType.TALLY_REPORT,
-            },
-        }
-    )
+    const [hasFinalResults, setHasFinalResults] = useState(false)
 
-    useEffect(() => {
-        if (data) {
-            // if (tally?.last_updated_at !== data.last_updated_at) {
-            setPage(
-                !tallyId
-                    ? WizardSteps.Start
-                    : data.execution_status === ITallyExecutionStatus.STARTED ||
-                      data.execution_status === ITallyExecutionStatus.CONNECTED
-                    ? WizardSteps.Ceremony
-                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
-                    ? WizardSteps.Tally
-                    : data.execution_status === ITallyExecutionStatus.SUCCESS
-                    ? WizardSteps.Results
-                    : WizardSteps.Start
-            )
-            setTally(data)
-            // }
-        }
-    }, [data])
+    const sortedKeysCeremonies = useMemo(() => {
+        // Ensure keysCeremonies and its nested properties exist
+        const items = keysCeremonies?.list_keys_ceremony?.items
+        if (!items) return []
 
-    useEffect(() => {
-        if (page === WizardSteps.Start) {
-            setIsButtonDisabled(
-                page === WizardSteps.Start && selectedElections.length === 0 ? true : false
+        // Create a shallow copy and sort it
+        return [...items].sort((a, b) => {
+            if (!a?.name || !b?.name) return 0
+            return a.name.localeCompare(b.name)
+        })
+        // Dependency array: re-run only when the original items array changes
+    }, [keysCeremonies?.list_keys_ceremony?.items])
+
+    const currentKeysCeremony = useMemo(() => {
+        if (page !== WizardSteps.Start && tally) {
+            return sortedKeysCeremonies.find(
+                (ceremony: any) => tally?.keys_ceremony_id === ceremony.id
             )
         }
-    }, [selectedElections])
+        return sortedKeysCeremonies.find((ceremony: any) => keysCeremonyId === ceremony.id)
+    }, [tally, keysCeremonyId])
+
+    const isAutomatedCeremony =
+        electionEvent.presentation?.ceremonies_policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        currentKeysCeremony?.settings?.policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
+    useEffect(() => {
+        if (tallySession?.is_execution_completed && !isTallyCompleted) {
+            // Only mark as completed if we have the resultsEventId
+            if (resultsEventId) {
+                setIsTallyCompleted(true)
+                setHasFinalResults(true)
+            } else {
+                // Force a refetch if we don't have resultsEventId yet
+                refetchTallySession()
+            }
+        }
+    }, [tallySession?.is_execution_completed, isTallyCompleted, resultsEventId])
+
+    useEffect(() => {
+        // Additional check in case resultsEventId comes after is_execution_completed
+        if (tallySession?.is_execution_completed && resultsEventId && !hasFinalResults) {
+            setIsTallyCompleted(true)
+            setHasFinalResults(true)
+        }
+    }, [resultsEventId, tallySession?.is_execution_completed, hasFinalResults])
+
+    useEffect(() => {
+        if (tallySession) {
+            setTally(tallySession)
+            if (!tallyId && tallySession.execution_status !== ITallyExecutionStatus.CANCELLED) {
+                setPage(WizardSteps.Start)
+                return
+            }
+            if (
+                tallySession.execution_status === ITallyExecutionStatus.STARTED ||
+                tallySession.execution_status === ITallyExecutionStatus.CONNECTED ||
+                tallySession.execution_status === ITallyExecutionStatus.CANCELLED
+            ) {
+                setPage(WizardSteps.Ceremony)
+                return
+            }
+            if (tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
+                setPage(WizardSteps.Tally)
+                return
+            }
+            if (tallySession.execution_status === ITallyExecutionStatus.SUCCESS) {
+                setPage(WizardSteps.Results)
+                return
+            }
+            setPage(WizardSteps.Start)
+        }
+    }, [tallySession])
+
+    const isTallyAllowed = useMemo(() => {
+        return (
+            elections?.every((election) => {
+                // Check if the voting period has ended for the election AND kiosk voting has also ended or disabled
+                const isVotingPeriodEnded =
+                    election.status?.voting_status === EVotingStatus.CLOSED &&
+                    (!election.voting_channels?.kiosk ||
+                        election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
+                return (
+                    // If the election is not included in the current tally session, it's allowed
+                    !(tallySession?.election_ids || []).find(
+                        (election_id) => election.id == election_id
+                    ) ||
+                    // Otherwise, tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
+                    ((election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            isVotingPeriodEnded)) &&
+                        // And the election must be published
+                        election.status.is_published)
+                )
+            }) || false // Return `false` if elections array is undefined or empty
+        )
+    }, [elections, tallySession])
+
+    // Check if Tally is Allowed for automatic ceremony (skipped ceremony step)
+    const isAutomaticTallyAllowed = useMemo(() => {
+        let selectedKeysElections = elections?.filter(
+            (election) =>
+                selectedElections?.includes(election.id) &&
+                election.keys_ceremony_id &&
+                currentKeysCeremony?.id === election.keys_ceremony_id
+        )
+        if (selectedKeysElections?.length === 0) {
+            return false
+        }
+        return (
+            selectedKeysElections?.every((election) => {
+                const isVotingPeriodEnded =
+                    election.status?.voting_status === EVotingStatus.CLOSED &&
+                    (!election.voting_channels?.kiosk ||
+                        election.status?.kiosk_voting_status === EVotingStatus.CLOSED)
+                return (
+                    // tallying is allowed if it is explicitly permitted OR if it requires the voting period to end and it has ended
+                    (election.status?.allow_tally === EAllowTally.ALLOWED ||
+                        (election.status?.allow_tally === EAllowTally.REQUIRES_VOTING_PERIOD_END &&
+                            isVotingPeriodEnded)) &&
+                    // And the election must be published
+                    election.status.is_published
+                )
+            }) || false
+        )
+    }, [elections, currentKeysCeremony, isAutomatedCeremony, selectedElections])
+
+    useEffect(() => {
+        if (page === WizardSteps.Start && creatingType !== ETallyType.INITIALIZATION_REPORT) {
+            let is_published = elections?.every(
+                (election) =>
+                    !selectedElections?.includes(election.id) || election.status?.is_published
+            )
+            let newIsButtonDisabled =
+                (page === WizardSteps.Start && selectedElections?.length === 0 ? true : false) ||
+                !is_published
+            let isAutomaticCeremonyTallyNotAllowed = isAutomatedCeremony && !isAutomaticTallyAllowed
+
+            setIsButtonDisabled(newIsButtonDisabled || isAutomaticCeremonyTallyNotAllowed)
+            if (isAutomaticCeremonyTallyNotAllowed) {
+                setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
+            } else if (newIsButtonDisabled) {
+                setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
+            }
+        }
+    }, [selectedElections, isAutomatedCeremony, isAutomaticTallyAllowed])
+
+    const isInitAllowed = useMemo(() => {
+        return (
+            elections?.every((election) => {
+                return (
+                    // If the election is not included in the current tally session OR the election is published, it's allowed
+                    !(tallySession?.election_ids || []).find(
+                        (election_id) => election.id == election_id
+                    ) || election.status.is_published
+                )
+            }) || false // Return `false` if elections array is undefined or empty
+        )
+    }, [elections, tallySession])
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.CONNECTED)
+            let isStartAllowed =
+                tallySession?.tally_type === ETallyType.ELECTORAL_RESULTS
+                    ? isTallyAllowed
+                    : isInitAllowed
+            let newIsButtonDisabled =
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED || !isStartAllowed
+            setIsButtonDisabled(newIsButtonDisabled)
+            if (newIsButtonDisabled) {
+                setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
+            }
         }
+
         if (page === WizardSteps.Tally) {
-            setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
+            let newIsButtonDisabled = tally?.execution_status !== ITallyExecutionStatus.SUCCESS
+            if (newIsButtonDisabled !== isButtonDisabled) {
+                setIsButtonDisabled(newIsButtonDisabled)
+            }
         }
-    }, [tally])
+    }, [tally, page, elections, isTallyAllowed])
+
+    useEffect(() => {
+        let singleKeysCeremony = keysCeremonies?.list_keys_ceremony?.items?.[0]
+        if (!pristine || keysCeremonyId || !singleKeysCeremony) {
+            return
+        }
+        setKeysCeremonyId(singleKeysCeremony.id)
+    }, [pristine, keysCeremonies?.list_keys_ceremony?.items, keysCeremonyId])
+
+    useEffect(() => {
+        if (
+            creatingType === ETallyType.INITIALIZATION_REPORT &&
+            page === WizardSteps.Start &&
+            selectedElections &&
+            elections &&
+            allTallySessions
+        ) {
+            // An initialization report is considered succesfully created if:
+            // 1. It's not in CANCELLED status.
+            // 2. It's in a cancellable status or successful. Cancellable status
+            //    are: NOT_STARTED, STARTED && CONNECTED.
+            const hasInitializationReport = (electionId: string) => {
+                return allTallySessions
+                    ?.filter((tallySession) => tallySession.election_ids?.includes(electionId))
+                    .some(
+                        (tallySession) =>
+                            tallySession?.tally_type === ETallyType.INITIALIZATION_REPORT &&
+                            tallySession?.execution_status &&
+                            tallySession.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                            [
+                                ITallyExecutionStatus.SUCCESS,
+                                ITallyExecutionStatus.NOT_STARTED,
+                                ITallyExecutionStatus.STARTED,
+                                ITallyExecutionStatus.CONNECTED,
+                            ].includes(tallySession.execution_status as ITallyExecutionStatus)
+                    )
+            }
+
+            // If there are no selected elections, or if there is an election that is not published,
+            // or if the initialization report is either not allowed or already generated when allowed,
+            // then `newStatus` will be `true`, and the button will be disabled.
+            const newStatus =
+                selectedElections?.length == 0 ||
+                elections
+                    ?.filter((election) => selectedElections?.includes(election.id))
+                    .some(
+                        (election) =>
+                            !election.status?.is_published ||
+                            hasInitializationReport(election.id) ||
+                            (election.presentation?.initialization_report_policy ==
+                                EInitializeReportPolicy.REQUIRED &&
+                                election.status?.init_report == EInitReport.DISALLOWED) ||
+                            election.initialization_report_generated
+                    ) ||
+                false
+            setIsButtonDisabled(newStatus)
+            setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
+        }
+    }, [selectedElections, elections, allTallySessions])
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
+            setIsButtonDisabled(true)
+            setNextDisabledReason("")
             setOpenModal(true)
         } else if (page === WizardSteps.Ceremony) {
+            setIsButtonDisabled(true)
+            setNextDisabledReason("")
             setOpenCeremonyModal(true)
         } else if (page === WizardSteps.Tally) {
             setPage(WizardSteps.Results)
@@ -234,17 +591,14 @@ export const TallyCeremony: React.FC = () => {
 
     const confirmStartAction = async () => {
         try {
-            setIsButtonDisabled(true)
             setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
                 variables: {
                     tenant_id: record?.tenant_id,
                     election_event_id: record?.id,
-                    keys_ceremony_id: keyCeremony?.[0]?.id,
-                    election_ids: selectedElections,
-                    configuration: {
-                        report_content_template_id: templateId,
-                    },
+                    keys_ceremony_id: keysCeremonyId,
+                    election_ids: selectedElections ?? [],
+                    tally_type: creatingType,
                 },
             })
 
@@ -261,12 +615,13 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
         } finally {
+            allowTallyCeremonyCreation.current = true
             refetch()
-            setIsButtonDisabled(false)
         }
     }
 
     const confirmCeremonyAction = async () => {
+        setIsConfirming(true)
         try {
             const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
                 variables: {
@@ -278,362 +633,635 @@ export const TallyCeremony: React.FC = () => {
 
             if (errors) {
                 notify(t("tally.startTallyError"), {type: "error"})
+                setIsConfirming(false)
                 return
             }
 
             if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
-                setCreatingFlag(false)
+                refetchTallySession()
+                setIsConfirming(false)
+                setCreatingFlag(null)
             }
         } catch (error) {
+            setIsConfirming(false)
             notify(t("tally.startTallyError"), {type: "error"})
         }
     }
 
-    let documents: IResultDocuments | null = useMemo(
-        () =>
-            (!!resultsEventId &&
+    let documents: IResultDocumentsData | null = useMemo(() => {
+        let parsedDocuments: IResultDocuments | null = null
+        try {
+            const rawDocuments =
+                !!resultsEventId &&
                 !!resultsEvent &&
                 resultsEvent?.[0]?.id === resultsEventId &&
-                (resultsEvent[0]?.documents as IResultDocuments | null)) ||
-            null,
-        [resultsEventId, resultsEvent, resultsEvent?.[0]?.id]
+                (resultsEvent[0]?.documents as IResultDocuments | null)
+            if (rawDocuments) {
+                // Check if the documents are already an object.
+                // If they are a string, parse them.
+                parsedDocuments =
+                    typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+            }
+        } catch (e) {
+            console.error("Failed to parse documents JSON string:", e)
+            return null // Return null if parsing fails
+        }
+
+        return parsedDocuments
+            ? {
+                  documents: parsedDocuments,
+                  name: resultsEvent?.[0]?.name ?? "event",
+                  class_type: "event",
+              }
+            : null
+    }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])
+
+    const handleMiruExportSuccess = (e: {
+        election_id?: string
+        area_id?: string
+        existingPackage?: IMiruTransmissionPackageData
+    }) => {
+        //check for task completion and fetch data
+        //set new page status(navigate to miru wizard)
+        if (e.existingPackage) {
+            setSelectedTallySessionData(e.existingPackage)
+            setElectionEventIdFlag(record?.id)
+            setMiruAreaId(e.existingPackage.area_id)
+            setTransmissionLoading(false)
+        } else {
+            let packageData: IMiruTransmissionPackageData | null = null
+            let retry = 0
+
+            let intervalId = setInterval(() => {
+                if (!!packageData || retry >= 5) {
+                    notify(t("miruExport.create.error"), {type: "error"})
+                    clearInterval(intervalId)
+                    return
+                }
+                const found =
+                    tallySessionDataRef.current?.find(
+                        (datum) =>
+                            datum.area_id === e.area_id && datum.election_id === e.election_id
+                    ) ?? null
+
+                if (found) {
+                    packageData = found
+                    clearInterval(intervalId)
+                    setSelectedTallySessionData(packageData)
+                    setElectionEventIdFlag(record?.id)
+                    setMiruAreaId(packageData.area_id)
+                    setTransmissionLoading(false)
+                } else {
+                    retry = retry + 1
+                }
+            }, globalSettings.QUERY_FAST_POLL_INTERVAL_MS)
+        }
+    }
+
+    const [CreateTransmissionPackage] = useMutation<CreateTransmissionPackageMutation>(
+        CREATE_TRANSMISSION_PACKAGE,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.MIRU_CREATE,
+                },
+            },
+        }
     )
-    const handleSetTemplate = (event: SelectChangeEvent) => setTemplateId(event.target.value)
+
+    const handleCreateTransmissionPackage = useCallback(
+        async ({area_id, election_id}: {area_id: string; election_id: string}) => {
+            setTransmissionLoading(true)
+            console.log({
+                electionId: election_id,
+                tallySessionId: tallyId,
+                areaId: area_id,
+            })
+
+            const found = tallySessionData.find(
+                (datum) => datum.area_id === area_id && datum.election_id === election_id
+            )
+
+            if (!election_id) {
+                notify(t("miruExport.create.error"), {type: "error"})
+                setTransmissionLoading(false)
+                console.log("Unable to get election id.")
+                return
+            }
+
+            if (found) {
+                handleMiruExportSuccess?.({existingPackage: found})
+                return
+            }
+
+            const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
+            try {
+                const {data: nextStatus, errors} = await CreateTransmissionPackage({
+                    variables: {
+                        electionEventId: record?.id,
+                        electionId: election_id,
+                        tallySessionId: tallyId,
+                        areaId: area_id,
+                        force: false,
+                    },
+                })
+
+                console.log("createTransmissionPackage", {nextStatus, errors})
+
+                if (errors) {
+                    updateWidgetFail(currWidget.identifier)
+                } else if (nextStatus) {
+                    const task_id = nextStatus?.create_transmission_package?.task_execution?.id
+                    setWidgetTaskId(currWidget.identifier, task_id, () => {
+                        refetchTallySession()
+                        handleMiruExportSuccess?.({area_id, election_id})
+                    })
+                }
+                setTransmissionLoading(false)
+            } catch (error) {
+                updateWidgetFail(currWidget.identifier)
+                console.log(`Caught error: ${error}`)
+                setTransmissionLoading(false)
+            }
+        },
+        [tallySessionData, tally]
+    )
+
+    const breadCrumbSteps = () => {
+        let steps = ["tally.breadcrumbSteps.start"]
+        if (!isAutomatedCeremony) {
+            steps.push("tally.breadcrumbSteps.ceremony")
+        }
+        steps.push("tally.breadcrumbSteps.tally")
+        steps.push("tally.breadcrumbSteps.results")
+        return steps
+    }
 
     return (
-        <>
-            <WizardStyles.WizardWrapper>
-                <TallyStyles.StyledHeader>
-                    <BreadCrumbSteps
-                        labels={[
-                            "tally.breadcrumbSteps.start",
-                            "tally.breadcrumbSteps.ceremony",
-                            "tally.breadcrumbSteps.tally",
-                            "tally.breadcrumbSteps.results",
-                        ]}
-                        selected={page}
-                        variant={BreadCrumbStepsVariant.Circle}
-                        colorPreviousSteps={true}
-                    />
-                </TallyStyles.StyledHeader>
-
-                {resultsEventId && record?.id ? (
-                    <ResultsDataLoader
-                        resultsEventId={resultsEventId}
-                        electionEventId={record?.id}
-                    />
-                ) : null}
-                {page === WizardSteps.Start && (
-                    <>
-                        <ElectionHeader
-                            title={"tally.ceremonyTitle"}
-                            subtitle={"tally.ceremonySubTitle"}
+        <TallyStyles.WizardContainer>
+            <TallyStyles.ContentWrapper>
+                <WizardStyles.WizardWrapper data-tally-id={`tally-id-${tallyId}`}>
+                    <TallyStyles.StyledHeader>
+                        <BreadCrumbSteps
+                            labels={breadCrumbSteps()}
+                            selected={isAutomatedCeremony && page > 0 ? page - 1 : page} // skipped ceremony page number
+                            variant={BreadCrumbStepsVariant.Circle}
+                            colorPreviousSteps={true}
                         />
+                    </TallyStyles.StyledHeader>
 
-                        <TallyElectionsList
-                            update={(elections) => setSelectedElections(elections)}
-                            disabled={isTallyElectionListDisabled}
+                    {resultsEventId &&
+                    record?.id &&
+                    isArray(contests) &&
+                    isArray(tallySession?.election_ids) ? (
+                        <ResultsDataLoader
+                            resultsEventId={resultsEventId}
                             electionEventId={record?.id}
+                            isTallyCompleted={isTallyCompleted}
+                            contests={contests ?? []}
+                            electionIds={tallySession?.election_ids ?? []}
+                            databaseName={resultsSQLiteDocumentId}
                         />
-                        <FormControl fullWidth>
+                    ) : null}
+                    {page === WizardSteps.Start && (
+                        <>
+                            {/* 
+                            This code snippet determines whether the "Next" button should be
+                            disabled on the Start page of the wizard. The button is disabled if:
+                            1. The current page is the Start page and no elections are selected.
+                            2. The elections are not published. 
+                            3. The keys ceremony policy is automatic-ceremonies and
+                            the tally session is not in the CONNECTED state or if the start of the ceremony 
+                            is not allowed based on the tally type and the status of the elections.
+                            */}
+                            {nextDisabledReason && isButtonDisabled && (
+                                <Alert severity="warning">{nextDisabledReason}</Alert>
+                            )}
                             <ElectionHeader
-                                title={"tally.templateTitle"}
-                                subtitle={"tally.templateSubTitle"}
+                                title={
+                                    creatingType === ETallyType.ELECTORAL_RESULTS
+                                        ? "tally.ceremonyTitle"
+                                        : "tally.initializationTitle"
+                                }
+                                subtitle={"tally.ceremonySubTitle"}
+                            />
+                            <TallyElectionsList
+                                elections={elections}
+                                update={(elections) => setSelectedElections(elections)}
+                                disabled={isTallyElectionListDisabled}
+                                electionEventId={record?.id}
+                                keysCeremonyId={keysCeremonyId ?? null}
+                                tallySession={tallySession}
+                            />
+                            <FormControl fullWidth>
+                                <ElectionHeader
+                                    title={"tally.keysCeremonyTitle"}
+                                    subtitle={"tally.keysCeremonySubTitle"}
+                                />
+
+                                <Select
+                                    id="keys-ceremony-for-tally"
+                                    value={keysCeremonyId ?? ""}
+                                    label={t("tally.keysCeremonyTitle")}
+                                    placeholder={t("tally.keysCeremonyTitle")}
+                                    onChange={(props) => {
+                                        if (!props?.target?.value) {
+                                            return
+                                        }
+                                        setPristine(false)
+                                        setKeysCeremonyId(props?.target?.value)
+                                    }}
+                                >
+                                    {sortedKeysCeremonies.map((keysCeremony) => (
+                                        <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
+                                            {keysCeremony?.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </>
+                    )}
+
+                    {!isAutomatedCeremony && page === WizardSteps.Ceremony && (
+                        <>
+                            {/* 
+                            This code snippet determines whether the "Next" button should be
+                            disabled on the Ceremony page of the wizard. The button is disabled if:
+                            1. The tally object's execution_status is not equal to ITallyExecutionStatus.CONNECTED.
+                            2. The isStartAllowed variable is false.
+                            The tally session is not in the CONNECTED state or if the start of the ceremony 
+                            is not allowed based on the tally type and the status of the elections.
+                            */}
+                            {nextDisabledReason && isButtonDisabled && (
+                                <Alert severity="warning">{nextDisabledReason}</Alert>
+                            )}
+                            <TallyElectionsList
+                                elections={elections}
+                                electionEventId={record?.id}
+                                disabled={true}
+                                update={(elections) => setSelectedElections(elections)}
+                                keysCeremonyId={keysCeremonyId ?? null}
+                                tallySession={tallySession}
                             />
 
-                            <Select
-                                id="tally-results-template"
-                                value={templateId}
-                                label={t("tally.templateTitle")}
-                                placeholder={t("tally.templateTitle")}
-                                onChange={handleSetTemplate}
+                            <TallyTrusteesList
+                                tally={tally}
+                                update={(trustees) => {
+                                    setSelectedTrustees(trustees)
+                                }}
+                                tallySessionExecutions={tallySessionExecutions}
+                            />
+                        </>
+                    )}
+
+                    {page === WizardSteps.Tally && (
+                        <>
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expandedData["tally-data-progress"]}
+                                onChange={() =>
+                                    setExpandedData((prev: IExpanded) => ({
+                                        ...prev,
+                                        "tally-data-progress": !prev["tally-data-progress"],
+                                    }))
+                                }
                             >
-                                {(tallyTemplates ?? []).map((tallyTemplate) => (
-                                    <MenuItem key={tallyTemplate.id} value={tallyTemplate.id}>
-                                        {tallyTemplate.template?.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    </>
-                )}
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="tally-data-progress" />}
+                                >
+                                    <WizardStyles.AccordionTitle>
+                                        {t("tally.tallyTitle")}
+                                    </WizardStyles.AccordionTitle>
+                                    <WizardStyles.CeremonyStatus
+                                        sx={{
+                                            backgroundColor: statusColor(
+                                                tally?.execution_status ??
+                                                    ITallyExecutionStatus.STARTED
+                                            ),
+                                            color: theme.palette.background.default,
+                                        }}
+                                        label={t("keysGeneration.ceremonyStep.executionStatus", {
+                                            status: tally?.execution_status,
+                                        })}
+                                    />
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails>
+                                    <TallyElectionsProgress
+                                        tally={tally}
+                                        tallySessionExecutions={tallySessionExecutions}
+                                        allElections={elections}
+                                    />
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
 
-                {page === WizardSteps.Ceremony && (
-                    <>
-                        <TallyElectionsList
-                            electionEventId={record?.id}
-                            disabled={true}
-                            update={(elections) => setSelectedElections(elections)}
-                        />
+                            <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
 
-                        <TallyTrusteesList
-                            tally={tally}
-                            update={(trustees) => {
-                                setSelectedTrustees(trustees)
-                            }}
-                        />
-                    </>
-                )}
-
-                {page === WizardSteps.Tally && (
-                    <>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-data-progress"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-progress": !prev["tally-data-progress"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-data-progress" />}
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expandedResults["tally-data-general"]}
+                                onChange={() =>
+                                    setExpandedResults((prev: IExpanded) => ({
+                                        ...prev,
+                                        "tally-data-general": !prev["tally-data-general"],
+                                    }))
+                                }
                             >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.tallyTitle")}
-                                </WizardStyles.AccordionTitle>
-                                <WizardStyles.CeremonyStatus
-                                    sx={{
-                                        backgroundColor: statusColor(
-                                            tally?.execution_status ?? ITallyExecutionStatus.STARTED
-                                        ),
-                                        color: theme.palette.background.default,
-                                    }}
-                                    label={t("keysGeneration.ceremonyStep.executionStatus", {
-                                        status: tally?.execution_status,
-                                    })}
-                                />
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyElectionsProgress />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="tally-data-general" />}
+                                >
+                                    <WizardStyles.AccordionTitle>
+                                        {t("tally.generalInfoTitle")}
+                                    </WizardStyles.AccordionTitle>
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails>
+                                    <TallyStartDate />
+                                    <TallyElectionsResults
+                                        tenantId={tally?.tenant_id}
+                                        electionEventId={tally?.election_event_id}
+                                        electionIds={tally?.election_ids}
+                                        resultsEventId={resultsEventId}
+                                    />
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
 
-                        <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-data-general"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-general": !prev["tally-data-general"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-data-general" />}
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expandedData["tally-data-results"]}
+                                onChange={() =>
+                                    setExpandedData((prev: IExpanded) => ({
+                                        ...prev,
+                                        "tally-data-results": !prev["tally-data-results"],
+                                    }))
+                                }
                             >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.generalInfoTitle")}
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyStartDate />
-                                <TallyElectionsResults
-                                    tenantId={tally?.tenant_id}
-                                    electionEventId={tally?.election_event_id}
-                                    electionIds={tally?.election_ids}
-                                    resultsEventId={resultsEventId}
-                                />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                                >
+                                    <WizardStyles.AccordionTitle>
+                                        {t("tally.resultsTitle")}
+                                    </WizardStyles.AccordionTitle>
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails>
+                                    <TallyResults
+                                        tally={tally}
+                                        resultsEventId={resultsEventId}
+                                        onCreateTransmissionPackage={
+                                            handleCreateTransmissionPackage
+                                        }
+                                    />
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
+                        </>
+                    )}
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-data-results"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-results": !prev["tally-data-results"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                    {page === WizardSteps.Results && (
+                        <>
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expandedData["tally-results-progress"]}
+                                onChange={() =>
+                                    setExpandedData((prev: IExpanded) => ({
+                                        ...prev,
+                                        "tally-results-progress": !prev["tally-results-progress"],
+                                    }))
+                                }
                             >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.resultsTitle")}
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
-                    </>
-                )}
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="tally-results-progress" />}
+                                >
+                                    <WizardStyles.AccordionTitle>
+                                        {t("tally.tallyTitle")}
+                                    </WizardStyles.AccordionTitle>
+                                    <WizardStyles.CeremonyStatus
+                                        sx={{
+                                            backgroundColor: statusColor(
+                                                tally?.execution_status ??
+                                                    ITallyExecutionStatus.STARTED
+                                            ),
+                                            color: theme.palette.background.default,
+                                        }}
+                                        label={t("keysGeneration.ceremonyStep.executionStatus", {
+                                            status: tally?.execution_status,
+                                        })}
+                                    />
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails>
+                                    <TallyElectionsProgress
+                                        tally={tally}
+                                        tallySessionExecutions={tallySessionExecutions}
+                                        allElections={elections}
+                                    />
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
 
-                {page === WizardSteps.Results && (
-                    <>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-results-progress"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-results-progress": !prev["tally-results-progress"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-results-progress" />}
+                            <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
+
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expandedResults["tally-results-general"]}
+                                onChange={() =>
+                                    setExpandedResults((prev: IExpanded) => ({
+                                        ...prev,
+                                        "tally-results-general": !prev["tally-results-general"],
+                                    }))
+                                }
                             >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.tallyTitle")}
-                                </WizardStyles.AccordionTitle>
-                                <WizardStyles.CeremonyStatus
-                                    sx={{
-                                        backgroundColor: statusColor(
-                                            tally?.execution_status ?? ITallyExecutionStatus.STARTED
-                                        ),
-                                        color: theme.palette.background.default,
-                                    }}
-                                    label={t("keysGeneration.ceremonyStep.executionStatus", {
-                                        status: tally?.execution_status,
-                                    })}
-                                />
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyElectionsProgress />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="tally-results-general" />}
+                                >
+                                    <WizardStyles.AccordionTitle>
+                                        {t("tally.generalInfoTitle")}
+                                    </WizardStyles.AccordionTitle>
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails>
+                                    <TallyStartDate />
+                                    <TallyElectionsResults
+                                        tenantId={tally?.tenant_id}
+                                        electionEventId={tally?.election_event_id}
+                                        electionIds={tally?.election_ids}
+                                        resultsEventId={resultsEventId}
+                                    />
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
 
-                        <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-results-general"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-results-general": !prev["tally-results-general"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-results-general" />}
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expandedResults["tally-results-results"]}
+                                onChange={() => {}}
                             >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.generalInfoTitle")}
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyStartDate />
-                                <TallyElectionsResults
-                                    tenantId={tally?.tenant_id}
-                                    electionEventId={tally?.election_event_id}
-                                    electionIds={tally?.election_ids}
-                                    resultsEventId={resultsEventId}
-                                />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                                <AccordionSummary
+                                    expandIcon={
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setExpandedResults((prev: IExpanded) => ({
+                                                    ...prev,
+                                                    "tally-results-results":
+                                                        !prev["tally-results-results"],
+                                                }))
+                                            }}
+                                        >
+                                            <ExpandMoreIcon id="tally-data-results" />
+                                        </div>
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <WizardStyles.AccordionTitle
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setExpandedResults((prev: IExpanded) => ({
+                                                ...prev,
+                                                "tally-results-results":
+                                                    !prev["tally-results-results"],
+                                            }))
+                                        }}
+                                    >
+                                        {t("tally.resultsTitle")}
+                                    </WizardStyles.AccordionTitle>
+                                    <TallyStyles.StyledSpacing>
+                                        {resultsEvent?.[0] &&
+                                        documents &&
+                                        canExportCeremony &&
+                                        tally?.id ? (
+                                            <ExportElectionMenu
+                                                documentsList={[documents]}
+                                                tallySessionId={tally.id}
+                                                electionEventId={
+                                                    resultsEvent?.[0].election_event_id
+                                                }
+                                                itemName={resultsEvent?.[0]?.name ?? "event"}
+                                                tenantId={tenantId}
+                                                resultsEventId={resultsEventId}
+                                            />
+                                        ) : null}
+                                    </TallyStyles.StyledSpacing>
+                                </AccordionSummary>
+                                <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                                    <TallyResults
+                                        tally={tally}
+                                        resultsEventId={resultsEventId}
+                                        onCreateTransmissionPackage={
+                                            handleCreateTransmissionPackage
+                                        }
+                                        loading={transmissionLoading}
+                                    />
+                                </WizardStyles.AccordionDetails>
+                            </Accordion>
+                        </>
+                    )}
+                </WizardStyles.WizardWrapper>
+            </TallyStyles.ContentWrapper>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-results-results"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-results-results": !prev["tally-results-results"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-data-results" />}
-                            >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.resultsTitle")}
-                                </WizardStyles.AccordionTitle>
-                                <TallyStyles.StyledSpacing>
-                                    {resultsEvent?.[0] && documents ? (
-                                        <ExportElectionMenu
-                                            documents={documents}
-                                            electionEventId={resultsEvent?.[0].election_event_id}
-                                            itemName={resultsEvent?.[0]?.name ?? "event"}
-                                        />
-                                    ) : null}
-                                </TallyStyles.StyledSpacing>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                                <TallyResults tally={tally} resultsEventId={resultsEventId} />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
-                    </>
-                )}
-
+            <TallyStyles.FooterContainer>
                 <TallyStyles.StyledFooter>
-                    {page < WizardSteps.Results && (
+                    {showTallyBackButton ? (
                         <CancelButton
                             className="list-actions"
                             onClick={() => {
                                 setTallyId(null)
-                                setCreatingFlag(false)
+                                setCreatingFlag(null)
                             }}
                         >
-                            {t("tally.common.cancel")}
+                            <ArrowBackIosIcon />
+                            {t("common.label.back")}
                         </CancelButton>
-                    )}
-                    {page < WizardSteps.Results && (
-                        <NextButton
-                            color="primary"
-                            onClick={handleNext}
-                            disabled={isButtonDisabled}
-                        >
-                            <>
-                                {page === WizardSteps.Start
-                                    ? t("tally.common.ceremony")
-                                    : page === WizardSteps.Ceremony
-                                    ? t("tally.common.start")
-                                    : page === WizardSteps.Tally
-                                    ? t("tally.common.results")
-                                    : t("tally.common.next")}
-                                <ChevronRightIcon
-                                    style={{
-                                        transform:
-                                            i18n.dir(i18n.language) === "rtl"
-                                                ? "rotate(180deg)"
-                                                : "rotate(0)",
-                                    }}
-                                />
-                            </>
-                        </NextButton>
-                    )}
+                    ) : null}
+                    {page < WizardSteps.Results &&
+                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
+                            <NextButton
+                                key="tally-next-button"
+                                color="primary"
+                                onClick={handleNext}
+                                disabled={isButtonDisabled}
+                            >
+                                <>
+                                    {page === WizardSteps.Start
+                                        ? creatingType === ETallyType.ELECTORAL_RESULTS
+                                            ? isAutomatedCeremony
+                                                ? t("tally.common.start")
+                                                : t("tally.common.ceremony")
+                                            : t("tally.common.initialization")
+                                        : page === WizardSteps.Ceremony
+                                        ? t("tally.common.start")
+                                        : page === WizardSteps.Tally
+                                        ? t("tally.common.results")
+                                        : t("tally.common.next")}
+                                    {isConfirming ? (
+                                        <StyledCircularProgress
+                                            key="progress-tally-next"
+                                            color="inherit"
+                                        />
+                                    ) : (
+                                        <ChevronRightIcon
+                                            key="icon-tally-next"
+                                            style={{
+                                                transform:
+                                                    i18n.dir(i18n.language) === "rtl"
+                                                        ? "rotate(180deg)"
+                                                        : "rotate(0)",
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            </NextButton>
+                        )}
                 </TallyStyles.StyledFooter>
-            </WizardStyles.WizardWrapper>
+            </TallyStyles.FooterContainer>
 
             <Dialog
+                key="tally-create-dialog"
                 variant="info"
                 open={openModal}
                 ok={t("tally.common.dialog.ok")}
                 cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.title")}
+                title={
+                    isAutomatedCeremony
+                        ? t("tally.common.dialog.tallyTitle")
+                        : t("tally.common.dialog.title")
+                }
                 handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmStartAction()
-                    }
                     setOpenModal(false)
+                    if (result) {
+                        if (allowTallyCeremonyCreation.current) {
+                            allowTallyCeremonyCreation.current = false
+                            confirmStartAction() // Creates the ceremony
+                        }
+                    } else {
+                        setIsButtonDisabled(false)
+                    }
+                    // Don't enable the button again because it is handled in the effect when the page changes
                 }}
             >
-                {t("tally.common.dialog.message")}
+                {isAutomatedCeremony
+                    ? t("tally.common.dialog.startAutomatedTallyMessage")
+                    : t("tally.common.dialog.message")}
             </Dialog>
 
             <Dialog
+                key="tally-start-dialog"
                 variant="info"
                 open={openCeremonyModal}
                 ok={t("tally.common.dialog.okTally")}
                 cancel={t("tally.common.dialog.cancel")}
                 title={t("tally.common.dialog.tallyTitle")}
                 handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmCeremonyAction()
-                    }
                     setOpenCeremonyModal(false)
+                    // isButtonDisabled should be true at this point, set in handleNext
+                    if (result) {
+                        confirmCeremonyAction() // Starts the tally by setting the status to IN_PROGRESS
+                        // Either if start tally is successful or not, the button stays disabled.
+                        // The next page "Results" doesn't have next button anyhow, and the execution status
+                        // cannot be failed. Then while it is IN_PROGRESS the button remains disabled.
+                    } else {
+                        setIsButtonDisabled(false)
+                        // enables the button again because the user cancelled the dialog
+                        // so the user can try again.
+                    }
                 }}
             >
                 {t("tally.common.dialog.ceremony")}
             </Dialog>
-        </>
+        </TallyStyles.WizardContainer>
     )
 }

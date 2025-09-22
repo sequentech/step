@@ -58,6 +58,12 @@ pub struct BigUintX<P: BigintCtxParams>(
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct BigUintP(pub(crate) BigUint);
 
+#[derive(PartialEq, Eq, Debug, Clone, Hash)]
+pub struct BigUintCoFactor<P: BigintCtxParams>(
+    pub(crate) BigUint,
+    PhantomData<BigintCtx<P>>,
+);
+
 impl DeserializeNumber for BigUintP {
     fn from_str_radix(
         s: &str,
@@ -68,7 +74,7 @@ impl DeserializeNumber for BigUintP {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct BigintCtx<P: BigintCtxParams> {
     params: P,
 }
@@ -401,19 +407,21 @@ impl<P: BigintCtxParams + Eq> Exponent<BigintCtx<P>> for BigUintX<P> {
 
 impl Plaintext for BigUintP {}
 
-pub trait BigintCtxParams: Clone + Eq + Send + Sync + Debug {
+pub trait BigintCtxParams:
+    Clone + Eq + Send + Sync + Debug + BorshSerialize + BorshDeserialize
+{
     fn generator(&self) -> &BigUintE<Self>;
     fn modulus(&self) -> &BigUintE<Self>;
     fn exp_modulus(&self) -> &BigUintX<Self>;
     fn co_factor(&self) -> &BigUint;
     fn new() -> Self;
 }
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct P2048 {
     generator: BigUintE<Self>,
     modulus: BigUintE<Self>,
     exp_modulus: BigUintX<Self>,
-    co_factor: BigUint,
+    co_factor: BigUintCoFactor<Self>,
 }
 impl BigintCtxParams for P2048 {
     #[inline(always)]
@@ -430,7 +438,7 @@ impl BigintCtxParams for P2048 {
     }
     #[inline(always)]
     fn co_factor(&self) -> &BigUint {
-        &self.co_factor
+        &self.co_factor.0
     }
     fn new() -> P2048 {
         let p = BigUintE::new(
@@ -442,8 +450,10 @@ impl BigintCtxParams for P2048 {
         let g = BigUintE::new(
             BigUint::from_str_radix(G_VERIFICATUM_STR_2048, 10).unwrap(),
         );
-        let co_factor =
-            BigUint::from_str_radix(SAFEPRIME_COFACTOR, 16).unwrap();
+        let co_factor = BigUintCoFactor(
+            BigUint::from_str_radix(SAFEPRIME_COFACTOR, 16).unwrap(),
+            PhantomData,
+        );
 
         assert!(g.0.legendre(&p.0) == 1);
 
@@ -488,13 +498,23 @@ impl<P: BigintCtxParams> BorshSerialize for BigUintE<P> {
 
 impl<P: BigintCtxParams> BorshDeserialize for BigUintE<P> {
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
+
+        let ctx: BigintCtx<P> = Default::default();
+        ctx.element_from_bytes(&bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))
+    }
+
+    /*fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u8>>::deserialize(bytes)?;
         let ctx: BigintCtx<P> = Default::default();
 
         ctx.element_from_bytes(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))
-    }
+    }*/
 }
 
 impl<P: BigintCtxParams> BorshSerialize for BigUintX<P> {
@@ -510,8 +530,11 @@ impl<P: BigintCtxParams> BorshSerialize for BigUintX<P> {
 
 impl<P: BigintCtxParams> BorshDeserialize for BigUintX<P> {
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u8>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
+
         let ctx = BigintCtx::<P>::default();
 
         ctx.exp_from_bytes(&bytes)
@@ -532,11 +555,36 @@ impl BorshSerialize for BigUintP {
 
 impl BorshDeserialize for BigUintP {
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u8>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
 
         let biguint = BigUint::from_bytes_le(&bytes);
         Ok(BigUintP(biguint))
+    }
+}
+
+impl<P: BigintCtxParams> BorshSerialize for BigUintCoFactor<P> {
+    #[inline]
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let bytes = self.0.to_bytes_le();
+        bytes.serialize(writer)
+    }
+}
+
+impl<P: BigintCtxParams> BorshDeserialize for BigUintCoFactor<P> {
+    #[inline]
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
+
+        let biguint = BigUint::from_bytes_le(&bytes);
+        Ok(BigUintCoFactor(biguint, PhantomData))
     }
 }
 

@@ -5,7 +5,7 @@ import React, {useState, useEffect} from "react"
 import {ComponentStory, ComponentMeta} from "@storybook/react"
 import Container from "@mui/material/Container"
 import {ConfirmationScreen} from "../../screens/ConfirmationScreen"
-import {LanguageSetter, IContest} from "@sequentech/ui-essentials"
+import {LanguageSetter} from "@sequentech/ui-essentials"
 import {withRouter} from "storybook-addon-react-router-v6"
 import ConfirmationBallot from "../../fixtures/confirmation_ballot.json"
 import {
@@ -13,7 +13,7 @@ import {
     IConfirmationBallot,
     provideBallotService,
 } from "../../services/BallotService"
-import {IDecodedVoteChoice, IContestLayoutProperties} from "sequent-core"
+import {IDecodedVoteChoice, IContest, IContestLayoutProperties} from "@sequentech/ui-core"
 
 export default {
     title: "screens/ConfirmationScreen",

@@ -43,6 +43,32 @@ pub async fn create_role(
         event!(Level::INFO, "Error {:?}", e);
         (Status::InternalServerError, format!("{:?}", e))
     })?;
+    //client moved to create_role so need to create new one
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let role_with_id =
+        client.get_role_by_name(&realm, &role).await.map_err(|e| {
+            event!(Level::INFO, "Error {:?}", e);
+            (Status::InternalServerError, format!("{:?}", e))
+        })?;
+
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    match (role.clone().permissions, role_with_id.id) {
+        (Some(permissions), Some(id)) => {
+            client
+                .set_role_permissions(&realm, &id, &permissions)
+                .await
+                .map_err(|e| {
+                    event!(Level::INFO, "Error {:?}", e);
+                    (Status::InternalServerError, format!("{:?}", e))
+                })?;
+        }
+        _ => {}
+    }
+
     Ok(Json(role))
 }
 

@@ -1,127 +1,195 @@
 {{!--
 SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-
 SPDX-License-Identifier: AGPL-3.0-only
 --}}
 
-<div class="content">
-      <h1 class="title">Resultados de la elección "{{ reports.0.election_name }}"</h1>
-      <div id="dateDiv"></div>
-      
+<html lang="en-US">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Electoral Results</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 768px;
+      }
+
+      @media print {
+        body {
+          max-width: initial;
+          margin: initial;
+        }
+      }
+
+      .logo {
+        content: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTEiIGhlaWdodD0iNDciIHZpZXdCb3g9IjAgMCAyNTEgNDciIGZpbGw9Im5vbmUiPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMF8xMzhfMzEwMykiPjxwYXRoIGQ9Ik04OC4zOTk4IDI4LjEwOTlDODguMzk5OCAxNy4zMDk5IDY4LjE4OTggMjUuNDY5OSA2OC4xODk4IDExLjc4OTlDNjguMTg5OCA2Ljg5OTk0IDcyLjE4OTggMi4xODk5NCA3OS44NTk4IDIuMTg5OTRDODcuNTI5OCAyLjE4OTk0IDkxLjQ2OTggNi45ODk5NCA5MS42MTk4IDEzLjE4OTlIODguMjA5OEM4OC4wNjk4IDguNTI5OTQgODQuOTk5OCA1LjM1OTk0IDc5Ljg5OTggNS4zNTk5NEM3NC43OTk4IDUuMzU5OTQgNzEuNjk5OCA3Ljg1OTk0IDcxLjY5OTggMTEuNjQ5OUM3MS42OTk4IDIxLjU4OTkgOTEuOTk5OCAxNC4xMzk5IDkxLjk5OTggMjcuODY5OUM5MS45OTk4IDMzLjc3OTkgODYuODY5OCAzNy42Njk5IDc5LjIyOTggMzcuNjY5OUM3MC40NDk4IDM3LjY2OTkgNjYuNzQ5OCAzMi41Mjk5IDY2LjUwOTggMjYuNjY5OUg2OS45Njk4QzcwLjM0OTggMzEuODA5OSA3My45Njk4IDM0LjQ5OTkgNzkuMzI5OCAzNC40OTk5Qzg0Ljg0OTggMzQuNDk5OSA4OC4zOTk4IDMyLjI4OTkgODguMzk5OCAyOC4xMDk5WiIgZmlsbD0iIzBGMDU0QyI+PC9wYXRoPjxwYXRoIGQ9Ik0xMDAuMjEgMjUuNzZDMTAwLjU0IDMwLjcxIDEwMy43NiAzNC41IDEwOC45IDM0LjVDMTEwLjU1NyAzNC41NTY0IDExMi4xOSAzNC4wOTA1IDExMy41NjggMzMuMTY4MkMxMTQuOTQ2IDMyLjI0NTggMTE2IDMwLjkxMzcgMTE2LjU4IDI5LjM2SDEyMC4xM0MxMTkuNDIzIDMxLjc4MzYgMTE3LjkzMiAzMy45MDQyIDExNS44OTEgMzUuMzg5OUMxMTMuODQ5IDM2Ljg3NTUgMTExLjM3MyAzNy42NDIzIDEwOC44NSAzNy41N0MxMDEuMTIgMzcuNTcgOTYuODQ5NiAzMS42MiA5Ni44NDk2IDI0Ljc1Qzk2Ljg0OTYgMTcuODggMTAxLjQ2IDEyIDEwOC44IDEyQzExNi4xNCAxMiAxMjAuNTYgMTcuNTcgMTIwLjU2IDI0LjQ5QzEyMC41NiAyNS4wMSAxMjAuNTYgMjUuNzggMTIwLjU2IDI1Ljc4TDEwMC4yMSAyNS43NlpNMTAwLjMgMjNIMTE3LjE1QzExNi43MiAxOC4yOSAxMTMuNiAxNS4wOCAxMDguOCAxNS4wOEMxMDQgMTUuMDggMTAwLjg4IDE4LjQ2IDEwMC4zIDIzWiIgZmlsbD0iIzBGMDU0QyI+PC9wYXRoPjxwYXRoIGQ9Ik0xMzYuMjk5IDM3LjU3QzEyOC44MTkgMzcuNTcgMTI0Ljc3OSAzMS41MiAxMjQuNzc5IDI0LjhDMTI0Ljc3OSAxOC4wOCAxMjguODE5IDEyIDEzNi4yOTkgMTJDMTQwLjc2OSAxMiAxNDMuODg5IDE0IDE0NS41NjkgMTcuMDlWMTIuNTZIMTQ4LjgyOVY0N0gxNDUuNDE5VjMyLjU4QzE0My43ODkgMzUuNTUgMTQwLjc2OSAzNy41NyAxMzYuMjk5IDM3LjU3Wk0xMzYuOTk5IDE1LjA2QzEzMS41MTkgMTUuMDYgMTI4LjI1OSAxOS4zOCAxMjguMjU5IDI0LjhDMTI4LjI1OSAzMC4yMiAxMzEuNTE5IDM0LjU1IDEzNi45OTkgMzQuNTVDMTQyLjQ3OSAzNC41NSAxNDUuNTg5IDMwLjE4IDE0NS41ODkgMjQuOEMxNDUuNTg5IDE5LjQyIDE0Mi40NDkgMTUuMDYgMTM2Ljk5OSAxNS4wNloiIGZpbGw9IiMwRjA1NEMiPjwvcGF0aD48cGF0aCBkPSJNMTU2LjUxIDI3LjczMDFWMTIuNTYwMUgxNTkuOTJWMjcuNDkwMUMxNTkuOTIgMzEuOTEwMSAxNjIuMjcgMzQuNTkwMSAxNjYuNjQgMzQuNTkwMUMxNzEuMDEgMzQuNTkwMSAxNzMuMzYgMzEuOTEwMSAxNzMuMzYgMjcuNDkwMVYxMi41NjAxSDE3Ni43N1YyNy43MzAxQzE3Ni43NyAzMy4xNTAxIDE3My41NSAzNy41NzAxIDE2Ni42NCAzNy41NzAxQzE1OS43MyAzNy41NzAxIDE1Ni41MSAzMy4xNTAxIDE1Ni41MSAyNy43MzAxWiIgZmlsbD0iIzBGMDU0QyI+PC9wYXRoPjxwYXRoIGQ9Ik0xODYgMjUuNzZDMTg2LjM0IDMwLjcxIDE4OS41NSAzNC41IDE5NC42OSAzNC41QzE5Ni4zNDggMzQuNTU4IDE5Ny45ODEgMzQuMDkyNyAxOTkuMzYgMzMuMTcwMUMyMDAuNzM4IDMyLjI0NzYgMjAxLjc5MSAzMC45MTQ1IDIwMi4zNyAyOS4zNkgyMDUuOTJDMjA1LjIxMyAzMS43ODM2IDIwMy43MjIgMzMuOTA0MiAyMDEuNjgxIDM1LjM4OTlDMTk5LjY0IDM2Ljg3NTUgMTk3LjE2MyAzNy42NDIzIDE5NC42NCAzNy41N0MxODYuOTEgMzcuNTcgMTgyLjU5IDMxLjYyIDE4Mi41OSAyNC43NUMxODIuNTkgMTcuODggMTg3LjIzIDEyIDE5NC41NyAxMkMyMDEuOTEgMTIgMjA2LjM0IDE3LjU3IDIwNi4zNCAyNC40OUMyMDYuMzQgMjUuMDEgMjA2LjI5IDI1Ljc4IDIwNi4yOSAyNS43OEwxODYgMjUuNzZaTTE4Ni4xIDIyLjk4SDIwMi45NUMyMDIuNTIgMTguMjcgMTk5LjM5IDE1LjA2IDE5NC41OSAxNS4wNkMxODkuNzkgMTUuMDYgMTg2LjY1IDE4LjQ2IDE4Ni4wOCAyM0wxODYuMSAyMi45OFoiIGZpbGw9IiMwRjA1NEMiPjwvcGF0aD48cGF0aCBkPSJNMjE1LjY0OSAxNi4zQzIxNi40NzYgMTQuOTE5NSAyMTcuNjYzIDEzLjc5MDEgMjE5LjA4MyAxMy4wMzI2QzIyMC41MDMgMTIuMjc1MSAyMjIuMTAyIDExLjkxODIgMjIzLjcwOSAxMkMyMjkuNzA5IDEyIDIzMi45NjkgMTYgMjMyLjk2OSAyMS40MVYzN0gyMjkuNTY5VjIyLjA3QzIyOS41NjkgMTcuNjUgMjI3LjQ5OSAxNC45NiAyMjMuMTI5IDE0Ljk2QzIxOS4wMDkgMTQuOTYgMjE1Ljc4OSAxNy41NSAyMTUuNzg5IDIyLjQ1VjM3SDIxMi4zNzlWMTIuNTZIMjE1LjY0OVYxNi4zWiIgZmlsbD0iIzBGMDU0QyI+PC9wYXRoPjxwYXRoIGQ9Ik0yNDUgMzcuMDAwMUgyNDEuNTlWMTUuNDQwMUgyMzdWMTIuNTYwMUgyNDEuNjVWNS41NjAwNkgyNDVWMTIuNTYwMUgyNTBWMTUuNDQwMUgyNDVWMzcuMDAwMVoiIGZpbGw9IiMwRjA1NEMiPjwvcGF0aD48cGF0aCBkPSJNNDkuNzgwMSAxNi40QzU0LjMwODggMTYuNCA1Ny45ODAxIDEyLjcyODcgNTcuOTgwMSA4LjJDNTcuOTgwMSAzLjY3MTI2IDU0LjMwODggMCA0OS43ODAxIDBDNDUuMjUxMyAwIDQxLjU4MDEgMy42NzEyNiA0MS41ODAxIDguMkM0MS41ODAxIDEyLjcyODcgNDUuMjUxMyAxNi40IDQ5Ljc4MDEgMTYuNFoiIGZpbGw9IiMwRjA1NEMiPjwvcGF0aD48cGF0aCBkPSJNOC4yIDE2LjRDMTIuNzI4NyAxNi40IDE2LjQgMTIuNzI4NyAxNi40IDguMkMxNi40IDMuNjcxMjYgMTIuNzI4NyAwIDguMiAwQzMuNjcxMjYgMCAwIDMuNjcxMjYgMCA4LjJDMCAxMi43Mjg3IDMuNjcxMjYgMTYuNCA4LjIgMTYuNFoiIGZpbGw9IiMwRjA1NEMiPjwvcGF0aD48cGF0aCBkPSJNOC4yIDM2LjI1QzEyLjcyODcgMzYuMjUgMTYuNCAzMi41Nzg3IDE2LjQgMjguMDVDMTYuNCAyMy41MjEyIDEyLjcyODcgMTkuODUgOC4yIDE5Ljg1QzMuNjcxMjYgMTkuODUgMCAyMy41MjEyIDAgMjguMDVDMCAzMi41Nzg3IDMuNjcxMjYgMzYuMjUgOC4yIDM2LjI1WiIgZmlsbD0iIzBGMDU0QyI+PC9wYXRoPjxwYXRoIGQ9Ik0yOC45ODkxIDM2LjI1MDFDMzMuNTE3OCAzNi4yNTAxIDM3LjE4OTEgMzIuNTc4OCAzNy4xODkxIDI4LjA1MDFDMzcuMTg5MSAyMy41MjE0IDMzLjUxNzggMTkuODUwMSAyOC45ODkxIDE5Ljg1MDFDMjQuNDYwMyAxOS44NTAxIDIwLjc4OTEgMjMuNTIxNCAyMC43ODkxIDI4LjA1MDFDMjAuNzg5MSAzMi41Nzg4IDI0LjQ2MDMgMzYuMjUwMSAyOC45ODkxIDM2LjI1MDFaIiBmaWxsPSIjMEYwNTRDIj48L3BhdGg+PHBhdGggZD0iTTI4Ljk4OTEgMTYuNEMzMy41MTc4IDE2LjQgMzcuMTg5MSAxMi43Mjg3IDM3LjE4OTEgOC4yQzM3LjE4OTEgMy42NzEyNiAzMy41MTc4IDAgMjguOTg5MSAwQzI0LjQ2MDMgMCAyMC43ODkxIDMuNjcxMjYgMjAuNzg5MSA4LjJDMjAuNzg5MSAxMi43Mjg3IDI0LjQ2MDMgMTYuNCAyOC45ODkxIDE2LjRaIiBmaWxsPSIjNDNFM0ExIj48L3BhdGg+PC9nPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDBfMTM4XzMxMDMiPjxyZWN0IHdpZHRoPSIyNTAuMDEiIGhlaWdodD0iNDYuOTgiIGZpbGw9IndoaXRlIj48L3JlY3Q+PC9jbGlwUGF0aD48L2RlZnM+PC9zdmc+");
+        text-align: center;
+        margin: 16px auto;
+      }
+
+      .header,
+      .header-space {
+        height: 100px;
+      }
+
+      .logo {
+        padding-top: 10px;
+      }
+
+      .footer,
+      .footer-space {
+        height: 100px;
+      }
+
+      .header {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        text-align: center;
+      }
+
+      .footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        text-align: right;
+      }
+
+      table {
+        width: 100%;
+      }
+
+      .content .title {
+        text-align: center;
+      }
+
+      .content table {
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      .content th,
+      .content td {
+        border: 1px solid #dddddd;
+        padding: 8px;
+      }
+
+      .content th {
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="logo"></div>
+    <div class="content">
+      <h1 class="title">Election Results "{{ reports.0.election_name }}"</h1>
+      <div id="dateDiv">
+        {{ timestamp }}
+      </div>
+
       {{ #each reports as |report| }}
-        {{#if report.channel_type}}
-          <h2>Canal: {{ sanitize_html report.channel_type }}</h2>
-        {{/if}}
-        <h2>Pregunta: {{ sanitize_html report.contest.name }}</h2>
-        {{#if report.area}}
-          <h2>Area: {{ report.area.name}}</h2>
-        {{/if}}
-        <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
+      {{#if report.channel_type}}
+      <h2>Channel: {{ sanitize_html report.channel_type }}</h2>
+      {{/if}}
+      <h2>Question: {{ sanitize_html report.contest.name }}</h2>
+      {{#if report.area}}
+      <h2>Area: {{ report.area.name}}</h2>
+      {{/if}}
+      <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
 
-        <table>
-          <tr>
-            <th colspan="2">Configuration Data</th>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Tally System</td>
-            <td style="width: 45%;">
-              {{ report.contest.voting_type }},
-              {{ report.contest.counting_algorithm }}
-            </td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Minimum number of candidates a voter can select</td>
-            <td style="width: 45%;">{{ format_u64 report.contest.min_votes }}</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Maximum number of candidates a voter can select</td>
-            <td style="width: 45%;">{{ format_u64 report.contest.max_votes }}</td>
-          </tr>
-        </table>
+      <table>
+        <tr>
+          <th colspan="2">Configuration Data</th>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Tally System</td>
+          <td style="width: 45%;">
+            {{ report.contest.voting_type }},
+            {{ report.contest.counting_algorithm }}
+          </td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Minimum number of candidates a voter can select</td>
+          <td style="width: 45%;">{{ format_u64 report.contest.min_votes }}</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Maximum number of candidates a voter can select</td>
+          <td style="width: 45%;">{{ format_u64 report.contest.max_votes }}</td>
+        </tr>
+      </table>
 
-        <table>
-          <tr>
-            <th colspan="3">Participation</th>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Summary</td>
-            <td style="width: 22.5%;">Total</td>
-            <td style="width: 22.5%;">%</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Census</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.census }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_census }}%</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Auditable votes</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.auditable_votes}}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_auditable_votes }}%</td> 
-          </tr>
-          <tr>
-            <td style="width: 55%;">Total number of votes counted</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_votes }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_votes }}%</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Total number of valid votes</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_valid_votes }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_valid_votes }}%</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Blank votes (total)</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_blank_votes }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_blank_votes }}%</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Explicit invalid votes</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_explicit }}%</td>
-          </tr>
-          <tr>
-            <td style="width: 55%;">Implicit invalid votes</td>
-            <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
-            <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%</td> 
-          </tr>
-        </table>
+      <table>
+        <tr>
+          <th colspan="3">Participation</th>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Summary</td>
+          <td style="width: 22.5%;">Total</td>
+          <td style="width: 22.5%;">%</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Census</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.census }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_census }}%</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Auditable votes</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.auditable_votes}}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_auditable_votes }}%</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Total number of votes counted</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_votes }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_votes }}%</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Total number of valid votes</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_valid_votes }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_valid_votes }}%</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Blank votes (total)</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.total_blank_votes }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_blank_votes }}%</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Explicit invalid votes</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_explicit }}%
+          </td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Implicit invalid votes</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.implicit }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_implicit }}%
+          </td>
+        </tr>
+      </table>
 
-        <table>
-          <tr>
-            <th colspan="4">Candidate result</th>
-          </tr>
-          <tr class="">
-            <td style="width: 55%;">Name</td>
-            <td style="width: 15%;">Votes</td>
-            <td style="width: 15%;">Percent of votes</td>
-            <td style="width: 15%;">Winning Position</td>
-          </tr>
-          {{#each report.candidate_result as |candidate|}}
-            <tr class="">
-              <td style="width: 55%;">{{{ candidate.candidate.name }}}</td>
-              <td style="width: 15%;">{{ format_u64 candidate.total_count }}</td>
-              <td style="width: 15%;">{{ format_percentage candidate.percentage_votes }}%</td>
-              <td style="width: 15%;">{{ candidate.winning_position }}</td>
-            </tr>
-          {{/each}}
-        </table>
+      <table>
+        <tr>
+          <th colspan="4">Candidate result</th>
+        </tr>
+        <tr class="">
+          <td style="width: 55%;">Name</td>
+          <td style="width: 15%;">Votes</td>
+          <td style="width: 15%;">Percent of votes</td>
+          <td style="width: 15%;">Winning Position</td>
+        </tr>
+        {{#each report.candidate_result as |candidate|}}
+        <tr class="">
+          <td style="width: 55%;">{{{ candidate.candidate.name }}}</td>
+          <td style="width: 15%;">{{ format_u64 candidate.total_count }}</td>
+          <td style="width: 15%;">{{ format_percentage candidate.percentage_votes }}%</td>
+          <td style="width: 15%;">{{ candidate.winning_position }}</td>
+        </tr>
+        {{/each}}
+      </table>
       {{/each}}
 
     </div>
-<script>
-        // Get the current date
-        var currentDate = new Date();
-
-        // Format the date as a string (e.g., "April 11, 2024")
-        var dateString = currentDate.toLocaleDateString('en-US', {
-            year: 'numeric', // Four digit year
-            month: 'long', // Full name of the month
-            day: 'numeric', // Day of the month
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZoneName: 'short',
-            timeZone: 'Asia/Manila'
-        });
-
-        // Set the text of the div to the formatted date string
-        document.getElementById('dateDiv').textContent = dateString;
-    </script>
+  </body>
+</html>

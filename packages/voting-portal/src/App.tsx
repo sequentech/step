@@ -6,13 +6,8 @@
 import React, {useEffect, useContext, useMemo} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {
-    EVotingPortalCountdownPolicy,
-    Footer,
-    Header,
-    IElectionEventPresentation,
-    PageBanner,
-} from "@sequentech/ui-essentials"
+import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {EVotingPortalCountdownPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -27,10 +22,34 @@ import {
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
+import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
+import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
     ${({css}) => css}
+
+    /* Visually hidden until focused, then shown for keyboard users */
+    .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 0;
+        background: #fff;
+        color: #000;
+        padding: 8px 12px;
+        z-index: 1000;
+        text-decoration: none;
+    }
+    .skip-link:focus {
+        top: 0;
+    }
+`
+
+const StyledMain = styled(`main`)`
+    margin-bottom: auto;
+    display: flex;
+    position: relative;
+    flex: 1;
 `
 
 const HeaderWithContext: React.FC = () => {
@@ -49,17 +68,26 @@ const HeaderWithContext: React.FC = () => {
         return ballotStyle?.ballot_eml.election_event_presentation?.voting_portal_countdown_policy
     }, [ballotStyle])
 
+    const logoImg =
+        presentation?.logo_url === undefined
+            ? BlankLogoImg
+            : presentation?.logo_url === null
+            ? SequentLogo
+            : presentation?.logo_url
+
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
+            appHash={{main: globalSettings.APP_HASH}}
             userProfile={{
+                firstName: authContext.firstName,
                 username: authContext.username,
                 email: authContext.email,
                 openLink: showUserProfile ? authContext.openProfileLink : undefined,
             }}
             languagesList={languagesList}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
-            logoUrl={presentation?.logo_url}
+            logoUrl={logoImg}
             expiry={{
                 alertAt: countdownPolicy?.countdown_alert_anticipation_secs,
                 countdown: countdownPolicy?.policy ?? EVotingPortalCountdownPolicy.NO_COUNTDOWN,
@@ -82,14 +110,8 @@ const App = () => {
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser${location.search}`
-            )
-        } else {
-            if (location.pathname === "/") {
-                throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
-            }
+        if (location.pathname === "/") {
+            throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
         }
     }, [
         globalSettings.DEFAULT_TENANT_ID,
@@ -100,10 +122,22 @@ const App = () => {
     ])
 
     useEffect(() => {
-        if (!isAuthenticated && !!tenantId && !!eventId) {
-            setTenantEvent(tenantId, eventId)
+        const isDemo = sessionStorage.getItem("isDemo")
+
+        if (!isAuthenticated && !globalSettings.DISABLE_AUTH && isDemo) {
+            const areaId = sessionStorage.getItem("areaId")
+            const documentId = sessionStorage.getItem("documentId")
+            const publicationId = sessionStorage.getItem("publicationId")
+            navigate(`/preview/${tenantId}/${documentId}/${areaId}/${publicationId}`)
+            window.location.reload()
+        } else if (!isAuthenticated && !!tenantId && !!eventId) {
+            setTenantEvent(
+                tenantId,
+                eventId,
+                location.pathname.includes("/enroll") ? "register" : "login"
+            )
         }
-    }, [tenantId, eventId, isAuthenticated, setTenantEvent])
+    }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
         <StyledApp
@@ -112,10 +146,14 @@ const App = () => {
         >
             <ScrollRestoration />
             <ApolloWrapper>
-                {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+                <HeaderWithContext />
                 <PageBanner
                     marginBottom="auto"
                     sx={{display: "flex", position: "relative", flex: 1}}
+                    className="main"
+                    component="main"
+                    id="main-content"
+                    role="main"
                 >
                     <WatermarkBackground />
                     <Outlet />

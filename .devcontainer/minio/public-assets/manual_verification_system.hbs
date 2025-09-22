@@ -1,0 +1,73 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+--}}
+<html lang="en-US">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Authenticate to Vote</title>
+  <script src="{{file_qrcode_lib}}"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: auto;
+      max-width: 640px;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin-top: 48px;
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      content: url("{{file_logo}}");
+      text-align: center;
+      margin: 16px auto;
+    }
+
+    .main {
+      margin-top: 32px;
+    }
+
+    .main div {
+      margin-top: 32px;
+    }
+
+    .id-content {
+      print-color-adjust: exact;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 6px 12px;
+      background: #ecfdf5;
+      color: #191d23;
+      border-radius: 4px;
+    }
+
+    .info {
+      margin: 32px 0;
+    }
+
+    .info p {
+      margin: 12px 0;
+    }
+
+    #qrcode {
+      margin-top: 32px;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="main">
+      {{{rendered_user_template}}}
+  </main>
+</body>
+
+</html>

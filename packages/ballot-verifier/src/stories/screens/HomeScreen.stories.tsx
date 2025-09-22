@@ -5,12 +5,12 @@ import React from "react"
 import {ComponentStory, ComponentMeta} from "@storybook/react"
 import Container from "@mui/material/Container"
 import {HomeScreen} from "../../screens/HomeScreen"
-import {LanguageSetter, IAuditableBallot} from "@sequentech/ui-essentials"
+import {LanguageSetter} from "@sequentech/ui-essentials"
 import {withRouter} from "storybook-addon-react-router-v6"
 import {IBallotService, provideBallotService} from "../../services/BallotService"
 import {within, userEvent} from "@storybook/testing-library"
 import {expect} from "@storybook/jest"
-import {IDecodedVoteContest} from "sequent-core"
+import {IDecodedVoteContest, IAuditableBallot} from "@sequentech/ui-core"
 
 export default {
     title: "screens/HomeScreen",

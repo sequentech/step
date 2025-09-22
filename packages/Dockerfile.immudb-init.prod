@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
 #
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only 
 
-FROM rustlang/rust:nightly-slim as builder
+FROM rustlang/rust:nightly-bookworm-slim as builder
 
 WORKDIR /app
 
@@ -12,13 +12,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     m4 \
     make \
     && rm -rf /var/lib/apt/lists/*
-RUN rustup default nightly
+
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
 
 # copy projects
 #TODO: Copy only necessary files
 WORKDIR /app
-COPY ./braid/scripts/Cargo.toml ./Cargo.toml
+COPY ./braid/scripts/Cargo-init.toml ./Cargo.toml
 COPY ./braid ./braid
+COPY ./b3 ./b3
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
@@ -45,4 +48,4 @@ ENV IMMUDB_BOARD_DB_NAME=""
 ENV CACHE_DIR="/tmp/immu-board"
 
 # Set the entrypoint for running the immudb-init service
-ENTRYPOINT ["/bin/sh", "-c", "/usr/bin/bb_helper --server-url ${IMMUDB_SERVER_URL} --username ${IMMUDB_USER} --password ${IMMUDB_PASSWORD} --index-dbname ${IMMUDB_INDEX_DB} --board-dbname ${IMMUDB_BOARD_DB_NAME} --cache-dir ${CACHE_DIR} upsert-init-db"]
+ENTRYPOINT ["/bin/sh", "-c", "/usr/bin/bb_helper --server-url ${IMMUDB_SERVER_URL} --username ${IMMUDB_USER} --password ${IMMUDB_PASSWORD} --board-dbname ${IMMUDB_BOARD_DB_NAME} --cache-dir ${CACHE_DIR} upsert-board-db"]

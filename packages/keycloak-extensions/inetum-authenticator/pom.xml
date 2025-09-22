@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
+ 
 <!--
 SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
@@ -39,6 +39,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<dependencies>
 		<dependency>
+			<groupId>sequent</groupId>
+			<artifactId>message-otp-authenticator</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.keycloak</groupId>
 			<artifactId>keycloak-server-spi</artifactId>
 		</dependency>
@@ -46,6 +51,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<groupId>jakarta.validation</groupId>
 			<artifactId>jakarta.validation-api</artifactId>
 			<version>3.0.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.rabbitmq</groupId>
+			<artifactId>amqp-client</artifactId>
+			<version>5.16.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.freemarker</groupId>
@@ -78,7 +88,18 @@ SPDX-License-Identifier: AGPL-3.0-only
             <artifactId>commons-lang3</artifactId>
             <version>3.12.0</version>
         </dependency>
+		<dependency>
+    		<groupId>org.postgresql</groupId>
+    		<artifactId>postgresql</artifactId>
+    		<version>42.5.4</version>
+		</dependency>
+		<dependency>
+    		<groupId>com.google.code.gson</groupId>
+    		<artifactId>gson</artifactId>
+    		<version>2.8.9</version>
+		</dependency>
 	</dependencies>
+
 
 	<build>
 		<finalName>${project.groupId}.${project.artifactId}</finalName>
@@ -102,13 +123,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<artifactSet>
 								<includes>
 									<include>org.reactivestreams:reactive-streams</include>
+									<include>com.rabbitmq:*</include>
 								</includes>
 							</artifactSet>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>2.43.0</version>
+				<configuration>
+					<java>
+						<googleJavaFormat>
+							<version>1.23.0</version>
+							<style>GOOGLE</style>
+						</googleJavaFormat>
+					</java>
+				</configuration>
+			</plugin>
 		</plugins>
+		
 	</build>
 
 </project>

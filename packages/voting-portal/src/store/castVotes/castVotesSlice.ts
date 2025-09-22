@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {isUndefined} from "@sequentech/ui-essentials"
+import {isUndefined} from "@sequentech/ui-core"
 
 export interface ICastVote {
     id: string
@@ -64,6 +64,11 @@ export const canVoteSomeElection =
         return elections.some((election) => {
             let electionCastVotes = (election?.id && state.castVotes[election.id]) || []
             let numAllowedRevotes = election?.num_allowed_revotes ?? 1
+
+            // If num_allowed_revotes is 0, allow voting
+            if (numAllowedRevotes === 0) {
+                return true
+            }
 
             return electionCastVotes.length < numAllowedRevotes
         })

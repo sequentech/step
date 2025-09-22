@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
 import {
     CreateElectionEventMutation,
@@ -21,16 +21,14 @@ import {
     useGetOne,
     useNotify,
     useRefresh,
-    Button,
     RaRecord,
-    Identifier,
     useGetList,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-essentials"
+import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
@@ -38,10 +36,13 @@ import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {ExportButton} from "@/components/tally/ExportElectionMenu"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useActionPermissions} from "../../components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -106,15 +107,15 @@ export const CreateElectionList: React.FC = () => {
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const {setLastCreatedResource} = useContext(NewResourceContext)
+    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     const postDefaultValues = () => ({id: v4()})
 
     const {data: tenant} = useGetOne("sequent_backend_tenant", {
         id: tenantId,
     })
-
-    const {setLastCreatedResource} = useContext(NewResourceContext)
-    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     useEffect(() => {
         if (tenant) {
@@ -145,8 +146,8 @@ export const CreateElectionList: React.FC = () => {
         if (isLoading && !error && !isOneLoading && newElectionEvent!.length) {
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
+            setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
             refresh()
-            navigate(`/sequent_backend_election_event/${newId}`)
         }
     }
 
@@ -202,50 +203,16 @@ export const CreateElectionList: React.FC = () => {
 
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [errors, setErrors] = useState<string | null>(null)
-    const [importElectionEvent] = useMutation<ImportElectionEventMutation>(IMPORT_ELECTION_EVENT)
 
     const closeImportDrawer = () => {
         setOpenDrawer(false)
         setErrors(null)
     }
 
-    const uploadCallback = async (documentId: string) => {
-        setErrors(null)
-        let {data, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-                checkOnly: true,
-            },
-        })
-
-        if (data?.import_election_event?.error) {
-            setErrors(data.import_election_event.error)
-            throw new Error(data?.import_election_event?.error)
-        }
-    }
-
-    const handleImportElectionEvent = async (documentId: string, sha256: string) => {
-        setErrors(null)
-        let {data, errors} = await importElectionEvent({
-            variables: {
-                tenantId,
-                documentId,
-            },
-        })
-
-        if (data?.import_election_event?.error) {
-            setErrors(data.import_election_event.error)
-            return
-        }
-
-        let id = data?.import_election_event?.id
-        if (id) {
-            setNewId(id)
-            setLastCreatedResource({id, type: "sequent_backend_election_event"})
-            setIsLoading(true)
-        }
-    }
+    /**
+     * permissions
+     */
+    const {canWriteElectionEvent} = useActionPermissions()
 
     return (
         <>
@@ -262,7 +229,12 @@ export const CreateElectionList: React.FC = () => {
                 onSubmit={handleSubmit}
                 toolbar={
                     <Toolbar>
-                        <SaveButton className="election-event-save-button" disabled={isLoading} />
+                        {canWriteElectionEvent && (
+                            <SaveButton
+                                className="election-event-save-button"
+                                disabled={isLoading}
+                            />
+                        )}
                     </Toolbar>
                 }
             >
@@ -349,19 +321,6 @@ export const CreateElectionList: React.FC = () => {
                 </Hidden>
                 <ReservedSpace>{isLoading ? <CircularProgress /> : null}</ReservedSpace>
             </SimpleForm>
-
-            <hr />
-
-            <ImportDataDrawer
-                open={openDrawer}
-                closeDrawer={closeImportDrawer}
-                title="electionEventScreen.import.eetitle"
-                subtitle="electionEventScreen.import.eesubtitle"
-                paragraph={"electionEventScreen.import.electionEventParagraph"}
-                doImport={handleImportElectionEvent}
-                uploadCallback={uploadCallback}
-                errors={errors}
-            />
         </>
     )
 }

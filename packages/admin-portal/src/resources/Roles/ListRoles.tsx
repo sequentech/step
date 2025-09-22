@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement} from "react"
+import React, {ReactElement, useContext} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -10,6 +10,7 @@ import {
     useGetList,
     useNotify,
     useRefresh,
+    TextInput,
 } from "react-admin"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {Action, ActionsColumn} from "../../components/ActionButons"
@@ -17,7 +18,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Drawer} from "@mui/material"
 import {EditRole} from "./EditRole"
-import {IPermission} from "sequent-core"
+import {IPermission} from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {CreateRole} from "./CreateRole"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -25,6 +26,8 @@ import {useTranslation} from "react-i18next"
 import {useMutation} from "@apollo/client"
 import {DELETE_ROLE} from "@/queries/DeleteRole"
 import {DeleteRoleMutation} from "@/gql/graphql"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -49,6 +52,13 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
     } = useGetList<IPermission & {id: string}>("permission", {
         filter: {tenant_id: tenantId},
     })
+    const authContext = useContext(AuthContext)
+    const canCreateRole = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ROLE_CREATE
+    )
+
     const [deleteRole] = useMutation<DeleteRoleMutation>(DELETE_ROLE)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -107,7 +117,10 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
                         withFilter={false}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={<CreateRole close={handleCloseCreateDrawer} />}
+                        withComponent={canCreateRole}
+                        Component={
+                            <CreateRole close={handleCloseCreateDrawer} permissions={permissions} />
+                        }
                     />
                 }
                 filter={{tenant_id: tenantId}}

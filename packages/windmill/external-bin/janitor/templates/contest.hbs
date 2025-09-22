@@ -1,0 +1,50 @@
+
+{
+    "id": "{{UUID}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "election_id": "{{election_id}}",
+    "created_at": "{{current_timestamp}}",
+    "last_updated_at": "{{current_timestamp}}",
+    "labels": null,
+    "annotations": {
+        "miru:contest-id": "{{district_code}}",
+        "miru:contest-name": "{{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}"
+    },
+    "is_acclaimed": false,
+    "is_active": true,
+    "name": "{{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+    "alias": "{{DB_POLLING_CENTER_POLLING_PLACE}} - {{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+    "description": "",
+    "presentation": {
+        "i18n": {
+            "en": {
+                "name": "{{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+                "alias": "{{DB_POLLING_CENTER_POLLING_PLACE}} - {{DB_CONTEST_NAME}} / Vote for {{DB_RACE_ELIGIBLEAMOUNT}}",
+                "description": null
+            }
+        },
+        "sort_order": {{sort_order}},
+        "candidates_order": "custom",
+        "over_vote_policy": "not-allowed-with-msg-and-disable",
+        "under_vote_alert": true,
+        "blank_vote_policy": "allowed",
+        "pagination_policy": "",
+        "under_vote_policy": "warn-only-in-review",
+        "invalid_vote_policy": "not-allowed",
+        "enable_checkable lists": "allow-selecting-candidates-and-lists",
+        "enable_checkable_lists": "allow-selecting-candidates-and-lists",
+        "max_selections_per_type": null,
+        "candidates_icon_checkbox_policy": "round-checkbox",
+        "columns": 4
+    },
+    "min_votes": 0,
+    "max_votes": {{max_votes}},
+    "winning_candidates_num": {{max_votes}},
+    "voting_type": "non-preferential",
+    "counting_algorithm": "plurality-at-large",
+    "is_encrypted": true,
+    "tally_configuration": null,
+    "image_document_id": null,
+    "conditions": null
+}

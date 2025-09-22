@@ -12,6 +12,7 @@ import {useTranslation} from "react-i18next"
 import {convertToNumber} from "@/lib/helpers"
 import {Button} from "react-admin"
 import {Dialog} from "@sequentech/ui-essentials"
+import {debounce} from "lodash"
 
 const DiffViewStyled = {
     Header: styled.span`
@@ -126,13 +127,12 @@ const DiffViewMemo = React.memo(
             () => (current ? JSON.stringify(current, null, 2) : ""),
             [current]
         )
-        // Check initially if truncation is needed - if so truncate the strings
         useEffect(() => {
             if (!memoizedModify || truncationState !== TRUNCATION_STATE.NOT_NEEDED) return
             const lines = memoizedModify.split("\n")
             if (lines.length < MAX_DIFF_LINES) return
             setTruncationState(TRUNCATION_STATE.TRUNCATED)
-        }, [memoizedModify, MAX_DIFF_LINES])
+        }, [memoizedModify, MAX_DIFF_LINES, truncationState])
 
         useEffect(() => {
             if (truncationState === TRUNCATION_STATE.TRUNCATED) {
@@ -142,14 +142,24 @@ const DiffViewMemo = React.memo(
                 setNewJsonString(memoizedModify)
                 setOldJsonString(memoizedCurrent)
             }
-        }, [truncationState, memoizedCurrent, memoizedModify])
+        }, [truncationState, memoizedCurrent, memoizedModify, MAX_DIFF_LINES])
+
+        const calculateDiff = useCallback(
+            debounce(() => {
+                if (newJsonString || oldJsonString) {
+                    const diffText: any = diffLines(oldJsonString, newJsonString)
+                    setDiff(diffText)
+                }
+            }, 100),
+            [oldJsonString, newJsonString]
+        )
 
         useEffect(() => {
-            if (newJsonString || oldJsonString) {
-                const diffText: any = diffLines(oldJsonString, newJsonString)
-                setDiff(diffText)
+            calculateDiff()
+            return () => {
+                calculateDiff.cancel()
             }
-        }, [oldJsonString, newJsonString])
+        }, [calculateDiff])
 
         const handleDialogClose = useCallback(
             async (result: boolean) => {
@@ -188,7 +198,7 @@ const DiffViewMemo = React.memo(
                         <DiffViewStyled.Header>{currentTitle}</DiffViewStyled.Header>
                         <DiffViewStyled.Block>
                             <DiffViewStyled.Json>
-                                {diff.map((line: any, index: number) =>
+                                {diff?.map((line: any, index: number) =>
                                     !line.added ? (
                                         line.removed && type === "modify" ? (
                                             <DiffViewStyled.Removed key={index}>
@@ -239,7 +249,7 @@ const DiffViewMemo = React.memo(
                             <DiffViewStyled.Header>{diffTitle}</DiffViewStyled.Header>
                             <DiffViewStyled.Block>
                                 <DiffViewStyled.Json>
-                                    {diff.map((line: any, index: number) =>
+                                    {diff?.map((line: any, index: number) =>
                                         !line.removed ? (
                                             line.added ? (
                                                 <DiffViewStyled.Added key={index}>

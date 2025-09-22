@@ -2,46 +2,49 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {List, useListContext} from "react-admin"
-import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IRole, IUser} from "sequent-core"
+import {Identifier, RaRecord} from "react-admin"
+import {IRole} from "@sequentech/ui-core"
 import {EditUserForm} from "./EditUserForm"
+import {UserProfileAttribute} from "@/gql/graphql"
 
 interface EditUserProps {
     id?: string
     electionEventId?: string
+    electionId?: string
     close?: () => void
     rolesList: Array<IRole>
+    userAttributes: UserProfileAttribute[]
+    record?: RaRecord<Identifier>
 }
 
-export const EditUser: React.FC<EditUserProps> = ({id, close, electionEventId, rolesList}) => {
-    const {data, isLoading} = useListContext()
-
-    const [tenantId] = useTenantStore()
-
+export const EditUser: React.FC<EditUserProps> = ({
+    id,
+    close,
+    electionEventId,
+    electionId,
+    rolesList,
+    userAttributes,
+    record,
+}) => {
     const [renderUI, setRenderUI] = useState(true)
 
     useEffect(() => {
-        if (isLoading && data) {
+        if (record) {
             setRenderUI(true)
         }
-    }, [isLoading, data])
+    }, [record])
 
     if (renderUI) {
         return (
-            <List
-                resource="user"
-                filter={{tenant_id: tenantId, election_event_id: electionEventId}}
-                sx={{padding: "16px"}}
-                actions={false}
-            >
-                <EditUserForm
-                    id={id}
-                    electionEventId={electionEventId}
-                    close={close}
-                    rolesList={rolesList}
-                />
-            </List>
+            <EditUserForm
+                id={id}
+                electionEventId={electionEventId}
+                electionId={electionId}
+                close={close}
+                rolesList={rolesList}
+                userAttributes={userAttributes}
+                record={record}
+            />
         )
     } else {
         return null

@@ -84,7 +84,7 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                             <Table sx={{maxHeight: 450}} aria-label="simple table">
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>
+                                        <TableCell sx={{width: "40%"}}>
                                             {t("keysGeneration.ceremonyStep.logsHeader.date")}
                                         </TableCell>
                                         <TableCell align="left">
@@ -93,9 +93,9 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {logs.map((log) => (
+                                    {logs.map((log, index) => (
                                         <TableRow
-                                            key={log?.created_date as any}
+                                            key={index}
                                             sx={{
                                                 "&:last-child td, &:last-child th": {
                                                     border: 0,

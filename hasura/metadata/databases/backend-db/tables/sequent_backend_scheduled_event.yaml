@@ -1,131 +1,247 @@
 table:
-  name: scheduled_event
-  schema: sequent_backend
+    name: scheduled_event
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - created_by
-    - event_processor
-    - task_id
-    - annotations
-    - cron_config
-    - event_payload
-    - labels
-    - created_at
-    - stopped_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - created_by
-    - event_processor
-    - task_id
-    - annotations
-    - cron_config
-    - event_payload
-    - labels
-    - created_at
-    - stopped_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - created_at
+              - stopped_at
+              - archived_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: scheduled-event-create
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - created_at
+              - stopped_at
+              - archived_at
+              - election_event_id
+              - id
+              - tenant_id
+      role: service-account
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - created_by
-    - event_processor
-    - task_id
-    - annotations
-    - cron_config
-    - event_payload
-    - labels
-    - created_at
-    - stopped_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - created_by
-    - event_processor
-    - task_id
-    - annotations
-    - cron_config
-    - event_payload
-    - labels
-    - created_at
-    - stopped_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - created_at
+              - stopped_at
+              - archived_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-create
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-delete
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - created_at
+              - stopped_at
+              - archived_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - created_by
-    - event_processor
-    - task_id
-    - annotations
-    - cron_config
-    - event_payload
-    - labels
-    - created_at
-    - stopped_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - created_by
-    - event_processor
-    - task_id
-    - annotations
-    - cron_config
-    - event_payload
-    - labels
-    - created_at
-    - stopped_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - created_at
+              - stopped_at
+              - archived_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: null
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - archived_at
+              - created_at
+              - stopped_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - created_by
+              - event_processor
+              - task_id
+              - annotations
+              - cron_config
+              - event_payload
+              - labels
+              - created_at
+              - stopped_at
+              - archived_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
 delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: scheduled-event-delete
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

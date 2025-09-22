@@ -1,18 +1,23 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
 use sequent_core::ballot::Contest;
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::config::generate_reports::PipeConfigGenerateReports;
 use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::config::{self, Config};
+use crate::pipes::generate_db::PipeConfigGenerateDatabase;
+use crate::pipes::generate_db::DATABASE_FILENAME;
 use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use crate::pipes::pipe_name::PipeName;
 
@@ -27,7 +32,18 @@ pub struct TestFixture {
 impl TestFixture {
     #[instrument]
     pub fn new() -> Result<Self> {
-        let config_path = PathBuf::from(format!("test-velvet-config-{}.json", Uuid::new_v4()));
+        let temp_folder = env::temp_dir();
+
+        let root_dir = temp_folder.join(format!("velvet/tests-input__{}", Uuid::new_v4()));
+        let input_dir = root_dir.join("tests").join("input-dir").join("default");
+        let input_dir_configs = input_dir.join("configs");
+        let input_dir_ballots = input_dir.join("ballots");
+
+        fs::create_dir_all(&input_dir_configs)?;
+        fs::create_dir_all(&input_dir_ballots)?;
+
+        let config_path =
+            temp_folder.join(format!("velvet/test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
             .write(true)
             .create(true)
@@ -35,13 +51,34 @@ impl TestFixture {
 
         writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
 
-        let root_dir = PathBuf::from(format!("./tests-input__{}", Uuid::new_v4()));
+        Ok(Self {
+            config_path,
+            root_dir,
+            input_dir_configs,
+            input_dir_ballots,
+        })
+    }
+
+    #[instrument]
+    pub fn new_mc() -> Result<Self> {
+        let root_dir = PathBuf::from(format!("/tmp/velvet/tests-input__{}", Uuid::new_v4()));
         let input_dir = root_dir.join("tests").join("input-dir").join("default");
         let input_dir_configs = input_dir.join("configs");
         let input_dir_ballots = input_dir.join("ballots");
 
         fs::create_dir_all(&input_dir_configs)?;
         fs::create_dir_all(&input_dir_ballots)?;
+
+        let config_path = PathBuf::from(format!(
+            "/tmp/velvet/test-velvet-config-{}.json",
+            Uuid::new_v4()
+        ));
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&config_path)?;
+
+        writeln!(file, "{}", serde_json::to_string(&get_config_mcballots()?)?)?;
 
         Ok(Self {
             config_path,
@@ -58,6 +95,26 @@ impl TestFixture {
         areas: Vec<Uuid>,
     ) -> Result<ElectionConfig> {
         let election = super::elections::get_election_config_1(election_event_id, areas);
+
+        let mut path = self
+            .input_dir_configs
+            .join(format!("election__{}", election.id));
+        fs::create_dir_all(path.as_path())?;
+
+        path.push("election-config.json");
+        let mut file = fs::File::create(path)?;
+        writeln!(file, "{}", serde_json::to_string(&election)?)?;
+
+        Ok(election)
+    }
+
+    #[instrument]
+    pub fn create_election_config_2(
+        &self,
+        election_event_id: &Uuid,
+        areas: Vec<(Uuid, Option<Uuid>)>,
+    ) -> Result<ElectionConfig> {
+        let election = super::elections::get_election_config_3(election_event_id, areas);
 
         let mut path = self
             .input_dir_configs
@@ -165,14 +222,22 @@ impl TestFixture {
 
 impl Drop for TestFixture {
     fn drop(&mut self) {
-        fs::remove_file(&self.config_path).unwrap();
-        fs::remove_dir_all(&self.root_dir).unwrap();
+        if env::var("CLEANUP_FILES").unwrap_or("true".to_string()) == "true" {
+            fs::remove_file(&self.config_path).unwrap();
+            fs::remove_dir_all(&self.root_dir).unwrap();
+        }
     }
 }
 
 #[instrument]
 pub fn get_config() -> Result<Config> {
     let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
+    let database_pipe_config = PipeConfigGenerateDatabase {
+        include_decoded_ballots: true,
+        tenant_id: Uuid::new_v4().to_string(),
+        election_event_id: Uuid::new_v4().to_string(),
+        database_filename: DATABASE_FILENAME.to_string(),
+    };
 
     let stages_def = {
         let mut map = HashMap::new();
@@ -204,6 +269,85 @@ pub fn get_config() -> Result<Config> {
                         id: "gen-report".to_string(),
                         pipe: PipeName::GenerateReports,
                         config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "gen-db".to_string(),
+                        pipe: PipeName::GenerateDatabase,
+                        config: Some(serde_json::to_value(database_pipe_config)?),
+                    },
+                ],
+            },
+        );
+        map
+    };
+
+    let stages = config::Stages {
+        order: vec!["main".to_string()],
+        stages_def,
+    };
+
+    Ok(Config {
+        version: "0.0.0".to_string(),
+        stages,
+    })
+}
+
+#[instrument]
+pub fn get_config_mcballots() -> Result<Config> {
+    let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
+    let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot(None);
+    let database_pipe_config = PipeConfigGenerateDatabase {
+        include_decoded_ballots: true,
+        tenant_id: Uuid::new_v4().to_string(),
+        election_event_id: Uuid::new_v4().to_string(),
+        database_filename: DATABASE_FILENAME.to_string(),
+    };
+
+    let stages_def = {
+        let mut map = HashMap::new();
+        map.insert(
+            "main".to_string(),
+            config::Stage {
+                pipeline: vec![
+                    config::PipeConfig {
+                        id: "decode-ballots".to_string(),
+                        pipe: PipeName::DecodeBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "decode-multi-ballots".to_string(),
+                        pipe: PipeName::DecodeMCBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "vote-receipts".to_string(),
+                        pipe: PipeName::VoteReceipts,
+                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                    },
+                    config::PipeConfig {
+                        id: "multi-ballot-receipts".to_string(),
+                        pipe: PipeName::MCBallotReceipts,
+                        config: Some(serde_json::to_value(mcballot_receipt_pipe_config)?),
+                    },
+                    config::PipeConfig {
+                        id: "do-tally".to_string(),
+                        pipe: PipeName::DoTally,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "mark-winners".to_string(),
+                        pipe: PipeName::MarkWinners,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "gen-report".to_string(),
+                        pipe: PipeName::GenerateReports,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "gen-db".to_string(),
+                        pipe: PipeName::GenerateDatabase,
+                        config: Some(serde_json::to_value(database_pipe_config)?),
                     },
                 ],
             },

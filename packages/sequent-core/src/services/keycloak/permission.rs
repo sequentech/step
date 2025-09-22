@@ -5,6 +5,7 @@ use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
 use keycloak::types::RoleRepresentation;
+use rocket::futures::future::join_all;
 use std::convert::From;
 use tracing::instrument;
 
@@ -88,6 +89,46 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self), err)]
+    pub async fn set_role_permissions(
+        self,
+        realm: &str,
+        role_id: &str,
+        permissions_name: &Vec<String>,
+    ) -> Result<()> {
+        let permission_roles: Vec<_> = permissions_name
+            .into_iter()
+            .map(|permission_name| {
+                self.client
+                    .realm_roles_with_role_name_get(realm, permission_name)
+            })
+            .collect();
+
+        // Await all futures to complete
+        let results = join_all(permission_roles).await;
+
+        // Collect results into a Vec, handling any errors
+        let successful_results: Vec<_> = results
+            .into_iter()
+            .filter_map(|result| match result {
+                Ok(value) => Some(value),
+                Err(e) => {
+                    eprintln!("Error processing item: {:?}", e);
+                    None
+                }
+            })
+            .collect();
+        self.client
+            .realm_groups_with_group_id_role_mappings_realm_post(
+                realm,
+                role_id,
+                successful_results,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self), err)]
     pub async fn delete_role_permission(
         self,
         realm: &str,
@@ -123,7 +164,6 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self), err)]
     pub async fn create_permission(
         self,
         realm: &str,

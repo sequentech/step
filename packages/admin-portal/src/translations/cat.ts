@@ -5,139 +5,94 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Passaport filipí",
+        seamanBook: "Llibreta de mariner",
+        philSysID: "Identificació PhilSys",
+        iBP: "Col·legi d'Advocats Integrat de Filipines (IBP)",
+        driversLicense: "Permís de conduir",
+        loading: "Carregant...",
         loadingDataProvider: "Carregant proveïdor de dades...",
-        breadcrumbSteps: {
-            electionList: "Llista de Votacions",
-            ballot: "Papereta",
-            review: "Revisió",
-            confirmation: "Confirmació",
-            audit: "Auditar",
-        },
-        votingScreen: {
-            backButton: "Enrere",
-            reviewButton: "Següent",
-            ballotHelpDialog: {
-                title: "Informació: Pantalla de votació",
-                content:
-                    "Aquesta pantalla mostra la votació en la qual vostè és elegible per votar. Pot seleccionar la seva secció activant la casella de la dreta Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó «<b>Esborrar selecció</b>», per passar al següent pas, faci clic al botó «<b>Siguiente</b>».",
-                ok: "D'acord",
+        tasksScreen: {
+            noPermissions: "No tens permís per accedir als registres.",
+            title: "Execució de tasques",
+            subtitle: "Informació sobre les tasques executades",
+            taskInformation: "Informació de la tasca",
+            status: "estat: {{status}}",
+            ok: "D'acord",
+            column: {
+                id: "Índex",
+                name: "Nom de la tasca",
+                type: "Tipus",
+                execution_status: "Estat",
+                start_at: "Hora d'inici",
+                end_at: "Hora de finalització",
+                executed_by_user: "Executor",
+                annotations: "Annotations",
+                labels: "Etiquetes",
+                logs: "Registres",
             },
-        },
-        startScreen: {
-            startButton: "Començar a votar",
-            instructionsTitle: "Instruccions",
-            instructionsDescription: "Seguirà aquests passos en emetre el seu vot:",
-            step1Title: "1. Seleccioneu la vostra opció de vot",
-            step1Description:
-                "Seleccioneu les seves opcions de vot que es presenten una a una. Configurarà així les preferències de la seva papereta.",
-            step2Title: "2. Reviseu la vostra papereta",
-            step2Description:
-                "Una vegada ha triat les seves preferències, procedirem a xifrar-les i obtindrà un localitzador. Li mostrarem el contingut de la seva papereta perquè pugui revisar-la.",
-            step3Title: "3. Envieu el vostre vot",
-            step3Description:
-                "Pot enviar el seu vot a l'urna electrònica perquè sigui degudament registrat.",
-        },
-        reviewScreen: {
-            title: "Revisi la seva papereta",
-            description:
-                "Per fer canvis en les seves seleccions, faci clic al botó «<b>Canviar selecció</b>», per confirmar les seves seleccions, faci clic al botó «<b>Enviar Papereta</b>» a continuació, i per auditar la seva papereta faci clic al botó «<b>Auditar la Papereta</b>» a continuació. Tingui en compte que una vegada enviada la seva papereta, ha votat i no se li emetrà una altra papereta per aquesta elecció.",
-            backButton: "Editar papereta",
-            castBallotButton: "Emitir la seva papereta",
-            auditButton: "Auditar papereta",
-            reviewScreenHelpDialog: {
-                title: "Informació: Pantalla de revisió",
-                content:
-                    "Aquesta pantalla li permet revisar les seves seleccions abans d'emetre el seu vot.",
-                ok: "D'acord",
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
+                CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
+                IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
+                IMPORT_USERS: "Importar usuaris",
+                IMPORT_CANDIDATES: "Importar candidats",
+                EXPORT_VOTERS: "Exportar votants",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquet de transmissió",
+                EXPORT_BALLOT_PUBLICATION: "Exporta Publicació de Butlleta",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registres d'Activitat",
+                GENERATE_REPORT: "Generar informe",
+                GENERATE_TRANSMISSION_REPORT: "Generar informe de transmissió",
+                EXPORT_TRUSTEES: "Exportar Autoritats",
+                EXPORT_APPLICATION: "Exportar Sol·licituds",
+                EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
+                IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
+                RENDER_DOCUMENT_PDF: "Generar el document PDF",
+                DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
             },
-            ballotIdHelpDialog: {
-                title: "Vot no emès",
-                content:
-                    "<p>Està a punt de copiar el Localitzador del Vot, però <b>el seu vot encara no s'ha emès</b>. Si intenta cercar el Localitzador del Vot, no el trobarà.</p><p>La raó per la qual mostrem el Localitzador del Vot en aquest moment és perquè pugui auditar la correcció del vot xifrat abans d'emetre'l. Si aquesta és la raó per la qual desitja copiar el Localitzador del Vot, procedeixi a copiar-lo i després auditi el seu vot.</p>",
-                ok: "Accepto que el meu vot NO ha estat emès",
-                cancel: "Cancel·lar",
+            widget: {
+                taskTitle: "Tasca: {{title}}",
+                viewTask: "Veure Tasca",
+                downloadDocument: "Descarregar Fitxer",
             },
-            auditBallotHelpDialog: {
-                title: "Realment vols Auditar la teva papereta?",
-                content:
-                    "<p>L'auditoria de la papereta l'invalidarà i hauràs de iniciar el procés de votació de nou si desitges emetre el teu vot. El procés d'auditoria de la papereta permet verificar que està codificada correctament. Fer aquest procés requereix uns coneixements tècnics importants, per la qual cosa no es recomana si no saps el que estàs fent.</p><p><b>Si el que desitja és emetre el seu vot, faci clic en <u>Cancel·lar</u> per tornar a la pantalla de revisió de votació.</b></p>",
-                ok: "Sí, vull INVALIDAR la meva papereta per AUDITAR-LA",
-                cancel: "Cancel·lar",
+            exportTasksExecution: {
+                success: "L'exportació s'ha completat amb èxit",
+                error: "Error en exportar l'Execució de Tasques",
             },
         },
         logsScreen: {
             noPermissions: "No tens permís per accedir a les bitàcoles.",
             title: "Bitàcoles",
             subtitle: "Bitàcoles generals de les bases de dades principal i de IAM.",
+            actions: {
+                csv: "Exportar en CSV",
+                pdf: "Exportar en PDF",
+            },
+            exportdialog: {
+                description:
+                    "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
+            },
             column: {
-                id: "Id",
-                statement: "Declaració",
+                id: "ID",
+                statement_kind: "Tipus de declaració",
+                created: "Creat",
+                statement_timestamp: "Marca de temps de declaració",
+                message: "Missatge",
+                user_id: "ID d'usuari",
+                username: "Nom d'Usuari",
+                sender_pk: "Clau primària de l'emissor",
+                log_type: "Tipus de registre",
+                event_type: "Tipus d'esdeveniment",
+                description: "Descripció",
+                version: "Versió",
             },
             main: {
                 title: "Bitàcola de Base de Dades Principal",
             },
             iam: {
                 title: "Bitàcola de Base de Dades de IAM",
-            },
-        },
-        confirmationScreen: {
-            title: "El seu vot ha estat emès",
-            description:
-                "El codi de confirmació que apareix a continuació verifica que <b>el seu vot s'ha emès correctament</b>. Pot utilitzar aquest codi per verificar que el seu vot ha estat comptabilitzat.",
-            ballotId: "Localitzador del Vot",
-            printButton: "Imprimir",
-            finishButton: "Finalitzar",
-            verifyCastTitle: "Comproveu que el seu vot ha estat emès",
-            verifyCastDescription:
-                "Pot comprovar en tot moment que la seva papereta s'ha emès correctament utilitzant el següent codi QR:",
-            confirmationHelpDialog: {
-                title: "Informació: Pantalla de confirmació",
-                content:
-                    "Aquesta pantalla mostra que el seu vot s'ha emès correctament. La informació proporcionada en aquesta pàgina li permet verificar que la papereta ha estat emmagatzemada a l'urna, aquest procés pot ser executat en qualsevol moment durant el període de votació i després que l'elecció hagi estat tancada.",
-                ok: "D'acord",
-            },
-            ballotIdHelpDialog: {
-                title: "Informació: Localitzador del Vot",
-                content:
-                    "El Localitzador del Vot de papereta és un codi que li permet trobar la seva papereta a l'urna, aquest Localitzador és únic i no conté informació sobre les seves seleccions.",
-                ok: "D'acord",
-            },
-        },
-        auditScreen: {
-            printButton: "Imprimir",
-            restartButton: "Iniciar votació",
-            title: "Auditi la seva Papereta",
-            description: "Per verificar la seva papereta haurà de seguir els següents passos:",
-            step1Title: "1. Descarregueu o copieu la següent informació",
-            step1Description:
-                "El seu <b>Localitzador del Vot</b> que apareix a la part superior de la pantalla i la seva papereta encriptada a continuació:",
-            step1HelpDialog: {
-                title: "Copiar el Vot Encriptat",
-                content:
-                    "Pot descarregar o copiar el seu Vot Encriptat per auditar-lo i verificar que el contingut encriptat conté les seves seleccions.",
-                ok: "D'acord",
-            },
-            downloadButton: "Descarregar",
-            step2Title: "2. Seguiu els passos d'aquest tutorial",
-            step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">faci clic aquí</a>, s\'obrirà una nova pestanya al seu navegador)',
-            step2HelpDialog: {
-                title: "Tutorial sobre l'Auditoria del Vot",
-                content:
-                    "Per auditar el seu vot haurà de seguir els passos indicats en el tutorial, que inclouen la descàrrega d'una aplicació d'escriptori utilitzada per verificar el vot encriptat independentment del lloc web.",
-                ok: "D'acord",
-            },
-            bottomWarning:
-                "Per motius de seguretat, quan auditi la seva papereta, haurà d'invalidar-la. Per continuar amb el procés de votació, faci clic a ‘<b>Iniciar votació</b>’.",
-        },
-        electionSelectionScreen: {
-            title: "Llista de Votacions",
-            description: "Seleccioneu la votació que desitgeu votar",
-            chooserHelpDialog: {
-                title: "Informació: Llista de Votacions",
-                content:
-                    'Benvingut a la cabina de votació, aquesta pantalla mostra la llista d\'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert. En el cas que una elecció estigui tancada i el seu administrador electoral hagi publicat el resultat, veurà un botó "Resultat electoral" que el portarà a la pàgina pública de resultats.',
-                ok: "D'acord",
             },
         },
         areas: {
@@ -147,11 +102,22 @@ const catalanTranslation: TranslationType = {
                 deleteError: "Error esborrant Àrea",
             },
             createAreaSuccess: "Àrea creada",
+            updateAreaSuccess: "Àrea actualizada",
             createAreaError: "Error creant àrea",
             sequent_backend_area_contest: "Preguntes de l'Àrea",
             empty: {
                 header: "No hi ha Àrees encara.",
                 action: "Crear una Àrea",
+            },
+        },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Enllaços d'Ajuda",
+                logoUrl: "URL del Logotip",
+                css: "CSS Personalitzat",
+            },
+            errors: {
+                invalidHelpLinks: "Format d'Enllaços d'Ajuda invàlid",
             },
         },
         electionTypeScreen: {
@@ -178,10 +144,28 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALS DE VOTACIÓ",
                 electionTypes: "TIPUS D'ELECCIÓ",
-                communications: "COMUNICACIÓ",
+                templates: "PLANTILLES",
+                localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
+                lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
+                BackupRestore: "SAUVEGARDE / RESTAURATION",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Encara no hi ha fiduciàries.",
+                createNew: "Crear fiduciari",
+                title: "Fiduciari",
+                subtitle: "Configuració del fiduciari",
+                emptyBody: "Vols crear-ne un?",
+            },
+            create: {
+                title: "Crear fiduciari",
+            },
+            edit: {
+                title: "Editar fiduciari",
             },
         },
         scheduleScreen: {
@@ -224,22 +208,62 @@ const catalanTranslation: TranslationType = {
             voteByDay: "Vots per dia",
             votersByChannels: "Votants per canals",
             voterLoginURL: "URL d'inici de sessió dels votants",
+            voterEnrollURL: "URL d'inscripció de votants",
+            voterEnrollKioskURL: "Kiosk URL d'inscripció de votants",
+            ipAddress: {
+                emptyState: "Encara no hi ha vots.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Nombre de vots",
+                ElectionName: "Nom de l'elecció",
+                VotersId: "Identificadors dels votants",
+            },
         },
         electionEventScreen: {
             common: {
                 subtitle: "Configuració de l'Esdeveniment Electoral.",
                 showMore: "Mostra'n més",
                 showLess: "Mostra'n menys",
+                adminPortal: "Portal d'administració",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablir filtre personalitzat",
             },
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Prefix d'URL personalitzats",
                 language: "Idiomes",
+                votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
                 ballotDesign: "Disseny de la Papereta",
+                templates: "Plantillas",
+                reorder: "Reordenar eleccions",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidats",
+                custom_filters: "Filtres personalitzats",
+                voter_authentication: "Autenticació del votant",
+            },
+            customUrls: {
+                login: "Inici de sessió",
+                enrollment: "Inscripció",
+            },
+            localization: {
+                emptyHeader: "No s'han establert idiomes per a l'esdeveniment",
+                selectLanguage: "Selecciona idioma",
+                notify: {
+                    success: "La localització s'ha actualitzat correctament",
+                    error: "La actualització de la localització ha fallat",
+                },
+                common: {
+                    title: "Localització",
+                    subTitle: "Configuració de la localització",
+                },
+                labels: {
+                    key: "Clau",
+                    value: "Valor",
+                },
             },
             field: {
                 name: "Nom",
@@ -252,12 +276,39 @@ const catalanTranslation: TranslationType = {
                 materialActivated: "Materials de Suport activats",
                 materialTitle: "Títol",
                 materialSubTitle: "Subtítol",
-                hideAudit: "Deshabilitar Suport d'Auditoria de la Papereta",
                 logoUrl: "URL del Logotip",
+                userVerification:
+                    "Podeu introduir una plantilla personalitzada que s'utilitzarà per verificar manualment els votants",
                 redirectFinishUrl: "URL de redirecció en finalitzar",
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                showCastVoteLogs: {
+                    policyLabel: "Mostra els registres de votació",
+                    options: {
+                        "show-logs-tab": "Mostra els registres de votació",
+                        "hide-logs-tab": "Amaga els registres de votació",
+                    },
+                },
+                lockdownState: {
+                    policyLabel: "Estat de Confinament",
+                    options: {
+                        "locked-down": "Confinat",
+                        "not-locked-down": "No Confinat",
+                    },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclou les paperetes descodificades a la base de dades de resultats",
+                    options: {"included": "Inclou", "not-included": "No incloguis"},
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concurs únic",
+                        "multiple-contests": "Diversos concursos",
+                    },
+                    policyLabel: "Política de xifrat de concurs",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sense compte enrere",
                     COUNTDOWN: "Compte enrere",
@@ -269,11 +320,38 @@ const catalanTranslation: TranslationType = {
                     alertSecondsLabel:
                         "temps en segons abans de la caducitat per mostrar l'avís de tancament de sessió",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Signatura de Votants",
+                    "no-signature": "Sense signatura",
+                    "with-signature": "Amb signatura",
+                },
+                enrollment: {
+                    policyLabel: "Inscripció",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Habilitat",
+                        disabled: "Deshabilitat",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de cerimònies de claus/recompte",
+                    options: {
+                        "automated-ceremonies": "Permetre cerimònies automàtiques",
+                        "manual-ceremonies": "Cerimònies manuals",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
-                noResult: "Encara no hi ha Esdeveniment Electoral",
                 startDate: "La data d'inici ha de ser en el futur",
+                noResult: "Encara no hi ha Esdeveniment Electoral",
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             voters: {
                 title: "Votants",
@@ -316,13 +394,20 @@ const catalanTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
+                localization: "Localització",
                 voters: "Votants",
                 areas: "Àrees",
                 keys: "Claus",
                 tally: "Recompte",
                 publish: "Publicar",
                 logs: "Registres",
+                tasks: "Tasques",
+                events: "Esdeveniment Programat",
+                notifications: "Notificacions",
+                reports: "Informe",
+                approvals: "Aprovacions",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -330,11 +415,18 @@ const catalanTranslation: TranslationType = {
                 elections: "Eleccions",
                 electionNumber: "Número d'Eleccions",
                 trustees: "Trustees",
+                permissionLabels: "Etiquetes de Permís",
                 status: "Estat",
+                tallyType: {
+                    label: "Tipus de Recompte",
+                    ELECTORAL_RESULTS: "Resultats Electorals",
+                    INITIALIZATION_REPORT: "Resultats d'Inicialització",
+                },
                 create: {
                     title: "Crear Recompte",
                     subtitle: "Crear un nou Recompte per a aquest Esdeveniment Electoral",
-                    createButton: "Iniciar la Cerimònia de Recompte",
+                    createTallyButton: "Iniciar la Cerimònia de Recompte",
+                    createInitializationReportButton: "Crear Informe d'Inicialització",
                     error: {
                         create: "Error creant Recompte",
                     },
@@ -344,8 +436,16 @@ const catalanTranslation: TranslationType = {
                     noLogs: "No hi ha registres disponibles",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Cerimònia del Compte no pot començar fins que la Cerimònia de Fideïcomissaris no s'hagi completat amb èxit.",
+                    noPublication:
+                        "La Cerimònia de Còmput no pot començar fins que no creïs una publicació a la pestanya Publicar.",
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Recompte. Si us plau <1>feu clic a continuació en l'acció de recompte de la cerimònia</1> per participar.",
+                    startDisabled:
+                        "No podeu continuar amb la cerimònia perquè no s'ha seleccionat cap elecció o les eleccions no estan publicades.",
+                    ceremonyDisabled:
+                        "No podeu continuar amb la cerimònia perquè la sessió de recompte no està connectada o l'inici de la cerimònia no està permès.",
                 },
             },
             importAreas: {
@@ -376,6 +476,8 @@ const catalanTranslation: TranslationType = {
                 fileUploadError: "Error pujant el fitxer",
                 importVotersSuccess: "Importació de Votants llançada en segon pla amb èxit.",
                 importVotersError: "Error Important Votants.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Sí, Importar Sense Verificació d'Integritat",
                     cancel: "Tornar",
@@ -383,18 +485,49 @@ const catalanTranslation: TranslationType = {
                     description:
                         "No va introduir el camp Verificació d'integritat (SHA-256). Confirmeu que està importanr el fitxer correcte i que desitja importar-lo.",
                 },
+                passwordDialog: {
+                    title: "Contrasenya de Desxifrat",
+                    description: "Introdueix la contrasenya per desxifrar l'arxiu",
+                    label: "Contrasenya",
+                    copyPassword: "Copiar Contrasenya",
+                    ok: "D'acord",
+                },
             },
-            exportError: "Error exportant l'esdeveniment electoral",
+            export: {
+                title: "Exportar Esdeveniment Electoral",
+                subtitle:
+                    "L'exportació pot ser una operació llarga. Estàs segur que vols exportar els registres?",
+                encryptWithPassword: "Xifrar amb Contrasenya",
+                includeVoters: "Incloure Votants",
+                activityLogs: "Registres d'Activitat",
+                bulletinBoard: "Tauler d'Anuncis",
+                publications: "Publicacions",
+                s3Files: "Fitxers S3",
+                scheduledEvents: "Esdeveniments Programats",
+                exportSuccess: "Esdeveniment Electoral exportat amb èxit",
+                exportError: "Error en exportar l'Esdeveniment Electoral",
+                passwordTitle: "Contrasenya",
+                passwordDescription: "Contrasenya per desxifrar el fitxer:",
+                copiedSuccess: "Contrasenya copiada al porta-retalls",
+                copiedError: "Error copiant la contrasenya",
+                reports: "Informes",
+                applications: "Aplicacions",
+                tally: "Recompte",
+            },
+            taskNotification:
+                "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
         },
         electionScreen: {
             common: {
                 title: "Elecció",
                 subtitle: "Configuració de l'elecció.",
                 fileLoaded: "Fitxer carregat",
+                noPermission: "No tens permís per accedir a aquesta elecció.",
             },
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Període de votació",
                 language: "Idioma",
                 allowed: "Canals de Vot Permesos",
                 default: "Per defecte",
@@ -403,6 +536,12 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
+                reorder: "Reordenar concursos",
+                castVoteConfirm: "Modal de Confirmació de Vot",
+                gracePeriodPolicy: "Política de període de gràcia",
+                allowTallyPolicy: "Permetre recompte",
+                permissionLabel: "Etiqueta de permís",
+                custom_filters: "Filtres personalitzats",
             },
             field: {
                 name: "Nom",
@@ -410,35 +549,77 @@ const catalanTranslation: TranslationType = {
                 votingChannels: "Canals de Vot",
                 startDateTime: "Data i hora d'inici",
                 endDateTime: "Data i hora de finalització",
+                startDateTimeWithTimezone: "Data i hora d'inici ({{timezone}})",
+                endDateTimeWithTimezone: "Data i hora de finalització ({{timezone}})",
                 scheduledOpening: "Obertura Programada",
                 scheduledClosing: "Tancament Programat",
                 alias: "Àlies",
                 description: "Descripció",
+                securityConfirmationHtml: "Confirmació de seguretat HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casella de confirmació de seguretat",
+                none: "Cap",
+                mandatory: "Obligatori",
             },
             error: {
-                endDate: "La data de finalització ha de ser posterior a la data d'inici",
                 fileError: "Error al carregar el fitxer",
                 fileLoaded: "Fitxer carregat",
+                endDate: "La data de finalització ha de ser posterior a la data d'inici",
+                startDate: "La data d'inici ha de ser en el futur",
+                endDateInvalid: "La data de finalització ha de ser en el futur",
             },
             createElectionEventSuccess: "Creada l'elecció",
             createElectionEventError: "Error Creant l'elecció",
             tabs: {
                 dashboard: "Tauler de Control",
+                monitoring: "Monitoratge",
                 data: "Dades",
                 voters: "Votants",
                 publish: "Publicar",
                 logs: "Registres",
+                approvals: "Aprovacions",
+            },
+            gracePeriodPolicy: {
+                "label": "Política de període de gràcia",
+                "no-grace-period": "Sense període de gràcia",
+                "grace-period-without-alert": "Període de gràcia sense avís",
+                "gracePeriodSecs": "Període de gràcia (segons)",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permès",
+                "disallowed": "No Permès",
+                "requires-voting-period-end": "Requereix el final del període de votació",
+            },
+            initializeReportPolicy: {
+                "label": "Inicialitzar política d'informes",
+                "not-required": "No requereix",
+                "required": "Requerit",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de títol de la pantalla d'inici",
+                options: {
+                    "election": "Títol de l'elecció",
+                    "election-event": "Títol de l'esdeveniment electoral",
+                },
             },
         },
         tenantScreen: {
             common: {
-                title: "Client",
+                title: "Llogaters",
             },
             new: {
-                subtitle: "Crear Client",
+                subtitle: "Crear nou llogater",
             },
-            createSuccess: "Client creat",
-            createError: "Error creant client",
+            createSuccess: "Llogater creat",
+            createError: "Error en crear el llogater",
         },
         usersAndRolesScreen: {
             noPermissions: "No tens permís per accedir als usuaris o rols.",
@@ -446,6 +627,12 @@ const catalanTranslation: TranslationType = {
                 title: "Usuaris i Rols",
                 subtitle: "Configuració general",
                 mobileNumber: "Mòbil",
+            },
+            editPassword: {
+                label: "Canviar contrasenya",
+                temporatyLabel: "Temporal",
+                temporatyInfo:
+                    "Si està habilitat, l'usuari haurà de canviar la contrasenya en el pròxim inici de sessió.",
             },
             users: {
                 title: "Usuaris",
@@ -459,27 +646,31 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear usuari",
                 },
                 fields: {
-                    has_voted: "Ha votat",
-                    username: "Nom d'Usuari",
-                    first_name: "Nom",
-                    last_name: "Cognom",
-                    email: "Correu",
-                    enabled: "Habilitat",
-                    emailVerified: "Correu Verificat",
-                    groups: "Grups",
-                    attributes: "Atributs",
-                    area: "Àrea",
-                    password: "Contrasenya",
-                    repeatPassword: "Repetir Contrasenya",
-                    passwordMismatch: "Les contrasenyes han de coincidir",
-                    passwordLengthValidate: "La contrasenya ha de tenir almenys 8 caràcters",
-                    passwordUppercaseValidate:
+                    "has_voted": "Ha votat",
+                    "username": "Nom d'Usuari",
+                    "first_name": "Nom",
+                    "last_name": "Cognom",
+                    "email": "Correu",
+                    "enabled": "Habilitat",
+                    "emailVerified": "Correu Verificat",
+                    "groups": "Grups",
+                    "attributes": "Atributs",
+                    "area": "Àrea",
+                    "password": "Contrasenya",
+                    "savePassword": "Desa la contrasenya",
+                    "repeatPassword": "Repetir Contrasenya",
+                    "passwordMismatch": "Les contrasenyes han de coincidir",
+                    "passwordLengthValidate": "La contrasenya ha de tenir almenys 8 caràcters",
+                    "passwordUppercaseValidate":
                         "La contrasenya ha de contenir almenys una lletra majúscula",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "La contrasenya ha de contenir almenys una lletra minúscula",
-                    passwordDigitValidate: "La contrasenya ha de contenir almenys un dígit",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "La contrasenya ha de contenir almenys un dígit",
+                    "passwordSpecialCharValidate":
                         "La contrasenya ha de contenir almenys un caràcter especial",
+                    "trustee": "Actuar com a fideïcomissari",
+                    "permissionLabel": "Etiqueta de permís",
+                    "authorized-election-ids": "Eleccions",
                 },
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",
@@ -489,11 +680,15 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant usuaris",
                     deleteError: "Error esborrant usuari",
                     deleteSuccess: "Usuari esborrat",
+                    multipleDeleteSuccess: "Usuaris esborrats",
                 },
             },
             voters: {
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
+                logs: {
+                    label: "Registres de l'usuari",
+                },
                 emptyHeader: "Encara no hi ha votant.",
                 askCreate: "Vols crear-ne un?",
                 create: {
@@ -501,8 +696,11 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear votant",
                 },
                 manualVerification: {
+                    label: "Verificar manualment",
                     verify: "Verificar manualment al votant",
                     body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
+                    noEmailOrPhone:
+                        "Aquest votant no pot ser verificat manualment perquè no té una adreça de correu electrònic o un número de telèfon assignat.",
                 },
                 errors: {
                     editError: "Error editant votant",
@@ -518,6 +716,7 @@ const catalanTranslation: TranslationType = {
                     exportError: "Error exportant votants",
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
+                    multipleDeleteSuccess: "Votants esborrats",
                     manualVerificationError: "Error verificant manualment al votant",
                     manualVerificationSuccess:
                         "Verificat amb èxit manualment al votant, descarregar PDF..",
@@ -553,12 +752,15 @@ const catalanTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administració",
                 "admin-dashboard-view": "Vista del Tauler d'Administració",
+                "application-export": "Exportació d'Aplicacions",
+                "application-import": "Importació d'Aplicacions",
                 "tenant-create": "Crear Inquilí",
                 "tenant-read": "Llegir Inquilí",
                 "tenant-write": "Editar Inquilí",
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
+                "election-event-delete": "Esborrar Esdeveniment Electoral",
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
                 "voter-write": "Editar Votant",
@@ -596,6 +798,7 @@ const catalanTranslation: TranslationType = {
                 "publish-read": "Llegir Publicació",
                 "publish-write": "Editar Publicació",
                 "logs-read": "Llegir Registres",
+                "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
                 "document-download": "Descarregar Documents",
@@ -610,10 +813,284 @@ const catalanTranslation: TranslationType = {
                 "document-write": "Editar Documents",
                 "support-material-read": "Llegir Materials de Suport",
                 "support-material-write": "Editar Materials de Suport",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
+                "contest-write": "Editar Concurs",
+                "contest-read": "Llegir Concurs",
+                "candidate-write": "Editar Candidats",
+                "candidate-read": "Llegir Candidats",
+                "permission-label-write": "Edita l'etiqueta de permís",
+                "scheduled-event-write": "Editar Esdeveniments Programats",
+                "contest-create": "Crear Concurs",
+                "contest-delete": "Esborrar Concurs",
+                "candidate-create": "Crear Candidat",
+                "candidate-delete": "Esborrar Candidat",
+                "election-create": "Crear Election",
+                "election-read": "Llegir Elecció",
+                "election-write": "Editar Elecció",
+                "election-delete": "Esborrar Elecció",
+                "election-event-archive": "Arxivar Event Electoral",
+                "election-data-tab": "Veure Dades de l'Elecció",
+                "election-event-areas-tab": "Veure Àrees de l'Esdeveniment Electoral",
+                "election-event-data-tab": "Veure Dades de l'Esdeveniment Electoral",
+                "election-event-keys-tab": "Veure Claus de l'Esdeveniment Electoral",
+                "election-event-logs-tab": "Veure Registres de l'Esdeveniment Electoral",
+                "election-event-publish-tab": "Veure Publicació de l'Esdeveniment Electoral",
+                "election-event-reports-tab": "Veure Informes de l'Esdeveniment Electoral",
+                "election-event-scheduled-tab": "Veure Programació de l'Esdeveniment Electoral",
+                "election-event-tally-tab": "Veure Recompte de l'Esdeveniment Electoral",
+                "election-event-tasks-tab": "Veure Tasques de l'Esdeveniment Electoral",
+                "election-event-voters-tab": "Veure Votants de l'Esdeveniment Electoral",
+                "election-publish-tab": "Veure Publicació de l'Elecció",
+                "election-voters-tab": "Veure Votants de l'Elecció",
+                "report-write": "Editar Informes",
+                "report-read": "Llegir Informes",
+                "users-menu": "Veure usuaris i rols",
+                "settings-menu": "Veure configuració",
+                "templates-menu": "Veure plantilles",
+                "settings-election-types-tab": "Veure configuració de tipus d'elecció",
+                "settings-voting-channels-tab": "Veure configuració de canals de votació",
+                "settings-templates-tab": "Veure configuració de plantilles",
+                "settings-languages-tab": "Veure configuració d'idiomes",
+                "settings-localization-tab": "Veure configuració de localització",
+                "settings-look-feel-tab": "Veure configuració d'aparença",
+                "settings-trustees-tab": "Veure configuració de fideïcomissaris",
+                "settings-countries-tab": "Veure configuració de països",
+                "voter-import": "Importar Votant",
+                "ee-voters-columns": "Veure Columnes de Votants de l'Esdeveniment Electoral",
+                "voter-manually-verify": "Verificar Votant Manualment",
+                "ee-voters-logs": "Veure Registres de Votants de l'Esdeveniment Electoral",
+                "voter-export": "Exportar Votant",
+                "ee-voters-filters": "Veure Filtres de Votants de l'Esdeveniment Electoral",
+                "voter-delete": "Eliminar Votant",
+                "voter-change-password": "Canviar la Contrasenya del Votant",
+                "election-event-localization-selector":
+                    "Selector de Localització de l'Esdeveniment Electoral",
+                "localization-create": "Crear Localització",
+                "localization-read": "Llegir Localització",
+                "localization-write": "Editar Localització",
+                "localization-delete": "Eliminar Localització",
+                "area-create": "Crear Àrea",
+                "area-delete": "Eliminar Àrea",
+                "area-export": "Exportar Àrea",
+                "area-import": "Importar Àrea",
+                "area-upsert": "Inserir o Actualitzar Àrea",
+                "election-event-areas-columns": "Columnes de les Àrees de l'Esdeveniment Electoral",
+                "election-event-areas-filters": "Filtres de les Àrees de l'Esdeveniment Electoral",
+                "election-event-tasks-back-button":
+                    "Tornar a les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-columns":
+                    "Columnes de les Tasques de l'Esdeveniment Electoral",
+                "election-event-tasks-filters":
+                    "Filtres de les Tasques de l'Esdeveniment Electoral",
+                "task-export": "Exportar Tasques",
+                "application-read": "Llegir Aplicació",
+                "application-write": "Editar Aplicació",
+                "logs-export": "Exportar Registres",
+                "election-event-logs-columns":
+                    "Columnes dels Registres de l'Esdeveniment Electoral",
+                "election-events-logs-filters":
+                    "Filtres dels Registres de l'Esdeveniment Electoral",
+                "election-event-scheduled-event-columns":
+                    "Columnes dels Esdeveniments Programats de l'Esdeveniment Electoral",
+                "scheduled-event-create": "Crear Esdeveniment Programat",
+                "scheduled-event-delete": "Eliminar Esdeveniment Programat",
+                "election-event-reports-columns":
+                    "Columnes dels Informes de l'Esdeveniment Electoral",
+                "report-create": "Crear Informe",
+                "report-delete": "Eliminar Informe",
+                "report-generate": "Generar Informe",
+                "report-preview": "Vista Prèvia de l'Informe",
+                "monitoring-dashboard-view-election-event":
+                    "Vista del Panell de Monitoreig d'Esdeveniments Electorals",
+                "monitoring-dashboard-view-election": "Vista del Panell de Monitoreig d'Eleccions",
+                "monitor-authenticated-voters": "Monitoreig de Votants Autenticats",
+                "monitor-all-approve-disapprove-voters":
+                    "Llegir Monitoreig de Votants Aprovat i Rebutjat",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Automàtics",
+                "monitor-manually-approve-disapprove-voters":
+                    "Llegir Monitoreig d'Aprovacions i Rebutjos Manuals",
+                "monitor-enrolled-overseas-voters":
+                    "Llegir Monitoreig de Votants Registrats a l'Estranger",
+                "monitor-posts-already-closed-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Tancada",
+                "monitor-posts-already-generated-election-results":
+                    "Llegir Monitoreig de Publicacions amb Resultats Generats",
+                "monitor-posts-already-opened-voting":
+                    "Llegir Monitoreig de Publicacions amb Votació Oberta",
+                "monitor-posts-already-started-counting-votes":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Comptar Vots",
+                "monitor-posts-initialized-the-system":
+                    "Llegir Monitoreig de Publicacions que Han Inicialitzat el Sistema",
+                "monitor-posts-started-voting":
+                    "Llegir Monitoreig de Publicacions que Han Començat a Votar",
+                "monitor-posts-transmitted-results":
+                    "Llegir Monitoreig de Publicacions que Han Transmès Resultats",
+                "monitor-voters-voted-test-election":
+                    "Llegir Monitoreig de Votants a l'Elecció de Prova",
+                "monitor-voters-who-voted": "Llegir Monitoreig de Votants que Han Votat",
+                "election-event-publish-preview":
+                    "Vista Prèvia de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-back-button":
+                    "Tornar a la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-columns":
+                    "Columnes de la Publicació de l'Esdeveniment Electoral",
+                "election-event-publish-filters":
+                    "Filtres de la Publicació de l'Esdeveniment Electoral",
+                "publish-create": "Crear Publicació",
+                "publish-regenerate": "Regenerar Publicació",
+                "publish-export": "Exportar Publicació",
+                "publish-start-voting": "Iniciar Votació",
+                "publish-pause-voting": "Pausar Votació",
+                "publish-stop-voting": "Aturar Votació",
+                "publish-changes": "Publicar Canvis",
+                "election-event-publish-view": "Veure la Publicació de l'Esdeveniment Electoral",
+                "election-event-keys-columns": "Columnes de les Claus de l'Esdeveniment Electoral",
+                "create-ceremony": "Crear Cerimònia",
+                "export-ceremony": "Exportar Cerimònia",
+                "election-event-tally-columns": "Columnes del Recompte de l'Esdeveniment Electoral",
+                "election-event-tally-back-button":
+                    "Tornar al Recompte de l'Esdeveniment Electoral",
+                "transmition-ceremony": "Cerimònia de Transmissió",
+                "admin-ip-address-view": "Veure Adreça IP",
+                "election-approvals-tab": "Veure Aprovacions d'Elecció",
+                "election-event-approvals-tab": "Veure Aprovacions de l'Esdeveniment Electoral",
+                "election-ip-address-view": "Veure Adreça IP d'Elecció",
+                "election-dashboard-tab": "Veure Panell de Monitoreig d'Elecció",
+                "trustees-export": "Exportar Fideïcomissaris",
+                "user-import": "Importar Usuaris",
+                "voter-voted-edit": "Edita els votants que han votat",
+                "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
+                "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
+                "transmission-report-generate": "Generar Informe de Transmissió",
             },
         },
         generalSettingsScreen: {
             body: "Activeu els idiomes al sistema. Només els idiomes activats aquí estaran disponibles per a esdeveniments electorals.",
+        },
+        eventsScreen: {
+            title: "Esdeveniments Programats",
+            subtitle:
+                "Gestiona la configuració de l'execució automàtica d'esdeveniments com l'inici o el final del període de votació.",
+            messages: {
+                createSuccess: "Esdeveniment Programat creat amb èxit",
+                createError: "Error en crear l'Esdeveniment Programat",
+                editSuccess: "Esdeveniment Programat editat amb èxit",
+                editError: "Error en editar l'Esdeveniment Programat",
+            },
+            eventType: {
+                label: "Tipus",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
+                START_VOTING_PERIOD: "Inici del Període de Votació",
+                END_VOTING_PERIOD: "Final del Període de Votació",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Inici del període de matrícula",
+                END_ENROLLMENT_PERIOD: "Finalització del període de matrícula",
+                START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
+                END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
+                ALLOW_TALLY: "Permetre el recompte",
+            },
+            election: {
+                label: "Elecció",
+            },
+            empty: {
+                header: "Encara no hi ha Esdeveniments Programats.",
+                body: "Voleu crear-ne un?",
+                button: "Crear Esdeveniment Programat",
+            },
+            create: {
+                title: "Crear Esdeveniment Programat",
+                subtitle: "Crea una nova configuració d'Esdeveniment Programat.",
+            },
+            edit: {
+                title: "Editar Esdeveniment Programat",
+                subtitle: "Edita la configuració de l'Esdeveniment Programat.",
+                delete: "Esteu segur que voleu suprimir aquest Esdeveniment Programat?",
+            },
+            fields: {
+                electionId: "Elecció",
+                eventProcessor: "Tipus",
+                stoppedAt: "Aturat A",
+                scheduledDate: "Programat A",
+            },
+        },
+        reportsScreen: {
+            title: "Informes",
+            subtitle: "Generar informes per als esdeveniments electorals",
+            messages: {
+                createSuccess: "Informe creat amb èxit",
+                createError: "Error en crear l'informe",
+                submitError: "Error en enviar l'Informe",
+                updateSuccess: "Informe actualitzat amb èxit",
+                passwordMismatch:
+                    "La contrasenya i la confirmació no coincideixen. Assegura't que tots dos camps continguin la mateixa contrasenya.",
+                incorectPassword: "Contrasenya incorrecta",
+                decryptFileTitle: "Desxifrar arxiu",
+                decryptInstructions:
+                    "1. '-in': La ruta al fitxer xifrat. \n2. '-out': La ruta on es desarà el fitxer desxifrat. \n3. '-pass': La contrasenya utilitzada per xifrar el fitxer. \n",
+                encryptSuccess: "S'ha configurat correctament l'encriptació de l'informe",
+                encryptError: "Error en configurar l'encriptació de l'informe",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Rebut de la Papereta",
+                VOTE_RECEIPT: "Rebut de Vot",
+                ELECTORAL_RESULTS: "Resultats Electorals",
+                MANUAL_VERIFICATION: "Verificació Manual",
+                STATISTICAL_REPORT: "Informe Estadístic",
+                OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
+                AUDIT_LOGS: "Registres d'Auditoria",
+                ACTIVITY_LOG: "Registres d'Activitat",
+                STATUS: "Estat",
+                OVCS_INFORMATION: "Informació de l'OVCS",
+                OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
+                OV_USERS_WHO_VOTED: "Llista de Votants a l'Estranger que han Votat",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OVCS_STATISTICS: "Seguiment del Vot a l'Estranger - Estadístiques de l'OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Llista de Votants a l'Estranger Preinscrits però Desaprovats",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Llista de Votants a l'Estranger Preinscrits però Sotmesos a Validació Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de xifrat",
+                UNENCRYPTED: "Sense xifrar",
+                CONFIGURED_PASSWORD: "Contrasenya configurada",
+            },
+            empty: {
+                header: "Encara no hi ha informes.",
+                body: "Vols crear-ne un?",
+                button: "Crear informe",
+            },
+            create: {
+                title: "Crear informe",
+                subtitle: "Crear una nova configuració d'informe.",
+            },
+            edit: {
+                title: "Editar informe",
+                subtitle: "Editar la configuració de l'informe.",
+                delete: "Estàs segur que vols eliminar aquest informe?",
+            },
+            fields: {
+                electionId: "Elecció",
+                template: "Plantilla",
+                reportType: "Tipus d'informe",
+                repeatable: "Repetible",
+                cronExpression: "Expressió Cron",
+                emailRecipients: "Destinataris de correu electrònic",
+                emailRecipientsPlaceholder: "Escriviu el correu electrònic i premeu Enter",
+            },
+            delete: {
+                body: "Estàs segur que vols eliminar aquest informe?",
+            },
+            actions: {
+                generate: "Generar",
+                delete: "Eliminar",
+                edit: "Editar",
+                preview: "Previsualitzar",
+            },
         },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",
@@ -651,12 +1128,23 @@ const catalanTranslation: TranslationType = {
                 title: "Títol",
                 subtitle: "Subtítol",
                 kind: "Tipus d'arxiu",
+                filter: "Filtres Personalizats",
+                approve: "Aprovar",
+                continue: "Continuar",
+                logout: "Sortir",
+                selectTenant: "Seleccionar Llogater",
+                processing: "Processant...",
+                tenantName: "Nom del Llogater",
             },
             language: {
                 es: "Espanyol",
                 en: "Anglès",
                 fr: "Francès",
                 cat: "Valencià",
+                tl: "Tagal",
+                gl: "Galego",
+                nl: "Holandés",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línia",
@@ -664,6 +1152,7 @@ const catalanTranslation: TranslationType = {
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
+                continueOrLogout: "Vols continuar conectat o sortir?",
             },
         },
         createResource: {
@@ -672,13 +1161,21 @@ const catalanTranslation: TranslationType = {
             contest: "Crear un Concurs",
             candidate: "Crear un Candidat",
         },
+        importResource: {
+            electionEvent: "Importar un Esdeveniment Electoral",
+            election: "Importar una Elecció",
+            contest: "Importar un Concurs",
+            candidate: "Importar un Candidat",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
+        },
         sideMenu: {
             electionEvents: "Processos Electorals",
             search: "Cercar",
             usersAndRoles: "Usuaris i Rols",
             logs: "Bitàcora",
             settings: "Configuració",
-            communicationTemplates: "Plantilles de Comunicació",
+            help: "Ajuda",
+            templates: "Plantilles",
             active: "Actius",
             archived: "Arxivats",
             addResource: {
@@ -714,6 +1211,7 @@ const catalanTranslation: TranslationType = {
                             archive: "L'element ha estat arxivat",
                             unarchive: "L'element ha estat desarxivat",
                             delete: "L'element ha estat eliminat",
+                            reloading: "Espera. La pàgina serà recarregada en alguns moments",
                         },
                         error: {
                             archive: "Error intentant arxivar aquest element",
@@ -768,6 +1266,7 @@ const catalanTranslation: TranslationType = {
                 system: "Sistema de votació de paperetes",
                 design: "Disseny de la papereta",
                 reorder: "Reordenar candidats",
+                policies: "Polítiques",
             },
             field: {
                 name: "Nom",
@@ -781,17 +1280,55 @@ const catalanTranslation: TranslationType = {
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
             },
+            auditButtonConfig: {
+                "label": "Opció de visualització del botó d'auditoria",
+                "show": "Mostrar",
+                "not-show": "No mostrar",
+                "show-in-help": "Mostra al diàleg d'ajuda",
+            },
+            underVotePolicy: {
+                "label": "Política de Votació Inferior",
+                "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir i Alertar",
+            },
             invalidVotePolicy: {
+                "label": "Política de vot invàlid",
                 "allowed": "Permesa",
                 "warn": "Advertència",
                 "warn-invalid-implicit-and-explicit": "Advertir Invàlids Implícits i Explícits",
                 "not-allowed": "No Permesa",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forma de la icona de la casella de verificació dels candidats",
+                "square-checkbox": "Caixa de verificació quadrada",
+                "round-checkbox": "Caixa de verificació rodona",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidats I Llistes",
                 "allow-selecting-candidates": "Només Candidats",
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
+            },
+            blankVotePolicy: {
+                "label": "Política de vot en blanc",
+                "allowed": "Permès",
+                "warn-only-in-review": "Advertir en Revisió",
+                "warn": "Advertir",
+                "not-allowed": "No permès",
+            },
+            overVotePolicy: {
+                "label": "Política de vot excessiva",
+                "allowed": "Permès",
+                "allowed-with-msg": "Permès amb missatge d'avís",
+                "allowed-with-msg-and-alert": "Permès amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-alert": "No es permet amb missatge d'avís i alerta",
+                "not-allowed-with-msg-and-disable":
+                    "No es permet amb missatge d'avís i desactiva més seleccions",
+            },
+            paginationPolicy: {
+                label: "Nom de la pàgina",
             },
             error: {},
             createContestSuccess: "Pregunta creada",
@@ -800,6 +1337,8 @@ const catalanTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Crear Cerimònia de Claus",
+                name: "Nom de la Cerimònia de Claus",
+                allElections: "Totes les Eleccions",
                 title: "Crear Cerimònia de Claus de l'Esdeveniment Electoral",
                 subtitle:
                     "En aquesta cerimònia cada autoritat generarà i descarregarà la seva part de les claus privades per a l'Esdeveniment Electoral. Per continuar, trieu les autoritats que participaran en la cerimònia i el llindar, que és el nombre mínim d'autoritats necessaris per comptar.",
@@ -817,9 +1356,17 @@ const catalanTranslation: TranslationType = {
                     ok: "Sí, Crear Cerimònia de Claus",
                     cancel: "Cancel·lar",
                     title: "Estàs segur de que vols Crear una Cerimònia de Claus?",
+                    automaticCeremonyTitle:
+                        "Estàs segur que vols crear una cerimònia de claus automàtica?",
                     description:
                         "Estàs a punt de Crear una Cerimònia de Claus. Aquesta acció notificarà a les Autoritats per participar en la creació i distribució de les Claus de l'Esdeveniment Electoral.",
+                    automaticCeremonyDescription:
+                        "Estàs a punt de crear una cerimònia de claus automàtica. Això no notificarà als fideïcomissaris que hi participin.",
                 },
+                filterTrustees: "Filtrar Autoritats",
+                errorPermisionLabels:
+                    "No es pot crear la cerimònia de claus: falta almenys una etiqueta de permís.",
+                automaticCeremonyToggle: "Cerimònia automàtica",
             },
             ceremonyStep: {
                 cancel: "Cancel·lar Cerimònia de Claus",
@@ -870,6 +1417,8 @@ const catalanTranslation: TranslationType = {
                         "Si us plau, realitza una còpia de seguretat de la teva Clau Privada Encriptada en almenys dues ubicacions segures diferents i després confirma-ho a continuació:",
                     firstCopy: "Primera còpia de seguretat realitzada",
                     secondCopy: "Segona còpia de seguretat realitzada",
+                    confirmError:
+                        "Creeu les còpies de seguretat necessàries i marqueu les caselles de confirmació per continuar",
                 },
             },
             checkStep: {
@@ -883,9 +1432,104 @@ const catalanTranslation: TranslationType = {
                 downloaded: "Clau Encriptada Privada generada amb èxit.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Paquet de Transmissió Creat",
+                error: "Error en crear el Paquet de Transmissió",
+            },
+            send: {
+                success: "Paquet de Transmissió Enviat",
+                error: "Error en enviar el Paquet de Transmissió",
+            },
+        },
         tally: {
+            errorUploadingSignature: "S'ha produït un error en carregar la signatura",
+            downloadTransmissionPackage: "Descarregar paquet",
+            transmissionPackage: {
+                title: "Paquet de Transmissió per a l'Àrea '{{name}}' y Elección '{{eventName}}'",
+                description:
+                    "Et permet exportar un Paquet de Transmissió als Servidors de Destinació o descarregar-lo.",
+                actions: {
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vols signar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirma que vols regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Signar el paquet de transmissió",
+                            cancel: "Tancar",
+                            input: {
+                                placeholder: "Introdueix la teva contrasenya",
+                            },
+                        },
+                    },
+                    send: {
+                        title: "Enviar",
+                        dialog: {
+                            title: "Vols enviar el Paquet de Transmissió?",
+                            description:
+                                "Si us plau, confirma que vols enviar el Paquet de Transmissió per a l'Àrea '{{name}}' als Servidors de Destinació.",
+                            confirm: "Enviar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "Vol regenerar el paquet de transmissió?",
+                            description:
+                                "Si us plau, confirmi que vol regenerar el paquet de transmissió per a l'àrea `{{name}}`",
+                            confirm: "Regenerar paquet de transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                    download: {
+                        title: "Descarregar",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Descarregar el Paquet de Transmissió {{date}}",
+                        transmissionReportTitle: "Descarrega l'informe de transmissió",
+                        dialog: {
+                            title: "Vols descarregar el Paquet de Transmissió?",
+                            description:
+                                "Si us plau, confirma que vols descarregar el Paquet de Transmissió per a l'Àrea '{{name}}.'",
+                            confirm: "Descarregar Paquet de Transmissió",
+                            cancel: "Tancar",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Servidors de Destinació",
+                    description:
+                        "La taula a continuació mostra l'estat d'enviament de cadascun dels Servidors de Destinació.",
+                    status: "Enviat a {{signed}} de {{total}}",
+                    table: {
+                        serverName: "Nom del Servidor",
+                        sendStatus: "Estat d'Enviament",
+                    },
+                },
+                signatures: {
+                    title: "Signatures SBEI",
+                    description:
+                        "Els SBEIs poden signar el Paquet de Transmissió. La taula a continuació mostra l'estat de signatura de cada un dels membres del SBEI.",
+                    table: {
+                        trusteeName: "Nom del Fiduciari",
+                        signed: "Ha Signat",
+                    },
+                    status: "{{signed}} de {{total}} Han Signat",
+                },
+            },
+            sendToTransmissionPackageServers:
+                "Enviar paquet de transmissió per a l'àrea '{{name}}'",
+            uploadTransmissionPackage: "Carregar",
+            uploadTransmissionPackageDesc:
+                "Carrega la teva signatura per signar el paquet de Resultats Electorals. Aquesta operació és opcional.",
+            exportElectionArea: "Envia paquet de transmissió per a l'àrea '{{name}}'",
+            generateReport: "Genera {{name}}",
             templateTitle: "Plantilla de Resultats",
+            initializationTitle: "Eleccions per a l'informe d'inicialització",
             templateSubTitle: "Opcionalment sobreescriure la plantilla de resultats.",
+            keysCeremonyTitle: "Cerimònia de Claus",
+            keysCeremonySubTitle: "Selecciona la Cerimònia de Claus per a aquest recompte",
             ceremonyTitle: "Eleccions per al Recompte",
             ceremonySubTitle: "Seleccioneu les eleccions per al recompte",
             tallyTitle: "Progrés del Recompte d'Eleccions",
@@ -926,6 +1570,7 @@ const catalanTranslation: TranslationType = {
                 needed: " trustees necessaris per al recompte",
                 start: "Iniciar Recompte",
                 ceremony: "Iniciar Cerimònia de Recompte",
+                initialization: "Inicia l'informe d'inicialització",
                 results: "Resultats",
                 dialog: {
                     ok: "D'acord",
@@ -941,6 +1586,8 @@ const catalanTranslation: TranslationType = {
                         "Estàs a punt de cancel·lar la cerimònia de recompte. Aquesta acció no es pot desfer.",
                     ceremony:
                         "Tots els trustees requerits han verificat els seus fragments de clau. Tot està a punt per començar a rebre resultats. Voleu iniciar el Recompte?",
+                    startAutomatedTallyMessage:
+                        "Seleccioneu 'Start Tally' per executar el procés de recompte i mostrar els resultats, o 'Close' per cancel·lar.",
                 },
             },
             table: {
@@ -978,15 +1625,25 @@ const catalanTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Selecciona l'àrea per a la vista prèvia",
+                action: "Vista prèvia",
+                copy: "Copia l'enllaç",
+                copy_success: "Copia correctament l'enllaç de previsualització",
+                copy_error: "No s'ha pogut copiar l'enllaç de previsualització",
+                success: "Previsualització oberta amb èxit",
+            },
             header: {
                 change: "Canvis a Publicar",
                 viewChange: "Veure Publicació",
                 history: "Històric de Canvis",
             },
             action: {
-                start: "Començar elecció",
-                stop: "Aturar elecció",
-                pause: "Pausar",
+                generateInitializationReport: "Genera l'Informe d'Inicialització",
+                startVotingPeriod: "Començar el període de votació",
+                stopVotingPeriod: "Detenir el període de votació",
+                stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
+                pauseVotingPeriod: "Pausar el període de votació",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",
@@ -995,15 +1652,33 @@ const catalanTranslation: TranslationType = {
                 header: "Encara no hi ha Publicació.",
                 action: "Generar Publicació",
             },
+            forbidden: {
+                header: "No es pot publicar fins que s'hagi completat la cerimònia de claus.",
+            },
             dialog: {
                 title: "Confirmar Acció",
                 info: "Has fet clic en una acció sensible, per la qual cosa necessitem que la confirmis per poder continuar.",
+                initializationInfo:
+                    "Esteu a punt de generar l'informe d'inicialització. Esteu segur que voleu continuar?",
+                startInfo:
+                    "Està a punt de començar el període de votació. Està segur que vol continuar?",
+                stopInfo:
+                    "Està a punt de detenir el període de votació. Està segur que vol continuar?",
+                kioskStopInfo:
+                    "Esteu a punt d'aturar el període de votació del quiosc. Esteu segur que voleu continuar?",
+                pauseInfo:
+                    "Està a punt de pausar el període de votació. Està segur que vol continuar?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirmar",
                 ko: "Cancel·lar",
                 error: "Error carregant les paperetes publicades",
                 error_publish: "Error publicant la papereta",
                 error_status: "Error canviant l'estat de la publicació",
+                error_preview: "S'ha produït un error en visualitzar la publicació",
                 diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
+                confirmation:
+                    "L'acció que esteu a punt de realitzar és sensible i requereix confirmació. Introduïu la vostra contrasenya per continuar amb {{action}}.",
             },
             label: {
                 current: "Actual",
@@ -1038,7 +1713,7 @@ const catalanTranslation: TranslationType = {
             smsMessage: "Missatge SMS",
             errorSending: "Error enviant la notificació: {{error}}",
             successSending: "Notificació programada/enviada amb èxit",
-            method: "Mètode de Comunicació",
+            method: "Mètode de Plantilles",
             type: "Tipus de Comunicació",
             alias: "Àlies de la Plantilla",
             votersSelection: {
@@ -1097,6 +1772,12 @@ const catalanTranslation: TranslationType = {
                 census: "Cens",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Cerimònia de Còmput",
+                    view: "Veure la Cerimònia de Còmput",
+                    cancel: "Cancel·lar la Cerimònia de Còmput",
+                    addKey: "Afegir Clau de Còmput",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Enrere",
@@ -1133,50 +1814,109 @@ const catalanTranslation: TranslationType = {
                 publishSuccess: "Acta de Recompte publicada",
             },
         },
-
-        communicationTemplate: {
-            noPermissions: "No tens permisos per accedir a les Plantilles de Comunicació.",
-            title: "Plantilles de Comunicació",
-            subtitle: "Llistat de plantilles de comunicació",
+        application: {
+            import: {
+                title: "Importar Aplicacions",
+                subtitle: "Importar dades d'aplicacions",
+                paragraph:
+                    "Importa aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
+                messages: {
+                    success: "Aplicacions importades amb èxit",
+                    error: "Error en importar les aplicacions",
+                },
+            },
+            export: {
+                title: "Exportar Aplicacions",
+                subtitle: "Exportar dades d'aplicacions",
+                button: "Exportar",
+                paragraph:
+                    "Exporta aplicacions utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV).",
+                messages: {
+                    success: "Aplicacions exportades amb èxit",
+                    error: "Error en exportar les aplicacions",
+                },
+            },
+        },
+        template: {
+            noPermissions: "No tens permisos per accedir a les Plantilles.",
+            title: "Plantilles",
+            subtitle: "Llistat de plantilles",
+            chooseMethods: "Trieu Mètodes",
+            default: "Utilitzeu la plantilla predeterminada",
             empty: {
-                title: "No hi ha plantilles de comunicació",
+                title: "No hi ha plantilles",
                 subtitle: "Vols crear-ne una de nova?",
             },
             action: {
-                createOne: "Crear Plantilla de Comunicació",
+                createOne: "Crear Plantilla",
             },
             create: {
-                title: "Crear una Plantilla de Comunicació",
-                success: "Plantilla de Comunicació creada",
-                error: "Error creant plantilla de comunicació",
+                title: "Crear una Plantilla",
+                success: "Plantilla creada",
+                error: "Error creant plantilla",
             },
             update: {
-                success: "Plantilla de Comunicació actualitzada",
-                error: "Error actualitzant plantilla de comunicació",
+                success: "Plantilla actualitzada",
+                error: "Error actualitzant plantilla",
             },
             edit: {
-                title: "Editar una Plantilla de Comunicació",
+                title: "Editar una Plantilla",
             },
             form: {
                 smsMessage: "Missatge SMS",
                 document: "Document",
+                pdfOptions: "Opcions PDF",
+                reportOptions: "Opcions Report",
                 name: "Nom de la Plantilla",
                 alias: "Àlies de la Plantilla",
-                communicationType: "Tipus de Comunicació",
-                communicationMethod: "Mètode de Comunicació",
+                type: "Tipus",
+                communicationMethod: "Mètode",
             },
             type: {
-                credentials: "Credencials",
-                ballot_receipt: "Rebut de Votació",
-                participation_report: "Informe de Participació",
-                electoral_results: "Resultats Electorals",
-                otp: "OTP",
-                tally_report: "Informe de recompte",
+                CREDENTIALS: "Credencials",
+                BALLOT_RECEIPT: "Rebut de Vot",
+                VOTE_RECEIPT: "Rebut de Vot",
+                PARTICIPATION_REPORT: "Informe de Participació",
+                ELECTORAL_RESULTS: "Resultats Electorals",
+                OTP: "OTP",
+                TALLY_REPORT: "Informe de Còmput",
+                MANUAL_VERIFICATION: "Verificar manualment el votant",
+                STATISTICAL_REPORT: "Informe Estadístic",
+                INITIALIZATION_REPORT: "Informe d'Inicialització",
+                STATUS: "Informe d'Estat",
+                TRANSMISSION_REPORT: "Informes de Transmissió",
+                AUDIT_LOGS: "Registres d'Auditoria",
+                ACTIVITY_LOGS: "Registres d'Activitats",
+                OVCS_INFORMATION: "Informació OVCS",
+                OVCS_EVENTS: "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
+                OVCS_STATISTICS: "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
+                OV_WHO_VOTED: "Usuaris OV Que Han Votat",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Llista d'OV que es van preinscriure però van ser rebutjats",
+                LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
+                VOTERS_TURNOUT_PERCENTAGE: "Participació dels Votants",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
+                    "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
+                    "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
+                OV_PRE_ENROLLED_APPROVED: "Llista de OV que es van Preinscriure (Aprovats)",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Llista de OV que es van Preinscriure però necessiten Validació Manual",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Llista de OV que encara no s'han Preinscrit",
+                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre de OV que encara no s'han Preinscrit",
+                BALLOT_IMAGES: "Imatges de Butlleta",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Importar Plantilles",
+                subtitle: "Importar dades de plantilles",
+                paragraph:
+                    "Importa plantilles utilitzant un fitxer de full de càlcul en format de valors separats per comes (CSV). Descarrega un fitxer CSV d'exemple aquí.",
             },
         },
         materials: {
@@ -1195,6 +1935,115 @@ const catalanTranslation: TranslationType = {
             fields: {
                 isHidden: "Ocult",
                 publicUrl: "Enllaç públic",
+            },
+            empty: {
+                header: "Encara no hi ha material de suport",
+                action: "Genera material de suport",
+            },
+        },
+        widget: {
+            logs: "Registres",
+        },
+        settings: {
+            countries: {
+                title: "Bloqueig de Països",
+                votingDescription:
+                    "Trieu a continuació els països dels quals voleu bloquejar les votacions.",
+                enrollmentDescription:
+                    "Trieu a continuació els països dels quals voleu bloquejar la preinscripció.",
+                error: {
+                    errorSaving: "Error en desar la llista de països",
+                },
+            },
+            backupRestore: {
+                title: "Còpia de seguretat / Restaurar la configuració del llogater",
+                backup: {
+                    label: "còpia de seguretat",
+                    subtitle: "Còpia de seguretat de les configuracions del llogater",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaura la configuració del llogater",
+                    title: "Importa les configuracions del llogater",
+                    paragraph:
+                        "Importa configuracions de llogater, configuracions de Keycloak, rols i dades de permisos utilitzant una carpeta comprimida.",
+                    tenantConfigOption: "Importa les configuracions del llogater",
+                    keycloakConfigOption: "Importa les configuracions de Keycloak",
+                    RolesConfigOption: "Importa les configuracions de rols i permisos",
+                },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Estat",
+                id: "ID",
+                applicantId: "ID del Sol·licitant",
+                verificationType: "Tipus de Verificació",
+                createdAt: "Creat El",
+                updatedAt: "Actualitzat El",
+                verified_by: "Verificat Per",
+            },
+            approvalRequest: "Sol·licitud d'Aprovació",
+            title: "Votants",
+            subtitle: "Cercar votants coincidents",
+            approve: {
+                body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
+            },
+            reject: {
+                label: "Rebutja la sol·licitud",
+                confirm:
+                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
+                message: "Escriviu aquí el motiu del rebuig",
+                rejectReason: "Motiu del rebuig",
+                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données Manquantes",
+                    "no-matching-voter": "Votant Non Trouvé",
+                    "voter-already-approved": "Déjà Approuvé",
+                    "other": "Autre",
+                },
+            },
+            notifications: {
+                approveError: "Error en aprovar el votant",
+                approveSuccess: "Votant aprovat",
+                rejectError: "Error en rebutjar el votant",
+                rejectSuccess: "Votant rebutjat",
+                VoterApprovedAlready: "El votant ja està aprovat.",
+            },
+            export: {
+                success: "L'exportació d'aplicacions s'ha completat amb èxit",
+                error: "Error en exportar les aplicacions",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Votants",
+                enrolledOverseasVoters: "Votants Inscrits a l'Estranger",
+                approvalStatus: "Estat d'Aprovació: Votants Aprovats/Desaprovarats",
+                manuallyApproval: "Votants Aprovats/Desaprovarats Manualment",
+                automaticallyApproval: "Votants Aprovats/Desaprovarats Automàticament",
+                authenticatedVoters: "Votants Autenticats",
+                invalidUserErrors: "Errors d'Usuari Invàlid:",
+                invalidPasswordErrors: "Errors de Contrasenya Invàlida:",
+            },
+            polls: {
+                title: "Enquestes",
+                initializedSystems: "Publicacions amb Sistemes Inicialitzats",
+                votingOpened: "Publicacions amb Votació Oberta",
+                votingClosed: "Publicacions amb Votació Tancada",
+                votingStarted: "Publicacions amb Votació Iniciada",
+                voterTurnout: "Participació dels Votants",
+            },
+            tally: {
+                title: "Compte",
+                activeVotesCounting: "Publicacions amb Comptatge de Vots Actiu",
+                generatedERs: "Publicacions amb ERs Generats",
+                transmittedResults: "Publicacions amb Resultats Transmesos",
+            },
+            testing: {
+                title: "Proves",
+                testElectionVoterCount: "Comptatge de Votants a l'Elecció de Prova",
             },
         },
     },

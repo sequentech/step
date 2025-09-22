@@ -21,7 +21,8 @@ import {
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {Tabs} from "@/components/Tabs"
-import {DropFile, IElectionEventPresentation} from "@sequentech/ui-essentials"
+import {DropFile} from "@sequentech/ui-essentials"
+import {IElectionEventPresentation} from "@sequentech/ui-core"
 import {Box, TextField} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {
@@ -115,7 +116,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
 
     useEffect(() => {
         if (record) {
-            console.log("record :>> ", record)
             setRenderUI(true)
         }
     }, [record])
@@ -221,8 +221,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -246,8 +244,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     }
 
     const transform = (data: Sequent_Backend_Support_Material_Extended) => {
-        console.log("data :>> ", data)
-
         data.data = {...valueMaterials}
         if (imageType) {
             data.kind = imageType
@@ -257,7 +253,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
 
     const formValidator = (values: any): any => {
         const errors: {[key: string]: string} = {}
-        if (!valueMaterials?.title_i18n.en) {
+        if (!valueMaterials?.title_i18n?.en) {
             errors.data = t("materials.error.title")
         }
         return errors
@@ -286,8 +282,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                             const parsedValue = parseValues(
                                 incoming as Sequent_Backend_Support_Material_Extended
                             )
-                            console.log("parsedValue edit :>> ", parsedValue)
-
                             return (
                                 <SimpleForm
                                     validate={formValidator}

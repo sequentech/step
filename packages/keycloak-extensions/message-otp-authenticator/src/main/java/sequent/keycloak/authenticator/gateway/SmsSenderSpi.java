@@ -4,31 +4,31 @@
 
 package sequent.keycloak.authenticator.gateway;
 
+import com.google.auto.service.AutoService;
 import org.keycloak.provider.Provider;
 import org.keycloak.provider.ProviderFactory;
 import org.keycloak.provider.Spi;
-import com.google.auto.service.AutoService;
 
 @AutoService(Spi.class)
 public class SmsSenderSpi implements Spi {
 
-    @Override
-    public boolean isInternal() {
-        return true;
-    }
+  @Override
+  public boolean isInternal() {
+    return true;
+  }
 
-    @Override
-    public String getName() {
-        return "smsSender";
-    }
+  @Override
+  public String getName() {
+    return "smsSender";
+  }
 
-    @Override
-    public Class<? extends Provider> getProviderClass() {
-        return SmsSenderProvider.class;
-    }
+  @Override
+  public Class<? extends Provider> getProviderClass() {
+    return SmsSenderProvider.class;
+  }
 
-    @Override
-    public Class<? extends ProviderFactory> getProviderFactoryClass() {
-        return SmsSenderProviderFactory.class;
-    }
+  @Override
+  public Class<? extends ProviderFactory> getProviderFactoryClass() {
+    return SmsSenderProviderFactory.class;
+  }
 }

@@ -122,7 +122,6 @@ pub fn get_points(
     if candidate.selected < 0 {
         return Some(0);
     }
-
     match contest.get_counting_algorithm().as_str() {
         "plurality-at-large" => Some(1),
         "borda" => Some((contest.max_votes as i64) - candidate.selected),

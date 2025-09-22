@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext} from "react"
+import React, {useContext, useMemo, useState} from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
-    Candidate,
     stringToHtml,
     isUndefined,
     normalizeWriteInText,
     translate,
     ICandidate,
     IContest,
-} from "@sequentech/ui-essentials"
+} from "@sequentech/ui-core"
+import {Candidate} from "@sequentech/ui-essentials"
 import Image from "mui-image"
 import {
     resetBallotSelection,
@@ -23,6 +23,7 @@ import {
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import {
     checkAllowWriteIns,
+    checkIsInvalidVote,
     checkIsWriteIn,
     getImageUrl,
     getLinkUrl,
@@ -31,7 +32,8 @@ import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {IDecodedVoteContest} from "sequent-core"
-import {checkIsBlank} from "../../services/BallotService"
+import {provideBallotService} from "../../services/BallotService"
+import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -40,12 +42,16 @@ export interface IAnswerProps {
     ballotStyle: IBallotStyle
     hasCategory?: boolean
     isActive: boolean
+    iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     isReview: boolean
     isInvalidVote?: boolean
     isExplicitBlankVote?: boolean
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
+    selectedChoicesSum: number
+    setSelectedChoicesSum: (num: number) => void
+    disableSelect: boolean
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -54,12 +60,16 @@ export const Answer: React.FC<IAnswerProps> = ({
     ballotStyle,
     hasCategory,
     isActive,
+    iconCheckboxPolicy,
     isReview,
-    isInvalidVote,
+    isInvalidVote: isInvalidVoteInput,
     isExplicitBlankVote,
     isInvalidWriteIns,
     isRadioSelection,
     contest,
+    selectedChoicesSum,
+    setSelectedChoicesSum,
+    disableSelect,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
@@ -67,18 +77,28 @@ export const Answer: React.FC<IAnswerProps> = ({
     const questionState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
+    const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
     const dispatch = useAppDispatch()
     const {globalSettings} = useContext(SettingsContext)
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
     const {i18n} = useTranslation()
+    const ballotService = provideBallotService()
+    const isInvalidVote = useMemo(
+        () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
+        [isInvalidVoteInput, answer]
+    )
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {
             return !isUndefined(questionState) && questionState.is_explicit_invalid
         } else if (isExplicitBlankVote) {
-            return !isUndefined(questionState) && !!checkIsBlank(questionState)
+            return (
+                !isUndefined(questionState) &&
+                !!ballotService.checkIsBlank(questionState) &&
+                explicitBlank
+            )
         } else {
             return !isUndefined(selectionState) && selectionState.selected > -1
         }
@@ -94,6 +114,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const setBlankVote = () => {
+        setExplicitBlank(true)
         dispatch(
             setBallotSelectionBlankVote({
                 ballotStyle,
@@ -113,6 +134,8 @@ export const Answer: React.FC<IAnswerProps> = ({
         if (isExplicitBlankVote) {
             if (value) {
                 setBlankVote()
+            } else {
+                setExplicitBlank(false)
             }
             return
         }
@@ -143,6 +166,8 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
 
+    const shouldDisable = disableSelect && selectionState?.selected === -1
+
     const isWriteIn = checkIsWriteIn(answer)
     const allowWriteIns = question && checkAllowWriteIns(question)
 
@@ -169,6 +194,10 @@ export const Answer: React.FC<IAnswerProps> = ({
         return null
     }
 
+    if (isReview && !!isExplicitBlankVote) {
+        return null
+    }
+
     return (
         <Candidate
             title={translate(answer, "name", i18n.language)}
@@ -183,6 +212,8 @@ export const Answer: React.FC<IAnswerProps> = ({
             setWriteInText={setWriteInText}
             isInvalidVote={isInvalidVote}
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
+            shouldDisable={shouldDisable}
+            iconCheckboxPolicy={iconCheckboxPolicy}
         >
             {imageUrl ? (
                 <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />

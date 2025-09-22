@@ -3,11 +3,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
+use std::str::FromStr;
 
-use crate::types::tally_sheets::AreaContestResults;
+use crate::{
+    ballot::{ContestEncryptionPolicy, DecodedBallotsInclusionPolicy},
+    serialization::deserialize_with_path::deserialize_value,
+    types::{
+        ceremonies::{
+            CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+        },
+        tally_sheets::AreaContestResults,
+    },
+};
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPublication {
@@ -40,6 +51,7 @@ pub struct BallotStyle {
     pub status: Option<String>,
     pub election_event_id: String,
     pub deleted_at: Option<DateTime<Local>>,
+    pub ballot_publication_id: String,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -71,7 +83,6 @@ pub struct ElectionEvent {
     pub bulletin_board_reference: Option<Value>,
     pub is_archived: bool,
     pub voting_channels: Option<Value>,
-    pub dates: Option<Value>,
     pub status: Option<Value>,
     pub user_boards: Option<String>,
     pub encryption_protocol: String,
@@ -94,7 +105,6 @@ pub struct Election {
     pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
-    pub dates: Option<Value>,
     pub status: Option<Value>,
     pub eml: Option<String>,
     pub num_allowed_revotes: Option<i64>,
@@ -106,6 +116,9 @@ pub struct Election {
     pub image_document_id: Option<String>,
     pub statistics: Option<Value>,
     pub receipts: Option<Value>,
+    pub permission_label: Option<String>,
+    pub initialization_report_generated: Option<bool>,
+    pub keys_ceremony_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -169,12 +182,38 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct SupportMaterial {
+    pub id: String,
+    pub created_at: DateTime<Local>,
+    pub last_updated_at: DateTime<Local>,
+    pub kind: String,
+    pub data: Value,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub labels: Value,
+    pub annotations: Value,
+    pub document_id: Option<String>,
+    pub is_hidden: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {
     pub online: Option<bool>,
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+}
+
+impl Default for VotingChannels {
+    fn default() -> Self {
+        Self {
+            online: Some(true),
+            kiosk: None,
+            telephone: None,
+            paper: None,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -207,8 +246,8 @@ pub struct CastVote {
 */
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct CommunicationTemplate {
-    pub id: String,
+pub struct Template {
+    pub alias: String,
     pub tenant_id: String,
     pub template: Value,
     pub created_by: String,
@@ -217,7 +256,23 @@ pub struct CommunicationTemplate {
     pub created_at: Option<DateTime<Local>>,
     pub updated_at: Option<DateTime<Local>>,
     pub communication_method: String,
-    pub communication_type: String,
+    pub r#type: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Application {
+    pub id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub area_id: Option<String>,
+    pub applicant_id: String,
+    pub applicant_data: Value,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub verification_type: String,
+    pub status: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
@@ -255,16 +310,62 @@ pub struct KeysCeremony {
     pub tenant_id: String,
     pub election_event_id: String,
     pub trustee_ids: Vec<String>,
-    pub status: Option<Value>,
-    pub execution_status: Option<String>,
+    pub status: Option<Value>, // KeysCeremonyStatus
+    pub execution_status: Option<String>, // KeysCeremonyExecutionStatus
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub threshold: i64,
+    pub name: Option<String>,
+    pub settings: Option<Value>,
+    pub is_default: Option<bool>,
+    pub permission_label: Option<Vec<String>>,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+impl KeysCeremony {
+    pub fn is_default(&self) -> bool {
+        self.is_default.clone().unwrap_or(true)
+    }
+
+    pub fn execution_status(&self) -> Result<KeysCeremonyExecutionStatus> {
+        let execution_status_str =
+            self.execution_status.clone().unwrap_or_default();
+        KeysCeremonyExecutionStatus::from_str(&execution_status_str)
+            .map_err(|err| anyhow!("{:?}", err))
+    }
+
+    pub fn status(&self) -> Result<KeysCeremonyStatus> {
+        deserialize_value(self.status.clone().unwrap_or_default())
+            .map_err(|err| anyhow!("{:?}", err))
+    }
+
+    pub fn policy(&self) -> CeremoniesPolicy {
+        let settings = self.settings.as_ref().unwrap_or(&Value::Null);
+        settings
+            .get("policy")
+            .and_then(|value: &Value| value.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
+            .parse::<CeremoniesPolicy>()
+            .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TallySessionConfiguration {
     pub report_content_template_id: Option<String>,
+    pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
+    pub decoded_ballots_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
+}
+
+impl TallySessionConfiguration {
+    pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
+        self.contest_encryption_policy.clone().unwrap_or_default()
+    }
+    pub fn get_decoded_ballots_policy(&self) -> DecodedBallotsInclusionPolicy {
+        self.decoded_ballots_inclusion_policy
+            .clone()
+            .unwrap_or_default()
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -283,6 +384,14 @@ pub struct TallySession {
     pub execution_status: Option<String>,
     pub threshold: i64,
     pub configuration: Option<TallySessionConfiguration>,
+    pub tally_type: Option<String>,
+    pub permission_label: Option<Vec<String>>,
+}
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionContestAnnotations {
+    pub elegible_voters: u64,
+    pub ballots_without_voter: u64,
+    pub casted_ballots: u64,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -291,7 +400,7 @@ pub struct TallySessionContest {
     pub tenant_id: String,
     pub election_event_id: String,
     pub area_id: String,
-    pub contest_id: String,
+    pub contest_id: Option<String>,
     pub session_id: i32,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
@@ -315,4 +424,48 @@ pub struct TallySessionExecution {
     pub session_ids: Option<Vec<i32>>,
     pub status: Option<Value>,
     pub results_event_id: Option<String>,
+    pub documents: Option<Value>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TasksExecution {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: Option<String>,
+    pub name: String,
+    pub task_type: String,
+    pub execution_status: String,
+    pub created_at: DateTime<Local>,
+    pub start_at: Option<DateTime<Local>>,
+    pub end_at: Option<DateTime<Local>>,
+    pub annotations: Option<Value>,
+    pub labels: Option<Value>,
+    pub logs: Option<Value>,
+    pub executed_by_user: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Trustee {
+    pub id: String,
+    pub public_key: Option<String>,
+    pub name: Option<String>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub tenant_id: String,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Tenant {
+    pub id: String,
+    pub slug: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub is_active: bool,
+    pub voting_channels: Option<Value>,
+    pub settings: Option<Value>,
+    pub test: Option<i32>,
 }

@@ -1,0 +1,647 @@
+# SPDX-FileCopyrightText: 2024-2025 Sequent Legal <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+#!/usr/bin/env python3
+import argparse
+import json
+import csv
+import random
+import re
+import os
+from itertools import cycle
+from datetime import datetime, timedelta
+import psycopg2
+import io # Required for csv.writer in helper generator and StringIteratorIO
+from faker import Faker
+
+# Initialize Faker
+fake = Faker()
+
+# ------------------------------
+# Utility Functions
+# (load_config, deduplicate_preserve_order - assumed to be here and unchanged)
+# ------------------------------
+def load_config(working_dir):
+    config_path = os.path.join(working_dir, "config.json")
+    with open(config_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def deduplicate_preserve_order(items):
+    seen = set()
+    result = []
+    for it in items:
+        if it not in seen:
+            seen.add(it)
+            result.append(it)
+    return result
+
+# ------------------------------
+# Action: generate-voters
+# (run_generate_voters - assumed to be here and unchanged)
+# ------------------------------
+def run_generate_voters(args):
+    # ... (original run_generate_voters code) ...
+    working_dir = args.working_directory
+    num_users = args.num_users
+    config = load_config(working_dir)
+    
+    election_event_file = os.path.join(working_dir, config.get("election_event_json_file", "export_election_event.json"))
+    voters_config = config.get("generate_voters", {})
+    areas_regex = voters_config.get("areas_regex", ".*")
+    csv_file = os.path.join(working_dir, voters_config.get("csv_file_name", "generated_users.csv"))
+    fields = voters_config.get("fields", [
+        'username', 'last_name', 'first_name', 'middleName', 'dateOfBirth',
+        'sex', 'country', 'embassy', 'clusteredPrecinct', 'overseasReferences',
+        'area_name', 'authorized-election-ids', 'password', 'email', 'password_salt', 'hashed_password'
+    ])
+    excluded_columns = voters_config.get("excluded_columns", ['password','password_salt', 'hashed_password'])
+    email_prefix = voters_config.get("email_prefix", "testsequent2025")
+    domain = voters_config.get("domain", "mailinator.com")
+    sequence_email_number = voters_config.get("sequence_email_number", True)
+    sequence_start_number = voters_config.get("sequence_start_number", 0)
+    voter_password = voters_config.get("voter_password", "Qwerty1234!")
+    password_salt = voters_config.get("password_salt", "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=")
+    hashed_password = voters_config.get("hashed_password", "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=")
+    min_age = voters_config.get("min_age", 18)
+    max_age = voters_config.get("max_age", 90)
+    overseas_reference = voters_config.get("overseas_reference", "B")
+
+    with open(election_event_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    areas = data.get('areas', [])
+    areas = [
+        area
+        for area in areas
+        if re.match(areas_regex, area.get("name", ""))
+    ]
+    area_contests = data.get('area_contests', [])
+    contests = data.get('contests', [])
+    elections = data.get('elections', [])
+
+    election_map = {}
+    for el in elections:
+        e_id = el.get('id')
+        alias = el.get('alias', 'Unknown')
+        ann = el.get('annotations', {})
+        cluster_prec = ann.get('clustered_precint_id', 'Unknown')
+        election_map[e_id] = (alias, cluster_prec)
+
+    area_contest_map = {}
+    for ac in area_contests:
+        a_id = ac.get('area_id')
+        c_id = ac.get('contest_id')
+        if a_id not in area_contest_map:
+            area_contest_map[a_id] = []
+        area_contest_map[a_id].append(c_id)
+
+    contest_election_map = {}
+    for c in contests:
+        c_id = c.get('id')
+        e_id = c.get('election_id', 'Unknown')
+        contest_election_map[c_id] = e_id
+
+    cou_emb_dict = {}
+    kc_event = data.get('keycloak_event_realm', {})
+    components = kc_event.get('components', {})
+    uprovs = components.get('org.keycloak.userprofile.UserProfileProvider', [])
+    if isinstance(uprovs, dict):
+        uprovs = [uprovs]
+    if uprovs:
+        first_uprov = uprovs[0]
+        conf = first_uprov.get('config', {})
+        kc_conf_list = conf.get('kc.user.profile.config', [])
+        if kc_conf_list:
+            raw_json_str = kc_conf_list[0]
+            try:
+                user_profile_config = json.loads(raw_json_str)
+            except Exception:
+                user_profile_config = {}
+            attrs = user_profile_config.get('attributes', [])
+            country_attr = None
+            for at in attrs:
+                if at.get('name') == 'country':
+                    country_attr = at
+                    break
+            if country_attr:
+                validations = country_attr.get('validations', {})
+                c_opts = validations.get('options', {}).get('options', [])
+                for opt in c_opts:
+                    if '/' in opt:
+                        ctry, emb = opt.split('/', 1)
+                        cou_emb_dict[emb.lower()] = (ctry.strip(), emb.strip())
+                    else:
+                        cou_emb_dict[opt.lower()] = (opt.strip(), 'Unknown')
+    users = []
+    username_counter = 1
+    area_cycle = cycle(areas)
+
+    for i in range(num_users):
+        area = next(area_cycle)
+        area_id = area.get('id')
+        area_name = area.get('name', 'Unknown')
+        assigned_cids = area_contest_map.get(area_id, [])
+        election_aliases = []
+        precincts = []
+        for cid in assigned_cids:
+            e_id = contest_election_map.get(cid, 'Unknown')
+            alias, cluster_prec = election_map.get(e_id, ('Unknown', 'Unknown'))
+            election_aliases.append(alias)
+            precincts.append(cluster_prec)
+        election_aliases = deduplicate_preserve_order(election_aliases)
+        precincts = deduplicate_preserve_order(precincts)
+        if election_aliases and ' - ' in election_aliases[0]:
+            election_country_candidate = election_aliases[0].split(' - ', 1)[0].strip()
+        elif election_aliases:
+            election_country_candidate = election_aliases[0].strip()
+        else:
+            election_country_candidate = 'Unknown'
+        lookup_key = election_country_candidate.lower()
+        if lookup_key in cou_emb_dict:
+            official_country, official_embassy = cou_emb_dict[lookup_key]
+        else:
+            official_country = election_country_candidate
+            official_embassy = 'Unknown'
+        joined_aliases = '|'.join(election_aliases) if election_aliases else 'Unknown'
+        joined_precincts = '|'.join(precincts) if precincts else 'Unknown'
+        dob = fake.date_of_birth(minimum_age=min_age, maximum_age=max_age).strftime('%Y-%m-%d')
+
+        if sequence_email_number:
+            email = f"{email_prefix}+{i+sequence_start_number}@{domain}"
+        else:
+            random_num = random.randint(100000, 999999999)
+            email = f"{email_prefix}+{random_num}@{domain}"
+
+        user_record = {
+            'username': username_counter,
+            'first_name': fake.first_name(),
+            'last_name': fake.last_name(),
+            'middleName': '',
+            'dateOfBirth': dob,
+            'sex': random.choice(['M', 'F']),
+            'country': f"{official_country}/{official_embassy}",
+            'embassy': official_embassy,
+            'clusteredPrecinct': joined_precincts,
+            'overseasReferences': overseas_reference,
+            'area_name': area_name,
+            'authorized-election-ids': joined_aliases,
+            'password': voter_password,
+            'email': email,
+            'password_salt': password_salt,
+            'hashed_password': hashed_password
+        }
+        users.append(user_record)
+        username_counter += 1
+
+    final_fields = [f for f in fields if f not in excluded_columns]
+    with open(csv_file, 'w', newline='', encoding='utf-8') as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=final_fields)
+        writer.writeheader()
+        for u in users:
+            outrow = u.copy()
+            outrow["username"] = str(outrow["username"])
+            for k in list(outrow.keys()):
+                if k not in final_fields:
+                    del outrow[k]
+            writer.writerow(outrow)
+    print(f"Successfully generated {num_users} users. CSV file created at: {os.path.abspath(csv_file)}")
+
+
+# NEW ADAPTER CLASS
+class StringIteratorIO:
+    """
+    Adapter class to make a string iterator behave like a file-like object
+    for psycopg2's COPY command. It provides read() and readline() methods
+    that return bytes.
+    """
+    def __init__(self, string_iterator, encoding='utf-8'):
+        self.iterator = iter(string_iterator)
+        self.encoding = encoding
+        self._buffer = b'' # Internal buffer for leftover bytes from a read
+
+    def read(self, size=-1):
+        # If the buffer is empty, try to fill it by getting the next line
+        # from the wrapped string iterator and encoding it.
+        if not self._buffer:
+            try:
+                line_str = next(self.iterator)
+                self._buffer = line_str.encode(self.encoding)
+            except StopIteration:
+                # Iterator is exhausted, no more data.
+                return b'' # Signify EOF
+
+        # Now, serve data from the buffer
+        if size < 0 or size >= len(self._buffer):
+            # Request is for all data in buffer or more than available
+            data_to_return = self._buffer
+            self._buffer = b'' # Clear buffer as it's fully consumed
+            return data_to_return
+        else:
+            # Request is for a specific size chunk from the buffer
+            data_to_return = self._buffer[:size]
+            self._buffer = self._buffer[size:] # Keep the remainder
+            return data_to_return
+
+    def readline(self):
+        # Combines current buffer with new data until a newline is found or EOF.
+        line_bytes = self._buffer
+        self._buffer = b'' # Clear existing buffer as it's moved to line_bytes
+
+        while b'\n' not in line_bytes:
+            try:
+                next_chunk_str = next(self.iterator)
+                line_bytes += next_chunk_str.encode(self.encoding)
+            except StopIteration:
+                # EOF reached on the iterator
+                break 
+        
+        # Find the first newline in the accumulated line_bytes
+        nl_pos = line_bytes.find(b'\n')
+        if nl_pos != -1:
+            # Newline found, return the line and buffer the rest
+            data_to_return = line_bytes[:nl_pos + 1]
+            self._buffer = line_bytes[nl_pos + 1:] # Buffer the remainder
+            return data_to_return
+        else:
+            # No newline found (it's the last line or empty)
+            return line_bytes # Return whatever is left
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        line = self.readline()
+        if not line: # readline returns b'' at EOF
+            raise StopIteration
+        return line
+
+
+# Helper generator for run_duplicate_votes (no changes needed here)
+def generate_csv_formatted_rows_for_copy(user_ids_iterable, base_row_data_tuple, annotations_json_str, total_rows_to_generate):
+    election_id, tenant_id, area_id, _original_annotations_obj, content, cast_ballot_signature, election_event_id, ballot_id = base_row_data_tuple
+    for i, user_id in enumerate(user_ids_iterable):
+        if (i + 1) % 20000 == 0 or i == 0 or (i + 1) == total_rows_to_generate:
+            if total_rows_to_generate > 0:
+                 print(f"Preparing data for vote {i+1}/{total_rows_to_generate} ({(i+1)*100/total_rows_to_generate:.2f}%)...")
+        row_tuple = (
+            str(user_id), election_id, tenant_id, area_id, annotations_json_str,
+            content, cast_ballot_signature, election_event_id, ballot_id
+        )
+        sio = io.StringIO()
+        csv_writer = csv.writer(sio, delimiter='\t', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+        csv_writer.writerow(row_tuple)
+        yield sio.getvalue()
+
+# ------------------------------
+# Action: duplicate-votes (Refactored for CLI args, efficient streaming)
+# ------------------------------
+def run_duplicate_votes(args):
+    num_votes_requested = args.num_votes
+    election_event_id = args.election_event_id
+    election_id = args.election_id
+    tenant_id = args.tenant_id
+
+    keycloak_conn_params = {
+        "dbname": os.getenv("KEYCLOAK_DB__DBNAME"),
+        "user": os.getenv("KEYCLOAK_DB__USER"),
+        "password": os.getenv("KEYCLOAK_DB__PASSWORD"),
+        "host": os.getenv("KEYCLOAK_DB__HOST"),
+        "port": os.getenv("KEYCLOAK_DB__PORT")
+    }
+    hasura_conn_params = {
+        "dbname": os.getenv("HASURA_DB__DBNAME"),
+        "user": os.getenv("HASURA_DB__USER"),
+        "password": os.getenv("HASURA_DB__PASSWORD"),
+        "host": os.getenv("HASURA_DB__HOST"),
+        "port": os.getenv("HASURA_DB__PORT")
+    }
+
+    keycloak_conn = None
+    hasura_conn = None
+    kc_cursor = None
+    hasura_cursor = None
+    votes_stream_cursor = None
+
+    try:
+        print(f"Connecting to Keycloak DB: host={keycloak_conn_params.get('host')}, dbname={keycloak_conn_params.get('dbname')}")
+        keycloak_conn = psycopg2.connect(**keycloak_conn_params)
+        kc_cursor = keycloak_conn.cursor()  # regular cursor
+        print("Successfully connected to Keycloak DB.")
+
+        print(f"Connecting to Hasura DB: host={hasura_conn_params.get('host')}, dbname={hasura_conn_params.get('dbname')}")
+        hasura_conn = psycopg2.connect(**hasura_conn_params)
+        hasura_cursor = hasura_conn.cursor()  # regular cursor
+        print("Successfully connected to Hasura DB.")
+
+        # 1. Find a vote for this election_event_id (and optionally election_id)
+        if election_id:
+            hasura_cursor.execute(
+            """
+                SELECT
+                    election_id,
+                    area_id
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = %s
+                    AND election_event_id = %s
+                    AND election_id = %s
+                LIMIT 1
+            """, (tenant_id, election_event_id, election_id))
+        else:
+            hasura_cursor.execute(
+            """
+                SELECT
+                    election_id,
+                    area_id 
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = %s
+                    AND election_event_id = %s
+                LIMIT 1
+            """, (tenant_id, election_event_id))
+        row = hasura_cursor.fetchone()
+        if not row:
+            print(f"No cast votes found for election_event_id={election_event_id} (and election_id={election_id} if provided). Cannot proceed.")
+            return
+        found_election_id, found_area_id = row
+        if not election_id:
+            election_id = found_election_id
+        area_id = found_area_id
+        print(f"Using election_id={election_id}, area_id={area_id}")
+
+        # 2. Find the realm name for this election event and tenant
+        realm_name = f"tenant-{tenant_id}-event-{election_event_id}"
+        print(f"Using realm_name={realm_name}")
+
+        # 3. Get eligible voter IDs for the area (limit to num_votes_requested, random order)
+        get_user_ids_query = """
+        SELECT ue.id
+        FROM user_entity AS ue
+        JOIN realm AS r ON ue.realm_id = r.id
+        INNER JOIN user_attribute AS us ON us.user_id = ue.id
+        WHERE r.name = %s AND us.name = 'area-id' AND us.value = %s
+        ORDER BY random()
+        LIMIT %s;
+        """
+        print(f"Fetching up to {num_votes_requested} voter IDs from Keycloak realm '{realm_name}' for area_id '{area_id}'...")
+        kc_cursor.execute(get_user_ids_query, (realm_name, area_id, num_votes_requested))
+        user_ids = [row[0] for row in kc_cursor.fetchall()]
+        if not user_ids:
+            print(f"No user IDs found in realm '{realm_name}' for area_id '{area_id}'. Cannot generate votes.")
+            return
+        actual_users_found = len(user_ids)
+        if actual_users_found < num_votes_requested:
+            print(f"Warning: Requested {num_votes_requested} votes, but only found {actual_users_found} suitable users. Proceeding with {actual_users_found} votes.")
+        print(f"Found {actual_users_found} user IDs. Will generate votes for these users.")
+
+        # 4. Get existing votes for this election/area (streaming, not all in memory)
+        get_votes_query = """
+        SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
+        FROM sequent_backend.cast_vote
+        WHERE election_id = %s AND area_id = %s
+        """
+        votes_stream_cursor = hasura_conn.cursor(name='votes_stream_cursor')  # named cursor for streaming
+        votes_stream_cursor.execute(get_votes_query, (election_id, area_id))
+        print("Streaming existing votes for election/area...")
+        base_votes = []
+        for row in votes_stream_cursor:
+            base_votes.append(row)
+        votes_stream_cursor.close()
+        if not base_votes:
+            print(f"No existing votes found for election_id={election_id}, area_id={area_id}. Cannot duplicate.")
+            return
+        print(f"Found {len(base_votes)} base votes to use for duplication.")
+
+        # 5. Prepare generator for new votes (cycle through base_votes if needed)
+        def vote_row_generator(user_ids, base_votes, total_rows):
+            from itertools import islice, cycle
+            base_votes_cycle = cycle(base_votes)
+            for i, (user_id, base_vote) in enumerate(zip(user_ids, islice(base_votes_cycle, total_rows))):
+                election_id, tenant_id, area_id, annotations_obj, content, cast_ballot_signature, election_event_id, ballot_id = base_vote
+                annotations_json_str = json.dumps(annotations_obj)
+                row_tuple = (
+                    str(user_id), election_id, tenant_id, area_id, annotations_json_str,
+                    content, cast_ballot_signature, election_event_id, ballot_id
+                )
+                sio = io.StringIO()
+                csv_writer = csv.writer(sio, delimiter='\t', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+                csv_writer.writerow(row_tuple)
+                yield sio.getvalue()
+
+        file_like_adapter = StringIteratorIO(vote_row_generator(user_ids, base_votes, actual_users_found))
+        copy_sql = """
+        COPY sequent_backend.cast_vote (
+            voter_id_string, election_id, tenant_id, area_id, annotations, content,
+            cast_ballot_signature, election_event_id, ballot_id
+        )
+        FROM STDIN WITH (FORMAT CSV, DELIMITER E'\t')
+        """
+        print("\nStarting database insert using COPY FROM STDIN...")
+        start_time = datetime.now()
+        print(f"SQL Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        hasura_cursor.copy_expert(sql=copy_sql, file=file_like_adapter)
+        hasura_conn.commit()
+        end_time = datetime.now()
+        print(f"SQL End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        duration = end_time - start_time
+        print(f"Successfully inserted {actual_users_found} duplicated vote records.")
+        print(f"Insertion duration: {duration}")
+
+    except psycopg2.Error as db_err:
+        print(f"\nDatabase error occurred: {db_err}")
+        if hasura_conn:
+            print("Rolling back Hasura transaction due to error.")
+            hasura_conn.rollback()
+    except IOError as io_err:
+        print(f"\nFile/IO error: {io_err}")
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+    finally:
+        print("\nClosing database connections...")
+        if kc_cursor:
+            try: kc_cursor.close()
+            except Exception: pass
+        if keycloak_conn:
+            try: keycloak_conn.close()
+            except Exception: pass
+        if votes_stream_cursor:
+            try: votes_stream_cursor.close()
+            except Exception: pass
+        if hasura_cursor:
+            try: hasura_cursor.close()
+            except Exception: pass
+        if hasura_conn:
+            try: hasura_conn.close()
+            except Exception: pass
+        print("Database connections closed.")
+
+# ------------------------------
+# Action: generate-applications
+# (run_generate_applications - assumed to be here and unchanged)
+# ------------------------------
+def run_generate_applications(args):
+    # ... (original run_generate_applications code) ...
+    working_dir = args.working_directory
+    status = args.status
+    verification_type = args.type
+    num_applications = args.num_applications
+    config = load_config(working_dir)
+    realm_name = config.get("realm_name", "")
+    tenant_id = config.get("tenant_id", "")
+    election_event_id = config.get("election_event_id", "")
+    generate_applications_config = config.get("generate_applications", {})
+    default_applicant_data = generate_applications_config.get("applicant_data", {})
+    annotations = generate_applications_config.get("annotations", {})
+    annotations_json = json.dumps(annotations)
+    
+    keycloak_conn = psycopg2.connect(
+        dbname=os.getenv("KC_DB"),
+        user=os.getenv("KC_DB_USERNAME"),
+        password=os.getenv("KC_DB_PASSWORD"),
+        host=os.getenv("KC_DB_URL_HOST"),
+        port=os.getenv("KC_DB_URL_PORT")
+    )
+    hasura_conn = psycopg2.connect(
+        dbname=os.getenv("HASURA_PG_DBNAME"),
+        user=os.getenv("HASURA_PG_USER"),
+        password=os.getenv("HASURA_PG_PASSWORD"),
+        host=os.getenv("HASURA_PG_HOST"),
+        port=os.getenv("HASURA_PG_PORT")
+    )
+    print("number of rows to clone: ", num_applications)
+    kc_cursor = keycloak_conn.cursor()
+    hasura_cursor = hasura_conn.cursor()
+    get_user_query = """
+    SELECT 
+        ue.id,
+        ue.username,
+        ue.email,
+        ue.first_name,
+        ue.last_name,
+        (SELECT ua.value FROM user_attribute ua WHERE ua.user_id = ue.id AND ua.name = 'area-id' LIMIT 1) AS area_id,
+        (SELECT ua.value FROM user_attribute ua WHERE ua.user_id = ue.id AND ua.name = 'country' LIMIT 1) AS country,
+        (SELECT ua.value FROM user_attribute ua WHERE ua.user_id = ue.id AND ua.name = 'embassy' LIMIT 1) AS embassy,
+        (SELECT ua.value FROM user_attribute ua WHERE ua.user_id = ue.id AND ua.name = 'dateOfBirth' LIMIT 1) AS dateOfBirth
+    FROM user_entity ue
+    JOIN realm r ON ue.realm_id = r.id
+    WHERE r.name = %s
+    LIMIT %s
+    OFFSET 0;
+    """
+    kc_cursor.execute(get_user_query, (realm_name, num_applications))
+    existing_users = kc_cursor.fetchall()
+    print("number of existing user ids: ", len(existing_users))
+
+    if verification_type is None:
+        if status == "PENDING":
+            verification_type = "MANUAL"
+        else:
+            verification_type = random.choice(["AUTOMATIC","MANUAL"])
+    
+    rows_to_insert = []
+    for user in existing_users:
+        user_id = user[0]
+        username = user[1]
+        email = user[2]
+        first_name = user[3]
+        last_name = user[4]
+        area_id = user[5]
+        country = user[6]
+        embassy = user[7]
+        dateOfBirth = user[8]
+
+        applicant_data = default_applicant_data.copy()
+        applicant_data.update({
+            "email": email,
+            "firstName": first_name,
+            "lastName": last_name,
+            "username": username,
+            "country": country if country is not None else "",
+            "embassy": embassy if embassy is not None else "",
+            "dateOfBirth": dateOfBirth if dateOfBirth is not None else ""
+        })
+        applicant_data["sequent.read-only.id-card-number"] = "C" + fake.numerify("##########")
+
+        applicant_data_json = json.dumps(applicant_data)
+        rows_to_insert.append((
+            user_id,
+            status,
+            verification_type,
+            applicant_data_json,
+            tenant_id,
+            election_event_id,
+            area_id,
+            annotations_json
+        ))
+    print("Rows to insert:", len(rows_to_insert))
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
+    for row in rows_to_insert:
+        writer.writerow(row)
+    output.seek(0)
+    copy_sql = """
+        COPY sequent_backend.applications (
+            applicant_id, status, verification_type, applicant_data, tenant_id, election_event_id, area_id,annotations
+        )
+        FROM STDIN WITH (FORMAT csv, DELIMITER E'\t')
+        """
+    start_time = datetime.now()
+    print("Start time:", start_time)
+    hasura_cursor.copy_expert(copy_sql, output)
+    hasura_conn.commit()
+    end_time = datetime.now()
+    print("End time:", end_time)
+
+    kc_cursor.close()
+    keycloak_conn.close()
+    hasura_cursor.close()
+    hasura_conn.close()
+
+# ------------------------------
+# Action: generate-activity-logs
+# (run_generate_activity_logs - assumed to be here and unchanged)
+# ------------------------------
+def run_generate_activity_logs(args):
+    print("generate-activity-logs action is not implemented yet.")
+
+# ------------------------------
+# Main Dispatcher
+# ------------------------------
+def main():
+    parser = argparse.ArgumentParser(description="Load Testing Tool")
+    parser.add_argument(
+        "--working-directory",
+        default=".",
+        help="Path to working directory (input/output directory)"
+    )
+    subparsers = parser.add_subparsers(dest="action", required=False, help="Action to perform")
+    
+    parser_voters = subparsers.add_parser("generate-voters", help="Generate random voters CSV file")
+    parser_voters.add_argument("--num-users", type=int, required=True, help="Number of users to generate")
+    parser_voters.set_defaults(func=run_generate_voters)
+
+    parser_votes = subparsers.add_parser("duplicate-votes", help="Duplicate cast votes in the database")
+    parser_votes.add_argument("--num-votes", type=int, required=True, help="Number of votes to generate")
+    parser_votes.add_argument("--election-event-id", type=str, required=True, help="Election event ID to duplicate votes for")
+    parser_votes.add_argument("--election-id", type=str, required=False, help="Election ID to duplicate votes for")
+    parser_votes.add_argument("--tenant-id", type=str, default="90505c8a-23a9-4cdf-a26b-4e19f6a097d5", required=False, help="Tenant ID for realm name")
+    parser_votes.set_defaults(func=run_duplicate_votes)
+
+    parser_applications = subparsers.add_parser("generate-applications", help="Generate applications in different states")
+    parser_applications.add_argument("--num-applications", type=int, required=True, help="Number of applications to generate")
+    parser_applications.add_argument("--status",type=str,choices=["PENDING", "REJECTED", "ACCEPTED"], default="PENDING", help="Application status (default: PENDING)")
+    parser_applications.add_argument("--type",required=False,type=str,choices=["AUTOMATIC","MANUAL"], help="Application verification type")
+    parser_applications.set_defaults(func=run_generate_applications)
+    
+    parser_logs = subparsers.add_parser("generate-activity-logs", help="Generate activity logs")
+    parser_logs.set_defaults(func=run_generate_activity_logs)
+    
+    args = parser.parse_args()
+    if hasattr(args, 'func'):
+        args.func(args)
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()

@@ -6,13 +6,24 @@ import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
 import {Checkbox} from "@mui/material"
-import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked"
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked"
+import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
-import {isString} from "../../utils/typechecks"
+import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
-const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidvote: string}>`
+const UnselectableTypography = styled(Typography)`
+    user-select: none;
+`
+
+const BorderBox = emotionStyled.li<{
+    isactive: string
+    hascategory: string
+    isinvalidvote: string
+    isdisabled: string
+}>`
     border: 2px solid
         ${({hascategory, isactive, theme}) =>
             isactive === "true" && hascategory === "true"
@@ -20,38 +31,41 @@ const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidv
                 : theme.palette.customGrey.light};
     ${({hascategory, isinvalidvote, theme}) =>
         hascategory === "true"
-            ? `background-color: ${theme.palette.white};`
+            ? `backgroundColor: ${theme.palette.white};`
             : isinvalidvote === "true"
-            ? `background-color: ${theme.palette.lightBackground};`
+            ? `backgroundColor: ${theme.palette.lightBackground};`
             : ""}
     border-radius: 10px;
+    break-inside: avoid;
     padding: 8px;
+    height: 64px;
     display: flex;
     flex-direction: row;
     gap: 10px;
     align-items: center;
     flex-grow: 2;
+    ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
     ${({isactive, hascategory, theme}) =>
         isactive === "true"
             ? hascategory === "true"
                 ? `
-                    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                    boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     &:hover {
                         cursor: pointer;
-                        box-shadow: unset;
+                        boxShadow: unset;
                         border-color: ${theme.palette.customGrey.light};
                     }
                     &:active {
-                        background-color: #eee;
+                        backgroundColor: #eee;
                     }
                 `
                 : `
                     &:hover {
                         cursor: pointer;
-                        box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                        boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     }
                     &:active {
-                        background-color: #eee;
+                        backgroundColor: #eee;
                     }
                 `
             : ""}
@@ -83,6 +97,7 @@ export interface CandidateProps extends PropsWithChildren {
     isActive?: boolean
     isInvalidVote?: boolean
     checked?: boolean
+    iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     hasCategory?: boolean
     url?: string
     setChecked?: (value: boolean) => void
@@ -91,6 +106,7 @@ export interface CandidateProps extends PropsWithChildren {
     setWriteInText?: (value: string) => void
     isInvalidWriteIn?: boolean
     index?: number
+    shouldDisable?: boolean
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -99,6 +115,7 @@ const Candidate: React.FC<CandidateProps> = ({
     isActive,
     isInvalidVote,
     checked,
+    iconCheckboxPolicy,
     hasCategory,
     url,
     setChecked,
@@ -107,12 +124,13 @@ const Candidate: React.FC<CandidateProps> = ({
     setWriteInText,
     isInvalidWriteIn,
     children,
+    shouldDisable,
     index,
 }) => {
     const {t} = useTranslation()
-    const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
+    const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
         event.stopPropagation()
-        if (setChecked) {
+        if (!shouldDisable && setChecked) {
             setChecked(!checked)
         }
     }
@@ -136,12 +154,13 @@ const Candidate: React.FC<CandidateProps> = ({
             isactive={String(!!isActive)}
             hascategory={String(!!hasCategory)}
             isinvalidvote={String(!!isInvalidVote)}
+            isdisabled={String(!!shouldDisable)}
             onClick={onClick}
             className="candidate-item"
         >
             <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>
-                <Typography
+                <UnselectableTypography
                     className="candidate-title"
                     fontWeight="bold"
                     fontSize="16px"
@@ -151,8 +170,8 @@ const Candidate: React.FC<CandidateProps> = ({
                     color={theme.palette.customGrey.contrastText}
                 >
                     {title}
-                </Typography>
-                <Typography
+                </UnselectableTypography>
+                <UnselectableTypography
                     className="candidate-description"
                     color={theme.palette.customGrey.dark}
                     fontSize="16px"
@@ -160,7 +179,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     marginBottom="4px"
                 >
                     {description}
-                </Typography>
+                </UnselectableTypography>
                 {isWriteIn ? (
                     <Box>
                         <TextField
@@ -188,14 +207,29 @@ const Candidate: React.FC<CandidateProps> = ({
                 </StyledLink>
             ) : null}
             {isActive ? (
-                <Checkbox
-                    inputProps={{
-                        "className": "candidate-input",
-                        "aria-label": isString(title) ? title : "",
-                    }}
-                    checked={checked}
-                    onChange={handleChange}
-                />
+                iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
+                    <Checkbox
+                        inputProps={{
+                            "className": "candidate-input",
+                            "aria-label": isString(title) ? title : "",
+                        }}
+                        icon={<RadioButtonUncheckedIcon />}
+                        checkedIcon={<RadioButtonCheckedIcon />}
+                        disabled={shouldDisable}
+                        checked={checked}
+                        onChange={handleChange}
+                    />
+                ) : (
+                    <Checkbox
+                        inputProps={{
+                            "className": "candidate-input",
+                            "aria-label": isString(title) ? title : "",
+                        }}
+                        disabled={shouldDisable}
+                        checked={checked}
+                        onChange={handleChange}
+                    />
+                )
             ) : null}
         </BorderBox>
     )

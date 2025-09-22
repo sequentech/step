@@ -45,3 +45,15 @@ node_modules/
 
 # coredumps
 packages/rustc-ice*
+
+# ignoring e2e downloaded files
+**/e2e/downloads
+packages/admin-portal/tests_output
+packages/voting-portal/tests_output
+packages/ballot-verifier/tests_output
+packages/admin-portal/logs
+packages/voting-portal/logs
+packages/ballot-verifier/logs
+
+# ignore artifacts for airgapped environments
+airgapped-artifacts

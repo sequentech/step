@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::Vault;
-use crate::util::aws::get_from_env_aws_config;
-use anyhow::{Context, Result};
+use super::{Vault, VaultManagerType};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use aws_sdk_secretsmanager::Client;
+use sequent_core::util::aws::get_from_env_aws_config;
 use std::env;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[derive(Debug)]
 pub struct AwsSecretManager;
@@ -22,9 +22,12 @@ impl AwsSecretManager {
 
 #[async_trait]
 impl Vault for AwsSecretManager {
-    #[instrument(skip(value), err)]
+    // TODO: add back skip(value)
+    #[instrument(err)]
     async fn save_secret(&self, key: String, value: String) -> Result<()> {
-        let shared_config = get_from_env_aws_config().await?;
+        let shared_config = get_from_env_aws_config()
+            .await
+            .map_err(|err| anyhow!("Error getting env aws config: {err:?}"))?;
         let client = Client::new(&shared_config);
 
         client
@@ -32,22 +35,32 @@ impl Vault for AwsSecretManager {
             .name(self.get_prefixed_key(key)?)
             .secret_string(value)
             .send()
-            .await?;
+            .await
+            .map_err(|err| anyhow!("Error creating secret: {err:?}"))?;
 
         Ok(())
     }
 
     #[instrument(err)]
     async fn read_secret(&self, key: String) -> Result<Option<String>> {
-        let shared_config = get_from_env_aws_config().await?;
+        let shared_config = get_from_env_aws_config()
+            .await
+            .map_err(|err| anyhow!("Error getting env aws config: {err:?}"))?;
         let client = Client::new(&shared_config);
 
-        let resp = client
-            .get_secret_value()
-            .secret_id(self.get_prefixed_key(key)?)
-            .send()
-            .await?;
+        let final_key = self.get_prefixed_key(key)?;
+        info!("reading secret key: {:?}", final_key);
 
-        Ok(resp.secret_string().map(|s| s.to_string()))
+        let resp = client.get_secret_value().secret_id(final_key).send().await;
+
+        match resp {
+            Ok(data) => Ok(data.secret_string().map(|s| s.to_string())),
+            Err(_) => Ok(None),
+        }
+    }
+
+    #[instrument]
+    fn vault_type(&self) -> VaultManagerType {
+        VaultManagerType::AwsSecretManager
     }
 }

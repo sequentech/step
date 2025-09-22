@@ -1,75 +1,41 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 const englishTranslation = {
     translations: {
+        philippinePassport: "Philippine Passport",
+        seamanBook: "Seaman's Book",
+        philSysID: "PhilSys ID",
+        iBP: "Integrated Bar of the Philippines (IBP)",
+        driversLicense: "Driver's License",
+        loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
-        breadcrumbSteps: {
-            electionList: "Election List",
-            ballot: "Ballot",
-            review: "Review",
-            confirmation: "Confirmation",
-            audit: "Audit",
-        },
-        votingScreen: {
-            backButton: "Back",
-            reviewButton: "Next",
-            ballotHelpDialog: {
-                title: "Information: Ballot screen",
-                content:
-                    "This screen shows the contest you are eligible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button bellow.",
-                ok: "OK",
-            },
-        },
-        startScreen: {
-            startButton: "Start Voting",
-            instructionsTitle: "Instructions",
-            instructionsDescription: "You need to follow these steps to cast your ballot:",
-            step1Title: "1. Select your options",
-            step1Description:
-                "Answer to the election questions one by one as they are shown. This way you will configure your preferences in your ballot.",
-            step2Title: "2. Review your ballot",
-            step2Description:
-                "Once you have chosen your preferences, we will proceed to encrypt them and you'll be shown the ballot's tracker id. You'll also be shown a summary with the content of your ballot for review.",
-            step3Title: "3. Cast your ballot",
-            step3Description:
-                "You can cast it so that it's properly registered. Alternatively, you can audit that your ballot was correctly encrypted.",
-        },
-        reviewScreen: {
-            title: "Review your ballot",
-            description:
-                "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow, and to audit your ballot click the “<b>Audit the Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
-            backButton: "Edit ballot",
-            castBallotButton: "Cast your ballot",
-            auditButton: "Audit ballot",
-            reviewScreenHelpDialog: {
-                title: "Information: Review Screen",
-                content:
-                    "This screen allows you to review your selections before casting your ballot.",
-                ok: "OK",
-            },
-            ballotIdHelpDialog: {
-                title: "Vote has not been cast",
-                content:
-                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track the ballot, you will not find it.</p><p>The reason we show the Ballot Tracker ID at this stage is to allow you to audit the correctness of the encrypted ballot before casting it.</p>",
-                ok: "I accept my vote has NOT been cast",
-                cancel: "Cancel",
-            },
-            auditBallotHelpDialog: {
-                title: "Do you want to audit the ballot?",
-                content:
-                    "<p>Auditing the ballot will spoil it and you will need to start the process of voting again if you want to cast your vote. The ballot audit process allows you to verify it's correctly encoded. Doing this process requires you to have important technical knowledge, so we do not recommend it if you do not know what you are doing.</p><p><b>If you just want to cast your ballot, click <u>Cancel</u> to go back to the review ballot screen.</b></p>",
-                ok: "Yes, I want to DISCARD my ballot to audit it",
-                cancel: "Cancel",
-            },
-        },
         logsScreen: {
             noPermissions: "You don't have permission to access logs.",
             title: "Logs",
             subtitle: "General logs of the main and IAM databases",
+            actions: {
+                csv: "Export in CSV",
+                pdf: "Export in PDF",
+            },
+            exportdialog: {
+                description:
+                    "Please confirm you want to execute this action, it might take a while to execute.",
+            },
             column: {
                 id: "Id",
-                statement: "Statement",
+                statement_kind: "Statement kind",
+                created: "Created",
+                statement_timestamp: "Statement Timestamp",
+                message: "Message",
+                user_id: "User Id",
+                username: "Username",
+                sender_pk: "Sender Pk",
+                log_type: "Log Type",
+                event_type: "Event Type",
+                description: "Description",
+                version: "Version",
             },
             main: {
                 title: "Main Database Logs",
@@ -78,64 +44,54 @@ const englishTranslation = {
                 title: "IAM Database Logs",
             },
         },
-        confirmationScreen: {
-            title: "Your vote has been cast",
-            description:
-                "The confirmation code bellow verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
-            ballotId: "Ballot ID",
-            printButton: "Print",
-            finishButton: "Finish",
-            verifyCastTitle: "Verify that your ballot has been cast",
-            verifyCastDescription:
-                "You can verify your ballot has been cast correctly at any moment using the following QR code:",
-            confirmationHelpDialog: {
-                title: "Information: Confirmation Screen",
-                content:
-                    "This screen shows that your vote was successfully cast. The information provided on this page allows you to verify that the ballot has been stored in ballot box , this process can be executed at any time during voting period and after the election has been closed.",
-                ok: "OK",
+        tasksScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Tasks Execution",
+            subtitle: "Information about the executed tasks",
+            taskInformation: "Task Information",
+            status: "status: {{status}}",
+            ok: "Ok",
+            column: {
+                id: "Index",
+                name: "Task name",
+                type: "Type",
+                execution_status: "Status",
+                start_at: "Start time",
+                end_at: "End time",
+                executed_by_user: "Executer",
+                annotations: "Annotations",
+                labels: "Labels",
+                logs: "Logs",
             },
-            ballotIdHelpDialog: {
-                title: "Information: Ballot ID",
-                content:
-                    "The Ballot ID is a code that allows you to find your ballot in the ballot box, this ID is unique and doesn't contain information about your selections.",
-                ok: "OK",
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Export Election Event",
+                CREATE_ELECTION_EVENT: "Create Election Event",
+                IMPORT_ELECTION_EVENT: "Import Election Event",
+                IMPORT_USERS: "Import Users",
+                IMPORT_CANDIDATES: "Import Candidates",
+                EXPORT_VOTERS: "Export Voters",
+                CREATE_TRANSMISSION_PACKAGE: "Create Transmission Package",
+                EXPORT_BALLOT_PUBLICATION: "Export Ballot Publication",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Export Activity Logs Report",
+                GENERATE_REPORT: "Generate Report",
+                GENERATE_TRANSMISSION_REPORT: "Generate Transmission Report",
+                EXPORT_TRUSTEES: "Export Trustees",
+                EXPORT_APPLICATION: "Export Applications",
+                EXPORT_TENANT_CONFIG: "Export Tenant Config",
+                IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                RENDER_DOCUMENT_PDF: "Render Document PDF",
+                DELETE_ELECTION_EVENT: "Delete Election Event",
+                PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
+                EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
             },
-        },
-        auditScreen: {
-            printButton: "Print",
-            restartButton: "Start Voting",
-            title: "Audit your Ballot",
-            description: "To verify your ballot you will need. to follow the bellow steps:",
-            step1Title: "1. Download or copy the following information",
-            step1Description:
-                "Your <b>Ballot ID</b> that appears at the top of the screen and your encrypted ballot below:",
-            step1HelpDialog: {
-                title: "Copy the Encrypted Ballot",
-                content:
-                    "You can download or copy your encrypted ballot to audit the ballot and verify the encrypted content contains your selections.",
-                ok: "OK",
+            widget: {
+                taskTitle: "Task: {{title}}",
+                viewTask: "View Task",
+                downloadDocument: "Download File",
             },
-            downloadButton: "Download",
-            step2Title: "2. Follow the steps on this tutorial",
-            step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">click here</a>, a new tab will open in your browser)',
-            step2HelpDialog: {
-                title: "Audit ballot tutorial",
-                content:
-                    "To audit your ballot you will need to follow the steps shown in the tutorial, this includes the download of a desktop application used to verify the encrypted ballot independently from the website.",
-                ok: "OK",
-            },
-            bottomWarning:
-                "For security reason, when you audit your ballot, it need to be spoiled. To continue with the voting process, you need to click ‘<b>Start Voting</b>’ bellow.",
-        },
-        electionSelectionScreen: {
-            title: "Election list",
-            description: "Select the election you want to vote",
-            chooserHelpDialog: {
-                title: "Information: Election List",
-                content:
-                    'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
-                ok: "OK",
+            exportTasksExecution: {
+                success: "Export finished successfully",
+                error: "Error exporting Tasks Execution",
             },
         },
         areas: {
@@ -145,11 +101,22 @@ const englishTranslation = {
                 deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
+            updateAreaSuccess: "Area updated",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
             empty: {
                 header: "No Areas yet.",
                 action: "Create Area",
+            },
+        },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Help Links",
+                logoUrl: "Logo URL",
+                css: "Custom CSS",
+            },
+            errors: {
+                invalidHelpLinks: "Invalid Help Links format",
             },
         },
         electionTypeScreen: {
@@ -176,10 +143,28 @@ const englishTranslation = {
             tabs: {
                 votingChannels: "VOTING CHANELS",
                 electionTypes: "ELECTION TYPES",
-                communications: "COMMUNICATION",
+                templates: "TEMPLATES",
                 languages: "LANGUAGES",
+                localization: "LOCALIZATION",
+                lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
+                BackupRestore: "Backup / Restore",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "No Trustees yet.",
+                createNew: "Create Trustee",
+                title: "Trustee",
+                subtitle: "Trustee configuration",
+                emptyBody: "Do you want to create one?",
+            },
+            create: {
+                title: "Create Trustee",
+            },
+            edit: {
+                title: "Edit Trustee",
             },
         },
         scheduleScreen: {
@@ -222,22 +207,62 @@ const englishTranslation = {
             voteByDay: "Votes by day",
             votersByChannels: "Voters by channel",
             voterLoginURL: "Voter Login URL",
+            voterEnrollURL: "Voter Enroll URL",
+            voterEnrollKioskURL: "Voter Enroll Kiosk URL",
+            ipAddress: {
+                emptyState: "No votes yet.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "Country",
+                VoteCount: "Vote Count",
+                ElectionName: "Election Name",
+                VotersId: "Voters Id",
+            },
         },
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",
                 showMore: "Show More",
                 showLess: "Show Less",
+                adminPortal: "Admin Portal",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Reset custom filter",
             },
             edit: {
                 general: "General",
                 dates: "Dates",
+                customUrls: "Custom URLs Prefix",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
                 ballotDesign: "Ballot Design",
+                templates: "Templates",
+                reorder: "Reorder elections",
                 advancedConfigurations: "Advanced Configurations",
                 importCandidates: "Import Candidates",
+                custom_filters: "Custom filters",
+                voter_authentication: "Voter Authentication",
+            },
+            customUrls: {
+                login: "Login",
+                enrollment: "Enrollment",
+            },
+            localization: {
+                emptyHeader: "No languages were set for the event",
+                selectLanguage: "Select Language",
+                notify: {
+                    success: "Localization updated Successfully",
+                    error: "Localization update failed",
+                },
+                common: {
+                    title: "Localization",
+                    subTitle: "Localization configuration",
+                },
+                labels: {
+                    key: "Key",
+                    value: "Value",
+                },
             },
             field: {
                 name: "Name",
@@ -250,12 +275,41 @@ const englishTranslation = {
                 materialActivated: "Support Materials Activated",
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
-                hideAudit: "Disable Ballot Audit Support",
                 logoUrl: "Logo URL",
+                userVerification:
+                    "You can introduce a custom template that will be used to manually verify the voters",
                 redirectFinishUrl: "Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                showCastVoteLogs: {
+                    policyLabel: "Show Cast Vote Logs Tab",
+                    options: {
+                        "show-logs-tab": "Show Cast Vote Logs Tab",
+                        "hide-logs-tab": "Hide Cast Vote Logs Tab",
+                    },
+                },
+                lockdownState: {
+                    policyLabel: "Lockdown Status",
+                    options: {
+                        "locked-down": "Locked Down",
+                        "not-locked-down": "Not Locked Down",
+                    },
+                },
+                decodedBallots: {
+                    policyLabel: "Include decoded ballots to results database",
+                    options: {
+                        "included": "Include",
+                        "not-included": "Don't include",
+                    },
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Single Contest",
+                        "multiple-contests": "Multiple Contests",
+                    },
+                    policyLabel: "Contest encryption policy",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "No Countdown",
                     COUNTDOWN: "Countdown",
@@ -265,11 +319,38 @@ const englishTranslation = {
                     coundownSecondsLabel: "time in seconds before expiration to show countdown",
                     alertSecondsLabel: "time in seconds before expiration to show Logout alert",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Voter Signing Policy",
+                    "no-signature": "No signature",
+                    "with-signature": "With signature",
+                },
+                enrollment: {
+                    policyLabel: "Enrollment",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Keys/Tally Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Allow Automatic Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",
-                noResult: "No Election Event yet",
                 startDate: "Start date must be in the future",
+                noResult: "No Election Event yet",
+                endDateInvalid: "End date must be in the future",
             },
             voters: {
                 title: "Voters",
@@ -312,13 +393,20 @@ const englishTranslation = {
             },
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
+                localization: "Localization",
                 voters: "Voters",
                 areas: "Areas",
                 keys: "Keys",
                 tally: "Tally",
                 publish: "Publish",
                 logs: "Logs",
+                tasks: "Tasks",
+                events: "Scheduled Events",
+                notifications: "Notifications",
+                reports: "Reports",
+                approvals: "Approvals",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -326,11 +414,18 @@ const englishTranslation = {
                 elections: "Elections",
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
+                permissionLabels: "Permission Labels",
                 status: "Status",
+                tallyType: {
+                    label: "Tally Type",
+                    ELECTORAL_RESULTS: "Electoral Results",
+                    INITIALIZATION_REPORT: "Initialization Results",
+                },
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
-                    createButton: "Start Tally Ceremony",
+                    createTallyButton: "Start Tally Ceremony",
+                    createInitializationReportButton: "Generate Initialization Report",
                     error: {
                         create: "Error creating Tally",
                     },
@@ -340,8 +435,16 @@ const englishTranslation = {
                     noLogs: "No logs available",
                 },
                 notify: {
+                    noKeysTally:
+                        "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed.",
+                    noPublication:
+                        "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                    startDisabled:
+                        "You cannot continue the ceremony because no elections are selected or the elections are not published.",
+                    ceremonyDisabled:
+                        "You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed.",
                 },
             },
             importAreas: {
@@ -371,6 +474,8 @@ const englishTranslation = {
                 fileUploadError: "Error uploading file",
                 importVotersSuccess: "Voters Import Scheduled Successfully",
                 importVotersError: "Error importing Voters",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Yes, Import without Integrity Check",
                     cancel: "Go Back",
@@ -378,18 +483,49 @@ const englishTranslation = {
                     description:
                         "You didn't enter the Integrity Check (SHA-256) field. Please confirm  that you are importing the correct file and you want to import it.",
                 },
+                passwordDialog: {
+                    title: "Decryption Password",
+                    description: "Enter the password to decrypt the file",
+                    label: "Password",
+                    copyPassword: "Copy Password",
+                    ok: "Ok",
+                },
             },
-            exportError: "Error exporting Election Event",
+            export: {
+                title: "Export Election Event",
+                subtitle:
+                    "Export can be a long operation. Are you sure you want to export records?",
+                encryptWithPassword: "Encrypt with Password",
+                includeVoters: "Include Voters",
+                activityLogs: "Activity Logs",
+                bulletinBoard: "Bulletin Board",
+                publications: "Publications",
+                s3Files: "S3 Files",
+                scheduledEvents: "Scheduled Events",
+                exportSuccess: "Election Event exported successfully",
+                exportError: "Error exporting Election Event",
+                passwordTitle: "Password",
+                passwordDescription: "Password to decrypt the file:",
+                copiedSuccess: "Password copied to clipboard",
+                copiedError: "Error copying password",
+                reports: "Reports",
+                applications: "Applications",
+                tally: "Tally",
+            },
+            taskNotification:
+                "{{action}} has started. You can see its status at Tasks Execution table.",
         },
         electionScreen: {
             common: {
                 title: "Election",
                 subtitle: "Election configuration.",
                 fileLoaded: "File loaded",
+                noPermission: "You don't have permission to access this election.",
             },
             edit: {
                 general: "General",
                 dates: "Dates",
+                votingPeriod: "Voting Period",
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 default: "Default",
@@ -398,6 +534,12 @@ const englishTranslation = {
                 image: "Image",
                 advanced: "Advanced Configuration",
                 numAllowedVotes: "Number of allowed votes",
+                reorder: "Reorder contests",
+                castVoteConfirm: "Cast Vote Confirmation Modal",
+                gracePeriodPolicy: "Grace Period",
+                allowTallyPolicy: "Allow Tally",
+                permissionLabel: "Permission Label",
+                custom_filters: "Custom filters",
             },
             field: {
                 name: "Name",
@@ -405,35 +547,77 @@ const englishTranslation = {
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                startDateTimeWithTimezone: "Start Date and Time ({{timezone}})",
+                endDateTimeWithTimezone: "End Date and Time ({{timezone}})",
                 scheduledOpening: "Scheduled Opening",
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Security Confirmation Html",
+            },
+            securityConfirmationPolicy: {
+                label: "Security Confirmation Checkbox Policy",
+                none: "None",
+                mandatory: "Mandatory",
             },
             error: {
-                endDate: "End date must be after start date",
                 fileError: "Error uploading file",
                 fileLoaded: "File loaded",
+                endDate: "End date must be after start date",
+                startDate: "Start date must be in the future",
+                endDateInvalid: "End date must be in the future",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
             tabs: {
                 dashboard: "Dashboard",
+                monitoring: "Monitoring",
                 data: "Data",
                 voters: "Voters",
                 publish: "Publish",
                 logs: "Logs",
+                approvals: "Approvals",
+            },
+            gracePeriodPolicy: {
+                "label": "Grace Period Policy",
+                "no-grace-period": "No grace period",
+                "grace-period-without-alert": "Grace period without alert",
+                "gracePeriodSecs": "Grace period in seconds",
+            },
+            allowTallyPolicy: {
+                "allowed": "Allowed",
+                "disallowed": "Disallowed",
+                "requires-voting-period-end": "Requires Voting Period End",
+            },
+            initializeReportPolicy: {
+                "label": "Initialize Report Policy",
+                "not-required": "Not Required",
+                "required": "Required",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Start Screen Title Policy",
+                options: {
+                    "election": "Election title",
+                    "election-event": "Election event title",
+                },
             },
         },
         tenantScreen: {
             common: {
-                title: "Client",
+                title: "Tenants",
             },
             new: {
-                subtitle: "Create Client",
+                subtitle: "Create new tenant",
             },
-            createSuccess: "Customer created",
-            createError: "Error creating customer",
+            createSuccess: "Tenant created",
+            createError: "Error creating tenant",
         },
         usersAndRolesScreen: {
             noPermissions: "You don't have permission to access users or roles.",
@@ -441,6 +625,11 @@ const englishTranslation = {
                 title: "Users and Roles",
                 subtitle: "General configuration",
                 mobileNumber: "Mobile",
+            },
+            editPassword: {
+                label: "Change password",
+                temporatyLabel: "Temporary",
+                temporatyInfo: "If enabled, the user must change the password on next login",
             },
             users: {
                 title: "Users",
@@ -454,27 +643,31 @@ const englishTranslation = {
                     subtitle: "Create user",
                 },
                 fields: {
-                    has_voted: "Voted",
-                    username: "Username",
-                    first_name: "First Name",
-                    last_name: "Last Name",
-                    email: "Email",
-                    enabled: "Enabled",
-                    emailVerified: "Email Verified",
-                    groups: "Groups",
-                    attributes: "Attributes",
-                    area: "Area",
-                    password: "Password",
-                    repeatPassword: "Repeat Password",
-                    passwordMismatch: "Passwords must match",
-                    passwordLengthValidate: "Password must be at least 8 characters long",
-                    passwordUppercaseValidate:
+                    "has_voted": "Voted",
+                    "username": "Username",
+                    "first_name": "First Name",
+                    "last_name": "Last Name",
+                    "email": "Email",
+                    "enabled": "Enabled",
+                    "emailVerified": "Email Verified",
+                    "groups": "Groups",
+                    "attributes": "Attributes",
+                    "area": "Area",
+                    "password": "Password",
+                    "repeatPassword": "Repeat Password",
+                    "savePassword": "Save Password",
+                    "passwordMismatch": "Passwords must match",
+                    "passwordLengthValidate": "Password must be at least 8 characters long",
+                    "passwordUppercaseValidate":
                         "Password must contain at least one uppercase letter",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "Password must contain at least one lowercase letter",
-                    passwordDigitValidate: "Password must contain at least one digit",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "Password must contain at least one digit",
+                    "passwordSpecialCharValidate":
                         "Password must contain at least one special character",
+                    "trustee": "Act as Trustee",
+                    "permissionLabel": "Permission Label",
+                    "authorized-election-ids": "Elections",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -484,18 +677,25 @@ const englishTranslation = {
                     exportError: "Error exporting users",
                     deleteError: "Error deleting user",
                     deleteSuccess: "User deleted",
+                    multipleDeleteSuccess: "Users deleted",
                 },
             },
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                logs: {
+                    label: "User's Logs",
+                },
                 create: {
                     title: "Voter",
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
+                    label: "Manually Verify",
                     verify: "Manually Verify this voter",
                     body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
+                    noEmailOrPhone:
+                        "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
                 },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
@@ -513,6 +713,7 @@ const englishTranslation = {
                     exportError: "Error exporting voters",
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
+                    multipleDeleteSuccess: "Voters deleted",
                     manualVerificationError: "Error manually verifying the voter",
                     manualVerificationSuccess:
                         "Sucessfully verified manually the voter, downloading PDF..",
@@ -548,12 +749,15 @@ const englishTranslation = {
             permissions: {
                 "admin-user": "Admin User",
                 "admin-dashboard-view": "Admin Dashboard View",
+                "application-export": "Application Export",
+                "application-import": "Application Import",
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
+                "election-event-delete": "Delete Election Event",
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
                 "voter-write": "Edit Voter",
@@ -591,6 +795,7 @@ const englishTranslation = {
                 "publish-read": "Read Publish",
                 "publish-write": "Edit Publish",
                 "logs-read": "Read Logs",
+                "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
@@ -605,10 +810,266 @@ const englishTranslation = {
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
                 "support-material-write": "Edit Support Materials",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
+                "contest-write": "Edit Contest",
+                "contest-read": "Read Contest",
+                "candidate-write": "Edit Candidate",
+                "candidate-read": "Read Candidate",
+                "permission-label-write": "Edit Permission Label",
+                "scheduled-event-write": "Edit Scheduled Events",
+                "contest-create": "Create Contest",
+                "contest-delete": "Delete Contest",
+                "candidate-create": "Create Candidate",
+                "candidate-delete": "Delete Candidate",
+                "election-create": "Create Election",
+                "election-read": "Read Election",
+                "election-write": "Edit Election",
+                "election-delete": "Delete Election",
+                "election-event-archive": "Archive Election Event",
+                "election-data-tab": "View Election Data",
+                "election-event-areas-tab": "View Election Event Areas",
+                "election-event-data-tab": "View Election Event Data",
+                "election-event-keys-tab": "View Election Event Keys",
+                "election-event-logs-tab": "View Election Event Logs",
+                "election-event-publish-tab": "View Election Event Publish",
+                "election-event-reports-tab": "View Election Event Reports",
+                "election-event-scheduled-tab": "View Election Event Scheduled",
+                "election-event-tally-tab": "View Election Event Tally",
+                "election-event-tasks-tab": "View Election Event Tasks",
+                "election-event-voters-tab": "View Election Event Voters",
+                "election-publish-tab": "View Election Publish",
+                "election-voters-tab": "View Election Voters",
+                "report-write": "Edit Reports",
+                "report-read": "Read Reports",
+                "users-menu": "View users and roles",
+                "settings-menu": "View settings",
+                "templates-menu": "View templates",
+                "settings-election-types-tab": "View election types settings",
+                "settings-voting-channels-tab": "View voting channels settings",
+                "settings-templates-tab": "View templates settings",
+                "settings-languages-tab": "View languages settings",
+                "settings-localization-tab": "View localization settings",
+                "settings-look-feel-tab": "View look and feel settings",
+                "settings-trustees-tab": "View truestees settings",
+                "settings-countries-tab": "View countries settings",
+                "voter-import": "Import Voter",
+                "ee-voters-columns": "View Election Event Voters Columns",
+                "voter-manually-verify": "Manually Verify Voter",
+                "ee-voters-logs": "View Election Event Voters Logs",
+                "voter-export": "Export Voter",
+                "ee-voters-filters": "View Election Event Voters Filters",
+                "voter-delete": "Delete Voter",
+                "voter-change-password": "Change Voter Password",
+                "election-event-localization-selector": "Election Event Localization Selector",
+                "localization-create": "Create Localization",
+                "localization-read": "Read Localization",
+                "localization-write": "Edit Localization",
+                "localization-delete": "Delete Localization",
+                "area-create": "Create Area",
+                "area-delete": "Delete Area",
+                "area-export": "Export Area",
+                "area-import": "Import Area",
+                "area-upsert": "Upsert Area",
+                "election-event-areas-columns": "Election Event Areas Columns",
+                "election-event-areas-filters": "Election Event Areas Filters",
+                "election-event-tasks-back-button": "Back to Election Event Tasks",
+                "election-event-tasks-columns": "Election Event Tasks Columns",
+                "election-event-tasks-filters": "Election Event Tasks Filters",
+                "task-export": "Export Tasks",
+                "application-read": "Read Application",
+                "application-write": "Edit Application",
+                "logs-export": "Export Logs",
+                "election-event-logs-columns": "Election Event Logs Columns",
+                "election-events-logs-filters": "Election Event Logs Filters",
+                "election-event-scheduled-event-columns": "Election Event Scheduled Event Columns",
+                "scheduled-event-create": "Create Scheduled Event",
+                "scheduled-event-delete": "Delete Scheduled Event",
+                "election-event-reports-columns": "Election Event Reports Columns",
+                "report-create": "Create Report",
+                "report-delete": "Delete Report",
+                "report-generate": "Generate Report",
+                "report-preview": "Preview Report",
+                "monitoring-dashboard-view-election-event":
+                    "Election Event Monitoring Dashboard View",
+                "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
+                "monitor-authenticated-voters": "Monitoring Authenticated Voters",
+                "monitor-all-approve-disapprove-voters":
+                    "Read Monitoring Approve Disapprove Voters",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Read Monitoring Automatic Approve Disapprove Voters",
+                "monitor-manually-approve-disapprove-voters":
+                    "Read Monitoring Manually Approve Disapprove Voters",
+                "monitor-enrolled-overseas-voters": "Read Monitoring Enrolled Overseas Voters",
+                "monitor-posts-already-closed-voting":
+                    "Read Monitoring Posts Already Closed Voting",
+                "monitor-posts-already-generated-election-results":
+                    "Read Monitoring Posts Already Generated Election Results",
+                "monitor-posts-already-opened-voting":
+                    "Read Monitoring Posts Already Opened Voting",
+                "monitor-posts-already-started-counting-votes":
+                    "Read Monitoring Posts Already Started Counting Votes",
+                "monitor-posts-initialized-the-system":
+                    "Read Monitoring Posts Initialized The System",
+                "monitor-posts-started-voting": "Read Monitoring Posts Started Voting",
+                "monitor-posts-transmitted-results": "Read Monitoring Posts Transmitted Results",
+                "monitor-voters-voted-test-election": "Read Monitoring Voters Voted Test Election",
+                "monitor-voters-who-voted": "Read Monitoring Voters Who Voted",
+                "election-event-publish-preview": "Preview Election Event Publish",
+                "election-event-publish-back-button": "Back to Election Event Publish",
+                "election-event-publish-columns": "Election Event Publish Columns",
+                "election-event-publish-filters": "Election Event Publish Filters",
+                "publish-create": "Create Publish",
+                "publish-regenerate": "Regenerate Publish",
+                "publish-export": "Export Publish",
+                "publish-start-voting": "Start Voting",
+                "publish-pause-voting": "Pause Voting",
+                "publish-stop-voting": "Stop Voting",
+                "publish-changes": "Publish Changes",
+                "election-event-publish-view": "Election Event Publish View",
+                "election-event-keys-columns": "Election Event Keys Columns",
+                "create-ceremony": "Create Ceremony",
+                "export-ceremony": "Export Ceremony",
+                "election-event-tally-columns": "Election Event Tally Columns",
+                "election-event-tally-back-button": "Back to Election Event Tally",
+                "transmition-ceremony": "Transmission Ceremony",
+                "admin-ip-address-view": "View IP Address",
+                "election-approvals-tab": "View Election Approvals",
+                "election-event-approvals-tab": "View Election Event Approvals",
+                "election-ip-address-view": "View Election IP Address",
+                "election-dashboard-tab": "View Election Dashboard",
+                "trustees-export": "Export Trustees",
+                "user-import": "Import Users",
+                "voter-voted-edit": "Edit voters who voted",
+                "voter-email-tlf-edit": "Edit voters email/phone fields",
+                "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
+                "transmission-report-generate": "Generate Transmission Report",
             },
         },
         generalSettingsScreen: {
             body: "Enable languages in the system. Only languages enabled here will be available for election events.",
+        },
+        eventsScreen: {
+            title: "Scheduled Events",
+            subtitle:
+                "Manages the configuration of the automatic execution of events like the start or end of the voting period.",
+            messages: {
+                createSuccess: "Scheduled Event created successfully",
+                createError: "Error creating Scheduled Event",
+                editSuccess: "Scheduled Event edited successfully",
+                editError: "Error editing Scheduled Event",
+            },
+            eventType: {
+                label: "Type",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
+                START_VOTING_PERIOD: "Start Voting Period",
+                END_VOTING_PERIOD: "End Voting Period",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Start Enrollment Period",
+                END_ENROLLMENT_PERIOD: "End Enrollment Period",
+                START_LOCKDOWN_PERIOD: "Start Lockdown Period",
+                END_LOCKDOWN_PERIOD: "End Lockdown Period",
+                ALLOW_TALLY: "Allow Tally",
+            },
+            election: {
+                label: "Election",
+            },
+            empty: {
+                header: "No Scheduled Events yet.",
+                body: "Do you want to create one?",
+                button: "Create Scheduled Event",
+            },
+            create: {
+                title: "Create Scheduled Event",
+                subtitle: "Create a new Scheduled Event configuration.",
+            },
+            edit: {
+                title: "Edit Scheduled Event",
+                subtitle: "Edit Scheduled Event configuration.",
+                delete: "Are you sure you want delete this Scheduled Event?",
+            },
+            fields: {
+                electionId: "Election",
+                eventProcessor: "Type",
+                stoppedAt: "Stopped At",
+                scheduledDate: "Scheduled At",
+            },
+        },
+        reportsScreen: {
+            title: "Reports",
+            subtitle: "Generate reports for the election events",
+            messages: {
+                createSuccess: "Report created successfully",
+                createError: "Error creating Report",
+                submitError: "Error submitting Report",
+                updateSuccess: "Report updated successfully",
+                passwordMismatch:
+                    "Password and confirm password do not match. Please ensure both fields contain the same password.",
+                incorectPassword: "Incorrect password",
+                decryptFileTitle: "How to decrypt the file",
+                decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
+                encryptSuccess: "Successfully set up report encryption",
+                encryptError: "Error setting up report encryption",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipt",
+                ELECTORAL_RESULTS: "Electoral Results",
+                MANUAL_VERIFICATION: "Manual Verification",
+                STATISTICAL_REPORT: "Statistical Report",
+                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                AUDIT_LOGS: "Audit Logs",
+                ACTIVITY_LOG: "Activity Log",
+                STATUS: "Status",
+                OVCS_INFORMATION: "OVCS Information",
+                OVERSEAS_VOTERS: "List of overseas voters",
+                OV_USERS_WHO_VOTED: "List of Overseas Voters who Voted",
+                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
+                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
+            },
+            reportEncryptionPolicy: {
+                title: "Encryption Policy",
+                UNENCRYPTED: "Unencrypted",
+                CONFIGURED_PASSWORD: "Configured Password",
+            },
+            empty: {
+                header: "No Reports yet.",
+                body: "Do you want to create one?",
+                button: "Create Report",
+            },
+            create: {
+                title: "Create Report",
+                subtitle: "Create a new Report configuration.",
+            },
+            edit: {
+                title: "Edit Report",
+                subtitle: "Edit Report configuration.",
+                delete: "Are you sure you want delete this Report?",
+            },
+            fields: {
+                electionId: "Election",
+                template: "Template",
+                reportType: "Report Type",
+                repeatable: "Repeatable",
+                cronExpression: "Cron Expression",
+                emailRecipients: "Email Recipients",
+                emailRecipientsPlaceholder: "Type email and press Enter",
+            },
+
+            delete: {
+                body: "Are you sure you want delete this Report?",
+            },
+            actions: {
+                generate: "Generate",
+                delete: "Delete",
+                edit: "Edit",
+                preview: "Preview",
+            },
         },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
@@ -646,12 +1107,23 @@ const englishTranslation = {
                 title: "Title",
                 subtitle: "Subtitle",
                 kind: "File type",
+                filter: "Custom Filters",
+                approve: "Approve",
+                continue: "Continue",
+                logout: "Logout",
+                selectTenant: "Select Tenant",
+                processing: "Processing...",
+                tenantName: "Tenant Name",
             },
             language: {
                 es: "Spanish",
                 en: "English",
                 fr: "French",
                 cat: "Valencian",
+                tl: "Tagalog",
+                gl: "Galician",
+                nl: "Dutch",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
@@ -659,6 +1131,7 @@ const englishTranslation = {
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
+                continueOrLogout: "Do you want to stay connected to this tenant or logout?",
             },
         },
         createResource: {
@@ -667,13 +1140,21 @@ const englishTranslation = {
             contest: "Create a Contest",
             candidate: "Create a Candidate",
         },
+        importResource: {
+            electionEvent: "Import an Election Event",
+            election: "Import an Election",
+            contest: "Import a Contest",
+            candidate: "Import a Candidate",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
+        },
         sideMenu: {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
             logs: "Logs",
             settings: "Settings",
-            communicationTemplates: "Communication Templates",
+            help: "Help",
+            templates: "Templates",
             active: "Active",
             archived: "Archived",
             addResource: {
@@ -709,6 +1190,7 @@ const englishTranslation = {
                             archive: "The item has been archived",
                             unarchive: "The item has been unarchived",
                             delete: "The item has been deleted",
+                            reloading: "Wait. The page will be reloaded in a few moments.",
                         },
                         error: {
                             archive: "Error while trying to archive this item",
@@ -763,6 +1245,7 @@ const englishTranslation = {
                 system: "Ballot Voting System",
                 design: "Ballot Design",
                 reorder: "Reorder candidates",
+                policies: "Policies",
             },
             field: {
                 name: "Name",
@@ -776,17 +1259,55 @@ const englishTranslation = {
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
             },
+            auditButtonConfig: {
+                "label": "Audit Button Display Options",
+                "show": "Show",
+                "not-show": "Not Show",
+                "show-in-help": "Show In Help Dialog",
+            },
+            underVotePolicy: {
+                "label": "Under Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "warn-and-alert": "Warn and Alert",
+            },
             invalidVotePolicy: {
+                "label": "Invalid Vote Policy",
                 "allowed": "Allowed",
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "Candidates checkbox icon shape",
+                "square-checkbox": "Square Checkbox",
+                "round-checkbox": "Round Checkbox",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidates And Lists",
                 "allow-selecting-candidates": "Candidates Only",
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
+            },
+            blankVotePolicy: {
+                "label": "Blank Vote Policy",
+                "allowed": "Allowed",
+                "warn-only-in-review": "Warn in Review",
+                "warn": "Warn",
+                "not-allowed": "Not Allowed",
+            },
+            overVotePolicy: {
+                "label": "Over Vote Policy",
+                "allowed": "Allowed",
+                "allowed-with-msg": "Allowed with Warning Message",
+                "allowed-with-msg-and-alert": "Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
+                "not-allowed-with-msg-and-disable":
+                    "Not Allowed with Warning message and Disable further selections",
+            },
+            paginationPolicy: {
+                label: "Page Name",
             },
             error: {},
             createContestSuccess: "Contest created",
@@ -795,6 +1316,8 @@ const englishTranslation = {
         keysGeneration: {
             configureStep: {
                 create: "Create Keys Ceremony",
+                name: "Keys Ceremony Name",
+                allElections: "All Elections",
                 title: "Create Election Event Keys Ceremony",
                 subtitle:
                     "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
@@ -812,9 +1335,17 @@ const englishTranslation = {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
                     title: "Are you sure you want to Create Keys Ceremony?",
+                    automaticCeremonyTitle:
+                        "Are you sure you want to Create Automatic Keys Ceremony?",
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    automaticCeremonyDescription:
+                        "You are about to Create an Automatic Keys Ceremony. This will not notify the Trustees to participate.",
                 },
+                filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Cannot create keys ceremony: one or more permission labels are missing.",
+                automaticCeremonyToggle: "Automatic Ceremony",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -865,6 +1396,8 @@ const englishTranslation = {
                         "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
+                    confirmError:
+                        "Create required backups and check the confirmation boxes to continue",
                 },
             },
             checkStep: {
@@ -877,10 +1410,104 @@ const englishTranslation = {
                 downloaded: "Encrypted Private Key generated successfully.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Creating Transmission Package...",
+                error: "Error creating Transmission Package ",
+            },
+            send: {
+                success: "Sending Transmission Package...",
+                error: "Error sending Transmission Package ",
+            },
+        },
         tally: {
+            errorUploadingSignature: "There was an error uploading signature",
+            downloadTransmissionPackage: "Download Transmission Package",
+            transmissionPackage: {
+                title: "Transmission Package for Area '{{name}}' and Election '{{eventName}}'",
+                description:
+                    "Allows you to export a Transmission Package to Destination Servers or download it.",
+                actions: {
+                    send: {
+                        title: "Send",
+                        dialog: {
+                            title: "Do you want to Send the Transmission Package?",
+                            description:
+                                "Please confirm you want to Send the Transmission Package for Area `{{name}}` to the Destination Servers.",
+                            confirm: "Send Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    regenerate: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to regenerate the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Regenerate Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                    sign: {
+                        title: "Regenerate",
+                        dialog: {
+                            title: "Do you want to sign the Transmission Package?",
+                            description:
+                                "Please confirm you want to regenerate the Transmission Package for Area `{{name}}`",
+                            confirm: "Sign Transmission Package",
+                            cancel: "Close",
+                            input: {
+                                placeholder: "Enter your password",
+                            },
+                        },
+                    },
+                    download: {
+                        title: "Download",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Download Transmission Package {{date}}",
+                        transmissionReportTitle: "Download Transmission Report",
+                        dialog: {
+                            title: "Do you want to Download the Transmission Package?",
+                            description:
+                                "Please confirm you want to Download the Transmission Package for Area `{{name}}.`",
+                            confirm: "Download Transmission Package",
+                            cancel: "Close",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Destination Servers",
+                    description:
+                        "The table below shows the sending status of each of the Destination Servers.",
+                    status: "Sent to {{signed}} out of {{total}}",
+                    table: {
+                        serverName: "Server Name",
+                        sendStatus: "Sending Status",
+                    },
+                },
+                signatures: {
+                    title: "SBEI Signatures",
+                    description:
+                        "SBEIs can sign the Transmission Package. The table below shows the signing status of each of the SBEI members.",
+                    status: "{{signed}} out of {{total}} Signed, {{minimum}} minimum",
+                    table: {
+                        trusteeName: "SBEI id",
+                        signed: "Has Signed",
+                    },
+                },
+            },
+            sendToTransmissionPackageServers: "Send Transmission Package for Area '{{name}}'",
+            uploadTransmissionPackage: "Sign Transmission Package",
+            uploadTransmissionPackageDesc:
+                "Upload your Signature to sign the Transmission Package. This is an optional operation.",
+            exportElectionArea: "Generate Transmission Package for Area '{{name}}'",
+            generateReport: "Generate {{name}}",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
+            keysCeremonyTitle: "Keys Ceremony",
+            keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
+            initializationTitle: "Elections for Initialization Report",
             ceremonySubTitle: "Choose the elections you want to tally",
             tallyTitle: "Elections Tally Progress",
             logsTitle: "Logs",
@@ -920,6 +1547,7 @@ const englishTranslation = {
                 needed: " trustees needed",
                 start: "Start Tally",
                 ceremony: "Start Tally Ceremony",
+                initialization: "Start Initialization Report",
                 results: "Results",
                 dialog: {
                     ok: "Ok",
@@ -935,6 +1563,8 @@ const englishTranslation = {
                         "You are about to cancel the tally ceremony. This action is not undoable.",
                     ceremony:
                         "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {
@@ -972,15 +1602,25 @@ const englishTranslation = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Select Area for Preview",
+                action: "Preview",
+                copy: "Copy link",
+                copy_success: "Success copying preview link",
+                copy_error: "Failed to copy preview link",
+                success: "Success opening preview",
+            },
             header: {
                 change: "Changes to be Published",
                 viewChange: "View Publication",
                 history: "Publish History",
             },
             action: {
-                start: "Start Election",
-                stop: "Stop Election",
-                pause: "Pause",
+                generateInitializationReport: "Generate Initialization Report",
+                startVotingPeriod: "Start Voting",
+                stopVotingPeriod: "Stop Voting",
+                stopKioskVotingPeriod: "Stop Kiosk Voting",
+                pauseVotingPeriod: "Pause Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -995,15 +1635,32 @@ const englishTranslation = {
                 header: "No Publication Yet.",
                 action: "Generate Publication",
             },
+            forbidden: {
+                header: "Cannot Publish until the Keys Ceremony is completed.",
+            },
             dialog: {
                 title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                initializationInfo:
+                    "You are about to generate initialization report. Are you sure you want to continue?",
+                startInfo:
+                    "You are about to start voting period. Are you sure you want to continue?",
+                stopInfo: "You are about to stop voting period. Are you sure you want to continue?",
+                kioskStopInfo:
+                    "You are about to stop the kiosk voting period. Are you sure you want to continue?",
+                pauseInfo:
+                    "You are about to pause voting period. Are you sure you want to continue?",
+                publishInfo:
+                    "You are about to generate a publication. Are you sure you want to continue?",
                 ok: "Confirm",
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
                 error_status: "Error change ballot publication status",
+                error_preview: "Error previewing publication",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
+                confirmation:
+                    "The action you are about to perform is sensitive and requires confirmation. Please enter your password to proceed with {{action}}.",
             },
             notifications: {
                 generated: "Ballot generated",
@@ -1032,7 +1689,7 @@ const englishTranslation = {
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
             successSending: "Notification programmed/sent successfully",
-            method: "Communication Method",
+            method: "Template Method",
             type: "Communication Type",
             alias: "Template Alias",
             votersSelection: {
@@ -1091,6 +1748,12 @@ const englishTranslation = {
                 census: "Census",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Manage Tally Ceremony",
+                    view: "View Tally Ceremony",
+                    cancel: "Cancel Tally Ceremony",
+                    addKey: "Add Tally Key",
+                },
                 edit: "Edit",
                 confirm: "Confirm",
                 back: "Back",
@@ -1127,49 +1790,108 @@ const englishTranslation = {
                 publishSuccess: "Tally sheet published",
             },
         },
-        communicationTemplate: {
-            noPermissions: "You don't have permission to access communication templates.",
-            title: "Communication Templates",
-            subtitle: "List of communication templates",
+        application: {
+            import: {
+                title: "Import applications",
+                subtitle: "Import applications data",
+                paragraph:
+                    "Import applications using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+                messages: {
+                    success: "Applications imported successfully",
+                    error: "Error importing applications",
+                },
+            },
+            export: {
+                title: "Export applications",
+                subtitle: "Export applications data",
+                button: "Export",
+                paragraph:
+                    "Export applications data to a spreadsheet file in Comma Separated Values (CSV) format.",
+                messages: {
+                    success: "Applications exported successfully",
+                    error: "Error exporting applications",
+                },
+            },
+        },
+        template: {
+            noPermissions: "You don't have permission to access templates.",
+            title: "Templates",
+            subtitle: "List of templates",
+            chooseMethods: "Choose Methods",
+            default: "Use default template",
             empty: {
-                title: "No Communication Template Yet",
+                title: "No Template Yet",
                 subtitle: "Do you want to create one?",
             },
             action: {
-                createOne: "Create Communication Template",
+                createOne: "Create Template",
             },
             create: {
-                title: "Create a Communication Template",
-                success: "Communication Template created",
-                error: "Error creating Communication Template",
+                title: "Create a Template",
+                success: "Template created",
+                error: "Error creating Template",
             },
             update: {
-                success: "Communication Template updated",
-                error: "Error updating Communication Template",
+                success: "Template updated",
+                error: "Error updating Template",
             },
             edit: {
-                title: "Edit a Communication Template",
+                title: "Edit a Template",
             },
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
+                pdfOptions: "PDF Options",
+                reportOptions: "Report Options",
                 name: "Template Name",
                 alias: "Template Alias",
-                communicationType: "Communication Type",
-                communicationMethod: "Communication Method",
+                type: "Type",
+                communicationMethod: "Method",
             },
             type: {
-                credentials: "Credentials",
-                ballot_receipt: "Ballot Receipt",
-                participation_report: "Participation Report",
-                electoral_results: "Electoral Results",
-                otp: "OTP",
-                tally_report: "Tally Report",
+                CREDENTIALS: "Credentials",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                VOTE_RECEIPT: "Vote Receipts",
+                PARTICIPATION_REPORT: "Participation Report",
+                ELECTORAL_RESULTS: "Electoral Results",
+                OTP: "OTP",
+                TALLY_REPORT: "Tally Report",
+                MANUAL_VERIFICATION: "Manually verify voter",
+                STATISTICAL_REPORT: "Statistical Report",
+                INITIALIZATION_REPORT: "Initialization Report",
+                STATUS: "Status Report",
+                TRANSMISSION_REPORT: "Transmission Reports",
+                AUDIT_LOGS: "Audit Logs",
+                ACTIVITY_LOGS: "Activity Logs",
+                OVCS_INFORMATION: "OVCS Information",
+                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
+                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
+                OV_WHO_VOTED: "OV Users Who Voted",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
+                LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
+                VOTERS_TURNOUT_PERCENTAGE: "Voters Turnout",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
+                    "Overseas Voters’ Turnout - per Aboard Status and Sex",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
+                    "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
+                OV_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "List of OV who Pre-enrolled but subject for Manual Validation",
+                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "List of OV who have not yet Pre-enrolled",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "No. of OV who have not yet Pre-enrolled",
+                BALLOT_IMAGES: "Ballot Images",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+            },
+            import: {
+                title: "Import Templates",
+                subtitle: "Import templates data",
+                paragraph:
+                    "Import templates using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
             },
         },
         materials: {
@@ -1188,6 +1910,114 @@ const englishTranslation = {
             fields: {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
+            },
+            empty: {
+                header: "No support material yet",
+                action: "Generate support material  ",
+            },
+        },
+        widget: {
+            logs: "Logs",
+        },
+        settings: {
+            countries: {
+                title: "Country Blocking",
+                votingDescription: "Choose below the countries you want to block voting from.",
+                enrollmentDescription:
+                    "Choose below the countries you want to block enrollment from.",
+                error: {
+                    errorSaving: "Error saving the country list",
+                },
+            },
+            backupRestore: {
+                title: "Backup / Restore Tenant config",
+                backup: {
+                    label: "Backup",
+                    subtitle: "Backup Tenant configurations",
+                },
+                restore: {
+                    label: "Restore",
+                    subtitle: "Restore Tenant config",
+                    title: "Import Tenant Configurations",
+                    paragraph:
+                        "Import tenant configurations, Keycloak configurations, roles & permissions data using zip folder",
+                    tenantConfigOption: "Import Tenant Configurations",
+                    keycloakConfigOption: "Import Keycloak Configurations",
+                    RolesConfigOption: "Import Roles & Permissions Configurations",
+                },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Status",
+                id: "ID",
+                applicantId: "Applicant ID",
+                verificationType: "Verification Type",
+                createdAt: "Created At",
+                updatedAt: "Updated At",
+                verified_by: "Verified By",
+            },
+            approvalRequest: "Approval Request",
+            title: "Voters",
+            subtitle: "Find matching voters",
+            approve: {
+                body: "Are you sure you want to approve this voter? This action is not reversible.",
+            },
+            reject: {
+                label: "Reject Application",
+                confirm:
+                    "Are you sure you want to reject this voter? This action is not reversible.",
+                rejectReason: "Rejection Reason",
+                message: "Write here the disapproval reason",
+                messageRequired: "A rejection message is required for the 'Other' option.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Missing Data",
+                    "no-matching-voter": "No Matching Voter",
+                    "voter-already-approved": "Already Approved",
+                    "other": "Other",
+                },
+            },
+            notifications: {
+                approveError: "Error approving voter",
+                approveSuccess: "Voter approved",
+                rejectError: "Error rejecting voter",
+                rejectSuccess: "Voter rejected",
+                VoterApprovedAlready: "Voter is already approved.",
+            },
+            export: {
+                success: "Applications export finished successfully",
+                error: "Error exporting applications",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Voters",
+                enrolledOverseasVoters: "Enrolled Overseas Voters",
+                approvalStatus: "Approval Status: Approved/Disapproved Voters",
+                manuallyApproval: "Manually Approved/Disapproved Voters",
+                automaticallyApproval: "Automatically Approved/Disapproved Voters",
+                authenticatedVoters: "Authenticated Voters",
+                invalidUserErrors: "Invalid User Errors:",
+                invalidPasswordErrors: "Invalid Password Errors:",
+            },
+            polls: {
+                title: "Polls",
+                initializedSystems: "Posts with Initialized Systems",
+                votingOpened: "Posts with Online Voting Opened",
+                votingClosed: "Posts with Both Voting Channels Closed",
+                votingStarted: "Posts with Voting Started",
+                voterTurnout: "Voter Turnout",
+            },
+            tally: {
+                title: "Tally",
+                activeVotesCounting: "Posts with Active Vote Counting",
+                generatedERs: "Posts with Generated ERs",
+                transmittedResults: "Posts with Transmitted Results",
+            },
+            testing: {
+                title: "Testing",
+                testElectionVoterCount: "Test Election Voter Count",
             },
         },
     },

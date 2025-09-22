@@ -1,0 +1,273 @@
+#!/usr/bin/awk -f
+
+# Authors: @esperlu, @artemyk, @gkuenning, @dumblob
+
+# FIXME detect empty input file and issue a warning
+
+function printerr( s ){ print s | "cat >&2" }
+
+BEGIN {
+  print "[LOG] Script started." >> "logs/mysql2sqlite.log"
+  if( ARGC != 2 ){
+    print "[LOG] Incorrect number of arguments provided. Exiting." >> "logs/mysql2sqlite.log"
+    print "USAGE:\n"\
+      "       mysql2sqlite dump_mysql.sql > dump_sqlite3.sql\n" \
+      "       OR\n" \
+      "       mysql2sqlite dump_mysql.sql | sqlite3 sqlite.db\n" \
+      "\n" \
+      "NOTES:\n" \
+      "       Dash in filename is not supported, because dash (-) means stdin." | "cat >&2"
+    no_END = 1
+    exit 1
+  }
+
+  s="127"
+  if( (s + 0) "" == s ){ INT_MAX_HALF = "63" + 0 }
+  s="32767"
+  if( (s + 0) "" == s ){ INT_MAX_HALF = "16383" + 0 }
+  s="2147483647"
+  if( (s + 0) "" == s ){ INT_MAX_HALF = "1073741823" + 0 }
+  s="9223372036854775807"
+  if( (s + 0) "" == s ){ INT_MAX_HALF = "4611686018427387904" + 0 }
+
+  FS=",$"
+  print "[LOG] Initialized INT_MAX_HALF based on system architecture." >> "logs/mysql2sqlite.log"
+  print "PRAGMA synchronous = OFF;"
+  print "PRAGMA journal_mode = MEMORY;"
+  print "BEGIN TRANSACTION;"
+}
+
+function bit_to_int( str_bit,   powtwo, i, res, bit, overflow ){
+  powtwo = 1
+  overflow = 0
+  # 011101 = 1*2^0 + 0*2^1 + 1*2^2 ...
+  for( i = length( str_bit ); i > 0; --i ){
+    bit = substr( str_bit, i, 1 )
+    if( overflow || ( bit == 1 && res > INT_MAX_HALF ) ){
+      printerr( \
+        NR ": WARN Bit field overflow, number truncated (LSBs saved, MSBs ignored)." )
+      break
+    }
+    res = res + bit * powtwo
+    # no warning here as it might be the last iteration
+    if( powtwo > INT_MAX_HALF ){ overflow = 1; continue }
+    powtwo = powtwo * 2
+  }
+  return res
+}
+
+/^\/\*.*(CREATE.*TRIGGER|create.*trigger)/ {
+  gsub( /^.*(TRIGGER|trigger)/, "CREATE TRIGGER" )
+  print "[LOG] Trigger detected and modified at line " NR "." >> "logs/mysql2sqlite.log"
+  print
+  inTrigger = 1
+  next
+}
+
+# The end of CREATE TRIGGER has a stray comment terminator
+/(END|end) \*\/;;/ { 
+  gsub( /\*\//, "" )
+  print "[LOG] End of trigger block found at line " NR "." >> "logs/mysql2sqlite.log"
+  print
+  inTrigger = 0
+  next
+}
+
+inTrigger != 0 { print; next }
+
+/^\/\*.*(CREATE.*TABLE|create.*table)/ {
+  inView = 1
+  print "[LOG] CREATE VIEW detected at line " NR ". Skipping content." >> "logs/mysql2sqlite.log"
+  next
+}
+
+# end of CREATE VIEW
+/^(\).*(ENGINE|engine).*\*\/;)/ {
+  inView = 0
+  print "[LOG] End of CREATE VIEW block found at line " NR "." >> "logs/mysql2sqlite.log"
+  next
+}
+
+inView != 0 { next }
+
+/^\/\*/ { next }
+
+# skip PARTITION statements
+/^ *[(]?(PARTITION|partition) +[^ ]+/ { 
+  print "[LOG] PARTITION statement detected and skipped at line " NR "." >> "logs/mysql2sqlite.log"
+  next 
+}
+
+( /^ *\(/ && /\) *[,;] *$/ ) || /^(INSERT|insert|REPLACE|replace)/ {
+  prev = ""
+
+  gsub( /\\\\/, "\\_" )
+  gsub( /\\'/, "''" )
+  gsub( /\\n/, "\n" )
+  gsub( /\\r/, "\r" )
+  gsub( /\\"/, "\"" )
+  gsub( /\\\032/, "\032" )
+
+  gsub( /\\_/, "\\" )
+
+  while( match( $0, /0x[0-9a-fA-F]{17}/ ) ){
+    hexIssue = 1
+    # Convert long hex numbers to text rather than trimming
+    sub( /0x[0-9a-fA-F]+/, "'" substr( $0, RSTART, RLENGTH ) "'", $0 )
+  }
+  if( hexIssue ){
+    print "[LOG] Hex number longer than 16 chars converted to text at line " NR "." >> "logs/mysql2sqlite.log"
+    hexIssue = 0
+  }
+  print
+  next
+}
+
+/^(CREATE DATABASE|create database)/ { 
+  print "[LOG] CREATE DATABASE statement detected and skipped at line " NR "." >> "logs/mysql2sqlite.log"
+  next 
+}
+
+/^(CREATE|create)/ {
+  if( $0 ~ /IF NOT EXISTS|if not exists/ || $0 ~ /TEMPORARY|temporary/ ){
+    print "[LOG] Potential case sensitivity issue with table/column naming at line " NR "." >> "logs/mysql2sqlite.log"
+    caseIssue = 1
+    print NR ": WARN Potential case sensitivity issues with table/column naming\n" \
+      "          (see INFO at the end)." | "cat >&2"
+  }
+  if( match( $0, /`[^`]+/ ) ){
+    tableName = substr( $0, RSTART+1, RLENGTH-1 )
+    print "[LOG] Table " tableName " detected." >> "logs/mysql2sqlite.log"
+  }
+  aInc = 0
+  prev = ""
+  firstInTable = 1
+  print
+  next
+}
+
+/^  (FULLTEXT KEY|fulltext key)/ { 
+  gsub( /[A-Za-z ]+(KEY|key)/, "  KEY" )
+  print "[LOG] FULLTEXT KEY statement detected and modified at line " NR "." >> "logs/mysql2sqlite.log"
+}
+
+/ (PRIMARY |primary )?(KEY|key)/ { 
+  gsub( /\([0-9]+\)/, "" )
+  print "[LOG] Field length removed from KEY statement at line " NR "." >> "logs/mysql2sqlite.log"
+}
+
+aInc == 1 && /PRIMARY KEY|primary key/ { 
+  next 
+}
+
+/ (COLLATE|collate) [a-z0-9_]*/ { 
+  gsub( /(COLLATE|collate) [a-z0-9_]*/, "COLLATE BINARY" )
+  print "[LOG] COLLATE statement detected and replaced with COLLATE BINARY at line " NR "." >> "logs/mysql2sqlite.log"
+}
+
+/^  / && !/^(  (KEY|key)|\);)/ {
+  if( match( $0, /[^"`]AUTO_INCREMENT|auto_increment[^"`]/) ){
+    aInc = 1
+    gsub( /AUTO_INCREMENT|auto_increment/, "PRIMARY KEY AUTOINCREMENT" )
+    print "[LOG] AUTO_INCREMENT detected and replaced with PRIMARY KEY AUTOINCREMENT at line " NR "." >> "logs/mysql2sqlite.log"
+  }
+  gsub( /(UNIQUE KEY|unique key) (`.*`|".*") /, "UNIQUE " )
+  gsub( /(CHARACTER SET|character set) [^ ]+[ ,]/, "" )
+  gsub( /(ON|on) (UPDATE|update) (CURRENT_TIMESTAMP|current_timestamp)(\(\))?/, "" )
+  gsub( /(DEFAULT|default) (CURRENT_TIMESTAMP|current_timestamp)(\(\))?/, "DEFAULT current_timestamp")
+  gsub( /(COLLATE|collate) [^ ]+ /, "" )
+  gsub( /(ENUM|enum)[^)]+\)/, "text " )
+  gsub( /(SET|set)\([^)]+\)/, "text " )
+  gsub( /UNSIGNED|unsigned/, "" )
+  gsub( /_utf8mb3/, "" )
+  gsub( /` [^ ]*(INT|int|BIT|bit)[^ ]*/, "` integer" )
+  gsub( /" [^ ]*(INT|int|BIT|bit)[^ ]*/, "\" integer" )
+  ere_bit_field = "[bB]'[10]+'"
+  if( match($0, ere_bit_field) ){
+    sub( ere_bit_field, bit_to_int( substr( $0, RSTART +2, RLENGTH -2 -1 ) ) )
+    print "[LOG] Bit field converted to integer at line " NR "." >> "logs/mysql2sqlite.log"
+  }
+
+  gsub( / USING [^, ]+/, "" )
+
+  gsub( / (COMMENT|comment).+$/, "" )
+  gsub( /,.?$/, "" )
+  if( prev ){
+    if( firstInTable ){
+      print prev
+      firstInTable = 0
+    }
+    else {
+      print "," prev
+    }
+  }
+  else {
+    if( match( $1,
+        /(CONSTRAINT|constraint) ["].*["] (FOREIGN KEY|foreign key)/ ) ){
+      print ","
+    }
+  }
+  prev = $1
+}
+
+/ ENGINE| engine/ {
+  if( prev ){
+    if( firstInTable ){
+      print prev
+      firstInTable = 0
+    }
+    else {
+      print "," prev
+    }
+  }
+  prev=""
+  print "[LOG] End of table creation block detected at line " NR "." >> "logs/mysql2sqlite.log"
+  print ");"
+  next
+}
+
+/^(  (KEY|key)|\);)/ {
+  if( prev ){
+    if( firstInTable ){
+      print prev
+      firstInTable = 0
+    }
+    else {
+      print "," prev
+    }
+  }
+  prev = ""
+  if( $0 == ");" ){
+    print
+  }
+  else {
+    if( match( $0, /`[^`]+/ ) ){
+      indexName = substr( $0, RSTART+1, RLENGTH-1 )
+      print "[LOG] KEY " indexName " detected in table " tableName "." >> "logs/mysql2sqlite.log"
+    }
+    if( match( $0, /\([^()]+/ ) ){
+      indexKey = substr( $0, RSTART+1, RLENGTH-1 )
+    }
+    key[tableName] = key[tableName] "CREATE INDEX \"idx_" \
+       tableName "_" indexName "\" ON \"" tableName "\" (" indexKey ");\n"
+  }
+}
+
+END {
+  if( no_END ){ 
+    print "[LOG] Script terminated due to incorrect input." >> "logs/mysql2sqlite.log"
+    exit 1
+  }
+  for( table in key ){ printf key[table] }
+
+  print "END TRANSACTION;"
+  print "[LOG] Transaction completed." >> "logs/mysql2sqlite.log"
+
+  if( caseIssue ){
+    print "INFO Pure sqlite identifiers are case insensitive (even if quoted\n" \
+      "     or if ASCII) and doesnt cross-check TABLE and TEMPORARY TABLE\n" \
+      "     identifiers. Thus expect errors like \"table T has no column named F\"." | "cat >&2"
+    print "[LOG] Case sensitivity issue reported." >> "logs/mysql2sqlite.log"
+  }
+  print "[LOG] Script ended successfully." >> "logs/mysql2sqlite.log"
+}

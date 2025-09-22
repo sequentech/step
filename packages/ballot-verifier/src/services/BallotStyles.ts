@@ -4,7 +4,7 @@
 
 import {GetBallotStylesQuery} from "../gql/graphql"
 import {AppDispatch} from "../store/store"
-import {isString, IBallotStyle as IElectionDTO} from "@sequentech/ui-essentials"
+import {isString, IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 
 export const updateBallotStyleAndSelection = (

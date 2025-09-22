@@ -3,13 +3,15 @@
         {
             "name": "sequent.admin-portal",
             "types": [
-                "login"
+                "login",
+                "account"
             ]
         },
         {
             "name": "sequent.voting-portal",
             "types": [
-                "login"
+                "login",
+                "account"
             ]
         }
     ]

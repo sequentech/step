@@ -25,6 +25,8 @@ export const WizardStyles = {
         margin: auto;
     `,
     Toolbar: styled(Toolbar)`
+        bottom: 0;
+        position: sticky;
         flex-direction: row;
         justify-content: space-between;
     `,
@@ -60,6 +62,15 @@ export const WizardStyles = {
 
     AccordionTitle: styled(ElectionHeaderStyles.Title)`
         margin-bottom: 0 !important;
+    `,
+    AccordionSubTitle: styled.div`
+        color: rgba(0, 0, 0, 0.6);
+        font-size: 14px;
+        font-family: Roboto;
+        font-weight: 400;
+        line-height: 20.02px;
+        letter-spacing: 0.17px;
+        word-wrap: break-word;
     `,
 
     AccordionDetails: styled(AccordionDetails)`
@@ -103,16 +114,27 @@ export const WizardStyles = {
         padding: 1em;
         display: list-item;
     `,
-
-    // TODO: use this later when we support multiple ceremonies per election event
-    // CancelButton: styled(Button)`
-    //     margin-left: auto;
-    //     background-color: ${({theme}) => theme.palette.grey[100]};
-    //     color: ${({theme}) => theme.palette.errorColor};
-    //     border-color: ${({theme}) => theme.palette.errorColor};
-    //
-    //     &:hover {
-    //         background-color: ${({theme}) => theme.palette.errorColor};
-    //     }
-    // `,
+    WizardContainer: styled.div`
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+    `,
+    ContentWrapper: styled.div`
+        flex-grow: 1;
+        overflow-y: auto;
+        padding-bottom: 1rem; // Add some padding at the bottom to prevent content from being hidden behind the footer
+    `,
+    FooterContainer: styled.div`
+        width: 100%;
+        position: sticky;
+        bottom: 0;
+        background-color: ${({theme}) => theme.palette.background.default};
+        box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+    `,
+    StyledFooter: styled.div`
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem;
+    `,
 }

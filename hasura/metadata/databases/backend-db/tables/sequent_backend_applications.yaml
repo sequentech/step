@@ -1,0 +1,245 @@
+table:
+    name: applications
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+      role: application-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - permission_label
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-write
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - permission_label
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+          filter: {}
+      role: service-account
+update_permissions:
+    - comment: ""
+      permission:
+          check: null
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: null
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-write
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - applicant_id
+              - status
+              - verification_type
+              - annotations
+              - applicant_data
+              - labels
+              - permission_label
+              - created_at
+              - updated_at
+              - area_id
+              - election_event_id
+              - id
+              - tenant_id
+              - permission_label
+          filter: {}
+      role: service-account
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
+      role: admin-user
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: application-write
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

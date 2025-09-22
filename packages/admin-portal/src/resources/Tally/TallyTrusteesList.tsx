@@ -24,12 +24,13 @@ import KeyIcon from "@mui/icons-material/Key"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyTrusteesListProps {
-    tally: Sequent_Backend_Tally_Session | undefined
+    tally?: Sequent_Backend_Tally_Session
+    tallySessionExecutions?: Array<Sequent_Backend_Tally_Session_Execution>
     update: (selectedTrustees: boolean) => void
 }
 
 export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
-    const {tally, update} = props
+    const {tally, update, tallySessionExecutions} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
 
@@ -42,24 +43,6 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     >([])
     const [keysImported, setKeysImported] = useState<number>(0)
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-            refetchOnWindowFocus: false,
-            refetchOnReconnect: false,
-            refetchOnMount: false,
-        }
-    )
-
     const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
@@ -67,7 +50,6 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
             filter: {election_event_id: tally?.election_event_id, tenant_id: tenantId},
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
@@ -87,7 +69,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         if (eventTrustees !== newTrustees) {
             setEventTrustees(newTrustees)
         }
-    }, [keyCeremony, eventTrustees, setEventTrustees])
+    }, [keyCeremony])
 
     useEffect(() => {
         if (!tallySessionExecutions?.[0].status || !trustees) {

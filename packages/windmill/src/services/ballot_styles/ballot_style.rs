@@ -12,23 +12,28 @@ use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::keys_ceremony::get_keys_ceremonies;
+use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::election_dates::get_election_dates;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
+use rocket::http::Status;
 use sequent_core::types::hasura::core::{
-    self as hasura_type, Area, AreaContest, BallotPublication, Candidate, Contest, Election,
-    ElectionEvent,
+    self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
+    Election, ElectionEvent, KeysCeremony,
 };
+use sequent_core::types::scheduled_event::ScheduledEvent;
 
 use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::date::ISO8601;
 use crate::services::pg_lock::PgLock;
+use sequent_core::services::date::ISO8601;
 
 use sequent_core::services::area_tree::TreeNode;
 
@@ -99,6 +104,8 @@ pub async fn create_ballot_style_postgres(
     contests_map: &HashMap<String, Contest>,
     candidates_map: &HashMap<String, Candidate>,
     area_contests_map: &HashMap<String, AreaContest>,
+    scheduled_events: &Vec<ScheduledEvent>,
+    keys_ceremonies_map: &HashMap<String, KeysCeremony>,
 ) -> Result<()> {
     let election_contest_map = get_elections_contests_map_for_area(
         area,
@@ -131,6 +138,22 @@ pub async fn create_ballot_style_postgres(
             })
             .map(|candidate| candidate.clone())
             .collect();
+        let public_key = if let Some(keys_ceremony_id) = election.keys_ceremony_id.clone() {
+            if let Some(keys_ceremony) = keys_ceremonies_map.get(&keys_ceremony_id) {
+                if let Some(status) = keys_ceremony.status().ok() {
+                    status.public_key
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let election_dates =
+            get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
 
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
@@ -140,6 +163,8 @@ pub async fn create_ballot_style_postgres(
             election.clone(),
             contests.clone(),
             candidates.clone(),
+            election_dates.clone(),
+            public_key.clone(),
         )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
         let _created_ballot_style = insert_ballot_style(
@@ -192,13 +217,24 @@ pub async fn update_election_event_ballot_styles(
     else {
         return Err(anyhow!("can't find ballot publication"));
     };
-    let (election_event, elections, contests, candidates, areas, area_contests) = try_join!(
+    let (
+        election_event,
+        elections,
+        contests,
+        candidates,
+        areas,
+        area_contests,
+        scheduled_events,
+        keys_ceremonies,
+    ) = try_join!(
         get_election_event_by_id(&transaction, tenant_id, election_event_id),
         export_elections(&transaction, tenant_id, election_event_id),
         export_contests(&transaction, tenant_id, election_event_id),
         export_candidates(&transaction, tenant_id, election_event_id),
         get_event_areas(&transaction, tenant_id, election_event_id),
         export_area_contests(&transaction, tenant_id, election_event_id),
+        find_scheduled_event_by_election_event_id(&transaction, tenant_id, election_event_id),
+        get_keys_ceremonies(&transaction, tenant_id, election_event_id),
     )?;
 
     let elections_map: HashMap<String, Election> = elections
@@ -221,6 +257,11 @@ pub async fn update_election_event_ballot_styles(
         .map(|area_contest| (area_contest.id.clone(), area_contest.clone()))
         .collect();
 
+    let keys_ceremonies_map: HashMap<String, KeysCeremony> = keys_ceremonies
+        .into_iter()
+        .map(|keys_ceremony: KeysCeremony| (keys_ceremony.id.clone(), keys_ceremony.clone()))
+        .collect();
+
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
 
@@ -236,6 +277,8 @@ pub async fn update_election_event_ballot_styles(
             &contests_map,
             &candidates_map,
             &area_contests_map,
+            &scheduled_events,
+            &keys_ceremonies_map,
         )
         .await?;
     }

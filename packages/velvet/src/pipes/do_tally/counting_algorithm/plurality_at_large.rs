@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::{CountingAlgorithm, Error};
-use crate::pipes::do_tally::{tally::Tally, CandidateResult, ContestResult, InvalidVotes};
+use crate::pipes::do_tally::{
+    tally::Tally, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
+};
+use sequent_core::ballot::Contest;
+use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
 use std::cmp;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};
@@ -21,8 +25,101 @@ impl PluralityAtLarge {
     }
 }
 
+fn calculate_undervotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
+    // Count actual votes (selected > -1)
+    let actual_votes: u64 =
+        vote.choices.iter().fold(
+            0u64,
+            |acc, choice| {
+                if choice.selected > -1 {
+                    acc + 1
+                } else {
+                    acc
+                }
+            },
+        );
+
+    // Calculate undervotes based on max_votes
+    let max_votes = contest.max_votes as u64;
+    if actual_votes < max_votes {
+        max_votes - actual_votes
+    } else {
+        0
+    }
+}
+
+fn calculate_valid_votes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
+    // Count actual votes (selected > -1)
+    let actual_votes: u64 =
+        vote.choices.iter().fold(
+            0u64,
+            |acc, choice| {
+                if choice.selected > -1 {
+                    acc + 1
+                } else {
+                    acc
+                }
+            },
+        );
+
+    // Check if votes are within valid range
+    if actual_votes >= (contest.min_votes as u64) && actual_votes <= (contest.max_votes as u64) {
+        actual_votes
+    } else {
+        0
+    }
+}
+
+fn calculate_overvotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
+    // Count actual votes (selected > -1)
+    let actual_votes: u64 =
+        vote.choices.iter().fold(
+            0u64,
+            |acc, choice| {
+                if choice.selected > -1 {
+                    acc + 1
+                } else {
+                    acc
+                }
+            },
+        );
+
+    // Calculate overvotes if actual votes exceed max_votes
+    if actual_votes > (contest.max_votes as u64) {
+        actual_votes - (contest.max_votes as u64)
+    } else {
+        0
+    }
+}
+
+#[instrument(skip_all)]
+pub fn update_extended_metrics(
+    vote: &DecodedVoteContest,
+    current_metrics: &ExtendedMetricsContest,
+    contest: &Contest,
+) -> ExtendedMetricsContest {
+    let mut metrics = current_metrics.clone();
+
+    // Calculate valid votes first
+    let valid_votes = calculate_valid_votes(vote, contest);
+    metrics.votes_actually += valid_votes;
+
+    // Calculate undervotes
+    let undervotes = calculate_undervotes(vote, contest);
+    metrics.under_votes += undervotes;
+
+    // Calculate overvotes
+    let overvotes = calculate_overvotes(vote, contest);
+    metrics.over_votes += overvotes;
+
+    // Expected votes is always max_votes per ballot
+    metrics.expected_votes += contest.max_votes as u64;
+
+    metrics
+}
+
 impl CountingAlgorithm for PluralityAtLarge {
-    #[instrument(skip_all)]
+    #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;
@@ -36,7 +133,10 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut count_invalid: u64 = 0;
         let mut count_blank: u64 = 0;
 
+        let mut extended_metrics = ExtendedMetricsContest::default();
+
         for vote in votes {
+            extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
             if vote.is_invalid() {
                 if vote.is_explicit_invalid {
                     count_invalid_votes.explicit += 1;
@@ -50,7 +150,9 @@ impl CountingAlgorithm for PluralityAtLarge {
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
                         *vote_count.entry(choice.id.clone()).or_insert(0) += 1;
-                        is_blank = false;
+                        if is_blank {
+                            is_blank = false;
+                        }
                     }
                 }
 
@@ -62,7 +164,9 @@ impl CountingAlgorithm for PluralityAtLarge {
             }
         }
 
-        let result: Vec<CandidateResult> = vote_count
+        extended_metrics.total_ballots = votes.len() as u64;
+
+        let candidate_results_map: HashMap<String, CandidateResult> = vote_count
             .into_iter()
             .map(|(id, total_count)| {
                 let candidate = self
@@ -74,31 +178,85 @@ impl CountingAlgorithm for PluralityAtLarge {
                     .cloned()
                     .ok_or(Error::CandidateNotFound(id))?;
 
-                let percentage_votes =
-                    (total_count as f64 / cmp::max(1, count_valid - count_blank) as f64) * 100.0;
+                let is_explicit_blank = candidate.is_explicit_blank();
+                let is_explicit_invalid = candidate.is_explicit_invalid();
 
-                Ok(CandidateResult {
-                    candidate,
-                    percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                    total_count,
-                })
+                if is_explicit_blank {
+                    let percentage_votes = (count_blank as f64
+                        / cmp::max(1, extended_metrics.total_ballots) as f64)
+                        * 100.0;
+
+                    Ok(CandidateResult {
+                        candidate,
+                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                        total_count: count_blank,
+                    })
+                } else if is_explicit_invalid {
+                    let percentage_votes = (count_invalid_votes.explicit as f64
+                        / cmp::max(1, extended_metrics.total_ballots) as f64)
+                        * 100.0;
+
+                    Ok(CandidateResult {
+                        candidate,
+                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                        total_count: count_invalid_votes.explicit,
+                    })
+                } else {
+                    let percentage_votes = (total_count as f64
+                        / cmp::max(1, count_valid - count_blank) as f64)
+                        * 100.0;
+
+                    Ok(CandidateResult {
+                        candidate,
+                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                        total_count,
+                    })
+                }
             })
-            .collect::<Result<Vec<CandidateResult>>>()?;
+            .collect::<Result<Vec<CandidateResult>>>()?
+            .into_iter()
+            .map(|cand| (cand.candidate.id.clone(), cand))
+            .collect();
 
         let result: Vec<CandidateResult> = contest
             .candidates
             .iter()
-            .map(|c| {
-                let candidate_result = result.iter().find(|rc| rc.candidate.id == c.id).cloned();
+            .map(|candidate| {
+                let candidate_result = candidate_results_map.get(&candidate.id).cloned();
 
                 if let Some(candidate_result) = candidate_result {
                     Ok(candidate_result)
                 } else {
-                    return Ok(CandidateResult {
-                        candidate: c.clone(),
-                        percentage_votes: 0.0,
-                        total_count: 0,
-                    });
+                    let is_explicit_blank = candidate.is_explicit_blank();
+                    let is_explicit_invalid = candidate.is_explicit_invalid();
+
+                    if is_explicit_blank {
+                        let percentage_votes = (count_blank as f64
+                            / cmp::max(1, extended_metrics.total_ballots) as f64)
+                            * 100.0;
+
+                        Ok(CandidateResult {
+                            candidate: candidate.clone(),
+                            percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                            total_count: count_blank,
+                        })
+                    } else if is_explicit_invalid {
+                        let percentage_votes = (count_invalid_votes.explicit as f64
+                            / cmp::max(1, extended_metrics.total_ballots) as f64)
+                            * 100.0;
+
+                        Ok(CandidateResult {
+                            candidate: candidate.clone(),
+                            percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                            total_count: count_invalid_votes.explicit,
+                        })
+                    } else {
+                        Ok(CandidateResult {
+                            candidate: candidate.clone(),
+                            percentage_votes: 0.0,
+                            total_count: 0,
+                        })
+                    }
                 }
             })
             .collect::<Result<Vec<CandidateResult>>>()?;
@@ -135,6 +293,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
             invalid_votes: count_invalid_votes,
             candidate_result: result,
+            extended_metrics: Some(extended_metrics),
         };
 
         let aggregate = self

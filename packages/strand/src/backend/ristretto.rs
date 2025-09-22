@@ -37,7 +37,7 @@ use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
 /// [Ristretto](https://ristretto.group/what_is_ristretto.html) implementation of a strand modular arithmetic context.
 pub struct RistrettoCtx;
 
@@ -51,6 +51,10 @@ pub struct ScalarS(pub(crate) Scalar);
 cfg_if::cfg_if! {
     if #[cfg(any(feature = "openssl_core", feature="openssl_full"))] {
 
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+use crate::util::Par;
+
 impl RistrettoCtx {
     fn generators_shake(
         &self,
@@ -59,22 +63,31 @@ impl RistrettoCtx {
     ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
-        let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
         let reader = crate::hash::hash_xof(64 * size, &seed_)?;
         let mut uniform_bytes = [0u8; 64];
+        let mut bytes = vec![];
         for _ in 0..size {
             let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
                 .expect("impossible: we are reading from a byte slice, any out of bounds programming error should panic");
             assert_eq!(bytes_read, 64);
-            let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
-            ret.push(RistrettoPointS(g));
+            bytes.push(uniform_bytes);
         }
+
+        let ret: Vec<RistrettoPointS> = bytes.par().map(|b| {
+            let g = RistrettoPoint::from_uniform_bytes(&b);
+            RistrettoPointS(g)
+        }).collect();
+
         Ok(ret)
     }
 }
 } else {
 
 use crate::hash::{ExtendableOutput, Update, XofReader};
+
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+use crate::util::Par;
 
 impl RistrettoCtx {
     // https://docs.rs/bulletproofs/4.0.0/src/bulletproofs/generators.rs.html
@@ -85,17 +98,25 @@ impl RistrettoCtx {
     ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
-        let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
+        // let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
         let mut shake = crate::hash::hasher_xof();
         shake.update(&seed_);
 
         let mut reader = shake.finalize_xof();
         let mut uniform_bytes = [0u8; 64];
+        let mut bytes = vec![];
+
         for _ in 0..size {
             reader.read(&mut uniform_bytes);
-            let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
-            ret.push(RistrettoPointS(g));
+            // let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
+            // ret.push(RistrettoPointS(g));
+            bytes.push(uniform_bytes);
         }
+
+        let ret: Vec<RistrettoPointS> = bytes.par().map(|b| {
+            let g = RistrettoPoint::from_uniform_bytes(&b);
+            RistrettoPointS(g)
+        }).collect();
 
         Ok(ret)
     }
@@ -388,14 +409,28 @@ impl BorshSerialize for RistrettoPointS {
 }
 
 impl BorshDeserialize for RistrettoPointS {
-    #[inline]
     /// Deserializes the given bytes into a point, checking for membership.
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(bytes)?;
-        let ctx = RistrettoCtx::default();
+    #[inline]
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        let bytes = <[u8; 32]>::deserialize_reader(reader)?;
+        // We duplicate this code in order to avoid the copying in
+        // ctx.element_from_bytes Note we are passing the [u8; 32]
+        // directly instead of passing through
+        // to_ristretto_point_array(bytes) which takes a slice
+        CompressedRistretto(bytes)
+            .decompress()
+            .map(RistrettoPointS)
+            .ok_or(Error::new(
+                ErrorKind::Other,
+                "Failed to decode ristretto point",
+            ))
+
+        /* let ctx = RistrettoCtx::default();
 
         ctx.element_from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
+            .map_err(|e| Error::new(ErrorKind::Other, e))*/
     }
 }
 
@@ -413,12 +448,21 @@ impl BorshSerialize for ScalarS {
 impl BorshDeserialize for ScalarS {
     #[inline]
     /// Deserializes the given bytes into a scalar, checking for membership.
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(bytes)?;
-        let ctx = RistrettoCtx::default();
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> Result<Self, std::io::Error> {
+        // We duplicate this code in order to avoid the copying in
+        // ctx.exp_from_bytes Note we are passing the [u8; 32] directly
+        // instead of passing through to_ristretto_point_array(bytes)
+        // which takes a slice
+        let bytes = <[u8; 32]>::deserialize_reader(reader)?;
+        let opt: Option<ScalarS> =
+            Scalar::from_canonical_bytes(bytes).map(ScalarS).into();
+        opt.ok_or(Error::new(ErrorKind::Other, "Failed to decode scalar"))
+        /* let ctx = RistrettoCtx::default();
 
         ctx.exp_from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
+            .map_err(|e| Error::new(ErrorKind::Other, e))*/
     }
 }
 
@@ -547,9 +591,23 @@ mod tests {
 
     #[cfg(not(feature = "wasm"))]
     #[test]
+    fn test_product_shuffle() {
+        let ctx = RistrettoCtx;
+        test_product_shuffle_generic(&ctx);
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    #[test]
     fn test_shuffle_serialization() {
         let ctx = RistrettoCtx;
         test_shuffle_serialization_generic(&ctx);
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    #[test]
+    fn test_product_shuffle_serialization() {
+        let ctx = RistrettoCtx;
+        test_product_shuffle_serialization_generic(&ctx);
     }
 
     use rand::Rng;

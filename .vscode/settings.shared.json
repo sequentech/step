@@ -6,6 +6,7 @@
         "/workspaces/step/packages/Cargo.toml",
         "./packages/sequent-core/Cargo.toml"
     ],
+    "editor.rulers": [80],
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
     "docker.containers.label": "ContainerName",
@@ -15,4 +16,6 @@
     "docker.views.dockerNetworks.visibility": "collapsed",
     "docker.views.dockerVolumes.visibility": "collapsed",
     "docker.views.dockerContexts.visibility": "collapsed",
+    "workbench.editor.enablePreview": false,
+    "terminal.integrated.scrollback": 100000000,
 }

@@ -12,7 +12,7 @@
     "url": "git+https://github.com/sequentech/ui-essentials.git"
   },
   "scripts": {
-    "build": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=production",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=production ",
     "build:dev": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=development",
     "prettify": "prettier --check .",
     "prettify:fix": "prettier --write .",
@@ -32,12 +32,7 @@
     "@fortawesome/free-solid-svg-icons": "^6.1.1",
     "@fortawesome/react-fontawesome": "^0.1.18",
     "i18next": "^21.8.16",
-    "i18next-browser-languagedetector": "^6.1.4",
-    "moderndash": "^3.7.3",
-    "react-scripts": "5.0.1",
-    "sanitize-html": "2.11.0",
-    "html-react-parser": "4.2.0",
-    "qrcode.react": "3.1.0"
+    "i18next-browser-languagedetector": "^6.1.4"
   },
   "peerDependencies": {
     "react": "18.1.0",
@@ -47,7 +42,8 @@
     "react-router-dom": "6.11.2",
     "@mui/material": "5.13.3",
     "@emotion/react": "11.10.0",
-    "@emotion/styled": "11.10.0"
+    "@emotion/styled": "11.10.0",
+    "@sequentech/ui-core": "*"
   },
   "devDependencies": {
     "@babel/cli": "7.12.8",

@@ -6,11 +6,12 @@ import React, {PropsWithChildren} from "react"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {Checkbox} from "@mui/material"
+import emotionStyled from "@emotion/styled"
 
 const ListContainer = styled(Box)<{isactive: string}>`
-    background-color: ${({theme}) => theme.palette.lightBackground};
+    backgroundcolor: ${({theme}) => theme.palette.lightBackground};
     padding: 0 14px 20px 16px;
-    box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 2px 4px 2px rgba(0, 0, 0, 0.25);
     border-radius: 5px;
     flex-grow: 2;
     width: 50%;
@@ -29,12 +30,16 @@ const ListHeader = styled(Box)`
     flex-direction: row;
 `
 
-const ListChildrenContainer = styled(Box)`
+const ListChildrenContainer = emotionStyled.ul`
     flex-grow: 2;
-    display: flex;
-    flex-direction: column;
+    list-style: none;
+    margin: 12px 0;
+    padding-inline-start: 0;
     gap: 40px;
     flex-wrap: wrap;
+    li + li {
+        margin-top: 12px;
+    }
 `
 
 const ListTitle = styled(Typography)`

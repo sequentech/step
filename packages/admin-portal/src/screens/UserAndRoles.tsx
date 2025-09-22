@@ -26,7 +26,9 @@ export const UserAndRoles: React.FC = () => {
         setValue(newValue)
     }
 
-    if (!showUsers && !showRoles) {
+    const showUsersMenu = authContext.isAuthorized(true, tenantId, IPermissions.USERS_MENU)
+
+    if ((!showUsers && !showRoles) || !showUsersMenu) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
@@ -39,7 +41,7 @@ export const UserAndRoles: React.FC = () => {
     return (
         <>
             <ElectionHeader
-                title={t("usersAndRolesScreen.common.title")}
+                title="usersAndRolesScreen.common.title"
                 subtitle="usersAndRolesScreen.common.subtitle"
             />
             <SidebarScreenStyles.Tabs

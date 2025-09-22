@@ -7,29 +7,65 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 extern crate lazy_static;
+use lazy_static::lazy_static;
 
-use anyhow::Result;
-use sequent_core::util::init_log::init_log;
-
+use anyhow::Context;
+use anyhow::{anyhow, Result};
+use celery::Celery;
 use dotenv::dotenv;
-use sequent_core::services::probe::ProbeHandler;
+use sequent_core::util::init_log::init_log;
+use std::collections::HashMap;
 use structopt::StructOpt;
+use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
-use windmill::services::database::*;
-extern crate chrono;
+use windmill::services::probe::{setup_probe, AppName};
+use windmill::services::tasks_semaphore::init_semaphore;
 
-#[derive(Debug, StructOpt)]
+fn get_queue_name(queue: Queue) -> String {
+    let slug = std::env::var("ENV_SLUG")
+        .with_context(|| "missing env var ENV_SLUG")
+        .unwrap();
+    queue.queue_name(&slug)
+}
+
+lazy_static! {
+    static ref BEAT_QUEUE_NAME: String = get_queue_name(Queue::Beat);
+    static ref SHORT_QUEUE_NAME: String = get_queue_name(Queue::Short);
+    static ref ELECTORAL_LOG_BEAT_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBeat);
+    static ref COMMUNICATION_QUEUE_NAME: String = get_queue_name(Queue::Communication);
+    static ref TALLY_QUEUE_NAME: String = get_queue_name(Queue::Tally);
+    static ref REPORTS_QUEUE_NAME: String = get_queue_name(Queue::Reports);
+    static ref IMPORT_EXPORT_QUEUE_NAME: String = get_queue_name(Queue::ImportExport);
+    static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBatch);
+}
+
+#[derive(Debug, StructOpt, Clone)]
 #[structopt(
     name = "windmill",
-    about = "Run a Rust Celery producer or consumer.",
+    about = "Windmill task queue prosumer.",
     setting = structopt::clap::AppSettings::ColoredHelp,
 )]
 enum CeleryOpt {
     Consume {
         #[structopt(short, long, possible_values = &[
-            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue", "import_export_queue"
-        ], default_value = "beat")]
+            &*SHORT_QUEUE_NAME,
+            &*BEAT_QUEUE_NAME,
+            &*ELECTORAL_LOG_BEAT_QUEUE_NAME,
+            &*COMMUNICATION_QUEUE_NAME,
+            &*TALLY_QUEUE_NAME,
+            &*REPORTS_QUEUE_NAME,
+            &*IMPORT_EXPORT_QUEUE_NAME,
+            &*ELECTORAL_LOG_BATCH_QUEUE_NAME,
+            Queue::Short.as_ref(),
+            Queue::Beat.as_ref(),
+            Queue::ElectoralLogBeat.as_ref(),
+            Queue::Communication.as_ref(),
+            Queue::Tally.as_ref(),
+            Queue::Reports.as_ref(),
+            Queue::ImportExport.as_ref(),
+            Queue::ElectoralLogBatch.as_ref(),
+        ], default_value = &*BEAT_QUEUE_NAME)]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]
         prefetch_count: u16,
@@ -37,60 +73,112 @@ enum CeleryOpt {
         acks_late: bool,
         #[structopt(short, long, default_value = "4")]
         task_max_retries: u32,
+        #[structopt(short, long, default_value = "5")]
+        broker_connection_max_retries: u32,
+        #[structopt(short, long, default_value = "10")]
+        heartbeat: u16,
+        #[structopt(short, long)]
+        worker_threads: Option<usize>,
     },
     Produce,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    dotenv().ok();
-    init_log(true);
+fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
+    let mut occurrences = HashMap::new();
+    let mut duplicates = Vec::new();
+    for &item in &input {
+        let count = occurrences.entry(item).or_insert(0);
+        *count += 1;
+    }
+    for (&item, &count) in &occurrences {
+        if count > 1 {
+            duplicates.push(item);
+        }
+    }
+    duplicates
+}
 
-    setup_probe();
+fn read_worker_threads(opt: &CeleryOpt) -> usize {
+    match opt.clone() {
+        CeleryOpt::Consume { worker_threads, .. } => worker_threads,
+        CeleryOpt::Produce => None,
+    }
+    .unwrap_or(num_cpus::get())
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
 
     let opt = CeleryOpt::from_args();
 
-    match opt {
-        CeleryOpt::Consume {
-            queues,
-            prefetch_count,
-            acks_late,
-            task_max_retries,
-        } => {
-            set_prefetch_count(prefetch_count);
-            set_acks_late(acks_late);
-            set_task_max_retries(task_max_retries);
-            let celery_app = get_celery_app().await;
-            celery_app.display_pretty().await;
+    let cpus = read_worker_threads(&opt);
+    set_worker_threads(cpus);
 
-            let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
+    // 1) Build a custom runtime
+    let rt = Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(cpus)
+        .thread_stack_size(8 * 1024 * 1024)
+        .build()?;
 
-            celery_app.consume_from(&vec_str[..]).await?;
-            celery_app.close().await?;
-        }
-        CeleryOpt::Produce => {
-            let celery_app = get_celery_app().await;
-            event!(Level::INFO, "Task is empty, not adding any new tasks");
-            celery_app.close().await?;
-        }
-    };
+    // 2) Run your async code on it
+    rt.block_on(async_main(opt))?;
 
     Ok(())
 }
 
-fn setup_probe() {
-    let addr_s = std::env::var("WINDMILL_PROBE_ADDR").unwrap_or("0.0.0.0:3030".to_string());
-    let live_path = std::env::var("WINDMILL_PROBE_LIVE_PATH").unwrap_or("live".to_string());
-    let ready_path = std::env::var("WINDMILL_PROBE_READY_PATH").unwrap_or("ready".to_string());
+async fn async_main(opt: CeleryOpt) -> Result<()> {
+    init_log(true);
+    setup_probe(AppName::WINDMILL).await;
 
-    let addr: Result<std::net::SocketAddr, _> = addr_s.parse();
+    let cpus = get_worker_threads();
+    init_semaphore(cpus);
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
-    if let Ok(addr) = addr {
-        let mut ph = ProbeHandler::new(&live_path, &ready_path, addr);
-        let f = ph.future();
-        ph.set_live(move || true);
-        tokio::spawn(f);
-    } else {
-        tracing::warn!("Could not parse address for probe '{}'", addr_s);
-    }
+    match opt.clone() {
+        CeleryOpt::Consume {
+            queues: queues_input,
+            prefetch_count,
+            acks_late,
+            task_max_retries,
+            broker_connection_max_retries,
+            heartbeat,
+            ..
+        } => {
+            set_prefetch_count(prefetch_count);
+            set_acks_late(acks_late);
+            set_task_max_retries(task_max_retries);
+            set_broker_connection_max_retries(broker_connection_max_retries);
+            set_heartbeat(heartbeat);
+            let celery_app = get_celery_app().await;
+            celery_app.display_pretty().await;
+            let queues: Vec<String> = queues_input
+                .iter()
+                .map(|queue_name| {
+                    if queue_name.starts_with(&slug) {
+                        queue_name.clone()
+                    } else {
+                        format!("{}_{}", slug, queue_name)
+                    }
+                })
+                .collect();
+
+            let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
+            let duplicates = find_duplicates(vec_str.clone());
+            if !duplicates.is_empty() {
+                return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
+            }
+            set_queues(queues.clone());
+            set_is_app_active(true);
+            celery_app.consume_from(&vec_str[..]).await?;
+            set_is_app_active(false);
+            celery_app.close().await?;
+        }
+        CeleryOpt::Produce => {
+            let celery_app = get_celery_app().await;
+            event!(Level::INFO, "No new tasks to produce");
+            celery_app.close().await?;
+        }
+    };
+    Ok(())
 }

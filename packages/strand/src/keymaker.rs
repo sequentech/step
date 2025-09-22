@@ -9,6 +9,7 @@ use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::util::{Par, StrandError};
 use crate::zkp::{ChaumPedersen, Schnorr, Zkp};
 
+/// Distributed key generation (non threshold) as a simple sum
 pub(crate) struct Keymaker<C: Ctx> {
     sk: PrivateKey<C>,
     pk: PublicKey<C>,

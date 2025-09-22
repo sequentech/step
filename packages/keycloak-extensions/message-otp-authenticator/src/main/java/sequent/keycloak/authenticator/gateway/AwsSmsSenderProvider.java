@@ -4,64 +4,52 @@
 
 package sequent.keycloak.authenticator.gateway;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.extern.jbosslog.JBossLog;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
-import java.io.IOException;
-import java.text.MessageFormat;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserModel;
-import org.keycloak.theme.Theme;
-import lombok.extern.jbosslog.JBossLog;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
+import software.amazon.awssdk.services.sns.model.SnsException;
 
 @JBossLog
 public class AwsSmsSenderProvider implements SmsSenderProvider {
 
-	private static final SnsClient sns = SnsClient.create();
-	private final String senderId;
+  private static final SnsClient sns = SnsClient.create();
+  private final String senderId;
 
-	AwsSmsSenderProvider(String senderId) {
-		this.senderId = senderId;
-	}
+  AwsSmsSenderProvider(String senderId) {
+    this.senderId = senderId;
+  }
 
-	@Override
-	public void send(String phoneNumber, String message)
-	{
-        log.infov(
-            "**Sending AWS SMS**:\n\t- phoneNumber={0}\n\t- message={1}",
-            phoneNumber,
-            message
-        );
-		Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-		messageAttributes.put(
-			"AWS.SNS.SMS.SenderID",
-			MessageAttributeValue
-				.builder()
-				.stringValue(senderId)
-				.dataType("String")
-				.build()
-		);
-		messageAttributes.put(
-			"AWS.SNS.SMS.SMSType",
-			MessageAttributeValue
-				.builder()
-				.stringValue("Transactional")
-				.dataType("String")
-				.build()
-		);
+  @Override
+  public void send(String phoneNumber, String message) throws IOException {
+    log.infov("**Sending AWS SMS**:\n\t- phoneNumber={0}\n\t- message={1}", phoneNumber, message);
+    Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+    messageAttributes.put(
+        "AWS.SNS.SMS.SenderID",
+        MessageAttributeValue.builder().stringValue(senderId).dataType("String").build());
+    messageAttributes.put(
+        "AWS.SNS.SMS.SMSType",
+        MessageAttributeValue.builder().stringValue("Transactional").dataType("String").build());
 
-		sns.publish(builder -> builder
-			.message(message)
-			.phoneNumber(phoneNumber)
-			.messageAttributes(messageAttributes)
-		);
-	}
+    try {
+      PublishResponse result =
+          sns.publish(
+              builder ->
+                  builder
+                      .message(message)
+                      .phoneNumber(phoneNumber)
+                      .messageAttributes(messageAttributes));
+      log.infov(
+          result.messageId() + " Message sent. Status is " + result.sdkHttpResponse().statusCode());
+    } catch (SnsException e) {
+      log.infov(e.awsErrorDetails().errorMessage());
+      throw new IOException(e.awsErrorDetails().errorMessage());
+    }
+  }
 
-	@Override
-	public void close() {
-	}
+  @Override
+  public void close() {}
 }

@@ -43,7 +43,9 @@ export const PgAuditList: React.FC<PgAuditListProps> = ({aside, auditTable}) => 
                 resource={auditTable}
                 actions={<ListActions withImport={false} />}
                 filters={filters}
+                storeKey={false}
                 aside={aside}
+                disableSyncWithLocation
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <NumberField source="id" />

@@ -1,0 +1,11 @@
+mutation ImportElectionEvent($tenantId: String!, $documentId: String!, $checkOnly: Boolean) {
+        import_election_event(
+            tenant_id: $tenantId
+            document_id: $documentId
+            check_only: $checkOnly
+        ) {
+            id
+            message
+            error
+        }
+}

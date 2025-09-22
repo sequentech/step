@@ -6,8 +6,8 @@ import {Identifier, useListContext, useNotify, useRefresh} from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import ElectionHeader from "../../components/ElectionHeader"
 import {useTranslation} from "react-i18next"
-import {IPermission, IRole} from "sequent-core"
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {IPermission, IRole} from "@sequentech/ui-core"
+import {DataGrid, GridColDef, GridRenderCellParams, GridToolbar} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {IPermissions} from "../../types/keycloak"
 import {TextField} from "@mui/material"
@@ -22,7 +22,7 @@ type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET |
     ? ET
     : never
 
-function getEnumValues<E extends EnumObject>(enumObject: E): EnumObjectEnum<E>[] {
+export function getEnumValues<E extends EnumObject>(enumObject: E): EnumObjectEnum<E>[] {
     return Object.keys(enumObject)
         .filter((key) => Number.isNaN(Number(key)))
         .map((key) => enumObject[key] as EnumObjectEnum<E>)
@@ -65,9 +65,12 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
         const permission = (permissions || []).find((el) => el.id === props.row.id)
+        console.log(permission)
+
         if (!permission?.name || !role) {
             return
         }
+        console.log(permission.name)
 
         // remove/add permission to role
         const {errors} = await (props.value ? deleteRolePermission : setRolePermission)({
@@ -78,13 +81,13 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             },
         })
         if (errors) {
-            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+            notify(t("usersAndRolesScreen.roles.notifications.permissionEditError"), {
                 type: "error",
             })
             console.log(`Error editing permission: ${errors}`)
             return
         }
-        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+        notify(t("usersAndRolesScreen.roles.notifications.permissionEditSuccess"), {
             type: "success",
         })
         refresh()
@@ -133,6 +136,17 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
                     },
                 }}
                 pageSizeOptions={[10, 20, 50, 100]}
+                disableColumnFilter
+                disableColumnSelector
+                disableDensitySelector
+                slots={{toolbar: GridToolbar}}
+                slotProps={{
+                    toolbar: {
+                        showQuickFilter: true,
+                        printOptions: {disableToolbarButton: true},
+                        csvOptions: {disableToolbarButton: true},
+                    },
+                }}
             />
         </PageHeaderStyles.Wrapper>
     )

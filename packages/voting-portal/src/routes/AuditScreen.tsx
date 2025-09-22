@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
 import {Box} from "@mui/material"
-import {useTranslation} from "react-i18next"
+import {useTranslation, Trans} from "react-i18next"
 import {
     Icon,
     PageLimit,
@@ -11,12 +11,17 @@ import {
     Dialog,
     IconButton,
     WarnBox,
-    stringToHtml,
     theme,
-    isUndefined,
-    downloadBlob,
     InfoDataBox,
 } from "@sequentech/ui-essentials"
+import {
+    stringToHtml,
+    isUndefined,
+    downloadBlob,
+    IAuditableSingleBallot,
+    IAuditableMultiBallot,
+    EElectionEventContestEncryptionPolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
 import {
@@ -111,8 +116,14 @@ const AuditScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
-    const {hashBallot} = provideBallotService()
-    const ballotHash = auditableBallot && hashBallot(auditableBallot)
+    const {hashBallot, hashMultiBallot} = provideBallotService()
+    const isMultiContest =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const hashedBallot = isMultiContest
+        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+        : hashBallot(auditableBallot as IAuditableSingleBallot)
+    const ballotHash = auditableBallot && hashedBallot
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const location = useLocation()
@@ -213,31 +224,20 @@ const AuditScreen: React.FC = () => {
             <InfoDataBox>{(auditableBallot && JSON.stringify(auditableBallot)) || ""}</InfoDataBox>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>
-                {
-                    // <IconButton
-                    //     icon={faCircleQuestion}
-                    //     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    //     fontSize="16px"
-                    //     onClick={() => setOpenStep2Help(true)}
-                    // />
-                    // <Dialog
-                    //     handleClose={() => setOpenStep2Help(false)}
-                    //     open={openStep2Help}
-                    //     title={t("auditScreen.step2HelpDialog.title")}
-                    //     ok={t("auditScreen.step2HelpDialog.ok")}
-                    //     variant="info"
-                    // >
-                    //     {stringToHtml(t("auditScreen.step2HelpDialog.content"))}
-                    // </Dialog>
-                }
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 <StyledLinkContainer>
-                    {stringToHtml(
-                        t("auditScreen.step2Description", {
-                            linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`,
-                        })
-                    )}
+                    <Trans
+                        i18nKey="auditScreen.step2Description"
+                        components={{
+                            VerifierLink: (
+                                <a
+                                    target="_blank"
+                                    href={`${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start${location.search}`}
+                                />
+                            ),
+                        }}
+                    />
                 </StyledLinkContainer>
             </Typography>
             <Box margin="15px 0 25px 0">

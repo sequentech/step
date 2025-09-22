@@ -2,20 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use board_messages::braid::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::BatchNumber;
-use board_messages::braid::newtypes::PublicKeyHash;
-use board_messages::braid::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use board_messages::braid::statement::StatementType;
-
+use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
+use b3::messages::artifact::Shares;
+use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
+use b3::messages::message::Message;
+use b3::messages::newtypes::BatchNumber;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
+use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b3::messages::statement::StatementType;
+use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
-use strand::symm::EncryptionData;
 use strand::util::StrandError;
 
 use anyhow::{anyhow, Context, Result};
@@ -24,7 +25,8 @@ use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
-use immu_board::{BoardClient, BoardMessage};
+use b3::client::pgsql::B3MessageRow;
+use electoral_log::BoardClient;
 use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
@@ -32,52 +34,66 @@ pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
 }
 
-#[instrument(err)]
-pub async fn create_protocol_manager_keys(board_name: &str) -> Result<()> {
+#[instrument(skip(hasura_transaction), err)]
+pub async fn create_protocol_manager_keys(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<()> {
     // create protocol manager keys
-    let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
-
+    let protocol_manager = gen_protocol_manager::<RistrettoCtx>()?;
     // save protocol manager keys in vault
-    let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager);
+    let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager)?;
+    let protocol_key = get_protocol_manager_secret_path(board_name);
     vault::save_secret(
-        get_protocol_manager_secret_path(board_name),
-        protocol_config,
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        &protocol_key,
+        &protocol_config,
     )
     .await?;
     Ok(())
 }
 
-pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+#[instrument]
+pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{:?}", err))?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
 
-    pm
+    Ok(pm)
 }
 
-pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> String {
+#[instrument]
+pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
     let pmc = ProtocolManagerConfig::from(&pm);
-    toml::to_string(&pmc).unwrap()
+    toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
-pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager<C> {
-    let pmc: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
-    let pmkey = pmc.get_signing_key().unwrap();
-    ProtocolManager::new(pmkey)
+#[instrument]
+pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
+    let pmc: ProtocolManagerConfig =
+        toml::from_str(&contents).map_err(|err| anyhow!("{:?}", err))?;
+    let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{:?}", err))?;
+    Ok(ProtocolManager::new(pmkey))
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 async fn init<C: Ctx>(
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
     configuration: Configuration<C>,
     pm: ProtocolManager<C>,
     board_name: &str,
 ) -> Result<()> {
-    let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
+    let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
-    board.insert_messages(board_name, &vec![message]).await
+    b3_client
+        .insert_configuration::<C>(board_name, message)
+        .await
 }
 
 #[instrument(skip(pm), err)]
@@ -95,30 +111,49 @@ pub async fn add_config_to_board<C: Ctx>(
         PhantomData,
     );
 
-    let mut board_client = get_board_client().await?;
+    // let mut board_client = get_board_client().await?;
+    let mut client = get_b3_pgsql_client().await?;
 
-    init(&mut board_client, configuration, pm, board_name).await
+    init(&mut client, configuration, pm, board_name).await
 }
 
 #[instrument(err)]
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
-    let mut board = get_board_client().await?;
+    let mut board = get_b3_pgsql_client().await?;
 
-    let messages = board.get_messages(board_name, -1).await?;
-    let pks_message = messages
+    let b3 = board.get_messages(board_name, -1).await?;
+
+    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
+    let messages: Vec<Message> = b3
         .into_iter()
-        .map(|message| Message::strand_deserialize(&message.message))
-        .find(|message| {
-            if let Ok(m) = message {
-                match m.statement.get_kind() {
-                    StatementType::PublicKey => true,
-                    _ => false,
-                }
+        .filter_map(|board_message| Message::strand_deserialize(&board_message.message).ok())
+        .collect();
+
+    let config = get_configuration::<C>(&messages)?;
+
+    config
+        .trustees
+        .into_iter()
+        .map(|trustee_signature| {
+            let trustee_pk = messages.iter().any(|message| {
+                message.sender.pk == trustee_signature
+                    && valid_statements.contains(&message.statement.get_kind())
+            });
+            if trustee_pk {
+                Ok(())
             } else {
-                false
+                Err(anyhow!(
+                    "Missing public key for trustee {:?}",
+                    trustee_signature
+                ))
             }
         })
-        .with_context(|| format!("Public Key not found on board {}", board_name))??;
+        .collect::<Result<()>>()?;
+
+    let pks_message = messages
+        .into_iter()
+        .find(|message| StatementType::PublicKey == message.statement.get_kind())
+        .with_context(|| format!("Public Key not found on board {}", board_name))?;
 
     let bytes = pks_message.artifact.with_context(|| {
         format!(
@@ -126,13 +161,26 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
             board_name
         )
     })?;
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+    let dkgpk =
+        DkgPublicKey::<C>::strand_deserialize(&bytes).map_err(|err| anyhow!("{:?}", err))?;
     Ok(dkgpk.pk)
+}
+
+pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
+    let board = get_b3_pgsql_client().await?;
+
+    let b3 = board.get_messages(board_name, -1).await?;
+    let messages = convert_b3(&b3)?;
+
+    let found_config = messages
+        .into_iter()
+        .find(|message| StatementType::Configuration == message.statement.get_kind());
+    Ok(found_config.is_some())
 }
 
 #[instrument(err)]
 pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
-    let mut board = get_board_client().await?;
+    let board = get_b3_pgsql_client().await?;
 
     let valid_statements = vec![
         StatementType::Configuration,
@@ -144,8 +192,8 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
         StatementType::PublicKeySigned,
     ];
 
-    let board_messages = board.get_messages(board_name, -1).await?;
-    let messages = convert_board_messages(&board_messages)?;
+    let b3 = board.get_messages(board_name, -1).await?;
+    let messages = convert_b3(&b3)?;
 
     let filtered_messages: Vec<Message> = messages
         .into_iter()
@@ -159,30 +207,59 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
-) -> Result<EncryptionData> {
-    let mut board = get_board_client().await?;
+) -> Result<TrusteeShareData<C>> {
+    let board = get_b3_pgsql_client().await?;
 
-    let messages = board.get_messages(board_name, -1).await?;
-    let pks_message = messages
+    // let messages = board.get_messages(board_name, -1).await?;
+    let messages = board
+        .get_with_kind(board_name, StatementType::Channel, trustee_pub_key)
+        .await?;
+
+    let channel_message = messages
         .into_iter()
         .map(|message| Message::strand_deserialize(&message.message))
         .filter_map(|message| message.ok())
-        .find(|message| {
-            message.statement.get_kind() == StatementType::Channel
-                && message.sender.pk == *trustee_pub_key
-        })
-        .with_context(|| format!("Private Key not found on board {}", board_name))?;
+        .next()
+        .with_context(|| format!("Channel not found on board {}", board_name))?;
 
-    let bytes = pks_message.artifact.with_context(|| {
+    let messages = board
+        .get_with_kind_only(board_name, StatementType::Shares)
+        .await?;
+
+    let shares: Result<Vec<Message>> = messages
+        .into_iter()
+        .map(|message| Ok(Message::strand_deserialize(&message.message)?))
+        .collect();
+
+    let shares: Result<Vec<Shares<C>>> = shares?
+        .into_iter()
+        .map(|s| {
+            let bytes = s.artifact.ok_or(anyhow!("Shares missing artifact bytes"))?;
+            let shares = Shares::<C>::strand_deserialize(&bytes)?;
+            Ok(shares)
+        })
+        .collect();
+
+    let channel_bytes = channel_message.artifact.with_context(|| {
         format!(
             "Artifact missing on Private Key message on board {}",
             board_name
         )
     })?;
-    let channel = Channel::<C>::strand_deserialize(&bytes).unwrap();
-    Ok(channel.encrypted_channel_sk)
+    let channel =
+        Channel::<C>::strand_deserialize(&channel_bytes).map_err(|err| anyhow!("{:?}", err))?;
+
+    let ret = TrusteeShareData {
+        channel,
+        shares: shares?,
+    };
+
+    Ok(ret)
+
+    // Ok(channel.encrypted_channel_sk)
 }
 
+#[instrument(skip_all, err)]
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
     let configuration_msg = messages
         .iter()
@@ -190,26 +267,34 @@ pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuratio
             StatementType::Configuration == message.statement.get_kind()
                 && message.artifact.is_some()
         })
-        .unwrap();
+        .ok_or(anyhow!("Can't find configuration message"))?;
     Ok(Configuration::<C>::strand_deserialize(
-        &configuration_msg.artifact.clone().unwrap(),
+        &configuration_msg
+            .artifact
+            .clone()
+            .ok_or(anyhow!("Missing artifact on configuration message"))?,
     )?)
 }
 
+#[instrument(skip_all, err)]
 pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyHash> {
     let public_key_message = messages
         .iter()
         .find(|message| {
             StatementType::PublicKey == message.statement.get_kind() && message.artifact.is_some()
         })
-        .unwrap();
-    let public_key_bytes = public_key_message.artifact.clone().unwrap();
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes).unwrap();
+        .ok_or(anyhow!("Can't find public key message"))?;
+    let public_key_bytes = public_key_message
+        .artifact
+        .clone()
+        .ok_or(anyhow!("Public key message artifact missing"))?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes)?;
     let pk_bytes = dkgpk.strand_serialize()?;
     let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
-    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()))
+    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h)?))
 }
 
+#[instrument(skip_all)]
 pub fn generate_trustee_set<C: Ctx>(
     configuration: &Configuration<C>,
     trustee_pks: Vec<StrandSignaturePk>,
@@ -236,40 +321,58 @@ pub fn generate_trustee_set<C: Ctx>(
     selected_trustees
 }
 
-pub fn convert_board_messages(board_messages: &Vec<BoardMessage>) -> Result<Vec<Message>> {
-    let messages: Vec<Message> = board_messages
+#[instrument(skip_all, err)]
+pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
+    let messages: Vec<Message> = b3
         .iter()
         .map(|board_message| Message::strand_deserialize(&board_message.message))
         .collect::<Result<Vec<_>, StrandError>>()?;
     Ok(messages)
 }
 
-pub async fn get_protocol_manager<C: Ctx>(board_name: &str) -> Result<ProtocolManager<C>> {
+#[instrument(err)]
+pub async fn get_protocol_manager<C: Ctx>(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    board_name: &str,
+) -> Result<ProtocolManager<C>> {
     let protocol_manager_key = get_protocol_manager_secret_path(board_name);
-    let protocol_manager_data = vault::read_secret(protocol_manager_key)
-        .await?
-        .ok_or(anyhow!("protocol manager secret not found"))?;
-    Ok(deserialize_protocol_manager::<C>(protocol_manager_data))
+    let protocol_manager_data = vault::read_secret(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &protocol_manager_key,
+    )
+    .await?
+    .ok_or(anyhow!("protocol manager secret not found"))?;
+    deserialize_protocol_manager::<C>(protocol_manager_data)
 }
 
-pub async fn get_board_messages<C: Ctx>(
+#[instrument(skip(b3_client), err)]
+pub async fn get_b3<C: Ctx>(
     board_name: &str,
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
 ) -> Result<Vec<Message>> {
-    let pm = get_protocol_manager::<C>(board_name).await?;
-
-    let board_messages = board.get_messages(board_name, -1).await?;
-    let messages: Vec<Message> = convert_board_messages(&board_messages)?;
+    let b3 = b3_client.get_messages(board_name, -1).await?;
+    let messages: Vec<Message> = convert_b3(&b3)?;
     Ok(messages)
 }
 
 #[instrument(
-    skip(messages, configuration, public_key_hash, selected_trustees, ballots),
+    skip(
+        messages,
+        configuration,
+        public_key_hash,
+        selected_trustees,
+        ballots,
+        b3_client
+    ),
     err
 )]
 pub async fn add_ballots_to_board<C: Ctx>(
     pm: &ProtocolManager<C>,
-    board: &mut BoardClient,
+    b3_client: &mut PgsqlB3Client,
     board_name: &str,
     messages: &Vec<Message>,
     configuration: &Configuration<C>,
@@ -293,6 +396,8 @@ pub async fn add_ballots_to_board<C: Ctx>(
         return Ok(());
     }
 
+    let ballots_len = ballots.len();
+
     let message = Message::ballots_msg::<C, ProtocolManager<C>>(
         configuration,
         batch,
@@ -301,11 +406,11 @@ pub async fn add_ballots_to_board<C: Ctx>(
         public_key_hash,
         pm,
     )?;
-    info!("Adding configuration to the board..");
-    let board_message: BoardMessage = message.try_into()?;
-    board
-        .insert_messages(board_name, &vec![board_message])
-        .await
+    info!(
+        "Adding configuration to the board for batch {} and number of ballots {}",
+        batch, ballots_len
+    );
+    b3_client.insert_ballots::<C>(board_name, message).await
 }
 
 #[instrument(err)]
@@ -314,9 +419,26 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
     let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
 
-    let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
+    let board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
+}
+
+#[instrument(err)]
+pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
+    let username = env::var("B3_PG_USER").context("B3_PG_USER must be set")?;
+    let password = env::var("B3_PG_PASSWORD").context("B3_PG_PASSWORD must be set")?;
+    let host = env::var("B3_PG_HOST").context("B3_PG_HOST must be set")?;
+    let port = env::var("B3_PG_PORT").context("B3_PG_PORT must be set")?;
+    let database = env::var("B3_PG_DATABASE").context("B3_PG_DATABASE must be set")?;
+
+    let port: u32 = port.parse::<u32>()?;
+
+    let c = PgsqlConnectionParams::new(&host, port, &username, &password);
+    let c_db = c.with_database(&database);
+    let client = PgsqlB3Client::new(&c_db).await?;
+
+    Ok(client)
 }
 
 #[instrument(err)]
@@ -336,4 +458,47 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
         name,
         value: Some(SqlValue { value: Some(value) }),
     }
+}
+
+pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("{}tenant{}event{}", slug, tenant, election_event_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
+pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> String {
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("{}tenant{}election{}", slug, tenant, election_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
+pub fn convert_board_messages(board_messages: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
+    let messages: Vec<Message> = board_messages
+        .iter()
+        .map(|m| Message::strand_deserialize(&m.message))
+        .collect::<Result<Vec<_>, StrandError>>()?;
+    Ok(messages)
+}
+
+pub async fn get_board_messages<C: Ctx>(
+    board_name: &str,
+    b3_client: &PgsqlB3Client,
+) -> Result<Vec<Message>> {
+    let board_messages = b3_client.get_messages(board_name, -1).await?;
+    let messages: Vec<Message> = convert_board_messages(&board_messages)?;
+    Ok(messages)
 }

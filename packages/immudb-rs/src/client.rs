@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use std::fmt::Debug;
-use tonic::{metadata::MetadataValue, transport::Channel, Request, Response};
-use tracing::{debug, instrument};
+use tonic::{metadata::MetadataValue, transport::Channel, Request, Response, Streaming};
+use tracing::{debug, info, instrument};
 
 use crate::schema::immu_service_client::ImmuServiceClient;
 use crate::schema::{
@@ -28,7 +28,7 @@ pub type AsyncResponse<T> = Result<Response<T>>;
 /// Represents a Immudb Client.
 /// Allows you to handle operations in an easier manner.
 impl Client {
-    #[instrument(skip(password))]
+    #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<Client> {
         let mut client = ImmuServiceClient::connect(String::from(server_url)).await?;
         client = client.max_encoding_message_size(134217728);
@@ -43,7 +43,7 @@ impl Client {
         })
     }
 
-    #[instrument]
+    #[instrument(level = "debug")]
     pub async fn login(&mut self) -> Result<()> {
         let login_request = Request::new(LoginRequest {
             user: self.username.clone().into(),
@@ -52,6 +52,15 @@ impl Client {
         let response = self.client.login(login_request).await?;
         debug!("grpc-login-response={:?}", response);
         self.auth_token = Some(format!("Bearer {}", response.get_ref().token));
+        Ok(())
+    }
+
+    #[instrument(level = "debug")]
+    pub async fn logout(&mut self) -> Result<()> {
+        let request = self.get_request(())?;
+        let response = self.client.logout(request).await?;
+        debug!("grpc-login-response={:?}", response);
+        self.auth_token = None;
         Ok(())
     }
 
@@ -82,7 +91,7 @@ impl Client {
         Ok(database_list_response)
     }
 
-    #[instrument]
+    #[instrument(level = "trace")]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         let database_list_request = self.get_request(DatabaseListRequestV2 {})?;
         let database_list_response = self.client.database_list_v2(database_list_request).await?;
@@ -106,7 +115,7 @@ impl Client {
 
     pub async fn sql_exec(&mut self, sql: &str, params: Vec<NamedParam>) -> Result<()> {
         let sql_exec_request = self.get_request(SqlExecRequest {
-            sql: sql.clone().into(),
+            sql: sql.into(),
             no_wait: false,
             params: params,
         })?;
@@ -115,24 +124,14 @@ impl Client {
         Ok(())
     }
 
-    pub async fn sql_query(
-        &mut self,
-        sql: &str,
-        params: Vec<NamedParam>,
-    ) -> AsyncResponse<SqlQueryResult> {
-        let sql_query_request = self.get_request(SqlQueryRequest {
-            sql: sql.clone().into(),
-            reuse_snapshot: false,
-            params: params,
-        })?;
-        let sql_query_response = self.client.sql_query(sql_query_request).await?;
-        debug!("sql-query-response={:?}", sql_query_response);
-        Ok(sql_query_response)
-    }
-
     /// Creates a new transaction, returning the transaction id
     pub async fn new_tx(&mut self, mode: TxMode) -> Result<String> {
-        let new_tx_request = self.get_request(NewTxRequest { mode: mode.into() })?;
+        let new_tx_request = self.get_request(NewTxRequest {
+            mode: mode.into(),
+            snapshot_must_include_tx_id: None,
+            snapshot_renewal_period: None,
+            unsafe_mvcc: false,
+        })?;
         let new_tx_response = self.client.new_tx(new_tx_request).await?;
         debug!("new-tx-response={:?}", new_tx_response);
         Ok(new_tx_response.get_ref().transaction_id.clone())
@@ -169,7 +168,7 @@ impl Client {
         params: Vec<NamedParam>,
     ) -> Result<()> {
         let mut sql_exec_request = self.get_request(SqlExecRequest {
-            sql: sql.clone().into(),
+            sql: sql.into(),
             no_wait: false,
             params: params,
         })?;
@@ -183,16 +182,49 @@ impl Client {
         Ok(())
     }
 
+    pub async fn sql_query(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>,
+    ) -> AsyncResponse<SqlQueryResult> {
+        let sql_query_request = self.get_request(SqlQueryRequest {
+            sql: sql.into(),
+            params: params,
+            reuse_snapshot: false,
+            accept_stream: false,
+        })?;
+        let sql_query_response = self.client.unary_sql_query(sql_query_request).await?;
+        debug!("sql-query-response={:?}", sql_query_response);
+        Ok(sql_query_response)
+    }
+
+    pub async fn streaming_sql_query(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>,
+    ) -> AsyncResponse<Streaming<SqlQueryResult>> {
+        let sql_query_request = self.get_request(SqlQueryRequest {
+            sql: sql.into(),
+            params: params,
+            reuse_snapshot: false,
+            accept_stream: true,
+        })?;
+        let sql_query_response = self.client.sql_query(sql_query_request).await?;
+        debug!("sql-query-response={:?}", sql_query_response);
+        Ok(sql_query_response)
+    }
+
     pub async fn tx_sql_query(
         &mut self,
         sql: &str,
         transaction_id: &String,
         params: Vec<NamedParam>,
-    ) -> AsyncResponse<SqlQueryResult> {
+    ) -> AsyncResponse<Streaming<SqlQueryResult>> {
         let mut sql_query_request = self.get_request(SqlQueryRequest {
-            sql: sql.clone().into(),
-            reuse_snapshot: false,
+            sql: sql.into(),
             params: params,
+            reuse_snapshot: false,
+            accept_stream: false,
         })?;
         let tx_id: MetadataValue<_> = transaction_id.parse()?;
         sql_query_request
@@ -230,16 +262,38 @@ impl Client {
 
     #[instrument]
     pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
-        let unload_db_request = self.get_request(UnloadDatabaseRequest {
-            database: database_name.to_string(),
-        })?;
-        let unload_db_response = self.client.unload_database(unload_db_request).await?;
-        debug!("grpc-unload-database-response={:?}", unload_db_response);
-        let delete_db_request = self.get_request(DeleteDatabaseRequest {
-            database: database_name.to_string(),
-        })?;
-        let delete_db_response = self.client.delete_database(delete_db_request).await?;
-        debug!("grpc-delete-database-response={:?}", delete_db_response);
+        let unload_db_request = self
+            .get_request(UnloadDatabaseRequest {
+                database: database_name.to_string(),
+            })
+            .map_err(|err| anyhow!("Error generating the unload db request: {err:?}"))?;
+
+        match self.client.unload_database(unload_db_request).await {
+            Ok(unload_db_response) => {
+                info!("grpc-unload-database-response={unload_db_response:?}");
+            }
+            Err(err) => {
+                if err.message() == "database does not exist" {
+                    info!("database is already removed");
+                    return Ok(());
+                } else {
+                    return Err(anyhow!("Error unloading the database, status = {err:?}"));
+                }
+            }
+        };
+
+        let delete_db_request = self
+            .get_request(DeleteDatabaseRequest {
+                database: database_name.to_string(),
+            })
+            .map_err(|err| anyhow!("Error generating the delete db request: {err:?}"))?;
+        let delete_db_response = self
+            .client
+            .delete_database(delete_db_request)
+            .await
+            .map_err(|err| anyhow!("Error unloading the database, status = {err:?}"));
+
+        info!("grpc-delete-database-response={delete_db_response:?}");
         Ok(())
     }
 
@@ -250,7 +304,7 @@ impl Client {
             password: self.password.clone().into(),
         });
         let open_session_response = self.client.open_session(open_session_request).await?;
-        debug!("grpc-open-session-response={:?}", open_session_response);
+        debug!("grpc-open-session-response={open_session_response:?}");
         self.session_id = Some(open_session_response.get_ref().session_id.clone());
         Ok(())
     }
@@ -258,7 +312,7 @@ impl Client {
     pub async fn close_session(&mut self) -> Result<()> {
         let close_session_request = self.get_request(())?;
         let close_session_response = self.client.close_session(close_session_request).await?;
-        debug!("grpc-open-session-response={:?}", close_session_response);
+        debug!("grpc-open-session-response={close_session_response:?}");
         self.session_id = None;
         Ok(())
     }

@@ -6,8 +6,6 @@ package sequent.keycloak.authenticator.smart_link;
 
 import static org.keycloak.services.validation.Validation.FIELD_USERNAME;
 
-import sequent.keycloak.authenticator.smart_link.SmartLink;
-import sequent.keycloak.authenticator.smart_link.SmartLinkActionToken;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -30,315 +28,210 @@ import org.keycloak.services.messages.Messages;
 
 @JBossLog
 public class SmartLinkAuthenticator extends UsernamePasswordForm {
-    static final String CREATE_NONEXISTENT_USER_CONFIG_PROPERTY = "smart-create-nonexistent-user";
-    static final String UPDATE_PROFILE_ACTION_CONFIG_PROPERTY = "smart-update-profile-action";
-    static final String UPDATE_PASSWORD_ACTION_CONFIG_PROPERTY = "smart-update-password-action";
-    static final String ACTION_TOKEN_PERSISTENT_CONFIG_PROPERTY = "smart-allow-token-reuse";
-    static final String MARK_EMAIL_VERIFIED_ACTION_CONFIG_PROPERTY = "smart-mark-email-verified";
+  static final String CREATE_NONEXISTENT_USER_CONFIG_PROPERTY = "smart-create-nonexistent-user";
+  static final String UPDATE_PROFILE_ACTION_CONFIG_PROPERTY = "smart-update-profile-action";
+  static final String UPDATE_PASSWORD_ACTION_CONFIG_PROPERTY = "smart-update-password-action";
+  static final String ACTION_TOKEN_PERSISTENT_CONFIG_PROPERTY = "smart-allow-token-reuse";
+  static final String MARK_EMAIL_VERIFIED_ACTION_CONFIG_PROPERTY = "smart-mark-email-verified";
 
-    @Override
-    public void authenticate(AuthenticationFlowContext context)
-    {
-        log.info("SmartLinkAuthenticator.authenticate");
-        String attemptedUsername = getAttemptedUsername(context);
-        if (attemptedUsername == null) {
-            super.authenticate(context);
-        } else {
-            log.infof(
-                "Found attempted username %s from previous authenticator, skipping login form",
-                attemptedUsername
-            );
-            action(context);
-        }
+  @Override
+  public void authenticate(AuthenticationFlowContext context) {
+    log.info("SmartLinkAuthenticator.authenticate");
+    String attemptedUsername = getAttemptedUsername(context);
+    if (attemptedUsername == null) {
+      super.authenticate(context);
+    } else {
+      log.infof(
+          "Found attempted username %s from previous authenticator, skipping login form",
+          attemptedUsername);
+      action(context);
     }
+  }
 
-    @Override
-    public void action(AuthenticationFlowContext context)
-    {
-        log.info("SmartLinkAuthenticator.action");
+  @Override
+  public void action(AuthenticationFlowContext context) {
+    log.info("SmartLinkAuthenticator.action");
 
-        MultivaluedMap<String, String> formData = context
-            .getHttpRequest()
-            .getDecodedFormParameters();
+    MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
 
-        String email = trimToNull(
-            formData.getFirst(AuthenticationManager.FORM_USERNAME)
-        );
-        
-        // check for empty email
-        if (email == null) {
-            // - first check for email from previous authenticator
-            email = getAttemptedUsername(context);
-        }
-        log.infof("email in action is %s", email);
+    String email = trimToNull(formData.getFirst(AuthenticationManager.FORM_USERNAME));
 
-        // - throw error if still empty
-        if (email == null) {
-            context.getEvent().error(Errors.USER_NOT_FOUND);
-            Response challengeResponse = challenge(
-                context,
-                getDefaultChallengeMessage(context),
-                FIELD_USERNAME
-            );
-            context.failureChallenge(
-                AuthenticationFlowError.INVALID_USER,
-                challengeResponse
-            );
-            return;
-        }
-        String clientId = context
-            .getSession()
-            .getContext()
-            .getClient()
-            .getClientId();
-        EventBuilder event = context.newEvent();
+    // check for empty email
+    if (email == null) {
+      // - first check for email from previous authenticator
+      email = getAttemptedUsername(context);
+    }
+    log.infof("email in action is %s", email);
 
-        UserModel user = SmartLink.getOrCreate(
+    // - throw error if still empty
+    if (email == null) {
+      context.getEvent().error(Errors.USER_NOT_FOUND);
+      Response challengeResponse =
+          challenge(context, getDefaultChallengeMessage(context), FIELD_USERNAME);
+      context.failureChallenge(AuthenticationFlowError.INVALID_USER, challengeResponse);
+      return;
+    }
+    String clientId = context.getSession().getContext().getClient().getClientId();
+    EventBuilder event = context.newEvent();
+
+    UserModel user =
+        SmartLink.getOrCreate(
             context.getSession(),
             context.getRealm(),
             email,
             isForceCreate(context, false),
             isUpdateProfile(context, false),
             isUpdatePassword(context, false),
-            SmartLink.registerEvent(event)
-        );
+            SmartLink.registerEvent(event));
 
-        log.infof("user is %s %s", user.getEmail(), user.isEnabled());
-        // check for no/invalid email address
-        if (
-            user == null ||
-            trimToNull(user.getEmail()) == null ||
-            !isValidEmail(user.getEmail())
-        ) {
-            context
-                .getEvent()
-                .event(EventType.LOGIN_ERROR)
-                .error(Errors.INVALID_EMAIL);
-            Response challengeResponse = challenge(
-                context,
-                getDefaultChallengeMessage(context),
-                FIELD_USERNAME
-            );
-            context.failureChallenge(
-                AuthenticationFlowError.INVALID_USER,
-                challengeResponse
-            );
-            return;
-        }
+    log.infof("user is %s %s", user.getEmail(), user.isEnabled());
+    // check for no/invalid email address
+    if (user == null || trimToNull(user.getEmail()) == null || !isValidEmail(user.getEmail())) {
+      context.getEvent().event(EventType.LOGIN_ERROR).error(Errors.INVALID_EMAIL);
+      Response challengeResponse =
+          challenge(context, getDefaultChallengeMessage(context), FIELD_USERNAME);
+      context.failureChallenge(AuthenticationFlowError.INVALID_USER, challengeResponse);
+      return;
+    }
 
-        // check for enabled user
-        if (!enabledUser(context, user)) {
-            return; // the enabledUser method sets the challenge
-        }
+    // check for enabled user
+    if (!enabledUser(context, user)) {
+      return; // the enabledUser method sets the challenge
+    }
 
-        SmartLinkActionToken token = SmartLink.createActionToken(
+    SmartLinkActionToken token =
+        SmartLink.createActionToken(
             user,
             clientId,
             OptionalInt.empty(),
             rememberMe(context),
             context.getAuthenticationSession(),
             isActionTokenPersistent(context, true),
-            getMarkEmailVerified(context, true)
-        );
-        String link = SmartLink.linkFromActionToken(
-            context.getSession(),
-            context.getRealm(),
-            token
-        );
-        boolean sent = SmartLink.sendSmartLinkNotification(
-            context.getSession(),
-            user,
-            link
-        );
-        log.infof(
-            "sent notification to %s? %b. Link? %s",
-            user.getEmail(),
-            sent,
-            link
-        );
+            getMarkEmailVerified(context, true));
+    String link = SmartLink.linkFromActionToken(context.getSession(), context.getRealm(), token);
+    boolean sent = SmartLink.sendSmartLinkNotification(context.getSession(), user, link);
+    log.infof("sent notification to %s? %b. Link? %s", user.getEmail(), sent, link);
 
-        context
-            .getAuthenticationSession()
-            .setAuthNote(
-                AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME,
-                email
-            );
-        context.challenge(context.form().createForm("view-email.ftl"));
+    context
+        .getAuthenticationSession()
+        .setAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME, email);
+    context.challenge(context.form().createForm("view-email.ftl"));
+  }
+
+  private boolean rememberMe(AuthenticationFlowContext context) {
+    MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+    String rememberMe = formData.getFirst("rememberMe");
+    return context.getRealm().isRememberMe()
+        && rememberMe != null
+        && rememberMe.equalsIgnoreCase("on");
+  }
+
+  private boolean isForceCreate(AuthenticationFlowContext context, boolean defaultValue) {
+    return is(context, CREATE_NONEXISTENT_USER_CONFIG_PROPERTY, defaultValue);
+  }
+
+  private boolean getMarkEmailVerified(AuthenticationFlowContext context, boolean defaultValue) {
+    return is(context, MARK_EMAIL_VERIFIED_ACTION_CONFIG_PROPERTY, defaultValue);
+  }
+
+  private boolean isUpdateProfile(AuthenticationFlowContext context, boolean defaultValue) {
+    return is(context, UPDATE_PROFILE_ACTION_CONFIG_PROPERTY, defaultValue);
+  }
+
+  private boolean isUpdatePassword(AuthenticationFlowContext context, boolean defaultValue) {
+    return is(context, UPDATE_PASSWORD_ACTION_CONFIG_PROPERTY, defaultValue);
+  }
+
+  private boolean isActionTokenPersistent(AuthenticationFlowContext context, boolean defaultValue) {
+    return is(context, ACTION_TOKEN_PERSISTENT_CONFIG_PROPERTY, defaultValue);
+  }
+
+  private boolean is(AuthenticationFlowContext context, String propName, boolean defaultValue) {
+    AuthenticatorConfigModel authenticatorConfig = context.getAuthenticatorConfig();
+    if (authenticatorConfig == null) {
+      return defaultValue;
     }
 
-    private boolean rememberMe(AuthenticationFlowContext context)
-    {
-        MultivaluedMap<String, String> formData = context
-            .getHttpRequest()
-            .getDecodedFormParameters();
-        String rememberMe = formData.getFirst("rememberMe");
-        return context.getRealm().isRememberMe()
-            && rememberMe != null
-            && rememberMe.equalsIgnoreCase("on");
+    Map<String, String> config = authenticatorConfig.getConfig();
+    if (config == null) {
+      return defaultValue;
     }
 
-    private boolean isForceCreate(
-        AuthenticationFlowContext context,
-        boolean defaultValue
-    ) {
-        return is(
-            context,
-            CREATE_NONEXISTENT_USER_CONFIG_PROPERTY,
-            defaultValue
-        );
+    String value = config.get(propName);
+    if (value == null || "".equals(value)) {
+      return defaultValue;
     }
 
-    private boolean getMarkEmailVerified(
-        AuthenticationFlowContext context,
-        boolean defaultValue
-    ) {
-        return is(
-            context,
-            MARK_EMAIL_VERIFIED_ACTION_CONFIG_PROPERTY,
-            defaultValue
-        );
+    return value.trim().toLowerCase().equals("true");
+  }
+
+  private static boolean isValidEmail(String email) {
+    try {
+      InternetAddress address = new InternetAddress(email);
+      address.validate();
+      return true;
+    } catch (AddressException error) {
+      return false;
+    }
+  }
+
+  private String getAttemptedUsername(AuthenticationFlowContext context) {
+    if (context.getUser() != null && context.getUser().getEmail() != null) {
+      return context.getUser().getEmail();
     }
 
-    private boolean isUpdateProfile(
-        AuthenticationFlowContext context,
-        boolean defaultValue
-    ) {
-        return is(
-            context,
-            UPDATE_PROFILE_ACTION_CONFIG_PROPERTY,
-            defaultValue
-        );
+    String username =
+        trimToNull(context.getAuthenticationSession().getAuthNote(ATTEMPTED_USERNAME));
+    if (username != null) {
+      if (isValidEmail(username)) {
+        return username;
+      }
+      UserModel user = context.getSession().users().getUserByUsername(context.getRealm(), username);
+      if (user != null && user.getEmail() != null) {
+        return user.getEmail();
+      }
     }
+    return null;
+  }
 
-    private boolean isUpdatePassword(
-        AuthenticationFlowContext context,
-        boolean defaultValue
-    ) {
-        return is(
-            context,
-            UPDATE_PASSWORD_ACTION_CONFIG_PROPERTY,
-            defaultValue
-        );
+  private static String trimToNull(final String data) {
+    if (data == null) {
+      return null;
     }
-
-    private boolean isActionTokenPersistent(
-        AuthenticationFlowContext context,
-        boolean defaultValue
-    ) {
-        return is(
-            context,
-            ACTION_TOKEN_PERSISTENT_CONFIG_PROPERTY,
-            defaultValue
-        );
+    String trimmed = data.trim();
+    if ("".equalsIgnoreCase(trimmed)) {
+      trimmed = null;
     }
+    return trimmed;
+  }
 
-    private boolean is(
-        AuthenticationFlowContext context,
-        String propName,
-        boolean defaultValue
-    ) {
-        AuthenticatorConfigModel authenticatorConfig = context
-            .getAuthenticatorConfig();
-        if (authenticatorConfig == null) {
-            return defaultValue;
-        }
+  @Override
+  protected boolean validateForm(
+      AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
+    log.info("validateForm");
+    return validateUser(context, formData);
+  }
 
-        Map<String, String> config = authenticatorConfig.getConfig();
-        if (config == null) {
-            return defaultValue;
-        }
+  @Override
+  protected Response challenge(
+      AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
+    log.info("challenge");
+    LoginFormsProvider forms = context.form();
+    if (!formData.isEmpty()) forms.setFormData(formData);
+    return forms.createLoginUsername();
+  }
 
-        String value = config.get(propName);
-        if (value == null || "".equals(value)) {
-            return defaultValue;
-        }
+  @Override
+  protected Response createLoginForm(LoginFormsProvider form) {
+    log.info("createLoginForm");
+    return form.createLoginUsername();
+  }
 
-        return value.trim().toLowerCase().equals("true");
-    }
-
-    private static boolean isValidEmail(String email)
-    {
-        try {
-            InternetAddress address = new InternetAddress(email);
-            address.validate();
-            return true;
-        } catch (AddressException error) {
-            return false;
-        }
-    }
-
-    private String getAttemptedUsername(AuthenticationFlowContext context)
-    {
-        if (
-            context.getUser() != null &&
-            context.getUser().getEmail() != null
-        ) {
-            return context.getUser().getEmail();
-        }
-
-        String username = trimToNull(
-            context.getAuthenticationSession().getAuthNote(ATTEMPTED_USERNAME)
-        );
-        if (username != null)
-        {
-            if (isValidEmail(username)) {
-                return username;
-            }
-            UserModel user = context
-                .getSession()
-                .users()
-                .getUserByUsername(context.getRealm(), username);
-            if (user != null && user.getEmail() != null) {
-                return user.getEmail();
-            }
-        }
-        return null;
-    }
-
-    private static String trimToNull(final String data) {
-        if (data == null) {
-        return null;
-        }
-        String trimmed = data.trim();
-        if ("".equalsIgnoreCase(trimmed)) {
-            trimmed = null;
-        }
-        return trimmed;
-    }
-
-    @Override
-    protected boolean validateForm(
-        AuthenticationFlowContext context,
-        MultivaluedMap<String, String> formData
-    ) {
-        log.info("validateForm");
-        return validateUser(context, formData);
-    }
-
-    @Override
-    protected Response challenge(
-        AuthenticationFlowContext context,
-        MultivaluedMap<String, String> formData
-    ) {
-        log.info("challenge");
-        LoginFormsProvider forms = context.form();
-        if (!formData.isEmpty()) forms.setFormData(formData);
-        return forms.createLoginUsername();
-    }
-
-    @Override
-    protected Response createLoginForm(LoginFormsProvider form) {
-        log.info("createLoginForm");
-        return form.createLoginUsername();
-    }
-
-    @Override
-    protected String getDefaultChallengeMessage(
-        AuthenticationFlowContext context
-    ) {
-        log.info("getDefaultChallengeMessage");
-        return context.getRealm().isLoginWithEmailAllowed()
-            ? Messages.INVALID_USERNAME_OR_EMAIL
-            : Messages.INVALID_USERNAME;
-    }
+  @Override
+  protected String getDefaultChallengeMessage(AuthenticationFlowContext context) {
+    log.info("getDefaultChallengeMessage");
+    return context.getRealm().isLoginWithEmailAllowed()
+        ? Messages.INVALID_USERNAME_OR_EMAIL
+        : Messages.INVALID_USERNAME;
+  }
 }

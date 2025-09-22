@@ -1,0 +1,21 @@
+{
+    "id": "{{UUID}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "created_at": "{{current_timestamp}}",
+    "stopped_at": null,
+    "archived_at": null,
+    "labels": null,
+    "annotations": null,
+    "event_processor": "{{event_processor}}",
+    "cron_config": {
+        "cron": null,
+        "scheduled_date": "{{scheduled_date}}"
+    },
+    "event_payload": {
+        {{#if election_id}}
+        "election_id": "{{election_id}}"
+        {{/if}}
+    },
+    "task_id": "tenant_{{tenant_id}}_event_{{election_event_id}}_election_{{election_id}}_{{event_processor}}"
+}

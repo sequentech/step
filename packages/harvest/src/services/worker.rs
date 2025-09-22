@@ -7,13 +7,13 @@ use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::{anyhow, Result};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::communications::SendCommunicationBody;
+use sequent_core::types::scheduled_event::*;
+use sequent_core::types::templates::SendTemplateBody;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::render_report;
-use windmill::tasks::send_communication::*;
-use windmill::types::scheduled_event::*;
+use windmill::tasks::send_template::*;
 
 #[instrument(skip(claims), err)]
 pub async fn process_scheduled_event(
@@ -38,24 +38,29 @@ pub async fn process_scheduled_event(
                 .await?;
             event!(Level::INFO, "Sent CREATE_REPORT task {}", task.task_id);
         }
-        EventProcessors::SEND_COMMUNICATION => {
-            let payload: SendCommunicationBody =
+        EventProcessors::SEND_TEMPLATE => {
+            let payload: SendTemplateBody =
                 deserialize_value(event.event_payload.clone())?;
+            let user_id = claims.hasura_claims.user_id;
             let task = celery_app
-                .send_task(send_communication::new(
+                .send_task(send_template::new(
                     payload,
                     event.tenant_id,
+                    user_id,
                     event.election_event_id.clone(),
                 ))
                 .await?;
-            event!(
-                Level::INFO,
-                "Sent SEND_COMMUNICATION task {}",
-                task.task_id
-            );
+            event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
         }
-        EventProcessors::START_ELECTION => {}
-        EventProcessors::END_ELECTION => {}
+        EventProcessors::ALLOW_INIT_REPORT => {}
+        EventProcessors::START_VOTING_PERIOD => {}
+        EventProcessors::END_VOTING_PERIOD => {}
+        EventProcessors::ALLOW_VOTING_PERIOD_END => {}
+        EventProcessors::START_ENROLLMENT_PERIOD => {}
+        EventProcessors::END_ENROLLMENT_PERIOD => {}
+        EventProcessors::START_LOCKDOWN_PERIOD => {}
+        EventProcessors::END_LOCKDOWN_PERIOD => {}
+        EventProcessors::ALLOW_TALLY => {}
     }
     Ok(element_id)
 }

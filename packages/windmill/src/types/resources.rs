@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::anyhow;
-use immu_board::assign_value;
+use electoral_log::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
@@ -19,7 +19,7 @@ pub struct TotalAggregate {
 }
 
 // Enumeration for the valid order directions
-#[derive(Debug, Deserialize, EnumString, Display)]
+#[derive(Debug, Deserialize, EnumString, Display, Clone)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum OrderDirection {

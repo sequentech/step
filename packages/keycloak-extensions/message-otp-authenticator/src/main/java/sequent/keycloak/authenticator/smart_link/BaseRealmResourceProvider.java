@@ -10,9 +10,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.services.resource.RealmResourceProvider;
 
 @JBossLog
-public abstract class BaseRealmResourceProvider 
-    implements RealmResourceProvider
-{
+public abstract class BaseRealmResourceProvider implements RealmResourceProvider {
 
   protected final KeycloakSession session;
 

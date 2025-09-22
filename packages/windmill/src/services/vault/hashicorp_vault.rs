@@ -3,18 +3,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::Vault;
+use super::{Vault, VaultManagerType};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest;
+use sequent_core::serialization::deserialize_with_path::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize)]
 struct VaultSecret {
-    data: String,
+    data: Option<String>,
+    value: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -37,7 +39,10 @@ impl Vault for HashiCorpVault {
         let token = env::var("VAULT_TOKEN").context("VAULT_TOKEN must be set")?;
         let client = reqwest::Client::new();
         let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
-        let json_value = json!({"data": value});
+        let json_value = serde_json::to_value(VaultSecret {
+            data: Some(value),
+            value: None,
+        })?;
         client
             .post(pm_endpoint)
             .bearer_auth(token)
@@ -61,7 +66,22 @@ impl Vault for HashiCorpVault {
             response
         }
         .error_for_status()?;
-        let read: VaultRead = unwrapped.json().await?;
-        Ok(Some(read.data.data))
+        info!("info: {:?}", unwrapped);
+        let text = unwrapped.text().await?;
+        info!("text: {}", text);
+        let read: VaultRead = deserialize_str(&text)?;
+        let value = if let Some(v) = read.data.data {
+            Some(v)
+        } else if let Some(v) = read.data.value {
+            Some(v)
+        } else {
+            None
+        };
+        Ok(value)
+    }
+
+    #[instrument]
+    fn vault_type(&self) -> VaultManagerType {
+        VaultManagerType::HashiCorpVault
     }
 }

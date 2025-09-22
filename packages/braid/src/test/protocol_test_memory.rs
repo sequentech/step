@@ -8,7 +8,6 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
-use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -18,14 +17,14 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use board_messages::braid::artifact::{Ballots, Configuration, Plaintexts};
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::PublicKeyHash;
-use board_messages::braid::newtypes::MAX_TRUSTEES;
-use board_messages::braid::newtypes::NULL_TRUSTEE;
-use board_messages::braid::protocol_manager::ProtocolManager;
+use b3::messages::artifact::{Ballots, Configuration, Plaintexts};
+use b3::messages::message::Message;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::newtypes::MAX_TRUSTEES;
+use b3::messages::newtypes::NULL_TRUSTEE;
+use b3::messages::protocol_manager::ProtocolManager;
 
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
 use crate::test::vector_session::VectorSession;
 
@@ -140,6 +139,7 @@ fn run_protocol_test<C: Ctx + 'static>(
         let decryptor = selected_trustees[0] - 1;
         let plaintexts: Vec<Plaintexts<C>> = (0..batches)
             .filter_map(|b| sessions[decryptor].get_plaintexts_nohash(b + 1, decryptor))
+            .map(|p| Plaintexts::<C>(p.0.clone()))
             .collect();
 
         if plaintexts.len() == batches {
@@ -196,7 +196,17 @@ pub fn create_protocol_test<C: Ctx>(
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
-            (Trustee::new(i.to_string(), sk, encryption_key), pk)
+            (
+                Trustee::new(
+                    i.to_string(),
+                    "foo".to_string(),
+                    sk,
+                    encryption_key,
+                    None,
+                    None,
+                ),
+                pk,
+            )
         })
         .unzip();
 

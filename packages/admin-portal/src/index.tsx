@@ -8,7 +8,7 @@ import App from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
-import SequentCoreLibInit, {set_hooks} from "sequent-core"
+import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {TenantContextProvider} from "./providers/TenantContextProvider"
@@ -25,42 +25,51 @@ import {
     ApolloWrapper,
     defaultApolloContextValues,
 } from "./providers/ApolloContextProvider"
+import {DatabaseProvider} from "./providers/DatabaseProvider"
+import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
+import {BrowserRouter as Router} from "react-router-dom"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
-SequentCoreLibInit().then(set_hooks)
+initCore()
 
 root.render(
     <React.StrictMode>
-        <SettingsWrapper>
-            <AuthContextProvider>
-                <TenantContextProvider>
-                    <NewResourceContextProvider>
-                        <ElectionEventContextProvider>
-                            <ElectionContextProvider>
-                                <ContestContextProvider>
-                                    <CandidateContextProvider>
-                                        <ElectionEventTallyContextProvider>
-                                            <PublishContextProvider>
-                                                <ThemeProvider theme={fullAdminTheme}>
-                                                    <ApolloContextProvider
-                                                        role={defaultApolloContextValues.role}
-                                                    >
-                                                        <ApolloWrapper>
-                                                            <App />
-                                                        </ApolloWrapper>
-                                                    </ApolloContextProvider>
-                                                </ThemeProvider>
-                                            </PublishContextProvider>
-                                        </ElectionEventTallyContextProvider>
-                                    </CandidateContextProvider>
-                                </ContestContextProvider>
-                            </ElectionContextProvider>
-                        </ElectionEventContextProvider>
-                    </NewResourceContextProvider>
-                </TenantContextProvider>
-            </AuthContextProvider>
-        </SettingsWrapper>
+        <Router>
+            <SettingsWrapper>
+                <ThemeProvider theme={fullAdminTheme}>
+                    <AuthContextProvider>
+                        <TenantContextProvider>
+                            <NewResourceContextProvider>
+                                <ElectionEventContextProvider>
+                                    <ElectionContextProvider>
+                                        <ContestContextProvider>
+                                            <CandidateContextProvider>
+                                                <ElectionEventTallyContextProvider>
+                                                    <PublishContextProvider>
+                                                        <ApolloContextProvider
+                                                            role={defaultApolloContextValues.role}
+                                                        >
+                                                            <ApolloWrapper>
+                                                                <DatabaseProvider>
+                                                                    <WidgetsContextProvider>
+                                                                        <App />
+                                                                    </WidgetsContextProvider>
+                                                                </DatabaseProvider>
+                                                            </ApolloWrapper>
+                                                        </ApolloContextProvider>
+                                                    </PublishContextProvider>
+                                                </ElectionEventTallyContextProvider>
+                                            </CandidateContextProvider>
+                                        </ContestContextProvider>
+                                    </ElectionContextProvider>
+                                </ElectionEventContextProvider>
+                            </NewResourceContextProvider>
+                        </TenantContextProvider>
+                    </AuthContextProvider>
+                </ThemeProvider>
+            </SettingsWrapper>
+        </Router>
     </React.StrictMode>
 )
 

@@ -41,6 +41,7 @@ module.exports = function (env, argv) {
             "mui-image": "mui-image",
             "react-i18next": "react-i18next",
             "react-router-dom": "react-router-dom",
+            "@sequentech/ui-core": "@sequentech/ui-core",
         },
         resolve: {
             alias: {

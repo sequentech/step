@@ -52,7 +52,16 @@ use std::{
 
 /// A cryptographic context loosely corresponds to the underlying modular
 /// arithmetic groups.
-pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
+pub trait Ctx:
+    Send
+    + Sync
+    + Sized
+    + Clone
+    + Default
+    + Debug
+    + BorshSerialize
+    + BorshDeserialize
+{
     /// The type of group elements (or points).
     type E: Element<Self>;
     /// The type of ring elements (or scalars).

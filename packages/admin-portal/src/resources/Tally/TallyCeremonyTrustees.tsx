@@ -5,6 +5,7 @@ import React, {useContext, useEffect, useState} from "react"
 import Button from "@mui/material/Button"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
@@ -16,10 +17,16 @@ import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
-import {ICeremonyStatus, ITallyTrusteeStatus, ITrusteeStatus} from "@/types/ceremonies"
+import {
+    ICeremonyStatus,
+    ITallyExecutionStatus,
+    ITallyTrusteeStatus,
+    ITrusteeStatus,
+} from "@/types/ceremonies"
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
@@ -50,6 +57,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [errors, setErrors] = useState<String | null>(null)
     const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
     const {globalSettings} = useContext(SettingsContext)
+    const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -63,6 +71,12 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     )
 
+    // TODO: fix the "perPage 9999"
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: record?.id, tenant_id: tenantId},
+    })
+
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
@@ -74,12 +88,20 @@ export const TallyCeremonyTrustees: React.FC = () => {
             },
         },
         {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
         }
     )
+
+    useEffect(() => {
+        if (data?.is_execution_completed && !isTallyCompleted) {
+            setIsTallyCompleted(true)
+        }
+    }, [data?.is_execution_completed, isTallyCompleted])
 
     useEffect(() => {
         if (data) {
@@ -100,9 +122,10 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     useEffect(() => {
         setPage(
-            !trusteeStatus
+            !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
-                : trusteeStatus === ITrusteeStatus.WAITING
+                : trusteeStatus === ITrusteeStatus.WAITING &&
+                  tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
                 : WizardSteps.Status
         )
@@ -186,77 +209,87 @@ export const TallyCeremonyTrustees: React.FC = () => {
     }
 
     return (
-        <>
-            <WizardStyles.WizardWrapper>
-                <TallyStyles.StyledHeader>
-                    <BreadCrumbSteps
-                        labels={["tally.breadcrumbSteps.start", "tally.breadcrumbSteps.finish"]}
-                        selected={page}
-                        variant={BreadCrumbStepsVariant.Circle}
-                        colorPreviousSteps={true}
-                    />
-                </TallyStyles.StyledHeader>
-
-                {page === WizardSteps.Start && (
-                    <>
-                        <ElectionHeader
-                            title={"tally.ceremonyTitle"}
-                            subtitle={"tally.ceremonySubTitle"}
+        <TallyStyles.WizardContainer>
+            <TallyStyles.ContentWrapper>
+                <WizardStyles.WizardWrapper>
+                    <TallyStyles.StyledHeader>
+                        <BreadCrumbSteps
+                            labels={["tally.breadcrumbSteps.start", "tally.breadcrumbSteps.finish"]}
+                            selected={page}
+                            variant={BreadCrumbStepsVariant.Circle}
+                            colorPreviousSteps={true}
                         />
+                    </TallyStyles.StyledHeader>
 
-                        <TallyElectionsList
-                            electionEventId={record?.id}
-                            disabled={true}
-                            update={(elections) => setSelectedElections(elections)}
-                        />
-
-                        <Box>
+                    {page === WizardSteps.Start && (
+                        <>
                             <ElectionHeader
-                                title={"tally.trusteeTitle"}
-                                subtitle={"tally.trusteeSubTitle"}
+                                title={"tally.ceremonyTitle"}
+                                subtitle={"tally.ceremonySubTitle"}
                             />
 
-                            <DropFile handleFiles={uploadPrivateKey} />
+                            <TallyElectionsList
+                                elections={elections}
+                                electionEventId={record?.id}
+                                disabled={true}
+                                update={(elections) => setSelectedElections(elections)}
+                                keysCeremonyId={data?.keys_ceremony_id ?? null}
+                            />
 
-                            <WizardStyles.StatusBox>
-                                {uploading ? <WizardStyles.DownloadProgress /> : null}
-                                {errors ? (
-                                    <WizardStyles.ErrorMessage variant="body2">
-                                        {errors}
-                                    </WizardStyles.ErrorMessage>
-                                ) : null}
-                                {verified && (
-                                    <WizardStyles.SucessMessage variant="body1">
-                                        {t("keysGeneration.checkStep.verified")}
-                                    </WizardStyles.SucessMessage>
-                                )}
-                            </WizardStyles.StatusBox>
-                        </Box>
-                    </>
-                )}
+                            <Box>
+                                <ElectionHeader
+                                    title={"tally.trusteeTitle"}
+                                    subtitle={"tally.trusteeSubTitle"}
+                                />
 
-                {page === WizardSteps.Status && (
-                    <>
-                        <ElectionHeader
-                            title={"tally.ceremonyTitle"}
-                            subtitle={"tally.ceremonySubTitle"}
-                        />
+                                <DropFile handleFiles={uploadPrivateKey} />
 
-                        <TallyElectionsList
-                            electionEventId={record?.id}
-                            disabled={true}
-                            update={(elections) => setSelectedElections(elections)}
-                        />
+                                <WizardStyles.StatusBox>
+                                    {uploading ? <WizardStyles.DownloadProgress /> : null}
+                                    {errors ? (
+                                        <WizardStyles.ErrorMessage variant="body2">
+                                            {errors}
+                                        </WizardStyles.ErrorMessage>
+                                    ) : null}
+                                    {verified && (
+                                        <WizardStyles.SucessMessage variant="body1">
+                                            {t("keysGeneration.checkStep.verified")}
+                                        </WizardStyles.SucessMessage>
+                                    )}
+                                </WizardStyles.StatusBox>
+                            </Box>
+                        </>
+                    )}
 
-                        <TallyTrusteesList
-                            tally={tally}
-                            update={(trustees) => setSelectedTrustees(trustees)}
-                        />
-                    </>
-                )}
+                    {page === WizardSteps.Status && (
+                        <>
+                            <ElectionHeader
+                                title={"tally.ceremonyTitle"}
+                                subtitle={"tally.ceremonySubTitle"}
+                            />
 
+                            <TallyElectionsList
+                                elections={elections}
+                                electionEventId={record?.id}
+                                disabled={true}
+                                update={(elections) => setSelectedElections(elections)}
+                                keysCeremonyId={data?.keys_ceremony_id ?? null}
+                            />
+
+                            <TallyTrusteesList
+                                tally={tally}
+                                update={(trustees) => setSelectedTrustees(trustees)}
+                                tallySessionExecutions={tallySessionExecutions}
+                            />
+                        </>
+                    )}
+                </WizardStyles.WizardWrapper>
+            </TallyStyles.ContentWrapper>
+
+            <TallyStyles.FooterContainer>
                 <TallyStyles.StyledFooter>
                     <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
+                        <ArrowBackIosIcon />
                         {t("tally.common.cancel")}
                     </CancelButton>
                     {page < WizardSteps.Status && (
@@ -272,7 +305,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         </NextButton>
                     )}
                 </TallyStyles.StyledFooter>
-            </WizardStyles.WizardWrapper>
-        </>
+            </TallyStyles.FooterContainer>
+        </TallyStyles.WizardContainer>
     )
 }

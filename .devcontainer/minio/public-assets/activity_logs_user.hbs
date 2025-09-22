@@ -1,0 +1,201 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+--}}
+
+<div class="logo-container">
+  {{#if logo_img}}
+    <img
+      class="logo"
+      alt="logo"
+      src="{{logo}}"
+    />
+  {{/if}}
+</div>
+<div>
+  <h2>Election Event Activity Logs</h2>
+</div>
+<div>
+  <!-- TABLE section -->
+  <tr>
+    <td style="margin: 16px 0">
+      <div style="margin: 16px 0">
+        <table style="width: 100%; border: 1px solid black; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Id</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>User ID</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Created</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Statement timestamp</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Statement Kind</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Event Type</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Log Type</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Description</strong>
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <strong>Message</strong>
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each act_log}}
+            <tr>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{id}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{user_id}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{datetime from_rfc3339=created output_format="%B %d, %Y %H:%M"}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{datetime from_rfc3339=statement_timestamp output_format="%B %d, %Y %H:%M"}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{statement_kind}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{event_type}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{log_type}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                {{description}}
+              </td>
+              <td
+                style="
+                  text-align: center;
+                  vertical-align: top;
+                  border: 1px solid black;
+                "
+              >
+                <span>{{message}}</span>
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    </td>
+  </tr>
+  <!-- END of TABLE section -->
+</div>

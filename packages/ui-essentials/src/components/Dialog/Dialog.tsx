@@ -1,30 +1,52 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren} from "react"
+import React, {PropsWithChildren, useEffect, useRef} from "react"
 import DialogTitle from "@mui/material/DialogTitle"
 import MaterialDialog from "@mui/material/Dialog"
-import {Backdrop, Box, Button} from "@mui/material"
+import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
 import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
 import styledEmotion from "@emotion/styled"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
+import {styled as muiStyled} from "@mui/material/styles"
 
 const StyledBackdrop = styledEmotion(Backdrop)`
     opacity: 0.5 !important;
 `
+
+const StyledDialogActions = muiStyled(DialogActions)`
+    @media (max-width: 600px) {
+        &.has-middle.MuiDialogActions-root {
+            flex-direction: column !important;
+            gap: 5px !important;
+        &.has-middle button.MuiButtonBase-root {
+            width: 100% !important;
+            margin: 0 !important;
+        }
+    }
+`
+
+const StyledDialogErrorContent = muiStyled(DialogContent)(({theme}) => ({
+    color: theme.palette.errorColor,
+}))
 
 export interface DialogProps extends PropsWithChildren {
     handleClose: (value: boolean) => void
     open: boolean
     title: string
     cancel?: string
+    middleActions?: React.ReactElement[]
     ok: string
     okEnabled?: () => boolean
     variant?: "warning" | "info" | "action" | "softwarning"
     fullWidth?: boolean
+    maxWidth?: Breakpoint | false
+    errorMessage?: string
+    hasCloseButton?: boolean
+    className?: string
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -33,10 +55,15 @@ const Dialog: React.FC<DialogProps> = ({
     open,
     title,
     cancel,
+    middleActions,
     ok,
     okEnabled,
     variant,
     fullWidth = false,
+    maxWidth = "xs",
+    errorMessage,
+    hasCloseButton,
+    className,
 }) => {
     const okVariant =
         "info" === variant ? "primary" : "softwarning" === variant ? "softWarning" : "solidWarning"
@@ -45,7 +72,18 @@ const Dialog: React.FC<DialogProps> = ({
         "action" === variant ? "error" : "softwarning" === variant ? "warning" : variant
     const cancelVariant = "cancel"
     const closeDialog = () => handleClose(false)
-    const clickOk = () => handleClose(true)
+    const clickOk = () => {
+        okButtonRef.current = true
+        handleClose(true)
+    }
+
+    const okButtonRef = useRef<boolean>(false)
+
+    useEffect(() => {
+        okButtonRef.current = false
+    }, [open])
+
+    let fullClass = className ? `${className} dialog` : "dialog"
 
     return (
         <MaterialDialog
@@ -53,7 +91,8 @@ const Dialog: React.FC<DialogProps> = ({
             open={open}
             slots={{backdrop: StyledBackdrop}}
             fullWidth={fullWidth}
-            className="dialog"
+            maxWidth={maxWidth}
+            className={fullClass}
         >
             <DialogTitle className="dialog-title">
                 <Icon
@@ -71,15 +110,20 @@ const Dialog: React.FC<DialogProps> = ({
                 >
                     {title}
                 </Box>
-                <IconButton
-                    icon={faTimesCircle}
-                    variant="primary"
-                    onClick={closeDialog}
-                    className="dialog-icon-close"
-                />
+                {hasCloseButton ? (
+                    <IconButton
+                        icon={faTimesCircle}
+                        variant="primary"
+                        onClick={closeDialog}
+                        className="dialog-icon-close"
+                    />
+                ) : null}
             </DialogTitle>
-            <DialogContent className="dialog-content">{children}</DialogContent>
-            <DialogActions>
+            <DialogContent className="dialog-content"> {children} </DialogContent>
+            <StyledDialogErrorContent className="dialog-content">
+                {errorMessage}
+            </StyledDialogErrorContent>
+            <StyledDialogActions className={middleActions ? "has-middle" : "no-middle"}>
                 {cancel ? (
                     <Button
                         className="cancel-button"
@@ -90,16 +134,20 @@ const Dialog: React.FC<DialogProps> = ({
                         {cancel}
                     </Button>
                 ) : undefined}
+                {middleActions &&
+                    middleActions.map((action, index) => (
+                        <React.Fragment key={index}>{action}</React.Fragment>
+                    ))}
                 <Button
                     className="ok-button"
-                    disabled={okEnabled ? !okEnabled() : undefined}
+                    disabled={okButtonRef.current || (okEnabled ? !okEnabled() : undefined)}
                     variant={okVariant as any}
                     onClick={clickOk}
                     sx={{minWidth: "unset", flexGrow: 2}}
                 >
                     {ok}
                 </Button>
-            </DialogActions>
+            </StyledDialogActions>
         </MaterialDialog>
     )
 }

@@ -1,0 +1,17 @@
+{
+    "act_log": [
+        {
+            "id": 1,
+            "created": "2024-05-10T14:30:00-04:00",
+            "statement_timestamp": "2024-05-10T14:30:00-04:00",
+            "statement_kind": "KeycloakUserEvent",
+            "event_type": "USER",
+            "log_type": "INFO",
+            "description": "Electoral log created.",
+            "message": "sample message",
+            "user_id": "sample-id"
+        }
+    ],
+    "electoral_log": [],
+    "logo_img": "sequent-logo.svg"
+}

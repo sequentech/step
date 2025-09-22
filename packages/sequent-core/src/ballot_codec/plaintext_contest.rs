@@ -11,6 +11,7 @@ pub trait PlaintextCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
+
     fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
@@ -24,6 +25,7 @@ pub trait PlaintextCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
+
     fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],
@@ -159,7 +161,7 @@ mod tests {
     fn test_contest_decode_plaintext() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
-            println!("fixture: {}", &fixture.title);
+            println!("\nfixture: {}", &fixture.title);
 
             let decoded_ballot = &fixture
                 .contest
@@ -181,7 +183,20 @@ mod tests {
             {
                 assert_eq!(
                     &decoded_ballot.invalid_errors,
-                    &fixture.plaintext.invalid_errors
+                    &fixture.plaintext.invalid_errors,
+                    "&decoded_ballot.invalid_errors != &fixture.plaintext.invalid_errors"
+                );
+            }
+            if expected_error.is_none()
+                || !expected_error
+                    .clone()
+                    .unwrap()
+                    .contains(&"invalid_alerts".to_string())
+            {
+                assert_eq!(
+                    &decoded_ballot.invalid_alerts,
+                    &fixture.plaintext.invalid_alerts,
+                    "&decoded_ballot.invalid_alerts != &fixture.plaintext.invalid_alerts"
                 );
             }
             if expected_error.is_none()

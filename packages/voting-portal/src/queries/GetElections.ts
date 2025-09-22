@@ -8,7 +8,6 @@ export const GET_ELECTIONS = gql`
         sequent_backend_election(where: {id: {_in: $electionIds}}) {
             annotations
             created_at
-            dates
             description
             election_event_id
             eml

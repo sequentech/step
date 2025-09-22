@@ -1,20 +1,45 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {initializeLanguages, isString} from "@sequentech/ui-essentials"
+import {initializeLanguages, isString, overwriteTranslations} from "@sequentech/ui-core"
 import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
+import tagalogTranslation from "../translations/tl"
+import galegoTranslation from "../translations/gl"
+import dutchTranslation from "../translations/nl"
+import basqueTranslation from "../translations/eu"
+import i18next from "i18next"
+
+type I18N = Record<string, Record<string, string>>
 
 initializeLanguages({
     en: englishTranslation,
     es: spanishTranslation,
     cat: catalanTranslation,
     fr: frenchTranslation,
+    tl: tagalogTranslation,
+    gl: galegoTranslation,
+    nl: dutchTranslation,
+    eu: basqueTranslation,
 })
 
-export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr"]
+export const triggerOverrideTranslations = (i18n: I18N) => {
+    initializeLanguages({
+        en: englishTranslation,
+        es: spanishTranslation,
+        cat: catalanTranslation,
+        fr: frenchTranslation,
+        tl: tagalogTranslation,
+        gl: galegoTranslation,
+        nl: dutchTranslation,
+        eu: basqueTranslation,
+    })
+    overwriteTranslations({i18n} as any, true)
+}
+
+export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr", "tl", "gl", "nl", "eu"]
 
 export const addDefaultTranslationsToElement = (data: {
     name?: string | null
@@ -39,3 +64,5 @@ export const addDefaultTranslationsToElement = (data: {
     }
     return i18n
 }
+
+export default i18next

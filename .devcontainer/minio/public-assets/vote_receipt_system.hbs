@@ -1,0 +1,442 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+  SPDX-License-Identifier: AGPL-3.0-only
+  --}}
+<html lang="en-US">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SEQUENT ONLINE VOTING</title>
+  <script src="{{file_qrcode_lib}}"></script>
+  <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 1024px;
+        padding: 0 30px;
+      }
+
+      @media print {
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
+        body {
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
+        }
+      }
+
+    .report {
+      margin: 0 auto;
+      break-after: page;
+    }
+
+    .header,
+    .header-space {
+      height: 100px;
+    }
+
+    .logo {
+      padding-top: 10px;
+    }
+
+    .footer,
+    .footer-space {
+      height: 100px;
+    }
+
+    .header {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      text-align: center;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      text-align: right;
+    }
+
+    table {
+      width: 100%;
+    }
+
+    .content {
+      break-after: page;
+    }
+
+    .content .title {
+      text-align: center;
+    }
+
+    .content table {
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    .content th,
+    .content td {
+      border: 1px solid #dddddd;
+      padding: 8px;
+    }
+
+    .content th {
+      text-align: center;
+    }
+
+    .top-header .left {
+      font-family: "Arial", sans-serif;
+      text-align: left;
+      margin: 16px 0;
+      margin-top: 5px;
+      font-size: 10pt;
+      font-style: italic;
+
+    }
+
+    .top-header .right {
+      font-family: "Arial", sans-serif;
+      text-transform: uppercase;
+      text-align: right;
+      margin: 16px 0;
+      margin-top: 5px;
+      font-size: 10pt;
+    }
+
+    .main-header {
+      width: 100%;
+    }
+
+    .main-header .left img {
+      max-width: 100px;
+      margin-top: 8px;
+      text-align: left;
+      vertical-align: top;
+
+    }
+
+    .main-header .center {
+      text-align: center;
+      padding-top: 10px;
+    }
+
+    .main-header .right img {
+      max-width: 90px;
+      margin-top: 8px;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    .main-header .center {
+      font-size: 10pt;
+    }
+
+    .main-header .center .country {
+      font-weight: 100;
+      font-size: 11pt;
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+    }
+
+    .main-header .center .commission {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+      font-weight: bold;
+      font-size: 12pt;
+
+    }
+
+    .main-header .center .election-date {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+
+    }
+
+    .main-header .center .election-name {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+    }
+
+    .main-header .center .online {
+      padding-top: 25px;
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+      font-weight: bold;
+    }
+
+    .main-header .center .voting-period {
+      padding-top: 3px;
+      font-family: "Arial", sans-serif;
+      font-size: 10pt;
+      font-weight: lighter;
+      font-style: italic;
+    }
+
+    .main-title {
+      text-transform: uppercase;
+      font-family: "Arial", sans-serif;
+      font-weight: bold;
+      font-size: 12pt;
+    }
+
+    .stats-table {
+      width: 100%;
+      margin: 32px 0;
+    }
+
+    .first-col {
+      width: 65%;
+    }
+
+    .second-col {
+      width: 35%;
+    }
+
+    .ballot-serial-number {
+      margin-bottom: 12px;
+    }
+
+    .stats-table .key {
+      font-family: "Arial", sans-serif;
+      font-size: 10pt;
+      font-weight: bold;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    .stats-table .value {
+      font-family: "Arial", sans-serif;
+      font-size: 10pt;
+      text-align: left;
+    }
+
+    .candidates {
+      font-family: "Arial", sans-serif;
+      font-size: 10pt;
+      width: 100%;
+      margin-top: 16px;
+      margin-bottom: 16px;
+    }
+
+    .candidates td {
+      padding: 2px 10px;
+      background-color: white;
+    }
+
+    .candidates thead td {
+      background-color: #eeece1;
+    }
+
+    .candidates thead td {
+      text-align: center;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    .candidates tbody tr.contest-title {
+      font-weight: bold;
+    }
+
+    .candidates tbody td {
+      text-align: left;
+      vertical-align: top;
+    }
+
+  .qr-codes td {
+      text-align: center;
+      padding: 12px;
+    }
+
+    .qrcode {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      page-break-inside: avoid;
+    }
+
+    .sys-info {
+      page-break-inside: avoid;
+      text-align: center !important;
+      padding: 10px 0 ;
+    }
+    .vote-info {
+      page-break-inside: avoid;
+      text-align: center !important;
+    }
+
+    .sys-info td div {
+      font-family: "Arial", sans-serif;
+      font-size: 11pt;
+      text-align: center;
+      margin-top: 24px;
+      line-height: 15pt;
+      padding-bottom: 40px;
+    }
+
+    tr.report-end td {
+      font-family: "Arial", sans-serif;
+      text-align: center;
+      margin: 16px 0;
+      margin-top: 30px;
+      text-transform: uppercase;
+    }
+
+    tr.report-end hr {
+      text-align: center;
+      margin: 0;
+      border-top: 3px solid black;
+    }
+
+
+    .logo-printer-block {
+      display: none;
+    }
+    
+    .word-break {
+        word-break: break-all;
+      }
+
+    @media print and (max-width: 90mm),
+    screen and (max-width: 302px) {
+
+      /* @media print { */
+      body {
+        width: 80mm;
+        margin: 0;
+        padding: 2mm;
+        font-family: "Arial", sans-serif;
+        font-size: 11pt;
+        line-height: 1.2;
+      }
+
+      /* Header styling */
+      .country,
+      .commission,
+      .election-date,
+      .election-name,
+      .online {
+        text-align: center;
+        margin: 2mm 0;
+        font-weight: bold;
+      }
+
+      .voting-period {
+        text-align: center;
+        margin: 3mm 0;
+        font-size: 8pt;
+      }
+
+      /* Table styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 3mm 0;
+      }
+
+      th,
+      td {
+        padding: 1mm 2mm;
+        /* border: 1px solid #000; */
+        font-size: 8pt;
+      }
+
+      th {
+        text-align: left;
+        font-weight: bold;
+      }
+
+      /* Candidate results */
+      .candidate-name {
+        padding-left: 2mm;
+      }
+
+      /* Footer */
+      .footer {
+        margin-top: 5mm;
+        font-size: 7pt;
+        text-align: center;
+      }
+
+      /* Report metadata */
+      .metadata {
+        font-size: 7pt;
+        margin: 2mm 0;
+      }
+
+      /* Utility classes */
+      .text-center {
+        text-align: center;
+      }
+
+      .text-bold {
+        font-weight: bold;
+      }
+
+      .mt-2 {
+        margin-top: 2mm;
+      }
+
+      .mb-2 {
+        margin-bottom: 2mm;
+      }
+
+      /* Box for thumbmarks */
+      .box {
+        border: 1px solid #000;
+        width: 20mm;
+        height: 20mm;
+        margin: 2mm auto;
+      }
+
+      /* Print optimization */
+      @media print {
+        .page-break {
+          page-break-before: always;
+        }
+      }
+
+    .sys-info td div {
+      font-family: "Arial", sans-serif;
+      font-size: 11pt;
+      text-align: center;
+      margin-top: 24px;
+      line-height: 15pt;
+      padding-bottom: 40px;
+    }
+
+      /* Header image sizing */
+      img {
+        max-width: 70mm;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+      }
+
+      .left,
+      .right {
+        display: none;
+      }
+
+      .logo-printer-block {
+        display: block;
+      }
+
+      .candidates {
+        background-color: transparent;
+      }
+
+    }
+  </style>
+</head>
+
+<body>
+ {{{rendered_user_template}}}
+</body>
+</html>
+

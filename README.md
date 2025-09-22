@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Sequent Voting Platform
 
 This is a mono-repo project encompasing the whole second generation of Sequent
-Voting Platform.
+Voting Platform. 
 
 Implemented using:
 
@@ -68,7 +68,7 @@ To launch the `admin-portal` in development mode, execute (the first time):
 
 ```bash
 cd /workspaces/step/packages/
-yarn && yarn build:ui-essentials # only needed the first time
+yarn && yarn build:ui-core && yarn build:ui-essentials # only needed the first time
 yarn start:admin-portal
 ```
 
@@ -292,6 +292,9 @@ commit the changes.
 Note that you can insert rows as a migration by clicking on the
 `This is a migration` option at the bottom of the `Insert Row` form.
 
+Note: if the browser doesn't load correctly at `http://localhost:9695`, try
+opening the port `9693` in VS Code.
+
 ## admin-portal
 
 ## ui-essentials
@@ -446,7 +449,7 @@ VAULT_MANAGER=HashiCorpVault
 
 To configure project to use AWS Secret Manager, setup the `VAULT_MANAGER` environment variable:
 
-```
+```bash
 # .env
 VAULT_MANAGER=AWSSecretManager
 ```
@@ -458,6 +461,7 @@ cd /workspaces/step/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 ```
+
 This returns a hash that you need to put in 3 different places in the  yarn.lock 
 of packages/ directory:
 
@@ -466,7 +470,7 @@ of packages/ directory:
   version "0.1.0"
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
-"sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
+"sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
@@ -479,17 +483,30 @@ Then you need to execute some further updates:
 
 ```bash
 cd /workspaces/step/packages/
-rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+rm ./ui-core/rust/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ui-core/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
 
-rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
+rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
-yarn && yarn build:ui-essentials
+yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:voting-portal && yarn build:admin-portal
 ```
 
-And then everything should work and be updated.
+And then everything should work and be updated. 
+
+### Troubleshooting
+
+If the typescript (TS, TSX) files suddently don't have correct autocompletion in
+VSCode after this, the recommendation is to run the `Developer: Reload Window`
+task in VSCode.
+
+After running these commands, you need to stop any ui and relaunch. For some
+reason craco is not going to be available, so you need run first
+`Tasks: Run Task` > `start.build.admin-portal` which install it and all its
+dependencies. Then you can launch also for example the `start.voting-portal`
+task.
 
 ## Create election event
 
@@ -504,7 +521,7 @@ docker compose up -d --no-deps harvest && \   # brings up the contaner
 docker compose logs -f --tail 100 harvest     # tails the logs of the container
 ```
 
-1. Run the vault:
+2. Run the vault:
 
 ```bash
 cd /workspaces/step/.devcontainer
@@ -546,9 +563,8 @@ cargo build && \
   --server-url http://immudb:3322 \
   --username immudb \
   --password immudb \
-  --index-dbname indexdb \
   --board-dbname 33f18502a67c48538333a58630663559 \
-  --cache-dir /tmp/immu-board upsert-init-db
+  --cache-dir /tmp/immu-board upsert-board-db
 ```
 
 Now you should be able to create election events. For debugging, you can watch the logs of `harvest` and `windmill` (it's already in one terminal):
@@ -640,9 +656,9 @@ cargo clean
 
 ## Public assets
 
-### Vote receipt
+### Ballot receipt
 
-The user can create a vote receipt in PDF from the confirmation screen on the `voting-portal`. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
+The user can create a ballot receipt in PDF from the confirmation screen on the `voting-portal` after casting the vote. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
 Examples: 
 - logo
 - vendor to generate QR code
@@ -650,3 +666,126 @@ Examples:
  
 These assets are located here: `step/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
 
+## Nightwatch e2e
+
+### Running nightwatch(Admin-Portal)
+
+Requires running both codespace instance as well as local instance at least for the client side.
+ - run codespace
+ - run local instance of client application to test
+ - change directory to specific client application
+ - npx nightwatch path/to/testfile.test.ts e.g `admin-portal% npx nightwatch test/e2e/voter.test.ts`
+ 
+ ### Running Nightwatch(Voting-Portal)
+ refer to voting-portal/test/readme
+ 
+ ### Adding Galician language support
+ Galician is now configurable in admin portal, voting portal and keycloak
+
+ ## Use devcontainers in Google Cloud
+
+First, login to Google Cloud and create a Debian instance with at least 8 vcpus, 32GB memory (for example a
+n2-standard-8)and 256GB of hard disk.
+
+Then install the google cloud shell using:
+
+```bash
+  curl https://sdk.cloud.google.com | bash
+  gcloud auth login
+  gcloud compute config-ssh --project <gcloud-project-name>
+```
+
+After that, modify your `~/.ssh/config` to include `ForwardAgent yes` in the google cloud instance you
+want to use, leaving it as something like:
+
+```
+  Host instance-111111-22222.us-central1-f.gcloud-project-name
+      HostName 34.66.22.121
+      IdentityFile /Users/youruser/.ssh/google_compute_engine
+      UserKnownHostsFile=/Users/youruser/.ssh/google_compute_known_hosts
+      HostKeyAlias=compute.44470980835325324
+      IdentitiesOnly=yes
+      CheckHostIP=no
+      ForwardAgent yes
+```
+
+Then you need to have the VS Code extension "Remote - SSH" from Microsoft installed.  After that
+open a new VS Code instance, click on the bottom left blue corner, then select "Connect to Host..."
+and select the Google Cloud instance you created.
+
+After that you'll need to install git and docker engine. 
+
+For docker, following the [official Docker documentation](https://docs.docker.com/engine/install/debian/) for Debian:
+
+```bash
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+```
+
+And then:
+
+```bash
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Then you need to add the current user to the docker group:
+
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Finally check that the user can run docker without sudo with:
+
+
+```bash
+docker run hello-world
+```
+
+For git:
+
+```bash
+sudo apt update && sudo apt install -y git
+```
+
+Then clone the step repo with:
+
+```bash
+git clone git@github.com:sequentech/step.git
+```
+
+Finally in VS Code on the Welcome tab, click on "Open..." and select the `step` folder.
+After it opens, click on "Reopen in Container".
+
+### Fix starting/restarting containers
+
+If you see an error when starting/restarting a container, remove the .docker folder:
+
+```bash
+rm -rf /home/vscode/.docker/
+```
+
+### Commiting with git
+
+Unfortunately commiting with git doesn't work from the devcontainer. To commit to git,
+ssh into the instance and cd into the step folder, then commit using git.
+
+
+### Can't build sequent-core
+
+If you're getting a permission error when building sequent-core, do:
+
+```bash
+sudo mkdir /workspaces/step/packages/target
+sudo chown vscode:vscode /workspaces/step/packages/target -R
+```

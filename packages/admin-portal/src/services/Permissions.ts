@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
 import {GraphQLRequest} from "@apollo/client"
-import {isUndefined} from "@sequentech/ui-essentials"
+import {isUndefined} from "@sequentech/ui-core"
 
 const AdminOperationMap: Record<string, IPermissions> = {
     // area
@@ -43,35 +43,35 @@ const AdminOperationMap: Record<string, IPermissions> = {
     delete_sequent_backend_ballot_style: IPermissions.PUBLISH_WRITE,
     delete_sequent_backend_ballot_styles: IPermissions.PUBLISH_WRITE,
     // candidate
-    sequent_backend_candidate: IPermissions.ELECTION_EVENT_READ,
-    sequent_backend_candidates: IPermissions.ELECTION_EVENT_READ,
-    insert_sequent_backend_candidate: IPermissions.ELECTION_EVENT_WRITE,
-    insert_sequent_backend_candidates: IPermissions.ELECTION_EVENT_WRITE,
-    update_sequent_backend_candidate: IPermissions.ELECTION_EVENT_WRITE,
-    update_sequent_backend_candidates: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_candidate: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_candidates: IPermissions.ELECTION_EVENT_WRITE,
+    sequent_backend_candidate: IPermissions.CANDIDATE_READ,
+    sequent_backend_candidates: IPermissions.CANDIDATE_READ,
+    insert_sequent_backend_candidate: IPermissions.CANDIDATE_CREATE,
+    insert_sequent_backend_candidates: IPermissions.CANDIDATE_CREATE,
+    update_sequent_backend_candidate: IPermissions.CANDIDATE_WRITE,
+    update_sequent_backend_candidates: IPermissions.CANDIDATE_WRITE,
+    delete_sequent_backend_candidate: IPermissions.CANDIDATE_DELETE,
+    delete_sequent_backend_candidates: IPermissions.CANDIDATE_DELETE,
     // cast_vote
     sequent_backend_cast_vote: IPermissions.CAST_VOTE_READ,
     sequent_backend_cast_votes: IPermissions.CAST_VOTE_READ,
-    // communication_template
-    sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_READ,
-    sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_READ,
-    insert_sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    insert_sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    update_sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    update_sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    delete_sequent_backend_communication_template: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
-    delete_sequent_backend_communication_templates: IPermissions.COMMUNICATION_TEMPLATE_WRITE,
+    // template
+    sequent_backend_template: IPermissions.template_READ,
+    sequent_backend_templates: IPermissions.template_READ,
+    insert_sequent_backend_template: IPermissions.template_WRITE,
+    insert_sequent_backend_templates: IPermissions.template_WRITE,
+    update_sequent_backend_template: IPermissions.template_WRITE,
+    update_sequent_backend_templates: IPermissions.template_WRITE,
+    delete_sequent_backend_template: IPermissions.template_WRITE,
+    delete_sequent_backend_templates: IPermissions.template_WRITE,
     // contest
-    sequent_backend_contest: IPermissions.ELECTION_EVENT_READ,
-    sequent_backend_contests: IPermissions.ELECTION_EVENT_READ,
-    insert_sequent_backend_contest: IPermissions.ELECTION_EVENT_WRITE,
-    insert_sequent_backend_contests: IPermissions.ELECTION_EVENT_WRITE,
-    update_sequent_backend_contest: IPermissions.ELECTION_EVENT_WRITE,
-    update_sequent_backend_contests: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_contest: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_contests: IPermissions.ELECTION_EVENT_WRITE,
+    sequent_backend_contest: IPermissions.CONTEST_READ,
+    sequent_backend_contests: IPermissions.CONTEST_READ,
+    insert_sequent_backend_contest: IPermissions.CONTEST_CREATE,
+    insert_sequent_backend_contests: IPermissions.CONTEST_CREATE,
+    update_sequent_backend_contest: IPermissions.CONTEST_WRITE,
+    update_sequent_backend_contests: IPermissions.CONTEST_WRITE,
+    delete_sequent_backend_contest: IPermissions.CONTEST_DELETE,
+    delete_sequent_backend_contests: IPermissions.CONTEST_DELETE,
     // document
     sequent_backend_document: IPermissions.DOCUMENT_READ,
     sequent_backend_documents: IPermissions.DOCUMENT_READ,
@@ -82,14 +82,14 @@ const AdminOperationMap: Record<string, IPermissions> = {
     delete_sequent_backend_document: IPermissions.DOCUMENT_WRITE,
     delete_sequent_backend_documents: IPermissions.DOCUMENT_WRITE,
     // election
-    sequent_backend_election: IPermissions.ELECTION_EVENT_READ,
-    sequent_backend_elections: IPermissions.ELECTION_EVENT_READ,
-    insert_sequent_backend_election: IPermissions.ELECTION_EVENT_WRITE,
-    insert_sequent_backend_elections: IPermissions.ELECTION_EVENT_WRITE,
-    update_sequent_backend_election: IPermissions.ELECTION_EVENT_WRITE,
-    update_sequent_backend_elections: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_election: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_elections: IPermissions.ELECTION_EVENT_WRITE,
+    sequent_backend_election: IPermissions.ELECTION_READ,
+    sequent_backend_elections: IPermissions.ELECTION_READ,
+    insert_sequent_backend_election: IPermissions.ELECTION_CREATE,
+    insert_sequent_backend_elections: IPermissions.ELECTION_CREATE,
+    update_sequent_backend_election: IPermissions.ELECTION_WRITE,
+    update_sequent_backend_elections: IPermissions.ELECTION_WRITE,
+    delete_sequent_backend_election: IPermissions.ELECTION_DELETE,
+    delete_sequent_backend_elections: IPermissions.ELECTION_DELETE,
     // election_type
     sequent_backend_election_type: IPermissions.ELECTION_TYPE_READ,
     sequent_backend_elections_type: IPermissions.ELECTION_TYPE_READ,
@@ -102,12 +102,12 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // election_event
     sequent_backend_election_event: IPermissions.ELECTION_EVENT_READ,
     sequent_backend_election_events: IPermissions.ELECTION_EVENT_READ,
-    insert_sequent_backend_election_event: IPermissions.ELECTION_EVENT_WRITE,
-    insert_sequent_backend_election_events: IPermissions.ELECTION_EVENT_WRITE,
+    insert_sequent_backend_election_event: IPermissions.ELECTION_EVENT_CREATE,
+    insert_sequent_backend_election_events: IPermissions.ELECTION_EVENT_CREATE,
     update_sequent_backend_election_event: IPermissions.ELECTION_EVENT_WRITE,
     update_sequent_backend_election_events: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_election_event: IPermissions.ELECTION_EVENT_WRITE,
-    delete_sequent_backend_election_events: IPermissions.ELECTION_EVENT_WRITE,
+    delete_sequent_backend_election_event: IPermissions.ELECTION_EVENT_DELETE,
+    delete_sequent_backend_election_events: IPermissions.ELECTION_EVENT_DELETE,
     // keys_ceremony
     sequent_backend_keys_ceremony: IPermissions.ADMIN_CEREMONY,
     sequent_backend_keys_ceremonys: IPermissions.ADMIN_CEREMONY,
@@ -126,6 +126,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // results_election
     sequent_backend_results_election: IPermissions.TALLY_RESULTS_READ,
     sequent_backend_results_elections: IPermissions.TALLY_RESULTS_READ,
+    // results_election
+    sequent_backend_results_election_area: IPermissions.TALLY_RESULTS_READ,
+    sequent_backend_results_election_areas: IPermissions.TALLY_RESULTS_READ,
     // results_event
     sequent_backend_results_event: IPermissions.TALLY_RESULTS_READ,
     sequent_backend_results_events: IPermissions.TALLY_RESULTS_READ,
@@ -181,6 +184,7 @@ const TrusteeOperationMap: Record<string, IPermissions> = {
     // tally_session_execution
     sequent_backend_tally_session_execution: IPermissions.TRUSTEE_CEREMONY,
     sequent_backend_tally_session_executions: IPermissions.TRUSTEE_CEREMONY,
+    getUsers: IPermissions.VOTER_READ,
 }
 
 export const getOperationRole = (operation: GraphQLRequest, isTrustee = false): IPermissions => {

@@ -64,7 +64,9 @@ const frenchTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Propulsé par",
+        footer: {
+            poweredBy: "Propulsé par <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Pas assez d'options pour déchiffrer",
@@ -87,7 +89,10 @@ const frenchTranslation: TranslationType = {
         },
         ballotHash: "Votre Localisateur de Vote : {{ballotId}}",
         version: {
-            header: "Version :",
+            header: "Version:",
+        },
+        hash: {
+            header: "Hash:",
         },
         logout: {
             buttonText: "Fermer la session",
@@ -109,6 +114,8 @@ const frenchTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Site web électoral",
+            countdown:
+                "L’élection commence dans {{years}} ans, {{months}} mois, {{weeks}} semaines, {{days}} jours, {{hours}} heures, {{minutes}} minutes, {{seconds}} secondes",
             openElection: "Ouverte",
             closedElection: "Fermée",
             voted: "Voté",
@@ -121,11 +128,12 @@ const frenchTranslation: TranslationType = {
         },
         header: {
             profile: "Profil",
+            welcome: "Bienvenue,<br><span>{{name}}</span>",
             session: {
-                title: "Your session is going to expire.",
-                timeLeft: "You have {{time}} left to cast your vote.",
-                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
-                timeLeftSeconds: "{{timeLeft}} seconds",
+                title: "Votre session est sur le point d'expirer.",
+                timeLeft: "Il vous reste {{time}} pour voter.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes et {{time}} secondes",
+                timeLeftSeconds: "{{timeLeft}} secondes",
             },
         },
     },

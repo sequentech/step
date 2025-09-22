@@ -1,0 +1,351 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+  SPDX-License-Identifier: AGPL-3.0-only
+  --}}
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Initialization Report</title>
+    <script src="{{file_qrcode_lib}}"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: auto;
+        max-width: 1024px;
+        padding: 0 30px;
+      }
+
+      @media print {
+        @page {
+          size: auto;
+          margin: 0 0.6in;
+        }
+        body {
+          width: 100%;
+          font-size: 9px;
+          margin: 0;
+          padding: 0;
+        }
+      }
+
+      .report {
+        margin: 0 auto;
+        break-after: page;
+      }
+
+      .header,
+      .header-space {
+        height: 100px;
+      }
+
+      .logo {
+        padding-top: 10px;
+      }
+
+      .footer,
+      .footer-space {
+        height: 100px;
+      }
+
+      .header {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        text-align: center;
+      }
+
+      .footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        text-align: right;
+      }
+
+      table {
+        width: 100%;
+      }
+
+      .content {
+        break-after: page;
+      }
+
+      .content .title {
+        text-align: center;
+      }
+
+      .content table {
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      .content th,
+      .content td {
+        border: 1px solid #dddddd;
+        padding: 8px;
+      }
+
+      .content th {
+        text-align: center;
+      }
+
+      .top-header .left {
+        text-align: left;
+        margin: 16px 0;
+        margin-top: 5px;
+        font-size: 10pt;
+        font-style: italic;
+
+      }
+
+      .top-header .right {
+        text-transform: uppercase;
+        text-align: right;
+        margin: 16px 0;
+        margin-top: 5px;
+        font-size: 10pt;
+      }
+
+      .main-header {
+        width: 100%;
+      }
+
+      .main-header .left img {
+        max-width: 125px;
+        margin-top: 8px;
+        text-align: left;
+        vertical-align: top;
+
+      }
+
+      .main-header .center {
+        text-align: center;
+        padding-top: 10px;
+      }
+
+      .main-header .right img {
+        max-width: 90px;
+        margin-top: 8px;
+        text-align: right;
+        vertical-align: top;
+      }
+
+      .main-header .center .country {
+        font-weight: 100;
+        font-size: 11pt;
+        text-transform: uppercase;
+      }
+
+      .main-header .center .commission {
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 12pt;
+
+      }
+
+      .main-header .center .election-date {
+        text-transform: uppercase;
+      }
+
+      .main-header .center .election-name {
+        text-transform: uppercase;
+      }
+
+      .main-header .center .online {
+        padding-top: 25px;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+
+      .main-header .center .voting-period {
+        padding-top: 3px;
+        font-size: 10pt;
+        font-weight: lighter;
+        font-style: italic;
+      }
+
+      .main-title {
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 12pt;
+      }
+
+      .stats-table {
+        width: 100%;
+        margin: 32px 0px;
+      }
+
+       .stats-table tr{
+        vertical-align: top;
+      }
+
+      .stats-table .first-col {
+        width: 50%;
+      }
+     .stats-table .second-col {
+        width: 50%;
+      }
+
+      .stats-table .key {
+        font-size: 10pt;
+        font-weight: bold;
+        text-align: right;
+      }
+
+      .stats-table .value {
+        font-size: 10pt;
+        text-align: left;
+      }
+
+      .candidates {
+        border-spacing: 1px;
+        background-color: black;
+        margin-top: 16px;
+        margin-bottom: 16px;
+      }
+
+
+      .candidates .first-col {
+        width: 70%;
+      }
+      .candidates .second-col {
+        width: 30%;
+      }
+
+      .candidates td {
+        background-color: white;
+      }
+
+      .candidates thead td {
+        background-color: #eeece1;
+      }
+
+      .candidates thead td {
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 10pt;
+      }
+
+      .candidates tbody tr.contest-title {
+        font-weight: bold;
+      }
+
+      .candidates tbody td {
+        text-align: left;
+        vertical-align: top;
+         font-size: 10pt;
+      }
+
+      .candidates .votes {
+        text-align: right;
+      }
+
+      .paragraph {
+        font-size: 10pt;
+        margin-top: 12px;
+        margin-bottom: 12px;
+        text-align: left;
+      }
+
+      .paragraph strong::first-line {
+        text-indent: 50px;
+      }
+
+      .inspectors-title, .inspector-signature, .watchers-title, .watcher-signature {
+        page-break-inside: avoid;
+        font-size: 10pt;
+      }
+
+      .inspectors-title td, .watchers-title td {
+        text-transform: uppercase;
+        text-align: center;
+        padding: 30px;
+        font-size: 11pt;
+      }
+
+      .inspector-signature td {
+        text-align: center;
+        margin: 0 auto;
+        padding: 15px;
+      }
+
+      .inspector-signature td .box {
+        margin: 0 auto;
+        width: 120px;
+        height: 120px;
+        border: 1px solid black;
+      }
+
+      .inspector-signature td strong {
+        text-transform: uppercase;
+      }
+
+      .watchers-title td {
+        text-align: center;
+        padding-bottom: 0 !important;
+      }
+
+      .watcher-signature td {
+        padding-top: 40px;
+        text-align: center;
+      }
+
+      .watcher-signature td hr {
+        margin: 0 auto;
+        width: 190px;
+        border-top: 1px solid black;
+      }
+      .watcher-signature td p {
+        margin-top: 0;
+      }
+
+      .qr-codes td {
+        text-align: center;
+        padding: 12px;
+      }
+
+      .qrcode {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        page-break-inside: avoid;
+      }
+
+      .sys-info {
+        page-break-inside: avoid;
+        text-align: center;
+        padding: 10px;
+      }
+
+    .sys-info td div {
+      font-family: "Arial", sans-serif;
+      font-size: 11pt;
+      text-align: center;
+      margin-top: 24px;
+      line-height: 15pt;
+      padding-bottom: 40px;
+    }
+
+      tr.report-end td {
+        text-align: center;
+        margin: 16px 0;
+        margin-top: 30px;
+        text-transform: uppercase;
+      }
+      tr.report-end hr {
+        text-align: center;
+        margin: 0 24px;
+        border-top: 3px solid black;
+      }
+
+
+      .logo-printer-block {
+        display: none;
+      }
+
+    </style>
+  </head>
+  <body>
+    {{{rendered_user_template}}}
+  </body>
+</html>

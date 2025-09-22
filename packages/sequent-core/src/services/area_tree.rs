@@ -4,6 +4,7 @@
 use crate::types::hasura::core::{Area, AreaContest, Contest};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 // A tree node that corresponds to an area
@@ -11,6 +12,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 pub struct TreeNodeArea {
     pub id: String, // area id
     pub tenant_id: String,
+    pub annotations: Option<Value>,
     pub election_event_id: String,
     pub parent_id: Option<String>,
 }
@@ -28,6 +30,7 @@ impl From<&Area> for TreeNodeArea {
         TreeNodeArea {
             id: area.id.clone(),
             tenant_id: area.tenant_id.clone(),
+            annotations: area.annotations.clone(),
             election_event_id: area.election_event_id.clone(),
             parent_id: area.parent_id.clone(),
         }
@@ -335,36 +338,42 @@ mod tests {
                 id: "grandad".into(), // area id
                 tenant_id: "tenant".into(),
                 election_event_id: "election".into(),
+                annotations: None,
                 parent_id: None,
             },
             TreeNodeArea {
                 id: "father1".into(), // area id
                 tenant_id: "tenant".into(),
                 election_event_id: "election".into(),
+                annotations: None,
                 parent_id: Some("grandad".into()),
             },
             TreeNodeArea {
                 id: "father2".into(), // area id
                 tenant_id: "tenant".into(),
                 election_event_id: "election".into(),
+                annotations: None,
                 parent_id: Some("grandad".into()),
             },
             TreeNodeArea {
                 id: "child1".into(), // area id
                 tenant_id: "tenant".into(),
                 election_event_id: "election".into(),
+                annotations: None,
                 parent_id: Some("father1".into()),
             },
             TreeNodeArea {
                 id: "child2".into(), // area id
                 tenant_id: "tenant".into(),
                 election_event_id: "election".into(),
+                annotations: None,
                 parent_id: Some("father1".into()),
             },
             TreeNodeArea {
                 id: "child3".into(), // area id
                 tenant_id: "tenant".into(),
                 election_event_id: "election".into(),
+                annotations: None,
                 parent_id: Some("father2".into()),
             },
         ]

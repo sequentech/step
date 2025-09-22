@@ -3,16 +3,32 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [workspace]
+resolver = "2"
 
 members = [
     "braid",
+    "b3",
+    "electoral-log",
     "harvest",
     "strand",
     "immu-board",
     "immudb-rs",
     "sequent-core",
-    "board-messages",
     "velvet",
     "windmill",
     "wrap-map-err",
+    "step-cli",
+    "e2e/src/mock_server",
+    "e2e",
+    "orare",
+    "orare/doc_renderer"
 ]
+
+[patch.crates-io]
+celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }
+
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {isUndefined} from "@sequentech/ui-essentials"
+import {isUndefined} from "@sequentech/ui-core"
 import {Identifier, RaRecord, RowClickFunction} from "react-admin"
 
 export const stringifyFields = (record: RaRecord, filterFields: Array<string>): string => {

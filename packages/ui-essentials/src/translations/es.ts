@@ -64,7 +64,9 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Funciona con",
+        footer: {
+            poweredBy: "Funciona con <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",
@@ -89,6 +91,9 @@ const spanishTranslation: TranslationType = {
         version: {
             header: "Versión:",
         },
+        hash: {
+            header: "Hash:",
+        },
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
@@ -109,6 +114,8 @@ const spanishTranslation: TranslationType = {
         },
         selectElection: {
             electionWebsite: "Sitio web electoral",
+            countdown:
+                "La elección comienza en {{years}} años, {{months}} meses, {{weeks}} semanas, {{days}} días, {{hours}} horas, {{minutes}} minutos, {{seconds}} segundos",
             openElection: "Abierta",
             closedElection: "Cerrada",
             voted: "Votado",
@@ -121,11 +128,12 @@ const spanishTranslation: TranslationType = {
         },
         header: {
             profile: "Perfil",
+            welcome: "Bienvenido,<br><span>{{name}}</span>",
             session: {
-                title: "Your session is going to expire.",
-                timeLeft: "You have {{time}} left to cast your vote.",
-                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutes and {{time}} seconds",
-                timeLeftSeconds: "{{timeLeft}} seconds",
+                title: "Su sesión está a punto de expirar.",
+                timeLeft: "Le quedan {{time}} para emitir su voto.",
+                timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutos y {{time}} segundos",
+                timeLeftSeconds: "{{timeLeft}} segundos",
             },
         },
     },

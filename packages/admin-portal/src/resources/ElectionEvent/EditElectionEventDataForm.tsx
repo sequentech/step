@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
-    DateTimeInput,
     RecordContext,
     SimpleForm,
     TextInput,
@@ -17,8 +16,9 @@ import {
     useNotify,
     Button,
     SelectInput,
-    NumberInput,
     required,
+    FormDataConsumer,
+    useGetList,
 } from "react-admin"
 import {
     Accordion,
@@ -30,165 +30,85 @@ import {
     Box,
     Typography,
 } from "@mui/material"
+import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-
+import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {
-    Dialog,
-    EVotingPortalCountdownPolicy,
-    IElectionDates,
+    ElectionsOrder,
     IElectionEventPresentation,
+    IElectionPresentation,
     ITenantSettings,
-} from "@sequentech/ui-essentials"
+    EVotingPortalCountdownPolicy,
+    EElectionEventLockedDown,
+    EElectionEventEnrollment,
+    EElectionEventOTP,
+    EElectionEventContestEncryptionPolicy,
+    EVoterSigningPolicy,
+    EShowCastVoteLogsPolicy,
+    EElectionEventDecodedBallots,
+    EElectionEventCeremoniesPolicy,
+} from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {TVotingSetting} from "@/types/settings"
 import {
-    ExportElectionEventMutation,
     ImportCandidatesMutation,
-    ManageElectionDatesMutation,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
+    SetCustomUrlsMutation,
+    Sequent_Backend_Template,
 } from "@/gql/graphql"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
-import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
-import {useMutation} from "@apollo/client"
+import {FetchResult, useMutation} from "@apollo/client"
 import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
-import {useWatch} from "react-hook-form"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {convertToNumber} from "@/lib/helpers"
-import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
+import {ExportElectionEventDrawer} from "../../components/election-event/export-data/ExportElectionEventDrawer"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {SET_CUSTOM_URLS} from "@/queries/SetCustomUrls"
+import {getAuthUrl} from "@/services/UrlGeneration"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
+import {StatusChip} from "@/components/StatusChip"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {CustomFilter} from "@/types/filters"
+import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
+    electionsOrder?: Array<Sequent_Backend_Election>
 } & Sequent_Backend_Election_Event
 
-interface ExportWrapperProps {
-    electionEventId: string
-    openExport: boolean
-    setOpenExport: (val: boolean) => void
-    exportDocumentId: string | undefined
-    setExportDocumentId: (val: string | undefined) => void
-}
-
-interface ManagedNumberInputProps {
-    source: string
-    label: string
-    defaultValue: number
-    sourceToWatch: string
-}
-
-const ManagedNumberInput = ({
-    source,
-    label,
-    defaultValue,
-    sourceToWatch,
-}: ManagedNumberInputProps) => {
-    const secondsToShowCountdownSource = `presentation.voting_portal_countdown_policy.countdown_anticipation_secs`
-    const secondsToShowAlretSource = `presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs`
-    const selectedPolicy = useWatch({name: sourceToWatch})
-    const isDisabled =
-        (source === secondsToShowCountdownSource &&
-            selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN) ||
-        (source === secondsToShowAlretSource &&
-            selectedPolicy !== EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT)
-
-    return (
-        <NumberInput
-            source={source}
-            disabled={isDisabled}
-            label={label}
-            defaultValue={defaultValue}
-            style={{flex: 1}}
-        />
-    )
-}
-
-const ExportWrapper: React.FC<ExportWrapperProps> = ({
-    electionEventId,
-    openExport,
-    setOpenExport,
-    exportDocumentId,
-    setExportDocumentId,
-}) => {
-    const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_READ,
-            },
-        },
-    })
-    const notify = useNotify()
-    const {t} = useTranslation()
-
-    const confirmExportAction = async () => {
-        console.log("CONFIRM EXPORT")
-
-        const {data: exportElectionEventData, errors} = await exportElectionEvent({
-            variables: {
-                electionEventId,
-            },
-        })
-        let documentId = exportElectionEventData?.export_election_event?.document_id
-        if (errors || !documentId) {
-            setOpenExport(false)
-            notify(t(`electionEventScreen.exportError`), {type: "error"})
-            console.log(`Error exporting users: ${errors}`)
-            return
-        }
-        setExportDocumentId(documentId)
-    }
-
-    return (
-        <Dialog
-            variant="info"
-            open={openExport}
-            ok={t("common.label.export")}
-            cancel={t("common.label.cancel")}
-            title={t("common.label.export")}
-            handleClose={(result: boolean) => {
-                if (result) {
-                    confirmExportAction()
-                } else {
-                    setOpenExport(false)
-                }
-            }}
-        >
-            {t("common.export")}
-            {exportDocumentId ? (
-                <>
-                    <FormStyles.ShowProgress />
-                    <DownloadDocument
-                        documentId={exportDocumentId}
-                        electionEventId={electionEventId ?? ""}
-                        fileName={`election-event-${electionEventId}-export.json`}
-                        onDownload={() => {
-                            console.log("onDownload called")
-                            setExportDocumentId(undefined)
-                            setOpenExport(false)
-                        }}
-                    />
-                </>
-            ) : null}
-        </Dialog>
-    )
-}
+const ElectionRows = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.1rem;
+    padding: 1rem;
+`
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const notify = useNotify()
 
     const canEdit = authContext.isAuthorized(
         true,
@@ -200,46 +120,77 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
-    const [openExport, setOpenExport] = React.useState(false)
-    const [exportDocumentId, setExportDocumentId] = React.useState<string | undefined>()
+    const [openExport, setOpenExport] = useState(false)
+    const [loadingExport, setLoadingExport] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
-    const [openImportCandidates, setOpenImportCandidates] = React.useState(false)
+    const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
-    const defaultSecondsForAlret = convertToNumber(process.env.SECONDS_TO_SHOW_AlERT) ?? 180
-    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
-    const [startDate, setStartDate] = useState<string | undefined>(undefined)
-    const [endDate, setEndDate] = useState<string | undefined>(undefined)
-    const notify = useNotify()
+    const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
+    const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
+    const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
+    const [customEnrollmentRes, setCustomEnrollmentRes] =
+        useState<FetchResult<SetCustomUrlsMutation>>()
+    const [customSamlRes, setCustomSamlRes] = useState<FetchResult<SetCustomUrlsMutation>>()
+    const [isCustomUrlLoading, setIsCustomUrlLoading] = useState(false)
+    const [isCustomizeUrl, setIsCustomizeUrl] = useState(false)
+    const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
+    const [activateSave, setActivateSave] = useState(false)
+    const [voterAuthentication, setVoterAuthentication] = useState({
+        enrollment: "",
+        otp: "",
+    })
+    const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.ELECTION_EVENT_WRITE,
+            },
+        },
+    })
+
+    const [manageVoterAuthentication] = useMutation<SetCustomUrlsMutation>(SET_VOTER_AOTHENTICATION)
+
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
         redirect: false,
         undoable: false,
     })
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+        filter: {
+            tenant_id: record.tenant_id,
+            election_event_id: record.id,
+        },
+    })
+
+    const {data: verifyVoterTemplates} = useGetList<Sequent_Backend_Template>(
+        "sequent_backend_template",
+        {
+            filter: {
+                tenant_id: tenantId,
+                type: ETemplateType.MANUAL_VERIFICATION,
+            },
+        }
+    )
+
+    const manuallyVerifyVoterTemplates = (): Array<EnumChoice<string>> => {
+        if (!verifyVoterTemplates) {
+            return []
+        }
+        const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
+            return {
+                id: entry.id,
+                name: entry.template?.name,
+            }
+        })
+        return template_names
+    }
 
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
     })
-
-    useEffect(() => {
-        let dates = record.dates as IElectionDates | undefined
-        if (dates?.start_date && !startDate) {
-            setStartDate(dates.start_date)
-        }
-        if (dates?.end_date && !endDate) {
-            setEndDate(dates.end_date)
-        }
-    }, [
-        record.dates,
-        record.dates?.start_date,
-        record.dates?.end_date,
-        startDate,
-        setStartDate,
-        endDate,
-        setEndDate,
-    ])
 
     useEffect(() => {
         let tenantAvailableLangs = (tenant?.settings as ITenantSettings | undefined)?.language_conf
@@ -269,6 +220,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         // languages
         temp.enabled_languages = {}
 
+        if (!incoming.presentation) {
+            temp.presentation = {}
+        }
         const incomingLangConf = (incoming?.presentation as IElectionEventPresentation | undefined)
             ?.language_conf
 
@@ -320,6 +274,9 @@ export const EditElectionEventDataForm: React.FC = () => {
             temp.presentation = {}
         }
 
+        temp.presentation.elections_order =
+            temp?.presentation.elections_order || ElectionsOrder.ALPHABETICAL
+
         if (
             !(temp.presentation as IElectionEventPresentation | undefined)
                 ?.voting_portal_countdown_policy
@@ -328,6 +285,21 @@ export const EditElectionEventDataForm: React.FC = () => {
                 policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
             }
         }
+        if (!temp.presentation.custom_urls) {
+            temp.presentation.custom_urls = {}
+        }
+        if (!customFilters) {
+            if (
+                temp?.presentation?.custom_filters &&
+                temp?.presentation?.custom_filters.length > 0
+            ) {
+                setCustomFilters(temp.presentation.custom_filters)
+            }
+        }
+
+        temp.presentation.enrollment = temp?.presentation.enrollment
+        temp.presentation.otp = temp?.presentation.otp
+
         return temp
     }
 
@@ -341,11 +313,6 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        /*if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
-            errors.dates.end_date = t("electionEventScreen.error.endDate")
-        } else if (new Date(values?.dates?.start_date) <= new Date(Date.now())) {
-            errors.dates.start_date = t("electionEventScreen.error.startDate")
-        }*/
         return errors
     }
 
@@ -481,21 +448,157 @@ export const EditElectionEventDataForm: React.FC = () => {
         console.log("EXPORT")
         setOpenExport(true)
     }
+
+    interface EnumChoice<T> {
+        id: T
+        name: string
+    }
+
+    const orderAnswerChoices = (): Array<EnumChoice<ElectionsOrder>> => {
+        return Object.values(ElectionsOrder).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const showCastVoteLogsChoices = (): Array<EnumChoice<EShowCastVoteLogsPolicy>> => {
+        return Object.values(EShowCastVoteLogsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.showCastVoteLogs.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
-        let {data, errors} = await importCandidates({
-            variables: {
-                documentId,
-                electionEventId: record.id,
-            },
-        })
+        setOpenImportCandidates(false)
+        const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES)
+        try {
+            let {data, errors} = await importCandidates({
+                variables: {
+                    documentId,
+                    electionEventId: record.id,
+                    sha256,
+                },
+            })
 
-        if (errors) {
-            console.log(errors)
+            if (errors) {
+                console.log(errors)
+                notify("Error importing candidates", {type: "error"})
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            setWidgetTaskId(currWidget.identifier, data?.import_candidates?.task_execution.id)
+        } catch (err) {
             notify("Error importing candidates", {type: "error"})
-            return
+            updateWidgetFail(currWidget.identifier)
         }
+    }
 
-        notify("Candidates successfully imported", {type: "success"})
+    const handleUpdateCustomUrls = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            const urlEntries = [
+                {
+                    key: "login",
+                    origin: `https://${customUrlsValues.login}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "login"
+                    ),
+                    dns_prefix: customUrlsValues.login,
+                },
+                {
+                    key: "enrollment",
+                    origin: `https://${customUrlsValues.enrollment}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "enroll"
+                    ),
+                    dns_prefix: customUrlsValues.enrollment,
+                },
+                {
+                    key: "saml",
+                    origin: `https://${customUrlsValues.saml}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
+                    redirect_to: `${globalSettings.KEYCLOAK_URL}realms/tenant-${tenantId}-event-${recordId}/broker/simplesamlphp/endpoint`,
+                    dns_prefix: customUrlsValues.saml,
+                },
+            ]
+            setIsCustomUrlLoading(true)
+            setIsCustomizeUrl(true)
+            const [loginResponse, enrollmentResponse, samlResponse] = await Promise.all(
+                urlEntries.map((item) =>
+                    manageCustomUrls({
+                        variables: {
+                            origin: item.origin,
+                            redirect_to: item.redirect_to ?? "",
+                            dns_prefix: item.dns_prefix,
+                            election_id: recordId,
+                            key: item.key,
+                        },
+                    })
+                )
+            )
+            setCustomLoginRes(loginResponse)
+            setCustomEnrollmentRes(enrollmentResponse)
+            setCustomSamlRes(samlResponse)
+        } catch (err: any) {
+            console.error(err)
+        } finally {
+            setIsCustomUrlLoading(false)
+        }
+    }
+
+    const handleUpdateVoterAuthentication = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            const data = manageVoterAuthentication({
+                variables: {
+                    electionEventId: recordId,
+                    enrollment: voterAuthentication.enrollment,
+                    otp: voterAuthentication.otp,
+                },
+            })
+        } catch (err: any) {
+            console.error(err)
+        } finally {
+            setIsCustomUrlLoading(false)
+        }
+    }
+
+    const sortedElections = (elections ?? []).sort((a, b) => {
+        let presentationA = a.presentation as IElectionPresentation | undefined
+        let presentationB = b.presentation as IElectionPresentation | undefined
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
+    })
+
+    const decodedBallotsStateChoices = () => {
+        return Object.values(EElectionEventDecodedBallots).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.decodedBallots.options.${value}`),
+        }))
+    }
+
+    const lockdownStateChoices = () => {
+        return Object.values(EElectionEventLockedDown).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.lockdownState.options.${value}`),
+        }))
+    }
+
+    const contestEncryptionPolicyChoices = () => {
+        return Object.values(EElectionEventContestEncryptionPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.contestEncryptionPolicy.options.${value}`),
+        }))
     }
 
     const votingPortalCountDownPolicies = () => {
@@ -504,6 +607,61 @@ export const EditElectionEventDataForm: React.FC = () => {
             name: t(`electionEventScreen.field.countDownPolicyOptions.${value}`),
         }))
     }
+
+    const voterSigningPolicyChoices = () => {
+        return Object.values(EVoterSigningPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterSigningPolicy.${value}`),
+        }))
+    }
+
+    const enrollmentChoices = () => {
+        return Object.values(EElectionEventEnrollment).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.enrollment.options.${value}`),
+        }))
+    }
+
+    const otpChoices = () => {
+        return Object.values(EElectionEventOTP).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.otp.options.${value}`),
+        }))
+    }
+
+    const ceremonyPolicyOptions = () => {
+        return Object.values(EElectionEventCeremoniesPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ceremoniesPolicy.options.${value}`),
+        }))
+    }
+
+    type UpdateFunctionProps = Parameters<UpdateFunction>[0]
+
+    const updateCustomFilters = (
+        values: Sequent_Backend_Election_Event_Extended,
+        {newData}: UpdateFunctionProps
+    ) => {
+        values.presentation.custom_filters = newData
+        setCustomFilters(newData as CustomFilter[])
+        setActivateSave(true)
+    }
+
+    const handleEnrollmentChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setVoterAuthentication((prev) => ({
+            ...prev,
+            enrollment: event.target.value,
+        }))
+    }
+
+    const handleOtpChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        setVoterAuthentication((prev) => ({
+            ...prev,
+            otp: event.target.value,
+        }))
+    }
+
+    console.log("ceremonyPolicyOptions: ", ceremonyPolicyOptions())
 
     return (
         <>
@@ -519,6 +677,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     withImport={false}
                     withExport
                     doExport={handleExport}
+                    isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
                     extraActions={[
@@ -540,35 +699,45 @@ export const EditElectionEventDataForm: React.FC = () => {
                         languageSettings
                     )
                     const onSave = async () => {
-                        await manageElectionDates({
-                            variables: {
-                                electionEventId: record.id,
-                                start_date: startDate,
-                                end_date: endDate,
-                            },
-                        })
+                        await handleUpdateCustomUrls(
+                            parsedValue.presentation as IElectionEventPresentation,
+                            record.id
+                        )
+                        await handleUpdateVoterAuthentication(
+                            parsedValue.presentation as IElectionEventPresentation,
+                            record.id
+                        )
+                        setActivateSave(false)
                     }
                     return (
                         <SimpleForm
+                            defaultValues={{electionsOrder: sortedElections}}
                             validate={formValidator}
                             record={parsedValue}
                             toolbar={
                                 <Toolbar>
-                                    {canEdit ? (
+                                    {canEdit && (
                                         <SaveButton
                                             onClick={() => {
                                                 onSave()
                                             }}
                                             type="button"
+                                            alwaysEnable={activateSave}
                                         />
-                                    ) : null}
+                                    )}
                                 </Toolbar>
                             }
                         >
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-general"}
-                                onChange={() => setExpanded("election-event-data-general")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-general"
+                                            ? ""
+                                            : "election-event-data-general"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
@@ -589,66 +758,14 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-dates"}
-                                onChange={() => setExpanded("election-event-data-dates")}
-                            >
-                                <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.dates")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Grid container spacing={4}>
-                                        <Grid item xs={12} md={6}>
-                                            <DateTimeInput
-                                                disabled={!canEdit}
-                                                source="dates.start_date"
-                                                label={t("electionScreen.field.startDateTime")}
-                                                parse={(value) =>
-                                                    value && new Date(value).toISOString()
-                                                }
-                                                onChange={(value) => {
-                                                    setStartDate(
-                                                        value && value.target.value !== ""
-                                                            ? new Date(
-                                                                  value.target.value
-                                                              ).toISOString()
-                                                            : undefined
-                                                    )
-                                                }}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} md={6}>
-                                            <DateTimeInput
-                                                disabled={!canEdit}
-                                                source="dates.end_date"
-                                                label={t("electionScreen.field.endDateTime")}
-                                                parse={(value) =>
-                                                    value && new Date(value).toISOString()
-                                                }
-                                                onChange={(value) => {
-                                                    setEndDate(
-                                                        value.target.value !== ""
-                                                            ? new Date(
-                                                                  value.target.value
-                                                              ).toISOString()
-                                                            : undefined
-                                                    )
-                                                }}
-                                            />
-                                        </Grid>
-                                    </Grid>
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-language"}
-                                onChange={() => setExpanded("election-event-data-language")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-language"
+                                            ? ""
+                                            : "election-event-data-language"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -674,7 +791,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-ballot-style"}
-                                onChange={() => setExpanded("election-event-data-ballot-style")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-ballot-style"
+                                            ? ""
+                                            : "election-event-data-ballot-style"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -690,11 +813,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 <AccordionDetails>
                                     <BooleanInput
                                         disabled={!canEdit}
-                                        source={"presentation.hide_audit"}
-                                        label={t(`electionEventScreen.field.hideAudit`)}
-                                    />
-                                    <BooleanInput
-                                        disabled={!canEdit}
                                         source={"presentation.skip_election_list"}
                                         label={t(`electionEventScreen.field.skipElectionList`)}
                                     />
@@ -703,6 +821,48 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         source={"presentation.show_user_profile"}
                                         label={t(`electionEventScreen.field.showUserProfile`)}
                                     />
+                                    <SelectInput
+                                        source="presentation.elections_order"
+                                        choices={orderAnswerChoices()}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source="presentation.show_cast_vote_logs"
+                                        choices={showCastVoteLogsChoices()}
+                                        validate={required()}
+                                        defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
+                                        label={t(
+                                            "electionEventScreen.field.showCastVoteLogs.policyLabel"
+                                        )}
+                                    />
+                                    <FormDataConsumer>
+                                        {({formData, ...rest}) => {
+                                            return (
+                                                formData?.presentation as
+                                                    | IElectionEventPresentation
+                                                    | undefined
+                                            )?.elections_order === ElectionsOrder.CUSTOM ? (
+                                                <ElectionRows>
+                                                    <Typography
+                                                        variant="body1"
+                                                        component="span"
+                                                        sx={{
+                                                            padding: "0.5rem 1rem",
+                                                            fontWeight: "bold",
+                                                            margin: 0,
+                                                            display: {xs: "none", sm: "block"},
+                                                        }}
+                                                    >
+                                                        {t("electionEventScreen.edit.reorder")}
+                                                    </Typography>
+                                                    <CustomOrderInput source="electionsOrder" />
+                                                    <Box
+                                                        sx={{width: "100%", height: "180px"}}
+                                                    ></Box>
+                                                </ElectionRows>
+                                            ) : null
+                                        }}
+                                    </FormDataConsumer>
                                     <TextInput
                                         resettable={true}
                                         source={"presentation.logo_url"}
@@ -725,7 +885,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-allowed"}
-                                onChange={() => setExpanded("election-event-data-allowed")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-allowed"
+                                            ? ""
+                                            : "election-event-data-allowed"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}
@@ -747,8 +913,159 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-custom-urls"}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-custom-urls"
+                                            ? ""
+                                            : "election-event-data-custom-urls"
+                                    )
+                                }
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-custom-urls" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.customUrls")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <CustomUrlsStyle.InputWrapper>
+                                        <CustomUrlsStyle.InputLabel>
+                                            Login:
+                                        </CustomUrlsStyle.InputLabel>
+                                        <CustomUrlsStyle.InputLabelWrapper>
+                                            <p>https://</p>
+                                            <TextInput
+                                                variant="standard"
+                                                helperText={false}
+                                                sx={{width: "300px"}}
+                                                source={`presentation.custom_urls.login`}
+                                                label={""}
+                                                onChange={(e) =>
+                                                    setCustomUrlsValues({
+                                                        ...customUrlsValues,
+                                                        login: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                            {isCustomUrlLoading ? (
+                                                <WizardStyles.DownloadProgress size={18} />
+                                            ) : (
+                                                isCustomizeUrl &&
+                                                (customLoginRes?.data?.set_custom_urls?.success ? (
+                                                    <StatusChip status="SUCCESS" />
+                                                ) : (
+                                                    <StatusChip status="ERROR" />
+                                                ))
+                                            )}
+                                        </CustomUrlsStyle.InputLabelWrapper>
+                                        {customLoginRes &&
+                                            !customLoginRes?.data?.set_custom_urls?.success && (
+                                                <CustomUrlsStyle.ErrorText>
+                                                    {customLoginRes?.data?.set_custom_urls?.message}
+                                                </CustomUrlsStyle.ErrorText>
+                                            )}
+                                    </CustomUrlsStyle.InputWrapper>
+                                    <CustomUrlsStyle.InputWrapper>
+                                        <CustomUrlsStyle.InputLabel>
+                                            Enrollment:
+                                        </CustomUrlsStyle.InputLabel>
+                                        <CustomUrlsStyle.InputLabelWrapper>
+                                            <p>https://</p>
+                                            <TextInput
+                                                variant="standard"
+                                                helperText={false}
+                                                sx={{width: "300px"}}
+                                                source={`presentation.custom_urls.enrollment`}
+                                                label={""}
+                                                onChange={(e) =>
+                                                    setCustomUrlsValues({
+                                                        ...customUrlsValues,
+                                                        enrollment: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                            {isCustomUrlLoading ? (
+                                                <WizardStyles.DownloadProgress size={18} />
+                                            ) : (
+                                                isCustomizeUrl &&
+                                                (customEnrollmentRes?.data?.set_custom_urls
+                                                    ?.success ? (
+                                                    <StatusChip status="SUCCESS" />
+                                                ) : (
+                                                    <StatusChip status="ERROR" />
+                                                ))
+                                            )}
+                                        </CustomUrlsStyle.InputLabelWrapper>
+                                        {customEnrollmentRes &&
+                                            !customEnrollmentRes?.data?.set_custom_urls
+                                                ?.success && (
+                                                <CustomUrlsStyle.ErrorText>
+                                                    {
+                                                        customEnrollmentRes?.data?.set_custom_urls
+                                                            ?.message
+                                                    }
+                                                </CustomUrlsStyle.ErrorText>
+                                            )}
+                                    </CustomUrlsStyle.InputWrapper>
+                                    <CustomUrlsStyle.InputWrapper>
+                                        <CustomUrlsStyle.InputLabel>
+                                            SAML:
+                                        </CustomUrlsStyle.InputLabel>
+                                        <CustomUrlsStyle.InputLabelWrapper>
+                                            <p>https://</p>
+                                            <TextInput
+                                                variant="standard"
+                                                helperText={false}
+                                                sx={{width: "300px"}}
+                                                source={`presentation.custom_urls.saml`}
+                                                label={""}
+                                                onChange={(e) =>
+                                                    setCustomUrlsValues({
+                                                        ...customUrlsValues,
+                                                        saml: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                            {isCustomUrlLoading ? (
+                                                <WizardStyles.DownloadProgress size={18} />
+                                            ) : (
+                                                isCustomizeUrl &&
+                                                (customSamlRes?.data?.set_custom_urls?.success ? (
+                                                    <StatusChip status="SUCCESS" />
+                                                ) : (
+                                                    <StatusChip status="ERROR" />
+                                                ))
+                                            )}
+                                        </CustomUrlsStyle.InputLabelWrapper>
+                                        {customSamlRes &&
+                                            !customSamlRes?.data?.set_custom_urls?.success && (
+                                                <CustomUrlsStyle.ErrorText>
+                                                    {customSamlRes?.data?.set_custom_urls?.message}
+                                                </CustomUrlsStyle.ErrorText>
+                                            )}
+                                    </CustomUrlsStyle.InputWrapper>
+                                </AccordionDetails>
+                            </Accordion>
+
+                            <Accordion
+                                sx={{width: "100%"}}
                                 expanded={expanded === "election-event-data-materials"}
-                                onChange={() => setExpanded("election-event-data-materials")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "election-event-data-materials"
+                                            ? ""
+                                            : "election-event-data-materials"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -780,7 +1097,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <Accordion
                                 sx={{width: "100%"}}
                                 expanded={expanded === "voting-portal-countdown-policy"}
-                                onChange={() => setExpanded("voting-portal-countdown-policy")}
+                                onChange={() =>
+                                    setExpanded((prev) =>
+                                        prev === "voting-portal-countdown-policy"
+                                            ? ""
+                                            : "voting-portal-countdown-policy"
+                                    )
+                                }
                             >
                                 <AccordionSummary
                                     expandIcon={
@@ -794,6 +1117,50 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </ElectionHeaderStyles.Wrapper>
                                 </AccordionSummary>
                                 <AccordionDetails>
+                                    <SelectInput
+                                        source={"presentation.contest_encryption_policy"}
+                                        choices={contestEncryptionPolicyChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
+                                        )}
+                                        defaultValue={
+                                            EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
+                                        }
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.locked_down"}
+                                        choices={lockdownStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.lockdownState.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.decoded_ballot_inclusion_policy"}
+                                        choices={decodedBallotsStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.decodedBallots.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.ceremonies_policy"}
+                                        choices={ceremonyPolicyOptions()}
+                                        label={t(
+                                            "electionEventScreen.field.ceremoniesPolicy.policyLabel"
+                                        )}
+                                        defaultValue={
+                                            EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
+                                        }
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
                                     <Typography
                                         variant="body1"
                                         component="span"
@@ -817,6 +1184,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         emptyText={undefined}
                                         validate={required()}
                                     />
+                                    <SelectInput
+                                        source={"presentation.voter_signing_policy"}
+                                        choices={voterSigningPolicyChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.voterSigningPolicy.policyLabel"
+                                        )}
+                                        defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
                                     <Box
                                         sx={{
                                             display: "flex",
@@ -835,6 +1212,10 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             )}
                                             defaultValue={defaultSecondsForCountdown}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                            isDisabled={(selectedPolicy) =>
+                                                selectedPolicy ===
+                                                EVotingPortalCountdownPolicy.NO_COUNTDOWN
+                                            }
                                         />
 
                                         <ManagedNumberInput
@@ -844,8 +1225,64 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             label={t(
                                                 "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
                                             )}
-                                            defaultValue={defaultSecondsForAlret}
+                                            defaultValue={defaultSecondsForAlert}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                            isDisabled={(selectedPolicy) =>
+                                                selectedPolicy !==
+                                                EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
+                                            }
+                                        />
+                                    </Box>
+                                    <Box>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionEventScreen.edit.custom_filters")}
+                                        </Typography>
+
+                                        <JsonEditor
+                                            data={customFilters ?? []}
+                                            onUpdate={(data) =>
+                                                updateCustomFilters(
+                                                    parsedValue,
+                                                    data as UpdateFunctionProps
+                                                )
+                                            }
+                                        />
+                                    </Box>
+                                    <Box>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "1rem 0rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
+                                            }}
+                                        >
+                                            {t("electionEventScreen.edit.voter_authentication")}
+                                        </Typography>
+                                        <SelectInput
+                                            label={t(
+                                                `electionEventScreen.field.enrollment.policyLabel`
+                                            )}
+                                            source="presentation.enrollment"
+                                            choices={enrollmentChoices()}
+                                            onChange={(value) => handleEnrollmentChange(value)}
+                                        />
+                                        <SelectInput
+                                            label={t(`electionEventScreen.field.otp.policyLabel`)}
+                                            source="presentation.otp"
+                                            choices={otpChoices()}
+                                            onChange={(value) => handleOtpChange(value)}
                                         />
                                     </Box>
                                 </AccordionDetails>
@@ -875,13 +1312,20 @@ export const EditElectionEventDataForm: React.FC = () => {
                 errors={null}
             />
 
-            <ExportWrapper
+            <ExportElectionEventDrawer
                 electionEventId={record.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
+                setLoadingExport={setLoadingExport}
             />
         </>
     )
+}
+function useCallBack(
+    arg0: (presentation: IElectionEventPresentation, recordId: string) => Promise<void>,
+    arg1: never[]
+) {
+    throw new Error("Function not implemented.")
 }

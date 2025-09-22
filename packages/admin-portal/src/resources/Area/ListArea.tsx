@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useEffect, useState} from "react"
 import {
     DatagridConfigurable,
     List,
     TextField,
     TextInput,
     Identifier,
-    RaRecord,
     useRecordContext,
     useDelete,
     WrapperField,
@@ -18,8 +17,6 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Box, Button, Drawer, Typography} from "@mui/material"
-import {EditArea} from "./EditArea"
-import {CreateArea} from "./CreateArea"
 import {ImportAreasMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
@@ -32,12 +29,14 @@ import {AreaContestItems} from "@/components/AreaContestItems"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {IPermissions} from "@/types/keycloak"
-import {AuthContext} from "@/providers/AuthContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
 import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
+import {ResetFilters} from "@/components/ResetFilters"
+import {useAreaPermissions} from "./useAreaPermissions"
+import {UpsertArea} from "./UpsertArea"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -52,7 +51,6 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
 ]
 
 export interface ListAreaProps {
@@ -70,38 +68,45 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [tenantId] = useTenantStore()
     const [deleteOne] = useDelete()
 
-    const [open, setOpen] = React.useState(false)
-    const [openCreate, setOpenCreate] = React.useState(false)
-    const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
-    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
-    const [openImportDrawer, setOpenImportDrawer] = React.useState(false)
-    const [openUpsertDrawer, setOpenUpsertDrawer] = React.useState(false)
+    const [open, setOpen] = useState(false)
+    const [openCreate, setOpenCreate] = useState(false)
+    const [openDeleteModal, setOpenDeleteModal] = useState(false)
+    const [deleteId, setDeleteId] = useState<Identifier | undefined>()
+    const [openDrawer, setOpenDrawer] = useState<boolean>(false)
+    const [recordId, setRecordId] = useState<Identifier | undefined>(undefined)
+    const [openImportDrawer, setOpenImportDrawer] = useState(false)
+    const [openUpsertDrawer, setOpenUpsertDrawer] = useState(false)
+
+    const {
+        canCreateArea,
+        canEditArea,
+        canReadArea,
+        canDeleteArea,
+        canImportArea,
+        canExportArea,
+        canUpsertArea,
+        showAreaColumns,
+        showAreaFilters,
+    } = useAreaPermissions()
+
     const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.AREA_WRITE,
+                "x-hasura-role": IPermissions.AREA_IMPORT,
             },
         },
     })
     const [upsertAreas] = useMutation<ImportAreasMutation>(UPSERT_AREAS, {
         context: {
             headers: {
-                "x-hasura-role": IPermissions.AREA_WRITE,
+                "x-hasura-role": IPermissions.AREA_UPSERT,
             },
         },
     })
 
-    const authContext = useContext(AuthContext)
-    const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
-    const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
-
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
+    // const authContext = useContext(AuthContext)
+    // const canView = authContext.isAuthorized(true, tenantId, IPermissions.AREA_READ)
+    // const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.AREA_WRITE)
 
     useEffect(() => {
         if (recordId) {
@@ -118,10 +123,10 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             <Typography variant="h4" paragraph>
                 {t("areas.empty.header")}
             </Typography>
-            {canCreate && (
+            {canCreateArea && (
                 <>
                     <ActionsBox>
-                        <Button onClick={createAction}>
+                        <Button onClick={createAction} className="area-add-button">
                             <IconButton icon={faPlus} fontSize="24px" />
                             {t("areas.empty.action")}
                         </Button>
@@ -137,10 +142,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             )}
         </ResourceListStyles.EmptyBox>
     )
-
-    if (!canView) {
-        return <Empty />
-    }
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
@@ -187,6 +188,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             variables: {
                 documentId,
                 electionEventId: record.id,
+                sha256,
             },
         })
 
@@ -217,51 +219,93 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
+        {
+            icon: <EditIcon className="edit-area-icon" />,
+            action: editAction,
+            showAction: () => canEditArea,
+        },
+        {
+            icon: <DeleteIcon className="delete-area-icon" />,
+            action: deleteAction,
+            showAction: () => canDeleteArea,
+        },
     ]
+
+    // check if data array is empty
+    //const {data, isLoading} = listContext
+
+    if (!canReadArea) {
+        return <Empty />
+    }
 
     return (
         <>
-            <List
-                resource="sequent_backend_area"
-                actions={
-                    <ListActions
-                        withImport
-                        doImport={() => setOpenImportDrawer(true)}
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
-                        Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
-                        extraActions={[
-                            <Button onClick={() => setOpenUpsertDrawer(true)} key="upsert">
-                                {t("electionEventScreen.importAreas.upsert")}
-                            </Button>,
-                        ]}
-                    />
-                }
-                empty={<Empty />}
-                sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
-                }}
-                filters={Filters}
-            >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="name" />
-                    <TextField source="description" />
+            {
+                <>
+                    {
+                        <List
+                            resource="sequent_backend_area"
+                            actions={
+                                <ListActions
+                                    withColumns={showAreaColumns}
+                                    withFilter={showAreaFilters}
+                                    withImport={canImportArea}
+                                    doImport={() => setOpenImportDrawer(true)}
+                                    withExport={false}
+                                    open={openDrawer}
+                                    setOpen={setOpenDrawer}
+                                    Component={
+                                        <UpsertArea
+                                            record={record}
+                                            electionEventId={id}
+                                            close={handleCloseCreateDrawer}
+                                        />
+                                    }
+                                    withComponent={canCreateArea}
+                                    extraActions={[
+                                        canUpsertArea ? (
+                                            <Button
+                                                onClick={() => setOpenUpsertDrawer(true)}
+                                                key="upsert"
+                                            >
+                                                {t("electionEventScreen.importAreas.upsert")}
+                                            </Button>
+                                        ) : (
+                                            <></>
+                                        ),
+                                    ]}
+                                />
+                            }
+                            empty={<Empty />}
+                            sx={{flexGrow: 2}}
+                            storeKey={false}
+                            filters={Filters}
+                            filter={{
+                                tenant_id: tenantId || undefined,
+                                election_event_id: record?.id || undefined,
+                            }}
+                            filterDefaultValues={{}}
+                            disableSyncWithLocation
+                        >
+                            <ResetFilters />
+                            <DatagridConfigurable omit={OMIT_FIELDS}>
+                                <TextField source="id" />
+                                <TextField source="name" className="area-name" />
+                                <TextField source="description" className="area-description" />
 
-                    <FunctionField
-                        label={t("areas.sequent_backend_area_contest")}
-                        render={(record: any) => <AreaContestItems record={record} />}
-                    />
+                                <FunctionField
+                                    label={t("areas.sequent_backend_area_contest")}
+                                    render={(record: any) => <AreaContestItems record={record} />}
+                                />
 
-                    <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
-                </DatagridConfigurable>
-            </List>
+                                <WrapperField source="actions" label="Actions">
+                                    <ActionsColumn actions={actions} />
+                                </WrapperField>
+                            </DatagridConfigurable>
+                        </List>
+                    }
+                </>
+            }
             <Drawer
                 anchor="right"
                 open={open}
@@ -270,7 +314,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
+                <UpsertArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
             </Drawer>
             <Drawer
                 anchor="right"
@@ -280,7 +324,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <CreateArea record={record} close={handleCloseCreateDrawer} />
+                <UpsertArea record={record} electionEventId={id} close={handleCloseCreateDrawer} />
             </Drawer>
             <Dialog
                 variant="warning"

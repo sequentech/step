@@ -10,32 +10,33 @@ use strum::Display;
 use strand::context::Ctx;
 use strand::signature::StrandSignaturePk;
 
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::newtypes::*;
-use board_messages::braid::statement::Statement;
+use b3::messages::artifact::Configuration;
+use b3::messages::newtypes::*;
+use b3::messages::statement::Statement;
 
 use crate::util::ProtocolError;
 
 ///////////////////////////////////////////////////////////////////////////
 // Predicate
-//
-// Predicates are enum variants passed as inputs to MachineState Datalog
-// relations for inference, and outputted by MachineStates to forward to
-// subsequent MachineStates.
-// They contain newtype tuple members, except for members
-// that require doing arithmetic.
-// Predicates are derived from Statements, using the general
-// Predicate::from_statement method.
 ///////////////////////////////////////////////////////////////////////////
 
+/// A datalog predicate that represents an assertion about the protocol state.
+///
+/// Predicates are enum variants passed as inputs to datalog
+/// Phases for inference, and outputted by datalog to forward to
+/// subsequent Phases.
+/// They contain newtype tuple members, except for members
+/// that require doing arithmetic which are type aliases.
+/// Predicates are derived from Statements, using the general
+/// Predicate::from_statement method.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Display, Debug)]
 pub(crate) enum Predicate {
     // Input predicates
-    /// Bootstrap //////////////////////////////////////////////////////////////////
+    // Bootstrap //////////////////////////////////////////////////////////////////
     Configuration(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold),
     ConfigurationSigned(ConfigurationHash, TrusteePosition),
 
-    /// Dkg ////////////////////////////////////////////////////////////////////////
+    // Dkg ////////////////////////////////////////////////////////////////////////
     Channel(ConfigurationHash, ChannelHash, TrusteePosition),
     ChannelsSigned(ConfigurationHash, ChannelsHashes, TrusteePosition),
     ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes),
@@ -55,7 +56,7 @@ pub(crate) enum Predicate {
         TrusteePosition,
     ),
 
-    /// Shuffle ////////////////////////////////////////////////////////////////////
+    // Shuffle ////////////////////////////////////////////////////////////////////
     Ballots(
         ConfigurationHash,
         BatchNumber,
@@ -120,6 +121,7 @@ pub(crate) enum Predicate {
     ),
 }
 impl Predicate {
+    /// Returns the predicate asserted by the given statement.
     pub(crate) fn from_statement<C: Ctx>(
         statement: &Statement,
         signer_position: TrusteePosition,
@@ -128,31 +130,31 @@ impl Predicate {
         let ret = match statement {
             // Only called for configuration signatures, configuration
             // bootstrap is done through Predicate::get_bootstrap_predicate
-            // Configuration(Timestamp, ConfigurationH)
             Statement::Configuration(_, _) => panic!("impossible"),
+            // variant: ConfigurationSigned(Timestamp, ConfigurationH)
             Statement::ConfigurationSigned(_ts, cfg_h) => Ok(Self::ConfigurationSigned(
                 ConfigurationHash(cfg_h.0),
                 signer_position,
             )),
-            // Commitments(Timestamp, ConfigurationH, CommitmentsH)
+            // variant: Commitments(Timestamp, ConfigurationH, CommitmentsH)
             Statement::Channel(_ts, cfg_h, cm_h) => Ok(Self::Channel(
                 ConfigurationHash(cfg_h.0),
                 ChannelHash(cm_h.0),
                 signer_position,
             )),
-            // CommitmentsAllSigned(Timestamp, ConfigurationH, CommitmentsHs)
+            // variant: CommitmentsAllSigned(Timestamp, ConfigurationH, CommitmentsHs)
             Statement::ChannelsAllSigned(_ts, cfg_h, cm_hs) => Ok(Self::ChannelsSigned(
                 ConfigurationHash(cfg_h.0),
                 ChannelsHashes(cm_hs.0),
                 signer_position,
             )),
-            // Shares(Timestamp, ConfigurationH, SharesH)
+            // variant: Shares(Timestamp, ConfigurationH, SharesH)
             Statement::Shares(_ts, cfg_h, sh_h) => Ok(Self::Shares(
                 ConfigurationHash(cfg_h.0),
                 SharesHash(sh_h.0),
                 signer_position,
             )),
-            // PublicKey(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
+            // variant: PublicKey(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
             Statement::PublicKey(_ts, cfg_h, pk_h, sh_hs, cm_hs) => Ok(Self::PublicKey(
                 ConfigurationHash(cfg_h.0),
                 PublicKeyHash(pk_h.0),
@@ -160,7 +162,7 @@ impl Predicate {
                 ChannelsHashes(cm_hs.0),
                 signer_position,
             )),
-            // PublicKeySigned(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
+            // variant: PublicKeySigned(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
             Statement::PublicKeySigned(_ts, cfg_h, pk_h, sh_hs, cm_hs) => {
                 Ok(Self::PublicKeySigned(
                     ConfigurationHash(cfg_h.0),
@@ -170,7 +172,7 @@ impl Predicate {
                     signer_position,
                 ))
             }
-            // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
+            // variant: Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
                 // Verify that all selected trustees are valid
                 let mut selected = vec![];
@@ -199,7 +201,7 @@ impl Predicate {
                     *trustees,
                 ))
             }
-            // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
+            // variant: Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH, usize)
             Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Ok(Self::Mix(
                 ConfigurationHash(cfg_h.0),
                 *batch,
@@ -208,7 +210,7 @@ impl Predicate {
                 *mix_number,
                 signer_position,
             )),
-            // MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)
+            // variant: MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)
             Statement::MixSigned(_ts, cfg_h, batch, _mix_no, source_h, mix_h) => {
                 Ok(Self::MixSigned(
                     ConfigurationHash(cfg_h.0),
@@ -218,7 +220,7 @@ impl Predicate {
                     signer_position,
                 ))
             }
-            // DecryptionFactors(Timestamp, ConfigurationH, usize, DecryptionFactorsH, CiphertextsH, SharesHs)
+            // variant: DecryptionFactors(Timestamp, ConfigurationH, usize, DecryptionFactorsH, CiphertextsH, SharesHs)
             Statement::DecryptionFactors(_ts, cfg_h, batch, df_h, mix_h, sh_hs) => {
                 Ok(Self::DecryptionFactors(
                     ConfigurationHash(cfg_h.0),
@@ -229,7 +231,7 @@ impl Predicate {
                     signer_position,
                 ))
             }
-            // Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
+            // variant: Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
             Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => {
                 Ok(Self::Plaintexts(
                     ConfigurationHash(cfg_h.0),
@@ -241,7 +243,7 @@ impl Predicate {
                     signer_position,
                 ))
             }
-            // PlaintextsSigned(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
+            // variant: PlaintextsSigned(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
             Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => {
                 Ok(Self::PlaintextsSigned(
                     ConfigurationHash(cfg_h.0),
@@ -260,35 +262,51 @@ impl Predicate {
         ret
     }
 
-    // Special case for bootstrap configuration
+    /// Returns the predicate corresponding to a configuration artifact.
+    ///
+    /// Special case for bootstrapping. Other statements are obtained
+    /// with Predicate::from_statement.
     pub(crate) fn get_bootstrap_predicate<C: Ctx>(
         configuration: &Configuration<C>,
         trustee_pk: &StrandSignaturePk,
-    ) -> Option<Predicate> {
-        let index = configuration.get_trustee_position(trustee_pk)?;
+    ) -> Result<Predicate, ProtocolError> {
+        let index = configuration.get_trustee_position(trustee_pk).ok_or(
+            ProtocolError::InvalidConfiguration(
+                "Could not find trustee position in configuration".to_string(),
+            ),
+        )?;
+
         assert!(index != PROTOCOL_MANAGER_INDEX);
 
-        let p = Predicate::Configuration(
-            ConfigurationHash::from_configuration(configuration).ok()?,
+        let cfg = ConfigurationHash::from_configuration(configuration).map_err(|e| {
+            ProtocolError::InvalidConfiguration(format!("Could not read configuration {}", e))
+        })?;
+
+        Ok(Predicate::Configuration(
+            cfg,
             index,
             configuration.trustees.len(),
             configuration.threshold,
-        );
-
-        Some(p)
+        ))
     }
 
-    // Used when a trustee runs in verifier mode
+    /// Returns the predicate corresponding to a configuration artifact.
+    ///
+    /// Special case for bootstrapping in verifier mode. In verifying mode
+    /// this predicate will identify this trustee as a strict observer, only
+    /// deriving verification Actions.
     pub(crate) fn get_verifier_bootstrap_predicate<C: Ctx>(
         configuration: &Configuration<C>,
-    ) -> Option<Predicate> {
-        let p = Predicate::Configuration(
-            ConfigurationHash::from_configuration(configuration).ok()?,
+    ) -> Result<Predicate, ProtocolError> {
+        let cfg = ConfigurationHash::from_configuration(configuration).map_err(|e| {
+            ProtocolError::InvalidConfiguration(format!("Could not read configuration {}", e))
+        })?;
+
+        Ok(Predicate::Configuration(
+            cfg,
             VERIFIER_INDEX,
             configuration.trustees.len(),
             configuration.threshold,
-        );
-
-        Some(p)
+        ))
     }
 }

@@ -1,0 +1,6 @@
+node_modules
+web_modules
+
+resources/content/keycloak-man/KeycloakManLovesJsx.js
+resources/content/keycloak-man/KeycloakManLovesJsx.js.map
+resources/public/app.css

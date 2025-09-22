@@ -1,11 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Admin, CustomRoutes, DataProvider, Resource, useGetOne} from "react-admin"
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import {
+    Admin,
+    CustomRoutes,
+    DataProvider,
+    GetListParams,
+    GetListResult,
+    Resource,
+} from "react-admin"
+import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
-import {CreateArea} from "./resources/Area/CreateArea"
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
 import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
@@ -21,7 +27,7 @@ import {ListDocument} from "./resources/Document/ListDocument"
 import {ListElection} from "./resources/Election/ListElection"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {Messages} from "./screens/Messages"
-import {Route} from "react-router-dom"
+import {Navigate, Route, useLocation} from "react-router-dom"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -29,10 +35,8 @@ import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
 import {ListUsers} from "./resources/User/ListUsers"
-import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
 import {CustomLayout} from "./components/CustomLayout"
 import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
-import {EditArea} from "./resources/Area/EditArea"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -43,14 +47,72 @@ import {ContestBaseTabs} from "./resources/Contest/ContestBaseTabs"
 import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
-import {CommunicationTemplateEdit} from "./resources/CommunicationTemplate/CommunicationTemplateEdit"
-import {CommunicationTemplateList} from "./resources/CommunicationTemplate/CommunicationTemplateList"
-import {CommunicationTemplateCreate} from "./resources/CommunicationTemplate/CommunicationTemplateCreate"
 import {ApolloContext} from "./providers/ApolloContextProvider"
-import {TenantContext} from "./providers/TenantContextProvider"
-import {Sequent_Backend_Tenant} from "./gql/graphql"
+import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
+import {Box} from "@mui/material"
+import {styled} from "@mui/material/styles"
+import {useAtomValue} from "jotai"
+import ListScheduledEvents from "./resources/ScheduledEvents/ListScheduledEvent"
+import Notifications from "./resources/Notifications/Notifications"
+import {TemplateEdit} from "./resources/Template/TemplateEdit"
+import {TemplateList} from "./resources/Template/TemplateList"
+import {TemplateCreate} from "./resources/Template/TemplateCreate"
+import ListReports from "./resources/Reports/ListReports"
+import {SelectTenant} from "./screens/SelectTenant"
+import {AuthContext} from "./providers/AuthContextProvider"
+import {customSortData} from "./lib/helpers"
+import {UpsertArea} from "./resources/Area/UpsertArea"
 
 interface AppProps {}
+
+const StyledApp = styled(Box)<{css: string}>`
+    ${({css}) => css}
+`
+
+export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
+    const css = useAtomValue(cssInputLookAndFeel)
+    return (
+        <StyledApp className="styled-app-atom" css={css}>
+            {children}
+        </StyledApp>
+    )
+}
+
+// This function builds and wraps your Hasura data provider.
+export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {
+    const options = {
+        client: apolloClient,
+        buildQuery: customBuildQuery,
+    }
+    const buildGqlQueryOverrides = {}
+    const dataProviderHasura: DataProvider = await buildHasuraProvider(
+        options,
+        buildGqlQueryOverrides
+    )
+
+    // Override the getList method to apply custom sort logic.
+    const wrappedDataProvider: DataProvider = {
+        ...dataProviderHasura,
+        getList: (resource: string, params: GetListParams): Promise<GetListResult> =>
+            dataProviderHasura.getList(resource, params).then((response: GetListResult) => {
+                // Create a new sort object ensuring proper literal types for order.
+                let sortedData = response.data
+
+                // params.sort is undefined for non well defined list column fields (ex: FunctionFields )
+                if (params.sort) {
+                    const sort: {field: string; order: "ASC" | "DESC"} = {
+                        field: params.sort.field,
+                        order: params.sort.order === "DESC" ? "DESC" : "ASC",
+                    }
+                    sortedData = customSortData(response.data, sort)
+                }
+
+                return {data: sortedData, total: response.total}
+            }),
+    }
+
+    return wrappedDataProvider
+}
 
 const App: React.FC<AppProps> = () => {
     const {apolloClient} = useContext(ApolloContext)
@@ -58,16 +120,12 @@ const App: React.FC<AppProps> = () => {
     const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
     i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
+    const {isAuthenticated} = useContext(AuthContext)
 
     useEffect(() => {
-        const buildDataProvider = async () => {
-            const options = {
-                client: apolloClient as any,
-                buildQuery: customBuildQuery as any,
-            }
-            const buildGqlQueryOverrides = {}
-            const dataProviderHasura = await buildHasuraProvider(options, buildGqlQueryOverrides)
-            setDataProvider(() => dataProviderHasura as any)
+        const buildDataProvider = async (): Promise<void> => {
+            const wrappedProvider = await buildWrappedHasuraProvider(apolloClient)
+            setDataProvider(wrappedProvider)
         }
         buildDataProvider()
     }, [])
@@ -75,118 +133,151 @@ const App: React.FC<AppProps> = () => {
     if (!dataProvider) return <p>{t("loadingDataProvider")}</p>
 
     return (
-        <Admin
-            dataProvider={dataProvider || undefined}
-            layout={CustomLayout}
-            theme={fullAdminTheme}
-            i18nProvider={adminI18nProvider}
-        >
-            <CustomRoutes>
-                {/*<Route path="/logs" element={<Logs />} />*/}
-                <Route path="/user-roles" element={<UserAndRoles />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/settings/" element={<SettingsScreen />} />
-            </CustomRoutes>
+        <StyledAppAtom>
+            <Admin
+                dataProvider={dataProvider || undefined}
+                layout={CustomLayout}
+                theme={fullAdminTheme}
+                i18nProvider={adminI18nProvider}
+            >
+                <CustomRoutes>
+                    {/* Default route - redirect to election events */}
+                    <Route
+                        path="/"
+                        element={<Navigate to="/sequent_backend_election_event" replace />}
+                        index
+                    />
+                    {/* <Route path="/logs" element={<Logs />} /> */}
+                    <Route path="/tenant" element={<SelectTenant />} />
+                    <Route path="/user-roles" element={<UserAndRoles />} />
+                    <Route path="/messages" element={<Messages />} />
+                    <Route path="/settings/*" element={<SettingsScreen />} />
+                </CustomRoutes>
 
-            <Resource
-                name="sequent_backend_election_event"
-                list={ElectionEventList}
-                create={CreateElectionList}
-                edit={ElectionEventBaseTabs}
-                show={ElectionEventBaseTabs}
-                options={{label: "Election Events", isMenuParent: true}}
-            />
+                <Resource
+                    name="sequent_backend_election_event"
+                    list={ElectionEventList}
+                    edit={ElectionEventBaseTabs}
+                    show={ElectionEventBaseTabs}
+                    options={{label: "Election Events", isMenuParent: true}}
+                />
 
-            <Resource
-                name="sequent_backend_election_type"
-                create={SettingsElectionsTypesCreate}
-                edit={SettingsScreen}
-                show={SettingsScreen}
-                options={{label: "Election Type", isMenuParent: true}}
-            />
+                <Resource
+                    name="sequent_backend_election_type"
+                    create={SettingsElectionsTypesCreate}
+                    edit={SettingsScreen}
+                    show={SettingsScreen}
+                    options={{label: "Election Type", isMenuParent: true}}
+                />
 
-            <Resource
-                name="sequent_backend_election"
-                list={ListElection}
-                create={CreateElection}
-                show={ElectionBaseTabs}
-                edit={ElectionBaseTabs}
-                options={{
-                    label: "Elections",
-                    menuParent: "sequent_backend_election_event",
-                    foreignKeyFrom: "election_event_id",
-                }}
-            />
+                <Resource
+                    name="sequent_backend_election"
+                    list={ListElection}
+                    create={CreateElection}
+                    show={ElectionBaseTabs}
+                    edit={ElectionBaseTabs}
+                    options={{
+                        label: "Elections",
+                        menuParent: "sequent_backend_election_event",
+                        foreignKeyFrom: "election_event_id",
+                    }}
+                />
 
-            <Resource
-                name="sequent_backend_contest"
-                list={ListContest}
-                create={CreateContest}
-                edit={ContestBaseTabs}
-                show={ContestBaseTabs}
-                options={{
-                    label: "Contests",
-                    menuParent: "sequent_backend_election",
-                    foreignKeyFrom: "election_id",
-                }}
-            />
-            <Resource
-                name="sequent_backend_candidate"
-                list={ListCandidate}
-                create={CreateCandidate}
-                edit={CandidateBaseTabs}
-                show={CandidateBaseTabs}
-                options={{
-                    label: "Candidates",
-                    menuParent: "sequent_backend_contest",
-                    foreignKeyFrom: "contest_id",
-                }}
-            />
-            <Resource
-                name="sequent_backend_ballot_style"
-                edit={EditBallotStyle}
-                list={ListBallotStyle}
-                create={CreateBallotStyle}
-                options={{label: "Ballot Styles"}}
-            />
-            <Resource
-                name="sequent_backend_area"
-                edit={EditArea}
-                list={ListArea}
-                create={CreateArea}
-                options={{label: "Area"}}
-            />
-            <Resource
-                name="sequent_backend_area_contest"
-                edit={EditAreaContest}
-                list={ListAreaContest}
-                create={CreateAreaContest}
-                options={{label: "Area Contest"}}
-            />
-            <Resource
-                name="sequent_backend_tenant"
-                edit={EditTenant}
-                list={ListTenant}
-                create={CreateTenant}
-                options={{label: "Customer"}}
-            />
-            <Resource
-                name="sequent_backend_document"
-                show={ShowDocument}
-                list={ListDocument}
-                create={CreateDocument}
-                options={{label: "Document"}}
-            />
+                <Resource
+                    name="sequent_backend_contest"
+                    list={ListContest}
+                    create={CreateContest}
+                    edit={ContestBaseTabs}
+                    show={ContestBaseTabs}
+                    options={{
+                        label: "Contests",
+                        menuParent: "sequent_backend_election",
+                        foreignKeyFrom: "election_id",
+                    }}
+                />
+                <Resource
+                    name="sequent_backend_candidate"
+                    list={ListCandidate}
+                    create={CreateCandidate}
+                    edit={CandidateBaseTabs}
+                    show={CandidateBaseTabs}
+                    options={{
+                        label: "Candidates",
+                        menuParent: "sequent_backend_contest",
+                        foreignKeyFrom: "contest_id",
+                    }}
+                />
+                <Resource
+                    name="sequent_backend_ballot_style"
+                    edit={EditBallotStyle}
+                    list={ListBallotStyle}
+                    create={CreateBallotStyle}
+                    options={{label: "Ballot Styles"}}
+                />
+                <Resource
+                    name="sequent_backend_area"
+                    edit={UpsertArea}
+                    list={ListArea}
+                    create={UpsertArea}
+                    options={{label: "Area"}}
+                />
+                <Resource
+                    name="sequent_backend_area_contest"
+                    edit={EditAreaContest}
+                    list={ListAreaContest}
+                    create={CreateAreaContest}
+                    options={{label: "Area Contest"}}
+                />
+                <Resource
+                    name="sequent_backend_tenant"
+                    edit={EditTenant}
+                    list={ListTenant}
+                    create={CreateTenant}
+                    options={{label: "Customer"}}
+                />
+                <Resource
+                    name="sequent_backend_document"
+                    show={ShowDocument}
+                    list={ListDocument}
+                    create={CreateDocument}
+                    options={{label: "Document"}}
+                />
+                <Resource
+                    name="sequent_backend_notification"
+                    edit={Notifications}
+                    list={Notifications}
+                    options={{label: "Notifications"}}
+                />
+                <Resource
+                    name="sequent_backend_template"
+                    edit={TemplateEdit}
+                    list={TemplateList}
+                    create={TemplateCreate}
+                    options={{label: "Templates"}}
+                />
+                <Resource
+                    name="sequent_backend_scheduled_event"
+                    edit={ListScheduledEvents}
+                    list={ListScheduledEvents}
+                    options={{label: "Scheduled Events"}}
+                />
 
-            <Resource
-                name="sequent_backend_communication_template"
-                edit={CommunicationTemplateEdit}
-                list={CommunicationTemplateList}
-                create={CommunicationTemplateCreate}
-                options={{label: "Communication Template"}}
-            />
-            <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
-        </Admin>
+                <Resource
+                    name="sequent_backend_report"
+                    list={ListReports}
+                    create={ListReports}
+                    edit={ListReports}
+                    options={{label: "Reports"}}
+                />
+
+                <Resource
+                    name="user"
+                    edit={UpsertArea}
+                    list={ListUsers}
+                    options={{label: "Users"}}
+                />
+            </Admin>
+        </StyledAppAtom>
     )
 }
 

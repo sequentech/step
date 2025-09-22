@@ -1,0 +1,226 @@
+{{!--
+SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+  SPDX-License-Identifier: AGPL-3.0-only
+  --}}
+  <div class="report">
+    <!-- MAIN section -->
+    <table align="center" style="width: 100%">
+      <tr>
+        <td style="text-align: center; padding: 10px 0">
+          <div style="width: 100%">
+            <!-- Inner table section -->
+            <table style="width: 100%" class="top-header">
+              <!-- End of report section -->
+              <tr>
+                <td align="left">
+                  <table style="width: 100%">
+                    <tr>
+                      <td class="left">
+                        <div>
+                          <p>
+                            {{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
+                            with_timezone="UTC"}}
+                          </p>
+                        </div>
+                      </td>
+                      <td class="right copy">
+                        <div />
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <!-- End of report section -->
+              <!-- Document header block -->
+              <tr>
+                <td>
+                  <table class="main-header">
+                    <td width="23%" class="left" valign="top">
+                      <img
+                        src="data:image/png;base64,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" />
+                    </td>
+                    <td width="54%" class="center">
+                      <div class="country">SEQUENT ONLINE VOTING</div>
+                      <div class="election-name">
+                        {{sanitize_html (expr election_event_title)}}
+                      </div>
+                      <div class="online">ONLINE VOTING AND COUNTING SYSTEM</div>
+                      <div class="voting-period">
+                        Voting Period: {{datetime
+                        from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
+                        output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
+                        from_rfc3339=election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
+                        output_format="%d %B %Y"
+                        with_timezone="UTC"}}
+                      </div>
+
+                    </td>
+                    <td width="23%" class="right" valign="top">
+                    </td>
+                  </table>
+                </td>
+              </tr>
+              <!-- Document header block -->
+            </table>
+          </div>
+        </td>
+      </tr>
+      <!-- Inner table section -->
+
+      <!-- Main itle -->
+      <tr class="main-title">
+        <td align="center">
+          <p>
+            <strong>AUDIT LOGS</strong>
+          </p>
+        </td>
+      </tr>
+      <!-- Main itle -->
+
+      <!-- Additional sections -->
+      <tr>
+        <td>
+          <div>
+            <table class="stats-table">
+              <tr>
+                <td class="key">
+                  <strong>Number of Registered Voters:</strong>
+                </td>
+                <td class="value">
+                  {{format_u64 registered_voters}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key">
+                  <strong>Number of Ballots Counted:</strong>
+                </td>
+                <td class="value">
+                  {{format_u64 ballots_counted}}
+                </td>
+              </tr>
+              <tr>
+                <td class="key">
+                  <strong>Voters Turnout (%):</strong>
+                </td>
+                <td class="value">{{format_percentage voters_turnout}}%</td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+      <!-- END of additional sections -->
+      <!-- Title secondary section -->
+      <tr>
+        <td align="center">
+          <p class="sequences-title">
+            <strong>RECORDS</strong>
+          </p>
+        </td>
+      </tr>
+      <!-- END Title secondary section -->
+      <!-- Additional sections -->
+      <tr>
+        <td class="sequences-container">
+          <div class="sequences">
+            <table style="width: 100%; border: 1px solid black; border-collapse: collapse; ">
+              <thead>
+                <tr>
+                  <td class="sequence-data" style="width: 40px; white-space: normal; overflow-wrap: break-word;">
+                    <strong>Sequence Number (#)</strong>
+                  </td>
+                  <td class="sequence-data" style="width: 60px; white-space: normal; overflow-wrap: break-word;">
+                    <strong>Date and time</strong>
+                  </td>
+                  <td class="sequence-data" style="width: 40px;">
+                    <strong>User</strong>
+                  </td>
+                  <td class="sequence-data" style="width: 30px; white-space: normal; overflow-wrap: break-word;">
+                    <strong>User kind</strong>
+                  </td>
+                  <td class="sequence-data">
+                    <strong>Activity</strong>
+                  </td>
+                </tr>
+              </thead>
+              <tbody>
+                {{#each sequences}}
+                <tr>
+                  <td class="sequence-data">{{format_u64 number}}</td>
+                  <td class="sequence-data">
+                    {{datetime from_rfc3339=datetime output_format="%B %d" with_timezone="UTC"}}
+                    <br />
+                    {{datetime from_rfc3339=datetime output_format="%Y, %H:%M" with_timezone="UTC"}}
+                  </td>
+                  <td class="sequence-data" style="white-space: normal; overflow-wrap: anywhere;">
+                    {{username}}
+                  </td>
+                  <td class="sequence-data">
+                    {{userkind}}
+                  </td>
+                  <td class="sequence-data" style="white-space: normal; overflow-wrap: break-word;">
+                    {{activity}}
+                  </td>
+                </tr>
+                {{/each}}
+              </tbody>
+            </table>
+          </div>
+        </td>
+      </tr>
+      <!-- END of additional sections -->
+
+
+      <!-- QR CODES section -->
+      <tr>
+        <td class="qr-codes" align="center">
+          <div>
+            <div class="qrcode" id="qrcode"></div>
+          </div>
+        </td>
+      </tr>
+      <!-- END QR CODES section -->
+      <!-- END Title secondary section -->
+
+      <!-- Left paragraph section -->
+      <tr>
+        <td class="sys-info">
+          <div>
+            <span class="word-break">Report hash: {{sanitize_html (expr
+              execution_annotations.report_hash)}}</span><br />
+            <br />
+            Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
+            System hash: {{sanitize_html (expr execution_annotations.app_hash)}}
+          </div>
+        </td>
+      </tr>
+      <!-- END Left paragraph section -->
+
+      <!-- End of report section -->
+      <tr>
+        <td class="report-end" align="center">
+          <div>
+            <p>End of Report</p>
+            <hr />
+          </div>
+        </td>
+      </tr>
+      <!-- End of report section -->
+    </table>
+    <!-- MAIN section -->
+  </div>
+  <script>
+    let reportHash = '{{{execution_annotations.report_hash}}}';
+    let systemHash = '{{{execution_annotations.app_hash}}}';
+    let softwareVersion = '{{{execution_annotations.software_version}}}';
+    let ovcsVersion = '{{{execution_annotations.app_version}}}';
+    let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
+                          with_timezone="UTC"}}`
+    let user = '{{expr execution_annotations.executer_username}}'
+
+    const qrcode = new QRCode(document.getElementById("qrcode"), {
+      text:
+        `AUDIT LOGS: report hash:${reportHash}, system hash: ${systemHash}, software version: ${softwareVersion}, ovcs version: ${ovcsVersion}, date and time: ${date}, user who generated: ${user}`,
+      width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  </script>

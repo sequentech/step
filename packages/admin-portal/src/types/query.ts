@@ -8,7 +8,7 @@ import {
     Sequent_Backend_Ballot_Publication,
     Sequent_Backend_Ballot_Style,
     Sequent_Backend_Cast_Vote,
-    Sequent_Backend_Communication_Template,
+    Sequent_Backend_Template,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
@@ -31,6 +31,9 @@ import {
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tenant,
     Sequent_Backend_Trustee,
+    Sequent_Backend_Tasks_Execution,
+    Sequent_Backend_Report,
+    Sequent_Backend_Results_Election_Area,
 } from "@/gql/graphql"
 
 export const sequent_backend_trustee: Sequent_Backend_Trustee = {
@@ -43,6 +46,18 @@ export const sequent_backend_trustee: Sequent_Backend_Trustee = {
     name: undefined,
     public_key: undefined,
     tenant_id: undefined,
+}
+
+export const sequent_backend_report: Sequent_Backend_Report = {
+    created_at: undefined,
+    cron_config: undefined,
+    election_event_id: undefined,
+    election_id: undefined,
+    id: undefined,
+    report_type: "",
+    template_alias: undefined,
+    tenant_id: undefined,
+    encryption_policy: "",
 }
 
 export const sequent_backend_tenant: Sequent_Backend_Tenant = {
@@ -92,6 +107,7 @@ export const sequent_backend_tally_session_execution: Sequent_Backend_Tally_Sess
     status: undefined,
     tally_session_id: "",
     tenant_id: "",
+    documents: undefined,
 }
 
 export const sequent_backend_tally_session_contest: Sequent_Backend_Tally_Session_Contest = {
@@ -222,11 +238,11 @@ export const sequent_backend_cast_vote: Sequent_Backend_Cast_Vote = {
     voter_id_string: undefined,
 }
 
-export const sequent_backend_communication_template: Sequent_Backend_Communication_Template = {
+export const sequent_backend_template: Sequent_Backend_Template = {
     __typename: undefined,
     annotations: undefined,
     communication_method: "",
-    communication_type: "",
+    type: "",
     created_at: "",
     created_by: "",
     id: "",
@@ -287,7 +303,6 @@ export const sequent_backend_election: Sequent_Backend_Election = {
     contests: [],
     contests_aggregate: {} as any,
     created_at: undefined,
-    dates: undefined,
     description: undefined,
     election_event_id: "",
     eml: undefined,
@@ -315,7 +330,6 @@ export const sequent_backend_election_event: Sequent_Backend_Election_Event = {
     audit_election_event_id: undefined,
     bulletin_board_reference: undefined,
     created_at: undefined,
-    dates: undefined,
     description: undefined,
     elections: [],
     elections_aggregate: {} as any,
@@ -392,6 +406,9 @@ export const sequent_backend_keys_ceremony: Sequent_Backend_Keys_Ceremony = {
     tenant_id: "",
     threshold: 1,
     trustee_ids: [],
+    name: "",
+    settings: {},
+    is_default: true,
 }
 
 export const sequent_backend_lock: Sequent_Backend_Lock = {
@@ -453,6 +470,19 @@ export const sequent_backend_results_area_contest_candidate: Sequent_Backend_Res
         tenant_id: "",
         winning_position: undefined,
     }
+
+export const sequent_backend_results_election_area: Sequent_Backend_Results_Election_Area = {
+    __typename: undefined,
+    area_id: "",
+    created_at: undefined,
+    documents: undefined,
+    election_event_id: "",
+    election_id: "",
+    id: "",
+    results_event_id: "",
+    tenant_id: "",
+    last_updated_at: undefined,
+}
 
 export const sequent_backend_results_contest: Sequent_Backend_Results_Contest = {
     __typename: undefined,
@@ -528,6 +558,7 @@ export const sequent_backend_scheduled_event: Sequent_Backend_Scheduled_Event = 
     __typename: undefined,
     annotations: undefined,
     created_at: undefined,
+    archived_at: undefined,
     created_by: undefined,
     cron_config: undefined,
     election_event_id: undefined,
@@ -538,6 +569,25 @@ export const sequent_backend_scheduled_event: Sequent_Backend_Scheduled_Event = 
     stopped_at: undefined,
     task_id: undefined,
     tenant_id: undefined,
+}
+
+export const sequent_backend_tasks_execution: Sequent_Backend_Tasks_Execution = {
+    __typename: undefined,
+    annotations: undefined,
+    created_at: undefined,
+    election_event_id: undefined,
+    end_at: undefined,
+    executed_by_user: "",
+    execution_status: "",
+    id: undefined,
+    labels: undefined,
+    logs: undefined,
+    name: "",
+    start_at: undefined,
+    /** An object relationship */
+    tenant: {} as any,
+    tenant_id: undefined,
+    type: "",
 }
 
 export const COLUMNS_MAP: {[key: string]: Array<string>} = {
@@ -553,10 +603,14 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     sequent_backend_ballot_publication: Object.keys(sequent_backend_ballot_publication),
     sequent_backend_ballot_style: Object.keys(sequent_backend_ballot_style),
     sequent_backend_cast_vote: Object.keys(sequent_backend_cast_vote),
-    sequent_backend_communication_template: Object.keys(sequent_backend_communication_template),
+    sequent_backend_template: Object.keys(sequent_backend_template),
     sequent_backend_contest: Object.keys(sequent_backend_contest),
     sequent_backend_document: Object.keys(sequent_backend_document),
-    sequent_backend_election: Object.keys(sequent_backend_election),
+    sequent_backend_election: [
+        ...Object.keys(sequent_backend_election),
+        "keys_ceremony_id",
+        "name@_ilike,alias@_ilike",
+    ],
     sequent_backend_election_event: Object.keys(sequent_backend_election_event),
     sequent_backend_election_result: Object.keys(sequent_backend_election_result),
     sequent_backend_election_type: Object.keys(sequent_backend_election_type),
@@ -572,5 +626,7 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
         sequent_backend_results_contest_candidate
     ),
     sequent_backend_results_election: Object.keys(sequent_backend_results_election),
+    sequent_backend_results_election_area: Object.keys(sequent_backend_results_election_area),
     sequent_backend_scheduled_event: Object.keys(sequent_backend_scheduled_event),
+    sequent_backend_tasks_execution: Object.keys(sequent_backend_tasks_execution),
 }

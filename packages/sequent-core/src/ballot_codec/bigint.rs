@@ -22,6 +22,7 @@ pub trait BigUIntCodec {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String>;
+
     fn decode_plaintext_contest_bigint(
         &self,
         bigint: &BigUint,
@@ -57,7 +58,7 @@ fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();
     let mut i = choices.len() - 1;
-    while 0 == choices[i] {
+    while 0 == choices[i] && i > 0 {
         i -= 1;
     }
     choices.insert(i, bases[i] - 1);
@@ -120,7 +121,7 @@ impl BigUIntCodec for Contest {
         &self,
         bigint: &BigUint,
     ) -> Result<RawBallotContest, String> {
-        let mut bases = self.get_bases();
+        let mut bases = self.get_bases().map_err(|e| e.to_string())?;
         let last_base = self.get_char_map().base();
         let choices = decode(&bases, &bigint, last_base)?;
 

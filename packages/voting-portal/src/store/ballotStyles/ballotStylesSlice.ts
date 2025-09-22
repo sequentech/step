@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IBallotStyle as IElectionDTO} from "@sequentech/ui-essentials"
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 
 export interface IBallotStyle {
     id: string
@@ -48,5 +48,24 @@ export const selectBallotStyleElectionIds = (state: RootState) => Object.keys(st
 
 export const selectFirstBallotStyle = (state: RootState): IBallotStyle | undefined =>
     Object.values(state.ballotStyles)?.[0]
+
+export const selectAllBallotStyles = (state: RootState): Array<IBallotStyle> =>
+    state.ballotStyles
+        ? Object.values(state.ballotStyles)
+              .filter((bs) => bs)
+              .map((bs) => bs as IBallotStyle)
+        : []
+
+export const showDemo = (electionId: string | undefined) => (state: RootState) => {
+    const isPreview = sessionStorage.getItem("isDemo")
+    if (isPreview) {
+        return isPreview === "true"
+    }
+    const ballotStyles = selectAllBallotStyles(state)
+    let filteredBallotStyles = ballotStyles.filter((bs) =>
+        electionId ? bs.election_id === electionId : true
+    )
+    return filteredBallotStyles.some((bs) => bs?.ballot_eml.public_key?.is_demo)
+}
 
 export default ballotStylesSlice.reducer

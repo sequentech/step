@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2024 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {theme, initializeLanguages} from "@sequentech/ui-essentials"
+import {theme, initializeLanguages} from "@sequentech/ui-core"
 import {ThemeProvider} from "@mui/material"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import englishTranslation from "../src/translations/en"

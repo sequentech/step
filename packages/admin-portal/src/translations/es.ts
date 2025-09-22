@@ -5,73 +5,38 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
+        philippinePassport: "Pasaporte filipino",
+        seamanBook: "Libro de marinero",
+        philSysID: "Identificación PhilSys",
+        iBP: "Colegio de Abogados Integrado de Filipinas (IBP)",
+        driversLicense: "Licencia de conducir",
+        loading: "Cargando...",
         loadingDataProvider: "Cargando proveedor de datos...",
-        breadcrumbSteps: {
-            electionList: "Lista de Votaciones",
-            ballot: "Ballot",
-            review: "Review",
-            confirmation: "Confirmation",
-            audit: "Auditar",
-        },
-        votingScreen: {
-            backButton: "Back",
-            reviewButton: "Next",
-            ballotHelpDialog: {
-                title: "Información: Pantalla de votación",
-                content:
-                    "Esta pantalla muestra la votación en la que usted es elegible para votar. Puede seleccionar su sección activando la casilla de la derecha Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Borrar selección</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
-                ok: "OK",
-            },
-        },
-        startScreen: {
-            startButton: "Empezar a votar",
-            instructionsTitle: "Instrucciones",
-            instructionsDescription: "Seguirá estos pasos al emitir tu voto:",
-            step1Title: "1. Seleccione su opción de voto",
-            step1Description:
-                "Seleccione sus opciones de voto que se presentan una a una. Configurará así las preferencias de su papeleta.",
-            step2Title: "2. Revise su papeleta",
-            step2Description:
-                "Una vez ha elegido sus preferencias, procederemos a cifrarlas y obtendrá un localizador. Le mostraremos el contenido de su papeleta para que pueda revisarla.",
-            step3Title: "3. Envíe su voto",
-            step3Description:
-                "Puede enviar su voto a la urna electrónica para que sea debidamente registrado.",
-        },
-        reviewScreen: {
-            title: "Review your ballot",
-            description:
-                "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow, and to audit your ballot click the “<b>Audit the Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
-            backButton: "Edit ballot",
-            castBallotButton: "Cast your ballot",
-            auditButton: "Audit ballot",
-            reviewScreenHelpDialog: {
-                title: "Información: Pantalla de revisión",
-                content:
-                    "Esta pantalla le permite revisar sus selecciones antes de emitir su voto.",
-                ok: "OK",
-            },
-            ballotIdHelpDialog: {
-                title: "Voto no emitido",
-                content:
-                    "<p>Está a punto de copiar el Localizador del Voto, pero <b>su voto aún no se ha emitido</b>. Si intenta buscar el Localizador del Voto, no lo encontrará.</p><p>La razón por la que mostramos el Localizador del Voto en este momento es para que pueda auditar la corrección del voto cifrado antes de emitirlo. Si esa es la razón por la que desea copiar el Localizador del Voto, proceda a copiarlo y luego audite su voto.</p>",
-                ok: "Acepto que mi voto NO ha sido emitido",
-                cancel: "Cancelq4",
-            },
-            auditBallotHelpDialog: {
-                title: "¿Realmente quieres Auditar tu papeleta?",
-                content:
-                    "<p>La auditoría de la papeleta lo invalidará y tendrás que iniciar el proceso de votación de nuevo si deseas emitir tu voto. El proceso de auditoría de la papeleta permite verificar que está codificada correctamente. Hacer este proceso requiere que unos conocimientos técnicos importantes, por lo que no se recomienda si no sabes lo que estás haciendo.</p><p><b>Si lo que desea es emitir su voto, en <u>Cancelar</u> para volver a la pantalla de revisión de votación.</b></p>",
-                ok: "Si, quiero INVALIDAR mi papeleta para AUDITARLA",
-                cancel: "Cancelar",
-            },
-        },
         logsScreen: {
             noPermissions: "No tienes permiso para acceder a las bitácoras.",
             title: "Bitácoras",
             subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
             column: {
-                id: "Id",
-                statement: "Statement",
+                id: "ID",
+                statement_kind: "Tipo de declaración",
+                created: "Creado",
+                statement_timestamp: "Marca de tiempo de declaración",
+                message: "Mensaje",
+                user_id: "ID de usuario",
+                username: "Nombre de Usuario",
+                sender_pk: "Clave primaria del remitente",
+                log_type: "Tipo de registro",
+                event_type: "Tipo de evento",
+                description: "Descripción",
+                version: "Versión",
+            },
+            exportdialog: {
+                description:
+                    "Por favor, confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
+            },
+            actions: {
+                csv: "Exportar en CSV",
+                pdf: "Exportar en PDF",
             },
             main: {
                 title: "Bitácora de Base de Datos Principal",
@@ -80,64 +45,54 @@ const spanishTranslation: TranslationType = {
                 title: "Bitácora de Base de Datos de IAM",
             },
         },
-        confirmationScreen: {
-            title: "Su voto ha sido emitido",
-            description:
-                "El código de confirmación que aparece a continuación verifica que <b>su voto se ha emitido correctamente</b>. Puede utilizar este código para verificar que su voto ha sido contabilizado.",
-            ballotId: "Localizador del Voto",
-            printButton: "Imprimir",
-            finishButton: "Finalizar",
-            verifyCastTitle: "Compruebe que su voto ha sido emitido",
-            verifyCastDescription:
-                "Puede comprobar en todo momento que su papeleta se ha emitido correctamente utilizando el siguiente código QR:",
-            confirmationHelpDialog: {
-                title: "Información: Pantalla de confirmación",
-                content:
-                    "Esta pantalla muestra que su voto se ha emitido correctamente. La información proporcionada en esta página le permite verificar que la papeleta ha sido almacenada en la urna , este proceso puede ser ejecutado en cualquier momento durante el periodo de votación y después de que la elección haya sido cerrada.",
-                ok: "OK",
+        tasksScreen: {
+            noPermissions: "No tienes permiso para acceder a los registros.",
+            title: "Ejecución de tareas",
+            subtitle: "Información sobre las tareas ejecutadas",
+            taskInformation: "Información de la tarea",
+            status: "estado: {{status}}",
+            ok: "Aceptar",
+            column: {
+                id: "Índice",
+                name: "Nombre de la tarea",
+                type: "Tipo",
+                execution_status: "Estado",
+                start_at: "Hora de inicio",
+                end_at: "Hora de finalización",
+                executed_by_user: "Ejecutor",
+                annotations: "Anotaciones",
+                labels: "Etiquetas",
+                logs: "Registros",
             },
-            ballotIdHelpDialog: {
-                title: "Información: Localizador del Voto",
-                content:
-                    "El Localizador del Voto de papeleta es un código que le permite encontrar su papeleta en la urna, este Localizador es único y no contiene información sobre sus selecciones.",
-                ok: "OK",
+            tasksExecution: {
+                EXPORT_ELECTION_EVENT: "Exportar evento electoral",
+                CREATE_ELECTION_EVENT: "Crear Evento Electoral",
+                IMPORT_ELECTION_EVENT: "Importar evento electoral",
+                IMPORT_USERS: "Importar usuarios",
+                IMPORT_CANDIDATES: "Importar candidatos",
+                EXPORT_VOTERS: "Exportar votantes",
+                CREATE_TRANSMISSION_PACKAGE: "Crear paquete de transmisión",
+                EXPORT_BALLOT_PUBLICATION: "Exportar Publicación de Boleta",
+                EXPORT_ACTIVITY_LOGS_REPORT: "Exportar Informe de Registros de Actividad",
+                GENERATE_REPORT: "Generar Reporte",
+                GENERATE_TRANSMISSION_REPORT: "Generar Informe de Transmisión",
+                EXPORT_TRUSTEES: "Exportar Autoridades",
+                EXPORT_APPLICATION: "Exportar Solicitudes",
+                EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
+                IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
+                RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
+                EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
             },
-        },
-        auditScreen: {
-            printButton: "Imprimir",
-            restartButton: "Iniciar votación",
-            title: "Audite su Papeleta",
-            description: "Para verificar su papeleta deberá seguir los siguientes pasos:",
-            step1Title: "1. Descargue o copie la siguiente información",
-            step1Description:
-                "Tu <b>Localizador del Voto</b> que aparece en la parte superior de la pantalla y tu papeleta encriptada a continuación:",
-            step1HelpDialog: {
-                title: "Copiar el Voto Cifrado",
-                content:
-                    "Puede descargar o copiar su Voto Cifrado para auditarlo y verificar que el contenido encriptado contiene sus selecciones.",
-                ok: "OK",
+            widget: {
+                taskTitle: "Tarea: {{title}}",
+                viewTask: "Ver Tarea",
+                downloadDocument: "Descargar Archivo",
             },
-            downloadButton: "Descargar",
-            step2Title: "2. Siga los pasos de este tutorial",
-            step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">haga click aquí</a>, se abrirá una nueva pestaña en su navegador)',
-            step2HelpDialog: {
-                title: "Tutorial sobre la Auditoría del Voto",
-                content:
-                    "Para auditar su voto deberá seguir los pasos indicados en el tutorial, que incluyen la descarga de una aplicación de escritorio utilizada para verificar el voto cifrado independientemente del sitio web.",
-                ok: "OK",
-            },
-            bottomWarning:
-                "Por motivos de seguridad, cuando audite su papeleta, deberá invalidarla. Para continuar con el proceso de votación, haga clic en ‘<b>Iniciar votación/b>’.",
-        },
-        electionSelectionScreen: {
-            title: "Lista de Votaciones",
-            description: "Seleccione la votación que desea votar",
-            chooserHelpDialog: {
-                title: "Información: Lista de Votaciones",
-                content:
-                    'Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto. En el caso de que una elección esté cerrada y su administrador electoral haya publicado el resultado, verá un botón "Resultado electoral" que le llevará a la página pública de resultados.',
-                ok: "OK",
+            exportTasksExecution: {
+                success: "La exportación se completó con éxito",
+                error: "Error al exportar la Ejecución de Tareas",
             },
         },
         areas: {
@@ -147,11 +102,22 @@ const spanishTranslation: TranslationType = {
                 deleteError: "Error borrando Área",
             },
             createAreaSuccess: "Área creada",
+            updateAreaSuccess: "Área actualizada",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
             empty: {
                 header: "No hay Áreas aún.",
                 action: "Crear un Área",
+            },
+        },
+        lookAndFeelScreen: {
+            common: {
+                helpLinks: "Enlaces de Ayuda",
+                logoUrl: "Logo URL",
+                css: "CSS Personalizado",
+            },
+            errors: {
+                invalidHelpLinks: "Formato de Enlaces de Ayuda inválido",
             },
         },
         electionTypeScreen: {
@@ -178,10 +144,28 @@ const spanishTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALES DE VOTACIÓN",
                 electionTypes: "TIPOS DE ELECCIÓN",
-                communications: "COMUNICACIÓN",
+                templates: "PLANTILLAS",
                 languages: "IDIOMAS",
+                localization: "LOCALIZACIÓN",
+                lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
+                BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
+            },
+        },
+        trusteesSettingsScreen: {
+            common: {
+                emptyHeader: "Aún no hay fideicomisarios.",
+                createNew: "Crear fideicomisario",
+                title: "Fideicomisario",
+                subtitle: "Configuración del fideicomisario",
+                emptyBody: "¿Quieres crear uno?",
+            },
+            create: {
+                title: "Crear fideicomisario",
+            },
+            edit: {
+                title: "Editar fideicomisario",
             },
         },
         scheduleScreen: {
@@ -224,22 +208,62 @@ const spanishTranslation: TranslationType = {
             voteByDay: "Votos por día",
             votersByChannels: "Votantes por canales",
             voterLoginURL: "URL de inicio de sesión de votantes",
+            voterEnrollURL: "URL de inscripción de votantes",
+            voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
+            ipAddress: {
+                emptyState: "Aún no hay votos.",
+                title: "IP Addresses",
+                ip: "IP",
+                country: "País",
+                VoteCount: "Número de votos",
+                ElectionName: "Nombre de la elección",
+                VotersId: "Identificadores de votantes",
+            },
         },
         electionEventScreen: {
             common: {
                 subtitle: "Configuración del Evento Electoral.",
                 showMore: "Mostrar más",
                 showLess: "Mostrar menos",
+                adminPortal: "Portal de Administración",
+                allowPublishAfterLockdown: "Only allow election event publishing after lockdown",
+                reset: "Restablecer filtro personalizado",
             },
             edit: {
                 general: "General",
                 dates: "Fechas",
+                customUrls: "Prefixo de URLs personalizados",
+                votingPeriod: "Período de votación",
                 language: "Idiomas",
                 allowed: "Canales de Voto Permitidos",
                 materials: "Materiales de Soporte",
                 ballotDesign: "Diseño de la Papeleta",
+                templates: "Plantillas",
+                reorder: "Reordenar elecciones",
                 advancedConfigurations: "Voting Portal Countdown Policy",
                 importCandidates: "Importar Candidatos",
+                custom_filters: "Filtros personalizados",
+                voter_authentication: "Autenticación de votantes",
+            },
+            customUrls: {
+                login: "Inicio de sesión",
+                enrollment: "Inscripción",
+            },
+            localization: {
+                emptyHeader: "No se han establecido idiomas para el evento",
+                selectLanguage: "Seleccionar idioma",
+                notify: {
+                    success: "Localización actualizada con éxito",
+                    error: "La actualización de la localización ha fallado",
+                },
+                common: {
+                    title: "Localización",
+                    subTitle: "Configuración de la localización",
+                },
+                labels: {
+                    key: "Clave",
+                    value: "Valor",
+                },
             },
             field: {
                 name: "Nombre",
@@ -252,12 +276,39 @@ const spanishTranslation: TranslationType = {
                 materialActivated: "Materiales de Soporte activados",
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
-                hideAudit: "Deshabilitar Soporte de Auditoría de la Papeleta",
                 logoUrl: "Logo URL",
+                userVerification:
+                    "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                showCastVoteLogs: {
+                    policyLabel: "Mostrar logs de votación",
+                    options: {
+                        "show-logs-tab": "Mostrar Tab de logs de votación",
+                        "hide-logs-tab": "Ocultar Tab de logs de votación",
+                    },
+                },
+                lockdownState: {
+                    policyLabel: "Estado de Confinamiento",
+                    options: {
+                        "locked-down": "Confinado",
+                        "not-locked-down": "No Confinado",
+                    },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Incluir papeletas decodificadas en la base de datos de resultados",
+                    options: {"included": "Incluir", "not-included": "No incluir"},
+                },
+                contestEncryptionPolicy: {
+                    options: {
+                        "single-contest": "Concurso único",
+                        "multiple-contests": "Varios concursos",
+                    },
+                    policyLabel: "Política de cifrado de concurso",
+                },
                 countDownPolicyOptions: {
                     NO_COUNTDOWN: "Sin cuenta regresiva",
                     COUNTDOWN: "Cuenta regresiva",
@@ -269,11 +320,38 @@ const spanishTranslation: TranslationType = {
                     alertSecondsLabel:
                         "tiempo en segundos antes de la expiración para mostrar la alerta de cierre de sesión",
                 },
+                voterSigningPolicy: {
+                    "policyLabel": "Política de Firma de Votantes",
+                    "no-signature": "Sin firma",
+                    "with-signature": "Con firma",
+                },
+                enrollment: {
+                    policyLabel: "Inscripción",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
+                otp: {
+                    policyLabel: "OTP",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de ceremonias de llaves/recuento",
+                    options: {
+                        "automated-ceremonies": "Permitir ceremonias automáticas",
+                        "manual-ceremonies": "Ceremonias manuales",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 noResult: "No Election Event yet",
                 startDate: "La fecha de inicio debe ser en el futuro",
+                endDateInvalid: "La fecha de finalización debe estar en el futuro",
             },
             voters: {
                 title: "Votantes",
@@ -316,13 +394,20 @@ const spanishTranslation: TranslationType = {
             },
             tabs: {
                 dashboard: "Panel de Control",
+                monitoring: "Monitoreo",
                 data: "Datos",
+                localization: "Localización",
                 voters: "Votantes",
                 areas: "Áreas",
                 keys: "Claves",
                 tally: "Recuento",
                 publish: "Publicar",
                 logs: "Logs",
+                tasks: "Tareas",
+                events: "Eventos Programados",
+                notifications: "Notificaciones",
+                reports: "Informe",
+                approvals: "Aprobaciones",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -331,10 +416,17 @@ const spanishTranslation: TranslationType = {
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
+                permissionLabels: "Etiquetas de Permisos",
+                tallyType: {
+                    label: "Tipo de Conteo",
+                    ELECTORAL_RESULTS: "Resultados Electorales",
+                    INITIALIZATION_REPORT: "Resultados de Inicialización",
+                },
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
-                    createButton: "Iniciar la Ceremonia de Recuento",
+                    createTallyButton: "Iniciar la Ceremonia de Recuento",
+                    createInitializationReportButton: "Crear Informe de Inicialización",
                     error: {
                         create: "Error creando Recuento",
                     },
@@ -344,8 +436,16 @@ const spanishTranslation: TranslationType = {
                     noLogs: "No hay registros disponibles",
                 },
                 notify: {
+                    noKeysTally:
+                        "La Ceremonia de Recuento no puede comenzar hasta que la Ceremonia de Claves se haya completado con éxito.",
+                    noPublication:
+                        "La Ceremonia de Escrutinio no puede comenzar hasta que crees una publicación en la pestaña Publicar.",
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Recuento. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
+                    startDisabled:
+                        "No puedes continuar con la ceremonia porque no se han seleccionado elecciones o las elecciones no están publicadas.",
+                    ceremonyDisabled:
+                        "No puedes continuar con la ceremonia porque la sesión de recuento no está conectada o el inicio de la ceremonia no está permitido.",
                 },
             },
             importAreas: {
@@ -375,6 +475,8 @@ const spanishTranslation: TranslationType = {
                 fileUploadError: "Error subiendo el fichero",
                 importVotersSuccess: "Importación de Votantes lanzada en segundo plano con éxito.",
                 importVotersError: "Error Importando Votantes.",
+                importElectionEventSuccess: "Election event imported Successfully",
+                importElectionEventError: "Error importing election event",
                 shaDialog: {
                     ok: "Sí, Importar Sin Verificación de Integridad",
                     cancel: "Volver",
@@ -382,18 +484,49 @@ const spanishTranslation: TranslationType = {
                     description:
                         "No ingresó el campo Verificación de integridad (SHA-256). Confirme que está importando el archivo correcto y que desea importarlo.",
                 },
+                passwordDialog: {
+                    title: "Contraseña de Descifrado",
+                    description: "Introduce la contraseña para descifrar el archivo",
+                    label: "Contraseña",
+                    copyPassword: "Copiar Contraseña",
+                    ok: "Aceptar",
+                },
             },
-            exportError: "Error al exportar el Evento Electoral",
+            export: {
+                title: "Exportar Evento Electoral",
+                subtitle:
+                    "La exportación puede ser una operación larga. ¿Estás seguro de que deseas exportar los registros?",
+                encryptWithPassword: "Cifrar con Contraseña",
+                includeVoters: "Incluir Votantes",
+                activityLogs: "Registros de Actividad",
+                bulletinBoard: "Tablón de Anuncios",
+                publications: "Publicaciones",
+                s3Files: "Archivos S3",
+                scheduledEvents: "Eventos Programados",
+                exportSuccess: "Evento Electoral exportado con éxito",
+                exportError: "Error al exportar el Evento Electoral",
+                passwordTitle: "Contraseña",
+                passwordDescription: "Contraseña para descifrar el archivo:",
+                copiedSuccess: "Nakopya ang password sa clipboard",
+                copiedError: "Error al copiar la contraseña",
+                reports: "Informes",
+                applications: "Aplicaciones",
+                tally: "Recuento",
+            },
+            taskNotification:
+                "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",
         },
         electionScreen: {
             common: {
                 title: "Elección",
                 subtitle: "Configuración de la elección.",
                 fileLoaded: "Archivo cargado",
+                noPermission: "No tienes permiso para acceder a esta elección.",
             },
             edit: {
                 general: "General",
                 dates: "Fechas",
+                votingPeriod: "Período de votación",
                 language: "Idioma",
                 allowed: "Canales de Voto Permitidos",
                 default: "Por defecto",
@@ -402,6 +535,12 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
+                reorder: "Reordenar concursos",
+                castVoteConfirm: "Modal de Confirmación de Voto",
+                gracePeriodPolicy: "Política de período de gracia",
+                allowTallyPolicy: "Permitir Recuento",
+                permissionLabel: "Etiqueta de permiso",
+                custom_filters: "Filtros personalizados",
             },
             field: {
                 name: "Nombre",
@@ -409,35 +548,77 @@ const spanishTranslation: TranslationType = {
                 votingChannels: "Canales de Voto",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",
+                startDateTimeWithTimezone: "Fecha y Hora de inicio ({{timezone}})",
+                endDateTimeWithTimezone: "Fecha y Hora de finalización ({{timezone}})",
                 scheduledOpening: "Apertura Programada",
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
+                securityConfirmationHtml: "Confirmación de seguridad HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Política de la casilla de confirmación de seguridad",
+                none: "Ninguno",
+                mandatory: "Obligatorio",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 fileError: "Error al cargar el archivo",
                 fileLoaded: "Archivo cargado",
+                startDate: "La fecha de inicio debe ser en el futuro",
+                endDateInvalid: "La fecha de finalización debe estar en el futuro",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
             tabs: {
                 dashboard: "Panel de Control",
+                monitoring: "Monitoreo",
                 data: "Datos",
                 voters: "Votantes",
                 publish: "Publicar",
                 logs: "Logs",
+                approvals: "Aprobaciones",
+            },
+            gracePeriodPolicy: {
+                "label": "Política de período de gracia",
+                "no-grace-period": "Sin período de gracia",
+                "grace-period-without-alert": "Período de gracia sin alerta",
+                "gracePeriodSecs": "Tiempo de gracia en segundos",
+            },
+            allowTallyPolicy: {
+                "allowed": "Permitido",
+                "disallowed": "No permitido",
+                "requires-voting-period-end": "Permitir cuando termine el periodo de votación",
+            },
+            initializeReportPolicy: {
+                "label": "Inicializar Política de Reportes",
+                "not-required": "No Requerido",
+                "required": "Requerido",
+            },
+            castVoteGoldLevelPolicy: {
+                label: "Gold level Authentication Policy",
+                options: {
+                    "gold-level": "Gold level Authentication",
+                    "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Política de título de pantalla de inicio",
+                options: {
+                    "election": "Elección",
+                    "election-event": "Evento Electoral",
+                },
             },
         },
         tenantScreen: {
             common: {
-                title: "Cliente",
+                title: "Inquilinos",
             },
             new: {
-                subtitle: "Crear Cliente",
+                subtitle: "Crear nuevo inquilino",
             },
-            createSuccess: "Cliente creado",
-            createError: "Error creando cliente",
+            createSuccess: "Inquilino creado",
+            createError: "Error al crear el inquilino",
         },
         usersAndRolesScreen: {
             noPermissions: "No tienes permiso para acceder a los usuarios o roles.",
@@ -445,6 +626,12 @@ const spanishTranslation: TranslationType = {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
                 mobileNumber: "Móvil",
+            },
+            editPassword: {
+                label: "Cambiar contraseña",
+                temporatyLabel: "Temporal",
+                temporatyInfo:
+                    "Si está habilitado, el usuario deberá cambiar la contraseña en el próximo inicio de sesión.",
             },
             users: {
                 title: "Usuarios",
@@ -458,27 +645,31 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear usuario",
                 },
                 fields: {
-                    has_voted: "Voted",
-                    username: "Nombre de Usuario",
-                    first_name: "Nombre",
-                    last_name: "Apellido",
-                    email: "Email",
-                    enabled: "Habilitado",
-                    emailVerified: "Email Verificado",
-                    groups: "Grupos",
-                    attributes: "Atributos",
-                    area: "Área",
-                    password: "Contraseña",
-                    repeatPassword: "Repetir Contraseña",
-                    passwordMismatch: "Las contraseñas deben de coincidir",
-                    passwordLengthValidate: "La contraseña debe tener al menos 8 caracteres",
-                    passwordUppercaseValidate:
+                    "has_voted": "Voted",
+                    "username": "Nombre de Usuario",
+                    "first_name": "Nombre",
+                    "last_name": "Apellido",
+                    "email": "Email",
+                    "enabled": "Habilitado",
+                    "emailVerified": "Email Verificado",
+                    "groups": "Grupos",
+                    "attributes": "Atributos",
+                    "area": "Área",
+                    "password": "Contraseña",
+                    "savePassword": "Guardar contraseña",
+                    "repeatPassword": "Repetir Contraseña",
+                    "passwordMismatch": "Las contraseñas deben de coincidir",
+                    "passwordLengthValidate": "La contraseña debe tener al menos 8 caracteres",
+                    "passwordUppercaseValidate":
                         "La contraseña debe contener al menos una letra mayúscula",
-                    passwordLowercaseValidate:
+                    "passwordLowercaseValidate":
                         "La contraseña debe contener al menos una letra minúscula",
-                    passwordDigitValidate: "La contraseña debe contener al menos un dígito",
-                    passwordSpecialCharValidate:
+                    "passwordDigitValidate": "La contraseña debe contener al menos un dígito",
+                    "passwordSpecialCharValidate":
                         "La contraseña debe contener al menos un carácter especial",
+                    "trustee": "Actuar como fideicomisario",
+                    "permissionLabel": "Etiqueta de permiso",
+                    "authorized-election-ids": "Elecciones",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
@@ -488,11 +679,15 @@ const spanishTranslation: TranslationType = {
                     exportError: "Error al exportar usuarios",
                     deleteError: "Error borrando usuario",
                     deleteSuccess: "Usuario borrado",
+                    multipleDeleteSuccess: "Usuarios borrados",
                 },
             },
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                logs: {
+                    label: "Registros del usuario",
+                },
                 emptyHeader: "Ningún votante aún.",
                 askCreate: "¿Quieres crear uno?",
                 create: {
@@ -500,8 +695,11 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear votante",
                 },
                 manualVerification: {
+                    label: "Verificar manualmente",
                     verify: "Verificar manualmente al votante",
                     body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                    noEmailOrPhone:
+                        "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
                 },
                 errors: {
                     editError: "Error editando votante",
@@ -517,6 +715,7 @@ const spanishTranslation: TranslationType = {
                     exportError: "Error al exportar votantes",
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
+                    multipleDeleteSuccess: "Votantes borrado",
                     manualVerificationError: "Error verificando manualmente al votante",
                     manualVerificationSuccess:
                         "Verificado exitosamente manualmente al elector, descargar PDF..",
@@ -552,12 +751,15 @@ const spanishTranslation: TranslationType = {
             permissions: {
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
+                "application-export": "Exportación de Aplicaciones",
+                "application-import": "Importación de Aplicaciones",
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
+                "election-event-delete": "Eliminar Evento Electoral",
                 "voter-create": "Crear Votante",
                 "voter-read": "Leer Votante",
                 "voter-write": "Editar Votante",
@@ -595,6 +797,7 @@ const spanishTranslation: TranslationType = {
                 "publish-read": "Leer Publicación",
                 "publish-write": "Editar Publicación",
                 "logs-read": "Leer Registros",
+                "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",
@@ -609,10 +812,275 @@ const spanishTranslation: TranslationType = {
                 "document-write": "Editar Documentos",
                 "support-material-read": "Leer Materiales de Soporte",
                 "support-material-write": "Editar Materiales de Soporte",
+                "miru-create": "Miru Create",
+                "miru-download": "Miru Download",
+                "miru-send": "Miru Send",
+                "miru-sign": "Miru Sign",
+                "contest-write": "Editar Concurso",
+                "contest-read": "Leer Concurso",
+                "candidate-write": "Editar Candidatos",
+                "candidate-read": "Leer Candidatos",
+                "permission-label-write": "Editar la etiqueta de permiso",
+                "scheduled-event-write": "Editar Eventos Programados",
+                "contest-create": "Create Contest",
+                "contest-delete": "Delete Contest",
+                "candidate-create": "Create Candidate",
+                "candidate-delete": "Delete Candidate",
+                "election-create": "Create Election",
+                "election-read": "Read Election",
+                "election-write": "Edit Election",
+                "election-delete": "Delete Election",
+                "election-event-archive": "Archive Election Event",
+                "election-data-tab": "Ver Datos de la Elección",
+                "election-event-areas-tab": "Ver Áreas del Evento Electoral",
+                "election-event-data-tab": "Ver Datos del Evento Electoral",
+                "election-event-keys-tab": "Ver Claves del Evento Electoral",
+                "election-event-logs-tab": "Ver Registros del Evento Electoral",
+                "election-event-publish-tab": "Ver Publicación del Evento Electoral",
+                "election-event-reports-tab": "Ver Informes del Evento Electoral",
+                "election-event-scheduled-tab": "Ver Programación del Evento Electoral",
+                "election-event-tally-tab": "Ver Escrutinio del Evento Electoral",
+                "election-event-tasks-tab": "Ver Tareas del Evento Electoral",
+                "election-event-voters-tab": "Ver Votantes del Evento Electoral",
+                "election-publish-tab": "Ver Publicación de la Elección",
+                "election-voters-tab": "Ver Votantes de la Elección",
+                "report-write": "Editar Informes",
+                "report-read": "Leer Informes",
+                "users-menu": "Ver usuarios y roles",
+                "settings-menu": "Ver configuración",
+                "templates-menu": "Ver plantillas",
+                "settings-election-types-tab": "Ver configuración de tipos de elección",
+                "settings-voting-channels-tab": "Ver configuración de canales de votación",
+                "settings-templates-tab": "Ver configuración de plantillas",
+                "settings-languages-tab": "Ver configuración de idiomas",
+                "settings-localization-tab": "Ver configuración de localización",
+                "settings-look-feel-tab": "Ver configuración de apariencia",
+                "settings-trustees-tab": "Ver configuración de fideicomisarios",
+                "settings-countries-tab": "Ver configuración de países",
+                "voter-import": "Importar Votante",
+                "ee-voters-columns": "Ver Columnas de Votantes del Evento Electoral",
+                "voter-manually-verify": "Verificar Votante Manualmente",
+                "ee-voters-logs": "Ver Registros de Votantes del Evento Electoral",
+                "voter-export": "Exportar Votante",
+                "ee-voters-filters": "Ver Filtros de Votantes del Evento Electoral",
+                "voter-delete": "Eliminar Votante",
+                "voter-change-password": "Cambiar la Contraseña del Votante",
+                "election-event-localization-selector":
+                    "Selector de Localización del Evento Electoral",
+                "localization-create": "Crear Localización",
+                "localization-read": "Leer Localización",
+                "localization-write": "Editar Localización",
+                "localization-delete": "Eliminar Localización",
+                "area-create": "Crear Área",
+                "area-delete": "Eliminar Área",
+                "area-export": "Exportar Área",
+                "area-import": "Importar Área",
+                "area-upsert": "Insertar o Actualizar Área",
+                "election-event-areas-columns": "Columnas de las Áreas del Evento Electoral",
+                "election-event-areas-filters": "Filtros de las Áreas del Evento Electoral",
+                "election-event-tasks-back-button": "Volver a las Tareas del Evento Electoral",
+                "election-event-tasks-columns": "Columnas de las Tareas del Evento Electoral",
+                "election-event-tasks-filters": "Filtros de las Tareas del Evento Electoral",
+                "task-export": "Exportar Tareas",
+                "application-read": "Leer Aplicación",
+                "application-write": "Editar Aplicación",
+                "logs-export": "Exportar Registros",
+                "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
+                "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
+                "election-event-scheduled-event-columns":
+                    "Columnas de los Eventos Programados del Evento Electoral",
+                "scheduled-event-create": "Crear Evento Programado",
+                "scheduled-event-delete": "Eliminar Evento Programado",
+                "election-event-reports-columns": "Columnas de los Informes del Evento Electoral",
+                "report-create": "Crear Informe",
+                "report-delete": "Eliminar Informe",
+                "report-generate": "Generar Informe",
+                "report-preview": "Vista Previa del Informe",
+                "monitoring-dashboard-view-election-event":
+                    "Vista del Panel de Monitoreo de Eventos Electorales",
+                "monitoring-dashboard-view-election": "Vista del Panel de Monitoreo de Elecciones",
+                "monitor-authenticated-voters": "Monitoreo de Votantes Autenticados",
+                "monitor-all-approve-disapprove-voters":
+                    "Leer Monitoreo de Votantes Aprobados y Rechazados",
+                "monitor-automatic-approve-disapprove-voters":
+                    "Leer Monitoreo de Aprobaciones y Rechazos Automáticos",
+                "monitor-manually-approve-disapprove-voters":
+                    "Leer Monitoreo de Aprobaciones y Rechazos Manuales",
+                "monitor-enrolled-overseas-voters":
+                    "Leer Monitoreo de Votantes Inscritos en el Extranjero",
+                "monitor-posts-already-closed-voting":
+                    "Leer Monitoreo de Publicaciones con Votación Cerrada",
+                "monitor-posts-already-generated-election-results":
+                    "Leer Monitoreo de Publicaciones con Resultados Generados",
+                "monitor-posts-already-opened-voting":
+                    "Leer Monitoreo de Publicaciones con Votación Abierta",
+                "monitor-posts-already-started-counting-votes":
+                    "Leer Monitoreo de Publicaciones que Comenzaron a Contar Votos",
+                "monitor-posts-initialized-the-system":
+                    "Leer Monitoreo de Publicaciones que Inicializaron el Sistema",
+                "monitor-posts-started-voting":
+                    "Leer Monitoreo de Publicaciones que Comenzaron a Votar",
+                "monitor-posts-transmitted-results":
+                    "Leer Monitoreo de Publicaciones que Transmitieron Resultados",
+                "monitor-voters-voted-test-election":
+                    "Leer Monitoreo de Votantes en Elección de Prueba",
+                "monitor-voters-who-voted": "Leer Monitoreo de Votantes que Votaron",
+                "election-event-publish-preview":
+                    "Vista Previa de la Publicación del Evento Electoral",
+                "election-event-publish-back-button":
+                    "Volver a la Publicación del Evento Electoral",
+                "election-event-publish-columns": "Columnas de la Publicación del Evento Electoral",
+                "election-event-publish-filters": "Filtros de la Publicación del Evento Electoral",
+                "publish-create": "Crear Publicación",
+                "publish-regenerate": "Regenerar Publicación",
+                "publish-export": "Exportar Publicación",
+                "publish-start-voting": "Iniciar Votación",
+                "publish-pause-voting": "Pausar Votación",
+                "publish-stop-voting": "Detener Votación",
+                "publish-changes": "Publicar Cambios",
+                "election-event-publish-view": "Ver Publicación del Evento Electoral",
+                "election-event-keys-columns": "Columnas de las Claves del Evento Electoral",
+                "create-ceremony": "Crear Ceremonia",
+                "export-ceremony": "Exportar Ceremonia",
+                "election-event-tally-columns": "Columnas del Recuento del Evento Electoral",
+                "election-event-tally-back-button": "Volver al Recuento del Evento Electoral",
+                "transmition-ceremony": "Ceremonia de Transmisión",
+                "admin-ip-address-view": "Ver Dirección IP",
+                "election-approvals-tab": "Ver Aprobaciones de la Elección",
+                "election-event-approvals-tab": "Ver Aprobaciones del Evento Electoral",
+                "election-ip-address-view": "Ver Dirección IP de la Elección",
+                "election-dashboard-tab": "Ver Dashboard de la Elección",
+                "trustees-export": "Exportar Fideicomisarios",
+                "user-import": "Importar Usuarios",
+                "voter-voted-edit": "Editar a los votantes que votaron",
+                "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
+                "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
+                "transmission-report-generate": "Generar Informe de Transmisión",
             },
         },
         generalSettingsScreen: {
             body: "Active los idiomas en el sistema. Solo los idiomas activados aquí estarán disponibles para eventos electorales.",
+        },
+        eventsScreen: {
+            title: "Eventos Programados",
+            subtitle:
+                "Gestiona la configuración de la ejecución automática de eventos como el inicio o fin del período de votación.",
+            messages: {
+                createSuccess: "Evento Programado creado con éxito",
+                createError: "Error al crear el Evento Programado",
+                editSuccess: "Evento Programado editado con éxito",
+                editError: "Error al editar el Evento Programado",
+            },
+            eventType: {
+                label: "Tipo",
+                ALLOW_INIT_REPORT: "Allow Initialization Report",
+                START_VOTING_PERIOD: "Inicio del Período de Votación",
+                END_VOTING_PERIOD: "Fin del Período de Votación",
+                ALLOW_VOTING_PERIOD_END: "Allow Voting Period End",
+                START_ENROLLMENT_PERIOD: "Inicio del Período de Inscripción",
+                END_ENROLLMENT_PERIOD: "Fin del Período de Inscripción",
+                START_LOCKDOWN_PERIOD: "Inicio del Período de Bloqueo de Datos Censales",
+                END_LOCKDOWN_PERIOD: "Fin del Período de Bloqueo de Datos Censales",
+                ALLOW_TALLY: "Permitir Recuento",
+            },
+            election: {
+                label: "Elección",
+            },
+            empty: {
+                header: "No hay Eventos Programados todavía.",
+                body: "¿Quieres crear uno?",
+                button: "Crear Evento Programado",
+            },
+            create: {
+                title: "Crear Evento Programado",
+                subtitle: "Crea una nueva configuración de Evento Programado.",
+            },
+            edit: {
+                title: "Editar Evento Programado",
+                subtitle: "Edita la configuración del Evento Programado.",
+                delete: "¿Estás seguro de que quieres eliminar este Evento Programado?",
+            },
+            fields: {
+                electionId: "Elección",
+                eventProcessor: "Tipo",
+                stoppedAt: "Detenido En",
+                scheduledDate: "Programado En",
+            },
+        },
+        reportsScreen: {
+            title: "Informes",
+            subtitle: "Generar informes para los eventos electorales",
+            messages: {
+                createSuccess: "Informe creado con éxito",
+                createError: "Error al crear el informe",
+                submitError: "Error al enviar el Informe",
+                updateSuccess: "Informe actualizado con éxito",
+                passwordMismatch:
+                    "Las contraseñas no coinciden. Asegúrate de que ambos campos contengan la misma contraseña.",
+                incorectPassword: "Contraseña incorrecta",
+                decryptFileTitle: "Descifrar archivo",
+                decryptInstructions:
+                    "1. '-in': La ruta al archivo cifrado. \n2. '-out': La ruta donde se guardará el archivo descifrado. \n3. '-pass': La contraseña utilizada para cifrar el archivo. \n",
+                encryptSuccess: "Configuración de cifrado del informe exitosa",
+                encryptError: "Error al configurar el cifrado del informe",
+            },
+            reportType: {
+                BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                MANUAL_VERIFICATION: "Verificación Manual",
+                STATISTICAL_REPORT: "Informe Estadístico",
+                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                AUDIT_LOGS: "Registros de Auditoría",
+                ACTIVITY_LOG: "Registros de Actividad",
+                STATUS: "Estado",
+                OVCS_INFORMATION: "Información de OVCS",
+                OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
+                OV_USERS_WHO_VOTED: "Lista de Votantes en el Extranjero que Votaron",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Fueron Rechazados",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Lista de Votantes en el Extranjero que se Preinscribieron pero Requieren Validación Manual",
+            },
+            reportEncryptionPolicy: {
+                title: "Política de cifrado",
+                UNENCRYPTED: "Sin cifrar",
+                CONFIGURED_PASSWORD: "Contraseña configurada",
+            },
+            empty: {
+                header: "No hay informes todavía.",
+                body: "¿Quieres crear uno?",
+                button: "Crear informe",
+            },
+            create: {
+                title: "Crear informe",
+                subtitle: "Crear una nueva configuración de informe.",
+            },
+            edit: {
+                title: "Editar informe",
+                subtitle: "Editar configuración del informe.",
+                delete: "¿Estás seguro de que quieres eliminar este informe?",
+            },
+            fields: {
+                electionId: "Elección",
+                template: "Plantilla",
+                reportType: "Tipo de informe",
+                repeatable: "Repetible",
+                cronExpression: "Expresión Cron",
+                emailRecipients: "Destinatarios de correo electrónico",
+                emailRecipientsPlaceholder: "Escribe el correo electrónico y presiona Enter",
+            },
+            delete: {
+                body: "¿Estás seguro de que quieres eliminar este informe?",
+            },
+            actions: {
+                generate: "Generar",
+                delete: "Eliminar",
+                edit: "Editar",
+                preview: "Vista previa",
+            },
         },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
@@ -650,12 +1118,23 @@ const spanishTranslation: TranslationType = {
                 title: "Título",
                 subtitle: "Subtítulo",
                 kind: "Tipo de archivo",
+                filter: "Filtros Personalizados",
+                approve: "Aprobar",
+                continue: "Continuar",
+                logout: "Cerrar Sesión",
+                selectTenant: "Seleccionar Inquilino",
+                processing: "Procesando...",
+                tenantName: "Nombre del Inquilino",
             },
             language: {
                 es: "Español",
                 en: "Inglés",
                 fr: "Francés",
                 cat: "Valenciano",
+                tl: "Tagalo",
+                gl: "Galego",
+                nl: "Holandes",
+                eu: "Euskera",
             },
             channel: {
                 online: "En línea",
@@ -663,6 +1142,7 @@ const spanishTranslation: TranslationType = {
             },
             message: {
                 delete: "¿Estás seguro que quieres borrar este elemento?",
+                continueOrLogout: "¿Quieres continuar o cerrar sesión?",
             },
         },
         createResource: {
@@ -671,13 +1151,21 @@ const spanishTranslation: TranslationType = {
             contest: "Crear un Concurso",
             candidate: "Crear un Candidato",
         },
+        importResource: {
+            electionEvent: "Importar un Evento Electoral",
+            election: "Importar una Elección",
+            contest: "Importar un Concurso",
+            candidate: "Importar un Candidato",
+            ImportHashMismatch: "Hashes don't match. Integrity check failure.",
+        },
         sideMenu: {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
             logs: "Bitácora",
             settings: "Configuracion",
-            communicationTemplates: "Plantillas de Comunicación",
+            help: "Ayuda",
+            templates: "Plantillas",
             active: "Activos",
             archived: "Archivados",
             addResource: {
@@ -713,6 +1201,7 @@ const spanishTranslation: TranslationType = {
                             archive: "El elemento ha sido archivado",
                             unarchive: "El elemento ha sido desarchivado",
                             delete: "El elemento ha sido eliminado",
+                            reloading: "Espere. La página se recargara en unos momentos",
                         },
                         error: {
                             archive: "Error al intentar archivar este elemento",
@@ -767,6 +1256,7 @@ const spanishTranslation: TranslationType = {
                 system: "Sistema de votación de papeletas",
                 design: "Diseño de la papeleta",
                 reorder: "Reordernar candidatos",
+                policies: "Políticas",
             },
             field: {
                 name: "Nombre",
@@ -780,17 +1270,55 @@ const spanishTranslation: TranslationType = {
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
             },
+            auditButtonConfig: {
+                "label": "Opciones de visualización del botón de auditoría",
+                "show": "Mostrar",
+                "not-show": "No mostrar",
+                "show-in-help": "Mostrar en el cuadro de diálogo de ayuda",
+            },
+            underVotePolicy: {
+                "label": "Política de Subvoto",
+                "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
+                "warn": "Advertir",
+                "warn-and-alert": "Advertir y Alertar",
+            },
             invalidVotePolicy: {
+                "label": "Política de Voto Inválido",
                 "allowed": "Permitido",
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+            },
+            candidatesIconCheckboxPolicy: {
+                "label": "Forma del icono de la casilla de verificación de los candidatos",
+                "square-checkbox": "Casilla de verificación cuadrada",
+                "round-checkbox": "Casilla de verificación redonda",
             },
             checkableListPolicy: {
                 "allow-selecting-candidates-and-lists": "Candidatos Y Listas",
                 "allow-selecting-candidates": "Sólo Candidatos",
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
+            },
+            blankVotePolicy: {
+                "label": "Política de voto en blanco",
+                "allowed": "Permitido",
+                "warn-only-in-review": "Advertir en Revisión",
+                "warn": "Advertir",
+                "not-allowed": "No permitido",
+            },
+            overVotePolicy: {
+                "label": "Política de voto excesivo",
+                "allowed": "Permitido",
+                "allowed-with-msg": "Permitido con un mensaje de warning",
+                "allowed-with-msg-and-alert": "Permitido con un mensaje de warning y alerta",
+                "not-allowed-with-msg-and-alert": "No permitido con un mensaje de warning y alerta",
+                "not-allowed-with-msg-and-disable":
+                    "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
+            },
+            paginationPolicy: {
+                label: "Nombre de la página",
             },
             error: {},
             createContestSuccess: "Pregunta creado",
@@ -799,6 +1327,8 @@ const spanishTranslation: TranslationType = {
         keysGeneration: {
             configureStep: {
                 create: "Crear Ceremonia de Claves",
+                name: "Nombre de la Ceremonia de Claves",
+                allElections: "Todas las Elecciones",
                 title: "Crear Ceremonia de Claves del Evento Electoral",
                 subtitle:
                     "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
@@ -816,9 +1346,17 @@ const spanishTranslation: TranslationType = {
                     ok: "Sí, Crear Ceremonia de Claves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que quieres crear una ceremonia de llaves automática?",
                     description:
                         "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a punto de crear una ceremonia de llaves automática. Esto no notificará a los fideicomisarios para que participen.",
                 },
+                filterTrustees: "Filtrar Autoridades",
+                errorPermisionLabels:
+                    "No se puede crear la ceremonia de claves: falta una o más etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
@@ -869,6 +1407,8 @@ const spanishTranslation: TranslationType = {
                         "Por favor, realiza una copia de seguridad de tu Clave Privada Encriptada en al menos dos ubicaciones seguras diferentes y luego confírmalo a continuación:",
                     firstCopy: "Primera copia de seguridad realizada",
                     secondCopy: "Segunda copia de seguridad realizada",
+                    confirmError:
+                        "Cree las copias de seguridad requeridas y marque las casillas de confirmación para continuar",
                 },
             },
             checkStep: {
@@ -882,10 +1422,105 @@ const spanishTranslation: TranslationType = {
                 downloaded: "Clave Encriptada Privada generada exitosamente.",
             },
         },
+        miruExport: {
+            create: {
+                success: "Paquete de Transmisión Creado",
+                error: "Error al crear el Paquete de Transmisión",
+            },
+            send: {
+                success: "Paquete de Transmisión Enviado",
+                error: "Error al enviar el Paquete de Transmisión",
+            },
+        },
         tally: {
+            errorUploadingSignature: "Hubo un error al subir la firma",
+            downloadTransmissionPackage: "Descargar paquete",
+            transmissionPackage: {
+                title: "Paquete de Transmisión para el Área '{{name}}' y Elección '{{eventName}}'",
+                description:
+                    "Te permite exportar un Paquete de Transmisión a los Servidores de Destino o descargarlo.",
+                actions: {
+                    sign: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea firmar el paquete de transmisión?",
+                            description:
+                                "Por favor, confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Firmar paquete de transmisión",
+                            cancel: "Cerrar",
+                            input: {
+                                placeholder: "Ingrese su contraseña",
+                            },
+                        },
+                    },
+                    send: {
+                        title: "Enviar",
+                        dialog: {
+                            title: "¿Quieres enviar el Paquete de Transmisión?",
+                            description:
+                                "Por favor, confirma que deseas enviar el Paquete de Transmisión para el Área '{{name}}' a los Servidores de Destino.",
+                            confirm: "Enviar Paquete de Transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
+                    regenerate: {
+                        title: "Regenerar",
+                        dialog: {
+                            title: "¿Desea regenerar el paquete de transmisión?",
+                            description:
+                                "Por favor confirme que desea regenerar el paquete de transmisión para el área `{{name}}`",
+                            confirm: "Regenerar paquete de transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
+                    download: {
+                        title: "Descargar",
+                        emlTitle: "Download EML {{date}}",
+                        transmissionPackageTitle: "Descargar el Paquete de Transmisión {{date}}",
+                        transmissionReportTitle: "Descargar informe de transmisión",
+                        dialog: {
+                            title: "¿Quieres descargar el Paquete de Transmisión?",
+                            description:
+                                "Por favor, confirma que deseas descargar el Paquete de Transmisión para el Área '{{name}}.'",
+                            confirm: "Descargar Paquete de Transmisión",
+                            cancel: "Cerrar",
+                        },
+                    },
+                },
+                destinationServers: {
+                    title: "Servidores de Destino",
+                    description:
+                        "La tabla a continuación muestra el estado de envío de cada uno de los Servidores de Destino.",
+                    status: "Enviado a {{signed}} de {{total}}",
+                    table: {
+                        serverName: "Nombre del Servidor",
+                        sendStatus: "Estado de Envío",
+                    },
+                },
+                signatures: {
+                    title: "Firmas SBEI",
+                    description:
+                        "Los SBEIs pueden firmar el Paquete de Transmisión. La tabla a continuación muestra el estado de la firma de cada uno de los miembros del SBEI.",
+                    table: {
+                        trusteeName: "Nombre del Fideicomisario",
+                        signed: "Ha Firmado",
+                    },
+                    status: "{{signed}} de {{total}} Han Firmado",
+                },
+            },
+            sendToTransmissionPackageServers:
+                "Enviar paquete de transmisión para el área '{{name}}'",
+            uploadTransmissionPackage: "Subir",
+            uploadTransmissionPackageDesc:
+                "Sube tu firma para firmar el paquete de Resultados Electorales. Esta operación es opcional.",
+            exportElectionArea: "Enviar paquete de transmisión para el área '{{name}}'",
+            generateReport: "Generar {{name}}",
             templateTitle: "Plantilla de Resultados",
             templateSubTitle: "Opcionalmente sobrescribir la plantilla de resultados.",
+            keysCeremonyTitle: "Ceremonia de Llaves",
+            keysCeremonySubTitle: "Selecciona la Ceremonia de Llaves para este recuento",
             ceremonyTitle: "Elecciones para el Recuento",
+            initializationTitle: "Elecciones para el informe de inicialización",
             ceremonySubTitle: "Seleccione las elecciones para el recuento",
             tallyTitle: "Progreso del Recuento de Elecciones",
             logsTitle: "Logs",
@@ -925,6 +1560,7 @@ const spanishTranslation: TranslationType = {
                 needed: " trustees necesarios para el recuento",
                 start: "Iniciar Recuento",
                 ceremony: "Iniciar Ceremonia de Recuento",
+                initialization: "Iniciar informe de inicialización",
                 results: "Resultados",
                 dialog: {
                     ok: "Ok",
@@ -940,6 +1576,8 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
                     ceremony:
                         "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
+                    startAutomatedTallyMessage:
+                        "Selecciona 'Start Tally' para ejecutar el proceso de recuento y mostrar los resultados, o 'Close' para cancelar.",
                 },
             },
             table: {
@@ -977,15 +1615,25 @@ const spanishTranslation: TranslationType = {
             },
         },
         publish: {
+            preview: {
+                publicationAreas: "Selecciona el área para la vista previa",
+                action: "Vista previa",
+                copy: "Copiar enlace",
+                copy_success: "Se copió correctamente el enlace de vista previa",
+                copy_error: "No se pudo copiar el enlace de vista previa",
+                success: "Éxito al abrir la vista previa",
+            },
             header: {
                 change: "Cambios a Publicar",
                 viewChange: "Ver Publicación",
                 history: "Historico de Cambios",
             },
             action: {
-                start: "Empezar elección",
-                stop: "Parar eleccion",
-                pause: "pausar",
+                generateInitializationReport: "Generar Informe de Inicialización",
+                startVotingPeriod: "Comenzar votación",
+                stopVotingPeriod: "Detener votación",
+                stopKioskVotingPeriod: "Cerrar Quiosco",
+                pauseVotingPeriod: "Pausar votación",
                 generate: "regenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",
@@ -994,15 +1642,33 @@ const spanishTranslation: TranslationType = {
                 header: "Ninguna Publicación aún.",
                 action: "Generar Publicación",
             },
+            forbidden: {
+                header: "No es posible Publicar hasta que la Ceremonia de Llaves haya terminado.",
+            },
             dialog: {
                 title: "Confirmar Acción",
                 info: "Has hecho clic en una acción sensible, por lo que necesitamos que la confirmes para poder continuar.",
+                initializationInfo:
+                    "Estás a punto de generar el informe de inicialización. ¿Estás seguro de que deseas continuar?",
+                startInfo:
+                    "Está a punto de comenzar el período de votación. ¿Está seguro de que desea continuar?",
+                stopInfo:
+                    "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
+                kioskStopInfo:
+                    "Estás a punto de detener el período de votación en el quiosco. ¿Estás seguro de que deseas continuar?",
+                pauseInfo:
+                    "Está a punto de pausar el período de votación. ¿Está seguro de que desea continuar?",
+                publishInfo:
+                    "Estás a punto de generar una publicación. ¿Estás seguro de que deseas continuar?",
                 ok: "Confirmar",
                 ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
                 error_status: "Error al cambiar el estado de la publicación",
+                error_preview: "Error al obtener la vista previa de la publicación",
                 diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
+                confirmation:
+                    "La acción que estás a punto de realizar es sensible y requiere confirmación. Por favor, introduce tu contraseña para continuar con {{action}}.",
             },
             label: {
                 current: "Actual",
@@ -1037,7 +1703,7 @@ const spanishTranslation: TranslationType = {
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
             successSending: "Notificación programada/enviada con éxito",
-            method: "Método de Comunicación",
+            method: "Método de Plantillas",
             type: "Tipo de Comunicación",
             alias: "Alias de la Plantilla",
             votersSelection: {
@@ -1096,6 +1762,12 @@ const spanishTranslation: TranslationType = {
                 census: "Censo",
             },
             common: {
+                tallyCeremony: {
+                    manage: "Gestionar la Ceremonia de Cómputo",
+                    view: "Ver la Ceremonia de Cómputo",
+                    cancel: "Cancelar la Ceremonia de Cómputo",
+                    addKey: "Agregar Clave de Cómputo",
+                },
                 edit: "Editar",
                 confirm: "Confirmar",
                 back: "Atras",
@@ -1132,50 +1804,109 @@ const spanishTranslation: TranslationType = {
                 publishSuccess: "Hoja de Recuento publicada",
             },
         },
-
-        communicationTemplate: {
-            noPermissions: "No tienes permisos para acceder a las Plantillas de Comunicación.",
-            title: "Plantillas de Comunicación",
-            subtitle: "Listado de plantillas de comunicación",
+        application: {
+            import: {
+                title: "Importar Aplicaciones",
+                subtitle: "Importar datos de aplicaciones",
+                paragraph:
+                    "Importa aplicaciones usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV). Descarga un archivo CSV de ejemplo aquí.",
+                messages: {
+                    success: "Aplicaciones importadas con éxito",
+                    error: "Error al importar las aplicaciones",
+                },
+            },
+            export: {
+                title: "Exportar Aplicaciones",
+                subtitle: "Exportar datos de aplicaciones",
+                button: "Exportar",
+                paragraph:
+                    "Exporta aplicaciones usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV).",
+                messages: {
+                    success: "Aplicaciones exportadas con éxito",
+                    error: "Error al exportar las aplicaciones",
+                },
+            },
+        },
+        template: {
+            noPermissions: "No tienes permisos para acceder a las Plantillas.",
+            title: "Plantillas",
+            subtitle: "Listado de plantillas",
+            chooseMethods: "Elige métodos",
+            default: "Usar plantilla predeterminada",
             empty: {
-                title: "No hay plantillas de comunicación",
+                title: "No hay plantillas",
                 subtitle: "¿Quieres crear una nueva?",
             },
             action: {
-                createOne: "Crear Plantilla de Comunicación",
+                createOne: "Crear Plantilla",
             },
             create: {
-                title: "Crear una Plantilla de Comunicación",
-                success: "Plantilla de Comunicación creada",
-                error: "Error creando plantilla de comunicación",
+                title: "Crear una Plantilla",
+                success: "Plantilla creada",
+                error: "Error creando plantilla",
             },
             update: {
-                success: "Plantilla de Comunicación actualizada",
-                error: "Error actualizando plantilla de comunicación",
+                success: "Plantilla actualizada",
+                error: "Error actualizando plantilla",
             },
             edit: {
-                title: "Editar una Plantilla de Comunición",
+                title: "Editar una Plantilla",
             },
             form: {
                 smsMessage: "Mensaje SMS",
                 document: "Documento",
+                pdfOptions: "Opciones de PDF",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",
-                communicationType: "Tipo de Comunicación",
-                communicationMethod: "Método de Comunicación",
+                type: "Tipo",
+                communicationMethod: "Método",
+                reportOptions: "Opciones de Informe",
             },
             type: {
-                credentials: "Credenciales",
-                ballot_receipt: "Recibo de Votación",
-                participation_report: "Informe de Participación",
-                electoral_results: "Resultados Electorales",
-                otp: "OTP",
-                tally_report: "Informe de Recuento",
+                CREDENTIALS: "Credenciales",
+                BALLOT_RECEIPT: "Recibo de Voto",
+                VOTE_RECEIPT: "Recibo de Voto",
+                PARTICIPATION_REPORT: "Informe de Participación",
+                ELECTORAL_RESULTS: "Resultados Electorales",
+                OTP: "OTP",
+                TALLY_REPORT: "Informe de Cómputo",
+                MANUAL_VERIFICATION: "Verificar manualmente al votante",
+                STATISTICAL_REPORT: "Informe Estadístico",
+                INITIALIZATION_REPORT: "Informe de Inicialización",
+                STATUS: "Informe de Estado",
+                TRANSMISSION_REPORT: "Informes de Transmisión",
+                AUDIT_LOGS: "Registros de Auditoría",
+                ACTIVITY_LOGS: "Registros de Actividades",
+                OVCS_INFORMATION: "Información de OVCS",
+                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
+                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
+                OV_WHO_VOTED: "Usuarios OV Que Votaron",
+                PRE_ENROLLED_OV_BUT_DISAPPROVED:
+                    "Lista de OV que se preinscribieron pero fueron rechazados",
+                LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
+                VOTERS_TURNOUT_PERCENTAGE: "Participación de Votantes",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
+                    "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
+                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
+                    "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
+                OV_PRE_ENROLLED_APPROVED: "Lista de OV que se Preinscribieron (Aprobados)",
+                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
+                    "Lista de OV que se Preinscribieron pero requieren Validación Manual",
+                OV_NOT_YET_PRE_ENROLLED_LIST: "Lista de OV que aún no se han Preinscrito",
+                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
+                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Número de OV que aún no se han Preinscrito",
+                BALLOT_IMAGES: "Imágenes de Boletas",
             },
             method: {
                 email: "Email",
                 sms: "SMS",
                 document: "Documento",
+            },
+            import: {
+                title: "Importar Plantillas",
+                subtitle: "Importar datos de plantillas",
+                paragraph:
+                    "Importa plantillas usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV). Descarga un archivo CSV de ejemplo aquí.",
             },
         },
         materials: {
@@ -1194,6 +1925,115 @@ const spanishTranslation: TranslationType = {
             fields: {
                 isHidden: "Oculto",
                 publicUrl: "Enlace público",
+            },
+            empty: {
+                header: "Aún no hay material de soporte",
+                action: "Generar material de soporte",
+            },
+        },
+        widget: {
+            logs: "Registros",
+        },
+        settings: {
+            countries: {
+                title: "Bloqueo de Países",
+                votingDescription:
+                    "Elige a continuación los países de los cuales deseas bloquear las votaciones.",
+                enrollmentDescription:
+                    "Elige a continuación los países de los cuales deseas bloquear las preinscripciones.",
+                error: {
+                    errorSaving: "Error al guardar la lista de países",
+                },
+            },
+            backupRestore: {
+                title: "Copia de seguridad / Restaurar configuración del inquilino",
+                backup: {
+                    label: "Respaldo",
+                    subtitle: "Copia de seguridad de las configuraciones del inquilino",
+                },
+                restore: {
+                    label: "Restaurar",
+                    subtitle: "Restaurar la configuración del inquilino",
+                    title: "Importar configuraciones del inquilino",
+                    paragraph:
+                        "Importar configuraciones del inquilino, configuraciones de Keycloak, roles y datos de permisos usando una carpeta comprimida.",
+                    tenantConfigOption: "Importar configuraciones del inquilino",
+                    keycloakConfigOption: "Importar configuraciones de Keycloak",
+                    RolesConfigOption: "Importar configuraciones de roles y permisos",
+                },
+            },
+        },
+        approvalsScreen: {
+            column: {
+                status: "Estado",
+                id: "ID",
+                applicantId: "ID del Solicitante",
+                verificationType: "Tipo de Verificación",
+                createdAt: "Creado El",
+                updatedAt: "Actualizado El",
+                verified_by: "Aprobado Por",
+            },
+            approvalRequest: "Solicitud de Aprobación",
+            title: "Votantes",
+            subtitle: "Buscar votantes coincidentes",
+            approve: {
+                body: "¿Estás seguro de que deseas aprobar a este votante? Esta acción no se puede deshacer.",
+            },
+            reject: {
+                label: "Rechazar la solicitud",
+                confirm:
+                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
+                message: "Escribe aquí el motivo del rechazo",
+                rejectReason: "Motivo del rechazo",
+                messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Datos Faltantes",
+                    "no-matching-voter": "Votante no Coincidente",
+                    "voter-already-approved": "Ya Aprobado",
+                    "other": "Otro",
+                },
+            },
+            notifications: {
+                approveError: "Error al aprobar al votante",
+                approveSuccess: "Votante aprobado",
+                rejectError: "Error al rechazar al votante",
+                rejectSuccess: "Votante rechazado",
+                VoterApprovedAlready: "El votante ya está aprobado.",
+            },
+            export: {
+                success: "La exportación de aplicaciones se completó con éxito",
+                error: "Error al exportar las aplicaciones",
+            },
+        },
+        monitoringDashboardScreen: {
+            voters: {
+                title: "Votantes",
+                enrolledOverseasVoters: "Votantes Inscritos en el Extranjero",
+                approvalStatus: "Estado de Aprobación: Votantes Aprobados/Desaprobados",
+                manuallyApproval: "Votantes Aprobados/Desaprobados Manualmente",
+                automaticallyApproval: "Votantes Aprobados/Desaprobados Automáticamente",
+                authenticatedVoters: "Votantes Autenticados",
+                invalidUserErrors: "Errores de Usuario Inválido:",
+                invalidPasswordErrors: "Errores de Contraseña Inválida:",
+            },
+            polls: {
+                title: "Encuestas",
+                initializedSystems: "Publicaciones con Sistemas Inicializados",
+                votingOpened: "Publicaciones con Votación Abierta",
+                votingClosed: "Publicaciones con Votación Cerrada",
+                votingStarted: "Publicaciones con Votación Iniciada",
+                voterTurnout: "Participación de los Votantes",
+            },
+            tally: {
+                title: "Conteo",
+                activeVotesCounting: "Publicaciones con Conteo de Votos Activo",
+                generatedERs: "Publicaciones con ERs Generados",
+                transmittedResults: "Publicaciones con Resultados Transmitidos",
+            },
+            testing: {
+                title: "Pruebas",
+                testElectionVoterCount: "Conteo de Votantes en Elección de Prueba",
             },
         },
     },

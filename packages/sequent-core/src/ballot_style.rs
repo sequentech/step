@@ -3,14 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, CandidatePresentation, ContestPresentation, ElectionDates,
+    self, CandidatePresentation, ContestPresentation,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
+    StringifiedPeriodDates,
 };
+
+use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core as hasura_types;
 use anyhow::{anyhow, Context, Result};
+use std::collections::HashMap;
 use std::env;
 
-fn parse_i18n_field(
+pub fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
     field: &str,
 ) -> Option<I18nContent> {
@@ -35,6 +39,8 @@ pub fn create_ballot_style(
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
+    election_dates: StringifiedPeriodDates,      // Election Dates
+    public_key: Option<String>,                  // public key
 ) -> Result<ballot::BallotStyle> {
     let mut sorted_contests = contests
         .clone()
@@ -52,17 +58,19 @@ pub fn create_ballot_style(
         .map_err(|err| {
             anyhow!("Error parsing election Event presentation {:?}", err)
         })?
-        .unwrap_or(Default::default());
+        .unwrap_or_default();
 
-    let election_dates: ElectionDates = election
-        .dates
+    let election_event_annotations: HashMap<String, String> = election_event
+        .annotations
         .clone()
-        .map(|dates| serde_json::from_value(dates))
+        .map(|annotations| serde_json::from_value(annotations))
         .transpose()
-        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?
-        .unwrap_or(Default::default());
+        .map_err(|err| {
+            anyhow!("Error parsing election Event annotations {:?}", err)
+        })?
+        .unwrap_or_default();
 
-    let mut election_presentation: ElectionPresentation = election
+    let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
         .map(|presentation| serde_json::from_value(presentation))
@@ -70,7 +78,15 @@ pub fn create_ballot_style(
         .map_err(|err| {
             anyhow!("Error parsing election presentation {:?}", err)
         })?
-        .unwrap_or(Default::default());
+        .unwrap_or_default();
+
+    let election_annotations: HashMap<String, String> = election
+        .annotations
+        .clone()
+        .map(|annotations| serde_json::from_value(annotations))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
+        .unwrap_or_default();
 
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
@@ -93,8 +109,7 @@ pub fn create_ballot_style(
         num_allowed_revotes: election.num_allowed_revotes,
         description: election.description,
         public_key: Some(
-            election_event
-                .public_key
+            public_key
                 .map(|key| ballot::PublicKeyConfig {
                     public_key: key,
                     is_demo: false,
@@ -109,6 +124,8 @@ pub fn create_ballot_style(
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
         election_dates: Some(election_dates),
+        election_event_annotations: Some(election_event_annotations),
+        election_annotations: Some(election_annotations),
     })
 }
 
@@ -150,10 +167,10 @@ fn create_contest(
 
             Ok(ballot::Candidate {
                 id: candidate.id.clone(),
-                tenant_id: candidate.tenant_id.clone(),
-                election_event_id: candidate.election_event_id.clone(),
-                election_id: contest.election_id.clone(),
-                contest_id: contest.id.clone(),
+                tenant_id: (candidate.tenant_id.clone()),
+                election_event_id: (candidate.election_event_id.clone()),
+                election_id: (contest.election_id.clone()),
+                contest_id: (contest.id.clone()),
                 name: candidate.name.clone(),
                 name_i18n,
                 description: candidate.description.clone(),
@@ -162,29 +179,39 @@ fn create_contest(
                 alias_i18n: alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
+                annotations: candidate
+                    .annotations
+                    .clone()
+                    .map(|value| deserialize_value(value))
+                    .transpose()?,
             })
         })
         .collect::<Result<Vec<ballot::Candidate>>>()?;
 
     Ok(ballot::Contest {
         id: contest.id.clone(),
-        tenant_id: contest.tenant_id,
-        election_event_id: contest.election_event_id,
-        election_id: contest.election_id.clone(),
+        tenant_id: (contest.tenant_id),
+        election_event_id: (contest.election_event_id),
+        election_id: (contest.election_id.clone()),
         name: contest.name,
         name_i18n,
         description: contest.description,
         description_i18n,
         alias: contest.alias.clone(),
         alias_i18n,
-        max_votes: contest.max_votes.unwrap_or(0),
-        min_votes: contest.min_votes.unwrap_or(0),
+        max_votes: (contest.max_votes.unwrap_or(0)),
+        min_votes: (contest.min_votes.unwrap_or(0)),
         winning_candidates_num: contest.winning_candidates_num.unwrap_or(1),
         voting_type: contest.voting_type,
         counting_algorithm: contest.counting_algorithm,
-        is_encrypted: contest.is_encrypted.unwrap_or(false),
+        is_encrypted: (contest.is_encrypted.unwrap_or(false)),
         candidates,
         presentation: Some(contest_presentation),
         created_at: contest.created_at.map(|date| date.to_rfc3339()),
+        annotations: contest
+            .annotations
+            .clone()
+            .map(|value| deserialize_value(value))
+            .transpose()?,
     })
 }

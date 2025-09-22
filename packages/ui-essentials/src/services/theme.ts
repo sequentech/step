@@ -169,9 +169,9 @@ let MuiButton: Components["MuiButton"] = {
                 color: palette.white,
             },
 
-            "border-radius": "0",
+            "borderRadius": "0",
             [`@media (min-width: ${breakpoints.values!.sm!}px)`]: {
-                "border-radius": "4px",
+                borderRadius: "4px",
             },
         },
     },
@@ -379,21 +379,20 @@ let MuiButton: Components["MuiButton"] = {
         {
             props: {variant: "actionbar"},
             style: {
-                "background-color": "transparent",
+                "backgroundColor": "transparent",
                 "color": palette.brandColor,
                 "border": `1px solid ${palette.brandColor}`,
-                "border-radius": "0",
+                "borderRadius": "0",
                 "fontWeight": "500",
-                "font-size": "14px",
-                "font-style": "normal",
-                "text-transform": "uppercase",
+                "fontSize": "14px",
+                "fontStyle": "normal",
+                "textTransform": "uppercase",
                 "padding": "6px 12px",
                 "height": "35px",
                 "&:hover": {
                     "border": `1px solid ${palette.brandColor}`,
                     "color": palette.white,
-                    "background-color": palette.brandColor,
-                    "box-shadow": "none",
+                    "backgroundColor": palette.brandColor,
                     "*": {
                         filter: "none",
                     },
@@ -588,8 +587,14 @@ let MuiDialog: Components["MuiDialog"] = {
     styleOverrides: {
         paper: ({ownerState}) => {
             return {
-                border: `2px solid ${palette.black}`,
-                maxWidth: ownerState.fullWidth ? "100vw" : "496px",
+                ...{
+                    border: `2px solid ${palette.black}`,
+                },
+                ...(ownerState.maxWidth === "xs"
+                    ? {
+                          maxWidth: "496px",
+                      }
+                    : {}),
             }
         },
     },

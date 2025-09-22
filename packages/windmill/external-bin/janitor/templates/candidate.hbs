@@ -1,0 +1,32 @@
+
+{
+    "id": "{{UUID}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "contest_id": "{{contest_id}}",
+    "created_at": "{{current_timestamp}}",
+    "last_updated_at": "{{current_timestamp}}",
+    "labels": null,
+    "annotations": {
+        "miru:candidate-id": "{{code}}",
+        "miru:candidate-name": "{{{DB_CANDIDATE_NAMEONBALLOT}}}",
+        "miru:candidate-setting": "candidate",
+        "miru:candidate-affiliation-id": "{{miru.candidate_affiliation_id}}",
+        "miru:candidate-affiliation-party": "{{{miru.candidate_affiliation_party}}}",
+        "miru:candidate-affiliation-registered-name": "{{{miru.candidate_affiliation_registered_name}}}"
+    },
+    "name": "{{{name_on_ballot}}}",
+    "alias": null,
+    "description": null,
+    "type": null,
+    "presentation": {
+        "i18n": {
+            "en": {
+                "name": "{{{name_on_ballot}}}"
+            }
+        },
+        "sort_order": {{sort_order}}
+    },
+    "is_public": false,
+    "image_document_id": null
+}

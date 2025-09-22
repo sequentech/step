@@ -2,32 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect} from "react"
-import {useGetList, useRefresh, useSidebarState} from "react-admin"
-import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import {IconButton, adminTheme} from "@sequentech/ui-essentials"
-import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
-import {Link} from "react-router-dom"
+import React, {useContext, useEffect, useState} from "react"
+import {useGetOne, useSidebarState} from "react-admin"
+import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {IconButton} from "@sequentech/ui-essentials"
+import {Box, Select} from "@mui/material"
 import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
+import {CreateTenant} from "@/resources/Tenant/CreateTenant"
 
 const SelectTenants: React.FC = () => {
-    const refresh = useRefresh()
     const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const {i18n} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
+    const [isNewTenantOpen, setIsNewTenantOpen] = useState(false)
 
     const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
-    const {data, total} = useGetList("sequent_backend_tenant", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "updated_at", order: "DESC"},
-        filter: {is_active: true},
+    const {data} = useGetOne("sequent_backend_tenant", {
+        id: tenantId,
     })
 
     useEffect(() => {
@@ -39,47 +37,27 @@ const SelectTenants: React.FC = () => {
         }
     }, [data, tenantId, authContext.tenantId, setTenantId])
 
-    const hasSingle = total === 1
-
-    const handleChange = (event: SelectChangeEvent<unknown>) => {
-        const tenantId: string = event.target.value as string
-        setTenantId(tenantId)
-        refresh()
-    }
-
     return (
-        <Container hasSingle={hasSingle}>
+        <Container className="select-tenants" hasSingle={true}>
             <AccountCircleIcon />
             {isOpenSidebar && !!data && (
                 <>
-                    {hasSingle ? (
-                        <SingleDataContainer
-                            style={{
-                                textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
-                            }}
-                        >
-                            {data[0].slug}
-                        </SingleDataContainer>
-                    ) : (
-                        <StyledSelect
-                            labelId="tenant-select-label"
-                            id="tenant-select"
-                            value={tenantId}
-                            onChange={handleChange}
-                        >
-                            {data?.map((tenant) => (
-                                <MenuItem key={tenant.id} value={tenant.id}>
-                                    {tenant.slug}
-                                </MenuItem>
-                            ))}
-                        </StyledSelect>
-                    )}
+                    <SingleDataContainer
+                        className="tenant-name"
+                        style={{
+                            textAlign: i18n.dir(i18n.language) === "rtl" ? "start" : "start",
+                            marginLeft: 0,
+                        }}
+                    >
+                        {data.slug}
+                    </SingleDataContainer>
                     {showAddTenant ? (
-                        <Link to="/sequent_backend_tenant/create">
-                            <StyledIcon icon={faPlusCircle} />
-                        </Link>
+                        <StyledIcon icon={faPlusCircle} onClick={() => setIsNewTenantOpen(true)} />
                     ) : null}
                 </>
+            )}
+            {isNewTenantOpen && (
+                <CreateTenant isDrawerOpen={isNewTenantOpen} setIsDrawerOpen={setIsNewTenantOpen} />
             )}
         </Container>
     )
@@ -87,7 +65,9 @@ const SelectTenants: React.FC = () => {
 
 export default SelectTenants
 
-const Container = styled(Box)<{hasSingle: boolean}>`
+const Container = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "hasSingle", // Prevent `hasSingle` from being passed to the DOM
+})<{hasSingle: boolean}>`
     display: flex;
     align-items: center;
     padding-left: 1rem;

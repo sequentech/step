@@ -8,7 +8,7 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
-use immu_board::assign_value;
+use electoral_log::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use rocket::http::Status;
 use rocket::response::Debug;
@@ -328,12 +328,13 @@ pub async fn list_pgaudit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::serialization::deserialize_with_path::deserialize_value;
     use serde_json::json;
 
     #[test]
     fn test_as_sql() {
         // Test with order_by
-        let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
+        let get_pgaudit_body: GetPgauditBody = deserialize_value(json!({
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
             "order_by": {"id": "asc"}
@@ -345,7 +346,7 @@ mod tests {
         assert_eq!(params[0].value.as_ref().unwrap().value, Some(Value::N(20)));
 
         // Test with limit, offset, and order_by
-        let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
+        let get_pgaudit_body: GetPgauditBody = deserialize_value(json!({
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
             "limit": 15,
@@ -367,7 +368,7 @@ mod tests {
         assert!(params.is_empty());
 
         // Test with high limit value
-        let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
+        let get_pgaudit_body: GetPgauditBody = deserialize_value(json!({
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
             "limit": 1550

@@ -1,0 +1,5 @@
+mutation CreateElectionEvent($electionEvent: CreateElectionEventInput!) {
+        insertElectionEvent(object: $electionEvent) {
+            id
+        }
+    }

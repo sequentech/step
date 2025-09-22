@@ -1,0 +1,8 @@
+mutation PublishBallot($electionEventId: uuid!, $ballotPublicationId: uuid!) {
+        publish_ballot(
+            election_event_id: $electionEventId
+            ballot_publication_id: $ballotPublicationId
+        ) {
+            ballot_publication_id
+        }
+}

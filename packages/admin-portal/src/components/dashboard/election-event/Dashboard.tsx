@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
@@ -17,17 +17,21 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {
     CastVotesPerDay,
     GetElectionEventStatsQuery,
+    ListKeysCeremonyQuery,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Tally_Session,
 } from "@/gql/graphql"
-import {useRecordContext} from "react-admin"
-import {
-    EVotingStatus,
-    IElectionEventStatistics,
-    IElectionEventStatus,
-} from "@sequentech/ui-essentials"
+import {useGetList, useRecordContext} from "react-admin"
+import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
-import {getLoginUrl} from "@/services/UrlGeneration"
+import {getAuthUrl} from "@/services/UrlGeneration"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
+import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
+import {IKeysCeremonyExecutionStatus} from "@/services/KeyCeremony"
+import {ETallyType} from "@/types/ceremonies"
 
 const Container = styled(Box)`
     display: flex;
@@ -52,6 +56,18 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
     const {t} = useTranslation()
+    const authContext = useContext(AuthContext)
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+    const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const showIpAdresses = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ADMIN_IP_ADDRESS_VIEW
+    )
+
+    // Ensure required parameters are set before running the query.
+    const canQuery = Boolean(tenantId && record?.id)
 
     const {
         loading,
@@ -63,9 +79,53 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             electionEventId: record?.id,
             startDate: formatDate(startDate),
             endDate: formatDate(endDate),
+            userTimezone,
         },
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        skip: !canQuery,
     })
+
+    const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: record?.id,
+        },
+        skip: !canQuery,
+        context: {
+            headers: {
+                "x-hasura-role": isTrustee
+                    ? IPermissions.TRUSTEE_CEREMONY
+                    : IPermissions.ADMIN_CEREMONY,
+            },
+        },
+    })
+    const keysCeremonyIds = useMemo(
+        () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony.id) ?? [],
+        [keysCeremonies?.list_keys_ceremony?.items]
+    )
+
+    const {data: tallySessions} = useGetList<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: record?.id,
+                keys_ceremony_id: {
+                    format: "hasura-raw-query",
+                    value: {_in: keysCeremonyIds},
+                },
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+            enabled: canQuery,
+        }
+    )
 
     const stats = dataStats?.election_event?.[0]?.statistics as IElectionEventStatistics | null
 
@@ -88,7 +148,17 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         }
         const status = record.status as IElectionEventStatus
         let data: Array<number> = [0]
-        if (status.keys_ceremony_finished) {
+        let finishedKeysCeremonies = keysCeremonies?.list_keys_ceremony?.items?.find(
+            (ceremony) =>
+                (ceremony.execution_status as IKeysCeremonyExecutionStatus) ===
+                IKeysCeremonyExecutionStatus.SUCCESS
+        )
+        let finishedTallySessions = tallySessions?.find(
+            (tallySession) =>
+                tallySession.is_execution_completed &&
+                tallySession.tally_type !== ETallyType.INITIALIZATION_REPORT
+        )
+        if (finishedKeysCeremonies) {
             data.push(1)
         }
         if (status.is_published) {
@@ -100,14 +170,28 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         if (EVotingStatus.CLOSED === status.voting_status) {
             data.push(4)
         }
-        if (status.tally_ceremony_finished) {
+        if (finishedTallySessions) {
             data.push(5)
         }
         setSelected(Math.max(...data))
-    }, [record?.status])
+    }, [record?.status, keysCeremonies?.list_keys_ceremony?.items, tallySessions])
 
     const loginUrl = useMemo(() => {
-        return getLoginUrl(globalSettings.VOTING_PORTAL_URL, tenantId ?? "", record?.id ?? "")
+        return getAuthUrl(
+            globalSettings.VOTING_PORTAL_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "login"
+        )
+    }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
+
+    const enrollUrl = useMemo(() => {
+        return getAuthUrl(
+            globalSettings.VOTING_PORTAL_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "enroll"
+        )
     }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
 
     if (loading) {
@@ -172,11 +256,31 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
+                    {showIpAdresses && record?.id && <ListIpAddress electionEventId={record.id} />}
                 </Box>
-                <Box sx={{display: "flex", justifyContent: "center"}}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: "20px",
+                        paddingTop: "10px",
+                    }}
+                >
                     <a href={loginUrl ?? ""} target="_blank">
                         {t("dashboard.voterLoginURL")}
                     </a>
+                    <p>|</p>
+                    <a href={enrollUrl ?? ""} target="_blank">
+                        {t("dashboard.voterEnrollURL")}
+                    </a>
+                    {record?.voting_channels?.kiosk === true && (
+                        <>
+                            <p>|</p>
+                            <a href={enrollUrl ? `${enrollUrl}?kiosk` : ""} target="_blank">
+                                {t("dashboard.voterEnrollKioskURL")}
+                            </a>
+                        </>
+                    )}
                 </Box>
             </Box>
         </>

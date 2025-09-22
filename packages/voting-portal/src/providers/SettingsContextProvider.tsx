@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
-import Loader from "../components/Loader"
+import {Loader} from "@sequentech/ui-essentials"
 
 export interface GlobalSettings {
     DISABLE_AUTH: boolean
@@ -14,6 +14,7 @@ export interface GlobalSettings {
     KEYCLOAK_URL: string
     HASURA_URL: string
     APP_VERSION: string
+    APP_HASH: string
     PUBLIC_BUCKET_URL: string
     KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: number
     POLLING_DURATION_TIMEOUT: number
@@ -22,6 +23,9 @@ export interface GlobalSettings {
 interface SettingsContextValues {
     loaded: boolean
     globalSettings: GlobalSettings
+    defaultLanguageTouched: boolean
+    setDefaultLanguageTouched: (value: boolean) => void
+    setDisableAuth: (disable: boolean) => void
 }
 
 const defaultSettingsValues: SettingsContextValues = {
@@ -34,12 +38,16 @@ const defaultSettingsValues: SettingsContextValues = {
         ONLINE_VOTING_CLIENT_ID: "voting-portal",
         KEYCLOAK_URL: "http://127.0.0.1:8090/",
         HASURA_URL: "http://localhost:8080/v1/graphql",
-        APP_VERSION: "10.0.0",
+        APP_VERSION: "-",
+        APP_HASH: "-",
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
         POLLING_DURATION_TIMEOUT: 12000,
     },
+    defaultLanguageTouched: false,
+    setDefaultLanguageTouched: () => {},
+    setDisableAuth: () => {},
 }
 
 export const SettingsContext = createContext<SettingsContextValues>(defaultSettingsValues)
@@ -53,20 +61,13 @@ interface SettingsContextProviderProps {
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     const [loaded, setLoaded] = useState<boolean>(false)
+    const [defaultLanguageTouched, setDefaultLanguageTouched] = useState<boolean>(false)
     const [globalSettings, setSettings] = useState<GlobalSettings>(
         defaultSettingsValues.globalSettings
     )
-
-    const loadSettings = async () => {
-        try {
-            let value = await fetch("/global-settings.json")
-            let json = await value.json()
-            setSettings(json)
-            setLoaded(true)
-        } catch (e) {
-            console.log(`Error loading settings: ${e}`)
-        }
-    }
+    const isPreviewMatch =
+        window.location.pathname.includes("preview/") &&
+        !window.location.pathname.includes("tenant/")
 
     useEffect(() => {
         if (!loaded) {
@@ -74,12 +75,36 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         }
     }, [loaded])
 
+    const loadSettings = async () => {
+        try {
+            let value = await fetch("/global-settings.json")
+            let json = (await value.json()) as GlobalSettings
+            if (isPreviewMatch) {
+                json.DISABLE_AUTH = true
+            }
+            setSettings(json)
+            setLoaded(true)
+        } catch (e) {
+            console.log(`Error loading settings: ${e}`)
+        }
+    }
+
+    const setDisableAuth = (disable: boolean) => {
+        setSettings({
+            ...globalSettings,
+            DISABLE_AUTH: disable,
+        })
+    }
+
     // Setup the context provider
     return (
         <SettingsContext.Provider
             value={{
                 loaded,
                 globalSettings,
+                setDisableAuth,
+                defaultLanguageTouched,
+                setDefaultLanguageTouched,
             }}
         >
             {props.children}

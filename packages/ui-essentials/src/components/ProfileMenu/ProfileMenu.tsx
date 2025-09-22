@@ -4,11 +4,10 @@
 
 import {Box, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
-import {useTranslation} from "react-i18next"
+import {useTranslation, Trans} from "react-i18next"
 import {
     IExpiryCountdown,
     StyledButton,
-    StyledButtonContainer,
     StyledButtonContainerWrapper,
     StyledButtonTooltip,
     UserProfile,
@@ -18,11 +17,15 @@ import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
 import styled from "@emotion/styled"
 import theme from "../../services/theme"
-import {EVotingPortalCountdownPolicy} from "../../types/CoreTypes"
+import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
 const Span = styled.span`
     font-size: 14px;
     color: ${theme.palette.customGrey.dark};
+`
+
+const Name = styled.span`
+    font-weight: 400;
 `
 
 export const StyledButtonTooltipText = styled(Typography)`
@@ -134,6 +137,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         setAnchorEl(null)
     }
 
+    const profileName =
+        userProfile.firstName && userProfile.firstName !== ""
+            ? userProfile.firstName
+            : userProfile.username
+
     return (
         <Box>
             <StyledButtonTooltip
@@ -156,27 +164,39 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     },
                 }}
             >
-                <StyledButtonContainerWrapper style={{width: 60}}>
-                    <StyledButtonContainer className="logout-button-container">
-                        <StyledButton
-                            className="logout-button"
-                            aria-label="log out button"
-                            onClick={handleMenu}
-                        >
-                            <AccountCircle sx={{fontSize: 40}} />
-                            {/* <Box
-									sx={{
-										display: {xs: "none", sm: "block"},
-									}}
-								>
-									Profile
-								</Box> */}
-                        </StyledButton>
-                    </StyledButtonContainer>
-
+                <StyledButtonContainerWrapper className="logout-button-container-wrapper">
                     {expiry && timeLeft > 0 && timeLeft < totalDuration && (
                         <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
                     )}
+                    <StyledButton
+                        className="logout-button"
+                        aria-labelledby="welcome-text-name"
+                        onClick={handleMenu}
+                    >
+                        <AccountCircle sx={{fontSize: 40}} />
+                        <Box
+                            id="welcome-text-name"
+                            className="user-first-name"
+                            sx={{
+                                display: {xs: "none", sm: "block"},
+                                maxWidth: "105px",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                overflowX: "clip",
+                                lineHeight: "18px",
+                                fontWeight: "200",
+                            }}
+                            title={profileName}
+                        >
+                            <Trans
+                                i18nKey="header.welcome"
+                                values={{
+                                    name: profileName,
+                                }}
+                                components={{br: <br />, span: <Name />}}
+                            />
+                        </Box>
+                    </StyledButton>
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
@@ -195,8 +215,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {(!!userProfile.username || !!userProfile.email) && (
-                    <MenuItem>
+                {(!!userProfile.firstName || !!userProfile.username || !!userProfile.email) && (
+                    <MenuItem className="user-details">
                         <Box
                             sx={{
                                 textOverflow: "ellipsis",
@@ -206,18 +226,32 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         >
                             {!!userProfile.username && (
                                 <>
-                                    <span title={userProfile.username}>{userProfile.username}</span>
+                                    <span
+                                        className="firstname-or-username"
+                                        title={
+                                            userProfile.firstName && userProfile.firstName !== ""
+                                                ? userProfile.firstName
+                                                : userProfile.username
+                                        }
+                                    >
+                                        {userProfile.firstName && userProfile.firstName !== ""
+                                            ? userProfile.firstName
+                                            : userProfile.username}
+                                    </span>
                                     <br />
                                 </>
                             )}
                             {!!userProfile.email && (
-                                <Span title={userProfile.email}>{userProfile.email}</Span>
+                                <Span className="email" title={userProfile.email}>
+                                    {userProfile.email}
+                                </Span>
                             )}
                         </Box>
                     </MenuItem>
                 )}
                 {userProfile.openLink && (
                     <MenuItem
+                        className="profile"
                         onClick={() => {
                             handleClose()
                             userProfile?.openLink?.()

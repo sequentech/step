@@ -11,14 +11,12 @@ import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import AuthContextProvider from "./providers/AuthContextProvider"
-import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {Provider} from "react-redux"
 import {store} from "./store/store"
+import {WasmWrapper} from "./providers/WasmWrapper"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
-
-SequentCoreLibInit().then(set_hooks)
 
 interface TenantEventContextValues {
     tenantId: string | null
@@ -86,17 +84,19 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
 
 root.render(
     <React.StrictMode>
-        <SettingsWrapper>
-            <KeycloakProviderContainer>
-                <Provider store={store}>
-                    <BrowserRouter>
-                        <ThemeProvider theme={theme}>
-                            <App />
-                        </ThemeProvider>
-                    </BrowserRouter>
-                </Provider>
-            </KeycloakProviderContainer>
-        </SettingsWrapper>
+        <WasmWrapper>
+            <SettingsWrapper>
+                <KeycloakProviderContainer>
+                    <Provider store={store}>
+                        <BrowserRouter>
+                            <ThemeProvider theme={theme}>
+                                <App />
+                            </ThemeProvider>
+                        </BrowserRouter>
+                    </Provider>
+                </KeycloakProviderContainer>
+            </SettingsWrapper>
+        </WasmWrapper>
     </React.StrictMode>
 )
 

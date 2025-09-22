@@ -4,7 +4,10 @@ SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+/* Use the font in your CSS */
+body {
+    font-family: 'Roboto', sans-serif;
+}
 /*remove the tailwind base resets and add them as css */
 *{
   margin: 0; 
@@ -66,6 +69,9 @@ code {
   padding-bottom: 0 !important;
 }
 
+button.RaFilterFormInput-hideButton {
+  margin-bottom: 21px !important;
+}
 
 .list-actions {
   display: flex;
@@ -113,4 +119,28 @@ code {
       border-right: 1px solid #0F054C !important;
     }
   }
+}
+
+.iti--inline-dropdown {
+  width: 100%;
+}
+
+.iti__tel-input {
+  width: 100%;
+  height: 56px;
+  font-size: 16px;
+}
+
+.iti__search-input {
+  height: 34px;
+  width: 100%;
+  padding-inline-start: 8px;
+}
+
+.iti--inline-dropdown .iti__country-list {
+  max-height: 160px;
+}
+
+.react-js-cron-custom-select-dropdown, .react-js-cron-select-dropdown-period, .react-js-cron-custom-select-dropdown-minutes-large{
+	z-index: 9999999999999;
 }

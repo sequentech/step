@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::date::ISO8601;
+use crate::types::permissions::Permissions;
 use anyhow::{anyhow, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
+use chrono::{DateTime, Duration, Local};
 use serde;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use tracing::{event, instrument, Level};
+use tracing::{debug, info, instrument, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
@@ -25,8 +28,12 @@ pub struct JwtHasuraClaims {
     pub user_id: String,
     #[serde(rename = "x-hasura-area-id")]
     pub area_id: Option<String>,
+    #[serde(rename = "authorized-election-ids")]
+    pub authorized_election_ids: Option<Vec<String>>,
     #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
+    #[serde(rename = "x-hasura-permission-labels")]
+    pub permission_labels: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -48,14 +55,14 @@ pub struct JwtClaims {
     pub typ: String,
     pub azp: String,
     pub nonce: Option<String>,
-    pub session_state: String,
+    pub session_state: Option<String>,
     pub acr: String,
     #[serde(rename = "allowed-origins")]
     pub allowed_origins: Vec<String>,
-    pub realm_access: JwtRolesAccess,
+    pub realm_access: Option<JwtRolesAccess>,
     pub resource_access: Option<HashMap<String, JwtRolesAccess>>,
     pub scope: String,
-    pub sid: String,
+    pub sid: Option<String>,
     pub email_verified: bool,
     #[serde(rename = "https://hasura.io/jwt/claims")]
     pub hasura_claims: JwtHasuraClaims,
@@ -63,8 +70,10 @@ pub struct JwtClaims {
     pub preferred_username: Option<String>,
     pub given_name: Option<String>,
     pub family_name: Option<String>,
+    pub trustee: Option<String>,
 }
 
+#[instrument(err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
     let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
@@ -73,11 +82,66 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
         .map_err(|err| anyhow!("Error decoding string: {:?}", err))?;
     let json = String::from_utf8(bytes)
         .map_err(|err| anyhow!("Error decoding bytes to utf8: {:?}", err))?;
-
+    debug!("json: {:?}", json);
     let claims: JwtClaims = serde_json::from_str(&json).map_err(|err| {
         anyhow!("Error decoding string into formatted json: {:?}", err)
     })?;
+
     Ok(claims)
+}
+
+#[instrument(skip_all, ret)]
+pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
+    let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {
+        return vec![];
+    };
+
+    let s = label_str.trim();
+    let s = if s.starts_with('{') && s.ends_with('}') {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    };
+
+    // Split the string into items
+    let items = s.split(',');
+
+    // Process each item: trim whitespace and surrounding quotes
+    let keys: Vec<String> = items
+        .map(|item| item.trim().trim_matches('"').to_string())
+        .filter(|item| item.len() > 0)
+        .collect();
+    keys
+}
+
+/**
+ * Returns true only if the JWT has gold permissions and the JWT
+ * authentication is fresh, i.e. performed less than 60 seconds ago.
+ */
+#[instrument(skip_all)]
+pub fn has_gold_permission(claims: &JwtClaims) -> bool {
+    let auth_time_local: DateTime<Local> = if let Some(auth_time_int) =
+        claims.auth_time
+    {
+        if let Ok(auth_time_parsed) =
+            ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int * 1000)
+        {
+            auth_time_parsed
+        } else {
+            warn!("ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int={auth_time_int:?}) failed");
+            return false;
+        }
+    } else {
+        warn!("claims.auth_time is None");
+        return false;
+    };
+    // Let's asume fresh means token has at most 1 minute since authentication
+    let freshness_limit = ISO8601::now() - Duration::seconds(60);
+    let is_fresh = auth_time_local > freshness_limit;
+    warn!("is_fresh={is_fresh:?}, auth_time_local={auth_time_local:?}, freshness_limit={freshness_limit:?}");
+    let is_gold = claims.acr == Permissions::GOLD.to_string();
+
+    is_fresh && is_gold
 }
 
 #[cfg(test)]

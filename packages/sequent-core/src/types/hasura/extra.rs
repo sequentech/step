@@ -4,13 +4,16 @@
 
 use super::core::{Candidate, Contest, Election, ElectionEvent};
 use crate::ballot::{
-    CandidatePresentation, ContestPresentation, ElectionDates,
-    ElectionEventPresentation, ElectionEventStatistics, ElectionEventStatus,
-    ElectionPresentation, ElectionStatistics, ElectionStatus,
+    CandidatePresentation, ContestPresentation, ElectionEventPresentation,
+    ElectionEventStatistics, ElectionEventStatus, ElectionPresentation,
+    ElectionStatistics, ElectionStatus,
 };
 use anyhow::{anyhow, Result};
-use serde::Deserialize;
-use tracing::instrument;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::default::Default;
+use strum_macros::{Display, EnumString};
+
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct VotingChannels {
     pub online: Option<bool>,
@@ -27,7 +30,6 @@ pub struct BulletinBoardReference {
 }
 
 impl ElectionEvent {
-    #[instrument(err, skip_all)]
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionEventPresentation>(
@@ -37,10 +39,6 @@ impl ElectionEvent {
 
         if let Some(voting_channels) = &self.voting_channels {
             serde_json::from_value::<VotingChannels>(voting_channels.clone())?;
-        }
-
-        if let Some(dates) = &self.dates {
-            serde_json::from_value::<ElectionDates>(dates.clone())?;
         }
 
         if let Some(status) = &self.status {
@@ -64,7 +62,6 @@ impl ElectionEvent {
 }
 
 impl Election {
-    #[instrument(err, skip_all)]
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionPresentation>(
@@ -74,10 +71,6 @@ impl Election {
 
         if let Some(voting_channels) = &self.voting_channels {
             serde_json::from_value::<VotingChannels>(voting_channels.clone())?;
-        }
-
-        if let Some(dates) = &self.dates {
-            serde_json::from_value::<ElectionDates>(dates.clone())?;
         }
 
         if let Some(status) = &self.status {
@@ -93,7 +86,6 @@ impl Election {
 }
 
 impl Contest {
-    #[instrument(err, skip_all)]
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ContestPresentation>(
@@ -115,4 +107,24 @@ impl Candidate {
 
         Ok(())
     }
+}
+
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TasksExecutionStatus {
+    #[default]
+    IN_PROGRESS,
+    SUCCESS,
+    FAILED,
+    CANCELLED,
 }

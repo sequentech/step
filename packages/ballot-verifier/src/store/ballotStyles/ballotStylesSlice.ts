@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IBallotStyle as IElectionDTO} from "@sequentech/ui-essentials"
+import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 
 export interface IBallotStyle {
     id: string

@@ -2,26 +2,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// cargo run --bin verify -- --server-url http://immudb:3322 --board defaultboard
+// cargo run --bin verify -- --b3-url http://[::1]:50051 --board testboard
 use anyhow::Result;
 use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::protocol::board::immudb::ImmudbBoard;
-use braid::protocol::trustee::Trustee;
+use braid::protocol::board::grpc_m::GrpcB3;
+use braid::protocol::trustee2::Trustee;
 use braid::verify::verifier::Verifier;
-use sequent_core::util::init_log::init_log;
+
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
-
-const IMMUDB_USER: &str = "immudb";
-const IMMUDB_PW: &str = "immudb";
 
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
 struct Cli {
-    /// URL of the bulletin board server
+    /// URL of the grpc bulletin board server
     #[arg(long)]
     server_url: String,
 
@@ -30,28 +27,40 @@ struct Cli {
     board: String,
 
     /// Checks inclusion of the given ballot
+    ///
+    /// NOT YET IMPLEMENTED
     #[arg(long)]
     ballot_hash: Option<String>,
 }
 
+/// Entry point for the braid verifier.
+///
+/// Executes verification against the specified
+/// board on a grpc bulletin board.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
+    braid::util::init_log(true);
+
     // generate dummy values, these are not important
     let dummy_sk = StrandSignatureSk::gen().unwrap();
     let dummy_encryption_key = strand::symm::gen_key();
 
-    init_log(true);
     let args = Cli::parse();
 
     let _store_root = std::env::current_dir().unwrap().join("message_store");
 
     info!("Connecting to board '{}'..", args.board);
-    let trustee: Trustee<RistrettoCtx> =
-        Trustee::new("Verifier".to_string(), dummy_sk, dummy_encryption_key);
-    let board =
-        ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, args.board, None).await?;
-    let mut session = Verifier::new(trustee, board);
+    let trustee: Trustee<RistrettoCtx> = Trustee::new(
+        "Verifier".to_string(),
+        args.board.to_string(),
+        dummy_sk,
+        dummy_encryption_key,
+        None,
+        None,
+    );
+    let board = GrpcB3::new(&args.server_url);
+    let mut session = Verifier::new(trustee, board, &args.board);
     session.run().await?;
 
     Ok(())

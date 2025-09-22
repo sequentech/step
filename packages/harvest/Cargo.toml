@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-# 
+#
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [package]
@@ -14,11 +14,11 @@ rocket = { version = "0.5.0", features = ["json"] }
 serde = { version = "1.0.190", features = ["derive"] }
 serde_json = "1.0.105"
 serde_with = "3.4.0"
+bstr = "1.11.3"
 reqwest = { version="0.12", features = ["blocking", "json"] }
-handlebars = "4.3.7"
-headless_chrome = {version = "1.0.9", default-features = false}
+handlebars = "6.1.0"
 anyhow = "1.0.75"
-tempfile = "3.8.0"
+tempfile = "3.15.0"
 either = "1.9.0"
 dotenv = "0.15.0"
 graphql_client = "0.13.0"
@@ -38,11 +38,11 @@ aws-sdk-s3 = "1.11.0"
 tracing = "0.1"
 
 
-board-messages = { path="../board-messages" }
-immu-board = { path="../immu-board" }
+# board-messages = { path="../board-messages" }
+electoral-log = { path="../electoral-log" }
 immudb-rs = { path="../immudb-rs" }
 strand = { path="../strand" }
-sequent-core = { path="../sequent-core", features = ["keycloak", "probe"] }
+sequent-core = { path="../sequent-core", features = ["keycloak", "s3", "probe"] }
 windmill = { path="../windmill" }
 
 # To connect to the Database

@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM rustlang/rust:nightly-bookworm-slim as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN rustup toolchain install nightly-2024-09-01 \
+    && rustup default nightly-2024-09-01
+
+# copy projects
+#TODO: Copy only necessary files
+WORKDIR /app
+COPY ./braid ./braid
+COPY ./b3 ./b3
+COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./sequent-core ./sequent-core
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./e2e ./e2e
+COPY ./step-cli ./step-cli
+COPY ./orare ./orare
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./braid/scripts ./braid/scripts
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+
+# build projects
+WORKDIR /app/b3
+RUN cargo build --features=server --release --locked
+
+
+
+FROM debian:bookworm
+# Some shared libraries (extra-runtime-dependencies) may need to be installed:
+# Installing also AWS CLI and Vault CLI for trustee configuration
+# Set the default Vault version (put 'latest' for automatic substitution)
+ARG VAULT_VERSION=1.15.5
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    ca-certificates \
+    curl \
+    unzip \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip -o awscliv2.zip \
+    && ./aws/install \
+    && rm -f awscliv2.zip \
+    && if [ "${VAULT_VERSION}" = "latest" ]; then \
+        VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -oP 'vault/\K[0-9.]+(?=/")' | head -n 1); \
+    fi \
+    && curl -o vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
+    && unzip vault.zip -d /usr/local/bin/ \
+    && rm -f vault.zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/server /usr/bin/b3
+
+# init index db
+RUN mkdir /tmp/cache
+
+ENTRYPOINT ["/usr/bin/b3"]

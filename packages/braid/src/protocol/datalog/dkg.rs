@@ -5,63 +5,36 @@
 use super::*;
 use crepe::crepe;
 
-///////////////////////////////////////////////////////////////////////////
-// Logic
-///////////////////////////////////////////////////////////////////////////
+// Distributed key generation.
+//
+// Each trustee generates a channel with which to
+// secretly receive shares from all trustees. They
+// also verify and sign all these channels.
+//
+// Once all trustees have signed all channels they
+// compute and post shares.
+//
+// Once all shares have been posted the trustee
+// at position 0 (as defined in the Configuration)
+// will combine them to produce the public key.
+// The rest of trustees will verify the public key by
+// computing it independently, and sign it. Note that
+// each trustee will verify their secret shares as part
+// of this process.
+//
+// Once all trustees have signed the public key,
+// distributed key generation is complete.
+//
+// Actions:                 GenChannel
+//                          SignChannels
+//                          ComputeShares
+//                          ComputePublicKey
+//                          SignPublicKey
 crepe! {
 
-    @input
-    pub struct InP(Predicate);
-
-    // Input relations, used to convert from InP predicates to crepe relations
-
-    struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
-    struct Channel(ConfigurationHash, ChannelHash, TrusteePosition);
-    struct ChannelsAllSigned(ConfigurationHash, ChannelsHashes, TrusteePosition);
-    struct Shares(ConfigurationHash, SharesHash, TrusteePosition);
-    struct SharesSigned(ConfigurationHash, SharesHash, TrusteePosition);
-    struct PublicKey(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
-    struct PublicKeySigned(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
-
-    ConfigurationSignedAll(config_hash, self_position, num_t, threshold) <- InP(p),
-    let Predicate::ConfigurationSignedAll(config_hash, self_position, num_t, threshold) = p;
-
-    Channel(config_hash, hash, signer_position) <- InP(p),
-    let Predicate::Channel(config_hash, hash, signer_position) = p;
-
-    ChannelsAllSigned(config_hash, hashes, signer_position) <- InP(p),
-    let Predicate::ChannelsSigned(config_hash, hashes, signer_position) = p;
-
-    Shares(config_hash, hash, signer_position) <- InP(p),
-    let Predicate::Shares(config_hash, hash, signer_position) = p;
-
-    PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
-    let Predicate::PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
-
-    PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
-    let Predicate::PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
-
-    // Intermediate relations
-
-    struct ChannelsUpTo(ConfigurationHash, ChannelsHashes, TrusteePosition);
-    struct ChannelsAll(ConfigurationHash, ChannelsHashes);
-    struct ChannelsAllSignedUpTo(ConfigurationHash, ChannelsHashes, TrusteePosition);
-    struct ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes);
-    struct SharesUpTo(ConfigurationHash, SharesHashes, TrusteePosition);
-    struct SharesAll(ConfigurationHash, SharesHashes);
-    struct PublicKeySignedUpTo(ConfigurationHash, PublicKeyHash, SharesHashes, TrusteePosition);
-
-    @output
-    #[derive(Debug)]
-    pub struct OutP(Predicate);
-
-    @output
-    #[derive(Debug)]
-    pub struct A(pub(crate) Action);
-
-    @output
-    #[derive(Debug)]
-    pub struct DErr(DatalogError);
+    ///////////////////////////////////////////////////////////////////////////
+    // Inference.
+    ///////////////////////////////////////////////////////////////////////////
 
     A(Action::GenChannel(cfg_h)) <-
     ConfigurationSignedAll(cfg_h, self_position, _num_t, _threshold),
@@ -81,9 +54,9 @@ crepe! {
     // We subtract 1 since trustees positions are 0 based
     ChannelsUpTo(cfg_h, hashes, num_t - 1);
 
-    A(Action::SignChannels(cfg_h, hashes)) <-
+    A(Action::SignChannels(cfg_h, hashes, self_position, num_t)) <-
     ChannelsAll(cfg_h, hashes),
-    ConfigurationSignedAll(cfg_h, self_position, _num_t, _threshold),
+    ConfigurationSignedAll(cfg_h, self_position, num_t, _threshold),
     !ChannelsAllSigned(cfg_h, hashes, self_position);
 
     ChannelsAllSignedUpTo(cfg_h, channels_hs, n + 1) <-
@@ -145,6 +118,67 @@ crepe! {
     // we subtract 1 since trustees positions are 0 based
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, num_t - 1);
 
+    ///////////////////////////////////////////////////////////////////////////
+    // Input relations.
+    ///////////////////////////////////////////////////////////////////////////
+
+    struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
+    struct Channel(ConfigurationHash, ChannelHash, TrusteePosition);
+    struct ChannelsAllSigned(ConfigurationHash, ChannelsHashes, TrusteePosition);
+    struct Shares(ConfigurationHash, SharesHash, TrusteePosition);
+    struct SharesSigned(ConfigurationHash, SharesHash, TrusteePosition);
+    struct PublicKey(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
+    struct PublicKeySigned(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Convert from InP predicates to crepe relations.
+    ///////////////////////////////////////////////////////////////////////////
+
+    ConfigurationSignedAll(config_hash, self_position, num_t, threshold) <- InP(p),
+    let Predicate::ConfigurationSignedAll(config_hash, self_position, num_t, threshold) = p;
+
+    Channel(config_hash, hash, signer_position) <- InP(p),
+    let Predicate::Channel(config_hash, hash, signer_position) = p;
+
+    ChannelsAllSigned(config_hash, hashes, signer_position) <- InP(p),
+    let Predicate::ChannelsSigned(config_hash, hashes, signer_position) = p;
+
+    Shares(config_hash, hash, signer_position) <- InP(p),
+    let Predicate::Shares(config_hash, hash, signer_position) = p;
+
+    PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
+    let Predicate::PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
+
+    PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
+    let Predicate::PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Intermediate relations.
+    ///////////////////////////////////////////////////////////////////////////
+
+    struct ChannelsUpTo(ConfigurationHash, ChannelsHashes, TrusteePosition);
+    struct ChannelsAll(ConfigurationHash, ChannelsHashes);
+    struct ChannelsAllSignedUpTo(ConfigurationHash, ChannelsHashes, TrusteePosition);
+    struct ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes);
+    struct SharesUpTo(ConfigurationHash, SharesHashes, TrusteePosition);
+    struct SharesAll(ConfigurationHash, SharesHashes);
+    struct PublicKeySignedUpTo(ConfigurationHash, PublicKeyHash, SharesHashes, TrusteePosition);
+
+    @input
+    pub struct InP(Predicate);
+
+    @output
+    #[derive(Debug)]
+    pub struct OutP(Predicate);
+
+    @output
+    #[derive(Debug)]
+    pub struct A(pub(crate) Action);
+
+    @output
+    #[derive(Debug)]
+    pub struct DErr(DatalogError);
+
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -152,9 +186,9 @@ crepe! {
 ///////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct S;
+pub(crate) struct D;
 
-impl S {
+impl D {
     pub(crate) fn run(
         &self,
         predicates: &Vec<Predicate>,

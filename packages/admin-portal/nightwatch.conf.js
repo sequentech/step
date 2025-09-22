@@ -24,7 +24,7 @@ module.exports = {
     page_objects_path: [],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-commands.html
-    custom_commands_path: [],
+    custom_commands_path: ["test/commands"],
 
     // See https://nightwatchjs.org/guide/extending-nightwatch/adding-custom-assertions.html
     custom_assertions_path: [],
@@ -53,7 +53,11 @@ module.exports = {
             },
 
             desiredCapabilities: {
-                browserName: "chrome",
+                "browserName": "firefox",
+                "acceptInsecureCerts": true,
+                "moz:firefoxOptions": {
+                    args: ["--headless"],
+                },
             },
 
             webdriver: {
@@ -75,7 +79,29 @@ module.exports = {
                         //'--ignore-certificate-errors',
                         //'--allow-insecure-localhost',
                         //'--headless'
+                        "--start-maximized",
                     ],
+                },
+                "chromeOptions": {
+                    args: ["start-maximized"],
+                },
+            },
+
+            webdriver: {
+                start_process: true,
+                server_path: "",
+                cli_args: [
+                    // --verbose
+                ],
+            },
+        },
+
+        firefox: {
+            desiredCapabilities: {
+                "browserName": "firefox",
+                "acceptInsecureCerts": true,
+                "moz:firefoxOptions": {
+                    args: ["--headless"],
                 },
             },
 

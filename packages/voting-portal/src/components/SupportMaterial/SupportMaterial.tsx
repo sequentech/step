@@ -15,8 +15,10 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import DescriptionIcon from "@mui/icons-material/Description"
-import {GetDocumentQuery} from "../../gql/graphql"
 import {useGetPublicDocumentUrl} from "../../hooks/public-document-url"
+import {SettingsContext} from "../../providers/SettingsContextProvider"
+import {useAppSelector} from "../../store/hooks"
+import {selectDocumentById} from "../../store/documents/documentsSlice"
 
 const BorderBox = styled(Box)`
     display: flex;
@@ -92,21 +94,15 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
-
     const videoRef = React.useRef<HTMLIFrameElement>(null)
 
-    const {data: imageData} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
-        variables: {
-            id: documentId || "",
-            tenantId: tenantId || "",
-        },
-    })
+    const imageData = useAppSelector(selectDocumentById(String(documentId)))
 
     const handleOpenDialog = async (type: string) => {
         openPreviewSet(true)
     }
 
-    let documentName = imageData?.sequent_backend_document?.[0]?.name
+    let documentName = imageData?.name
     const documentUrl = documentName ? getDocumentUrl(documentId, documentName) : ""
 
     return (
@@ -188,7 +184,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                             >
                                 <iframe
                                     src={documentUrl}
-                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
+                                    title={`${t(
+                                        "materials.common.label"
+                                    )} tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     width="1400"
                                     height="800"
                                 ></iframe>
@@ -208,7 +206,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     width="800"
                                     height="500"
                                     src={documentUrl}
-                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
+                                    title={`${t(
+                                        "materials.common.label"
+                                    )} tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     referrerPolicy="origin"
                                     sandbox="allow-scripts allow-same-origin"
                                     allow="autoplay;"
@@ -229,7 +229,9 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                                     width="800"
                                     height="120"
                                     src={documentUrl}
-                                    title={`tenant-${tenantId}/document-${documentId}/${documentName}`}
+                                    title={`${t(
+                                        "materials.common.label"
+                                    )} tenant-${tenantId}/document-${documentId}/${documentName}`}
                                     allow="autoplay"
                                 ></iframe>
                             </Box>

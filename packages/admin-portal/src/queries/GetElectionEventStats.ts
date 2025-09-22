@@ -10,12 +10,14 @@ export const GET_ELECTION_EVENT_STATS = gql`
         $electionEventId: uuid!
         $startDate: String!
         $endDate: String!
+        $userTimezone: String!
     ) {
         stats: getElectionEventStats(
             object: {
                 election_event_id: $electionEventId
                 start_date: $startDate
                 end_date: $endDate
+                user_timezone: $userTimezone
             }
         ) {
             total_eligible_voters

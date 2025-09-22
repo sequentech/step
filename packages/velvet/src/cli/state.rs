@@ -6,13 +6,14 @@ use super::error::{Error, Result};
 use super::CliRun;
 use crate::config::PipeConfig;
 use crate::pipes::error::Error as PipesError;
+use crate::pipes::generate_db::GenerateDatabase;
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
 use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 use tracing::instrument;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct State {
     pub cli: CliRun,
     pub stages: Vec<Stage>,
@@ -27,7 +28,7 @@ pub struct Stage {
 }
 
 impl State {
-    #[instrument]
+    #[instrument(err, skip(config), name = "State::new")]
     pub fn new(cli: &CliRun, config: &Config) -> Result<Self> {
         let stages =
             config
@@ -120,12 +121,12 @@ impl State {
         Ok(())
     }
 
-    #[instrument(skip_all)]
-    pub fn get_results(&self) -> Result<Vec<ElectionReportDataComputed>> {
+    #[instrument(skip_all, err)]
+    pub fn get_results(&self, force: bool) -> Result<Vec<ElectionReportDataComputed>> {
         let next_pipename = self.get_next();
 
         // not all pipelines have been executed, bail out
-        if next_pipename.is_some() {
+        if next_pipename.is_some() && !force {
             return Err(Error::PipeNotFound);
         }
 

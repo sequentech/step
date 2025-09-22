@@ -1,3 +1,3 @@
 table:
-  name: event
-  schema: sequent_backend
+    name: event
+    schema: sequent_backend

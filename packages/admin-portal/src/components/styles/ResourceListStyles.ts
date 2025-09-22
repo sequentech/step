@@ -8,6 +8,7 @@ import {Box, Drawer, Button} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
 import MailIcon from "@mui/icons-material/Mail"
 import DeleteIcon from "@mui/icons-material/Delete"
+import FilterAltIcon from "@mui/icons-material/FilterAlt"
 
 export const ResourceListStyles = {
     EmptyBox: styled(Box)`
@@ -38,6 +39,9 @@ export const ResourceListStyles = {
         margin-right: 10px;
     `,
     MailIcon: styled(MailIcon)`
+        margin-right: 10px;
+    `,
+    FiltersIcon: styled(FilterAltIcon)`
         margin-right: 10px;
     `,
 }

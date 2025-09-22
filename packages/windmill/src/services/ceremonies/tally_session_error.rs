@@ -4,10 +4,10 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
-use crate::services::date::ISO8601;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, info, instrument, Level};
 
@@ -38,7 +38,7 @@ pub async fn handle_tally_session_error(
     )
     .await?;
 
-    let Some(last_execution) = executions.last() else {
+    let Some(last_execution) = executions.first() else {
         tracing::error!("No successful executions, skipping");
         return Ok(());
     };
@@ -69,6 +69,7 @@ pub async fn handle_tally_session_error(
         Some(status),
         last_execution.results_event_id.clone(),
         last_execution.session_ids.clone(),
+        None,
     )
     .await?;
 

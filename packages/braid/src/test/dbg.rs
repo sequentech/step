@@ -18,26 +18,52 @@ use tracing_subscriber::reload::Handle;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::LocalBoard;
-use board_messages::braid::artifact::Ballots;
-use board_messages::braid::artifact::Configuration;
-use board_messages::braid::message::Message;
-use board_messages::braid::newtypes::PublicKeyHash;
-use board_messages::braid::newtypes::NULL_TRUSTEE;
-use board_messages::braid::protocol_manager::ProtocolManager;
+use crate::protocol::board::local2::{ArtifactEntryIdentifier, StatementEntryIdentifier};
+use b3::messages::artifact::Ballots;
+use b3::messages::artifact::Configuration;
+use b3::messages::message::Message;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::newtypes::NULL_TRUSTEE;
+use b3::messages::protocol_manager::ProtocolManager;
 
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
-use board_messages::braid::newtypes::MAX_TRUSTEES;
+use b3::messages::newtypes::MAX_TRUSTEES;
 
+/// Runs a simple interactive ncurses terminal to simulate or
+/// debug a protocol execution.
+///
+/// The following steps execute a protocol run:
+///
+/// reset <trustees> <threshold>    - initialize the protocol
+///
+/// step                            - executes one step of the protocol
+/// This command is repeated until the protocol has completed key generation
+///
+/// ballots                          - generates plaintexts, encrypts and posts
+///
+/// step                            - executes one step of the protocol
+/// This command is repeated until the protocol has completed shuffling
+/// and decryption.
+///
+/// decrypted                       - shows decrypted plaintexts and if they match
+///
+/// The protocol simulates the trustee's data, the bulletin board and their
+/// communication in memory. The status command can be used to inspect the messages
+/// in the bulletin board and each trustee's view of it. Use the help command
+/// to display information on each command.
+///
+/// When launching, the initial number of trustees is 2, with threshold
+/// participants = (1,2).
 #[instrument(skip(log_reload))]
 pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
     let trustees = 2;
     let threshold = [1, 2];
+
     let mut demo = mk_context(ctx, trustees, &threshold);
     demo.log_reload = Some(log_reload);
 
@@ -49,20 +75,17 @@ pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<
         .with_stop_on_ctrl_c(true)
         .with_prompt("")
         .with_command(
-            Command::new("reset")
-                .arg(Arg::new("trustees").required(true))
-                .arg(Arg::new("threshold").required(true))
-                .about("Reset the run"),
-            reset,
+            Command::new("decrypted").about("Shows the last decrypted plaintexts and whether they match the encrypted plaintexts"),
+            decrypted,
         )
         .with_command(
             Command::new("step")
-                .arg(Arg::new("trustee").required(false))
-                .about("Execute one step of the protocol"),
+                .arg(Arg::new("trustee").required(false).help("The trustee to run the step for, or all if none is supplied."))
+                .about("Execute one step of the protocol, optionally specifying one trustee to run."),
             step,
         )
         .with_command(
-            Command::new("status").about("Shows remote board and localboard"),
+            Command::new("status").about("Shows the bulletin board board and each trustee's view of it"),
             status,
         )
         .with_command(
@@ -70,26 +93,31 @@ pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<
             plaintexts,
         )
         .with_command(
-            Command::new("decrypted").about("Shows the last decrypted plaintexts and whether they match the encrypted plaintexts"),
-            decrypted,
+            Command::new("reset")
+                .arg(Arg::new("trustees").required(true).help("The total number of trustees"))
+                .arg(Arg::new("threshold").required(true).help("Comma separated list of trustees that will participate (eg '1,2')"))
+                .about("Reset the run, passing in the number of trustees and a comma separated list for the threshold participants"),
+            reset,
         )
         .with_command(
             Command::new("log")
-                .arg(Arg::new("level").required(false))
-                .about("Set log level (0-6)"),
+                .arg(Arg::new("level").required(false).help("The new log level; 0 = OFF, 5 = TRACE."))
+                .about("Set log level (0-5). If no level is specified prints the current level"),
             log,
         )
         .with_command(
             Command::new("ballots")
-                .arg(Arg::new("batch").required(true))
-                .arg(Arg::new("count").required(false))
-                .about("Post a ballot batch"),
+                .arg(Arg::new("count").required(false).help("The number of ballots to post, default = 10."))
+                .arg(Arg::new("batch").required(false).help("The batch number to use, 0 or greater, default = 1."))
+                .about("Post a ballot batch, optionally passing the number of ballots to post and the batch number"),
             ballots,
         )
         .with_command(Command::new("quit").about("quit"), quit);
+
     repl.run()
 }
 
+/// Contains all the information necessary to interact with the protocol from the repl.
 struct ReplContext<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
@@ -104,9 +132,19 @@ struct ReplContext<C: Ctx> {
     pub selected_trustees: [usize; 12],
 }
 
+/// The information that is displayed with the status command.
+///
+/// This includes
+///
+/// * The bulletin board messages.
+/// * Each trustee's view of the bulletin board.
+/// * The Messages posted in the last step.
+/// * The Actions executed in the last step.
 struct Status<C: Ctx> {
     cfg: Configuration<C>,
-    locals: Vec<LocalBoard<C>>,
+    // locals: Vec<LocalBoard<C>>,
+    statement_keys: Vec<Vec<StatementEntryIdentifier>>,
+    artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
     remote: VectorBoard,
     last_messages: Vec<Message>,
     last_actions: HashSet<Action>,
@@ -114,24 +152,27 @@ struct Status<C: Ctx> {
 impl<C: Ctx> Status<C> {
     fn new(
         cfg: Configuration<C>,
-        locals: Vec<LocalBoard<C>>,
+        statement_keys: Vec<Vec<StatementEntryIdentifier>>,
+        artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
         remote: VectorBoard,
         last_messages: Vec<Message>,
         last_actions: HashSet<Action>,
     ) -> Status<C> {
         Status {
             cfg,
-            locals,
+            statement_keys,
+            artifact_keys,
             remote,
             last_messages,
             last_actions,
         }
     }
+    /// Shows status information using ascii tables.
     fn to_string(&self) -> String {
         let mut boards = vec![];
 
         boards.push("Trustees".to_string());
-        for (i, b) in self.locals.iter().enumerate() {
+        for (i, _) in self.statement_keys.iter().enumerate() {
             let mut ascii_table = AsciiTable::default();
             ascii_table.set_max_width(205);
             ascii_table
@@ -139,14 +180,12 @@ impl<C: Ctx> Status<C> {
                 .set_header(format!("trustee {}", i.to_string()))
                 .set_align(Align::Left);
 
-            let data1: Vec<String> = b
-                .statements
-                .keys()
+            let data1: Vec<String> = self.statement_keys[i]
+                .iter()
                 .map(|k| format!("{}-{}", k.kind.to_string(), k.signer_position))
                 .collect();
-            let data2: Vec<String> = b
-                .artifacts
-                .keys()
+            let data2: Vec<String> = self.artifact_keys[i]
+                .iter()
                 .map(|k| {
                     format!(
                         "{}-{}",
@@ -154,13 +193,10 @@ impl<C: Ctx> Status<C> {
                     )
                 })
                 .collect();
-            let mut data3 = vec![format!("{:?}", b.configuration)];
 
-            data3.insert(0, "cfg:".to_string());
             let data: Vec<Vec<String>> = vec![
                 vec!["stm:".to_string(), data1.join(" ")],
                 vec!["art:".to_string(), data2.join(" ")],
-                data3,
             ];
 
             boards.push(ascii_table.format(data));
@@ -190,7 +226,12 @@ impl<C: Ctx> Status<C> {
             ])
         }
         boards.push("Last step messages".to_string());
-        boards.push(ascii_table.format(data));
+        if data.len() > 0 {
+            boards.push(ascii_table.format(data));
+        } else {
+            boards.push("-".to_string());
+            boards.push("".to_string());
+        }
 
         let mut ascii_table = AsciiTable::default();
         ascii_table.set_max_width(205);
@@ -212,6 +253,7 @@ impl<C: Ctx> Status<C> {
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
         for m in self.remote.messages.iter() {
+            let m = Message::strand_deserialize(&m.message).unwrap();
             let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),
@@ -224,12 +266,17 @@ impl<C: Ctx> Status<C> {
         boards.push(ascii_table.format(data));
 
         boards.push("Last actions".to_string());
-        boards.push(format!("{:?}", self.last_actions));
+        if self.last_actions.len() > 0 {
+            boards.push(format!("{:?}", self.last_actions));
+        } else {
+            boards.push("-".to_string());
+        }
 
         boards.join("\r\n")
     }
 }
 
+/// Constructs the repl context used to interact with the protocol.
 fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
@@ -246,7 +293,14 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
             let kp = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
-            Trustee::new(i.to_string(), kp, encryption_key)
+            Trustee::new(
+                i.to_string(),
+                "foo".to_string(),
+                kp,
+                encryption_key,
+                None,
+                None,
+            )
         })
         .collect();
 
@@ -267,6 +321,11 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     let message = Message::bootstrap_msg(&cfg, &pm).unwrap();
     remote.add(message);
 
+    info!(
+        "Num trustees = {:?}, threshold = {:?}",
+        n_trustees, threshold
+    );
+
     ReplContext {
         ctx,
         cfg,
@@ -282,6 +341,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     }
 }
 
+/// Sets or displays the current log level.
 fn log<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let new_level;
     let l = args.get_one::<String>("level");
@@ -318,16 +378,30 @@ fn log<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<
     )))
 }
 
+/// Quits
 fn quit<T>(_args: ArgMatches, _context: &mut T) -> Result<Option<String>> {
     std::process::exit(0);
 }
 
+/// Displays the protocol status.
+///
+/// Besides general inspection, the protocol status can be used to detect
+/// when the key generation is completed in order to post ballots, and
+/// when shuffling and decryption is completed in order to check output
+/// plaintexts.
 fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let locals: Vec<LocalBoard<C>> = context
+    let stmt_keys: Vec<Vec<StatementEntryIdentifier>> = context
         .trustees
         .iter()
-        .map(|t| t.copy_local_board())
+        .map(|t| t.local_board.statements.keys().cloned().collect())
         .collect();
+
+    let art_keys: Vec<Vec<ArtifactEntryIdentifier>> = context
+        .trustees
+        .iter()
+        .map(|t| t.local_board.artifacts_memory.keys().cloned().collect())
+        .collect();
+
     let mut messages = vec![];
     for m in &context.last_messages {
         messages.push(m.try_clone().unwrap());
@@ -337,7 +411,8 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 
     let status = Status::new(
         context.cfg.clone(),
-        locals,
+        stmt_keys,
+        art_keys,
         context.remote.clone(),
         messages,
         actions,
@@ -345,18 +420,27 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     Ok(Some(status.to_string()))
 }
 
+/// Posts random ballots.
+///
+/// Generates random plaintexts.
+/// Encrypts the plaintexts.
+/// Posts the resulting ballots.
+///
+/// The last generated plaintexts used as input to encryption
+/// can be shown with the plaintexts command. When the protocol
+/// is complete, the plaintexts and decrypted commands can
+/// show the correspondence.
 fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let ctx = context.ctx.clone();
-    let batch = args
-        .get_one::<String>("batch")
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
     let ballot_no = args
         .get_one::<String>("count")
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(10);
-    let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
+    let batch = args
+        .get_one::<String>("batch")
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(1);
+    let dkgpk = context.trustees[0]._get_dkg_public_key_nohash().unwrap();
 
     let pk_bytes = dkgpk.strand_serialize().unwrap();
     let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
@@ -377,7 +461,6 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         .collect();
     context.plaintexts = ps;
 
-    info!("selected_trustees {:?}", context.selected_trustees);
     let ballot_batch = Ballots::new(ballots);
     let message = Message::ballots_msg(
         &context.cfg,
@@ -401,18 +484,28 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     )))
 }
 
+/// Shows the last plaintexts generated during ballot posting.
 fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let encoded: Vec<C::E> = context
         .plaintexts
         .iter()
         .map(|p| context.ctx.encode(p).unwrap())
         .collect();
-    Ok(Some(format!("Plaintexts {:?}", encoded)))
+    if encoded.len() > 0 {
+        Ok(Some(format!("Plaintexts {:?}", encoded)))
+    } else {
+        Ok(Some(format!("No plaintexts found")))
+    }
 }
+/// Shows and checks the validity of decryptions.
+///
+/// Validity is checked by comparing the decrypted
+/// values with the plaintext values generated when
+/// posting with the ballots command.
 fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     // FIXME hardcoded batch 1, use command line argument
     let decryptor = context.selected_trustees[0] - 1;
-    if let Some(plaintexts) = context.trustees[decryptor].get_plaintexts_nohash(1, decryptor) {
+    if let Some(plaintexts) = context.trustees[decryptor]._get_plaintexts_nohash(1, decryptor) {
         let decrypted: Vec<C::E> = plaintexts
             .0
              .0
@@ -420,7 +513,7 @@ fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<
             .map(|p| context.ctx.encode(p).unwrap())
             .collect();
 
-        let set1: HashSet<C::P> = HashSet::from_iter(plaintexts.0 .0);
+        let set1: HashSet<C::P> = HashSet::from_iter(plaintexts.0 .0.clone());
         let set2 = HashSet::from_iter(context.plaintexts.iter().cloned());
 
         Ok(Some(format!(
@@ -433,6 +526,9 @@ fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<
     }
 }
 
+/// Resets the protocol with given trustees and threshold.
+///
+/// All trustee and bulletin board information is reset.
 fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let n_trustees = args
         .get_one::<String>("trustees")
@@ -451,7 +547,8 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
         .collect::<std::result::Result<Vec<usize>, _>>()
         .unwrap();
 
-    info!("Threshold {:?}", threshold);
+    info!("Num trustees: {:?}", n_trustees);
+    info!("Threshold: {:?}", threshold);
 
     let reset = mk_context(context.ctx.clone(), n_trustees, &threshold);
 
@@ -467,6 +564,11 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
     status(ArgMatches::default(), context)
 }
 
+/// Executes one step of the protocol.
+///
+/// If a trustee index is specified, the protocol will
+/// only execute for that trustee. Otherwise it will
+/// execute for all trustees.
 fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     context.last_actions = HashSet::from([]);
     context.last_messages = vec![];
@@ -476,10 +578,11 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         let t = value.parse::<u8>()?;
         let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
-            let (messages, actions) = trustee.step(context.remote.get(-1)).unwrap();
-            send(&messages, &mut context.remote);
-            context.last_messages = messages;
-            context.last_actions = actions;
+            // let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
+            let step_result = trustee.step(&context.remote.get(-1)).unwrap();
+            send(&step_result.messages, &mut context.remote);
+            context.last_messages = step_result.messages;
+            context.last_actions = step_result.actions;
         } else {
             return Ok(Some("Invalid trustee index".to_string()));
         }
@@ -490,16 +593,18 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
                 "====================== Running trustee {} ======================",
                 position.unwrap()
             );
-            let (mut messages, actions) = t.step(context.remote.get(-1)).unwrap();
-            send(&messages, &mut context.remote);
-            context.last_messages.append(&mut messages);
-            context.last_actions.extend(&actions);
+            //let (mut messages, actions, _last_id) = t.step(context.remote.get(-1)).unwrap();
+            let mut step_result = t.step(&context.remote.get(-1)).unwrap();
+            send(&step_result.messages, &mut context.remote);
+            context.last_messages.append(&mut step_result.messages);
+            context.last_actions.extend(&step_result.actions);
         }
     }
 
     status(ArgMatches::default(), context)
 }
 
+/// Simulates posting to the bulletin board.
 fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Adding message {:?} to remote", m);

@@ -1,0 +1,21 @@
+{
+    "id": "{{UUID}}",
+    "tenant_id": "{{tenant_id}}",
+    "election_event_id": "{{election_event_id}}",
+    "election_id": "{{election_id}}",
+    "created_at": "{{current_timestamp}}",
+    {{#if is_cron_active}}
+        "cron_config": {
+            "is_active": {{is_cron_active}},
+            "email_recipients": {{{email_recipients}}},
+            "cron_expression": "{{cron_expression}}",
+            "last_document_produced": null
+        },
+    {{/if}}
+    "encryption_policy": "{{encryption_policy}}",
+    "template_alias": "{{template_alias}}",
+    "report_type": "{{report_type}}",
+    "election_id": "{{election_id}}",
+    "password": "{{password}}",
+    "permission_label": "{{permission_label}}"
+}

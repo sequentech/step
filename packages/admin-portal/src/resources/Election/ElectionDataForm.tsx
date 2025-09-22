@@ -5,7 +5,6 @@
 
 import {
     BooleanInput,
-    DateTimeInput,
     SelectInput,
     TextInput,
     useRecordContext,
@@ -22,15 +21,28 @@ import {
     RecordContext,
     NumberInput,
     useGetList,
+    FormDataConsumer,
+    required,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Box} from "@mui/material"
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Tabs,
+    Tab,
+    Grid,
+    Box,
+    Typography,
+} from "@mui/material"
 import {
     GetUploadUrlMutation,
-    Sequent_Backend_Communication_Template,
+    Sequent_Backend_Template,
+    Sequent_Backend_Contest,
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tenant,
+    ManageElectionDatesMutation,
 } from "../../gql/graphql"
 
 import React, {useCallback, useContext, useEffect, useState} from "react"
@@ -41,26 +53,50 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {
-    DropFile,
-    IElectionDates,
+    ContestsOrder,
+    ECastVoteGoldLevelPolicy,
+    EStartScreenTitlePolicy,
+    EGracePeriodPolicy,
+    ESecurityConfirmationPolicy,
+    EVotingPortalAuditButtonCfg,
+    IContestPresentation,
+    EInitializeReportPolicy,
     IElectionEventPresentation,
     IElectionPresentation,
-} from "@sequentech/ui-essentials"
+    EAllowTally,
+} from "@sequentech/ui-core"
+import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ICommunicationMethod, ICommunicationType} from "@/types/communications"
+import {ITemplateMethod} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import styled from "@emotion/styled"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {ManagedSelectInput} from "@/components/managed-inputs/ManagedSelectInput"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
-import {ManageElectionDatesMutation} from "@/gql/graphql"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {CustomFilter} from "@/types/filters"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
 
+const ContestRows = styled.div`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    margin-bottom: 0.1rem;
+    padding: 1rem;
+`
+
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
+    contestsOrder?: Array<Sequent_Backend_Contest>
 } & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {
@@ -71,15 +107,26 @@ export const ElectionDataForm: React.FC = () => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
+    const authContext = useContext(AuthContext)
+    const canEditPermissionLabel = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
+    )
+
+    const canEdit = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_WRITE
+    )
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
-    const {globalSettings} = useContext(SettingsContext)
-    const [startDateValue, setStartDateValue] = useState<string | undefined>(undefined)
-    const [endDateValue, setEndDateValue] = useState<string | undefined>(undefined)
 
-    const [manageElectionDates] = useMutation<ManageElectionDatesMutation>(MANAGE_ELECTION_DATES)
+    const {globalSettings} = useContext(SettingsContext)
+    const [customFilters, setCustomFilters] = useState<CustomFilter[] | undefined>()
+    const [activateSave, setActivateSave] = useState(false)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -89,43 +136,32 @@ export const ElectionDataForm: React.FC = () => {
         id: record.tenant_id || tenantId,
     })
 
+    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
+        filter: {
+            election_id: record.id,
+            tenant_id: record.tenant_id,
+            election_event_id: record.election_event_id,
+        },
+    })
+
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
             id: record.image_document_id || record.tenant_id,
             meta: {tenant_id: record.tenant_id},
-        }
-    )
-
-    const {data: receipts} = useGetList<Sequent_Backend_Communication_Template>(
-        "sequent_backend_communication_template",
+        },
         {
-            filter: {
-                tenant_id: record.tenant_id || tenantId,
-                communication_type: ICommunicationType.BALLOT_RECEIPT,
+            enabled: !!record.image_document_id || !!record.tenant_id,
+            onError: (error: any) => {
+                console.log(`error fetching image doc: ${error.message}`)
+            },
+            onSuccess: () => {
+                console.log(`success fetching image doc`)
             },
         }
     )
 
     const [updateImage] = useUpdate()
-
-    useEffect(() => {
-        let dates = record.dates as IElectionDates | undefined
-        if (dates?.start_date && !startDateValue) {
-            setStartDateValue(dates.start_date)
-        }
-        if (dates?.end_date && !endDateValue) {
-            setEndDateValue(dates.end_date)
-        }
-    }, [
-        record.dates,
-        record.dates?.start_date,
-        record.dates?.end_date,
-        startDateValue,
-        setStartDateValue,
-        endDateValue,
-        setEndDateValue,
-    ])
 
     useEffect(() => {
         if (!data || !record) {
@@ -155,11 +191,9 @@ export const ElectionDataForm: React.FC = () => {
             if (!data) {
                 return incoming as Sequent_Backend_Election_Extended
             }
-
             const temp: Sequent_Backend_Election_Extended = {
                 ...incoming,
             }
-
             const incomingLangConf = (incoming?.presentation as IElectionPresentation | undefined)
                 ?.language_conf
 
@@ -204,6 +238,10 @@ export const ElectionDataForm: React.FC = () => {
                 temp.scheduledOpening = temp.presentation?.dates?.scheduled_opening
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
+
+            temp.presentation.contests_order =
+                temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
+
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
             // set english first lang always
@@ -244,8 +282,8 @@ export const ElectionDataForm: React.FC = () => {
             const allowed: {[key: string]: boolean} = {}
 
             if (temp.receipts) {
-                for (const value in Object.values(ICommunicationMethod) as ICommunicationMethod[]) {
-                    const key = Object.keys(ICommunicationMethod)[value]
+                for (const value in Object.values(ITemplateMethod) as ITemplateMethod[]) {
+                    const key = Object.keys(ITemplateMethod)[value]
 
                     allowed[key] = temp.receipts[key]?.allowed
                     template[key] = temp.receipts[key]?.template
@@ -255,7 +293,18 @@ export const ElectionDataForm: React.FC = () => {
             }
 
             // defaults
-            temp.num_allowed_revotes = temp.num_allowed_revotes || 1
+            temp.presentation.initialization_report_policy =
+                temp.presentation.initialization_report_policy ||
+                EInitializeReportPolicy.NOT_REQUIRED
+            temp.num_allowed_revotes =
+                temp.num_allowed_revotes != null ? temp.num_allowed_revotes : 1
+            temp.presentation.grace_period_policy =
+                temp.presentation.grace_period_policy || EGracePeriodPolicy.NO_GRACE_PERIOD
+            temp.presentation.grace_period_secs = temp.presentation.grace_period_secs || 0
+
+            if (!customFilters && temp?.presentation?.custom_filters) {
+                setCustomFilters(temp.presentation.custom_filters)
+            }
 
             return temp
         },
@@ -332,6 +381,10 @@ export const ElectionDataForm: React.FC = () => {
     const renderTabContent = (parsedValue: Sequent_Backend_Election_Extended) => {
         let tabNodes = []
         let index = 0
+        let hasTos =
+            ESecurityConfirmationPolicy.MANDATORY ===
+            (parsedValue.presentation as IElectionPresentation | undefined)
+                ?.security_confirmation_policy
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
                 tabNodes.push(
@@ -349,6 +402,12 @@ export const ElectionDataForm: React.FC = () => {
                                 source={`presentation.i18n[${lang}].description`}
                                 label={t("electionEventScreen.field.description")}
                             />
+                            {hasTos ? (
+                                <TextInput
+                                    source={`presentation.i18n[${lang}].security_confirmation_html`}
+                                    label={t("electionScreen.field.securityConfirmationHtml")}
+                                />
+                            ) : null}
                         </div>
                     </CustomTabPanel>
                 )
@@ -400,26 +459,86 @@ export const ElectionDataForm: React.FC = () => {
         }
     }
 
-    const communicationMethodChoices = () => {
-        return (Object.values(ICommunicationMethod) as ICommunicationMethod[]).map((value) => ({
+    const gracePeriodPolicyChoices = () => {
+        return (Object.values(EGracePeriodPolicy) as EGracePeriodPolicy[]).map((value) => ({
             id: value,
-            name: t(`communicationTemplate.method.${value.toLowerCase()}`),
+            name: t(`electionScreen.gracePeriodPolicy.${value.toLowerCase()}`),
         }))
     }
 
-    const formValidator = (values: any): any => {
-        const errors: any = {presentation: {dates: {}}}
-        /*if (
-            values?.presentation.dates?.start_date &&
-            values?.presentation?.dates?.end_date <= values?.presentation?.dates?.start_date
-        ) {
-            errors.presentation.dates.end_date = t("electionEventScreen.error.endDate")
-        } else if (new Date(values?.presentation?.dates?.start_date) < new Date(Date.now())) {
-            errors.presentation.dates.start_date = t("electionEventScreen.error.startDate")
-        }*/
-        return errors
+    const allowTallyChoices = () => {
+        return (Object.values(EAllowTally) as EAllowTally[]).map((value) => ({
+            id: value,
+            name: t(`electionScreen.allowTallyPolicy.${value.toLowerCase()}`),
+        }))
     }
 
+    const securityConfirmationPolicyChoices = () => {
+        return (Object.values(ESecurityConfirmationPolicy) as ESecurityConfirmationPolicy[]).map(
+            (value) => ({
+                id: value,
+                name: t(`electionScreen.securityConfirmationPolicy.${value.toLowerCase()}`),
+            })
+        )
+    }
+
+    const sortedContests = (contests ?? []).sort((a, b) => {
+        let presentationA = a.presentation as IContestPresentation | undefined
+        let presentationB = b.presentation as IContestPresentation | undefined
+        let sortOrderA = presentationA?.sort_order ?? -1
+        let sortOrderB = presentationB?.sort_order ?? -1
+        return sortOrderA - sortOrderB
+    })
+
+    interface EnumChoice<T> {
+        id: T
+        name: string
+    }
+
+    const orderAnswerChoices = (): Array<EnumChoice<ContestsOrder>> => {
+        return Object.values(ContestsOrder).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const startScreenTitleChoices = (): Array<EnumChoice<EStartScreenTitlePolicy>> => {
+        return Object.values(EStartScreenTitlePolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.startScreenTitlePolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const goldLevelChoices = (): Array<EnumChoice<ECastVoteGoldLevelPolicy>> => {
+        return Object.values(ECastVoteGoldLevelPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.castVoteGoldLevelPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const auditButtonConfigChoices = (): Array<EnumChoice<EVotingPortalAuditButtonCfg>> => {
+        return Object.values(EVotingPortalAuditButtonCfg).map((value) => ({
+            id: value,
+            name: t(`contestScreen.auditButtonConfig.${value.toLowerCase()}`),
+        }))
+    }
+    type UpdateFunctionProps = Parameters<UpdateFunction>[0]
+
+    const initializationReportChoices = (): Array<EnumChoice<EInitializeReportPolicy>> => {
+        return Object.values(EInitializeReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.initializeReportPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
+    const updateCustomFilters = (
+        values: Sequent_Backend_Election_Extended,
+        {newData}: UpdateFunctionProps
+    ) => {
+        values.presentation.custom_filters = newData
+        setCustomFilters(newData as CustomFilter[])
+        setActivateSave(true)
+    }
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -428,35 +547,33 @@ export const ElectionDataForm: React.FC = () => {
                     languageSettings
                 )
 
-                const onSave = async () => {
-                    await manageElectionDates({
-                        variables: {
-                            electionEventId: parsedValue.election_event_id,
-                            electionId: parsedValue.id,
-                            start_date: startDateValue,
-                            end_date: endDateValue,
-                        },
-                    })
-                }
+                const onSave = async () => {}
 
                 return (
                     <SimpleForm
-                        validate={formValidator}
+                        defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
                         toolbar={
                             <Toolbar>
-                                <SaveButton
-                                    onClick={() => {
-                                        onSave()
-                                    }}
-                                />
+                                {canEdit && (
+                                    <SaveButton
+                                        onClick={() => {
+                                            onSave()
+                                        }}
+                                        type="button"
+                                    />
+                                )}
                             </Toolbar>
                         }
                     >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-general"}
-                            onChange={() => setExpanded("election-data-general")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-general" ? "" : "election-data-general"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-general" />}
@@ -477,60 +594,14 @@ export const ElectionDataForm: React.FC = () => {
 
                         <Accordion
                             sx={{width: "100%"}}
-                            expanded={expanded === "election-data-dates"}
-                            onChange={() => setExpanded("election-data-dates")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-dates" />}
-                            >
-                                <ElectionStyles.Wrapper>
-                                    <ElectionStyles.Title>
-                                        {t("electionScreen.edit.dates")}
-                                    </ElectionStyles.Title>
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
-                                        <DateTimeInput
-                                            source={`dates.start_date`}
-                                            label={t("electionScreen.field.startDateTime")}
-                                            parse={(value) =>
-                                                value && new Date(value).toISOString()
-                                            }
-                                            onChange={(value) => {
-                                                setStartDateValue(
-                                                    value.target.value !== ""
-                                                        ? new Date(value.target.value).toISOString()
-                                                        : undefined
-                                                )
-                                            }}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <DateTimeInput
-                                            source="dates.end_date"
-                                            label={t("electionScreen.field.endDateTime")}
-                                            parse={(value) =>
-                                                value && new Date(value).toISOString()
-                                            }
-                                            onChange={(value) => {
-                                                setEndDateValue(
-                                                    value.target.value !== ""
-                                                        ? new Date(value.target.value).toISOString()
-                                                        : undefined
-                                                )
-                                            }}
-                                        />
-                                    </Grid>
-                                </Grid>
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
                             expanded={expanded === "election-data-language"}
-                            onChange={() => setExpanded("election-data-language")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-language"
+                                        ? ""
+                                        : "election-data-language"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-language" />}
@@ -554,7 +625,11 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-allowed"}
-                            onChange={() => setExpanded("election-data-allowed")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-allowed" ? "" : "election-data-allowed"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-allowed" />}
@@ -576,56 +651,72 @@ export const ElectionDataForm: React.FC = () => {
 
                         <Accordion
                             sx={{width: "100%"}}
-                            expanded={expanded === "election-data-receipts"}
-                            onChange={() => setExpanded("election-data-receipts")}
+                            expanded={expanded === "contest-data-design"}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "contest-data-design" ? "" : "contest-data-design"
+                                )
+                            }
                         >
                             <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-receipts" />}
+                                expandIcon={<ExpandMoreIcon id="contest-data-design" />}
                             >
                                 <ElectionStyles.Wrapper>
                                     <ElectionStyles.Title>
-                                        {t("electionScreen.edit.receipts")}
+                                        {t("contestScreen.edit.design")}
                                     </ElectionStyles.Title>
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <ElectionStyles.AccordionContainer>
-                                    {communicationMethodChoices().map((choice) => (
-                                        <ElectionStyles.AccordionWrapper
-                                            alignment="center"
-                                            key={choice.id}
-                                        >
-                                            <BooleanInput
-                                                source={`allowed.${choice.id}`}
-                                                label={choice.name}
-                                                defaultValue={true}
-                                            />
-                                            <SelectInput
-                                                source={`template.${choice.id}`}
-                                                label={choice.name}
-                                                choices={
-                                                    receipts
-                                                        ?.filter(
-                                                            (item) =>
-                                                                item.communication_method ===
-                                                                choice.id
-                                                        )
-                                                        .map((type) => ({
-                                                            id: type.id,
-                                                            name: type.template.alias,
-                                                        })) ?? []
-                                                }
-                                            />
-                                        </ElectionStyles.AccordionWrapper>
-                                    ))}
-                                </ElectionStyles.AccordionContainer>
+                                <SelectInput
+                                    source={`presentation.audit_button_cfg`}
+                                    choices={auditButtonConfigChoices()}
+                                    label={t(`contestScreen.auditButtonConfig.label`)}
+                                    defaultValue={EVotingPortalAuditButtonCfg.SHOW}
+                                    validate={required()}
+                                />
+                                <SelectInput
+                                    source="presentation.contests_order"
+                                    choices={orderAnswerChoices()}
+                                    validate={required()}
+                                />
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => {
+                                        return (
+                                            formData?.presentation as
+                                                | IElectionPresentation
+                                                | undefined
+                                        )?.contests_order === ContestsOrder.CUSTOM ? (
+                                            <ContestRows>
+                                                <Typography
+                                                    variant="body1"
+                                                    component="span"
+                                                    sx={{
+                                                        padding: "0.5rem 1rem",
+                                                        fontWeight: "bold",
+                                                        margin: 0,
+                                                        display: {xs: "none", sm: "block"},
+                                                    }}
+                                                >
+                                                    {t("electionScreen.edit.reorder")}
+                                                </Typography>
+                                                <CustomOrderInput source="contestsOrder" />
+                                                <Box sx={{width: "100%", height: "180px"}}></Box>
+                                            </ContestRows>
+                                        ) : null
+                                    }}
+                                </FormDataConsumer>
                             </AccordionDetails>
                         </Accordion>
 
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-image" ? "" : "election-data-image"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-image" />}
@@ -661,7 +752,13 @@ export const ElectionDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-advanced"}
-                            onChange={() => setExpanded("election-data-advanced")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-advanced"
+                                        ? ""
+                                        : "election-data-advanced"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-advanced" />}
@@ -673,16 +770,97 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <BooleanInput
+                                    source={"presentation.cast_vote_confirm"}
+                                    label={t(`electionScreen.edit.castVoteConfirm`)}
+                                />
                                 <NumberInput
                                     source="num_allowed_revotes"
                                     label={t("electionScreen.edit.numAllowedVotes")}
                                     min={0}
                                 />
-
+                                <SelectInput
+                                    label={t("electionScreen.castVoteGoldLevelPolicy.label")}
+                                    source="presentation.cast_vote_gold_level"
+                                    choices={goldLevelChoices()}
+                                    defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
+                                    validate={required()}
+                                />
+                                <SelectInput
+                                    label={t("electionScreen.startScreenTitlePolicy.label")}
+                                    source="presentation.start_screen_title_policy"
+                                    choices={startScreenTitleChoices()}
+                                    defaultValue={EStartScreenTitlePolicy.ELECTION}
+                                    validate={required()}
+                                />
+                                {canEditPermissionLabel && (
+                                    <TextInput
+                                        label={t("electionScreen.edit.permissionLabel")}
+                                        source="permission_label"
+                                    />
+                                )}
                                 <FileJsonInput
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
                                     jsonSource="presentation"
+                                />
+                                <SelectInput
+                                    source={`presentation.initialization_report_policy`}
+                                    choices={initializationReportChoices()}
+                                    label={t("electionScreen.initializeReportPolicy.label")}
+                                    validate={required()}
+                                />
+                                <Box>
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            padding: "1rem 0rem",
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t("electionScreen.edit.custom_filters")}
+                                    </Typography>
+
+                                    <JsonEditor
+                                        data={customFilters ?? []}
+                                        onUpdate={(data) =>
+                                            updateCustomFilters(
+                                                parsedValue,
+                                                data as UpdateFunctionProps
+                                            )
+                                        }
+                                    />
+                                </Box>
+                                <ManagedSelectInput
+                                    source={`presentation.grace_period_policy`}
+                                    choices={gracePeriodPolicyChoices()}
+                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
+                                />
+                                <ManagedNumberInput
+                                    source={"presentation.grace_period_secs"}
+                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    defaultValue={0}
+                                    sourceToWatch="presentation.grace_period_policy"
+                                    isDisabled={(selectedPolicy: any) =>
+                                        selectedPolicy === EGracePeriodPolicy.NO_GRACE_PERIOD
+                                    }
+                                />
+                                <ManagedSelectInput
+                                    source={`status.allow_tally`}
+                                    choices={allowTallyChoices()}
+                                    label={t(`electionScreen.edit.allowTallyPolicy`)}
+                                    defaultValue={EAllowTally.ALLOWED}
+                                />
+
+                                <ManagedSelectInput
+                                    source={`presentation.security_confirmation_policy`}
+                                    choices={securityConfirmationPolicyChoices()}
+                                    label={t(`electionScreen.securityConfirmationPolicy.label`)}
+                                    defaultValue={ESecurityConfirmationPolicy.NONE}
                                 />
                             </AccordionDetails>
                         </Accordion>

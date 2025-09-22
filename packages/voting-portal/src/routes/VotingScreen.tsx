@@ -2,21 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
+import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
 import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
+    check_voting_error_dialog_bool,
+    check_voting_not_allowed_next_bool,
     stringToHtml,
     isUndefined,
-    Dialog,
     translateElection,
-    sortContestList,
-} from "@sequentech/ui-essentials"
+    IContest,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    EElectionEventContestEncryptionPolicy,
+} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
@@ -29,11 +30,7 @@ import {
     resetBallotSelection,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
-import {
-    check_voting_error_dialog_bool,
-    check_voting_not_allowed_next_bool,
-    provideBallotService,
-} from "../services/BallotService"
+import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -43,11 +40,19 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import Stepper from "../components/Stepper"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
-import {IDecodedVoteContest} from "sequent-core"
+import {IDecodedVoteContest} from "@sequentech/ui-core"
+import {sortContestList} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
     text-decoration: none;
+    /* ensure the link contains only a single tabbable element: the button below */
+    &:focus {
+        outline: none;
+    }
+    & *[tabindex] {
+        outline: none;
+    }
 `
 
 const StyledTitle = styled(Typography)`
@@ -84,16 +89,26 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     handleNext: () => void
+    handlePrev: () => void
+    handleClearCustom?: () => void
+    pageIndex?: number
+    disableNext?: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({
+    handleNext,
+    handlePrev,
+    handleClearCustom,
+    pageIndex,
+    disableNext,
+}) => {
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
 
-    function handleClearSelection() {
+    function handleClear() {
         if (ballotStyle) {
             dispatch(
                 resetBallotSelection({
@@ -105,10 +120,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
         }
     }
 
-    function handlePrev() {
-        dispatch(clearIsVoted())
-    }
-
     return (
         <>
             <StyledButton
@@ -117,14 +128,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     width: "100%",
                 }}
                 variant="secondary"
-                onClick={() => handleClearSelection()}
+                onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
             >
                 <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
             <ActionsContainer>
                 <StyledLink
-                    to={backLink}
+                    to={pageIndex && pageIndex > 0 ? "" : backLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
@@ -140,7 +151,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                         width: {xs: "100%", sm: "200px"},
                     }}
                     variant="secondary"
-                    onClick={() => handleClearSelection()}
+                    onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
                 >
                     <Box>{t("votingScreen.clearButton")}</Box>
                 </StyledButton>
@@ -149,12 +160,109 @@ const ActionButtons: React.FC<ActionButtonProps> = ({handleNext}) => {
                     className="next-button"
                     sx={{width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handleNext()}
-                    // disabled={disableNext}
+                    disabled={disableNext}
                 >
                     <Box>{t("votingScreen.reviewButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
                 </StyledButton>
             </ActionsContainer>
+        </>
+    )
+}
+
+interface ContestPaginationProps {
+    ballotStyle: any
+    contests: IContest[][]
+    onSetDisableNext: (contest: any) => void
+    onSetDecodedContests: (id: string) => (value: IDecodedVoteContest) => void
+    encryptAndReview: () => void
+    disableNextButton: () => boolean
+}
+
+const ContestPagination: React.FC<ContestPaginationProps> = ({
+    ballotStyle,
+    contests,
+    onSetDisableNext,
+    onSetDecodedContests,
+    encryptAndReview,
+    disableNextButton,
+}) => {
+    const dispatch = useAppDispatch()
+
+    const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
+    const [pageIndex, setPageIndex] = useState(0)
+    const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
+    const ballotSelectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle.election_id)
+    )
+
+    const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
+
+    const isMultiContest =
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const errorSelectionState = useMemo(() => {
+        if (!ballotSelectionState) {
+            return []
+        }
+        return isMultiContest
+            ? interpretMultiContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+            : interpretContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+    }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
+
+    const handleNext = () => {
+        if (pageIndex === contests.length - 1) {
+            encryptAndReview()
+        } else {
+            setPageIndex(pageIndex + 1)
+        }
+    }
+
+    const handlePrev = () => {
+        if (pageIndex > 0) {
+            setPageIndex(pageIndex - 1)
+        } else {
+            dispatch(clearIsVoted())
+        }
+    }
+
+    function handleClear() {
+        if (ballotStyle) {
+            contests[pageIndex].forEach((contest) => {
+                dispatch(
+                    resetBallotSelection({
+                        ballotStyle,
+                        force: true,
+                        contestId: contest.id,
+                    })
+                )
+            })
+            if (pageIndex === 0) dispatch(clearIsVoted())
+        }
+    }
+
+    return (
+        <>
+            {sortedContests &&
+                sortedContests.map((contest, index) => (
+                    <Box key={contest.id} className={`contest-${index}`}>
+                        <Question
+                            ballotStyle={ballotStyle}
+                            question={contest}
+                            isReview={false}
+                            setDisableNext={() => onSetDisableNext(contest.id)}
+                            setDecodedContests={onSetDecodedContests(contest.id)}
+                            errorSelectionState={errorSelectionState}
+                        />
+                    </Box>
+                ))}
+            <ActionButtons
+                handleNext={handleNext}
+                handlePrev={handlePrev}
+                handleClearCustom={handleClear}
+                pageIndex={pageIndex}
+                disableNext={disableNextButton() && contests.length !== 1}
+            />
         </>
     )
 }
@@ -170,10 +278,18 @@ const VotingScreen: React.FC = () => {
     let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
+    const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
+    const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
+    const {
+        encryptBallotSelection,
+        encryptMultiBallotSelection,
+        decodeAuditableBallot,
+        decodeAuditableMultiBallot,
+    } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
     )
@@ -203,6 +319,8 @@ const VotingScreen: React.FC = () => {
         return check_voting_not_allowed_next_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
+    // if true, when the user click next, there will be a dialog that prompts
+    // the user to confirm before going to the next screen
     const showNextDialog = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
@@ -212,6 +330,11 @@ const VotingScreen: React.FC = () => {
             return
         } else if (showNextDialog() || disableNextButton()) {
             setOpenNonVoted(true)
+
+            const newHasInvalidErrors = Object.values(decodedContests).some(
+                (a) => a?.invalid_errors.length > 0
+            )
+            setHasInvalidErrors(newHasInvalidErrors)
         } else {
             finallyEncryptAndReview()
         }
@@ -222,8 +345,15 @@ const VotingScreen: React.FC = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         }
+
         try {
-            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            const isMultiContest =
+                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+            const auditableBallot = isMultiContest
+                ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
+                : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
 
             dispatch(
                 setAuditableBallot({
@@ -232,7 +362,9 @@ const VotingScreen: React.FC = () => {
                 })
             )
 
-            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+            let decodedSelectionState = isMultiContest
+                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 
             if (null !== decodedSelectionState) {
                 dispatch(
@@ -259,8 +391,12 @@ const VotingScreen: React.FC = () => {
 
     useEffect(() => {
         let minMaxGlobal = false
-
-        for (let contest of ballotStyle?.ballot_eml.contests ?? []) {
+        let contestsPages = new Map<String, IContest[]>()
+        let contests = [...(ballotStyle?.ballot_eml.contests ?? [])].sort(
+            (a, b) =>
+                (a.presentation?.sort_order ?? Infinity) - (b.presentation?.sort_order ?? Infinity)
+        )
+        for (let contest of contests ?? []) {
             let countVotes = 0
             let selection = selectionState?.find((s) => s.contest_id === contest.id)
             for (let choice of selection?.choices ?? []) {
@@ -270,7 +406,16 @@ const VotingScreen: React.FC = () => {
             }
             let outOfRange = countVotes < contest.min_votes || countVotes > contest.max_votes
             minMaxGlobal = minMaxGlobal || outOfRange
+
+            // Calculate contests pagination using the pagination_policy string identifier
+            const contestPageName = contest.presentation?.pagination_policy || ""
+            if (!contestsPages.has(contestPageName)) {
+                contestsPages.set(contestPageName, [])
+            }
+            contestsPages.get(contestPageName)!.push(contest)
         }
+        const contestsAsArrays = Array.from(contestsPages.values())
+        setContestsPerPage(contestsAsArrays)
 
         setDisableNext((state) => ({
             ...state,
@@ -282,8 +427,6 @@ const VotingScreen: React.FC = () => {
         return <CircularProgress />
     }
 
-    const contests = sortContestList(ballotStyle.ballot_eml.contests)
-
     const warnAllowContinue = (value: boolean) => {
         setOpenNonVoted(false)
         if (value) {
@@ -293,14 +436,15 @@ const VotingScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="voting-screen screen">
-            <Box marginTop="48px">
+            <Box marginTop="48px" className="stepper-box">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h4">
+            <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
                     {translateElection(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
+                    className="title-question"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -317,21 +461,23 @@ const VotingScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             {election.description ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    className="description"
+                    variant="body2"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
                 </Typography>
             ) : null}
-            {contests.map((contest, index) => (
-                <Question
-                    ballotStyle={ballotStyle}
-                    question={contest}
-                    key={index}
-                    isReview={false}
-                    setDisableNext={onSetDisableNext(contest.id)}
-                    setDecodedContests={onSetDecodedContests(contest.id)}
-                />
-            ))}
-            <ActionButtons handleNext={encryptAndReview} />
+
+            <ContestPagination
+                ballotStyle={ballotStyle}
+                contests={contestsPerPage}
+                onSetDisableNext={onSetDisableNext}
+                onSetDecodedContests={onSetDecodedContests}
+                encryptAndReview={encryptAndReview}
+                disableNextButton={disableNextButton}
+            />
 
             {disableNextButton() ? (
                 <Dialog
@@ -347,12 +493,30 @@ const VotingScreen: React.FC = () => {
                 <Dialog
                     handleClose={(value) => warnAllowContinue(value)}
                     open={openNotVoted}
-                    title={t("votingScreen.nonVotedDialog.title")}
-                    ok={t("votingScreen.nonVotedDialog.continue")}
-                    cancel={t("votingScreen.nonVotedDialog.cancel")}
+                    title={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.title"
+                            : "votingScreen.warningDialog.title"
+                    )}
+                    ok={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.continue"
+                            : "votingScreen.warningDialog.continue"
+                    )}
+                    cancel={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.cancel"
+                            : "votingScreen.warningDialog.cancel"
+                    )}
                     variant="action"
                 >
-                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                    {stringToHtml(
+                        t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.content"
+                                : "votingScreen.warningDialog.content"
+                        )
+                    )}
                 </Dialog>
             )}
         </PageLimit>

@@ -5,36 +5,34 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-
+ 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-				 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>sequent.keycloak</groupId>
+	<groupId>sequent</groupId>
 	<artifactId>keycloak-extensions</artifactId>
 	<version>1.0-SNAPSHOT</version>
+	<packaging>pom</packaging> 
 
-	<packaging>pom</packaging>
-
-	<modules>
-		<module>inetum-authenticator</module>
-		<module>message-otp-authenticator</module>
-		<module>security-question-authenticator</module>
-		<module>conditional-authenticators</module>
-		<module>dummy-email-sender-provider</module>
-		<module>aws-ses-email-sender-provider</module>
-		<module>sequent-theme</module>
+    <modules>
+        <module>aws-ses-email-sender-provider</module>
+        <module>conditional-authenticators</module>
+        <module>dummy-email-sender-provider</module>
+        <module>inetum-authenticator</module>
+        <module>message-otp-authenticator</module>
+        <module>security-question-authenticator</module>
+        <module>sequent-theme</module>
     </modules>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<aws.version>2.17.209</aws.version>
-		<keycloak.version>22.0.0</keycloak.version>
-		<maven.compiler.version>3.11.0</maven.compiler.version>
+		<aws.version>2.18.6</aws.version>
+		<keycloak.version>24.0.0</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
-		<maven-shade.version>3.2.4</maven-shade.version>
-		<maven-surefire.version>3.1.2</maven-surefire.version>
+		<maven.compiler.version>3.11.0</maven.compiler.version>
+		<maven.shade.version>3.2.4</maven.shade.version>
 	</properties>
 
 	<dependencyManagement>
@@ -46,68 +44,133 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>sns</artifactId>
-				<version>${aws.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>software.amazon.awssdk</groupId>
-						<artifactId>netty-nio-client</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>ses</artifactId>
-				<version>${aws.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>software.amazon.awssdk</groupId>
-						<artifactId>netty-nio-client</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
+
+
+
+	<dependencies>
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-server-spi</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+			<version>3.0.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-server-spi-private</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.keycloak</groupId>
+			<artifactId>keycloak-services</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sns</artifactId>
+			<version>${aws.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>software.amazon.awssdk</groupId>
+					<artifactId>netty-nio-client</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.30</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.auto.service</groupId>
+			<artifactId>auto-service</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.sun.mail</groupId>
+			<artifactId>javax.mail</artifactId>
+			<version>1.6.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<version>4.4.13</version>
+		</dependency>
+	</dependencies>
+
 	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<version>${maven.compiler.version}</version>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-shade-plugin</artifactId>
-					<version>${maven-shade.version}</version>
-					<configuration>
-						<artifactSet>
-							<excludes>
-								<exclude>org.keycloak*</exclude>
-								<exclude>org.apache.httpcomponents:httpcore</exclude>
-								<exclude>com.google*</exclude>
-								<exclude>org.checkerframework*</exclude>
-							</excludes>
-						</artifactSet>
-					</configuration>
-					<executions>
-						<execution>
-							<phase>package</phase>
-							<goals>
-								<goal>shade</goal>
-							</goals>
-						</execution>
-					</executions>
-				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-surefire-plugin</artifactId>
-					<version>${maven-surefire.version}</version>
-				</plugin>
-			</plugins>
-		</pluginManagement>
+		<finalName>${project.groupId}.${project.artifactId}</finalName>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven.compiler.version}</version>
+ 
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>${maven.shade.version}</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>software.amazon.awssdk:*</include>
+									<include>org.reactivestreams:reactive-streams</include>
+									<include>com.rabbitmq:*</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		 <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-invoker-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>run-spotless-check</id>
+            <configuration>
+              <projectsDirectory>${basedir}</projectsDirectory>
+              <includes>
+                <include>aws-ses-email-sender-provider/pom.xml</include>
+                <include>conditional-authenticators/pom.xml</include>
+				<include>dummy-email-sender-provider/pom.xml</include>
+				<include>inetum-authenticator/pom.xml</include>
+				<include>message-otp-authenticator/pom.xml</include>
+              </includes>
+              <goals>
+                <goal>com.diffplug.spotless:spotless-maven-plugin:check</goal>
+              </goals>
+            </configuration>
+          </execution>
+          <execution>
+            <id>run-spotless-apply</id>
+            <configuration>
+              <projectsDirectory>${basedir}</projectsDirectory>
+              <includes>
+                <include>aws-ses-email-sender-provider/pom.xml</include>
+                <include>conditional-authenticators/pom.xml</include>
+				<include>dummy-email-sender-provider/pom.xml</include>
+				<include>inetum-authenticator/pom.xml</include>
+				<include>message-otp-authenticator/pom.xml</include>
+              </includes>
+              <goals>
+                <goal>com.diffplug.spotless:spotless-maven-plugin:apply</goal>
+              </goals>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+		</plugins>
 	</build>
+
 </project>

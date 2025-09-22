@@ -24,7 +24,7 @@ pub async fn update_election_statistics(
             SET
                 statistics = jsonb_set(
                     jsonb_set(
-                        statistics, 
+                        COALESCE(statistics, '{}'),
                         '{num_emails_sent}', 
                         (COALESCE(statistics->>'num_emails_sent', '0')::int8 + $4)::text::jsonb
                     ),
@@ -68,11 +68,13 @@ pub async fn get_count_distinct_voters(
             SELECT
                 COUNT(DISTINCT voter_id_string) AS total_distinct_voters
             FROM
-                sequent_backend.cast_vote
+                sequent_backend.election el
+            LEFT JOIN 
+                sequent_backend.cast_vote cv ON el.id = cv.election_id
             WHERE
-                tenant_id = $1 AND
-                election_event_id = $2 AND
-                election_id = $3;
+                el.tenant_id = $1 AND
+                el.election_event_id = $2 AND
+                el.id = $3;
             "#,
         )
         .await?;

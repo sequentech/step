@@ -47,25 +47,30 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {
     CandidatesOrder,
-    DropFile,
     EInvalidVotePolicy,
+    EUnderVotePolicy,
     EEnableCheckableLists,
     IContestPresentation,
-    ILanguageConf,
     IElectionEventPresentation,
     isArray,
     ICandidatePresentation,
     IElectionPresentation,
-} from "@sequentech/ui-essentials"
+    EBlankVotePolicy,
+    EOverVotePolicy,
+    ECandidatesIconCheckboxPolicy,
+} from "@sequentech/ui-core"
+import {DropFile} from "@sequentech/ui-essentials"
 import {ICountingAlgorithm, IVotingType} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
-import CandidatesInput from "@/components/contest/custom-order-candidates/CandidatesInput"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
+import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 type FieldValues = Record<string, any>
 
@@ -123,7 +128,6 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
     const [value, setValue] = useState(0)
     const {t} = useTranslation()
 
-    let presentation = formData?.presentation as IContestPresentation | undefined
     let types = candidates?.map((candidate) => candidate.type!!).filter((type) => type) ?? []
     types = uniqueArray(types)
 
@@ -288,9 +292,12 @@ export const ContestDataForm: React.FC = () => {
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
+    const authContext = useContext(AuthContext)
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
+
+    const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.CONTEST_WRITE)
 
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
@@ -320,6 +327,7 @@ export const ContestDataForm: React.FC = () => {
             tenant_id: record.tenant_id,
             election_event_id: record.election_event_id,
         },
+        pagination: {page: 1, perPage: 500},
     })
 
     useEffect(() => {
@@ -369,10 +377,38 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const candidatesIconCheckboxPolicy = (): Array<EnumChoice<ECandidatesIconCheckboxPolicy>> => {
+        return Object.values(ECandidatesIconCheckboxPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.candidatesIconCheckboxPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
+    const underVotePolicyChoices = (): Array<EnumChoice<EUnderVotePolicy>> => {
+        return Object.values(EUnderVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.underVotePolicy.${value.toLowerCase()}`),
+        }))
+    }
+
     const checkableListChoices = (): Array<EnumChoice<EEnableCheckableLists>> => {
         return Object.values(EEnableCheckableLists).map((value) => ({
             id: value,
             name: t(`contestScreen.checkableListPolicy.${value.toLowerCase()}`),
+        }))
+    }
+
+    const blankVotePolicyChoices = () => {
+        return Object.values(EBlankVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.blankVotePolicy.${value}`),
+        }))
+    }
+
+    const overVotePolicyChoices = () => {
+        return Object.values(EOverVotePolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.overVotePolicy.${value}`),
         }))
     }
 
@@ -428,8 +464,21 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.enable_checkable_lists ||
                 EEnableCheckableLists.CANDIDATES_AND_LISTS
 
-            newContest.presentation.under_vote_alert =
-                newContest.presentation.under_vote_alert ?? false
+            newContest.presentation.candidates_icon_checkbox_policy =
+                newContest.presentation.candidates_icon_checkbox_policy ||
+                ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
+
+            newContest.presentation.under_vote_policy =
+                newContest.presentation.under_vote_policy || EUnderVotePolicy.ALLOWED
+
+            newContest.presentation.blank_vote_policy =
+                newContest.presentation.blank_vote_policy || EBlankVotePolicy.ALLOWED
+
+            newContest.presentation.over_vote_policy =
+                newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
+
+            newContest.presentation.pagination_policy =
+                newContest.presentation.pagination_policy || ""
 
             return newContest
         },
@@ -552,16 +601,16 @@ export const ContestDataForm: React.FC = () => {
                         defaultValues={{candidatesOrder: sortedCandidates}}
                         validate={formValidator}
                         record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                <SaveButton />
-                            </Toolbar>
-                        }
+                        toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-general"}
-                            onChange={() => setExpanded("contest-data-general")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "contest-data-general" ? "" : "contest-data-general"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-general" />}
@@ -583,7 +632,11 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-system"}
-                            onChange={() => setExpanded("contest-data-system")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "contest-data-system" ? "" : "contest-data-system"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-system" />}
@@ -611,7 +664,11 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-design"}
-                            onChange={() => setExpanded("contest-data-design")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "contest-data-design" ? "" : "contest-data-design"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-design" />}
@@ -624,12 +681,9 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
-                                <BooleanInput
-                                    source="presentation.under_vote_alert"
-                                    label={"Under-Vote Alert"}
-                                />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
+                                <NumberInput source="presentation.columns" min={1} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput
                                     source="presentation.candidates_order"
@@ -656,7 +710,7 @@ export const ContestDataForm: React.FC = () => {
                                                 >
                                                     {t("contestScreen.edit.reorder")}
                                                 </Typography>
-                                                <CandidatesInput source="candidatesOrder"></CandidatesInput>
+                                                <CustomOrderInput source="candidatesOrder" />
                                                 <Box sx={{width: "100%", height: "180px"}}></Box>
                                             </CandidateRows>
                                         ) : null
@@ -673,12 +727,6 @@ export const ContestDataForm: React.FC = () => {
                                 </FormDataConsumer>
 
                                 <SelectInput
-                                    source="presentation.invalid_vote_policy"
-                                    choices={invalidVotePolicyChoices()}
-                                    validate={required()}
-                                />
-
-                                <SelectInput
                                     source="presentation.enable_checkable_lists"
                                     choices={checkableListChoices()}
                                     validate={required()}
@@ -689,13 +737,73 @@ export const ContestDataForm: React.FC = () => {
                                     min={0}
                                     isRequired={false}
                                 />
+
+                                <Typography
+                                    variant="body1"
+                                    component="span"
+                                    sx={{
+                                        padding: "0.5rem 1rem",
+                                        fontWeight: "bold",
+                                        margin: 0,
+                                        display: {xs: "none", sm: "block"},
+                                    }}
+                                >
+                                    {t("contestScreen.edit.policies")}
+                                </Typography>
+
+                                <SelectInput
+                                    source="presentation.under_vote_policy"
+                                    choices={underVotePolicyChoices()}
+                                    label={t(`contestScreen.underVotePolicy.label`)}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source="presentation.invalid_vote_policy"
+                                    choices={invalidVotePolicyChoices()}
+                                    label={t(`contestScreen.invalidVotePolicy.label`)}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.blank_vote_policy`}
+                                    choices={blankVotePolicyChoices()}
+                                    label={t(`contestScreen.blankVotePolicy.label`)}
+                                    defaultValue={EBlankVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.over_vote_policy`}
+                                    choices={overVotePolicyChoices()}
+                                    label={t(`contestScreen.overVotePolicy.label`)}
+                                    defaultValue={EOverVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.candidates_icon_checkbox_policy`}
+                                    choices={candidatesIconCheckboxPolicy()}
+                                    label={t(`contestScreen.candidatesIconCheckboxPolicy.label`)}
+                                    defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
+                                    validate={required()}
+                                />
+
+                                <TextInput
+                                    source={`presentation.pagination_policy`}
+                                    label={t(`contestScreen.paginationPolicy.label`)}
+                                />
                             </AccordionDetails>
                         </Accordion>
 
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-image"}
-                            onChange={() => setExpanded("contest-data-image")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "contest-data-image" ? "" : "contest-data-image"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="contest-data-image" />}
@@ -731,7 +839,13 @@ export const ContestDataForm: React.FC = () => {
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-advanced"}
-                            onChange={() => setExpanded("election-data-advanced")}
+                            onChange={() =>
+                                setExpanded((prev) =>
+                                    prev === "election-data-advanced"
+                                        ? ""
+                                        : "election-data-advanced"
+                                )
+                            }
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-advanced" />}

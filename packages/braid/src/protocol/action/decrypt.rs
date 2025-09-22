@@ -5,12 +5,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
-use anyhow::anyhow;
-use anyhow::Context;
+use crate::protocol::datalog;
 use anyhow::Result;
 use rayon::prelude::*;
-use strand::{serialization::StrandVectorCP, serialization::StrandVectorP, zkp::ChaumPedersen};
+use strand::{serialization::StrandVector, zkp::ChaumPedersen};
 
+/// Computes the decryption factors using this trustee's secret share.
+///
+/// The plaintexts can be calculated from a threshold number of
+/// decryption factors. Each ciphertext produces one decryption
+/// factor and one proof of discrete log equality.
+///
+/// Returns a Message of type DecryptionFactors signed by
+/// this trustee.
+///
+/// As described in Cortier et al.; based on Pedersen.
 pub(super) fn compute_decryption_factors<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -31,10 +40,6 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         .add_context("Computing decryption factors")?;
     let vk = pk.verification_keys[*self_p].clone();
 
-    let ciphertexts = trustee
-        .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .add_context("Computing decryption factors")?;
-
     let my_channel = trustee
         .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
         .add_context("Computing decryption factors")?;
@@ -54,6 +59,10 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         secret = secret.modq(&ctx);
     }
 
+    let ciphertexts = trustee
+        .get_mix(ciphertexts_h, *batch, *mix_signer)
+        .add_context("Computing decryption factors")?;
+
     info!(
         "ComputeDecryptionFactors [{}] ({})..",
         dbg_hash(&ciphertexts_h.0),
@@ -68,7 +77,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     let result: Result<Vec<(C::E, ChaumPedersen<C>)>, ProtocolError> = ciphertexts
         .ciphertexts
         .0
-        .into_par_iter()
+        .par_iter()
         .map(|c| {
             let (base, proof) =
                 strand::threshold::decryption_factor(&c, &secret, &vk, &label, &zkp, &ctx)?;
@@ -83,11 +92,15 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 
     let (factors, proofs): (Vec<C::E>, Vec<ChaumPedersen<C>>) = result?.into_iter().unzip();
 
-    let df = DecryptionFactors::new(factors, StrandVectorCP(proofs));
+    let df = DecryptionFactors::new(factors, StrandVector(proofs));
     let m = Message::decryption_factors_msg(cfg, *batch, df, *ciphertexts_h, *shares_hs, trustee)?;
     Ok(vec![m])
 }
 
+/// Computes the plaintexts from a threshold number of decryption factors.
+///
+/// Includes verification of decryption proofs. Returns a Message of type
+/// Plaintexts signed by this trustee.
 pub(super) fn compute_plaintexts<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -124,6 +137,10 @@ pub(super) fn compute_plaintexts<C: Ctx>(
     Ok(vec![m])
 }
 
+/// Verifies the plaintexts by re-computing the plaintexts independently.
+///
+/// Includes verification of decryption proofs. Returns a Message of type
+/// PlaintextsSigned signed by this trustee.
 pub(super) fn sign_plaintexts<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -183,6 +200,15 @@ pub(super) fn sign_plaintexts<C: Ctx>(
     }
 }
 
+/// Computes the plaintexts from a threshold number of decryption factors.
+///
+/// For each ciphertext and trustee, verifies the decryption factors, then
+/// combines them into a single divisor. This divisor is then applied to
+/// the mhr part of the ciphertext to yield the plaintext.
+///
+/// Returns a Message of type Plaintexts signed by this trustee.
+///
+/// As described in Cortier et al.; based on Pedersen.
 fn compute_plaintexts_<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
@@ -214,6 +240,12 @@ fn compute_plaintexts_<C: Ctx>(
         num_ciphertexts,
     );
 
+    assert_eq!(
+        datalog::hashes_count(&dfactors_hs.0),
+        *threshold,
+        "Unexpected number of decryption factors"
+    );
+
     // Decryption factors for each trustee
     for (t, df_h) in dfactors_hs.0.iter().enumerate() {
         // Threshold is 1-based
@@ -230,14 +262,12 @@ fn compute_plaintexts_<C: Ctx>(
             // filled in trustees.
             let lagrange = strand::threshold::lagrange(ts[t], &ts[0..*threshold], &ctx);
 
-            let ciphertexts = mix.ciphertexts.clone();
-
             let it = dfactors
                 .factors
                 .0
-                .into_par_iter()
-                .zip(dfactors.proofs.0.into_par_iter());
-            let it2 = it.zip(ciphertexts.0.into_par_iter());
+                .par_iter()
+                .zip(dfactors.proofs.0.par_iter());
+            let it2 = it.zip(mix.ciphertexts.0.par_iter());
 
             let suffix = format!("decryption_factor{}", ts[t] - 1);
             let label = cfg.label(*batch, suffix);
@@ -275,7 +305,7 @@ fn compute_plaintexts_<C: Ctx>(
     let ps = mix
         .ciphertexts
         .0
-        .into_par_iter()
+        .par_iter()
         .enumerate()
         .map(|(index, c)| {
             let decrypted = c.mhr.divp(&divider[index], &ctx).modp(&ctx);
@@ -284,5 +314,5 @@ fn compute_plaintexts_<C: Ctx>(
         })
         .collect();
 
-    Ok(Plaintexts(StrandVectorP(ps)))
+    Ok(Plaintexts(StrandVector(ps)))
 }

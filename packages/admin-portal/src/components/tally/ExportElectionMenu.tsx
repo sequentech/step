@@ -3,25 +3,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, CircularProgress, Menu, MenuItem} from "@mui/material"
-import Button from "@mui/material/Button"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useCallback, useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
-import {
-    FetchDocumentQuery,
-    Sequent_Backend_Area_Contest,
-    Sequent_Backend_Contest,
-    Sequent_Backend_Election,
-    Sequent_Backend_Results_Election,
-    Sequent_Backend_Tally_Session,
-} from "@/gql/graphql"
+import {FetchDocumentQuery} from "@/gql/graphql"
 import styled from "@emotion/styled"
-import {downloadUrl, isNull, theme} from "@sequentech/ui-essentials"
-import {useGetList} from "react-admin"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {theme} from "@sequentech/ui-essentials"
+import {downloadUrl} from "@sequentech/ui-core"
 import {EExportFormat, IResultDocuments} from "@/types/results"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import {MiruExport} from "../MiruExport"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ETallyType, ETallyTypeCssClass} from "@/types/ceremonies"
+import {notDeepEqual} from "assert"
+import {StyledAppAtom} from "@/App"
+import {ETemplateType} from "@/types/templates"
+import {GenerateReport} from "./GenerateReport"
+import {GeneratePDF} from "./GeneratePdf"
+import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -47,7 +47,6 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
 
     if (!loading && !error && data?.fetchDocument?.url && !downloading) {
         downloading = true
-
         downloadUrl(data.fetchDocument.url, fileName).then(() => onDownload())
     }
 
@@ -82,14 +81,42 @@ interface IDocumentData {
     name: string
 }
 
+export interface IResultDocumentsData {
+    documents: IResultDocuments
+    name: string
+    class_type: string
+    class_subtype?: string
+}
+
 interface ExportElectionMenuProps {
-    documents: IResultDocuments | null
+    buttonTitle?: string
+    documentsList: IResultDocumentsData[] | null
     electionEventId: string
+    tallySessionId: string
     itemName: string
+    tallyType?: string | null
+    electionId?: string | null
+    miruExportloading?: boolean
+    onCreateTransmissionPackage?: (v: {area_id: string; election_id: string}) => void
+    tenantId?: string | null
+    resultsEventId?: string | null
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {itemName, documents, electionEventId} = props
+    const {
+        itemName,
+        documentsList,
+        tallySessionId,
+        electionEventId,
+        buttonTitle,
+        tallyType,
+        electionId,
+        miruExportloading,
+        onCreateTransmissionPackage,
+        tenantId,
+        resultsEventId,
+    } = props
+    const {globalSettings} = useContext(SettingsContext)
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
     const [performDownload, setPerformDownload] = useState<IDocumentData | null>(null)
@@ -99,11 +126,15 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(event.currentTarget)
     }
 
-    const handleClose = () => {
-        setAnchorEl(null)
-    }
+    // const handleClose = () => {
+    //     setAnchorEl(null)
+    // }
 
-    const handleExport = (format: EExportFormat) => {
+    const handleClose = useCallback(() => {
+        setAnchorEl(null)
+    }, [])
+
+    const handleExport = (documents: IResultDocuments, format: EExportFormat) => {
         let documentId = documents?.[format]
         if (!documentId) {
             console.log("handleExport ERROR missing document id")
@@ -127,45 +158,46 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         }
     }
 
-    const exportFormatItem = itemName /*election
-        ? election?.name?.slice(0, 12)
-        : contest
-        ? contest?.name?.slice(0, 12)
-        : area && area !== "all"
-        ? areaName?.slice(0, 12)
-        : area
-        ? t("common.label.globalAreaResults")
-        : t("common.label.allResults")*/
-    /*
-    if (election) {
-	    election?.name?.slice(0, 12)
-    } else {
-        if (contest?.name?.slice(0, 12)) {
-        } else {
-            if (area && area !== "all") {
-                areaName?.slice(0, 12)
-            } else {
-                if (area) {
-                    t("common.label.globalAreaResults")
-                } else {
-                    t("common.label.allResults")
-                }
-            }
-        }
-    } 
-    */
+    const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
+        !documents?.[format]
 
-    const isExportFormatDisabled = (format: EExportFormat): boolean => !documents?.[format]
+    const getMenuClassName = (
+        format: EExportFormat,
+        classType: string,
+        classSubtype?: string
+    ): string => {
+        let classes: Array<string> = ["tally-document-item", format, classType]
+
+        if (classSubtype) {
+            classes.push(classSubtype)
+        }
+        if (tallyType) {
+            let tally_type_class = ""
+            switch (tallyType) {
+                case ETallyType.ELECTORAL_RESULTS:
+                    tally_type_class = ETallyTypeCssClass[ETallyType.ELECTORAL_RESULTS]
+                    break
+                case ETallyType.INITIALIZATION_REPORT:
+                    tally_type_class = ETallyTypeCssClass[ETallyType.INITIALIZATION_REPORT]
+                    break
+            }
+            classes.push(tally_type_class)
+        }
+
+        return classes.join(" ")
+    }
 
     return (
-        <div>
+        <div key={itemName}>
             <ExportButton
                 aria-label="export election data"
                 aria-controls="export-menu"
                 aria-haspopup="true"
                 onClick={handleMenu}
             >
-                <span title={t("common.label.export")}>{t("common.label.export")}</span>
+                <span title={buttonTitle ?? t("common.label.actions")}>
+                    {buttonTitle ?? t("common.label.actions")}
+                </span>
                 {performDownload ? (
                     <PerformDownload
                         onDownload={() => {
@@ -180,7 +212,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
             </ExportButton>
 
             <Menu
-                id="menu-appbar"
+                id="menu-export-election"
                 anchorEl={anchorEl}
                 anchorOrigin={{
                     vertical: "bottom",
@@ -195,35 +227,108 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
-                {EXPORT_FORMATS.map((format) =>
-                    isExportFormatDisabled(format.value) ? null : (
-                        <MenuItem
-                            key={format.value}
-                            onClick={(e: React.MouseEvent<HTMLElement>) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                handleClose()
-                                handleExport(format.value)
-                            }}
-                            disabled={isExportFormatDisabled(format.value)}
-                        >
-                            <Box
-                                sx={{
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                <span title={format.label}>
-                                    {t("common.label.exportFormat", {
-                                        item: exportFormatItem,
-                                        format: format.label,
-                                    })}
-                                </span>
-                            </Box>
-                        </MenuItem>
-                    )
-                )}
+                <StyledAppAtom>
+                    {documentsList?.map((documents) => (
+                        <React.Fragment key={documents.class_type + documents.name}>
+                            {EXPORT_FORMATS.map((format) =>
+                                isExportFormatDisabled(documents.documents, format.value) ? null : (
+                                    <React.Fragment
+                                        key={`${documents.class_type}:${documents.name}:${format.value}`}
+                                    >
+                                        <MenuItem
+                                            className={getMenuClassName(
+                                                format.value,
+                                                documents.class_type,
+                                                documents.class_subtype
+                                            )}
+                                            key={format.value}
+                                            onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                setTimeout(() => handleClose(), 0)
+                                                handleExport(documents.documents, format.value)
+                                            }}
+                                            disabled={isExportFormatDisabled(
+                                                documents.documents,
+                                                format.value
+                                            )}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                    overflow: "hidden",
+                                                }}
+                                            >
+                                                <span title={format.label}>
+                                                    {t("common.label.exportFormat", {
+                                                        item: documents.name,
+                                                        format: format.label,
+                                                    })}
+                                                </span>
+                                            </Box>
+                                        </MenuItem>
+                                        {format.value === EExportFormat.HTML ? (
+                                            <GeneratePDF
+                                                key={documents.name}
+                                                documents={documents.documents}
+                                                name={documents.name}
+                                                electionEventId={electionEventId}
+                                                tallySessionId={tallySessionId}
+                                            />
+                                        ) : null}
+                                    </React.Fragment>
+                                )
+                            )}
+                        </React.Fragment>
+                    ))}
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT &&
+                    tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                    onCreateTransmissionPackage &&
+                    electionId ? (
+                        <MiruExport
+                            handleClose={handleClose}
+                            electionId={electionId}
+                            onCreateTransmissionPackage={onCreateTransmissionPackage}
+                            loading={miruExportloading}
+                        />
+                    ) : null}
+                    {globalSettings?.ACTIVATE_MIRU_EXPORT &&
+                    tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                    electionId ? (
+                        <>
+                            <GenerateReport
+                                handleClose={handleClose}
+                                reportType={ETemplateType.BALLOT_IMAGES}
+                                electionEventId={electionEventId}
+                                electionId={electionId}
+                                tallySessionId={tallySessionId}
+                            />
+                            <GenerateReport
+                                handleClose={handleClose}
+                                reportType={ETemplateType.VOTE_RECEIPT}
+                                electionEventId={electionEventId}
+                                electionId={electionId}
+                                tallySessionId={tallySessionId}
+                            />
+                        </>
+                    ) : null}
+                    {tenantId &&
+                        resultsEventId &&
+                        electionEventId &&
+                        documentsList &&
+                        documentsList.length > 0 &&
+                        documentsList[0].class_type === "event" && (
+                            <GenerateResultsXlsx
+                                eventName={itemName}
+                                electionEventId={electionEventId}
+                                tallySessionId={tallySessionId}
+                                tenantId={tenantId}
+                                handleClose={handleClose}
+                                resultsEventId={resultsEventId}
+                            />
+                        )}
+                </StyledAppAtom>
             </Menu>
         </div>
     )

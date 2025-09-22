@@ -3,11 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Sequent_Backend_Candidate} from "@/gql/graphql"
-import {
-    CandidatesOrder,
-    ICandidatePresentation,
-    IContestPresentation,
-} from "@sequentech/ui-essentials"
+import {CandidatesOrder, ICandidatePresentation, IContestPresentation} from "@sequentech/ui-core"
 import React from "react"
 import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
 import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"

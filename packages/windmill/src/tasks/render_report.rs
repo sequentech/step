@@ -2,19 +2,16 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::render_report::render_report_task;
+use crate::services::database::get_hasura_pool;
+use crate::services::tasks_semaphore::acquire_semaphore;
+use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use sequent_core::services::keycloak;
-use sequent_core::services::{pdf, reports};
+use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use serde_json::{Map, Value};
 use tracing::instrument;
-
-use crate::hasura;
-use crate::services::documents::upload_and_return_document;
-use crate::services::temp_path::write_into_named_temp_file;
-use crate::types::error::Result;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum FormatType {
@@ -24,10 +21,10 @@ pub enum FormatType {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RenderTemplateBody {
-    template: String,
-    name: String,
-    variables: Map<String, Value>,
-    format: FormatType,
+    pub template: String,
+    pub name: String,
+    pub variables: Map<String, Value>,
+    pub format: FormatType,
 }
 
 #[instrument(err)]
@@ -38,62 +35,44 @@ pub async fn render_report(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-    println!("auth headers: {:#?}", auth_headers);
-    let hasura_response =
-        hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone()).await?;
-    let username = hasura_response
-        .data
-        .expect("expected data".into())
-        .sequent_backend_tenant[0]
-        .slug
-        .clone();
-    let mut variables_map = input.variables.clone();
-    if !variables_map.contains_key("username") {
-        variables_map.insert("username".to_string(), json!(username));
-    }
+    let _permit = acquire_semaphore().await?;
+    // Spawn the task using an async block
+    let handle = tokio::task::spawn_blocking({
+        move || {
+            tokio::runtime::Handle::current().block_on(async move {
+                let mut db_client: DbClient = get_hasura_pool()
+                    .await
+                    .get()
+                    .await
+                    .map_err(|err| format!("Error getting DB pool: {err:?}"))?;
 
-    // render handlebars template
-    let render = reports::render_template_text(input.template.as_str(), variables_map)
-        .map_err(|err| anyhow!("{}", err))?;
+                let hasura_transaction = match db_client.transaction().await {
+                    Ok(transaction) => transaction,
+                    Err(err) => {
+                        return Err(format!("Error starting Hasura transaction: {err}"));
+                    }
+                };
+                let _ =
+                    render_report_task(&hasura_transaction, input, tenant_id, election_event_id)
+                        .await
+                        .map_err(|err| format!("{}", err))?;
 
-    // if output format is text/html, just return that
-    if FormatType::TEXT == input.format {
-        let (_temp_path, temp_path_string, file_size) =
-            write_into_named_temp_file(&render.into_bytes(), "reports-", ".html")
-                .with_context(|| "Error writing to file")?;
-        upload_and_return_document(
-            temp_path_string,
-            file_size,
-            "text/plain".to_string(),
-            auth_headers.clone(),
-            tenant_id,
-            election_event_id,
-            input.name,
-            None,
-            false,
-        )
-        .await?;
-    } else {
-        let bytes =
-            pdf::html_to_pdf(render).with_context(|| "Error converting html to pdf format")?;
-        let (_temp_path, temp_path_string, file_size) =
-            write_into_named_temp_file(&bytes, "reports-", ".html")
-                .with_context(|| "Error writing to file")?;
+                match hasura_transaction.commit().await {
+                    Ok(_) => (),
+                    Err(err) => {
+                        return Err(format!("Commit failed: {}", err));
+                    }
+                };
+                Ok(())
+            })
+        }
+    });
 
-        let _document = upload_and_return_document(
-            temp_path_string,
-            file_size,
-            "application/pdf".to_string(),
-            auth_headers.clone(),
-            tenant_id,
-            election_event_id,
-            input.name,
-            None,
-            false,
-        )
-        .await?;
-    }
+    // Await the result and handle JoinError explicitly
+    match handle.await {
+        Ok(inner_result) => Ok(inner_result.map_err(|err| format!("Task failed: {err:?}"))?),
+        Err(join_error) => Err(format!("Join error. Task panicked: {:?}", join_error)),
+    }?;
 
     Ok(())
 }

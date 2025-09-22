@@ -3,40 +3,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, Button, Typography} from "@mui/material"
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {
-    PageLimit,
-    stringToHtml,
-    theme,
-    translate,
-    translateElection,
-} from "@sequentech/ui-essentials"
+import {PageLimit, theme} from "@sequentech/ui-essentials"
+import {stringToHtml, translate, translateElection} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {TenantEventType} from ".."
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
-import {useQuery} from "@apollo/client"
-import {
-    GetElectionEventQuery,
-    GetSupportMaterialsQuery,
-    Sequent_Backend_Support_Material,
-} from "../gql/graphql"
+import {GetDocumentQuery, Sequent_Backend_Support_Material} from "../gql/graphql"
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
-import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {SupportMaterial} from "../components/SupportMaterial/SupportMaterial"
 import {
     ISupportMaterial,
     getSupportMaterialsList,
-    setSupportMaterial,
 } from "../store/supportMaterials/supportMaterialsSlice"
-import {
-    IElectionEvent,
-    selectElectionEventById,
-    setElectionEvent,
-} from "../store/electionEvents/electionEventsSlice"
+import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import Stepper from "../components/Stepper"
+import {SettingsContext} from "../providers/SettingsContextProvider"
+import {useQuery} from "@apollo/client"
+import {GET_DOCUMENT} from "../queries/GetDocument"
+import {setDocument} from "../store/documents/documentsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -81,31 +68,30 @@ const SupportMaterialsScreen: React.FC = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
-    const dispatch = useAppDispatch()
     const materials = useAppSelector(getSupportMaterialsList())
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const {globalSettings} = useContext(SettingsContext)
+    const dispatch = useAppDispatch()
 
     const [materialsList, setMaterialsList] = useState<Array<ISupportMaterial> | undefined>([])
 
-    // Materials
-    const {
-        data: dataMaterials,
-        error: errorMaterials,
-        loading: loadingMaterials,
-    } = useQuery<GetSupportMaterialsQuery>(GET_SUPPORT_MATERIALS, {
+    const {data: documents} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
         variables: {
-            electionEventId: eventId || "",
+            ids: materialsList?.map((material) => material.document_id ?? "") ?? [],
+            electionEventId: eventId,
             tenantId: tenantId || "",
         },
+        skip: globalSettings.DISABLE_AUTH,
     })
 
     useEffect(() => {
-        if (!loadingMaterials && !errorMaterials && dataMaterials) {
-            for (let material of dataMaterials.sequent_backend_support_material) {
-                dispatch(setSupportMaterial(material))
-            }
+        if (globalSettings.DISABLE_AUTH || !documents?.sequent_backend_document) {
+            return
         }
-    }, [loadingMaterials, errorMaterials, dataMaterials, dispatch])
+        for (let document of documents.sequent_backend_document) {
+            dispatch(setDocument(document))
+        }
+    }, [documents?.sequent_backend_document, globalSettings.DISABLE_AUTH])
 
     useEffect(() => {
         const materialsList: Array<ISupportMaterial> = []
@@ -114,26 +100,6 @@ const SupportMaterialsScreen: React.FC = () => {
         }
         setMaterialsList(materialsList)
     }, [materials])
-
-    // Election Event
-    const {
-        data: dataElectionEvent,
-        error: errorElectionEvent,
-        loading: loadingElectionEvent,
-    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-    })
-
-    useEffect(() => {
-        if (!loadingElectionEvent && !errorElectionEvent && dataElectionEvent) {
-            for (let material of dataElectionEvent.sequent_backend_election_event) {
-                dispatch(setElectionEvent(material))
-            }
-        }
-    }, [loadingElectionEvent, errorElectionEvent, dataElectionEvent, dispatch])
 
     const [materialsTitles, setMaterialsTitles] = useState<IElectionEvent | undefined>()
 

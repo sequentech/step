@@ -1,129 +1,138 @@
 table:
-  name: tenant
-  schema: sequent_backend
+    name: tenant
+    schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check:
-      id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - annotations
-    - created_at
-    - id
-    - is_active
-    - labels
-    - settings
-    - slug
-    - updated_at
-    - voting_channels
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - is_active
-    - annotations
-    - labels
-    - settings
-    - voting_channels
-    - slug
-    - created_at
-    - updated_at
-    - id
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - created_at
+              - id
+              - is_active
+              - labels
+              - settings
+              - slug
+              - updated_at
+              - voting_channels
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - is_active
+              - annotations
+              - labels
+              - settings
+              - voting_channels
+              - slug
+              - created_at
+              - updated_at
+              - id
+      role: service-account
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - created_at
-    - id
-    - is_active
-    - labels
-    - settings
-    - slug
-    - updated_at
-    - voting_channels
-    filter:
-      id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - is_active
-    - annotations
-    - labels
-    - settings
-    - voting_channels
-    - slug
-    - created_at
-    - updated_at
-    - id
-    filter: {}
-  role: service-account
-- comment: ""
-  permission:
-    columns:
-    - is_active
-    - annotations
-    - labels
-    - settings
-    - voting_channels
-    - slug
-    - created_at
-    - updated_at
-    - id
-    filter:
-      id:
-        _eq: X-Hasura-Tenant-Id
-  role: user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - created_at
+              - id
+              - is_active
+              - labels
+              - settings
+              - slug
+              - updated_at
+              - voting_channels
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - is_active
+              - annotations
+              - labels
+              - settings
+              - voting_channels
+              - slug
+              - created_at
+              - updated_at
+              - id
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - id
+              - is_active
+              - slug
+          filter: {}
+      role: unauthorized
+    - comment: ""
+      permission:
+          columns:
+              - is_active
+              - annotations
+              - labels
+              - settings
+              - voting_channels
+              - slug
+              - created_at
+              - updated_at
+              - id
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: user
 update_permissions:
-- comment: ""
-  permission:
-    check:
-      id:
-        _eq: X-Hasura-Tenant-Id
-    columns:
-    - is_active
-    - annotations
-    - labels
-    - settings
-    - voting_channels
-    - slug
-    - created_at
-    - updated_at
-    - id
-    filter:
-      id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - is_active
-    - annotations
-    - labels
-    - settings
-    - voting_channels
-    - slug
-    - created_at
-    - updated_at
-    - id
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          check:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - is_active
+              - annotations
+              - labels
+              - settings
+              - voting_channels
+              - slug
+              - created_at
+              - updated_at
+              - id
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - is_active
+              - annotations
+              - labels
+              - settings
+              - voting_channels
+              - slug
+              - created_at
+              - updated_at
+              - id
+          filter: {}
+      role: service-account
 delete_permissions:
-- comment: ""
-  permission:
-    filter:
-      id:
-        _eq: X-Hasura-Tenant-Id
-  role: admin-user
-- comment: ""
-  permission:
-    filter: {}
-  role: service-account
+    - comment: ""
+      permission:
+          filter:
+              id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

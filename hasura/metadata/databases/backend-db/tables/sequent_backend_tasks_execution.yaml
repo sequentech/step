@@ -1,0 +1,133 @@
+table:
+    name: tasks_execution
+    schema: sequent_backend
+object_relationships:
+    - name: tenant
+      using:
+          foreign_key_constraint_on: tenant_id
+insert_permissions:
+    - comment: ""
+      permission:
+          check: {}
+          columns: []
+      role: admin-user
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - end_at
+              - executed_by_user
+              - id
+              - labels
+              - logs
+              - name
+              - start_at
+              - execution_status
+              - tenant_id
+              - type
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - logs
+              - annotations
+              - labels
+              - name
+              - execution_status
+              - type
+              - created_at
+              - end_at
+              - start_at
+              - election_event_id
+              - executed_by_user
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - end_at
+              - executed_by_user
+              - id
+              - labels
+              - logs
+              - name
+              - start_at
+              - execution_status
+              - tenant_id
+              - type
+          filter: {}
+      role: service-account
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - logs
+              - annotations
+              - labels
+              - executed_by_user
+              - execution_status
+              - name
+              - type
+              - created_at
+              - end_at
+              - start_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tasks-export
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - logs
+              - annotations
+              - labels
+              - executed_by_user
+              - execution_status
+              - name
+              - type
+              - created_at
+              - end_at
+              - start_at
+              - election_event_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tasks-read
+update_permissions:
+    - comment: ""
+      permission:
+          check: null
+          columns:
+              - annotations
+              - created_at
+              - election_event_id
+              - end_at
+              - executed_by_user
+              - id
+              - labels
+              - logs
+              - name
+              - start_at
+              - execution_status
+              - tenant_id
+              - type
+          filter: {}
+      role: service-account

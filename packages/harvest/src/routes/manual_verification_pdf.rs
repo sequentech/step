@@ -39,7 +39,7 @@ pub async fn get_manual_verification_pdf(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::VOTER_WRITE],
+        vec![Permissions::VOTER_MANUALLY_VERIFY],
     )?;
 
     let input = body.into_inner();
@@ -48,21 +48,22 @@ pub async fn get_manual_verification_pdf(
 
     let task = celery_app
         .send_task(
-            windmill::tasks::manual_verification_pdf::get_manual_verification_pdf::new(
+            windmill::tasks::manual_verification_report::generate_manual_verification_report::new(
                 document_id.clone(),
                 input.tenant_id,
                 input.election_event_id,
                 input.voter_id,
+                None,
             ),
         )
         .await
         .map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error getting manual verification pdf: {:?}", e),
+                format!("Error getting manual verification pdf: {e:?}"),
             )
         })?;
-    event!(Level::INFO, "Sent task {:?} successfully", task);
+    event!(Level::INFO, "Sent task {task:?} successfully");
 
     Ok(Json(GetManualVerificationPdfOutput {
         document_id: document_id,

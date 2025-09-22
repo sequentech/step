@@ -8,11 +8,13 @@ import {Sequent_Backend_Contest, Sequent_Backend_Results_Contest} from "../../gq
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
-import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
+import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -20,10 +22,11 @@ interface TallyResultsContestProps {
     electionEventId: string | null
     tenantId: string | null
     resultsEventId: string | null
+    tallySessionId: string | null
 }
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
-    const {areas, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {areas, electionId, electionEventId, tenantId, resultsEventId, tallySessionId} = props
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
@@ -35,6 +38,8 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [tenantData, setTenantData] = useState<string | null>(null)
     const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
     const tallyData = useAtomValue(tallyQueryData)
+
+    const {canExportCeremony} = useKeysPermissions()
 
     const resultsContests: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
         () =>
@@ -114,21 +119,43 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             setContestId(id)
         }
     }
-    let documents: IResultDocuments | null = useMemo(
-        () =>
-            (!!contestId &&
-                !!resultsContests &&
-                resultsContests[0]?.contest_id === contestId &&
-                (resultsContests[0]?.documents as IResultDocuments | null)) ||
-            null,
-        [contestId, resultsContests, resultsContests?.[0]?.documents]
-    )
 
     let contestName: string | undefined = useMemo(
         () =>
             (contestId && contests?.find((contest) => contest.id === contestId)?.name) || undefined,
         [contestId, contests]
     )
+
+    let documents: IResultDocumentsData | null = useMemo(() => {
+        let parsedDocuments: IResultDocuments | null = null
+        try {
+            const rawDocuments =
+                !!contestId &&
+                !!resultsContests &&
+                resultsContests[0]?.contest_id === contestId &&
+                resultsContests[0]?.documents
+
+            if (rawDocuments) {
+                // Check if the documents are already an object.
+                // If they are a string, parse them.
+                parsedDocuments =
+                    typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+            }
+        } catch (e) {
+            console.error("Failed to parse documents JSON string:", e)
+            return null // Return null if parsing fails
+        }
+
+        return parsedDocuments
+            ? {
+                  documents: parsedDocuments,
+                  name: contestName ?? "contest",
+                  class_type: "contest",
+              }
+            : null
+    }, [contestId, resultsContests, contestName])
+
+    const aliasRenderer = useAliasRenderer()
 
     return (
         <>
@@ -149,16 +176,17 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                     {contestsData?.map((contest, index) => (
                         <Tab
                             key={index}
-                            label={contest.name}
+                            label={aliasRenderer(contest)}
                             onClick={() => tabClicked(contest.id, index)}
                         />
                     ))}
                 </Tabs>
-                {documents && electionEventId ? (
+                {documents && electionEventId && canExportCeremony && tallySessionId ? (
                     <ExportElectionMenu
-                        documents={documents}
+                        documentsList={[documents]}
                         electionEventId={electionEventId}
                         itemName={contestName ?? "contest"}
+                        tallySessionId={tallySessionId}
                     />
                 ) : null}
             </Box>
@@ -172,6 +200,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         electionEventId={contest?.election_event_id}
                         tenantId={contest?.tenant_id}
                         resultsEventId={resultsEventId}
+                        tallySessionId={tallySessionId}
                     />
                 </CustomTabPanel>
             ))}

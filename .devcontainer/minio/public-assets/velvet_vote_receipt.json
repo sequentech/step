@@ -1,0 +1,55 @@
+{
+  "file_qrcode_lib": "",
+  "contest": {
+    "id": "1",
+    "tenant_id": "1",
+    "election_event_id": "1",
+    "election_id": "1",
+    "name": "Senate Election",
+    "description": "Election for the Senators of the country.",
+    "voting_type": "Ranked Choice",
+    "counting_algorithm": "Instant Runoff",
+    "min_votes": 1,
+    "winning_candidates_num": 3,
+    "is_encrypted": false,
+    "candidates": [
+      {
+        "id": "1",
+        "tenant_id": "1",
+        "election_event_id": "1",
+        "election_id": "",
+        "contest_id": "1",
+        "name": "Candidate A"
+      },
+      {
+        "id": "2",
+        "tenant_id": "1",
+        "election_event_id": "1",
+        "election_id": "",
+        "contest_id": "1",
+        "name": "Candidate B"
+      },
+      {
+        "id": "3",
+        "tenant_id": "1",
+        "election_event_id": "1",
+        "election_id": "",
+        "contest_id": "1",
+        "name": "Candidate C"
+      }
+    ],
+    "max_votes": 2
+  },
+  "receipts": [
+    {
+      "id": "69f2f987-460c-48ac-ac7a-4d44d99b37e6",
+      "encoded_vote": "1",
+      "is_invalid": true,
+      "is_blank": false,
+      "is_blank_or_invalid": true,
+      "decoded_choices": []
+    }
+  ],
+  "election_name": "TOKYO - General Election",
+  "comissioner_logo": "./sequent-logo.svg"
+}

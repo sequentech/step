@@ -1,6 +1,6 @@
 {
     "git": {
-        "changelog": "git log --pretty=format:'* %s (%h)' ${latestTag}...HEAD",
+        "changelog": "if [ -n \"$(git log --invert-grep -i -E --grep=\"Preparation for release|Release branch release/.*\" --pretty=format:\"* %s (%h)\" ${from}...${to})\" ]; then git log --invert-grep -i -E --grep=\"Preparation for release|Release branch release/.*\" --pretty=format:\"* %s (%h)\" ${from}...${to}; else echo \"No commits found since ${from}\"; fi",
         "tagName": "v${version}",
         "commitMessage": "chore: release v${version}",
         "tagAnnotation": "Release v${version}",
@@ -14,8 +14,7 @@
     },
     "github": {
         "release": true,
-        "releaseName": "Release v${version}",
-        "releaseNotes": null
+        "releaseName": "Release v${version}"
     },
     "npm": {
         "publish": false
