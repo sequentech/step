@@ -161,9 +161,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const isVotingStarted = () => {
-        return electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
-        (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED) ||
-        (isEarlyVotingPolicyEnabled() && electionStatus?.early_voting_status !== EVotingStatus.NOT_STARTED)
+        return (
+            electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
+            (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED) ||
+            (isEarlyVotingPolicyEnabled() &&
+                electionStatus?.early_voting_status !== EVotingStatus.NOT_STARTED)
+        )
     }
 
     const isPreview = sessionStorage.getItem("isDemo") === "true"

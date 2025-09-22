@@ -500,7 +500,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorOrigin={{vertical: "bottom", horizontal: "left"}}
                                         transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
-                                       <StyledMenuItem
+                                        <StyledMenuItem
                                             disabled={
                                                 isStartChannelDisabled(onlineModeEnabled) ||
                                                 initializationReportNotGenerated()
@@ -568,7 +568,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         anchorOrigin={{vertical: "bottom", horizontal: "left"}}
                                         transformOrigin={{vertical: "top", horizontal: "left"}}
                                     >
-                                       <StyledMenuItem
+                                        <StyledMenuItem
                                             disabled={isPauseChannelDisabled(onlineModeEnabled)}
                                             onClick={() => {
                                                 setPauseAnchorEl(null)
