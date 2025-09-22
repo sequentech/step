@@ -1590,6 +1590,57 @@ pub enum VotingStatus {
     CLOSED,
 }
 
+impl VotingStatus {
+    pub fn is_not_started(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => true,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => false,
+            VotingStatus::CLOSED => false,
+        }
+    }
+
+    pub fn is_started(&self) -> bool {
+        !self.is_not_started()
+    }
+
+    pub fn is_open(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => false,
+            VotingStatus::OPEN => true,
+            VotingStatus::PAUSED => true,
+            VotingStatus::CLOSED => false,
+        }
+    }
+
+    pub fn is_paused(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => false,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => true,
+            VotingStatus::CLOSED => false,
+        }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => false,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => false,
+            VotingStatus::CLOSED => true,
+        }
+    }
+
+    pub fn is_closed_or_never_started(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => true,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => false,
+            VotingStatus::CLOSED => true,
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -1974,12 +2025,12 @@ impl ElectionStatus {
         new_status: VotingStatus,
     ) {
         let should_close_early_voting = channel == VotingStatusChannel::ONLINE
-            && (new_status == VotingStatus::OPEN
-                || new_status == VotingStatus::CLOSED);
+            && (new_status.is_open() || new_status.is_closed());
 
         if should_close_early_voting
-            && self.status_by_channel(VotingStatusChannel::EARLY_VOTING)
-                != VotingStatus::NOT_STARTED
+            && self
+                .status_by_channel(VotingStatusChannel::EARLY_VOTING)
+                .is_started()
         {
             self.set_status_by_channel(
                 VotingStatusChannel::EARLY_VOTING,

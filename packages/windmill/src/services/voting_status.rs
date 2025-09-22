@@ -52,7 +52,7 @@ pub async fn update_election_status(
         get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
             .await
             .with_context(|| "error getting election event")?;
-    let mut status =
+    let mut event_status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
 
     let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
@@ -110,7 +110,7 @@ pub async fn update_election_status(
             &hasura_transaction,
         )
         .await?;
-        let current_event_status = status.status_by_channel(voting_channel);
+        let current_event_status = event_status.status_by_channel(voting_channel);
 
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
 
@@ -118,7 +118,9 @@ pub async fn update_election_status(
             && current_event_status == VotingStatus::NOT_STARTED
         {
             info!("Updating election event status to OPEN");
-            status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
+            event_status
+                .close_early_voting_if_online_status_change(voting_channel, VotingStatus::OPEN);
+            event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
 
             update_board_on_status_change(
                 &hasura_transaction,
@@ -139,7 +141,7 @@ pub async fn update_election_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
-        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
+        serde_json::to_value(&event_status).with_context(|| "Error parsing status")?,
     )
     .await
     .with_context(|| "Error updating election event status")?;
