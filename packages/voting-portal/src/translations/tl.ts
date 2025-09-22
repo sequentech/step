@@ -36,6 +36,14 @@ const tagalogTranslation: TranslationType = {
                 continue: "Ipagpatuloy",
                 cancel: "Kanselahin",
             },
+            warningDialog: {
+                title: "Suriin ang iyong balota",
+                content:
+                    "Ang iyong balota ay naglalaman ng mga pagpili na maaaring mangailangan ng iyong pansin (tulad ng pagpili ng mas kaunting opsyon kaysa sa pinapayagan). Ang iyong balota ay wasto at biblangin ayon sa iyong isinumite.",
+                ok: "Bumalik at suriin",
+                continue: "Magpatuloy",
+                cancel: "Kanselahin",
+            },
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
