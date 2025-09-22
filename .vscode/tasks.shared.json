@@ -125,6 +125,30 @@
             "problemMatcher": []
         },
         {
+            "label": "run.spectaql",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd docs/api/graphql && yarn run generate-full-docs && python -m http.server -d docs",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "start.build.admin-portal",
             "command": "devenv",
             "args": [

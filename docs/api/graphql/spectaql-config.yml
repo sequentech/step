@@ -4,14 +4,11 @@
 
 spectaql:
   targetDir: './docs'
-  faviconFile: '../packages/admin-portal/public/sequent.png'
-  logoFile: '../packages/admin-portal/public/Sequent_logo_small.png'
+  faviconFile: '/workspaces/step/packages/admin-portal/public/sequent.png'
+  logoFile: '/workspaces/step/packages/admin-portal/public/Sequent_logo_small.png'
 
 introspection:
   schemaFile: "./docs/processed-schema.graphql"
-  # url: "http://graphql-engine:8080/v1/graphql"
-  headers:
-    x-hasura-admin-secret: "admin"
 
 template:
   name: "spectaql"
@@ -19,5 +16,5 @@ template:
 info:
   title: "Sequent Voting Platform GraphQL API Documentation"
   description: "Detailed description of the API"
-  version: "1.0.0"
-  x-url: "https://sequentech.io"
+  version: "9.1.0"
+  x-url: "https://hasura-qa.sequentech.io/v1/graphql"
