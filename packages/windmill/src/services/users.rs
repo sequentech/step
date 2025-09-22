@@ -745,7 +745,7 @@ pub async fn list_users(
         ) attr_json ON TRUE;
         "#
     );
-    info!("statement_str {statement_str:?}");
+    debug!("statement_str {statement_str:?}");
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
@@ -1736,7 +1736,6 @@ pub async fn list_users_has_voted(
         count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
     let count_total_not_voted = count_total_voters - count_total_voted;
 
-    // --- State for memory-efficient skipping ---
     // This will only store the final page of users.
     let mut final_users = Vec::with_capacity(limit);
     // Counter for how many users we still need to skip *after filtering*.
@@ -1747,18 +1746,15 @@ pub async fn list_users_has_voted(
     let mut fetch_offset = 0; // The offset for the database query.
     let mut total_users_from_filter = 0;
 
-    // --- Optimized Loop ---
     // Loop until the page is full or we run out of potential users.
     while final_users.len() < limit {
-        // Optimization: If we've already processed all possible voted users, stop.
+        // If we've already processed all possible voted users, stop.
         if matching_users_found >= count_total_voted && Some(true) == filter.has_voted {
-            info!("matching_users_found >= count_total_voted => {}", matching_users_found >= count_total_voted);
             break;
         }
 
-        // Optimization: If we've already processed all possible non voted users, stop.
+        // If we've already processed all possible non voted users, stop.
         if matching_users_found >= count_total_not_voted && Some(false) == filter.has_voted {
-            info!("matching_users_found >= count_total_voted => {}", matching_users_found >= count_total_voted);
             break;
         }
 
@@ -1775,7 +1771,6 @@ pub async fn list_users_has_voted(
 
         let fetched_count = voters.len();
         if fetched_count == 0 {
-            info!("fetched_count == 0 => {}", fetched_count == 0);
             break; // No more users available from the source.
         }
 
@@ -1793,29 +1788,23 @@ pub async fn list_users_has_voted(
             });
         }
 
-        // --- Core Optimization Logic ---
         // Process the filtered batch, skipping or collecting each user.
         for voter in voters {
             matching_users_found += 1;
 
             if users_to_skip > 0 {
                 users_to_skip -= 1;
-                info!("Skipping matching user found: {matching_users_found}");
                 continue; // Skip this user and move to the next.
             }
 
             // If skipping is done, start collecting.
-            info!("Pushing matching user found: {matching_users_found}");
             final_users.push(voter);
 
             // If the page is full, we can stop entirely.
             if final_users.len() == limit {
-                info!("final_users.len() == limit => {}", final_users.len() == limit);
                 break;
             }
         }
-
-        info!("final_users.len() < limit => {}", final_users.len() < limit);
     }
 
     // The total count should not exceed the number of users who have actually voted or not voted.
