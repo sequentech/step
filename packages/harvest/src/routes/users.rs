@@ -342,6 +342,7 @@ pub async fn get_users(
             &hasura_transaction,
             &keycloak_transaction,
             filter,
+            &input.tenant_id,
         )
         .await
         .map_err(|e| {

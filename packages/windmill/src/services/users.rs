@@ -18,6 +18,7 @@ use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 use std::cmp::min;
+use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
@@ -40,15 +41,21 @@ pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<String>,
     election_id: Option<String>,
     area_id: Option<String>,
     param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
-    let election_uuid: uuid::Uuid = match election_id {
-        Some(election_id) => Uuid::parse_str(&election_id)
-            .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?,
-        None => return Ok((None, String::from(""), String::from(""))),
-    };
+    let tenant_uuid = Uuid::parse_str(&tenant_id)?;
+    let election_event_uuid: Option<Uuid> = election_event_id
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: Option<Uuid> = election_id
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
     let area_ids: Vec<String> = match area_id {
         Some(area_id_value) => vec![area_id_value],
@@ -64,12 +71,22 @@ async fn get_area_ids(
                     sequent_backend.area_contest ac ON a.id = ac.area_id
                 JOIN
                     sequent_backend.contest c ON ac.contest_id = c.id
-                WHERE c.election_id = $1;
+                WHERE
+                    a.tenant_id = $1 AND
+                    ac.tenant_id = $1 AND
+                    c.tenant_id = $1 AND
+                    a.election_event_id = $2 AND
+                    ac.election_event_id = $2 AND
+                    c.election_event_id = $2 AND
+                    ($3::uuid IS NULL OR c.election_id = $3::uuid);
             "#,
                 )
                 .await?;
             let rows: Vec<Row> = hasura_transaction
-                .query(&areas_statement, &[&election_uuid])
+                .query(
+                    &areas_statement,
+                    &[&tenant_uuid, &election_event_uuid, &election_uuid],
+                )
                 .await
                 .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
             let area_ids: Vec<String> = rows
@@ -453,6 +470,8 @@ pub async fn count_keycloak_users(
     // Add area-related joins/filters.
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
+        &filter.tenant_id,
+        filter.election_event_id.clone(),
         filter.election_id.clone(),
         filter.area_id.clone(),
         next_param_number,
@@ -601,6 +620,8 @@ pub async fn list_users(
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
+        &filter.tenant_id,
+        filter.election_event_id.clone(),
         filter.election_id.clone(),
         filter.area_id.clone(),
         next_param_number,
@@ -881,6 +902,8 @@ pub async fn list_users_ids(
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
+        &filter.tenant_id,
+        filter.election_event_id.clone(),
         filter.election_id.clone(),
         filter.area_id.clone(),
         next_param_number,
@@ -1547,10 +1570,12 @@ pub async fn get_user_area_id(
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
+    tenant_id: &str,
 ) -> Result<(i32)> {
-    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![];
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![Box::new(tenant_uuid)];
     let mut filter_clauses: Vec<String> = vec![];
-    let mut next_param_number = 1;
+    let mut next_param_number = 2;
 
     if let Some(election_event_id_str) = &filter.election_event_id {
         let election_event_id_uuid = Uuid::parse_str(election_event_id_str)?;
@@ -1579,6 +1604,7 @@ pub async fn count_have_voted(
                 as total_count
                 FROM sequent_backend.cast_vote
                 WHERE
+                    tenant_id = $1 AND
                     {filter_clause}
                 "#
     );
@@ -1600,12 +1626,18 @@ pub async fn list_users_has_voted(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     filter: ListUsersFilter,
+    tenant_id: &str,
 ) -> Result<(Vec<User>, i32)> {
     let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
+    let batch_size = env::var("DEFAULT_SQL_BATCH_SIZE")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(10000);
     let real_offset = filter.offset.unwrap_or(0);
 
     // Get the total number of users who have actually voted.
-    let count_total_voted = count_have_voted(hasura_transaction, &filter).await? as usize;
+    let count_total_voted =
+        count_have_voted(hasura_transaction, &filter, tenant_id).await? as usize;
     // Get the total voters
     let count_total_voters =
         count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
@@ -1640,6 +1672,7 @@ pub async fn list_users_has_voted(
 
         let mut batch_filter = filter.clone();
         batch_filter.offset = Some(fetch_offset);
+        batch_filter.limit = Some(batch_size as i32);
 
         let (mut voters, count_voters) =
             list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter)
