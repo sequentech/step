@@ -48,17 +48,16 @@ jobs:
         working-directory: ./docs/docusaurus
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-        URL_PATH="/docusaurus/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
+            URL_PATH="/docusaurus/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
           elif [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref_name }}" == "main" ]; then
-        URL_PATH="/docusaurus/main"
+            URL_PATH="/docusaurus/main"
           elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref_name }}" == release/* ]]; then
-        URL_PATH="/docusaurus/release-preview/${{ github.ref_name }}"
+            URL_PATH="/docusaurus/release-preview/${{ github.ref_name }}"
           fi
           echo "BASE_URL=$URL_PATH" >> $GITHUB_ENV
           export BASE_URL=$URL_PATH
           yarn install --frozen-lockfile
           yarn build
-
 
       - name: Spectaql | GraphQL Documentation
         working-directory: ./docs/api/graphql
