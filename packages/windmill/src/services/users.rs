@@ -1629,10 +1629,10 @@ pub async fn list_users_has_voted(
     tenant_id: &str,
 ) -> Result<(Vec<User>, i32)> {
     let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
-    let batch_size = env::var("DEFAULT_SQL_BATCH_SIZE")
-        .ok()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(10000);
+    let batch_size = PgConfig::from_env()
+        .map_err(|e| anyhow!("Error getting default_sql_batch_size {e:?}"))?
+        .default_sql_batch_size;
+    info!("batch_size {batch_size}");
     let real_offset = filter.offset.unwrap_or(0);
 
     // Get the total number of users who have actually voted.
