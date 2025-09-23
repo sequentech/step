@@ -156,9 +156,16 @@ Create documents and tutorials about the voters tab, adding User Attributes to k
  or how to create reports and templates.
 
 ## ✨Tally - Add the option to export event tally results in xlsx format
+
 In Results & Participation Section, Add a new action to ACTIONS button at the event level
 to export results in xlsx format. This will read the data from the sqlite file
 and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
+
+## ✨ Configure election screen on closed event
+
+Add a class name and the is-start attribute to the HTML of the select elections
+ screen at the voting portal to control the CSS from the admin portal.
+"is-start" attribute added to the SelectElection component in ui-essentials.
 
 ## 🐞 Multiple Finished Tally Ceremony logs
 
@@ -188,3 +195,13 @@ After adding indexes for the Electoral Log, the election_id field was limited to
 the size of one UUID but multiple UUIDs were stored when the Keys Ceremony was
 at Event level and there were multiple elections. Now only one or no election id is
 saved.
+
+## 🐞 Error message in voting portal should be a warning
+
+Sometimes the voting portal shows an alert dialog but the ballot is a valid
+ballot. In this case the dialog text should be different than in the case of
+an invalid/blank ballot.
+
+## 🐞Candidates list top border missing
+
+On Candidate Lists for the Voting Portal, the top border was missing.

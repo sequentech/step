@@ -6,6 +6,19 @@ module.exports = {
         'system_introduction/system_introduction',
     {
       type: 'category',
+      label: 'Releases',
+      items: [
+        {
+          type: 'category',
+          label: 'Release 9.0',
+          items: [
+            'releases/release-9.0/release-9.0.0'
+          ]
+        }
+      ],
+    },
+    {
+      type: 'category',
       label: 'Election Managers',
       items: [
         'admin_portal/election_management',
