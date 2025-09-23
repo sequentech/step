@@ -52,6 +52,10 @@ async fn get_area_ids(
         .map(|val| Uuid::parse_str(&val))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+
+    if election_event_uuid.is_none() {
+        return Ok((None, "".to_string(), "".to_string()));
+    }
     let election_uuid: Option<Uuid> = election_id
         .map(|val| Uuid::parse_str(&val))
         .transpose()
