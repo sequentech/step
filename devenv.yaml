@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# this is only for claude-code:
 allowUnfree: true
+
 inputs:
   rust-overlay:
     url: github:oxalica/rust-overlay

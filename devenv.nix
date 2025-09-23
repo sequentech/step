@@ -73,7 +73,7 @@
     # for parsing docker-compose.yml
     yq
 
-    # AI
+    # AI. Note, requires allowUnfree: true in devenv.yaml
     claude-code
   ];
 
