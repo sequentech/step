@@ -1544,13 +1544,53 @@ pub async fn get_user_area_id(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn count_have_voted(hasura_transaction: &Transaction<'_>) -> Result<(i32)> {
-    let statement = hasura_transaction
-        .prepare(
-            "SELECT COUNT(DISTINCT voter_id_string) as total_count FROM sequent_backend.cast_vote",
-        )
+pub async fn count_have_voted(
+    hasura_transaction: &Transaction<'_>,
+    filter: &ListUsersFilter,
+) -> Result<(i32)> {
+    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![];
+    let mut filter_clauses: Vec<String> = vec![];
+    let mut next_param_number = 1;
+
+    if let Some(election_event_id_str) = &filter.election_event_id {
+        let election_event_id_uuid = Uuid::parse_str(election_event_id_str)?;
+        let clause = format!("election_event_id = ${next_param_number}");
+        filter_clauses.push(clause);
+        params.push(Box::new(election_event_id_uuid));
+        next_param_number += 1;
+    }
+    if let Some(election_id_str) = &filter.election_id {
+        let election_id_uuid = Uuid::parse_str(election_id_str)?;
+        let clause = format!("election_id = ${next_param_number}");
+        filter_clauses.push(clause);
+        params.push(Box::new(election_id_uuid));
+        next_param_number += 1;
+    }
+    // If there are no filters, the WHERE clause would be empty and cause a SQL error.
+    let filter_clause = if filter_clauses.is_empty() {
+        "TRUE".to_string()
+    } else {
+        filter_clauses.join(" AND\n                    ")
+    };
+
+    let statement_str = format!(
+        r#"
+                SELECT COUNT(DISTINCT voter_id_string)
+                as total_count
+                FROM sequent_backend.cast_vote
+                WHERE
+                    {filter_clause}
+                "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+    let params_slice: Vec<&(dyn ToSql + Sync)> = params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
+        .collect();
+    let count_row = hasura_transaction
+        .query_one(&statement, &params_slice)
         .await?;
-    let count_row = hasura_transaction.query_one(&statement, &[]).await?;
     let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
     Ok(count)
 }
@@ -1565,11 +1605,16 @@ pub async fn list_users_has_voted(
     let real_offset = filter.offset.unwrap_or(0);
 
     // Get the total number of users who have actually voted.
-    let count_total_voted = count_have_voted(hasura_transaction).await? as usize;
+    let count_total_voted = count_have_voted(hasura_transaction, &filter).await? as usize;
     // Get the total voters
     let count_total_voters =
         count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
-    let count_total_not_voted = count_total_voters - count_total_voted;
+    info!("count_total_voters: {count_total_voters}, count_total_voted: {count_total_voted}");
+    let count_total_not_voted = if count_total_voted <= count_total_voters {
+        count_total_voters - count_total_voted
+    } else {
+        0usize
+    };
 
     // This will only store the final page of users.
     let mut final_users = Vec::with_capacity(limit);
