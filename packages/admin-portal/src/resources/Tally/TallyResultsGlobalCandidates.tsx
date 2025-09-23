@@ -29,10 +29,12 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
+import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
-import Item from "antd/es/list/Item"
+
+const MAX_CANDIDATES_REPRESENTED = 5
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -160,10 +162,10 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     let totalCandidatesRepresented = chartData ? chartData?.length : 0
     if (totalCandidatesRepresented === 0) {
         return null
-    } else if (totalCandidatesRepresented > 5) {
-        totalCandidatesRepresented = 5
+    } else if (totalCandidatesRepresented > MAX_CANDIDATES_REPRESENTED) {
+        totalCandidatesRepresented = MAX_CANDIDATES_REPRESENTED
         // Trim chartData to represent only the first 5 candidates + "Others"
-        let deletedItems = chartData.splice(5)
+        let deletedItems = chartData.splice(MAX_CANDIDATES_REPRESENTED)
         let othersSum = deletedItems.reduce((a, b) => a + b.value, 0)
         chartData.push({label: "Others", value: othersSum})
     }
@@ -218,17 +220,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
     const orderedResultsData = useMemo(() => {
-        return resultsData.sort((a, b) => {
-            if (a.winning_position && b.winning_position) {
-                return a.winning_position - b.winning_position
-            } else if (a.winning_position) {
-                return -1
-            } else if (b.winning_position) {
-                return 1
-            } else {
-                return (b.cast_votes ?? 0) - (a.cast_votes ?? 0)
-            }
-        })
+        return resultsData.sort(sortCandidates)
     }, [resultsData])
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
@@ -535,7 +527,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     >
                         <Box sx={{flex: "0 0 auto", mt: 2}}>
                             <CandidatesResultsCharts
-                                results={resultsData}
+                                results={orderedResultsData}
                                 chartName={getChartName(general?.[0].name ?? undefined)}
                             />
                         </Box>

@@ -27,6 +27,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
+import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
 
@@ -52,6 +53,9 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
+    const orderedResultsData = useMemo(() => {
+        return (resultsData as Sequent_Backend_Candidate_Extended[]).sort(sortCandidates)
+    }, [resultsData])
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
@@ -378,23 +382,20 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     >
                         <Box sx={{flex: "0 0 auto", mt: 2}}>
                             <CandidatesResultsCharts
-                                results={resultsData as Sequent_Backend_Candidate_Extended[]}
+                                results={orderedResultsData as Sequent_Backend_Candidate_Extended[]}
                                 chartName={getChartName()}
                             />
                         </Box>
                         <Box sx={{flex: "1 1 auto", mt: 2}}>
                             <DataGrid
                                 sx={{mt: 0}}
-                                rows={resultsData}
+                                rows={orderedResultsData}
                                 columns={columns}
                                 initialState={{
                                     pagination: {
                                         paginationModel: {
                                             pageSize: 10,
                                         },
-                                    },
-                                    sorting: {
-                                        sortModel: [{field: "cast_votes", sort: "desc"}],
                                     },
                                 }}
                                 pageSizeOptions={[10, 20, 50, 100]}
