@@ -8,7 +8,7 @@ import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
 import styled from "@emotion/styled"
-import {Box, Button, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
+import {Box, Button, Stack, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
 import LogoutIcon from "@mui/icons-material/Logout"
 import Dialog from "../Dialog/Dialog"
@@ -26,7 +26,7 @@ const HeaderWrapper = styled(PageBanner)`
     @media (max-width: ${theme.breakpoints.values.lg}px) {
         padding: 9px;
     }
-`
+` as typeof Stack
 
 const StyledLink = styled.a`
     max-height: 100%;
@@ -161,6 +161,8 @@ export default function Header({
             <HeaderWrapper
                 className="header-class"
                 sx={{backgroundColor: theme.palette.lightBackground}}
+                role="banner"
+                component="header"
             >
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
@@ -179,12 +181,12 @@ export default function Header({
                                 <StyledButtonContainerWrapper className="logout-button-container-wrapper">
                                     <StyledButton
                                         className="logout-button"
-                                        aria-label="log out button"
+                                        aria-label={t("logout.buttonText")}
                                         onClick={() => {
                                             setOpenModal(true)
                                         }}
                                     >
-                                        <LogoutIcon />
+                                        <LogoutIcon aria-hidden />
                                         <Box sx={{display: {xs: "none", sm: "block"}}}>
                                             {t("logout.buttonText")}
                                         </Box>

@@ -18,15 +18,16 @@ const StyledPaper = styled(Paper)(
         align-items: center;
         color: ${theme.palette.customGrey.contrastText};
     `
-)
+) as typeof Paper
 
-const StyledLink = styled(Link)`
-    text-decoration: underline;
-    font-weight: normal;
-    &:hover {
-        text-decoration: none;
-    }
-`
+const StyledLink = styled(Link)(({theme}) => ({
+    "textDecoration": "underline",
+    "fontWeight": "normal",
+    "color": theme.palette.blue.dark,
+    "&:hover": {
+        textDecoration: "none",
+    },
+}))
 
 const CustomLink = ({title, href}: {title?: string; href?: string}) => (
     <StyledLink className="footer-link" href={href} target="_blank" rel="noopener noreferrer">
@@ -40,7 +41,7 @@ const Footer: React.FC<PaperProps> = (args) => {
 
     if (!poweredByString.includes("<sequent />")) {
         return (
-            <StyledPaper className="footer-class" {...args}>
+            <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
                 <Typography variant="subtitle2" fontStyle="italic" color="error">
                     Error: Invalid translation for footer.poweredBy. It must contain `&lt;sequent
                     /&gt;`.
@@ -50,7 +51,7 @@ const Footer: React.FC<PaperProps> = (args) => {
     }
 
     return (
-        <StyledPaper className="footer-class" {...args}>
+        <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
             <Typography variant="subtitle2" fontStyle="italic">
                 <Trans
                     i18nKey="footer.poweredBy"

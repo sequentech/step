@@ -379,7 +379,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         setOpenImportDrawer(false)
         let currWidget: WidgetProps | undefined
         try {
-            currWidget = addWidget(ETasksExecution.IMPORT_APPLICATION)
+            currWidget = addWidget(ETasksExecution.IMPORT_APPLICATION, undefined)
             let {data, errors} = await importApplications({
                 variables: {
                     tenantId: electionEventRecord.tenant_id,
@@ -407,7 +407,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         }
         let currWidget: WidgetProps | undefined
         try {
-            currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION)
+            currWidget = addWidget(ETasksExecution.EXPORT_APPLICATION, undefined)
             const {data: exportApplicationData, errors} = await exportApplication({
                 variables: {
                     tenantId: electionEventRecord.tenant_id,

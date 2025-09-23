@@ -161,7 +161,57 @@ In Results & Participation Section, Add a new action to ACTIONS button at the ev
 to export results in xlsx format. This will read the data from the sqlite file
 and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
 
+## ✨ Configure election screen on closed event
+
+Add a class name and the is-start attribute to the HTML of the select elections
+ screen at the voting portal to control the CSS from the admin portal.
+"is-start" attribute added to the SelectElection component in ui-essentials.
+
+## 🐞 Multiple Finished Tally Ceremony logs
+
+Finished Tally Ceremony logs were repeated multiple times (each time the task is
+executed). Now the logs say "Updated Tally Ceremony" each time unless the
+Tally is completed.
+
+## ✨ Review UI accessibility
+
+Using the IBM tool https://www.ibm.com/able/toolkit/tools/#develop , review the
+accessibility for the Voting Portal and Ballot Verifier.
+
+## 🐞 Text gets out of the Publish buttons in the admin portal
+
+Fix overflow in the label's text of the Admin Portal's Publish tab when the text 
+label of the Publish buttons are too long for a given language, i.e. spanish.
+Also shortened the spanish translations.
+
+## ✨ Improve tally events in the Activity Log
+
+Improve the details reported in the activity logs by adding more information like
+username, and reporting when the tally is started and completed.
+
+## 🐞 Can't create tally
+
+After adding indexes for the Electoral Log, the election_id field was limited to
+the size of one UUID but multiple UUIDs were stored when the Keys Ceremony was
+at Event level and there were multiple elections. Now only one or no election id is
+saved.
+
+## 🐞 Error message in voting portal should be a warning
+
+Sometimes the voting portal shows an alert dialog but the ballot is a valid
+ballot. In this case the dialog text should be different than in the case of
+an invalid/blank ballot.
+
+## 🐞Candidates list top border missing
+
+On Candidate Lists for the Voting Portal, the top border was missing.
+
+## 🐞 Issues filtering by voted/not voted
+
+Filtering voters by whether they have voted or not wasn't working and a fix
+was implemented.
+
 ## ✨ Electoral results charts/visualization
 
 Added Charts in the Admin Portal's Tally Results below the data tables to display
- the Gerneral Information, Participation Results and Candidate Results.
+ the General Information, Participation Results and Candidate Results.
