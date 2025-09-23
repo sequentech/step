@@ -198,3 +198,8 @@ an invalid/blank ballot.
 ## 🐞Candidates list top border missing
 
 On Candidate Lists for the Voting Portal, the top border was missing.
+
+## 🐞 Inconsistencies in Voting Portal
+
+Removed inconsistencies and bugs when selecting candidates, explicit blank,
+null votes, undervotes, overvotes and with single/multi-contest encoding.
