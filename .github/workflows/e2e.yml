@@ -23,7 +23,13 @@ jobs:
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - name: Run docker compose
+      run: |
+        cp .devcontainer/.env.development .devcontainer/.env
+        cd .devcontainer && docker compose up -d --build
+        devenv shell -- sh -c 'cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials'
+        devenv shell -- sh -c 'cd packages && yarn start:admin-portal'
     - name: Set loadtestingImage variable with default fallback
       run: echo "LOADTESTING_IMAGE=${{ github.event.inputs.loadtestingImage || 'loadtesting:latest' }}" >> $GITHUB_ENV
     - name: Build image
