@@ -64,6 +64,7 @@ jobs:
         run: |
           yarn install --frozen-lockfile
           yarn generate-full-docs
+          ls -lah docs/
           cp -r docs ../../docusaurus/build/graphql
 
       - name: Publish (PR)
