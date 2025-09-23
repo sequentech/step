@@ -72,6 +72,9 @@
 
     # for parsing docker-compose.yml
     yq
+
+    # AI. Note, requires allowUnfree: true in devenv.yaml
+    claude-code
   ];
 
   # https://devenv.sh/scripts/
@@ -100,8 +103,8 @@
     };
   };
 
-  # https://devenv.sh/pre-commit-hooks/
-  pre-commit.hooks = {
+  # https://devenv.sh/git-hooks/
+  git-hooks.hooks = {
     clippy.enable = false;
     rustfmt.enable = false;
     reuse = {
