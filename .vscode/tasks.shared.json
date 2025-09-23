@@ -132,7 +132,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd docs/api/graphql && yarn run generate-full-docs && python -m http.server -d docs",
+                "cd docs/api/graphql && yarn && yarn run generate-full-docs && python -m http.server -d docs",
             ],
             "presentation": {
                 "echo": true,
