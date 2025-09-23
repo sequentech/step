@@ -337,7 +337,7 @@ pub async fn get_users(
         authorized_to_election_alias: input.authorized_to_election_alias,
     };
 
-    if let Some(has_voted) = input.has_voted {
+    if input.has_voted.is_some() {
         let (users, count) = list_users_has_voted(
             &hasura_transaction,
             &keycloak_transaction,
