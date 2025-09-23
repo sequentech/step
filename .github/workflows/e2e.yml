@@ -37,7 +37,9 @@ jobs:
         docker compose up -d --build
         popd &> /dev/null
         devenv shell -- sh -c 'cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials'
-        devenv shell -- sh -c 'cd packages && yarn start:admin-portal'
+        devenv shell -- sh -c 'cd packages && yarn start:admin-portal' &
+        echo "Waiting for http://localhost:3002 to become ready..."
+        npx wait-on http://localhost:3002 --timeout 30m
     - name: Set loadtestingImage variable with default fallback
       run: echo "LOADTESTING_IMAGE=${{ github.event.inputs.loadtestingImage || 'loadtesting:latest' }}" >> $GITHUB_ENV
     - name: Build image
