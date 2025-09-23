@@ -109,7 +109,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
         e.preventDefault()
         e.stopPropagation()
         handleClose()
-        const currWidget = addWidget(ETasksExecution.GENERATE_TRANSMISSION_REPORT)
+        const currWidget = addWidget(ETasksExecution.GENERATE_TRANSMISSION_REPORT, undefined)
         try {
             let generateReportResponse = await generatTransmissionReport({
                 variables: {

@@ -205,3 +205,8 @@ an invalid/blank ballot.
 ## 🐞Candidates list top border missing
 
 On Candidate Lists for the Voting Portal, the top border was missing.
+
+## 🐞 Issues filtering by voted/not voted
+
+Filtering voters by whether they have voted or not wasn't working and a fix
+was implemented.
