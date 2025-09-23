@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+spectaql:
+  targetDir: './docs'
+  faviconFile: './favicon.png'
+  logoFile: './logo.png'
+
+introspection:
+  schemaFile: "./docs/processed-schema.graphql"
+
+template:
+  name: "spectaql"
+
+info:
+  title: "Sequent Voting Platform GraphQL API Documentation"
+  description: "Detailed description of the API"
+  version: "9.1.0"
+  x-url: "https://hasura-qa.sequentech.io/v1/graphql"

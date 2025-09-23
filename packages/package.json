@@ -37,6 +37,7 @@
     "prettify": "yarn --cwd ./voting-portal prettify && yarn --cwd ./admin-portal prettify && yarn --cwd ./ballot-verifier prettify && yarn --cwd ./ui-essentials prettify && yarn --cwd ./ui-core prettify",
     "generate:voting-portal": "yarn --cwd ./voting-portal generate",
     "generate:admin-portal": "yarn --cwd ./admin-portal generate",
-    "generate:ballot-verifier": "yarn --cwd ./ballot-verifier generate"
+    "generate:ballot-verifier": "yarn --cwd ./ballot-verifier generate",
+    "generate:graphql-docs": "yarn --cwd ./api-docs/graphql generate-docs"
   }
 }
