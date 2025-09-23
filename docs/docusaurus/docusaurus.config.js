@@ -66,6 +66,11 @@ const config = {
             label: 'Docs',
           },
           {
+            href: './graphql',
+            label: 'GraphQL API',
+            position: 'left',
+          },
+          {
             href: 'https://github.com/sequentech',
             label: 'GitHub',
             position: 'right',
