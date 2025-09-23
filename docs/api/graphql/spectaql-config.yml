@@ -4,8 +4,8 @@
 
 spectaql:
   targetDir: './docs'
-  faviconFile: '/workspaces/step/packages/admin-portal/public/sequent.png'
-  logoFile: '/workspaces/step/packages/admin-portal/public/Sequent_logo_small.png'
+  faviconFile: './favicon.png'
+  logoFile: './logo.png'
 
 introspection:
   schemaFile: "./docs/processed-schema.graphql"
