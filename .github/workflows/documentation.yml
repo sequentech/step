@@ -64,7 +64,7 @@ jobs:
         run: |
           yarn install --frozen-lockfile
           yarn generate-full-docs
-          cp -r docs ../../docusaurus/docs/graphql
+          cp -r docs ../../docusaurus/build/graphql
 
       - name: Publish (PR)
         uses: rossjrw/pr-preview-action@v1
