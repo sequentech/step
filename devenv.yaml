@@ -1,8 +1,10 @@
-# SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-#
-# SPDX-License-Identifier: AGPL-3.0-only
-
+allowUnfree: true
 inputs:
+  rust-overlay:
+    url: github:oxalica/rust-overlay
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
   nixpkgs:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
   fenix:
