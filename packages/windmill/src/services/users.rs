@@ -17,6 +17,8 @@ use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use std::cmp::min;
+use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{
@@ -39,15 +41,21 @@ pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<String>,
     election_id: Option<String>,
     area_id: Option<String>,
     param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
-    let election_uuid: uuid::Uuid = match election_id {
-        Some(election_id) => Uuid::parse_str(&election_id)
-            .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?,
-        None => return Ok((None, String::from(""), String::from(""))),
-    };
+    let tenant_uuid = Uuid::parse_str(&tenant_id)?;
+    let election_event_uuid: Option<Uuid> = election_event_id
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let election_uuid: Option<Uuid> = election_id
+        .map(|val| Uuid::parse_str(&val))
+        .transpose()
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
     let area_ids: Vec<String> = match area_id {
         Some(area_id_value) => vec![area_id_value],
@@ -63,12 +71,22 @@ async fn get_area_ids(
                     sequent_backend.area_contest ac ON a.id = ac.area_id
                 JOIN
                     sequent_backend.contest c ON ac.contest_id = c.id
-                WHERE c.election_id = $1;
+                WHERE
+                    a.tenant_id = $1 AND
+                    ac.tenant_id = $1 AND
+                    c.tenant_id = $1 AND
+                    a.election_event_id = $2 AND
+                    ac.election_event_id = $2 AND
+                    c.election_event_id = $2 AND
+                    ($3::uuid IS NULL OR c.election_id = $3::uuid);
             "#,
                 )
                 .await?;
             let rows: Vec<Row> = hasura_transaction
-                .query(&areas_statement, &[&election_uuid])
+                .query(
+                    &areas_statement,
+                    &[&tenant_uuid, &election_event_uuid, &election_uuid],
+                )
                 .await
                 .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
             let area_ids: Vec<String> = rows
@@ -452,6 +470,8 @@ pub async fn count_keycloak_users(
     // Add area-related joins/filters.
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
+        &filter.tenant_id,
+        filter.election_event_id.clone(),
         filter.election_id.clone(),
         filter.area_id.clone(),
         next_param_number,
@@ -600,6 +620,8 @@ pub async fn list_users(
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
+        &filter.tenant_id,
+        filter.election_event_id.clone(),
         filter.election_id.clone(),
         filter.area_id.clone(),
         next_param_number,
@@ -798,7 +820,10 @@ pub async fn list_users(
         .map(|row| -> Result<User> { row.try_into() })
         .collect::<Result<Vec<User>>>()?;
     if let Some(ref some_election_event_id) = filter.election_event_id {
-        let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
+        let unique_area_ids_set: HashSet<String> =
+            users.iter().filter_map(|user| user.get_area_id()).collect();
+        let area_ids: Vec<String> = unique_area_ids_set.into_iter().collect();
+
         let areas_by_ids = get_areas(
             hasura_transaction,
             filter.tenant_id.as_str(),
@@ -880,6 +905,8 @@ pub async fn list_users_ids(
 
     let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
         hasura_transaction,
+        &filter.tenant_id,
+        filter.election_event_id.clone(),
         filter.election_id.clone(),
         filter.area_id.clone(),
         next_param_number,
@@ -1540,4 +1567,168 @@ pub async fn get_user_area_id(
     } else {
         Ok(None)
     }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn count_have_voted(
+    hasura_transaction: &Transaction<'_>,
+    filter: &ListUsersFilter,
+    tenant_id: &str,
+) -> Result<(i32)> {
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![Box::new(tenant_uuid)];
+    let mut filter_clauses: Vec<String> = vec![];
+    let mut next_param_number = 2;
+
+    if let Some(election_event_id_str) = &filter.election_event_id {
+        let election_event_id_uuid = Uuid::parse_str(election_event_id_str)?;
+        let clause = format!("election_event_id = ${next_param_number}");
+        filter_clauses.push(clause);
+        params.push(Box::new(election_event_id_uuid));
+        next_param_number += 1;
+    }
+    if let Some(election_id_str) = &filter.election_id {
+        let election_id_uuid = Uuid::parse_str(election_id_str)?;
+        let clause = format!("election_id = ${next_param_number}");
+        filter_clauses.push(clause);
+        params.push(Box::new(election_id_uuid));
+        next_param_number += 1;
+    }
+    // If there are no filters, the WHERE clause would be empty and cause a SQL error.
+    let filter_clause = if filter_clauses.is_empty() {
+        "TRUE".to_string()
+    } else {
+        filter_clauses.join(" AND\n                    ")
+    };
+
+    let statement_str = format!(
+        r#"
+                SELECT COUNT(DISTINCT voter_id_string)
+                as total_count
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = $1 AND
+                    {filter_clause}
+                "#
+    );
+
+    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+    let params_slice: Vec<&(dyn ToSql + Sync)> = params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
+        .collect();
+    let count_row = hasura_transaction
+        .query_one(&statement, &params_slice)
+        .await?;
+    let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
+    Ok(count)
+}
+
+#[instrument(skip(hasura_transaction, keycloak_transaction), err)]
+pub async fn list_users_has_voted(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    filter: ListUsersFilter,
+    tenant_id: &str,
+) -> Result<(Vec<User>, i32)> {
+    let limit = filter.limit.ok_or(anyhow!("Limit not specified."))? as usize;
+    let batch_size = PgConfig::from_env()
+        .map_err(|e| anyhow!("Error getting default_sql_batch_size {e:?}"))?
+        .default_sql_batch_size;
+    info!("batch_size {batch_size}");
+    let real_offset = filter.offset.unwrap_or(0);
+
+    // Get the total number of users who have actually voted.
+    let count_total_voted =
+        count_have_voted(hasura_transaction, &filter, tenant_id).await? as usize;
+    // Get the total voters
+    let count_total_voters =
+        count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
+    info!("count_total_voters: {count_total_voters}, count_total_voted: {count_total_voted}");
+    let count_total_not_voted = if count_total_voted <= count_total_voters {
+        count_total_voters - count_total_voted
+    } else {
+        0usize
+    };
+
+    // This will only store the final page of users.
+    let mut final_users = Vec::with_capacity(limit);
+    // Counter for how many users we still need to skip *after filtering*.
+    let mut users_to_skip = real_offset as usize;
+    // Counter for total users found that match the filter, to respect `count_voted`.
+    let mut matching_users_found = 0;
+
+    let mut fetch_offset = 0; // The offset for the database query.
+    let mut total_users_from_filter = 0;
+
+    // Loop until the page is full or we run out of potential users.
+    while final_users.len() < limit {
+        // If we've already processed all possible voted users, stop.
+        if matching_users_found >= count_total_voted && Some(true) == filter.has_voted {
+            break;
+        }
+
+        // If we've already processed all possible non voted users, stop.
+        if matching_users_found >= count_total_not_voted && Some(false) == filter.has_voted {
+            break;
+        }
+
+        let mut batch_filter = filter.clone();
+        batch_filter.offset = Some(fetch_offset);
+        batch_filter.limit = Some(batch_size as i32);
+
+        let (mut voters, count_voters) =
+            list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter)
+                .await?;
+
+        if total_users_from_filter == 0 {
+            total_users_from_filter = count_voters;
+        }
+
+        let fetched_count = voters.len();
+        if fetched_count == 0 {
+            break; // No more users available from the source.
+        }
+
+        fetch_offset += fetched_count as i32;
+
+        // Filter the batch by the `has_voted` criteria.
+        if let Some(has_voted) = filter.has_voted {
+            voters.retain(|voter| {
+                let info_count = voter.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
+                if has_voted {
+                    info_count > 0
+                } else {
+                    info_count == 0
+                }
+            });
+        }
+
+        // Process the filtered batch, skipping or collecting each user.
+        for voter in voters {
+            matching_users_found += 1;
+
+            if users_to_skip > 0 {
+                users_to_skip -= 1;
+                continue; // Skip this user and move to the next.
+            }
+
+            // If skipping is done, start collecting.
+            final_users.push(voter);
+
+            // If the page is full, we can stop entirely.
+            if final_users.len() == limit {
+                break;
+            }
+        }
+    }
+
+    // The total count should not exceed the number of users who have actually voted or not voted.
+    let final_total = if let Some(true) = filter.has_voted {
+        min(total_users_from_filter, count_total_voted as i32)
+    } else {
+        min(total_users_from_filter, count_total_not_voted as i32)
+    };
+
+    Ok((final_users, final_total))
 }
