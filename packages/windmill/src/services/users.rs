@@ -820,10 +820,8 @@ pub async fn list_users(
         .map(|row| -> Result<User> { row.try_into() })
         .collect::<Result<Vec<User>>>()?;
     if let Some(ref some_election_event_id) = filter.election_event_id {
-        let unique_area_ids_set: HashSet<String> = users
-            .iter()
-            .filter_map(|user| user.get_area_id())
-            .collect();
+        let unique_area_ids_set: HashSet<String> =
+            users.iter().filter_map(|user| user.get_area_id()).collect();
         let area_ids: Vec<String> = unique_area_ids_set.into_iter().collect();
 
         let areas_by_ids = get_areas(
