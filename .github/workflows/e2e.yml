@@ -30,7 +30,7 @@ jobs:
         name: devenv
     - name: Install devenv.sh
       run: nix profile install nixpkgs#devenv
-    - name: Run docker compose
+    - name: Run admin portal
       run: |
         pushd .devcontainer &> /dev/null
         cp .env.development .env
@@ -38,6 +38,7 @@ jobs:
         popd &> /dev/null
         devenv shell -- sh -c 'cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials'
         devenv shell -- sh -c 'cd packages && yarn start:admin-portal' &
+        devenv shell -- sh -c 'cd packages && yarn start:voting-portal' &
         echo "Waiting for http://localhost:3002 to become ready..."
         npx wait-on http://localhost:3002 --timeout 30m
     - name: Set loadtestingImage variable with default fallback
