@@ -117,13 +117,16 @@ pub async fn delete_election_event_related_documents(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let app_version = std::env::var("APP_VERSION")
-        .map_err(|err| anyhow!("APP_VERSION must be set: {err}"))?;
+    let app_version =
+        std::env::var("APP_VERSION").map_err(|err| anyhow!("APP_VERSION must be set: {err}"))?;
 
     let documents_prefix = if DEV_APP_VERSION == app_version {
         format!("tenant-{}/event-{}/", tenant_id, election_event_id)
     } else {
-        format!("{}/tenant-{}/event-{}/", PROD_PATH_PRIVATE_PREFIX, tenant_id, election_event_id)
+        format!(
+            "{}/tenant-{}/event-{}/",
+            PROD_PATH_PRIVATE_PREFIX, tenant_id, election_event_id
+        )
     };
     let bucket = s3::get_private_bucket()?;
     s3::delete_files_from_s3(bucket, documents_prefix, false)
