@@ -1,7 +1,7 @@
-use crate::postgres::election::get_elections_ids;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::election::get_elections_ids;
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
 use crate::services::delete_election_event::delete_election_event_b3;
 use crate::services::tasks_execution::{update_complete, update_fail};
