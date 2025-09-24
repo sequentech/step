@@ -100,11 +100,19 @@
         ]
       },
       "locked": {
+<<<<<<< HEAD
         "lastModified": 1757974173,
         "owner": "cachix",
         "repo": "pre-commit-hooks.nix",
         "rev": "302af509428169db34f268324162712d10559f74",
         "treeHash": "f921759ffb6d5405a80460c72ff0a62327fcf6e4",
+=======
+        "lastModified": 1758108966,
+        "owner": "cachix",
+        "repo": "pre-commit-hooks.nix",
+        "rev": "54df955a695a84cd47d4a43e08e1feaf90b1fd9b",
+        "treeHash": "7fcd8ffa018ca350865d9fdddc2d28e9ce430dc5",
+>>>>>>> 7010bd8f0 (🐞 Errors deleting Election Event (#2028))
         "type": "github"
       },
       "original": {
@@ -118,7 +126,12 @@
         "devenv": "devenv",
         "fenix": "fenix",
         "nixpkgs": "nixpkgs",
+<<<<<<< HEAD
         "pre-commit-hooks": "pre-commit-hooks"
+=======
+        "pre-commit-hooks": "pre-commit-hooks",
+        "rust-overlay": "rust-overlay"
+>>>>>>> 7010bd8f0 (🐞 Errors deleting Election Event (#2028))
       }
     },
     "rust-analyzer-src": {

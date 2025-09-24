@@ -197,3 +197,8 @@ was implemented.
 In Results & Participation Section, Add a new action to ACTIONS button at the event level
 to export results in xlsx format. This will read the data from the sqlite file
 and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
+
+## 🐞 Errors deleting Election Event
+
+Fixed error deleting election event in specific cases. Also when an Election 
+Event is created, the sidebar is automatically updated.
