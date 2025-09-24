@@ -76,7 +76,6 @@ pub async fn delete_election_event_b3(
     }
 
     for election_id in election_ids {
-        // Create board and protocol manager keys for election (insert, not asssert)
         let board_name = get_election_board(tenant_id, &election_id, &slug);
         let existing: Option<b3::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
