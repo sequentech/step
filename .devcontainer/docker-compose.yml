@@ -509,6 +509,8 @@ services:
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
       PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
+      GOOGLE_CALENDAR_API_KEY: ${GOOGLE_CALENDAR_API_KEY}
+      GOOGLE_CALENDAR_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID}
 
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
