@@ -1092,7 +1092,8 @@ const dutchTranslation: TranslationType = {
             success: "Google Meet Link Succesvol Gegenereerd!",
             copy: "Kopiëren naar klembord",
             copied: "Link gekopieerd naar klembord!",
-            instructions: "Deel deze link met deelnemers om deel te nemen aan de vergadering. Het agenda-evenement is toegevoegd aan uw Google Calendar.",
+            instructions:
+                "Deel deze link met deelnemers om deel te nemen aan de vergadering. Het agenda-evenement is toegevoegd aan uw Google Calendar.",
             generating: "Genereren...",
             generate: "Meet Link Genereren",
         },

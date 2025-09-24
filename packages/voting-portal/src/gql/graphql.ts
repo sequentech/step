@@ -427,6 +427,11 @@ export type FetchDocumentOutput = {
   url: Scalars['String']['output'];
 };
 
+export type GenerateGoogleMeetOutput = {
+  __typename?: 'GenerateGoogleMeetOutput';
+  meet_link?: Maybe<Scalars['String']['output']>;
+};
+
 export type GenerateTemplateOutput = {
   __typename?: 'GenerateTemplateOutput';
   document_id: Scalars['String']['output'];
@@ -1282,6 +1287,8 @@ export type Mutation_Root = {
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
+  /** generate Google Meet link for election events */
+  generate_google_meet?: Maybe<GenerateGoogleMeetOutput>;
   generate_report?: Maybe<GenerateReportOutput>;
   generate_template?: Maybe<GenerateTemplateOutput>;
   generate_transmission_report?: Maybe<GenerateReportOutput>;
@@ -2423,6 +2430,17 @@ export type Mutation_RootExport_UsersArgs = {
 export type Mutation_RootGenerate_Ballot_PublicationArgs = {
   election_event_id: Scalars['uuid']['input'];
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootGenerate_Google_MeetArgs = {
+  attendee_email: Scalars['String']['input'];
+  description: Scalars['String']['input'];
+  end_date_time: Scalars['String']['input'];
+  start_date_time: Scalars['String']['input'];
+  summary: Scalars['String']['input'];
+  time_zone: Scalars['String']['input'];
 };
 
 
@@ -5929,6 +5947,7 @@ export type Sequent_Backend_Area = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   parent_id?: Maybe<Scalars['uuid']['output']>;
+  presentation?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   type?: Maybe<Scalars['String']['output']>;
 };
@@ -5942,6 +5961,12 @@ export type Sequent_Backend_AreaAnnotationsArgs = {
 
 /** columns and relationships of "sequent_backend.area" */
 export type Sequent_Backend_AreaLabelsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.area" */
+export type Sequent_Backend_AreaPresentationArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -5971,6 +5996,7 @@ export type Sequent_Backend_Area_Aggregate_FieldsCountArgs = {
 export type Sequent_Backend_Area_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.area". All fields are combined with a logical 'AND'. */
@@ -5987,6 +6013,7 @@ export type Sequent_Backend_Area_Bool_Exp = {
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   parent_id?: InputMaybe<Uuid_Comparison_Exp>;
+  presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   type?: InputMaybe<String_Comparison_Exp>;
 };
@@ -6277,18 +6304,21 @@ export type Sequent_Backend_Area_Contest_Updates = {
 export type Sequent_Backend_Area_Delete_At_Path_Input = {
   annotations?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
+  presentation?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
 export type Sequent_Backend_Area_Delete_Elem_Input = {
   annotations?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
+  presentation?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** delete key/value pair or string element. key/value pairs are matched based on their key value */
 export type Sequent_Backend_Area_Delete_Key_Input = {
   annotations?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
+  presentation?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** input type for inserting data into table "sequent_backend.area" */
@@ -6302,6 +6332,7 @@ export type Sequent_Backend_Area_Insert_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   parent_id?: InputMaybe<Scalars['uuid']['input']>;
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -6368,6 +6399,7 @@ export type Sequent_Backend_Area_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   parent_id?: InputMaybe<Order_By>;
+  presentation?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
 };
@@ -6383,6 +6415,7 @@ export type Sequent_Backend_Area_Pk_Columns_Input = {
 export type Sequent_Backend_Area_Prepend_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 /** select columns of table "sequent_backend.area" */
@@ -6406,6 +6439,8 @@ export enum Sequent_Backend_Area_Select_Column {
   /** column name */
   ParentId = 'parent_id',
   /** column name */
+  Presentation = 'presentation',
+  /** column name */
   TenantId = 'tenant_id',
   /** column name */
   Type = 'type'
@@ -6422,6 +6457,7 @@ export type Sequent_Backend_Area_Set_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   parent_id?: InputMaybe<Scalars['uuid']['input']>;
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -6445,6 +6481,7 @@ export type Sequent_Backend_Area_Stream_Cursor_Value_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   parent_id?: InputMaybe<Scalars['uuid']['input']>;
+  presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
 };
@@ -6469,6 +6506,8 @@ export enum Sequent_Backend_Area_Update_Column {
   Name = 'name',
   /** column name */
   ParentId = 'parent_id',
+  /** column name */
+  Presentation = 'presentation',
   /** column name */
   TenantId = 'tenant_id',
   /** column name */

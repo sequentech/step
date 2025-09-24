@@ -93,12 +93,14 @@ export const generateGoogleMeetLink = async (meetingData: MeetingData): Promise<
         return meetLink
     } catch (error: any) {
         console.error("Error in generateGoogleMeetLink:", error)
-        
+
         // Provide more specific error messages
         if (error.error === "popup_blocked_by_browser") {
             throw new Error("Please allow popups for this site to sign in to Google")
         } else if (error.error === "access_denied") {
-            throw new Error("Google Calendar access was denied. Please grant permission to create events.")
+            throw new Error(
+                "Google Calendar access was denied. Please grant permission to create events."
+            )
         } else if (error.status === 401) {
             throw new Error("Authentication failed. Please sign in to your Google account.")
         } else if (error.status === 403) {
@@ -129,10 +131,10 @@ const loadGoogleApiScript = (): Promise<void> => {
             return
         }
 
-        const script = document.createElement('script')
-        script.src = 'https://apis.google.com/js/api.js'
+        const script = document.createElement("script")
+        script.src = "https://apis.google.com/js/api.js"
         script.onload = () => resolve()
-        script.onerror = () => reject(new Error('Failed to load Google API script'))
+        script.onerror = () => reject(new Error("Failed to load Google API script"))
         document.head.appendChild(script)
     })
 }

@@ -1085,7 +1085,8 @@ const englishTranslation = {
             success: "Google Meet Link Generated Successfully!",
             copy: "Copy to clipboard",
             copied: "Link copied to clipboard!",
-            instructions: "Share this link with participants to join the meeting. The calendar event has been added to your Google Calendar.",
+            instructions:
+                "Share this link with participants to join the meeting. The calendar event has been added to your Google Calendar.",
             generating: "Generating...",
             generate: "Generate Meet Link",
         },

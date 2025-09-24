@@ -1336,8 +1336,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                 open={openGoogleMeet}
                 onClose={() => setOpenGoogleMeet(false)}
                 electionEventName={
-                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.en?.name ||
-                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.[Object.keys((record?.presentation as IElectionEventPresentation | undefined)?.i18n || {})[0]]?.name ||
+                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.en
+                        ?.name ||
+                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.[
+                        Object.keys(
+                            (record?.presentation as IElectionEventPresentation | undefined)
+                                ?.i18n || {}
+                        )[0]
+                    ]?.name ||
                     "Election Event"
                 }
             />

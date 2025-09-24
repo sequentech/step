@@ -1098,12 +1098,14 @@ const frenchTranslation: TranslationType = {
             startTime: "Heure de Début",
             duration: "Durée (minutes)",
             attendeeEmail: "Email du Participant",
-            attendeeEmailHelp: "Email pour les participants de la réunion (peut être un email fictif pour les tests)",
+            attendeeEmailHelp:
+                "Email pour les participants de la réunion (peut être un email fictif pour les tests)",
             note: "Note : Cela créera un événement de calendrier dans votre Google Calendar avec un lien Google Meet. Vous devrez vous connecter à votre compte Google.",
             success: "Lien Google Meet Généré avec Succès !",
             copy: "Copier dans le presse-papiers",
             copied: "Lien copié dans le presse-papiers !",
-            instructions: "Partagez ce lien avec les participants pour rejoindre la réunion. L'événement de calendrier a été ajouté à votre Google Calendar.",
+            instructions:
+                "Partagez ce lien avec les participants pour rejoindre la réunion. L'événement de calendrier a été ajouté à votre Google Calendar.",
             generating: "Génération...",
             generate: "Générer le Lien Meet",
         },

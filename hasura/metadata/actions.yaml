@@ -1304,6 +1304,21 @@ actions:
           - role: area-create
           - role: area-write
       comment: upsert_areas
+    - name: generate_google_meet
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/generate-google-meeting
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: election-event-write
+          - role: admin-user
+      comment: generate Google Meet link for election events
 custom_types:
     enums:
         - name: ReportEncryptionPolicy

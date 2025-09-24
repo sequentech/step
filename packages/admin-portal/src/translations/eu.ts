@@ -1092,7 +1092,8 @@ const basqueTranslation: TranslationType = {
             success: "Google Meet Esteka Arrakastaz Sortua!",
             copy: "Arbelera kopiatu",
             copied: "Esteka arbelera kopiatua!",
-            instructions: "Partekatu esteka hau partaideekin bileran parte hartzeko. Egutegi gertaera zure Google Calendar-era gehitu da.",
+            instructions:
+                "Partekatu esteka hau partaideekin bileran parte hartzeko. Egutegi gertaera zure Google Calendar-era gehitu da.",
             generating: "Sortzen...",
             generate: "Meet Esteka Sortu",
         },

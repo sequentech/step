@@ -1093,12 +1093,14 @@ const tagalogTranslation: TranslationType = {
             startTime: "Oras ng Simula",
             duration: "Tagal (mga minuto)",
             attendeeEmail: "Email ng Kalahok",
-            attendeeEmailHelp: "Email para sa mga kalahok sa meeting (maaaring gumamit ng test email)",
+            attendeeEmailHelp:
+                "Email para sa mga kalahok sa meeting (maaaring gumamit ng test email)",
             note: "Paalala: Ito ay lilikha ng calendar event sa inyong Google Calendar na may Google Meet link. Kailangan ninyong mag-sign in sa inyong Google account.",
             success: "Matagumpay na Nabuo ang Google Meet Link!",
             copy: "Kopyahin sa clipboard",
             copied: "Nakopya na ang link sa clipboard!",
-            instructions: "Ibahagi ang link na ito sa mga kalahok para sumali sa meeting. Naidagdag na ang calendar event sa inyong Google Calendar.",
+            instructions:
+                "Ibahagi ang link na ito sa mga kalahok para sumali sa meeting. Naidagdag na ang calendar event sa inyong Google Calendar.",
             generating: "Bumubuo...",
             generate: "Bumuo ng Meet Link",
         },
