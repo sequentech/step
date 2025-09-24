@@ -1316,7 +1316,6 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: election-event-write
           - role: admin-user
       comment: generate Google Meet link for election events
 custom_types:

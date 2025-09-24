@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useState } from "react"
+import React, {useState} from "react"
 import {
     Dialog,
     DialogTitle,
@@ -17,10 +17,10 @@ import {
     IconButton,
     Snackbar,
 } from "@mui/material"
-import { ContentCopy, VideoCall } from "@mui/icons-material"
-import { useTranslation } from "react-i18next"
-import { useMutation } from "@apollo/client"
-import { GENERATE_GOOGLE_MEET } from "../../../queries/GenerateGoogleMeet"
+import {ContentCopy, VideoCall} from "@mui/icons-material"
+import {useTranslation} from "react-i18next"
+import {useMutation} from "@apollo/client"
+import {GENERATE_GOOGLE_MEET} from "../../../queries/GenerateGoogleMeet"
 
 interface GoogleMeetLinkGeneratorProps {
     open: boolean
@@ -33,7 +33,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
     onClose,
     electionEventName = "",
 }) => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const [meetingTitle, setMeetingTitle] = useState(
         electionEventName ? `${electionEventName} - Meeting` : "Election Event Meeting"
     )
@@ -46,7 +46,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
     const [error, setError] = useState("")
     const [copySuccess, setCopySuccess] = useState(false)
 
-    const [generateGoogleMeet, { loading: isGenerating }] = useMutation(GENERATE_GOOGLE_MEET, {
+    const [generateGoogleMeet, {loading: isGenerating}] = useMutation(GENERATE_GOOGLE_MEET, {
         onCompleted: (data) => {
             if (data.generate_google_meet.meet_link) {
                 setGeneratedLink(data.generate_google_meet.meet_link)
@@ -158,8 +158,8 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
                                         required
-                                        InputLabelProps={{ shrink: true }}
-                                        sx={{ flex: 1 }}
+                                        InputLabelProps={{shrink: true}}
+                                        sx={{flex: 1}}
                                     />
                                     <TextField
                                         label={t("googleMeet.startTime", "Start Time")}
@@ -167,8 +167,8 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                         value={startTime}
                                         onChange={(e) => setStartTime(e.target.value)}
                                         required
-                                        InputLabelProps={{ shrink: true }}
-                                        sx={{ flex: 1 }}
+                                        InputLabelProps={{shrink: true}}
+                                        sx={{flex: 1}}
                                     />
                                 </Box>
 
@@ -178,7 +178,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                     value={duration}
                                     onChange={(e) => setDuration(e.target.value)}
                                     required
-                                    inputProps={{ min: 15, max: 480 }}
+                                    inputProps={{min: 15, max: 480}}
                                 />
 
                                 <TextField
@@ -187,7 +187,10 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                     onChange={(e) => setAttendeeEmail(e.target.value)}
                                     fullWidth
                                     type="email"
-                                    helperText={t("googleMeet.attendeeEmailHelp", "Email for meeting participants (can be a mock email for testing)")}
+                                    helperText={t(
+                                        "googleMeet.attendeeEmailHelp",
+                                        "Email for meeting participants (can be a mock email for testing)"
+                                    )}
                                 />
 
                                 <Typography variant="body2" color="text.secondary">
@@ -200,7 +203,10 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                         ) : (
                             <Box>
                                 <Typography variant="h6" gutterBottom color="success.main">
-                                    {t("googleMeet.success", "Google Meet Link Generated Successfully!")}
+                                    {t(
+                                        "googleMeet.success",
+                                        "Google Meet Link Generated Successfully!"
+                                    )}
                                 </Typography>
                                 <Box
                                     display="flex"
@@ -244,7 +250,12 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                             onClick={handleGenerateMeetLink}
                             variant="contained"
                             disabled={
-                                isGenerating || !meetingTitle || !startDate || !startTime || !duration || !attendeeEmail
+                                isGenerating ||
+                                !meetingTitle ||
+                                !startDate ||
+                                !startTime ||
+                                !duration ||
+                                !attendeeEmail
                             }
                             startIcon={
                                 isGenerating ? <CircularProgress size={16} /> : <VideoCall />
