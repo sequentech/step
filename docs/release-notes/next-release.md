@@ -210,3 +210,8 @@ On Candidate Lists for the Voting Portal, the top border was missing.
 
 Filtering voters by whether they have voted or not wasn't working and a fix
 was implemented.
+
+## 🐞 Errors deleting Election Event
+
+Fixed error deleting election event in specific cases. Also when an Election 
+Event is created, the sidebar is automatically updated.
