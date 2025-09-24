@@ -422,6 +422,9 @@ export default function ElectionEvents() {
         } else if (callerPath === "sequent_backend_candidate") {
             candidateData()
             candidateTreeRefetch()
+        } else if (callerPath === "sequent_backend_election_event") {
+            electionEventTreeRefetch()
+            electionEventDataRefetch()
         } else {
             // do nothing
         }

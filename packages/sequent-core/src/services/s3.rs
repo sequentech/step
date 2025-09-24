@@ -12,7 +12,9 @@ use crate::util::temp_path::{
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
-use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
+use aws_sdk_s3::types::{
+    CompletedMultipartUpload, CompletedPart, Delete, ObjectIdentifier,
+};
 use aws_smithy_types::byte_stream::{ByteStream, Length};
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
@@ -457,27 +459,46 @@ pub async fn delete_files_from_s3(
 
     let mut token: Option<String> = None;
     loop {
-        let result = client
+        let list_output = client
             .list_objects_v2()
             .bucket(s3_bucket.clone())
             .prefix(prefix.clone())
-            .max_keys(20)
+            .max_keys(1000)
             .set_continuation_token(token.clone())
             .send()
             .await?;
-
-        for object in result.contents().iter() {
-            let key = object.key().unwrap();
+        // Collect the keys to be deleted
+        let keys_to_delete: Vec<ObjectIdentifier> = list_output
+            .contents()
+            .iter()
+            .filter_map(|obj| {
+                obj.key().map(|key| {
+                    ObjectIdentifier::builder()
+                        .key(key)
+                        .build()
+                        .expect("key is required")
+                })
+            })
+            .collect();
+        // If there are keys to delete, call the batch delete API
+        if !keys_to_delete.is_empty() {
+            let delete_request = Delete::builder()
+                .set_objects(Some(keys_to_delete))
+                .build()?;
+            info!(
+                "Sending batch delete request for {} objects.",
+                list_output.contents().len()
+            );
 
             client
-                .delete_object()
+                .delete_objects()
                 .bucket(s3_bucket.clone())
-                .key(key)
+                .delete(delete_request)
                 .send()
                 .await?;
         }
 
-        if let Some(next_token) = result.next_continuation_token() {
+        if let Some(next_token) = list_output.next_continuation_token() {
             token = Some(next_token.to_string());
         } else {
             break;
