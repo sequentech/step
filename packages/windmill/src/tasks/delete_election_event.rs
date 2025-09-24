@@ -1,7 +1,9 @@
+use crate::postgres::election::get_elections_ids;
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
+use crate::services::delete_election_event::delete_election_event_b3;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
@@ -24,11 +26,13 @@ async fn delete_election_event_related_data(
     tenant_id: &str,
     election_event_id: &str,
     realm: &str,
-) -> Result<()> {
+    election_ids: &Vec<String>,
+) -> AnyhowResult<()> {
     let immudb_future = delete_election_event_immudb(tenant_id, election_event_id);
+    let b3_future = delete_election_event_b3(tenant_id, election_event_id, election_ids);
     let documents_future = delete_election_event_related_documents(tenant_id, election_event_id);
     let keycloak_future = delete_keycloak_realm(realm);
-    try_join!(immudb_future, documents_future, keycloak_future)?;
+    try_join!(immudb_future, b3_future, documents_future, keycloak_future)?;
 
     Ok(())
 }
@@ -53,6 +57,13 @@ async fn delete_election_event(
             .await
             .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
 
+            let election_ids = get_elections_ids(
+                &hasura_transaction,
+                &tenant_id_cloned,
+                &election_event_id_cloned,
+            )
+            .await?;
+
             delete_election_event_postgres(
                 &hasura_transaction,
                 &tenant_id_cloned,
@@ -65,6 +76,7 @@ async fn delete_election_event(
                 &tenant_id_cloned,
                 &election_event_id_cloned,
                 &realm_cloned,
+                &election_ids,
             )
             .await
             .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
