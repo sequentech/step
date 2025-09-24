@@ -125,3 +125,8 @@ an invalid/blank ballot.
 ## 🐞Candidates list top border missing
 
 On Candidate Lists for the Voting Portal, the top border was missing.
+
+## 🐞 Errors deleting Election Event
+
+Fixed error deleting election event in specific cases. Also when an Election 
+Event is created, the sidebar is automatically updated.
