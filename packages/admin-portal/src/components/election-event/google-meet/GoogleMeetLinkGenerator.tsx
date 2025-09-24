@@ -19,7 +19,8 @@ import {
 } from "@mui/material"
 import { ContentCopy, VideoCall } from "@mui/icons-material"
 import { useTranslation } from "react-i18next"
-import { generateGoogleMeetLink } from "./googleMeetService"
+import { useMutation } from "@apollo/client"
+import { GENERATE_GOOGLE_MEET } from "../../../queries/GenerateGoogleMeet"
 
 interface GoogleMeetLinkGeneratorProps {
     open: boolean
@@ -42,9 +43,23 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
     const [duration, setDuration] = useState("60") // minutes
     const [attendeeEmail, setAttendeeEmail] = useState("participant@example.com") // Mock email
     const [generatedLink, setGeneratedLink] = useState("")
-    const [isGenerating, setIsGenerating] = useState(false)
     const [error, setError] = useState("")
     const [copySuccess, setCopySuccess] = useState(false)
+
+    const [generateGoogleMeet, { loading: isGenerating }] = useMutation(GENERATE_GOOGLE_MEET, {
+        onCompleted: (data) => {
+            if (data.generate_google_meet.meet_link) {
+                setGeneratedLink(data.generate_google_meet.meet_link)
+                setError("")
+            } else if (data.generate_google_meet.error_msg) {
+                setError(data.generate_google_meet.error_msg)
+            }
+        },
+        onError: (error) => {
+            console.error("Error generating Google Meet link:", error)
+            setError(error.message || "Failed to generate Google Meet link")
+        },
+    })
 
     const handleClose = () => {
         setGeneratedLink("")
@@ -53,29 +68,25 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
     }
 
     const handleGenerateMeetLink = async () => {
-        setIsGenerating(true)
         setError("")
 
         try {
             const startDateTime = new Date(`${startDate}T${startTime}`)
             const endDateTime = new Date(startDateTime.getTime() + parseInt(duration) * 60000)
 
-            const meetingData = {
-                summary: meetingTitle,
-                description: meetingDescription,
-                startDateTime: startDateTime.toISOString(),
-                endDateTime: endDateTime.toISOString(),
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                attendeeEmail: attendeeEmail,
-            }
-
-            const meetLink = await generateGoogleMeetLink(meetingData)
-            setGeneratedLink(meetLink)
+            await generateGoogleMeet({
+                variables: {
+                    summary: meetingTitle,
+                    description: meetingDescription,
+                    startDateTime: startDateTime.toISOString(),
+                    endDateTime: endDateTime.toISOString(),
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    attendeeEmail: attendeeEmail,
+                },
+            })
         } catch (err: any) {
             console.error("Error generating Google Meet link:", err)
             setError(err.message || "Failed to generate Google Meet link")
-        } finally {
-            setIsGenerating(false)
         }
     }
 
