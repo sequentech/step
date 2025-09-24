@@ -32,6 +32,7 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
+import VideoCallIcon from "@mui/icons-material/VideoCall"
 import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ETemplateType} from "@/types/templates"
@@ -85,6 +86,7 @@ import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
+import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -125,6 +127,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
+    const [openGoogleMeet, setOpenGoogleMeet] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
@@ -688,6 +691,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                             key="1"
                         >
                             <DownloadIcon />
+                        </Button>,
+                        <Button
+                            className="google-meet-generator"
+                            onClick={() => setOpenGoogleMeet(true)}
+                            label={t("googleMeet.generateButton", "Generate Google Meet")}
+                            key="2"
+                        >
+                            <VideoCallIcon />
                         </Button>,
                     ]}
                 />
@@ -1319,6 +1330,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                 exportDocumentId={exportDocumentId}
                 setExportDocumentId={setExportDocumentId}
                 setLoadingExport={setLoadingExport}
+            />
+
+            <GoogleMeetLinkGenerator
+                open={openGoogleMeet}
+                onClose={() => setOpenGoogleMeet(false)}
+                electionEventName={
+                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.en?.name ||
+                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.[Object.keys((record?.presentation as IElectionEventPresentation | undefined)?.i18n || {})[0]]?.name ||
+                    "Election Event"
+                }
             />
         </>
     )
