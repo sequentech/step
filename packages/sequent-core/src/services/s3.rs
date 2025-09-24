@@ -453,12 +453,18 @@ pub async fn delete_files_from_s3(
     let config = get_s3_aws_config(!is_public)
         .await
         .with_context(|| "Error getting s3 aws config")?;
+    info!("Config acquired");
     let client = get_s3_client(config.clone())
         .await
         .with_context(|| "Error getting s3 client")?;
+    info!("S3 client acquired");
 
+    // First, collect all keys to delete
+    let mut all_keys: Vec<String> = Vec::new();
     let mut token: Option<String> = None;
+
     loop {
+        info!("Listing objects");
         let list_output = client
             .list_objects_v2()
             .bucket(s3_bucket.clone())
@@ -467,35 +473,12 @@ pub async fn delete_files_from_s3(
             .set_continuation_token(token.clone())
             .send()
             .await?;
-        // Collect the keys to be deleted
-        let keys_to_delete: Vec<ObjectIdentifier> = list_output
-            .contents()
-            .iter()
-            .filter_map(|obj| {
-                obj.key().map(|key| {
-                    ObjectIdentifier::builder()
-                        .key(key)
-                        .build()
-                        .expect("key is required")
-                })
-            })
-            .collect();
-        // If there are keys to delete, call the batch delete API
-        if !keys_to_delete.is_empty() {
-            let delete_request = Delete::builder()
-                .set_objects(Some(keys_to_delete))
-                .build()?;
-            info!(
-                "Sending batch delete request for {} objects.",
-                list_output.contents().len()
-            );
 
-            client
-                .delete_objects()
-                .bucket(s3_bucket.clone())
-                .delete(delete_request)
-                .send()
-                .await?;
+        // Collect keys from this page
+        for obj in list_output.contents() {
+            if let Some(key) = obj.key() {
+                all_keys.push(key.to_string());
+            }
         }
 
         if let Some(next_token) = list_output.next_continuation_token() {
@@ -504,6 +487,49 @@ pub async fn delete_files_from_s3(
             break;
         }
     }
+
+    info!(
+        "Collected {} objects to delete from S3 bucket '{}' with prefix '{}'",
+        all_keys.len(),
+        s3_bucket,
+        prefix
+    );
+
+    // Now delete each key individually, tolerating NoSuchKey errors
+    for key in &all_keys {
+        match client
+            .delete_object()
+            .bucket(s3_bucket.clone())
+            .key(key.clone())
+            .send()
+            .await
+        {
+            Ok(_) => {
+                // Successfully deleted
+            }
+            Err(err) => {
+                // Check if it's a NoSuchKey error
+                let err_str = format!("{:?}", err);
+                if err_str.contains("NoSuchKey") {
+                    tracing::warn!(
+                        key = %key,
+                        "Key already absent in S3; continuing"
+                    );
+                } else {
+                    // For other errors, fail the operation
+                    return Err(anyhow::Error::from(err).context(format!(
+                        "Failed to delete S3 object: {}",
+                        key
+                    )));
+                }
+            }
+        }
+    }
+
+    info!(
+        "Successfully processed deletion of {} objects from S3",
+        all_keys.len()
+    );
 
     Ok(())
 }
