@@ -216,8 +216,14 @@ export interface IExtensionErrorInternalError {
     message?: string | null
 }
 
+export interface IExtensionErrorInternalResponse {
+    body?: string | null
+    status?: number | null
+}
+
 export interface IExtensionErrorInternal {
     error?: IExtensionErrorInternalError | null
+    response?: IExtensionErrorInternalResponse | null
 }
 
 export interface IExtensionError {

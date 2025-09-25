@@ -118,6 +118,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         IPermissions.ELECTION_EVENT_WRITE
     )
 
+    const canCreateGoogleMeeting = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.GOOGLE_MEET_LINK
+    )
+
     const [value, setValue] = useState(0)
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
@@ -1332,21 +1338,23 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setLoadingExport={setLoadingExport}
             />
 
-            <GoogleMeetLinkGenerator
-                open={openGoogleMeet}
-                onClose={() => setOpenGoogleMeet(false)}
-                electionEventName={
-                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.en
-                        ?.name ||
-                    (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.[
-                        Object.keys(
-                            (record?.presentation as IElectionEventPresentation | undefined)
-                                ?.i18n || {}
-                        )[0]
-                    ]?.name ||
-                    "Election Event"
-                }
-            />
+            { canCreateGoogleMeeting && ( 
+                <GoogleMeetLinkGenerator
+                    open={openGoogleMeet}
+                    onClose={() => setOpenGoogleMeet(false)}
+                    electionEventName={
+                        (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.en
+                            ?.name ||
+                        (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.[
+                            Object.keys(
+                                (record?.presentation as IElectionEventPresentation | undefined)
+                                    ?.i18n || {}
+                            )[0]
+                        ]?.name ||
+                        "Election Event"
+                    }
+                />
+            )}
         </>
     )
 }

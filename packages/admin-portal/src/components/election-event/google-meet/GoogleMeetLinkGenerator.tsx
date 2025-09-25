@@ -21,6 +21,12 @@ import {ContentCopy, VideoCall} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {useMutation} from "@apollo/client"
 import {GENERATE_GOOGLE_MEET} from "../../../queries/GenerateGoogleMeet"
+import {
+    IGraphQLActionError,
+} from "@sequentech/ui-core"
+import {
+    GenerateGoogleMeetMutation
+} from "@/gql/graphql"
 
 interface GoogleMeetLinkGeneratorProps {
     open: boolean
@@ -45,21 +51,9 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
     const [generatedLink, setGeneratedLink] = useState("")
     const [error, setError] = useState("")
     const [copySuccess, setCopySuccess] = useState(false)
+    const [isGenerating, setIsGenerating] = useState(false)
 
-    const [generateGoogleMeet, {loading: isGenerating}] = useMutation(GENERATE_GOOGLE_MEET, {
-        onCompleted: (data) => {
-            if (data.generate_google_meet.meet_link) {
-                setGeneratedLink(data.generate_google_meet.meet_link)
-                setError("")
-            } else if (data.generate_google_meet.error_msg) {
-                setError(data.generate_google_meet.error_msg)
-            }
-        },
-        onError: (error) => {
-            console.error("Error generating Google Meet link:", error)
-            setError(error.message || "Failed to generate Google Meet link")
-        },
-    })
+    const [generateGoogleMeet] = useMutation<GenerateGoogleMeetMutation>(GENERATE_GOOGLE_MEET)
 
     const handleClose = () => {
         setGeneratedLink("")
@@ -69,12 +63,11 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
 
     const handleGenerateMeetLink = async () => {
         setError("")
-
+        setIsGenerating(true)
         try {
             const startDateTime = new Date(`${startDate}T${startTime}`)
             const endDateTime = new Date(startDateTime.getTime() + parseInt(duration) * 60000)
-
-            await generateGoogleMeet({
+            let {data} = await generateGoogleMeet({
                 variables: {
                     summary: meetingTitle,
                     description: meetingDescription,
@@ -84,10 +77,28 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                     attendeeEmail: attendeeEmail,
                 },
             })
+
+            if (data?.generate_google_meet?.meet_link) {
+                setGeneratedLink(data.generate_google_meet.meet_link)
+                setError("")
+            } else {
+                setError("Link is null.")
+            }
         } catch (err: any) {
             console.error("Error generating Google Meet link:", err)
-            setError(err.message || "Failed to generate Google Meet link")
+            let error = err as IGraphQLActionError
+            let status = (error?.graphQLErrors?.[0]?.extensions?.internal?.response?.status?.toString() ?? "")
+            let body = error?.graphQLErrors?.[0]?.extensions?.internal?.response?.body ?? ""
+            let message = "Failed to generate Google Meet link. "
+            if (status) {
+                message += `Status: ${status}. `
+            }
+            if (body) {
+                message += `Body: ${body}. `
+            }
+            setError(message)
         }
+        setIsGenerating(false)
     }
 
     const copyToClipboard = async () => {
