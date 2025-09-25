@@ -465,14 +465,31 @@ pub async fn delete_files_from_s3(
 
     loop {
         info!("Listing objects");
-        let list_output = client
+        let list_output = match client
             .list_objects_v2()
             .bucket(s3_bucket.clone())
             .prefix(prefix.clone())
             .max_keys(1000)
             .set_continuation_token(token.clone())
             .send()
-            .await?;
+            .await
+        {
+            Ok(list) => {
+                list
+                // Successfully deleted
+            }
+            Err(err) => {
+                // Check if it's a NoSuchKey error
+                let err_str = format!("{:?}", err);
+                if err_str.contains("NoSuchKey") {
+                    info!("Key already absent in S3; continuing. {:?}", err);
+                    return Ok(());
+                } else {
+                    // For other errors, fail the operation
+                    return Err(anyhow!("{:?}", err));
+                }
+            }
+        };
 
         // Collect keys from this page
         for obj in list_output.contents() {
