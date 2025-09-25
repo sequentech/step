@@ -395,6 +395,10 @@ pub enum Permissions {
     // permission to edit voter fields: email and mobile number
     #[strum(serialize = "voter-email-tlf-edit")]
     VOTER_EMAIL_TLF_EDIT,
+    #[strum(serialize = "google-meet-link")]
+    GOOGLE_MEET_LINK,
+    #[strum(serialize = "google-meet-api-tokens")]
+    GOOGLE_MEET_API_TOKENS,
 }
 
 #[allow(non_camel_case_types)]

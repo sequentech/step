@@ -946,6 +946,8 @@ const englishTranslation = {
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
                 "transmission-report-generate": "Generate Transmission Report",
+                "google-meet-link": "Generate google meet link",
+                "google-meet-api-tokens": "Write Google Meet API Tokens to tenant settings",
             },
         },
         generalSettingsScreen: {

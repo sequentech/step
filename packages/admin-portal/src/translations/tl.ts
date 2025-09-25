@@ -957,6 +957,8 @@ const tagalogTranslation: TranslationType = {
                 "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
                 "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
+                "google-meet-link": "Bumuo ng Google Meet Link",
+                "google-meet-api-tokens": "Isulat ang mga Google Meet API Token sa mga setting ng tenant",
             },
         },
         generalSettingsScreen: {

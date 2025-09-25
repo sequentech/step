@@ -956,6 +956,9 @@ const spanishTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmisión",
+                "google-meet-link": "Generar Enlace de Google Meet",
+                "google-meet-api-tokens":
+                    "Escribir Tokens de la API de Google Meet en la configuración del tenant",
             },
         },
         generalSettingsScreen: {
