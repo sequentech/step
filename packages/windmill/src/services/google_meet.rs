@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::tenant::get_tenant_by_id;
+use deadpool_postgres::Transaction;
 use google_calendar3::{
     api::{ConferenceData, ConferenceSolutionKey, CreateConferenceRequest, Event, EventDateTime},
     hyper, hyper_rustls, hyper_util,
@@ -10,7 +12,6 @@ use google_calendar3::{
     yup_oauth2::ServiceAccountKey,
     CalendarHub,
 };
-
 use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -32,10 +33,9 @@ pub struct GenerateGoogleMeetResponse {
     pub meet_link: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, EnumString, Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Serialize, Deserialize, Debug, EnumString)]
 pub enum GoogleMeetError {
-    EnvVar(String),
+    ClientSecret(String),
     Json(String),
     OAuth2(String),
     GoogleApi(String),
@@ -46,35 +46,71 @@ pub enum GoogleMeetError {
     Other(String),
 }
 
+impl std::fmt::Display for GoogleMeetError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GoogleMeetError::ClientSecret(msg) => write!(f, "Client Secret not found: {}", msg),
+            GoogleMeetError::Json(msg) => write!(f, "Json error: {}", msg),
+            GoogleMeetError::OAuth2(msg) => write!(f, "OAuth2 error: {}", msg),
+            GoogleMeetError::GoogleApi(msg) => write!(f, "Google API error: {}", msg),
+            GoogleMeetError::Http(msg) => write!(f, "Http error: {}", msg),
+            GoogleMeetError::DateTime(msg) => write!(f, "Date error: {}", msg),
+            GoogleMeetError::CalendarNotFound => write!(f, "Calendar not found"),
+            GoogleMeetError::MeetLinkNotFound => write!(f, "Meet link not found"),
+            GoogleMeetError::Other(msg) => write!(f, "Other error: {}", msg),
+        }
+    }
+}
+
 /// Implementation function for generating Google Meet links
 /// Creates a calendar event with Google Meet integration using service account credentials
 #[instrument(skip(meeting_data))]
 pub async fn generate_google_meet_link_impl(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
     meeting_data: &GenerateGoogleMeetBody,
 ) -> Result<String, GoogleMeetError> {
-    info!("Starting Google Meet link generation for: {meeting_data:?}");
+    // Get service account credentials from settings
+    let gapi_oauth = get_tenant_by_id(hasura_transaction, tenant_id)
+        .await
+        .map_err(|e| GoogleMeetError::ClientSecret(e.to_string()))?
+        .settings
+        .ok_or(GoogleMeetError::ClientSecret(
+            "Tenant settings is null".to_string(),
+        ))?
+        .get("gapi_oauth")
+        .ok_or(GoogleMeetError::ClientSecret(
+            "gapi_oauth is null, no client secret in settings. Object must be named gapi_oauth"
+                .to_string(),
+        ))?
+        .clone();
 
-    // 1. Get service account credentials from environment
-    let service_account_key_json = env::var("GOOGLE_CALENDAR_API_KEY")
-        .map_err(|_| GoogleMeetError::EnvVar("GOOGLE_CALENDAR_API_KEY".to_string()))?;
-    let calendar_id = env::var("GOOGLE_CALENDAR_CLIENT_ID")
-        .map_err(|_| GoogleMeetError::EnvVar("GOOGLE_CALENDAR_CLIENT_ID".to_string()))?;
+    // Parse service account key
+    let service_account_key: ServiceAccountKey = match serde_json::from_value(gapi_oauth) {
+        Ok(key) => key,
+        Err(e) => {
+            error!("Failed to parse service account key: {e:?}");
+            return Err(GoogleMeetError::Json(
+                "Failed to parse service account key".to_string(),
+            ));
+        }
+    };
 
-    // 2. Parse service account key
-    let service_account_key: ServiceAccountKey = serde_json::from_str(&service_account_key_json)
-        .map_err(|_| GoogleMeetError::Json("Failed to parse service account key".to_string()))?;
-
-    // 3. Create authenticator
-    let auth = ServiceAccountAuthenticator::builder(service_account_key)
+    // Create authenticator
+    let auth = match ServiceAccountAuthenticator::builder(service_account_key)
         .build()
         .await
-        .map_err(|_| GoogleMeetError::OAuth2("Failed to create authenticator".to_string()))?;
+    {
+        Ok(auth) => auth,
+        Err(e) => {
+            error!("Failed to create authenticator: {e:?}");
+            return Err(GoogleMeetError::OAuth2(
+                "Failed to create authenticator".to_string(),
+            ));
+        }
+    };
 
-    // 4. Create HTTP client and Calendar hub
-    let connector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()
-        .map_err(|_| GoogleMeetError::Http("Failed to create HTTP client".to_string()))?;
-    let connector = connector.https_or_http().enable_http1().build();
+    // Create client and calendar hub
     let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
         .build(
             hyper_rustls::HttpsConnectorBuilder::new()
@@ -84,13 +120,8 @@ pub async fn generate_google_meet_link_impl(
                 .enable_http1()
                 .build(),
         );
-    let mut hub = CalendarHub::new(client, auth);
+    let hub = CalendarHub::new(client, auth);
 
-    // 5. Parse start and end date times
-    let start_datetime = parse_datetime(&meeting_data.start_date_time, &meeting_data.time_zone)?;
-    let end_datetime = parse_datetime(&meeting_data.end_date_time, &meeting_data.time_zone)?;
-
-    // 6. Create conference data for Google Meet
     let conference_data = ConferenceData {
         create_request: Some(CreateConferenceRequest {
             request_id: Some(uuid::Uuid::new_v4().to_string()),
@@ -103,7 +134,8 @@ pub async fn generate_google_meet_link_impl(
         ..Default::default()
     };
 
-    // 7. Create calendar event
+    let start_datetime = parse_datetime(&meeting_data.start_date_time, &meeting_data.time_zone)?;
+    let end_datetime = parse_datetime(&meeting_data.end_date_time, &meeting_data.time_zone)?;
     let event = Event {
         summary: Some(meeting_data.summary.clone()),
         description: Some(meeting_data.description.clone()),
@@ -117,13 +149,14 @@ pub async fn generate_google_meet_link_impl(
         ..Default::default()
     };
 
-    // 8. Insert the event into the calendar
+    // Insert the event into the calendar
     info!("Creating calendar event with Google Meet link");
     let result = hub
         .events()
-        .insert(event, &calendar_id)
+        .insert(event, "primary")
         .conference_data_version(1) // Required for conference data
         .send_updates("all") // Send invitations to attendees
+        .add_scope(google_calendar3::api::Scope::Event)
         .doit()
         .await;
 
@@ -131,7 +164,7 @@ pub async fn generate_google_meet_link_impl(
         Ok((_, created_event)) => {
             info!("Calendar event created successfully");
 
-            // 9. Extract Meet link from the response
+            // Extract Meet link from the response
             if let Some(conference_data) = created_event.conference_data {
                 if let Some(entry_points) = conference_data.entry_points {
                     for entry_point in entry_points {
@@ -149,8 +182,10 @@ pub async fn generate_google_meet_link_impl(
             Err(GoogleMeetError::MeetLinkNotFound)
         }
         Err(e) => {
-            error!("Failed to create calendar event: {:?}", e);
-            Err(GoogleMeetError::GoogleApi(e.to_string()))
+            error!("Failed to create calendar event: {e:?}");
+            Err(GoogleMeetError::GoogleApi(
+                "Failed to create calendar event".to_string(),
+            ))
         }
     }
 }
