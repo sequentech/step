@@ -7,6 +7,14 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Voting Portal: Avoid uneeded google chrome automatic translations
+
+The Voting Portal and other frontends did not specify the page language, causing
+browsers with automatic translation features to sometimes apply incorrect
+translations.
+
+- Issue: [#7983](https://github.com/sequentech/meta/issues/7983)
+
 ## 🐞 Keycloak Election ids are not filtered by area
 
 When a voter logs in and the voter is not assigned any election, keycloak adds 
