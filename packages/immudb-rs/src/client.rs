@@ -100,7 +100,7 @@ impl Client {
             .get_ref()
             .databases
             .iter()
-            .find(|database| database.name == database_name)
+            .find(|database| database.name == database_name && database.loaded)
             .is_some();
         Ok(has_database)
     }
