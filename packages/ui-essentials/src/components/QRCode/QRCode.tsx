@@ -8,8 +8,11 @@ import {QRCodeSVG} from "qrcode.react"
 
 export interface QRCodeProps {
     value: string
+    ariaLabelledby?: string
 }
 
-const QRCode: React.FC<QRCodeProps> = ({value}) => <QRCodeSVG value={value} />
+const QRCode: React.FC<QRCodeProps> = ({value, ariaLabelledby}) => (
+    <QRCodeSVG value={value} aria-labelledby={ariaLabelledby} />
+)
 
 export default QRCode

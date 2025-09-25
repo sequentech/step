@@ -36,6 +36,14 @@ const catalanTranslation: TranslationType = {
                 continue: "Continuar",
                 cancel: "Cancel·lar",
             },
+            warningDialog: {
+                title: "Revisa la teva papereta",
+                content:
+                    "La teva papereta conté seleccions que poden necessitar la teva atenció (com ara seleccionar menys opcions de les permeses). La teva papereta és vàlida i es comptarà tal com s'ha enviat.",
+                ok: "Torna i revisa",
+                continue: "Continua",
+                cancel: "Cancel·la",
+            },
         },
         startScreen: {
             startButton: "Començar a votar",

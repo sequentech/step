@@ -55,7 +55,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
             return
         }
         setOutputDocumentId(null)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.RENDER_DOCUMENT_PDF)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.RENDER_DOCUMENT_PDF, true)
         try {
             let {data} = await generateDocumentPdf({
                 variables: {
@@ -87,7 +87,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     return (
         <MenuItem
             onClick={onClick}
-            className="generate-pdf"
+            className="generate-pdf-item"
             key={EExportFormat.PDF + "-" + documentId}
         >
             <Box
