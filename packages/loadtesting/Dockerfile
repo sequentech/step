@@ -1,15 +1,28 @@
 # SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
-FROM sequentech.local/cargo-packages:v9.1.0-rc.4 AS builder
+
+FROM rust:1.88.0-slim-bookworm AS builder
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget && \
+    wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581645e8/9/GPL/openjdk-22.0.2_linux-x64_bin.tar.gz && \
+    curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
+    rustup toolchain install nightly-2025-05-04 && \
+    rustup default nightly-2025-05-04 && \
+    cargo binstall -y cargo-watch && \
+    # cleanups
+    apt-get clean && \
+    apt-get autoremove
+WORKDIR /app
 COPY . /app
-RUN cd /app/packages && cargo build --release --bin=step-cli
+RUN cd /app/packages && cargo build --release --bin=step-cli --bin=e2e
 
 FROM ubuntu:noble
 RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 python3-pip python3-venv python3-dev libpq-dev \
-    curl wget gnupg2 procps chromium-browser && \
+    curl wget gnupg2 procps chromium-browser tree && \
     rm -rf /var/lib/apt/lists/*
 RUN curl -sL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh && \
       bash /tmp/nodesource_setup.sh && \
@@ -17,6 +30,7 @@ RUN curl -sL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh &
 WORKDIR /opt/sequentech
 RUN mkdir -p /opt/sequentech
 COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
+COPY --from=builder /app/packages/target/release/e2e /opt/sequentech/e2e
 COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
 RUN mkdir -p /opt/sequentech/janitor
 COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
@@ -34,7 +48,11 @@ COPY ./packages/loadtesting/entrypoint.sh /entrypoint.sh
 COPY ./packages/loadtesting/run_bg_voting.sh /run_bg_voting.sh
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /run_bg_voting.sh
-COPY ./packages/loadtesting/nightwatch/ /nightwatch
+RUN mkdir -p /workspaces/step/packages /nightwatch/src/admin-portal /nightwatch/src/e2e /nightwatch/src/loadtesting /nightwatch/src/voting-portal
+COPY ./packages/loadtesting/nightwatch/ /nightwatch/
+COPY ./packages/admin-portal/nightwatch/ /nightwatch/src/admin-portal
+COPY ./packages/e2e/src/scenarios/ /nightwatch/src/e2e
+COPY ./packages/voting-portal/nightwatch/ /nightwatch/src/voting-portal
 RUN cd /nightwatch && npm install .
 
 ENTRYPOINT ["/entrypoint.sh"]
