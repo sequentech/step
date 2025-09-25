@@ -16,7 +16,8 @@ RUN apt-get update && \
     apt-get autoremove
 WORKDIR /app
 COPY . /app
-RUN cd /app/packages && cargo build --release --bin=step-cli --bin=e2e
+# Uncomment when the step-cli or the e2e binary is used in the e2e tests
+# RUN cd /app/packages && cargo build --release --bin=step-cli --bin=e2e
 
 FROM ubuntu:noble
 RUN apt-get update -y && \
@@ -29,8 +30,10 @@ RUN curl -sL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh &
       apt install -y nodejs
 WORKDIR /opt/sequentech
 RUN mkdir -p /opt/sequentech
-COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
-COPY --from=builder /app/packages/target/release/e2e /opt/sequentech/e2e
+# Uncomment when the step-cli is used in the e2e tests
+# COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
+# Uncomment when the e2e binary is used in the e2e tests
+# COPY --from=builder /app/packages/target/release/e2e /opt/sequentech/e2e
 COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
 RUN mkdir -p /opt/sequentech/janitor
 COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
