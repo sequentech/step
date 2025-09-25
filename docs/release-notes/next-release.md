@@ -205,3 +205,10 @@ an invalid/blank ballot.
 ## 🐞Candidates list top border missing
 
 On Candidate Lists for the Voting Portal, the top border was missing.
+
+## ✨ Weighted voting for areas
+
+add a new election event policy: `weighted_voting_policy`.
+When the policy is set to `areas-weighted-voting`, it allows assigning a weight
+to each area. Tally results will then be calculated based on these weights, 
+which are taken from the ballot style of each area defined at publication.
