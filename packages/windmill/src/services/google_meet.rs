@@ -71,22 +71,22 @@ pub async fn generate_google_meet_link_impl(
     meeting_data: &GenerateGoogleMeetBody,
 ) -> Result<String, GoogleMeetError> {
     // Get service account credentials from settings
-    let gapi_oauth = get_tenant_by_id(hasura_transaction, tenant_id)
+    let gapi_key = get_tenant_by_id(hasura_transaction, tenant_id)
         .await
         .map_err(|e| GoogleMeetError::ClientSecret(e.to_string()))?
         .settings
         .ok_or(GoogleMeetError::ClientSecret(
             "Tenant settings is null".to_string(),
         ))?
-        .get("gapi_oauth")
+        .get("gapi_key")
         .ok_or(GoogleMeetError::ClientSecret(
-            "gapi_oauth is null, no client secret in settings. Object must be named gapi_oauth"
+            "gapi_key is null, no client secret in settings. Object must be named gapi_key"
                 .to_string(),
         ))?
         .clone();
 
     // Parse service account key
-    let service_account_key: ServiceAccountKey = match serde_json::from_value(gapi_oauth) {
+    let service_account_key: ServiceAccountKey = match serde_json::from_value(gapi_key) {
         Ok(key) => key,
         Err(e) => {
             error!("Failed to parse service account key: {e:?}");
@@ -114,8 +114,7 @@ pub async fn generate_google_meet_link_impl(
     let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
         .build(
             hyper_rustls::HttpsConnectorBuilder::new()
-                .with_native_roots()
-                .unwrap()
+                .with_webpki_roots()
                 .https_or_http()
                 .enable_http1()
                 .build(),
