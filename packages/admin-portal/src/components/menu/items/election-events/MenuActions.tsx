@@ -186,7 +186,7 @@ export default function MenuAction({
     }
 
     const deleteElectionEventAction = async (payload: ActionPayload) => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.DELETE_ELECTION_EVENT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.DELETE_ELECTION_EVENT, undefined)
         try {
             const {data, errors} = await delete_election_event({
                 variables: {

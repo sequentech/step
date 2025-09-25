@@ -215,3 +215,8 @@ was implemented.
 
 Added Charts in the Admin Portal's Tally Results below the data tables to display
  the General Information, Participation Results and Candidate Results.
+
+## 🐞 Errors deleting Election Event
+
+Fixed error deleting election event in specific cases. Also when an Election 
+Event is created, the sidebar is automatically updated.
