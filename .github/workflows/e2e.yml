@@ -5,7 +5,12 @@
 name: E2E Tests
 on:
   workflow_dispatch:
-
+    inputs:
+      loadtestingImage:
+        description: 'Load testing image to use'
+        required: true
+        type: string
+        default: '133529410358.dkr.ecr.eu-west-1.amazonaws.com/loadtesting'
 jobs:
   e2e:
     runs-on:
