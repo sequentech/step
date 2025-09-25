@@ -303,7 +303,9 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                     label={t("areas.sequent_backend_area_contest")}
                                     render={(record: any) => <AreaContestItems record={record} />}
                                 />
-
+                                {weightedVotingForAreas && (
+                                    <TextField source="annotations.weight" label="Weight" />
+                                )}
                                 <WrapperField source="actions" label="Actions">
                                     <ActionsColumn actions={actions} />
                                 </WrapperField>

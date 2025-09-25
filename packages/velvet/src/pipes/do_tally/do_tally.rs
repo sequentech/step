@@ -12,13 +12,18 @@ use crate::pipes::{
 };
 use crate::utils::HasId;
 use rayon::prelude::*;
+use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use sequent_core::{
-    ballot::Candidate,
+    ballot::{BallotStyle, Candidate},
+    ballot_style,
     services::area_tree::TreeNodeArea,
-    types::{hasura::core::TallySheet, tally_sheets::VotingChannel},
+    sqlite::election_event,
+    types::{
+        hasura::{core::TallySheet, extra::default_weight},
+        tally_sheets::VotingChannel,
+    },
     util::path::{get_folder_name, list_subfolders},
 };
-use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::sync::Arc;
@@ -92,6 +97,22 @@ impl DoTally {
 
         Ok(())
     }
+}
+
+#[instrument]
+pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> u64 {
+    let area_ballot_style: Option<&BallotStyle> = ballot_styles
+        .iter()
+        .find(|bs| bs.area_id == area_id.to_string());
+
+    area_ballot_style
+        .map(|bs| {
+            bs.area_annotations
+                .as_ref()
+                .map(|area_annotations| area_annotations.weight)
+        })
+        .flatten()
+        .unwrap_or(default_weight())
 }
 
 impl Pipe for DoTally {
@@ -247,6 +268,8 @@ impl Pipe for DoTally {
                                     census_size,
                                     auditable_votes_size,
                                     vec![],
+                                    vec![],
+                                    None,
                                 )
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                                 let res: ContestResult = counting_algorithm
@@ -258,6 +281,11 @@ impl Pipe for DoTally {
                                 serde_json::to_writer_pretty(file, &res)?; // Using pretty for readability
                             }
 
+                            let area_weight = get_area_weight(
+                                election_input.ballot_styles.clone(),
+                                area_input.id,
+                            );
+
                             // Create area tally
                             let counting_algorithm_area = tally::create_tally(
                                 &contest_object,
@@ -265,16 +293,18 @@ impl Pipe for DoTally {
                                 area_input.census,
                                 area_input.auditable_votes,
                                 vec![],
+                                vec![],
+                                Some(area_weight.clone()),
                             )
                             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                            let res_area = counting_algorithm_area
+                            let area_tally_results = counting_algorithm_area
                                 .tally()
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                             fs::create_dir_all(&base_output_path)?;
                             let file_path_area = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
                             let file_area = fs::File::create(file_path_area)?;
-                            serde_json::to_writer_pretty(file_area, &res_area)?; // Using pretty
+                            serde_json::to_writer_pretty(file_area, &area_tally_results)?; // Using pretty
 
                             // Tally sheets tally for this area
                             let mut area_specific_tally_sheet_results: Vec<(
@@ -310,9 +340,12 @@ impl Pipe for DoTally {
                                             &tally_sheet.id, // Assuming TallySheet has an id field
                                         );
                                     fs::create_dir_all(&output_tally_sheets_folder_path)?;
-                                    let contest_result_sheet =
-                                        tally::process_tally_sheet(&tally_sheet, &contest_object)
-                                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                    let contest_result_sheet = tally::process_tally_sheet(
+                                        &tally_sheet,
+                                        &contest_object,
+                                        Some(area_weight),
+                                    )
+                                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                                     let output_tally_sheets_file_path =
                                         output_tally_sheets_folder_path
@@ -333,6 +366,7 @@ impl Pipe for DoTally {
                                 area_input.census,
                                 area_input.auditable_votes,
                                 area_specific_tally_sheet_results,
+                                area_tally_results,
                             ))
                         })
                         .collect(); // Collects Result<Vec<(PathBuf, u64, u64, Vec<_>)>, Error>
@@ -345,14 +379,21 @@ impl Pipe for DoTally {
                     let mut sum_auditable_votes: u64 = 0;
                     let mut tally_sheet_results_for_contest: Vec<(ContestResult, TallySheet)> =
                         vec![];
+                    let mut area_tally_results_for_contest: Vec<ContestResult> = vec![];
 
-                    for (ballot_file, census, auditable_votes_val, sheet_results) in
-                        collected_area_outputs
+                    for (
+                        ballot_file,
+                        census,
+                        auditable_votes_val,
+                        sheet_results,
+                        area_tally_results,
+                    ) in collected_area_outputs
                     {
                         contest_ballot_files.push(ballot_file);
                         sum_census += census;
                         sum_auditable_votes += auditable_votes_val;
                         tally_sheet_results_for_contest.extend(sheet_results);
+                        area_tally_results_for_contest.push(area_tally_results);
                     }
 
                     // Create contest-level output path (directory for the contest)
@@ -378,10 +419,12 @@ impl Pipe for DoTally {
                     // Create final contest tally
                     let final_counting_algorithm = tally::create_tally(
                         &contest_object_for_contest,
-                        contest_ballot_files,
+                        vec![],
                         sum_census,
                         sum_auditable_votes,
                         final_only_sheet_results,
+                        area_tally_results_for_contest,
+                        None, // No weight at contest level
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                     let final_res = final_counting_algorithm

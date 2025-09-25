@@ -1027,6 +1027,7 @@ mod tests {
             election_dates: None,
             election_event_annotations: None,
             election_annotations: None,
+            area_annotations: None,
         }
     }
 

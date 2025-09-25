@@ -9,6 +9,7 @@ use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core::{self, ElectionEvent};
+use crate::types::hasura::extra::AreaAnnotations;
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
@@ -1917,7 +1918,7 @@ pub struct BallotStyle {
     pub election_dates: Option<StringifiedPeriodDates>,
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
-    pub area_annotations: Option<HashMap<String, String>>,
+    pub area_annotations: Option<AreaAnnotations>,
 }
 
 #[derive(

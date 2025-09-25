@@ -26,16 +26,20 @@ pub struct Tally {
     pub census: u64,
     pub auditable_votes: u64,
     pub tally_sheet_results: Vec<ContestResult>,
+    pub tally_results: Vec<ContestResult>,
+    pub vote_weight: Option<u64>,
 }
 
 impl Tally {
-    #[instrument(err, skip(contest), name = "Tally::new")]
+    #[instrument(err, skip(contest, tally_results), name = "Tally::new")]
     pub fn new(
         contest: &Contest,
         ballots_files: Vec<PathBuf>,
         census: u64,
         auditable_votes: u64,
         tally_sheet_results: Vec<ContestResult>,
+        tally_results: Vec<ContestResult>,
+        vote_weight: Option<u64>,
     ) -> Result<Self> {
         let contest = contest.clone();
         let ballots = Self::get_ballots(ballots_files)?;
@@ -48,6 +52,8 @@ impl Tally {
             census,
             auditable_votes,
             tally_sheet_results,
+            tally_results,
+            vote_weight,
         })
     }
 
@@ -82,18 +88,23 @@ impl Tally {
 }
 
 #[instrument(err, skip_all)]
-pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<ContestResult> {
+pub fn process_tally_sheet(
+    tally_sheet: &TallySheet,
+    contest: &Contest,
+    vote_weight: Option<u64>,
+) -> Result<ContestResult> {
+    let weight = vote_weight.unwrap_or(1);
     let Some(content) = tally_sheet.content.clone() else {
         return Err("missing tally sheet content".into());
     };
     let invalid_votes = content.invalid_votes.unwrap_or(Default::default());
 
     let count_invalid_votes = InvalidVotes {
-        explicit: invalid_votes.explicit_invalid.unwrap_or(0),
-        implicit: invalid_votes.implicit_invalid.unwrap_or(0),
+        explicit: invalid_votes.explicit_invalid.unwrap_or(0) * weight,
+        implicit: invalid_votes.implicit_invalid.unwrap_or(0) * weight,
     };
     let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
-    let count_blank: u64 = content.total_blank_votes.unwrap_or(0);
+    let count_blank: u64 = content.total_blank_votes.unwrap_or(0) * weight;
 
     let candidate_results = content
         .candidate_results
@@ -117,7 +128,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
 
     let count_valid: u64 = candidate_results
         .iter()
-        .map(|candidate_result| candidate_result.total_count)
+        .map(|candidate_result| candidate_result.total_count * weight)
         .sum();
 
     let total_votes = count_valid + count_invalid;
@@ -152,6 +163,8 @@ pub fn create_tally(
     census: u64,
     auditable_votes: u64,
     tally_sheet_results: Vec<ContestResult>,
+    tally_results: Vec<ContestResult>,
+    vote_weight: Option<u64>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
     let ballots_files = ballots_files
         .iter()
@@ -175,6 +188,8 @@ pub fn create_tally(
         census,
         auditable_votes,
         tally_sheet_results,
+        tally_results,
+        vote_weight,
     )?;
 
     let counting_algorithm = match tally.id {

@@ -9,9 +9,9 @@ use crate::ballot::{
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core as hasura_types;
+use crate::types::hasura::core::{self as hasura_types};
+use crate::types::hasura::extra::{AreaAnnotations, WeightedVotingPolicy};
 use anyhow::{anyhow, Context, Result};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 
@@ -102,20 +102,20 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    println!("Before area annotations parse");
+    let event_weighted_voting_policy: WeightedVotingPolicy =
+        election_event.get_weighted_voting_policy();
 
-    let area_annotations: HashMap<String, String> = area
-        .annotations
-        .clone()
-        .map(|annotations| {
-            serde_json::from_value::<HashMap<String, Value>>(annotations)
-        })
-        .transpose()
-        .map_err(|err| anyhow!("Error parsing area annotations: {:?}", err))?
-        .unwrap_or_default()
-        .into_iter()
-        .map(|(k, v)| (k, v.to_string()))
-        .collect();
+    let area_annotations: Option<AreaAnnotations> =
+        match (area.annotations, event_weighted_voting_policy) {
+            (
+                Some(annotations),
+                WeightedVotingPolicy::AREAS_WEIGHTED_VOTING,
+            ) => match deserialize_value(annotations) {
+                Ok(mut a) => Some(a),
+                Err(_) => Some(AreaAnnotations::default()),
+            },
+            _ => None,
+        };
 
     Ok(ballot::BallotStyle {
         id,
@@ -142,7 +142,7 @@ pub fn create_ballot_style(
         election_dates: Some(election_dates),
         election_event_annotations: Some(election_event_annotations),
         election_annotations: Some(election_annotations),
-        area_annotations: Some(area_annotations),
+        area_annotations,
     })
 }
 

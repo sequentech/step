@@ -9,8 +9,10 @@ use crate::ballot::{
     ElectionStatistics, ElectionStatus,
 };
 use anyhow::{anyhow, Result};
+use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::{from_value, Value};
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 
@@ -58,6 +60,21 @@ impl ElectionEvent {
         }
 
         Ok(())
+    }
+
+    pub fn get_weighted_voting_policy(&self) -> WeightedVotingPolicy {
+        let event_presentation: Option<Value> = self.presentation.clone();
+        let Some(presentation) = event_presentation else {
+            return WeightedVotingPolicy::default();
+        };
+
+        let policy = presentation
+            .get("weighted_voting_policy")
+            .cloned()
+            .unwrap_or(Value::Null);
+
+        from_value::<WeightedVotingPolicy>(policy)
+            .unwrap_or(WeightedVotingPolicy::default())
     }
 }
 
@@ -110,6 +127,31 @@ impl Candidate {
 }
 
 #[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub struct AreaAnnotations {
+    #[serde(default = "default_weight")]
+    pub weight: u64,
+}
+
+impl Default for AreaAnnotations {
+    fn default() -> Self {
+        Self { weight: 1 }
+    }
+}
+
+pub fn default_weight() -> u64 {
+    1
+}
+
+#[derive(
     Display,
     Serialize,
     Deserialize,
@@ -127,4 +169,24 @@ pub enum TasksExecutionStatus {
     SUCCESS,
     FAILED,
     CANCELLED,
+}
+
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum WeightedVotingPolicy {
+    #[default]
+    #[strum(serialize = "disabled-weighted-voting")]
+    DISABLED_WEIGHTED_VOTING,
+    #[strum(serialize = "areas-weighted-voting")]
+    AREAS_WEIGHTED_VOTING,
 }
