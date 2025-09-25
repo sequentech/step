@@ -36,6 +36,8 @@ jobs:
         devenv shell -- sh -c 'cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials'
         devenv shell -- sh -c 'cd packages && yarn start:admin-portal &'
         devenv shell -- sh -c 'cd packages && yarn start:voting-portal &'
+        echo "Waiting for http://localhost:3000 to become ready..."
+        npx wait-on http://localhost:3000 --timeout 30m
         echo "Waiting for http://localhost:3002 to become ready..."
         npx wait-on http://localhost:3002 --timeout 30m
     - name: Set loadtestingImage variable with default fallback
