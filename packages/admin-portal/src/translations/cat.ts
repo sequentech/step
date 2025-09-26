@@ -110,6 +110,14 @@ const catalanTranslation: TranslationType = {
                 action: "Crear una Àrea",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clau de Compte de Servei de Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clau de Compte de Servei de Google Calendar invàlid",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Enllaços d'Ajuda",
@@ -147,6 +155,7 @@ const catalanTranslation: TranslationType = {
                 templates: "PLANTILLES",
                 localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
+                integrations: "INTEGRACIONS",
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",

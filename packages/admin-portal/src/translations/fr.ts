@@ -110,6 +110,14 @@ const frenchTranslation: TranslationType = {
                 action: "Créer une Zone",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clé de Compte de Service Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Liens d'Aide",
@@ -147,6 +155,7 @@ const frenchTranslation: TranslationType = {
                 templates: "MODÈLES",
                 languages: "LANGUES",
                 localization: "LOCALISATION",
+                integrations: "INTÉGRATIONS",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",

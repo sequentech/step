@@ -109,6 +109,14 @@ const dutchTranslation: TranslationType = {
                 action: "Gebied aanmaken",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Sleutel",
+            },
+            errors: {
+                invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Help Links",
@@ -146,6 +154,7 @@ const dutchTranslation: TranslationType = {
                 templates: "SJABLONEN",
                 languages: "TALEN",
                 localization: "LOCALISATIE",
+                integrations: "INTEGRATIES",
                 lookAndFeel: "LOOK & FEEL",
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",

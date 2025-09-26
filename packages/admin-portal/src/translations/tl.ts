@@ -111,6 +111,14 @@ const tagalogTranslation: TranslationType = {
                 action: "Lumikha ng Lugar",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Key",
+            },
+            errors: {
+                invalidGapiKey: "Hindi wastong format ng Google Calendar Service Account Key",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Mga Link ng Tulong",
@@ -148,6 +156,7 @@ const tagalogTranslation: TranslationType = {
                 templates: "MGA TEMPLATE",
                 languages: "WIKA",
                 localization: "LOKALISASYON",
+                integrations: "MGA INTEGRASYON",
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",

@@ -109,6 +109,14 @@ const englishTranslation = {
                 action: "Create Area",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Key",
+            },
+            errors: {
+                invalidGapiKey: "Invalid Google Calendar Service Account Key format",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Help Links",
@@ -146,6 +154,7 @@ const englishTranslation = {
                 templates: "TEMPLATES",
                 languages: "LANGUAGES",
                 localization: "LOCALIZATION",
+                integrations: "Integrations",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",

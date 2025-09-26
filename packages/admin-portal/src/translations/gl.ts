@@ -110,6 +110,14 @@ const galegoTranslation: TranslationType = {
                 action: "Crear Área",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clave de Conta de Servizo de Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Formato de Clave de Conta de Servizo de Google Calendar inválido",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Ligazóns de Axuda",
@@ -147,6 +155,7 @@ const galegoTranslation: TranslationType = {
                 templates: "MODELOS",
                 languages: "IDIOMAS",
                 localization: "LOCALIZACIÓN",
+                integrations: "Integracións",
                 lookAndFeel: "Aspecto",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "FIDUCIARIOS",

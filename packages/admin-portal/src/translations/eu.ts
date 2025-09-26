@@ -110,6 +110,14 @@ const basqueTranslation: TranslationType = {
                 action: "Sortu Eremua",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
+            },
+            errors: {
+                invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Laguntza Estekak",
@@ -147,6 +155,7 @@ const basqueTranslation: TranslationType = {
                 templates: "TXANTILOIAK",
                 languages: "HIZKUNTZAK",
                 localization: "LOKALIZAZIOA",
+                integrations: "Integrazioak",
                 lookAndFeel: "Itxura eta Sentimendua",
                 schedules: "PROGRAMATUTAKO GERTAERAK",
                 trustees: "FIDEIKOMISARIOAK",
