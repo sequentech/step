@@ -1113,9 +1113,9 @@ const catalanTranslation: TranslationType = {
             startDate: "Data d'Inici",
             startTime: "Hora d'Inici",
             duration: "Durada (minuts)",
-            attendeeEmail: "Email del Participant",
+            attendeeEmails: "Emails dels Participants",
             attendeeEmailHelp:
-                "Email per als participants de la reunió (pot ser un email fictici per a proves)",
+                "Emails separats per comes per als participants de la reunió (poden ser emails ficticis per a proves)",
             note: "Nota: Això crearà un esdeveniment de calendari al teu Google Calendar amb un enllaç de Google Meet. Necessitaràs iniciar sessió al teu compte de Google.",
             success: "Enllaç de Google Meet Generat Correctament!",
             copy: "Copiar al porta-retalls",

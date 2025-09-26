@@ -11,7 +11,7 @@ export const GENERATE_GOOGLE_MEET = gql`
         $startDateTime: String!
         $endDateTime: String!
         $timeZone: String!
-        $attendeeEmail: String!
+        $attendeeEmails: [String!]!
     ) {
         generate_google_meet(
             summary: $summary
@@ -19,7 +19,7 @@ export const GENERATE_GOOGLE_MEET = gql`
             start_date_time: $startDateTime
             end_date_time: $endDateTime
             time_zone: $timeZone
-            attendee_email: $attendeeEmail
+            attendee_emails: $attendeeEmails
         ) {
             meet_link
         }

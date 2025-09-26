@@ -1103,9 +1103,9 @@ const spanishTranslation: TranslationType = {
             startDate: "Fecha de Inicio",
             startTime: "Hora de Inicio",
             duration: "Duración (minutos)",
-            attendeeEmail: "Email del Participante",
+            attendeeEmails: "Emails de los Participantes",
             attendeeEmailHelp:
-                "Email para los participantes de la reunión (puede ser un email ficticio para pruebas)",
+                "Emails separados por comas para los participantes de la reunión (pueden ser emails ficticios para pruebas)",
             note: "Nota: Esto creará un evento de calendario en tu Google Calendar con un enlace de Google Meet. Necesitarás iniciar sesión en tu cuenta de Google.",
             success: "¡Enlace de Google Meet Generado Exitosamente!",
             copy: "Copiar al portapapeles",

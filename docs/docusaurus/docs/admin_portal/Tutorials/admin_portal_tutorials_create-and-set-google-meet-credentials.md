@@ -25,4 +25,10 @@ Create and set google meet credentials
 5. Create a Service account.
 6. Edit > Keys > Add key. Then donwload the json file.
 7. Add authorized domains for your application
-8. Paste the client secret json file into Settings > Google meet.
+8. Paste the json file containing the Service Account key into Settings > Integrations.
+
+## Set up domain-wide delegation for a service account
+
+1. Follow the [steps in this link](https://developers.google.com/workspace/guides/create-credentials#optional_set_up_domain-wide_delegation_for_a_service_account)
+2. Add the scopes for the authorized client ID: https://www.googleapis.com/auth/calendar, https://www.googleapis.com/auth/calendar.events
+3. Paste the authorized email address into Settings > Integrations.

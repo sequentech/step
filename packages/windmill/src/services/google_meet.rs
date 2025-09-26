@@ -25,7 +25,7 @@ pub struct GenerateGoogleMeetBody {
     pub start_date_time: String,
     pub end_date_time: String,
     pub time_zone: String,
-    pub attendee_email: String,
+    pub attendee_emails: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -165,10 +165,16 @@ pub async fn generate_google_meet_link_impl(
         start: Some(start_datetime),
         end: Some(end_datetime),
         conference_data: Some(conference_data),
-        attendees: Some(vec![google_calendar3::api::EventAttendee {
-            email: Some(meeting_data.attendee_email.clone()),
-            ..Default::default()
-        }]),
+        attendees: Some(
+            meeting_data
+                .attendee_emails
+                .iter()
+                .map(|email| google_calendar3::api::EventAttendee {
+                    email: Some(email.clone()),
+                    ..Default::default()
+                })
+                .collect(),
+        ),
         ..Default::default()
     };
 

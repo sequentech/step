@@ -47,7 +47,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
     const [startDate, setStartDate] = useState("")
     const [startTime, setStartTime] = useState("")
     const [duration, setDuration] = useState("60") // minutes
-    const [attendeeEmail, setAttendeeEmail] = useState("participant@example.com") // Mock email
+    const [attendeeEmails, setAttendeeEmails] = useState("participant@example.com") // Mock emails
     const [generatedLink, setGeneratedLink] = useState("")
     const [error, setError] = useState("")
     const [copySuccess, setCopySuccess] = useState(false)
@@ -74,7 +74,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                     startDateTime: startDateTime.toISOString(),
                     endDateTime: endDateTime.toISOString(),
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    attendeeEmail: attendeeEmail,
+                    attendeeEmails: attendeeEmails.split(',').map(email => email.trim()).filter(email => email.length > 0),
                 },
             })
 
@@ -193,14 +193,13 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                 />
 
                                 <TextField
-                                    label={t("googleMeet.attendeeEmail", "Attendee Email")}
-                                    value={attendeeEmail}
-                                    onChange={(e) => setAttendeeEmail(e.target.value)}
+                                    label={t("googleMeet.attendeeEmails", "Attendee Emails")}
+                                    value={attendeeEmails}
+                                    onChange={(e) => setAttendeeEmails(e.target.value)}
                                     fullWidth
-                                    type="email"
                                     helperText={t(
                                         "googleMeet.attendeeEmailHelp",
-                                        "Email for meeting participants (can be a mock email for testing)"
+                                        "Comma-separated emails for meeting participants (can be mock emails for testing)"
                                     )}
                                 />
 
@@ -266,7 +265,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                 !startDate ||
                                 !startTime ||
                                 !duration ||
-                                !attendeeEmail
+                                !attendeeEmails
                             }
                             startIcon={
                                 isGenerating ? <CircularProgress size={16} /> : <VideoCall />
