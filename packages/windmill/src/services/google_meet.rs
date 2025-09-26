@@ -12,6 +12,7 @@ use google_calendar3::{
     CalendarHub,
 };
 use rustls;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
@@ -70,13 +71,16 @@ pub async fn generate_google_meet_link_impl(
     meeting_data: &GenerateGoogleMeetBody,
 ) -> Result<String, GoogleMeetError> {
     // Get service account credentials from settings
-    let gapi_key = get_tenant_by_id(hasura_transaction, tenant_id)
+    let settings = get_tenant_by_id(hasura_transaction, tenant_id)
         .await
         .map_err(|e| GoogleMeetError::ClientSecret(e.to_string()))?
         .settings
         .ok_or(GoogleMeetError::ClientSecret(
             "Tenant settings is null".to_string(),
-        ))?
+        ))?;
+
+    let gapi_key = settings
+        .clone()
         .get("gapi_key")
         .ok_or(GoogleMeetError::ClientSecret(
             "gapi_key is null, no client secret in settings. Object must be named gapi_key"
@@ -84,8 +88,16 @@ pub async fn generate_google_meet_link_impl(
         ))?
         .clone();
 
+    let gapi_email = settings
+        .clone()
+        .get("gapi_email")
+        .ok_or(GoogleMeetError::ClientSecret(
+            "gapi_email is null. Field must be named gapi_email".to_string(),
+        ))?
+        .clone();
+
     // Parse service account key
-    let service_account_key: ServiceAccountKey = match serde_json::from_value(gapi_key) {
+    let service_account_key: ServiceAccountKey = match deserialize_value(gapi_key) {
         Ok(key) => key,
         Err(e) => {
             error!("Failed to parse service account key: {e:?}");
@@ -95,8 +107,20 @@ pub async fn generate_google_meet_link_impl(
         }
     };
 
-    // Create authenticator
+    let gapi_email_string: String = match deserialize_value(gapi_email) {
+        Ok(key) => key,
+        Err(e) => {
+            error!("Failed to parse gapi_email: {e:?}");
+            return Err(GoogleMeetError::Json(
+                "Failed to parse gapi_email".to_string(),
+            ));
+        }
+    };
+
+    // Create authenticator with user impersonation
+    // The service account must impersonate a Google Workspace user to create Google Meet conferences
     let auth = match ServiceAccountAuthenticator::builder(service_account_key)
+        .subject(&gapi_email_string) // Impersonate the attendee (must be a Google Workspace user)
         .build()
         .await
     {
@@ -127,7 +151,6 @@ pub async fn generate_google_meet_link_impl(
             request_id: Some(uuid::Uuid::new_v4().to_string()),
             conference_solution_key: Some(ConferenceSolutionKey {
                 type_: Some("hangoutsMeet".to_string()),
-                ..Default::default()
             }),
             ..Default::default()
         }),
@@ -155,7 +178,7 @@ pub async fn generate_google_meet_link_impl(
         .events()
         .insert(event, "primary")
         .conference_data_version(1) // Required for conference data
-        .send_updates("all") // Will lead to error: Service accounts cannot invite attendees without Domain-Wide Delegation of Authority.
+        .send_updates("all")
         .add_scope(google_calendar3::api::Scope::Event)
         .doit()
         .await;
