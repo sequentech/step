@@ -1100,7 +1100,7 @@ const basqueTranslation: TranslationType = {
             duration: "Iraupena (minutuak)",
             attendeeEmails: "Partaideen Emailak",
             attendeeEmailHelp:
-                "Komaz banandutako emailak bilerako partaideentzat (proba emailak izan daitezke)",
+                "Komaz banandutako emailak bilerako partaideentzat",
             note: "Oharra: Honek zure Google Calendar-en gertaera bat sortuko du Google Meet esteka batekin. Zure Google kontuan saioa hasi beharko duzu.",
             success: "Google Meet Esteka Arrakastaz Sortua!",
             copy: "Arbelera kopiatu",

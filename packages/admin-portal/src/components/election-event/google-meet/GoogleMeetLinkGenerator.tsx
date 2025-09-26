@@ -199,7 +199,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                     fullWidth
                                     helperText={t(
                                         "googleMeet.attendeeEmailHelp",
-                                        "Comma-separated emails for meeting participants (can be mock emails for testing)"
+                                        "Comma-separated emails for meeting participants"
                                     )}
                                 />
 

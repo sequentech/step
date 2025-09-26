@@ -1112,7 +1112,7 @@ const frenchTranslation: TranslationType = {
             duration: "Durée (minutes)",
             attendeeEmails: "Emails des Participants",
             attendeeEmailHelp:
-                "Emails séparés par des virgules pour les participants de la réunion (peuvent être des emails fictifs pour les tests)",
+                "Emails séparés par des virgules pour les participants de la réunion",
             note: "Note : Cela créera un événement de calendrier dans votre Google Calendar avec un lien Google Meet. Vous devrez vous connecter à votre compte Google.",
             success: "Lien Google Meet Généré avec Succès !",
             copy: "Copier dans le presse-papiers",
