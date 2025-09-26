@@ -2435,7 +2435,7 @@ export type Mutation_RootGenerate_Ballot_PublicationArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_Google_MeetArgs = {
-  attendee_email: Scalars['String']['input'];
+  attendee_emails: Array<Scalars['String']['input']>;
   description: Scalars['String']['input'];
   end_date_time: Scalars['String']['input'];
   start_date_time: Scalars['String']['input'];

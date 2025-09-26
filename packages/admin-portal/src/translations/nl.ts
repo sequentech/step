@@ -963,7 +963,8 @@ const dutchTranslation: TranslationType = {
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
                 "google-meet-link": "Google Meet Link Genereren",
-                "google-meet-api-tokens": "Google Meet API Tokens Schrijven naar Tenant Instellingen",
+                "google-meet-api-tokens":
+                    "Google Meet API Tokens Schrijven naar Tenant Instellingen",
             },
         },
         generalSettingsScreen: {
@@ -1099,7 +1100,8 @@ const dutchTranslation: TranslationType = {
             startTime: "Starttijd",
             duration: "Duur (minuten)",
             attendeeEmails: "Emails Deelnemers",
-            attendeeEmailHelp: "Komma-gescheiden emails voor vergaderdeelnemers (kunnen test emails zijn)",
+            attendeeEmailHelp:
+                "Komma-gescheiden emails voor vergaderdeelnemers (kunnen test emails zijn)",
             note: "Opmerking: Dit zal een agenda-evenement aanmaken in uw Google Calendar met een Google Meet link. U moet inloggen op uw Google account.",
             success: "Google Meet Link Succesvol Gegenereerd!",
             copy: "Kopiëren naar klembord",

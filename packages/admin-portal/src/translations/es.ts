@@ -116,7 +116,8 @@ const spanishTranslation: TranslationType = {
                 gapiEmail: "Correo de Autenticación de Google Calendar",
             },
             errors: {
-                invalidGapiKey: "Formato de Clave de Cuenta de Servicio de Google Calendar inválido",
+                invalidGapiKey:
+                    "Formato de Clave de Cuenta de Servicio de Google Calendar inválido",
             },
         },
         lookAndFeelScreen: {

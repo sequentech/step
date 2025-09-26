@@ -1656,7 +1656,7 @@ type Mutation {
         start_date_time: String!
         end_date_time: String!
         time_zone: String!
-        attendee_email: String!
+        attendee_emails: [String!]!
     ): GenerateGoogleMeetOutput
 }
 

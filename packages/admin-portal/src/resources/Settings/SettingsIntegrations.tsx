@@ -22,9 +22,12 @@ export const SettingsIntegrations: React.FC<void> = () => {
         undoable: false,
     })
 
-    const canEdit = authContext.isAuthorized(true, authContext.tenantId, [IPermissions.TENANT_WRITE, IPermissions.GOOGLE_MEET_API_TOKENS])
+    const canEdit = authContext.isAuthorized(true, authContext.tenantId, [
+        IPermissions.TENANT_WRITE,
+        IPermissions.GOOGLE_MEET_API_TOKENS,
+    ])
     const [gapiKey, setGapiKey] = useState<object | null>(null)
-    const [gapiEmail, setGapiEmail] = useState<string>('')
+    const [gapiEmail, setGapiEmail] = useState<string>("")
     const [gapiKeyChanged, setGapiKeyChanged] = useState<boolean>(false)
     const [gapiEmailChanged, setGapiEmailChanged] = useState<boolean>(false)
     const [saveDisabled, setSaveDisabled] = useState<boolean>(true)
@@ -46,11 +49,9 @@ export const SettingsIntegrations: React.FC<void> = () => {
         const inputValue = event.target.value
         try {
             const parsedGapiKey =
-                !inputValue || inputValue.trim().length === 0
-                    ? null
-                    : JSON.parse(inputValue)
+                !inputValue || inputValue.trim().length === 0 ? null : JSON.parse(inputValue)
 
-            if (typeof parsedGapiKey === 'object' && parsedGapiKey !== null) {
+            if (typeof parsedGapiKey === "object" && parsedGapiKey !== null) {
                 setGapiKey(parsedGapiKey)
                 setGapiKeyChanged(true)
                 console.log("setGapiKey")
@@ -75,22 +76,22 @@ export const SettingsIntegrations: React.FC<void> = () => {
     }
 
     const onSave = async () => {
-        const updatedSettings = { ...(record?.settings ?? {}) }
-        
+        const updatedSettings = {...(record?.settings ?? {})}
+
         // Only update fields that have been changed
         if (gapiKeyChanged) {
             updatedSettings.gapi_key = gapiKey
         }
         if (gapiEmailChanged) {
-            updatedSettings.gapi_email = gapiEmail.trim() !== '' ? gapiEmail : undefined
+            updatedSettings.gapi_email = gapiEmail.trim() !== "" ? gapiEmail : undefined
         }
-        
+
         save!({
             settings: updatedSettings,
         })
         // Clear the inputs and reset change flags after saving
         setGapiKey(null)
-        setGapiEmail('')
+        setGapiEmail("")
         setGapiKeyChanged(false)
         setGapiEmailChanged(false)
     }

@@ -1338,7 +1338,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setLoadingExport={setLoadingExport}
             />
 
-            { canCreateGoogleMeeting && ( 
+            {canCreateGoogleMeeting && (
                 <GoogleMeetLinkGenerator
                     open={openGoogleMeet}
                     onClose={() => setOpenGoogleMeet(false)}

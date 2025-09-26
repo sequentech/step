@@ -21,12 +21,8 @@ import {ContentCopy, VideoCall} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {useMutation} from "@apollo/client"
 import {GENERATE_GOOGLE_MEET} from "../../../queries/GenerateGoogleMeet"
-import {
-    IGraphQLActionError,
-} from "@sequentech/ui-core"
-import {
-    GenerateGoogleMeetMutation
-} from "@/gql/graphql"
+import {IGraphQLActionError} from "@sequentech/ui-core"
+import {GenerateGoogleMeetMutation} from "@/gql/graphql"
 
 interface GoogleMeetLinkGeneratorProps {
     open: boolean
@@ -74,7 +70,10 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                     startDateTime: startDateTime.toISOString(),
                     endDateTime: endDateTime.toISOString(),
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    attendeeEmails: attendeeEmails.split(',').map(email => email.trim()).filter(email => email.length > 0),
+                    attendeeEmails: attendeeEmails
+                        .split(",")
+                        .map((email) => email.trim())
+                        .filter((email) => email.length > 0),
                 },
             })
 
@@ -87,7 +86,8 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
         } catch (err: any) {
             console.error("Error generating Google Meet link:", err)
             let error = err as IGraphQLActionError
-            let status = (error?.graphQLErrors?.[0]?.extensions?.internal?.response?.status?.toString() ?? "")
+            let status =
+                error?.graphQLErrors?.[0]?.extensions?.internal?.response?.status?.toString() ?? ""
             let body = error?.graphQLErrors?.[0]?.extensions?.internal?.response?.body ?? ""
             let message = "Failed to generate Google Meet link. "
             if (status) {

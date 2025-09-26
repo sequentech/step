@@ -968,7 +968,8 @@ const tagalogTranslation: TranslationType = {
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
                 "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
                 "google-meet-link": "Bumuo ng Google Meet Link",
-                "google-meet-api-tokens": "Isulat ang mga Google Meet API Token sa mga setting ng tenant",
+                "google-meet-api-tokens":
+                    "Isulat ang mga Google Meet API Token sa mga setting ng tenant",
             },
         },
         generalSettingsScreen: {
