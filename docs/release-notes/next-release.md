@@ -210,3 +210,10 @@ On Candidate Lists for the Voting Portal, the top border was missing.
 
 Filtering voters by whether they have voted or not wasn't working and a fix
 was implemented.
+
+## ✨ Videoconference links from Admin Portal
+
+Added a Google Meet component with a button to generate a link in EVENT > DATA to
+support creating a google meeting.
+Created INTEGRATIONS tab in tenant settings to add the google api credentials.
+Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
