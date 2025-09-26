@@ -6,16 +6,15 @@ use crate::postgres::tenant::get_tenant_by_id;
 use deadpool_postgres::Transaction;
 use google_calendar3::{
     api::{ConferenceData, ConferenceSolutionKey, CreateConferenceRequest, Event, EventDateTime},
-    hyper, hyper_rustls, hyper_util,
-    yup_oauth2::authenticator::Authenticator,
+    hyper_rustls, hyper_util,
     yup_oauth2::ServiceAccountAuthenticator,
     yup_oauth2::ServiceAccountKey,
     CalendarHub,
 };
+use rustls;
 use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
-use std::env;
-use strum_macros::{Display, EnumString};
+use strum_macros::EnumString;
 use tracing::{error, info, instrument};
 
 #[derive(Deserialize, Debug, Clone)]
@@ -110,6 +109,8 @@ pub async fn generate_google_meet_link_impl(
         }
     };
 
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     // Create client and calendar hub
     let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
         .build(
@@ -154,7 +155,7 @@ pub async fn generate_google_meet_link_impl(
         .events()
         .insert(event, "primary")
         .conference_data_version(1) // Required for conference data
-        .send_updates("all") // Send invitations to attendees
+        .send_updates("all") // Will lead to error: Service accounts cannot invite attendees without Domain-Wide Delegation of Authority.
         .add_scope(google_calendar3::api::Scope::Event)
         .doit()
         .await;
