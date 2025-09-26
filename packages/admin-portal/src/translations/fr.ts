@@ -113,6 +113,7 @@ const frenchTranslation: TranslationType = {
         integrationsScreen: {
             common: {
                 gapiKey: "Clé de Compte de Service Google Calendar",
+                gapiEmail: "Email d'Authentification Google Calendar",
             },
             errors: {
                 invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",

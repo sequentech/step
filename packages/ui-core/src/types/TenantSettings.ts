@@ -25,4 +25,5 @@ export interface ITenantSettings {
     schedules?: Array<ITenantScheduledEvent>
     schedulesIds?: Array<string>
     gapi_key?: object
+    gapi_email?: string
 }

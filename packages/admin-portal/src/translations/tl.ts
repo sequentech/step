@@ -114,6 +114,7 @@ const tagalogTranslation: TranslationType = {
         integrationsScreen: {
             common: {
                 gapiKey: "Google Calendar Service Account Key",
+                gapiEmail: "Google Calendar Authentication Email",
             },
             errors: {
                 invalidGapiKey: "Hindi wastong format ng Google Calendar Service Account Key",

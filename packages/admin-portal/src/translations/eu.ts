@@ -113,6 +113,7 @@ const basqueTranslation: TranslationType = {
         integrationsScreen: {
             common: {
                 gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
+                gapiEmail: "Google Calendar Autentifikazio Helbide Elektronikoa",
             },
             errors: {
                 invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",

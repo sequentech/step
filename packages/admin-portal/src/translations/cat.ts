@@ -113,6 +113,7 @@ const catalanTranslation: TranslationType = {
         integrationsScreen: {
             common: {
                 gapiKey: "Clau de Compte de Servei de Google Calendar",
+                gapiEmail: "Correu d'Autenticació de Google Calendar",
             },
             errors: {
                 invalidGapiKey: "Format de Clau de Compte de Servei de Google Calendar invàlid",

@@ -112,6 +112,7 @@ const englishTranslation = {
         integrationsScreen: {
             common: {
                 gapiKey: "Google Calendar Service Account Key",
+                gapiEmail: "Google Calendar Authentication Email",
             },
             errors: {
                 invalidGapiKey: "Invalid Google Calendar Service Account Key format",

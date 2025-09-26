@@ -24,17 +24,20 @@ export const SettingsIntegrations: React.FC<void> = () => {
 
     const canEdit = authContext.isAuthorized(true, authContext.tenantId, [IPermissions.TENANT_WRITE, IPermissions.GOOGLE_MEET_API_TOKENS])
     const [gapiKey, setGapiKey] = useState<object | null>(null)
+    const [gapiEmail, setGapiEmail] = useState<string>('')
+    const [gapiKeyChanged, setGapiKeyChanged] = useState<boolean>(false)
+    const [gapiEmailChanged, setGapiEmailChanged] = useState<boolean>(false)
     const [saveDisabled, setSaveDisabled] = useState<boolean>(true)
 
     useEffect(() => {
         console.log("useEffect gapiKey: ", saveDisabled)
 
-        if (gapiKey !== null) {
+        if (gapiKeyChanged || gapiEmailChanged) {
             setSaveDisabled(false)
         } else {
             setSaveDisabled(true)
         }
-    }, [gapiKey])
+    }, [gapiKeyChanged, gapiEmailChanged])
 
     const handleGapiKeyChange = (
         event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -49,9 +52,11 @@ export const SettingsIntegrations: React.FC<void> = () => {
 
             if (typeof parsedGapiKey === 'object' && parsedGapiKey !== null) {
                 setGapiKey(parsedGapiKey)
+                setGapiKeyChanged(true)
                 console.log("setGapiKey")
             } else if (parsedGapiKey === null) {
                 setGapiKey(null)
+                setGapiKeyChanged(true)
             } else {
                 notify(t("integrationsScreen.errors.invalidGapiKey"), {type: "error"})
             }
@@ -60,15 +65,34 @@ export const SettingsIntegrations: React.FC<void> = () => {
         }
     }
 
+    const handleGapiEmailChange = (
+        event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+        console.log("handleGapiEmailChange")
+        const inputValue = event.target.value
+        setGapiEmail(inputValue)
+        setGapiEmailChanged(true)
+    }
+
     const onSave = async () => {
+        const updatedSettings = { ...(record?.settings ?? {}) }
+        
+        // Only update fields that have been changed
+        if (gapiKeyChanged) {
+            updatedSettings.gapi_key = gapiKey
+        }
+        if (gapiEmailChanged) {
+            updatedSettings.gapi_email = gapiEmail.trim() !== '' ? gapiEmail : undefined
+        }
+        
         save!({
-            settings: {
-                ...(record?.settings ?? {}),
-                gapi_key: gapiKey,
-            },
+            settings: updatedSettings,
         })
-        // Clear the input after saving
+        // Clear the inputs and reset change flags after saving
         setGapiKey(null)
+        setGapiEmail('')
+        setGapiKeyChanged(false)
+        setGapiEmailChanged(false)
     }
 
     if (isLoading) return null
@@ -94,6 +118,11 @@ export const SettingsIntegrations: React.FC<void> = () => {
                 source={"settings.gapi_key"}
                 label={t("integrationsScreen.common.gapiKey")}
                 onChange={handleGapiKeyChange}
+            />
+            <TextInput
+                source={"settings.gapi_email"}
+                label={t("integrationsScreen.common.gapiEmail")}
+                onChange={handleGapiEmailChange}
             />
         </SimpleForm>
     )

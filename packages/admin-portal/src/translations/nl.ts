@@ -112,6 +112,7 @@ const dutchTranslation: TranslationType = {
         integrationsScreen: {
             common: {
                 gapiKey: "Google Calendar Service Account Sleutel",
+                gapiEmail: "Google Calendar Authenticatie E-mail",
             },
             errors: {
                 invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
