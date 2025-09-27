@@ -15,7 +15,7 @@ use crate::{
     },
     types::error::Result,
 };
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
 use futures::try_join;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -94,30 +94,18 @@ pub async fn delete_election_event_t(
     tenant_id: String,
     election_event_id: String,
     realm: String,
+    task_execution: TasksExecution,
 ) -> Result<()> {
-    provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = tenant_id.clone();
-        let election_event_id = election_event_id.clone();
-        Box::pin(async move {
-            delete_event_b3(hasura_transaction, &tenant_id, &election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
+    let res = delete_election_event(tenant_id, election_event_id, realm).await;
 
-            delete_election_event(&hasura_transaction, &tenant_id, &election_event_id).await
-        })
-    })
-    .await?;
-
-    let immudb_result = delete_election_event_immudb(&tenant_id, &election_event_id)
-        .await
-        .map_err(|err| anyhow!("Error deleting election event immudb database: {err}"));
-    info!("immudb result: {:?}", immudb_result);
-    let documents_result = delete_election_event_related_documents(&tenant_id, &election_event_id)
-        .await
-        .map_err(|err| anyhow!("Error deleting election event related documents: {err}"));
-    info!("documents result: {:?}", documents_result);
-    delete_keycloak_realm(&realm)
-        .await
-        .map_err(|err| anyhow!("Error deleting election event keycloak realm: {err}"))?;
+    let _ = match res {
+        Ok(_) => {
+            update_complete(&task_execution, None).await?;
+        }
+        Err(err) => {
+            let error = format!("Error deleting election event: {err}");
+            update_fail(&task_execution, &error).await?;
+        }
+    };
     Ok(())
 }

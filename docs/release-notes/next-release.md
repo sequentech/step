@@ -135,3 +135,8 @@ Event is created, the sidebar is automatically updated.
 
 Filtering voters by whether they have voted or not wasn't working and a fix
 was implemented.
+
+## 🐞 rust-overlay error on release branches 
+
+In developer environments there were errors when opening a terminal or running
+a command because the package rust-overlay was missing but was referenced.
