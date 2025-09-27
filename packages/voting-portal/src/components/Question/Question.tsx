@@ -58,6 +58,10 @@ const CandidatesWrapper = styled("fieldset")`
     margin: 0;
     padding: 0;
     min-inline-size: 0;
+
+    ul + ul {
+        margin: 12px 0;
+    }
 `
 
 const CandidateListsWrapper = styled(Box)`
@@ -77,9 +81,9 @@ const CandidateListsWrapper = styled(Box)`
 
 const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
     list-style: none;
-    margin: 12px 0;
     padding-inline-start: 0;
     column-gap: 0;
+    margin: 0;
     
     @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
         column-count: ${(data) => data.columnCount};
@@ -103,6 +107,7 @@ const InvalidBlankWrapper = emotionStyled.ul<{columnCount: number}>`
     li + li {
         margin-top: 12px;
     }
+
 `
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
@@ -233,7 +238,11 @@ export const Question: React.FC<IQuestionProps> = ({
                 isTouched={isTouched}
                 setIsTouched={setIsTouched}
             />
-            {isBlank ? <BlankAnswer /> : null}
+            {isBlank ? (
+                <InvalidBlankWrapper className="candidates-review-blank" columnCount={1}>
+                    <BlankAnswer />{" "}
+                </InvalidBlankWrapper>
+            ) : null}
             <CandidatesWrapper className="candidates-container">
                 <Box
                     className="candidates-legend"
@@ -273,9 +282,9 @@ export const Question: React.FC<IQuestionProps> = ({
                         ))}
                     </InvalidBlankWrapper>
                 ) : null}
-                <CandidateListsWrapper className="candidates-lists-container">
-                    {categoriesMapOrder &&
-                        Object.entries(categoriesMapOrder).map(
+                {categoriesMapOrder?.length ? (
+                    <CandidateListsWrapper className="candidates-lists-container">
+                        {Object.entries(categoriesMapOrder).map(
                             ([categoryName, category], categoryIndex) => (
                                 <AnswersList
                                     key={categoryIndex}
@@ -300,36 +309,39 @@ export const Question: React.FC<IQuestionProps> = ({
                                 />
                             )
                         )}
-                </CandidateListsWrapper>
-                <CandidatesSingleWrapper
-                    className="candidates-singles-container"
-                    columnCount={columnCount}
-                >
-                    {candidatesOrder
-                        ?.map((id) => noCategoryCandidatesMap[id])
-                        .map((answer, answerIndex) => (
-                            <Answer
-                                isInvalidWriteIns={isInvalidWriteIns}
-                                ballotStyle={ballotStyle}
-                                answer={answer}
-                                contestId={question.id}
-                                index={answerIndex}
-                                key={answerIndex}
-                                isActive={!isReview}
-                                isInvalidVote={false}
-                                isReview={isReview}
-                                isRadioSelection={isRadioSelection}
-                                contest={question}
-                                selectedChoicesSum={selectedChoicesSum}
-                                setSelectedChoicesSum={setSelectedChoicesSum}
-                                disableSelect={disableSelect}
-                                iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
-                                setIsTouched={setIsTouched}
-                            />
-                        ))}
-                </CandidatesSingleWrapper>
+                    </CandidateListsWrapper>
+                ) : null}
+                {candidatesOrder?.length ? (
+                    <CandidatesSingleWrapper
+                        className="candidates-singles-container"
+                        columnCount={columnCount}
+                    >
+                        {candidatesOrder
+                            ?.map((id) => noCategoryCandidatesMap[id])
+                            .map((answer, answerIndex) => (
+                                <Answer
+                                    isInvalidWriteIns={isInvalidWriteIns}
+                                    ballotStyle={ballotStyle}
+                                    answer={answer}
+                                    contestId={question.id}
+                                    index={answerIndex}
+                                    key={answerIndex}
+                                    isActive={!isReview}
+                                    isInvalidVote={false}
+                                    isReview={isReview}
+                                    isRadioSelection={isRadioSelection}
+                                    contest={question}
+                                    selectedChoicesSum={selectedChoicesSum}
+                                    setSelectedChoicesSum={setSelectedChoicesSum}
+                                    disableSelect={disableSelect}
+                                    iconCheckboxPolicy={iconCheckboxPolicy}
+                                    explicitBlank={explicitBlank}
+                                    setExplicitBlank={setExplicitBlank}
+                                    setIsTouched={setIsTouched}
+                                />
+                            ))}
+                    </CandidatesSingleWrapper>
+                ) : null}
                 {invalidBottomCandidates.length ? (
                     <InvalidBlankWrapper
                         className="candidates-bottom-blank-invalid"

@@ -30,6 +30,7 @@ const ErrorWrapper = styled(Box)`
     display: flex;
     flex-direction: column;
     gap: 4px;
+    margin-bottom: 12px;
 `
 
 export interface IInvalidErrorsListProps {
@@ -221,7 +222,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [numAvailableChars, isInvalidWriteIns, setIsInvalidWriteIns])
 
     return (
-        <ErrorWrapper>
+        <ErrorWrapper className="error-list">
             {numAvailableChars < 0 ? (
                 <WarnBox variant="warning">
                     {t("errors.encoding.writeInCharsExceeded", {
