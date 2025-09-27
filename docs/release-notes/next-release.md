@@ -202,3 +202,8 @@ and convert it to xlsx so each table from the sqlite is a new tab at the xlsx.
 
 Fixed error deleting election event in specific cases. Also when an Election 
 Event is created, the sidebar is automatically updated.
+
+## 🐞 rust-overlay error on release branches 
+
+In developer environments there were errors when opening a terminal or running
+a command because the package rust-overlay was missing but was referenced.
