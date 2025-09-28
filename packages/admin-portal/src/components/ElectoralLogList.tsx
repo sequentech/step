@@ -66,7 +66,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     })
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const download = async () => {
-        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT)
+        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT, undefined)
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEventActivityLogs({
                 variables: {

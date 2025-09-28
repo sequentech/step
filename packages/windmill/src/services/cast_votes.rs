@@ -413,18 +413,6 @@ pub async fn get_users_with_vote_info(
         user.votes_info = Some(votes_info);
     }
 
-    // filter by has_voted, if needed - keep only users with at least one vote
-    if let Some(has_voted) = filter_by_has_voted {
-        users.retain(|user| {
-            let info_count = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
-            if has_voted {
-                info_count > 0
-            } else {
-                info_count == 0
-            }
-        });
-    }
-
     Ok(users)
 }
 
