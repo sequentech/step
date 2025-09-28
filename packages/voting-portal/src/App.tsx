@@ -28,6 +28,28 @@ import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
     ${({css}) => css}
+
+    /* Visually hidden until focused, then shown for keyboard users */
+    .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 0;
+        background: #fff;
+        color: #000;
+        padding: 8px 12px;
+        z-index: 1000;
+        text-decoration: none;
+    }
+    .skip-link:focus {
+        top: 0;
+    }
+`
+
+const StyledMain = styled(`main`)`
+    margin-bottom: auto;
+    display: flex;
+    position: relative;
+    flex: 1;
 `
 
 const HeaderWithContext: React.FC = () => {
@@ -128,6 +150,10 @@ const App = () => {
                 <PageBanner
                     marginBottom="auto"
                     sx={{display: "flex", position: "relative", flex: 1}}
+                    className="main"
+                    component="main"
+                    id="main-content"
+                    role="main"
                 >
                     <WatermarkBackground />
                     <Outlet />

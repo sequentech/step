@@ -7,7 +7,7 @@
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
 
 
-FROM rustlang/rust:nightly-slim
+FROM rustlang/rust:nightly-bookworm-slim
 
 WORKDIR /app
 

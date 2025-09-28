@@ -21,7 +21,7 @@ use crate::services::ceremonies::insert_ballots::{
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_finished, generate_logs, print_messages, sort_logs,
+    append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
 };
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::ceremonies::tally_ceremony::{
@@ -1128,8 +1128,11 @@ pub async fn execute_tally_session_wrapped(
         .clone()
         .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
 
-    new_status.logs =
-        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]));
+    new_status.logs = if is_execution_completed {
+        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+    } else {
+        append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+    };
 
     // insert tally_session_execution
     insert_tally_session_execution(

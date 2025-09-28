@@ -124,6 +124,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             (isKiosk && electionStatus?.kiosk_voting_status === EVotingStatus.OPEN)) &&
         isElectionEventOpen(electionEvent)
 
+    const isVotingStarted =
+        electionStatus?.voting_status !== EVotingStatus.NOT_STARTED ||
+        (isKiosk && electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED)
+
     const isPreview = sessionStorage.getItem("isDemo") === "true"
     const canVote = () => {
         if (!canVoteTest && !election.name?.includes("TEST")) {
@@ -176,6 +180,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             electionDates={ballotStyle?.ballot_eml?.election_dates}
+            isStarted={isVotingStarted}
         />
     )
 }
@@ -464,6 +469,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     alignItems: "center",
                     minHeight: "100px",
                 }}
+                className="title-section"
             >
                 <Box sx={{width: "100%"}}>
                     <StyledTitle variant="h1">
