@@ -141,7 +141,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     <div class="col-md-10">
                         <#nested "show-username">
                         <div id="kc-username" class="${properties.kcFormGroupClass!}">
-                           <h1 id="kc-page-title"><#nested "header"></h1>
+                            <h1 id="kc-page-title"><#nested "header"></h1>
                             <a id="reset-login" href="${url.loginRestartFlowUrl}" aria-label="${msg("restartLoginTooltip")}">
                                 <div class="kc-login-tooltip">
                                     <i class="${properties.kcResetFlowIcon!}"></i>
@@ -154,7 +154,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <#else>
                 <#nested "show-username">
                 <div id="kc-username" class="${properties.kcFormGroupClass!}">
-                   <h1 id="kc-page-title"><#nested "header"></h1>
+                    <h1 id="kc-page-title"><#nested "header"></h1>
                     <a id="reset-login" href="${url.loginRestartFlowUrl}" aria-label="${msg("restartLoginTooltip")}">
                         <div class="kc-login-tooltip">
                             <i class="${properties.kcResetFlowIcon!}"></i>
