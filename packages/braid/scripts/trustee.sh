@@ -11,7 +11,8 @@ set -x
 cd /opt/braid
 #bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-board-db -l debug
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
-SECRETS_BACKEND=${SECRETS_BACKEND:-"AwsSecretManager"} # Default to AwsSecretManager if not set
+SECRETS_BACKEND=${SECRETS_BACKEND:-"Awssecretsmanager"} # Default to Awssecretsmanager if not set
+SECRETS_BACKEND_LOWER=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
     echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
     exit 1
@@ -25,7 +26,11 @@ fi
 
 SECRET_KEY_NAME="secrets/${TRUSTEE_NAME}_config"
 
-if [ "$SECRETS_BACKEND" = "AwsSecretManager" ]; then
+if [ "$SECRETS_BACKEND_LOWER" = "awssecretmanager" ]; then
+    SECRETS_BACKEND_LOWER="awssecretsmanager"
+fi
+
+if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
     if [ -z "$AWS_SM_KEY_PREFIX" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]
     then
         echo "Error: AWS_SM_KEY_PREFIX must be set." #Avoid secrets overwriting
@@ -68,14 +73,11 @@ handle_trustee_config() {
     local config_content
     log "Querying secrets service for config..."
 
-    # Convert SECRETS_BACKEND to lowercase for case-insensitive comparison
-    local secrets_backend_lower=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
-
     if [ -f "$TRUSTEE_CONFIG_PATH" ]; then
         config_content=$(<"$TRUSTEE_CONFIG_PATH")
         log "Using existing config from $TRUSTEE_CONFIG_PATH"
     else
-        case "$secrets_backend_lower" in
+        case "$SECRETS_BACKEND_LOWER" in
             "envvarmastersecret")
                 if [ -z "$TRUSTEE_CONFIG" ]; then
                     log "TRUSTEE_CONFIG empty, generating ephemeral config"
@@ -84,7 +86,7 @@ handle_trustee_config() {
                     config_content=$(echo -e "$TRUSTEE_CONFIG")
                 fi
                 ;;
-            "awssecretmanager")
+            "awssecretsmanager")
                 config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || {
                     log "Failed to fetch from AWS Secrets Manager"
                     config_content=""
@@ -105,9 +107,9 @@ handle_trustee_config() {
         if [ -z "$config_content" ]; then
             log "Config does not exist, generating..."
             config_content=$(gen_trustee_config)
-            if [ "$secrets_backend_lower" = "awssecretmanager" ]; then
+            if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
                 store_secret_aws "$SECRET_KEY_NAME" "$config_content"
-            elif [ "$secrets_backend_lower" = "hashicorpvault" ]; then
+            elif [ "$SECRETS_BACKEND_LOWER" = "hashicorpvault" ]; then
                 store_secret_vault "$SECRET_KEY_NAME" "$config_content"
             fi
         fi
