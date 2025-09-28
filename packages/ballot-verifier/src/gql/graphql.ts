@@ -310,6 +310,7 @@ export type ElectoralLogFilter = {
     statement_kind?: InputMaybe<Scalars["String"]["input"]>
     statement_timestamp?: InputMaybe<Scalars["String"]["input"]>
     user_id?: InputMaybe<Scalars["String"]["input"]>
+    username?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type ElectoralLogOrderBy = {
