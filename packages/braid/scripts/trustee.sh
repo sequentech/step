@@ -26,6 +26,10 @@ fi
 
 SECRET_KEY_NAME="secrets/${TRUSTEE_NAME}_config"
 
+if [ "$SECRETS_BACKEND_LOWER" = "awssecretmanager" ]; then
+    SECRETS_BACKEND_LOWER="awssecretsmanager"
+fi
+
 if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
     if [ -z "$AWS_SM_KEY_PREFIX" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]
     then
