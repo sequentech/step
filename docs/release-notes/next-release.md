@@ -216,3 +216,7 @@ was implemented.
 Removed inconsistencies and bugs when selecting candidates, explicit blank,
 null votes, undervotes, overvotes and with single/multi-contest encoding.
 
+## 🐞 Errors deleting Election Event
+
+Fixed error deleting election event in specific cases. Also when an Election 
+Event is created, the sidebar is automatically updated.
