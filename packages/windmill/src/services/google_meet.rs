@@ -64,7 +64,7 @@ impl std::fmt::Display for GoogleMeetError {
 
 /// Implementation function for generating Google Meet links
 /// Creates a calendar event with Google Meet integration using service account credentials
-#[instrument(skip(meeting_data))]
+#[instrument(skip(hasura_transaction), err)]
 pub async fn generate_google_meet_link_impl(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -199,7 +199,7 @@ pub async fn generate_google_meet_link_impl(
                     for entry_point in entry_points {
                         if entry_point.entry_point_type == Some("video".to_string()) {
                             if let Some(uri) = entry_point.uri {
-                                info!("Google Meet link generated successfully: {}", uri);
+                                info!("Google Meet link generated successfully.");
                                 return Ok(uri);
                             }
                         }
@@ -220,9 +220,9 @@ pub async fn generate_google_meet_link_impl(
 }
 
 /// Parse datetime string with timezone into EventDateTime
+#[instrument(err)]
 fn parse_datetime(datetime_str: &str, timezone: &str) -> Result<EventDateTime, GoogleMeetError> {
-    // The datetime should be in ISO 8601 format (e.g., "2023-12-25T10:00:00")
-    // We'll combine it with the timezone
+    // The datetime should be in ISO 8601 format (e.g., "2025-09-29T12:45:00.000Z")
     let datetime_with_tz = ISO8601::to_date_utc(datetime_str)
         .map_err(|_| GoogleMeetError::DateTime(datetime_str.to_string()))?;
 
@@ -239,18 +239,15 @@ mod tests {
 
     #[test]
     fn test_parse_datetime() {
-        let result = parse_datetime("2023-12-25T10:00:00", "America/New_York");
+        let result = parse_datetime("2025-09-29T12:45:00.000Z", "Europe/London");
         assert!(result.is_ok());
 
         let event_datetime = result.unwrap();
         assert_eq!(
-            event_datetime.date_time,
-            Some("2023-12-25T10:00:00:00".to_string())
+            event_datetime.date_time.map(|dt| dt.to_string()),
+            Some("2025-09-29T12:45:00.000Z".to_string())
         );
-        assert_eq!(
-            event_datetime.time_zone,
-            Some("America/New_York".to_string())
-        );
+        assert_eq!(event_datetime.time_zone, Some("Europe/London".to_string()));
     }
 
     #[test]

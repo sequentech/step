@@ -20,7 +20,7 @@ Credentials related to the action button `GENERATE GOOGLE MEET` at Election Even
 
 ### Google Calendar Service Account key.
 Paste the whole Service Account key in the input field.
-To generate such a key you can visit the google api documentation or [follow the tutorial](../../../../03-Tutorials/07-admin_portal_tutorials_create-and-set-google-meet-credentials.md).
+To generate such a key you can visit the google api documentation or [follow the tutorial](../../../03-Tutorials/07-admin_portal_tutorials_create-and-set-google-meet-credentials.md).
 
 ### Google Calendar Authentication Email. 
 Email address used for authentication that should be in the same workspace as the 

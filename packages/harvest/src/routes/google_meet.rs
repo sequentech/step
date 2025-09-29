@@ -61,7 +61,7 @@ pub async fn generate_google_meeting(
         },
     )?;
 
-    info!("Generating Google Meet link for: {input:?}");
+    info!("Generating Google Meet link...");
 
     let meet_link = generate_google_meet_link_impl(
         &hasura_transaction,
