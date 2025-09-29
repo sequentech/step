@@ -245,7 +245,7 @@ mod tests {
         let event_datetime = result.unwrap();
         assert_eq!(
             event_datetime.date_time.map(|dt| dt.to_string()),
-            Some("2025-09-29T12:45:00.000Z".to_string())
+            Some("2025-09-29 12:45:00 UTC".to_string())
         );
         assert_eq!(event_datetime.time_zone, Some("Europe/London".to_string()));
     }
