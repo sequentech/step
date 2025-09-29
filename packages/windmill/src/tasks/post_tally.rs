@@ -1,55 +1,26 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::{keys_ceremony, trustee};
-
+use crate::postgres::document::get_document;
+use crate::services::documents::upload_and_return_document;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use b3::messages::message::Message;
-use b3::messages::statement::StatementType;
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as DbTransaction};
-use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
-use sequent_core::services::keycloak;
-use sequent_core::sqlite::results_event;
+use sequent_core::services::date::ISO8601;
 use sequent_core::temp_path::get_file_size;
-use sequent_core::types::ceremonies::{
-    KeysCeremonyExecutionStatus, KeysCeremonyStatus, TallyCeremonyStatus, Trustee as BasicTrustee,
-    TrusteeStatus,
-};
-use sequent_core::types::hasura::core::{Document, TallySessionExecution, Trustee};
-use serde_json::Value;
-use std::collections::HashSet;
-use strand::signature::StrandSignaturePk;
-use tracing::{event, info, instrument, Level};
+use sequent_core::types::hasura::core::TallySessionExecution;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
-use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
-use crate::services::ceremonies::serialize_logs::generate_logs;
-use crate::services::ceremonies::serialize_logs::sort_logs;
 use crate::services::compress::create_archive_from_folder;
 use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager;
-use crate::services::public_keys;
 use crate::tasks::render_document_pdf::get_tally_pdf_config;
-use crate::tasks::render_document_pdf::render_document_pdf_wrap;
-use crate::{
-    postgres::{
-        area::get_area_by_id, document::get_document, election::get_election_by_id,
-        election_event::get_election_event_by_election_area,
-        tally_session::get_tally_session_by_id,
-    },
-    services::documents::{get_document_as_temp_file, upload_and_return_document},
-    types::miru_plugin::{
-        MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
-        MiruTallySessionData, MiruTransmissionPackageData,
-    },
-};
+
 use rusqlite::Connection as SqliteConnection;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::pdf::sync::PdfRenderer;
@@ -68,10 +39,11 @@ use walkdir::WalkDir;
 
 use crate::services::pg_lock::PgLock;
 use crate::services::tasks_semaphore::acquire_semaphore;
-use chrono::{DateTime, Duration, Utc};
+use chrono::Duration;
 
 use crate::postgres::results_event::update_results_event_documents;
 use crate::postgres::tally_session::set_post_tally_task_completed;
+use crate::services::documents::get_document_as_temp_file;
 use tokio::time::Duration as ChronoDuration;
 
 #[instrument(skip(hasura_transaction), err)]
@@ -238,7 +210,7 @@ pub async fn post_tally_task_impl(
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", tar_gz_document_id))?;
 
-    let mut tar_gz_file = get_document_as_temp_file(&tenant_id, &tar_gz_document).await?;
+    let tar_gz_file = get_document_as_temp_file(&tenant_id, &tar_gz_document).await?;
 
     // Unpack targz
 
@@ -259,7 +231,7 @@ pub async fn post_tally_task_impl(
     find_and_process_html_reports(tally_path.path(), pdf_options)?;
 
     // Create the archive again
-    let (tar_file_temp_path, tar_file_str, file_size) =
+    let (_tar_file_temp_path, tar_file_str, file_size) =
         create_archive_from_folder(tally_path.path(), false)?;
 
     let tar_document_id = Uuid::new_v4().to_string();
@@ -299,7 +271,7 @@ pub async fn post_tally_task_impl(
     .await?;
 
     // Update the documents in sqlite database
-    let db_result = task::spawn_blocking(move || -> Result<()> {
+    let _ = task::spawn_blocking(move || -> Result<()> {
         let mut sqlite_connection = SqliteConnection::open(&database_path_clone)
             .map_err(|error| anyhow!("Error opening sqlite database: {error}"))?;
         let sqlite_transaction = sqlite_connection
@@ -374,10 +346,10 @@ pub async fn post_tally_task_impl(
     .await?;
 
     set_post_tally_task_completed(
-        &hasura_transaction, //: &Transaction<'_>,
-        &tenant_id,          //: &str,
-        &election_event_id,  //: &str,
-        &tally_session_id,   //: &str,
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
     )
     .await?;
 
@@ -420,7 +392,7 @@ pub async fn post_tally_task(
         election_event_id,
         tally_session_id,
     ));
-    let res = loop {
+    let _res = loop {
         tokio::select! {
             _ = interval.tick() => {
                 // Execute the callback function here
