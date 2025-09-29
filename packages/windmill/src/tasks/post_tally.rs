@@ -46,6 +46,9 @@ use crate::postgres::tally_session::set_post_tally_task_completed;
 use crate::services::documents::get_document_as_temp_file;
 use tokio::time::Duration as ChronoDuration;
 
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::ParallelIterator;
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_sqlite_database(
     tenant_id: &str,
@@ -76,7 +79,7 @@ pub async fn download_sqlite_database(
     };
 
     let document = get_document(
-        &hasura_transaction,
+        &hasura_transaction,F
         &tenant_id,
         Some(election_event_id.to_string()),
         &sqlite_database_document_id,
@@ -89,49 +92,60 @@ pub async fn download_sqlite_database(
     Ok(sqlite_database)
 }
 
-pub fn find_and_process_html_reports(
+pub fn find_and_process_html_reports_parallel(
     root_path: &Path,
     pdf_options: PrintToPdfOptionsLocal,
 ) -> Result<()> {
-    for entry in WalkDir::new(root_path) {
-        let entry = entry.map_err(|e| anyhow!("Error reading entry: {e}"))?;
-        let path = entry.path();
+    // Walk the directory and collect all valid HTML file paths first.
+    // We filter and collect upfront to create a work queue.
+    let html_files: Vec<_> = WalkDir::new(root_path)
+        .into_iter()
+        .filter_map(|e| e.ok()) // Filter out directory read errors
+        .filter(|e| e.file_type().is_file()) // Keep only files
+        .filter(|e| e.path().extension().and_then(std::ffi::OsStr::to_str) == Some("html"))
+        .map(|e| e.into_path()) // Convert to PathBuf
+        .collect();
 
-        if path.is_file() {
-            if let Some(extension) = path.extension() {
-                if extension.to_str() == Some("html") {
-                    let render = fs::read_to_string(path)?;
+    // Use `par_iter` to process the collected paths in parallel.
+    // `try_for_each` will process items in parallel and stop on the first error.
+    html_files
+        .into_par_iter()
+        .try_for_each(|path| -> Result<()> {
+            // The processing logic for a single file is almost identical.
+            let render = fs::read_to_string(&path)?;
 
-                    let bytes = PdfRenderer::render_pdf(
-                        render,
-                        Some(pdf_options.to_print_to_pdf_options()),
-                    )
+            let bytes =
+                PdfRenderer::render_pdf(render, Some(pdf_options.to_print_to_pdf_options()))
                     .with_context(|| "Error converting html to pdf format")?;
-                    let (temp_path, _, _) = write_into_named_temp_file(&bytes, "reports-", ".html")
-                        .with_context(|| "Error writing to file")?;
+            
+            // Note: Creating temp files in parallel needs care, but `write_into_named_temp_file`
+            // should be fine as it creates unique files.
+            let (temp_path, _, _) =
+                write_into_named_temp_file(&bytes, "reports-", ".pdf") // Changed extension to pdf for clarity
+                    .with_context(|| "Error writing to temp file")?;
 
-                    let filename: String = path
-                        .file_name()
-                        .and_then(|s| s.to_str())
-                        .ok_or(anyhow!("Could not get filename"))?
-                        .to_string();
+            let filename: String = path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .ok_or(anyhow!("Could not get filename"))?
+                .to_string();
 
-                    let document_name = change_file_extension(&filename, "pdf")
-                        .ok_or(anyhow!("Error changing file extension"))?;
+            let document_name = change_file_extension(&filename, "pdf")
+                .ok_or(anyhow!("Error changing file extension"))?;
 
-                    let parent_dir = path.parent().ok_or_else(|| {
-                        anyhow!("Could not get parent directory for '{}'", path.display())
-                    })?;
+            let parent_dir = path
+                .parent()
+                .ok_or_else(|| anyhow!("Could not get parent directory for '{}'", path.display()))?;
 
-                    let dest_path = parent_dir.join(&document_name);
+            let dest_path = parent_dir.join(&document_name);
 
-                    fs::copy(&temp_path, &dest_path).with_context(|| {
-                        format!("Failed to copy PDF to '{}'", dest_path.display())
-                    })?;
-                }
-            }
-        }
-    }
+            fs::copy(&temp_path, &dest_path)
+                .with_context(|| format!("Failed to copy PDF to '{}'", dest_path.display()))?;
+
+            // The temp file will be automatically deleted when `temp_path` goes out of scope.
+
+            Ok(())
+        })?;
 
     Ok(())
 }
@@ -228,7 +242,7 @@ pub async fn post_tally_task_impl(
     let pdf_options = PrintToPdfOptionsLocal::from_pdf_options(pdf_options);
 
     // Search for all html reports that do not have pdf and generate it
-    find_and_process_html_reports(tally_path.path(), pdf_options)?;
+    find_and_process_html_reports_parallel(tally_path.path(), pdf_options)?;
 
     // Create the archive again
     let (_tar_file_temp_path, tar_file_str, file_size) =
