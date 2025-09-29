@@ -211,6 +211,11 @@ On Candidate Lists for the Voting Portal, the top border was missing.
 Filtering voters by whether they have voted or not wasn't working and a fix
 was implemented.
 
+## 🐞 Inconsistencies in Voting Portal
+
+Removed inconsistencies and bugs when selecting candidates, explicit blank,
+null votes, undervotes, overvotes and with single/multi-contest encoding.
+
 ## 🐞 Errors deleting Election Event
 
 Fixed error deleting election event in specific cases. Also when an Election 
