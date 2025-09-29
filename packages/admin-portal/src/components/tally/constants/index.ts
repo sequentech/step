@@ -25,6 +25,10 @@ export const EXPORT_FORMATS: Array<{
         value: EExportFormat.TAR_GZ,
     },
     {
+        label: "TAR_GZ_PDFS",
+        value: EExportFormat.TAR_GZ_PDFS,
+    },
+    {
         label: "RECEIPTS_PDF",
         value: EExportFormat.RECEIPTS_PDF,
     },

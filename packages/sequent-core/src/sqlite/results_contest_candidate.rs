@@ -66,7 +66,6 @@ pub async fn create_results_contest_candidates_sqlite(
     Ok(())
 }
 
-
 #[instrument(err, skip_all)]
 pub async fn get_all_documents(
     sqlite_transaction: &Transaction<'_>,
@@ -93,20 +92,26 @@ pub async fn get_all_documents(
         |row| {
             // Get the documents as a String from the TEXT column
             let documents_text: String = row.get(0)?;
-            
+
             // Deserialize the JSON string into your ResultDocuments struct
-            from_str(&documents_text)
-                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e)))
+            from_str(&documents_text).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
+            })
         },
     )?;
 
-    // Collect the MappedRows iterator into a Vec<Result<ResultDocuments, rusqlite::Error>>
+    // Collect the MappedRows iterator into a Vec<Result<ResultDocuments,
+    // rusqlite::Error>>
     let mut documents = Vec::new();
     for row in document_rows {
         // The row itself is a Result, so we need to unwrap it with '?'
         documents.push(row?);
     }
-    
+
     // Return the collected Vec
     Ok(documents)
 }

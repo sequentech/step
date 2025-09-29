@@ -7,8 +7,12 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use immudb_rs::{Client as ImmudbClient, TxMode};
+use rusqlite::Connection as SqliteConnection;
+use rusqlite::Transaction as SqliteTransaction;
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
+use tokio::task;
 use tracing::instrument;
 
 #[instrument(skip(handler), err)]
@@ -37,6 +41,36 @@ where
     }
 
     Ok(())
+}
+
+#[instrument(skip(handler), err)]
+pub async fn provide_sqlite_transaction<F>(handler: F, database_path: &Path) -> Result<()>
+where
+    for<'a> F: FnOnce(&'a SqliteTransaction<'a>) -> Result<()> + Send + 'static,
+{
+    let db_path = database_path.to_path_buf();
+
+    task::spawn_blocking(move || {
+        let mut conn = SqliteConnection::open(db_path).context("Error opening sqlite database")?;
+        let tx = conn
+            .transaction()
+            .context("Error starting sqlite database transaction")?;
+
+        match handler(&tx) {
+            Ok(_) => {
+                tx.commit()
+                    .context("Commit failed for sqlite transaction")?;
+                Ok(())
+            }
+            Err(err) => {
+                tx.rollback().with_context(|| {
+                    format!("Rollback error after transaction error: {:?}", err)
+                })?;
+                Err(err)
+            }
+        }
+    })
+    .await?
 }
 
 #[instrument(skip(handler), err)]
