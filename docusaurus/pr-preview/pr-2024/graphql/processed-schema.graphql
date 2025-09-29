@@ -1475,7 +1475,7 @@ type mutation_root {
   export_users(election_event_id: String, election_id: String, tenant_id: String!): ExportUsersOutput
   generate_ballot_publication(election_event_id: uuid!, election_id: uuid): PublishBallotOutput
   """generate Google Meet link for election events"""
-  generate_google_meet(attendee_email: String!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
+  generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
   generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!): generateReportOutput
   generate_template(election_event_id: String!, election_id: String!, tally_session_id: String!, type: String!): GenerateTemplateOutput
   generate_transmission_report(election_event_id: String!, election_id: String, tally_session_id: String, tenant_id: String!): generateReportOutput
