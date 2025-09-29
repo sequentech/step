@@ -79,7 +79,7 @@ pub async fn download_sqlite_database(
     };
 
     let document = get_document(
-        &hasura_transaction,F
+        &hasura_transaction,
         &tenant_id,
         Some(election_event_id.to_string()),
         &sqlite_database_document_id,
