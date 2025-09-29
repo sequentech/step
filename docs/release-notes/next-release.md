@@ -217,3 +217,8 @@ Added a Google Meet component with a button to generate a link in EVENT > DATA t
 support creating a google meeting.
 Created INTEGRATIONS tab in tenant settings to add the google api credentials.
 Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
+
+## 🐞 Errors deleting Election Event
+
+Fixed error deleting election event in specific cases. Also when an Election 
+Event is created, the sidebar is automatically updated.
