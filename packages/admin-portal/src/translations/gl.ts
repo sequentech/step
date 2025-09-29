@@ -1098,7 +1098,7 @@ const galegoTranslation: TranslationType = {
         },
         googleMeet: {
             title: "Xerar Ligazón de Google Meet",
-            generateButton: "Xerar Google Meet",
+            generateButton: "Google Meet",
             meetingTitle: "Título da Reunión",
             description: "Descrición (Opcional)",
             startDate: "Data de Inicio",

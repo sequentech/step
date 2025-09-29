@@ -1104,7 +1104,7 @@ const frenchTranslation: TranslationType = {
         },
         googleMeet: {
             title: "Générer un Lien Google Meet",
-            generateButton: "Générer Google Meet",
+            generateButton: "Google Meet",
             meetingTitle: "Titre de la Réunion",
             description: "Description (Optionnel)",
             startDate: "Date de Début",

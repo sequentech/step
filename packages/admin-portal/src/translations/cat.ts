@@ -1107,7 +1107,7 @@ const catalanTranslation: TranslationType = {
         },
         googleMeet: {
             title: "Generar Enllaç de Google Meet",
-            generateButton: "Generar Google Meet",
+            generateButton: "Google Meet",
             meetingTitle: "Títol de la Reunió",
             description: "Descripció (Opcional)",
             startDate: "Data d'Inici",

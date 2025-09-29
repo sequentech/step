@@ -1099,7 +1099,7 @@ const tagalogTranslation: TranslationType = {
         },
         googleMeet: {
             title: "Bumuo ng Google Meet Link",
-            generateButton: "Bumuo ng Google Meet",
+            generateButton: "Google Meet",
             meetingTitle: "Pamagat ng Meeting",
             description: "Paglalarawan (Opsyonal)",
             startDate: "Petsa ng Simula",

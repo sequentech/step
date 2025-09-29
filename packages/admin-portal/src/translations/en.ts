@@ -1085,7 +1085,7 @@ const englishTranslation = {
         },
         googleMeet: {
             title: "Generate Google Meet Link",
-            generateButton: "Generate Google Meet",
+            generateButton: "Google Meet",
             meetingTitle: "Meeting Title",
             description: "Description (Optional)",
             startDate: "Start Date",

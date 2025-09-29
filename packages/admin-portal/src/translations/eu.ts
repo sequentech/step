@@ -1092,7 +1092,7 @@ const basqueTranslation: TranslationType = {
         },
         googleMeet: {
             title: "Google Meet Esteka Sortu",
-            generateButton: "Google Meet Sortu",
+            generateButton: "Google Meet",
             meetingTitle: "Bileraren Izenburua",
             description: "Deskribapena (Aukerakoa)",
             startDate: "Hasiera Data",

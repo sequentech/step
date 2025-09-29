@@ -1093,7 +1093,7 @@ const dutchTranslation: TranslationType = {
         },
         googleMeet: {
             title: "Google Meet Link Genereren",
-            generateButton: "Google Meet Genereren",
+            generateButton: "Meet Genereren",
             meetingTitle: "Vergadertitel",
             description: "Beschrijving (Optioneel)",
             startDate: "Startdatum",
