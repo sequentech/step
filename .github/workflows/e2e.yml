@@ -11,9 +11,6 @@ on:
         required: true
         type: string
         default: '133529410358.dkr.ecr.eu-west-1.amazonaws.com/loadtesting'
-  pull_request:
-  push:
-      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
 jobs:
   e2e:
