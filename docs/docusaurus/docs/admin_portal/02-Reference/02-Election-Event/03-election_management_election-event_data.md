@@ -11,6 +11,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The Data tab is similar across multiple entities in the system (Election Events, Elections, Contests, and Candidates). In this tab, you can configure the main values of each entity. Specifically for Election Events, all related data can be managed here.
 
+
+## Actions buttons in the Election Event Data Tab
+
+- **Export**: Export election event data.
+- **Import candidates**: Import candidates for the election event.
+- **Google meet**: Generate google meet link and create event in google calendar.
+
+
 ## Sections in the Election Event Data Tab
 
 Each section serves a specific purpose and provides a comprehensive breakdown of information:
