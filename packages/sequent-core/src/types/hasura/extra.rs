@@ -14,6 +14,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, Value};
 use std::default::Default;
+use std::ops::Deref;
 use strum_macros::{Display, EnumString};
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
@@ -131,24 +132,41 @@ impl Candidate {
     Eq,
     Debug,
     Clone,
+    Copy,
     Serialize,
     Deserialize,
     BorshSerialize,
     BorshDeserialize,
 )]
-pub struct AreaAnnotations {
-    #[serde(default = "default_weight")]
-    pub weight: u64,
-}
+pub struct Weight(Option<u64>);
 
-impl Default for AreaAnnotations {
+impl Default for Weight {
     fn default() -> Self {
-        Self { weight: 1 }
+        Self { 0: Some(1) } // default weight is 1
     }
 }
 
-pub fn default_weight() -> u64 {
-    1
+impl Deref for Weight {
+    type Target = Option<u64>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+)]
+pub struct AreaAnnotations {
+    pub weight: Weight,
 }
 
 #[derive(

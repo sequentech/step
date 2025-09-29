@@ -8,7 +8,6 @@ use crate::pipes::do_tally::{
 };
 use sequent_core::ballot::Contest;
 use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
-use sequent_core::types::hasura::extra::default_weight;
 use std::cmp;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};
@@ -149,7 +148,7 @@ impl CountingAlgorithm for PluralityAtLarge {
                 let mut total_ballots = 0;
 
                 for (vote, weight_opt) in votes {
-                    let weight = weight_opt.unwrap_or(default_weight());
+                    let weight = weight_opt.clone().unwrap_or_default();
                     total_ballots += weight;
 
                     extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);

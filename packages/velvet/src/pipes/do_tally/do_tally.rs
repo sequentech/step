@@ -12,18 +12,17 @@ use crate::pipes::{
 };
 use crate::utils::HasId;
 use rayon::prelude::*;
-use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
+use sequent_core::{ballot::Contest, services::area_tree::TreeNode, types::hasura::extra::Weight};
 use sequent_core::{
     ballot::{BallotStyle, Candidate},
     ballot_style,
     services::area_tree::TreeNodeArea,
     sqlite::election_event,
-    types::{
-        hasura::{core::TallySheet, extra::default_weight},
-        tally_sheets::VotingChannel,
-    },
+    types::hasura::core::TallySheet,
+    types::tally_sheets::VotingChannel,
     util::path::{get_folder_name, list_subfolders},
 };
+
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::sync::Arc;
@@ -100,7 +99,7 @@ impl DoTally {
 }
 
 #[instrument]
-pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> u64 {
+pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> Weight {
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
         .find(|bs| bs.area_id == area_id.to_string());
@@ -112,7 +111,7 @@ pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> u64 {
                 .map(|area_annotations| area_annotations.weight)
         })
         .flatten()
-        .unwrap_or(default_weight())
+        .unwrap_or_default()
 }
 
 impl Pipe for DoTally {
@@ -243,36 +242,33 @@ impl Pipe for DoTally {
                                     })
                                     .sum();
 
-                                let children_area_paths: Vec<(PathBuf, Option<u64>)> =
-                                    children_areas
-                                        .iter()
-                                        .map(
-                                            |child_area| -> Result<(PathBuf, Option<u64>), Error> {
-                                                let child_area_id = Uuid::parse_str(&child_area.id)
-                                                    .map_err(|err| {
-                                                        Error::UnexpectedError(format!(
-                                                            "Uuid parse error: {err:?}"
-                                                        ))
-                                                    })?;
-
-                                                let child_area_weight = get_area_weight(
-                                                    election_input.ballot_styles.clone(),
-                                                    child_area_id,
-                                                );
-
-                                                Ok((
-                                                    PipeInputs::build_path(
-                                                        &input_dir,
-                                                        &election_id,
-                                                        Some(&contest_id),
-                                                        Some(&child_area_id),
-                                                    )
-                                                    .join(OUTPUT_DECODED_BALLOTS_FILE),
-                                                    Some(child_area_weight),
+                                let children_area_paths: Vec<(PathBuf, Weight)> = children_areas
+                                    .iter()
+                                    .map(|child_area| -> Result<(PathBuf, Weight), Error> {
+                                        let child_area_id = Uuid::parse_str(&child_area.id)
+                                            .map_err(|err| {
+                                                Error::UnexpectedError(format!(
+                                                    "Uuid parse error: {err:?}"
                                                 ))
-                                            },
-                                        )
-                                        .collect::<Result<Vec<(PathBuf, Option<u64>)>, Error>>()?;
+                                            })?;
+
+                                        let child_area_weight = get_area_weight(
+                                            election_input.ballot_styles.clone(),
+                                            child_area_id,
+                                        );
+
+                                        Ok((
+                                            PipeInputs::build_path(
+                                                &input_dir,
+                                                &election_id,
+                                                Some(&contest_id),
+                                                Some(&child_area_id),
+                                            )
+                                            .join(OUTPUT_DECODED_BALLOTS_FILE),
+                                            child_area_weight,
+                                        ))
+                                    })
+                                    .collect::<Result<Vec<(PathBuf, Weight)>, Error>>()?;
 
                                 let counting_algorithm = tally::create_tally(
                                     &contest_object,
@@ -300,7 +296,7 @@ impl Pipe for DoTally {
                             // Create area tally
                             let counting_algorithm_area = tally::create_tally(
                                 &contest_object,
-                                vec![(decoded_ballots_file.clone(), Some(area_weight.clone()))],
+                                vec![(decoded_ballots_file.clone(), area_weight)],
                                 area_input.census,
                                 area_input.auditable_votes,
                                 vec![],
@@ -353,7 +349,7 @@ impl Pipe for DoTally {
                                     let contest_result_sheet = tally::process_tally_sheet(
                                         &tally_sheet,
                                         &contest_object,
-                                        Some(area_weight),
+                                        area_weight,
                                     )
                                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 

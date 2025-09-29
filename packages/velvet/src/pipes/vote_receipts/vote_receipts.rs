@@ -14,6 +14,7 @@ use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::hasura::extra::Weight;
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
@@ -59,7 +60,7 @@ impl VoteReceipts {
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(
             contest,
-            vec![(path.to_path_buf(), None)],
+            vec![(path.to_path_buf(), Weight::default())],
             0,
             0,
             vec![],
