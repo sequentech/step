@@ -1106,8 +1106,7 @@ const tagalogTranslation: TranslationType = {
             startTime: "Oras ng Simula",
             duration: "Tagal (mga minuto)",
             attendeeEmails: "Mga Email ng mga Kalahok",
-            attendeeEmailHelp:
-                "Mga email na pinaghiwalay ng kuwit para sa mga kalahok sa meeting",
+            attendeeEmailHelp: "Mga email na pinaghiwalay ng kuwit para sa mga kalahok sa meeting",
             note: "Paalala: Ito ay lilikha ng calendar event sa inyong Google Calendar na may Google Meet link. Kailangan ninyong mag-sign in sa inyong Google account.",
             success: "Matagumpay na Nabuo ang Google Meet Link!",
             copy: "Kopyahin sa clipboard",

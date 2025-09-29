@@ -1092,8 +1092,7 @@ const englishTranslation = {
             startTime: "Start Time",
             duration: "Duration (minutes)",
             attendeeEmails: "Attendee Emails",
-            attendeeEmailHelp:
-                "Comma-separated emails for meeting participants",
+            attendeeEmailHelp: "Comma-separated emails for meeting participants",
             note: "Note: This will create a calendar event in your Google Calendar with a Google Meet link. You'll need to sign in to your Google account.",
             success: "Google Meet Link Generated Successfully!",
             copy: "Copy to clipboard",

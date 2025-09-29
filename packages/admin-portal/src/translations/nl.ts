@@ -1100,8 +1100,7 @@ const dutchTranslation: TranslationType = {
             startTime: "Starttijd",
             duration: "Duur (minuten)",
             attendeeEmails: "Emails Deelnemers",
-            attendeeEmailHelp:
-                "Komma-gescheiden emails voor vergaderdeelnemers",
+            attendeeEmailHelp: "Komma-gescheiden emails voor vergaderdeelnemers",
             note: "Opmerking: Dit zal een agenda-evenement aanmaken in uw Google Calendar met een Google Meet link. U moet inloggen op uw Google account.",
             success: "Google Meet Link Succesvol Gegenereerd!",
             copy: "Kopiëren naar klembord",
