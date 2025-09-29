@@ -7,6 +7,13 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Inconsistencies in Voting Portal
+
+Removed inconsistencies and bugs when selecting candidates, explicit blank,
+null votes, undervotes, overvotes and with single/multi-contest encoding.
+
+- Issue: [#8235](https://github.com/sequentech/meta/issues/8235)
+
 ## 🐞 Voting Portal: Avoid uneeded google chrome automatic translations
 
 The Voting Portal and other frontends did not specify the page language, causing

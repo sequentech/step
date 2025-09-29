@@ -9,7 +9,7 @@ import {IElection, stringToHtml, translateElection} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
-import {useAppSelector} from "../store/hooks"
+import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
 import {TenantEventType} from ".."
@@ -17,6 +17,9 @@ import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
 import useLanguage from "../hooks/useLanguage"
+import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
+import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {clearIsVoted} from "../store/extra/extraSlice"
 
 const StyledTitle = styled(Typography)`
     width: 100%;
@@ -92,6 +95,7 @@ const StartScreen: React.FC = () => {
     const backLink = useRootBackLink()
     const isDemo = useAppSelector(showDemo(electionId))
     const [showDemoDialog, setShowDemoDialog] = useState(isDemo)
+    const dispatch = useAppDispatch()
     const navigate = useNavigate()
     useLanguage({ballotStyle})
 
@@ -100,6 +104,19 @@ const StartScreen: React.FC = () => {
             navigate(backLink)
         }
     })
+
+    useEffect(() => {
+        if (!ballotStyle) {
+            return
+        }
+        dispatch(
+            resetBallotSelection({
+                ballotStyle,
+                force: true,
+            })
+        )
+        dispatch(clearIsVoted())
+    }, [ballotStyle])
 
     if (!election) {
         return <CircularProgress />

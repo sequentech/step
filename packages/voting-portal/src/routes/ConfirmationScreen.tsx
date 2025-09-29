@@ -530,7 +530,7 @@ const ConfirmationScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
-            <QRContainer>
+            <QRContainer className="qr-container">
                 <QRCode
                     value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl ?? ""}
                 />

@@ -10,6 +10,8 @@ export interface QRCodeProps {
     value: string
 }
 
-const QRCode: React.FC<QRCodeProps> = ({value}) => <QRCodeSVG value={value} />
+const QRCode: React.FC<QRCodeProps> = ({value}) => (
+    <QRCodeSVG value={value} className="qr-code-svg" />
+)
 
 export default QRCode
