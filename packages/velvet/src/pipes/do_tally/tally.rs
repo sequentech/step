@@ -40,7 +40,8 @@ impl Tally {
         tally_results: Vec<ContestResult>,
     ) -> Result<Self> {
         let contest = contest.clone();
-        let ballots_with_weights: Vec<(DecodedVoteContest, Option<u64>)> = Self::get_ballots(ballots_files)?;
+        let ballots_with_weights: Vec<(DecodedVoteContest, Option<u64>)> =
+            Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
 
         Ok(Self {
@@ -68,13 +69,16 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
-    fn get_ballots(files: Vec<(PathBuf,Option<u64>)>) -> Result<Vec<(DecodedVoteContest,Option<u64>)>> {
+    fn get_ballots(
+        files: Vec<(PathBuf, Option<u64>)>,
+    ) -> Result<Vec<(DecodedVoteContest, Option<u64>)>> {
         let mut res = vec![];
 
         for (f, weight) in files {
             let f = fs::File::open(&f).map_err(|e| PipesError::FileAccess(f, e))?;
             let votes: Vec<DecodedVoteContest> = parse_file(f)?;
-            let votes_with_weight: Vec<(DecodedVoteContest, Option<u64>)> = votes.into_iter().map(|v| (v, weight)).collect();
+            let votes_with_weight: Vec<(DecodedVoteContest, Option<u64>)> =
+                votes.into_iter().map(|v| (v, weight)).collect();
             res.push(votes_with_weight);
         }
 
@@ -176,7 +180,7 @@ pub fn create_tally(
             }
             exist
         })
-        .map(|(p, weight)|  (PathBuf::from(p.as_path()), weight.clone()))
+        .map(|(p, weight)| (PathBuf::from(p.as_path()), weight.clone()))
         .collect();
 
     let tally = Tally::new(

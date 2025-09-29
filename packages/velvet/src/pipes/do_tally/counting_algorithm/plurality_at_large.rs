@@ -149,7 +149,6 @@ impl CountingAlgorithm for PluralityAtLarge {
                 let mut total_ballots = 0;
 
                 for (vote, weight_opt) in votes {
-
                     let weight = weight_opt.unwrap_or(default_weight());
                     total_ballots += weight;
 

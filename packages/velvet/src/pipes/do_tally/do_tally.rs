@@ -243,30 +243,36 @@ impl Pipe for DoTally {
                                     })
                                     .sum();
 
-                                let children_area_paths: Vec<(PathBuf, Option<u64>)> = children_areas
-                                    .iter()
-                                    .map(|child_area| -> Result<(PathBuf, Option<u64>), Error> {
-                                        let child_area_id = Uuid::parse_str(&child_area.id).map_err(|err| {
-                                            Error::UnexpectedError(format!(
-                                                "Uuid parse error: {err:?}"
-                                            ))
-                                        })?;
+                                let children_area_paths: Vec<(PathBuf, Option<u64>)> =
+                                    children_areas
+                                        .iter()
+                                        .map(
+                                            |child_area| -> Result<(PathBuf, Option<u64>), Error> {
+                                                let child_area_id = Uuid::parse_str(&child_area.id)
+                                                    .map_err(|err| {
+                                                        Error::UnexpectedError(format!(
+                                                            "Uuid parse error: {err:?}"
+                                                        ))
+                                                    })?;
 
-                                        let child_area_weight = get_area_weight(
-                                            election_input.ballot_styles.clone(),
-                                            child_area_id,
-                                        );
+                                                let child_area_weight = get_area_weight(
+                                                    election_input.ballot_styles.clone(),
+                                                    child_area_id,
+                                                );
 
-                                        Ok((
-                                            PipeInputs::build_path(
-                                                &input_dir,
-                                                &election_id,
-                                            Some(&contest_id),
-                                            Some(&child_area_id),
+                                                Ok((
+                                                    PipeInputs::build_path(
+                                                        &input_dir,
+                                                        &election_id,
+                                                        Some(&contest_id),
+                                                        Some(&child_area_id),
+                                                    )
+                                                    .join(OUTPUT_DECODED_BALLOTS_FILE),
+                                                    Some(child_area_weight),
+                                                ))
+                                            },
                                         )
-                                        .join(OUTPUT_DECODED_BALLOTS_FILE),Some(child_area_weight)))
-                                    })
-                                    .collect::<Result<Vec<(PathBuf, Option<u64>)>, Error>>()?;
+                                        .collect::<Result<Vec<(PathBuf, Option<u64>)>, Error>>()?;
 
                                 let counting_algorithm = tally::create_tally(
                                     &contest_object,

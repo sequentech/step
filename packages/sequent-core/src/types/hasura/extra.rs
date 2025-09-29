@@ -183,10 +183,10 @@ pub enum TasksExecutionStatus {
     Default,
     JsonSchema,
 )]
-pub enum WeightedVotingPolicy { 
+pub enum WeightedVotingPolicy {
     #[default]
-    #[serde(rename = "disabled-weighted-voting")] 
+    #[serde(rename = "disabled-weighted-voting")]
     DISABLED_WEIGHTED_VOTING,
-    #[serde(rename = "areas-weighted-voting")] 
+    #[serde(rename = "areas-weighted-voting")]
     AREAS_WEIGHTED_VOTING,
 }
