@@ -133,7 +133,6 @@ impl CountingAlgorithm for PluralityAtLarge {
                 aggregated
             }
             false => {
-                let weight = self.tally.vote_weight.unwrap_or(default_weight());
                 let contest = &self.tally.contest;
                 let votes = &self.tally.ballots;
 
@@ -147,8 +146,13 @@ impl CountingAlgorithm for PluralityAtLarge {
                 let mut count_blank: u64 = 0;
 
                 let mut extended_metrics = ExtendedMetricsContest::default();
+                let mut total_ballots = 0;
 
-                for vote in votes {
+                for (vote, weight_opt) in votes {
+
+                    let weight = weight_opt.unwrap_or(default_weight());
+                    total_ballots += weight;
+
                     extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
                     if vote.is_invalid() {
                         if vote.is_explicit_invalid {
@@ -177,7 +181,7 @@ impl CountingAlgorithm for PluralityAtLarge {
                     }
                 }
 
-                extended_metrics.total_ballots = votes.len() as u64 * weight;
+                extended_metrics.total_ballots = total_ballots;
 
                 let candidate_results_map: HashMap<String, CandidateResult> = vote_count
                     .into_iter()

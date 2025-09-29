@@ -243,24 +243,30 @@ impl Pipe for DoTally {
                                     })
                                     .sum();
 
-                                let children_area_paths: Vec<PathBuf> = children_areas
+                                let children_area_paths: Vec<(PathBuf, Option<u64>)> = children_areas
                                     .iter()
-                                    .map(|child_area| -> Result<PathBuf, Error> {
-                                        Ok(PipeInputs::build_path(
-                                            &input_dir,
-                                            &election_id,
+                                    .map(|child_area| -> Result<(PathBuf, Option<u64>), Error> {
+                                        let child_area_id = Uuid::parse_str(&child_area.id).map_err(|err| {
+                                            Error::UnexpectedError(format!(
+                                                "Uuid parse error: {err:?}"
+                                            ))
+                                        })?;
+
+                                        let child_area_weight = get_area_weight(
+                                            election_input.ballot_styles.clone(),
+                                            child_area_id,
+                                        );
+
+                                        Ok((
+                                            PipeInputs::build_path(
+                                                &input_dir,
+                                                &election_id,
                                             Some(&contest_id),
-                                            Some(&Uuid::parse_str(&child_area.id).map_err(
-                                                |err| {
-                                                    Error::UnexpectedError(format!(
-                                                        "Uuid parse error: {err:?}"
-                                                    ))
-                                                },
-                                            )?),
+                                            Some(&child_area_id),
                                         )
-                                        .join(OUTPUT_DECODED_BALLOTS_FILE))
+                                        .join(OUTPUT_DECODED_BALLOTS_FILE),Some(child_area_weight)))
                                     })
-                                    .collect::<Result<Vec<PathBuf>, Error>>()?;
+                                    .collect::<Result<Vec<(PathBuf, Option<u64>)>, Error>>()?;
 
                                 let counting_algorithm = tally::create_tally(
                                     &contest_object,
@@ -269,7 +275,6 @@ impl Pipe for DoTally {
                                     auditable_votes_size,
                                     vec![],
                                     vec![],
-                                    None,
                                 )
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                                 let res: ContestResult = counting_algorithm
@@ -289,12 +294,11 @@ impl Pipe for DoTally {
                             // Create area tally
                             let counting_algorithm_area = tally::create_tally(
                                 &contest_object,
-                                vec![decoded_ballots_file.clone()],
+                                vec![(decoded_ballots_file.clone(), Some(area_weight.clone()))],
                                 area_input.census,
                                 area_input.auditable_votes,
                                 vec![],
                                 vec![],
-                                Some(area_weight.clone()),
                             )
                             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                             let area_tally_results = counting_algorithm_area
@@ -424,7 +428,6 @@ impl Pipe for DoTally {
                         sum_auditable_votes,
                         final_only_sheet_results,
                         area_tally_results_for_contest,
-                        None, // No weight at contest level
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                     let final_res = final_counting_algorithm

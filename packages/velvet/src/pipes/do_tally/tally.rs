@@ -22,38 +22,35 @@ pub enum TallyType {
 pub struct Tally {
     pub id: TallyType,
     pub contest: Contest,
-    pub ballots: Vec<DecodedVoteContest>,
+    pub ballots: Vec<(DecodedVoteContest, Option<u64>)>, // (ballot, weight)
     pub census: u64,
     pub auditable_votes: u64,
     pub tally_sheet_results: Vec<ContestResult>,
     pub tally_results: Vec<ContestResult>,
-    pub vote_weight: Option<u64>,
 }
 
 impl Tally {
     #[instrument(err, skip(contest, tally_results), name = "Tally::new")]
     pub fn new(
         contest: &Contest,
-        ballots_files: Vec<PathBuf>,
+        ballots_files: Vec<(PathBuf, Option<u64>)>,
         census: u64,
         auditable_votes: u64,
         tally_sheet_results: Vec<ContestResult>,
         tally_results: Vec<ContestResult>,
-        vote_weight: Option<u64>,
     ) -> Result<Self> {
         let contest = contest.clone();
-        let ballots = Self::get_ballots(ballots_files)?;
+        let ballots_with_weights: Vec<(DecodedVoteContest, Option<u64>)> = Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
 
         Ok(Self {
             id,
             contest,
-            ballots,
+            ballots: ballots_with_weights,
             census,
             auditable_votes,
             tally_sheet_results,
             tally_results,
-            vote_weight,
         })
     }
 
@@ -71,19 +68,20 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
-    fn get_ballots(files: Vec<PathBuf>) -> Result<Vec<DecodedVoteContest>> {
+    fn get_ballots(files: Vec<(PathBuf,Option<u64>)>) -> Result<Vec<(DecodedVoteContest,Option<u64>)>> {
         let mut res = vec![];
 
-        for f in files {
+        for (f, weight) in files {
             let f = fs::File::open(&f).map_err(|e| PipesError::FileAccess(f, e))?;
             let votes: Vec<DecodedVoteContest> = parse_file(f)?;
-            res.push(votes);
+            let votes_with_weight: Vec<(DecodedVoteContest, Option<u64>)> = votes.into_iter().map(|v| (v, weight)).collect();
+            res.push(votes_with_weight);
         }
 
         Ok(res
             .into_iter()
             .flatten()
-            .collect::<Vec<DecodedVoteContest>>())
+            .collect::<Vec<(DecodedVoteContest, Option<u64>)>>())
     }
 }
 
@@ -159,16 +157,15 @@ pub fn process_tally_sheet(
 #[instrument(err, skip_all)]
 pub fn create_tally(
     contest: &Contest,
-    ballots_files: Vec<PathBuf>,
+    ballots_files: Vec<(PathBuf, Option<u64>)>, // (path, weight)
     census: u64,
     auditable_votes: u64,
     tally_sheet_results: Vec<ContestResult>,
     tally_results: Vec<ContestResult>,
-    vote_weight: Option<u64>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
-    let ballots_files = ballots_files
+    let ballots_files: Vec<(PathBuf, Option<u64>)> = ballots_files
         .iter()
-        .filter(|f| {
+        .filter(|(f, _weight)| {
             let exist = f.exists();
             if !exist {
                 println!(
@@ -179,7 +176,7 @@ pub fn create_tally(
             }
             exist
         })
-        .map(|p| PathBuf::from(p.as_path()))
+        .map(|(p, weight)|  (PathBuf::from(p.as_path()), weight.clone()))
         .collect();
 
     let tally = Tally::new(
@@ -189,7 +186,6 @@ pub fn create_tally(
         auditable_votes,
         tally_sheet_results,
         tally_results,
-        vote_weight,
     )?;
 
     let counting_algorithm = match tally.id {

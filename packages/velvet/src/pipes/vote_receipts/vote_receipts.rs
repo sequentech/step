@@ -59,18 +59,23 @@ impl VoteReceipts {
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(
             contest,
-            vec![path.to_path_buf()],
+            vec![(path.to_path_buf(), None)],
             0,
             0,
             vec![],
             vec![],
-            None,
         )
         .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
+        let ballots = tally
+            .ballots
+            .iter()
+            .map(|(ballot, _weight)| ballot.clone())
+            .collect::<Vec<DecodedVoteContest>>();
+
         let data = TemplateData {
             contest: tally.contest.clone(),
-            ballots: tally.ballots.clone(),
+            ballots,
             election_name: election_input.name.clone(),
             election_annotations: election_input.annotations.clone(),
             election_dates: election_input.dates.clone(),
