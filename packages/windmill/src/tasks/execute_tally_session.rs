@@ -15,7 +15,6 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
-use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
@@ -1172,7 +1171,6 @@ pub async fn execute_tally_session_wrapped(
             new_status_js,
         )
         .await?;
-
         if tally_type_enum == TallyType::INITIALIZATION_REPORT {
             for election_id in election_ids_default {
                 set_election_initialization_report_generated(

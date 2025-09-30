@@ -141,6 +141,12 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
             return
         }
 
+        // If the requested format is tar_gz, check if a tar_gz_pdfs version exists.
+        // If it does, use it as the primary download source.
+        if (format === EExportFormat.TAR_GZ && documents?.tar_gz_pdfs) {
+           documentId = documents.tar_gz_pdfs;
+        }
+
         console.log("handleExport setPerformDownload")
         if (format === EExportFormat.RECEIPTS_PDF) {
             setPerformDownload({
