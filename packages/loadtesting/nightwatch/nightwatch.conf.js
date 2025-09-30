@@ -1,8 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+let src_folders = ["src", "/nightwatch/src/admin-portal", "/nightwatch/src/voting-portal"];
+if (process.env.E2E_TESTS_DIR !== undefined && process.env.E2E_TESTS_DIR !== "") {
+    src_folders = process.env.E2E_TESTS_DIR.split(";");
+}
+
 module.exports = {
-  src_folders: ["src"],
+  src_folders,
 
   webdriver: {
     start_process: true,
@@ -11,7 +17,7 @@ module.exports = {
 
   test_settings: {
     default: {
-      filter: "**/*.js",
+      filter: "**/*.{js,ts}",
       desiredCapabilities: {
         browserName: "chrome",
         'goog:chromeOptions': {

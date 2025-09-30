@@ -20,12 +20,6 @@ fi
 SUBCOMMAND="$1"
 shift
 
-VOTING_URL_VALUE="${VOTING_URL:-$LOADTESTING_VOTING_URL}"
-# Export unified VOTING_URL so downstream scripts (run_bg_voting.sh) can consume it
-if [ -n "$VOTING_URL_VALUE" ]; then
-  export VOTING_URL="$VOTING_URL_VALUE"
-fi
-
 # Validate subcommand
 case "$SUBCOMMAND" in
   e2e|load-tool|vote-cast|shell|sleep|step-cli)
@@ -52,9 +46,9 @@ case "$SUBCOMMAND" in
     ;;
 esac
 
-# Parse CLI args (only for vote-cast subcommand)
 if [ "$SUBCOMMAND" = "e2e" ]; then
-  exec /run_bg_voting.sh "$@"
+  cd /nightwatch
+  exec npm exec nightwatch "$@"
 elif [ "$SUBCOMMAND" = "load-tool" ]; then
   exec /opt/sequent-step/load-tool "$@"
 elif [ "$SUBCOMMAND" = "vote-cast" ]; then

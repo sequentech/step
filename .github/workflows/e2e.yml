@@ -4,13 +4,9 @@
 
 name: E2E Tests
 on:
+  # Remove me on merge
+  pull_request:
   workflow_dispatch:
-    inputs:
-      loadtestingImage:
-        description: 'Load testing image to use'
-        required: true
-        type: string
-        default: '133529410358.dkr.ecr.eu-west-1.amazonaws.com/loadtesting'
 jobs:
   e2e:
     runs-on:
@@ -27,21 +23,9 @@ jobs:
         name: devenv
     - name: Install devenv.sh
       run: nix profile install nixpkgs#devenv
-    - name: Run admin portal
-      run: |
-        pushd .devcontainer &> /dev/null
-        cp .env.development .env
-        docker compose up -d --build
-        popd &> /dev/null
-        devenv shell -- sh -c 'cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials'
-        devenv shell -- sh -c 'cd packages && yarn start:admin-portal &'
-        devenv shell -- sh -c 'cd packages && yarn start:voting-portal &'
-        echo "Waiting for http://localhost:3000 to become ready..."
-        npx wait-on http://localhost:3000 --timeout 30m
-        echo "Waiting for http://localhost:3002 to become ready..."
-        npx wait-on http://localhost:3002 --timeout 30m
-    - name: Set loadtestingImage variable with default fallback
-      run: echo "LOADTESTING_IMAGE=${{ github.event.inputs.loadtestingImage || 'loadtesting:latest' }}" >> $GITHUB_ENV
+    - name: Run admin and voting portal
+      run: scripts/e2e-up.sh
+    - run: echo 'LOADTESTING_IMAGE=loadtesting:latest' >> $GITHUB_ENV
     - name: Build image
       uses: docker/build-push-action@v5
       with:
@@ -51,4 +35,4 @@ jobs:
         tags: ${{ env.LOADTESTING_IMAGE }}
     - name: Run e2e tests
       run: |
-        docker run ${{ env.LOADTESTING_IMAGE }} e2e --voting-url http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/33f18502-a67c-4853-8333-a58630663559/login
+        docker run --network=host ${{ env.LOADTESTING_IMAGE }} e2e --voting-url http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/33f18502-a67c-4853-8333-a58630663559/login
