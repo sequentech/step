@@ -7,6 +7,14 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Duplicate Votes is slow
+
+Remove slowness of the duplicate votes script by disabling within the insert
+sql transaction some slow constrain.
+
+- Issue: [#8475](https://github.com/sequentech/meta/issues/8475)
+
+
 ## 🐞 Inconsistencies in Voting Portal
 
 Removed inconsistencies and bugs when selecting candidates, explicit blank,
