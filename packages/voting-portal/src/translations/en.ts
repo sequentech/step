@@ -37,6 +37,14 @@ const englishTranslation = {
                 continue: "Continue",
                 cancel: "Cancel",
             },
+            warningDialog: {
+                title: "Review your ballot",
+                content:
+                    "Your ballot contains selections that may need your attention (such as selecting fewer options than allowed). Your ballot is valid and will be counted as submitted.",
+                ok: "Back and review",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
         },
         startScreen: {
             startButton: "Start Voting",

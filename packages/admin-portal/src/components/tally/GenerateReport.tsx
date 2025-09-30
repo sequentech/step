@@ -45,7 +45,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
         e.preventDefault()
         e.stopPropagation()
         setDocumentId(null)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let {data} = await generateTemplate({
                 variables: {
@@ -75,7 +75,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     }
 
     return (
-        <MenuItem onClick={onClick}>
+        <MenuItem onClick={onClick} key={reportType}>
             <Box
                 sx={{
                     textOverflow: "ellipsis",

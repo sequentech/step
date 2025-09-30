@@ -211,7 +211,9 @@ export type DataListPgAudit = {
 
 export type DeleteElectionEvent = {
     __typename?: "DeleteElectionEvent"
+    error_msg?: Maybe<Scalars["String"]["output"]>
     id?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type DeleteUserOutput = {
@@ -374,6 +376,13 @@ export type ExportOptions = {
     s3_files?: InputMaybe<Scalars["Boolean"]["input"]>
     scheduled_events?: InputMaybe<Scalars["Boolean"]["input"]>
     tally?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+export type ExportTallyResultsOutput = {
+    __typename?: "ExportTallyResultsOutput"
+    document_id: Scalars["String"]["output"]
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution: Tasks_Execution_Type
 }
 
 export type ExportTasksExecutionOutput = {
@@ -1268,6 +1277,7 @@ export type Mutation_Root = {
     export_election_event?: Maybe<ExportElectionEventOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
+    export_tally_results?: Maybe<ExportTallyResultsOutput>
     export_tasks_execution?: Maybe<ExportTasksExecutionOutput>
     export_template?: Maybe<ExportTemplateOutput>
     export_tenant_config?: Maybe<DocumentTaskOutput>
@@ -2335,6 +2345,12 @@ export type Mutation_RootExport_Election_Event_LogsArgs = {
 /** mutation root */
 export type Mutation_RootExport_Election_Event_TasksArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** mutation root */
+export type Mutation_RootExport_Tally_ResultsArgs = {
+    election_event_id: Scalars["String"]["input"]
+    tally_session_id: Scalars["String"]["input"]
 }
 
 /** mutation root */

@@ -81,7 +81,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
         setOpenExport(false)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT, undefined)
         setLoadingExport(true)
         const isEncrypted = encryptWithPassword || bulletinBoard || reports || applications
 
@@ -285,7 +285,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             setExportDocumentId(undefined)
                             setOpenExport(false)
                         }}
-                        onSucess={onDownloadSuccess}
+                        onSuccess={onDownloadSuccess}
                     />
                 </>
             )}

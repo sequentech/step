@@ -7,14 +7,22 @@ use std::num::TryFromIntError;
 use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
+use crate::ballot_codec::{
+    check_blank_vote_policy, check_invalid_vote_policy,
+    check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
+    check_under_vote_policy,
+};
 use crate::mixed_radix;
 use crate::plaintext::{
-    DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
+    map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest,
+    InvalidPlaintextError, InvalidPlaintextErrorType,
 };
 use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
+use crate::util::normalize_vote::normalize_election;
 use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
 
@@ -470,8 +478,11 @@ impl BallotChoices {
                 contest.max_votes.try_into().map_err(|_| {
                     format!("i64 -> usize conversion on contest max_votes")
                 })?;
-            let next =
-                Self::decode_contest(&contest, &choices[choice_index..])?;
+            let next = Self::decode_contest(
+                &contest,
+                &choices[choice_index..],
+                is_explicit_invalid,
+            )?;
             choice_index += max_votes;
             contest_choices.push(next);
         }
@@ -505,11 +516,16 @@ impl BallotChoices {
     fn decode_contest(
         contest: &Contest,
         choices: &[u64],
+        is_explicit_invalid: bool,
     ) -> Result<DecodedContestChoices, String> {
+        let mut decoded_contest = DecodedContestChoices::new(
+            contest.id.clone(),
+            vec![],
+            vec![],
+            vec![],
+        );
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id.
-        let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
-        let mut invalid_alerts: Vec<InvalidPlaintextError> = vec![];
         let mut sorted_candidates: Vec<Candidate> = contest
             .candidates
             .clone()
@@ -560,6 +576,7 @@ impl BallotChoices {
         // Duplicate values will be ignored
         let unique: HashSet<DecodedContestChoice> =
             HashSet::from_iter(next_choices.iter().cloned());
+        decoded_contest.choices = unique.clone().into_iter().collect();
 
         let num_selected_candidates = next_choices.len();
 
@@ -579,37 +596,46 @@ impl BallotChoices {
         }
 
         let presentation = contest.presentation.clone().unwrap_or_default();
-        let under_vote_policy =
-            presentation.under_vote_policy.clone().unwrap_or_default();
 
-        if under_vote_policy != EUnderVotePolicy::ALLOWED
-            && num_selected_candidates < max_votes
-            && num_selected_candidates >= min_votes
-        {
-            invalid_alerts.push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::Implicit,
-                candidate_id: None,
-                message: Some("errors.implicit.underVote".to_string()),
-                message_map: HashMap::from([
-                    ("type".to_string(), "alert".to_string()),
-                    (
-                        "numSelected".to_string(),
-                        num_selected_candidates.to_string(),
-                    ),
-                    ("min".to_string(), min_votes.to_string()),
-                    ("max".to_string(), max_votes.to_string()),
-                ]),
-            });
+        let invalid_vote_policy_check =
+            check_invalid_vote_policy(&presentation, is_explicit_invalid);
+        decoded_contest.update(invalid_vote_policy_check);
+
+        let (max_votes_opt, min_votes_opt, maxmin_errors) =
+            check_max_min_votes_policy(contest.max_votes, contest.min_votes);
+        decoded_contest.update(maxmin_errors);
+
+        if let Some(max_votes_val) = max_votes_opt.clone() {
+            let overvote_check = check_over_vote_policy(
+                &presentation,
+                num_selected_candidates,
+                max_votes_val,
+            );
+            decoded_contest.update(overvote_check);
+        }
+        if let Some(min_votes_val) = min_votes_opt.clone() {
+            let min_check =
+                check_min_vote_policy(num_selected_candidates, min_votes_val);
+            decoded_contest.update(min_check);
         }
 
-        let c = DecodedContestChoices::new(
-            contest.id.clone(),
-            unique.into_iter().collect(),
-            invalid_errors,
-            invalid_alerts,
+        let under_vote_check = check_under_vote_policy(
+            &presentation,
+            num_selected_candidates,
+            max_votes_opt.clone(),
+            min_votes_opt.clone(),
         );
+        decoded_contest.update(under_vote_check);
 
-        Ok(c)
+        // handle blank vote policy
+        let blank_vote_check = check_blank_vote_policy(
+            &presentation,
+            num_selected_candidates,
+            is_explicit_invalid,
+        );
+        decoded_contest.update(blank_vote_check);
+
+        Ok(decoded_contest)
     }
 
     // We are using a "sparse" mixed radix encoding of
@@ -804,12 +830,153 @@ impl BallotChoices {
     }
 }
 
+/// Test multi-contest reencoding functionality
+pub fn test_multi_contest_reencoding(
+    decoded_multi_contests: &Vec<DecodedVoteContest>,
+    ballot_style: &BallotStyle,
+) -> Result<Vec<DecodedVoteContest>, String> {
+    // encode ballot
+    let (plaintext, _ballot_choices) =
+        encode_to_plaintext_decoded_multi_contest(
+            decoded_multi_contests,
+            ballot_style,
+        )
+        .map_err(|err| format!("Error encoded decoded contests {:?}", err))?;
+
+    let decoded_ballot_choices =
+        BallotChoices::decode_from_30_bytes(&plaintext, ballot_style).map_err(
+            |err| format!("Error decoding ballot choices {:?}", err),
+        )?;
+
+    let output_decoded_contests =
+        map_decoded_ballot_choices_to_decoded_contests(
+            decoded_ballot_choices,
+            &ballot_style.contests,
+        )
+        .map_err(|err| format!("Error mapping decoded contests {:?}", err))?;
+
+    let input_compare =
+        normalize_election(decoded_multi_contests, ballot_style, true)
+            .map_err(|err| format!("Error normalizing input {:?}", err))?;
+
+    let output_compare =
+        normalize_election(&output_decoded_contests, ballot_style, true)
+            .map_err(|err| format!("Error normalizing output {:?}", err))?;
+
+    if input_compare != output_compare {
+        return Err(format!(
+            "Consistency check failed. Input != Output, {:?} != {:?}",
+            input_compare, output_compare
+        ));
+    }
+
+    Ok(output_decoded_contests)
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
     use crate::ballot::{BallotStyle, Candidate, Contest};
+    use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
+    use serde_json::json;
+
+    #[test]
+    fn test_multi_contest_reencoding_with_explicit_invalid() {
+        // Create test data matching the scenario with explicit invalid
+        // candidates
+        let ballot_selection_json = json!([{
+            "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+            "is_explicit_invalid": true,
+            "invalid_errors": [],
+            "invalid_alerts": [],
+            "choices": [
+                {
+                    "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                    "selected": -1
+                },
+                {
+                    "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                    "selected": -1
+                }
+            ]
+        }]);
+
+        // Create a minimal ballot style for testing
+        let election_json = json!({
+            "id": "b48da6fd-f7e5-4868-9abb-e23452f373ad",
+            "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+            "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+            "public_key": {
+                "public_key": "xEH1M/iIdDkZg1ENaP7yPZWtaOcnYLTmK+sFYmuDJVk",
+                "is_demo": false
+            },
+            "area_id": "dcaf94aa-e2f8-460b-8da6-2a7907c04664",
+            "contests": [{
+                "id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                "name": "Contest",
+                "max_votes": 1,
+                "min_votes": 0,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": "plurality-at-large",
+                "is_encrypted": true,
+                "candidates": [
+                    {
+                        "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "Null",
+                        "presentation": {
+                            "is_explicit_invalid": true
+                        }
+                    },
+                    {
+                        "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
+                        "tenant_id": "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                        "election_event_id": "a6de87ab-6f00-4349-b8e3-7d0471e4a211",
+                        "election_id": "15d8c59d-762e-4f43-b03f-e0c31f24d076",
+                        "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
+                        "name": "A"
+                    }
+                ]
+            }],
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            }
+        });
+
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        // This test should pass now with the fix for explicit invalid
+        // candidates
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        assert!(
+            result.is_ok(),
+            "Multi-contest reencoding with explicit invalid candidate failed: {:?}",
+            result.err()
+        );
+
+        // Verify the output maintains the explicit invalid flag
+        let output_contests = result.unwrap();
+        assert_eq!(output_contests.len(), 1);
+        assert_eq!(output_contests[0].is_explicit_invalid, true);
+    }
 
     #[test]
     fn test_roundtrip() {

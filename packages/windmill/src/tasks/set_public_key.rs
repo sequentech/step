@@ -3,22 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::{keys_ceremony, trustee};
-use anyhow::{anyhow, Context, Result as AnyhowResult};
-use b3::messages::message::Message;
-use b3::messages::statement::StatementType;
-use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
-use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::{
-    KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee as BasicTrustee, TrusteeStatus,
-};
-use sequent_core::types::hasura::core::Trustee;
-use serde_json::Value;
-use std::collections::HashSet;
-use strand::signature::StrandSignaturePk;
-use tracing::{event, info, instrument, Level};
-
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::sort_logs;
@@ -27,6 +11,22 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::services::public_keys;
 use crate::types::error::Result;
+use anyhow::{anyhow, Context, Result as AnyhowResult};
+use b3::messages::message::Message;
+use b3::messages::statement::StatementType;
+use celery::error::TaskError;
+use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
+use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::{
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee as BasicTrustee,
+    TrusteeStatus,
+};
+use sequent_core::types::hasura::core::Trustee;
+use serde_json::Value;
+use std::collections::HashSet;
+use strand::signature::StrandSignaturePk;
+use tracing::{event, info, instrument, Level};
 
 #[instrument(skip(trustees_hasura, messages), err)]
 fn get_trustee_status(
@@ -128,7 +128,14 @@ pub async fn set_public_key_impl(
     let mut logs = current_status.logs.clone();
     logs.append(&mut new_logs);
 
-    let new_execution_status: String = KeysCeremonyExecutionStatus::IN_PROGRESS.to_string();
+    let keys_ceremony_policy = keys_ceremony.policy().clone();
+
+    // if we have a public key, and the policy is automated, we can set the status to success
+    let new_execution_status = match (keys_ceremony_policy.clone(), public_key_opt.clone()) {
+        (CeremoniesPolicy::AUTOMATED_CEREMONIES, Some(_)) => KeysCeremonyExecutionStatus::SUCCESS,
+        _ => KeysCeremonyExecutionStatus::IN_PROGRESS,
+    };
+
     let new_status: Value = serde_json::to_value(KeysCeremonyStatus {
         stop_date: Some(get_now_utc_unix_ms().to_string()),
         public_key: public_key_opt.clone(),
@@ -153,7 +160,7 @@ pub async fn set_public_key_impl(
         &election_event_id,
         &keys_ceremony_id,
         &new_status,
-        &new_execution_status,
+        &new_execution_status.to_string(),
     )
     .await?;
 

@@ -755,7 +755,7 @@ export const TallyCeremony: React.FC = () => {
                 return
             }
 
-            const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
+            const currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE, undefined)
             try {
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {
@@ -1131,6 +1131,8 @@ export const TallyCeremony: React.FC = () => {
                                                     resultsEvent?.[0].election_event_id
                                                 }
                                                 itemName={resultsEvent?.[0]?.name ?? "event"}
+                                                tenantId={tenantId}
+                                                resultsEventId={resultsEventId}
                                             />
                                         ) : null}
                                     </TallyStyles.StyledSpacing>

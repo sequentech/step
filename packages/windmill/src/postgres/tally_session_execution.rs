@@ -118,6 +118,7 @@ pub async fn insert_tally_session_execution(
     Ok(value.clone())
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_tally_session_executions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -162,6 +163,7 @@ pub async fn get_tally_session_executions(
     Ok(elements)
 }
 
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_last_tally_session_execution(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -339,4 +341,52 @@ pub async fn insert_many_tally_session_executions(
         .collect::<Result<Vec<TallySessionExecution>>>()?;
 
     Ok(inserted)
+}
+
+#[instrument(err, skip_all)]
+pub async fn update_tally_session_execution_documents(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_execution_id: &str,
+    documents: TallySessionDocuments,
+) -> Result<()> {
+    println!(
+        "Updating tally session execution documents:{:?}",
+        &tally_session_execution_id
+    );
+
+    let documents_value = serde_json::to_value(documents)?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                sequent_backend.tally_session_execution
+            SET
+                documents = $1
+            WHERE
+                id = $2 AND
+                tenant_id = $3 AND
+                election_event_id = $4;
+        "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &documents_value,
+                &Uuid::parse_str(tally_session_execution_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(&election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| {
+            anyhow!("Error running query update tally session execution documents: {err}")
+        })?;
+
+    Ok(())
 }
