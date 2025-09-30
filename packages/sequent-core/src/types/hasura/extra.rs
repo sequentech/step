@@ -12,9 +12,7 @@ use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{from_value, Value};
 use std::default::Default;
-use std::ops::Deref;
 use strum_macros::{Display, EnumString};
 
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
@@ -61,21 +59,6 @@ impl ElectionEvent {
         }
 
         Ok(())
-    }
-
-    pub fn get_weighted_voting_policy(&self) -> WeightedVotingPolicy {
-        let event_presentation: Option<Value> = self.presentation.clone();
-        let Some(presentation) = event_presentation else {
-            return WeightedVotingPolicy::default();
-        };
-
-        let policy = presentation
-            .get("weighted_voting_policy")
-            .cloned()
-            .unwrap_or(Value::Null);
-
-        from_value::<WeightedVotingPolicy>(policy)
-            .unwrap_or(WeightedVotingPolicy::default())
     }
 }
 
@@ -128,48 +111,6 @@ impl Candidate {
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-    Copy,
-    Serialize,
-    Deserialize,
-    BorshSerialize,
-    BorshDeserialize,
-)]
-pub struct Weight(Option<u64>);
-
-impl Default for Weight {
-    fn default() -> Self {
-        Self { 0: Some(1) } // default weight is 1
-    }
-}
-
-impl Deref for Weight {
-    type Target = Option<u64>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-#[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    BorshSerialize,
-    BorshDeserialize,
-    Default,
-)]
-pub struct AreaAnnotations {
-    pub weight: Weight,
-}
-
-#[derive(
     Display,
     Serialize,
     Deserialize,
@@ -187,24 +128,4 @@ pub enum TasksExecutionStatus {
     SUCCESS,
     FAILED,
     CANCELLED,
-}
-
-#[derive(
-    Display,
-    Serialize,
-    Deserialize,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
-    Default,
-    JsonSchema,
-)]
-pub enum WeightedVotingPolicy {
-    #[default]
-    #[serde(rename = "disabled-weighted-voting")]
-    DISABLED_WEIGHTED_VOTING,
-    #[serde(rename = "areas-weighted-voting")]
-    AREAS_WEIGHTED_VOTING,
 }

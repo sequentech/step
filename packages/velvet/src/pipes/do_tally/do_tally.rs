@@ -12,7 +12,6 @@ use crate::pipes::{
 };
 use crate::utils::HasId;
 use rayon::prelude::*;
-use sequent_core::{ballot::Contest, services::area_tree::TreeNode, types::hasura::extra::Weight};
 use sequent_core::{
     ballot::{BallotStyle, Candidate},
     ballot_style,
@@ -21,6 +20,10 @@ use sequent_core::{
     types::hasura::core::TallySheet,
     types::tally_sheets::VotingChannel,
     util::path::{get_folder_name, list_subfolders},
+};
+use sequent_core::{
+    ballot::{Contest, Weight},
+    services::area_tree::TreeNode,
 };
 
 use serde::{Deserialize, Serialize};

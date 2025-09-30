@@ -10,11 +10,10 @@ use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 
-use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
+use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates, Weight};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::hasura::extra::Weight;
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};

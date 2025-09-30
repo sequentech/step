@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, CandidatePresentation, ContestPresentation,
+    self, AreaAnnotations, CandidatePresentation, ContestPresentation,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
-    StringifiedPeriodDates,
+    StringifiedPeriodDates, WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core::{self as hasura_types};
-use crate::types::hasura::extra::{AreaAnnotations, WeightedVotingPolicy};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::env;
@@ -103,19 +102,17 @@ pub fn create_ballot_style(
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
     let event_weighted_voting_policy: WeightedVotingPolicy =
-        election_event.get_weighted_voting_policy();
+        election_event_presentation
+            .weighted_voting_policy
+            .clone()
+            .unwrap_or(WeightedVotingPolicy::default());
 
-    let area_annotations: Option<AreaAnnotations> =
-        match (area.annotations, event_weighted_voting_policy) {
-            (
-                Some(annotations),
-                WeightedVotingPolicy::AREAS_WEIGHTED_VOTING,
-            ) => match deserialize_value(annotations) {
-                Ok(mut a) => Some(a),
-                Err(_) => Some(AreaAnnotations::default()),
-            },
-            _ => None,
-        };
+    let mut area_annotations: Option<AreaAnnotations> = None;
+    if event_weighted_voting_policy
+        == WeightedVotingPolicy::AREAS_WEIGHTED_VOTING
+    {
+        area_annotations = area.clone().read_annotations()?;
+    }
 
     Ok(ballot::BallotStyle {
         id,
