@@ -48,6 +48,9 @@ esac
 
 if [ "$SUBCOMMAND" = "e2e" ]; then
   cd /nightwatch
+  if [ $# -eq 0 ]; then
+      exec npm exec nightwatch src/admin-portal src/voting-portal
+  fi
   exec npm exec nightwatch "$@"
 elif [ "$SUBCOMMAND" = "load-tool" ]; then
   exec /opt/sequent-step/load-tool "$@"
