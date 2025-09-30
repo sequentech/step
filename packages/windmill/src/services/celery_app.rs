@@ -50,6 +50,7 @@ use crate::tasks::manage_election_voting_period_end::manage_election_voting_peri
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
+use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_document_pdf::render_document_pdf;
@@ -277,7 +278,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             electoral_log_batch_dispatcher,
             render_document_pdf,
             prepare_publication_preview,
-            export_tally_results_to_xlsx_task
+            export_tally_results_to_xlsx_task,
+            post_tally_task,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -325,6 +327,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),
             export_tally_results_to_xlsx_task::NAME => &Queue::ImportExport.queue_name(&slug),
+            post_tally_task::NAME => &Queue::Reports.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
