@@ -799,11 +799,9 @@ pub fn test_multi_contest_reencoding_js(
         .map_err(|err| format!("Error parsing election: {}", err))
         .into_json()?;
 
-    let output_decoded_contests = test_multi_contest_reencoding(
-        &decoded_multi_contests,
-        &ballot_style,
-    )
-    .map_err(|err| JsValue::from_str(&err))?;
+    let output_decoded_contests =
+        test_multi_contest_reencoding(&decoded_multi_contests, &ballot_style)
+            .map_err(|err| JsValue::from_str(&err))?;
 
     let serializer = Serializer::json_compatible();
     output_decoded_contests

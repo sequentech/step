@@ -531,4 +531,3 @@ mod tests {
         //assert!(auditable_ballot.is_ok());
     }*/
 }
-

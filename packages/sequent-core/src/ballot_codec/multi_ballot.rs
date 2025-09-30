@@ -8,22 +8,23 @@ use super::bigint;
 use super::{vec, RawBallotContest};
 use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
 use crate::ballot_codec::{
-    check_blank_vote_policy, check_invalid_vote_policy, check_max_min_votes_policy,
-    check_min_vote_policy, check_over_vote_policy, check_under_vote_policy,
+    check_blank_vote_policy, check_invalid_vote_policy,
+    check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
+    check_under_vote_policy,
 };
 use crate::mixed_radix;
 use crate::plaintext::{
-    DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
-    map_decoded_ballot_choices_to_decoded_contests,
+    map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest,
+    InvalidPlaintextError, InvalidPlaintextErrorType,
 };
 use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
+use crate::util::normalize_vote::normalize_election;
 use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
-use crate::util::normalize_vote::normalize_election;
-use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 
 /// A multi contest ballot.
 ///
@@ -877,15 +878,14 @@ mod tests {
 
     use super::*;
     use crate::ballot::{BallotStyle, Candidate, Contest};
+    use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
     use serde_json::json;
-    use crate::serialization::deserialize_with_path::deserialize_value;
-
-
 
     #[test]
     fn test_multi_contest_reencoding_with_explicit_invalid() {
-        // Create test data matching the scenario with explicit invalid candidates
+        // Create test data matching the scenario with explicit invalid
+        // candidates
         let ballot_selection_json = json!([{
             "contest_id": "bb08a9eb-49c9-44d7-a25e-b2e142e17b0a",
             "is_explicit_invalid": true,
@@ -959,9 +959,12 @@ mod tests {
         let ballot_style: BallotStyle =
             deserialize_value(election_json).expect("Failed to parse election");
 
-        // This test should pass now with the fix for explicit invalid candidates
-        let result =
-            test_multi_contest_reencoding(&decoded_multi_contests, &ballot_style);
+        // This test should pass now with the fix for explicit invalid
+        // candidates
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
 
         assert!(
             result.is_ok(),

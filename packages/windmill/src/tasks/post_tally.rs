@@ -117,12 +117,11 @@ pub fn find_and_process_html_reports_parallel(
             let bytes =
                 PdfRenderer::render_pdf(render, Some(pdf_options.to_print_to_pdf_options()))
                     .with_context(|| "Error converting html to pdf format")?;
-            
+
             // Note: Creating temp files in parallel needs care, but `write_into_named_temp_file`
             // should be fine as it creates unique files.
-            let (temp_path, _, _) =
-                write_into_named_temp_file(&bytes, "reports-", ".pdf") // Changed extension to pdf for clarity
-                    .with_context(|| "Error writing to temp file")?;
+            let (temp_path, _, _) = write_into_named_temp_file(&bytes, "reports-", ".pdf") // Changed extension to pdf for clarity
+                .with_context(|| "Error writing to temp file")?;
 
             let filename: String = path
                 .file_name()
@@ -133,9 +132,9 @@ pub fn find_and_process_html_reports_parallel(
             let document_name = change_file_extension(&filename, "pdf")
                 .ok_or(anyhow!("Error changing file extension"))?;
 
-            let parent_dir = path
-                .parent()
-                .ok_or_else(|| anyhow!("Could not get parent directory for '{}'", path.display()))?;
+            let parent_dir = path.parent().ok_or_else(|| {
+                anyhow!("Could not get parent directory for '{}'", path.display())
+            })?;
 
             let dest_path = parent_dir.join(&document_name);
 
