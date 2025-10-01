@@ -232,3 +232,8 @@ In the Voting Portal, the lang HTML tag is set to English/en and it doesn't chan
 language. This fixes the issue, which was triggering unwanted automatic translations, for example
 translating to German pages that were already in German.
 
+##  🐞 Duplicate votes is slow
+
+The python script used to duplicate votes for load testing was slow because the table that holds the votes
+includes a trigger function that performs checks. This fix temporarily disables the trigger when inserting
+the votes to improve speed, and then reenables the trigger.
