@@ -1606,6 +1606,7 @@ const englishTranslation = {
                 blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
+                weight: "Weight",
             },
         },
         publish: {

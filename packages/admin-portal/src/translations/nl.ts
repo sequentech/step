@@ -1615,6 +1615,7 @@ const dutchTranslation: TranslationType = {
                 blank_votes_percent: "Percentage Blanco Stemmen",
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
+                weight: "Gewicht",
             },
         },
         publish: {

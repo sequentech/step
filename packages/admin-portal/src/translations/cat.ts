@@ -1629,6 +1629,7 @@ const catalanTranslation: TranslationType = {
                 blank_votes_percent: "Percentatge de vots en blanc",
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
+                weight: "Pes",
             },
         },
         publish: {

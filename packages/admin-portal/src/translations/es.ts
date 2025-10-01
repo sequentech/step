@@ -1619,6 +1619,7 @@ const spanishTranslation: TranslationType = {
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
                 winning_position: "Winning position",
+                weight: "Peso",
             },
         },
         publish: {

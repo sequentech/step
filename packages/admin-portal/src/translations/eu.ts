@@ -1615,6 +1615,7 @@ const basqueTranslation: TranslationType = {
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
+                weight: "Pisua",
             },
         },
         publish: {

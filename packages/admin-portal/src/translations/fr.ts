@@ -1631,6 +1631,7 @@ const frenchTranslation: TranslationType = {
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
+                weight: "Poids",
             },
         },
         publish: {

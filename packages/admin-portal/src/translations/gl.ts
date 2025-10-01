@@ -1620,6 +1620,7 @@ const galegoTranslation: TranslationType = {
                 blank_votes_percent: "Porcentaxe de Votos en Branco",
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",
+                weight: "Peso",
             },
         },
         publish: {
