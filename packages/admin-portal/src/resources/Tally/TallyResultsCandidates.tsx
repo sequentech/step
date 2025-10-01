@@ -37,6 +37,19 @@ interface TallyResultsCandidatesProps {
     resultsEventId: string | null
 }
 
+interface ExtendedMetricsContest {
+    over_votes: number,
+    under_votes: number,
+    votes_actually: number,
+    expected_votes: number,
+    total_ballots: number,
+    weight: number,
+}
+
+interface ParsedAnnotations {
+    extended_metrics: ExtendedMetricsContest
+}
+
 // Define the comparator function
 const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     const maxInt = Number.MAX_SAFE_INTEGER
@@ -83,6 +96,17 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             ),
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
+
+    const weight = useMemo((): number | null => {
+        try {
+            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations 
+                ? JSON.parse(general[0].annotations as string) as ParsedAnnotations
+                : null
+            return parsedAnnotations?.extended_metrics?.weight ?? null
+        } catch {
+            return null
+        }
+    }, [general?.[0]])
 
     useEffect(() => {
         if (results && candidates) {
@@ -276,7 +300,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     {t("tally.table.weight")}
                                 </TableCell>
                                 <TableCell align="right">
-                                    {general?.[0].annotations?.extended_metrics?.weight ?? "-"}
+                                    {weight ?? "-"}
                                 </TableCell>
                                 <TableCell align="right"></TableCell>
                             </TableRow>
