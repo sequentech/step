@@ -8,7 +8,7 @@ import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Results_Area_Contest,
     Sequent_Backend_Results_Area_Contest_Candidate,
-    Sequent_Backend_Election_Event
+    Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
 import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
@@ -40,12 +40,12 @@ interface TallyResultsCandidatesProps {
 }
 
 interface ExtendedMetricsContest {
-    over_votes: number,
-    under_votes: number,
-    votes_actually: number,
-    expected_votes: number,
-    total_ballots: number,
-    weight: number,
+    over_votes: number
+    under_votes: number
+    votes_actually: number
+    expected_votes: number
+    total_ballots: number
+    weight: number
 }
 
 interface ParsedAnnotations {
@@ -101,8 +101,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
     const weight = useMemo((): number | null => {
         try {
-            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations 
-                ? JSON.parse(general[0].annotations as string) as ParsedAnnotations
+            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
+                ? (JSON.parse(general[0].annotations as string) as ParsedAnnotations)
                 : null
             return parsedAnnotations?.extended_metrics?.weight ?? null
         } catch {
@@ -112,10 +112,12 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
 
     const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const weightedVotingForAreas = useMemo((): boolean => {
-        return eventRecord?.presentation?.weighted_voting_policy ===
+        return (
+            eventRecord?.presentation?.weighted_voting_policy ===
             EElectionEventWeightedVotingPolicy.AREAS_WEIGHTED_VOTING
+        )
     }, [eventRecord])
-    
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -308,9 +310,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                     <TableCell component="th" scope="row">
                                         {t("tally.table.weight")}
                                     </TableCell>
-                                    <TableCell align="right">
-                                        {weight ?? "-"}
-                                    </TableCell>
+                                    <TableCell align="right">{weight ?? "-"}</TableCell>
                                     <TableCell align="right"></TableCell>
                                 </TableRow>
                             )}
