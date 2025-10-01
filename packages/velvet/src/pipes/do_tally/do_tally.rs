@@ -306,9 +306,15 @@ impl Pipe for DoTally {
                                 vec![],
                             )
                             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                            let area_tally_results = counting_algorithm_area
+                            let mut area_tally_results = counting_algorithm_area
                                 .tally()
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+                            if let Some(extended_metrics) =
+                                area_tally_results.extended_metrics.as_mut()
+                            {
+                                extended_metrics.weight = area_weight;
+                            }
 
                             fs::create_dir_all(&base_output_path)?;
                             let file_path_area = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
@@ -480,6 +486,7 @@ pub struct ExtendedMetricsContest {
     pub expected_votes: u64,
     //Total counted ballots
     pub total_ballots: u64,
+    pub weight: Weight,
 }
 
 impl ExtendedMetricsContest {

@@ -271,6 +271,15 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                         : "-"}
                                 </TableCell>
                             </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.weight")}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].annotations?.extended_metrics?.weight ?? "-"}
+                                </TableCell>
+                                <TableCell align="right"></TableCell>
+                            </TableRow>
                         </TableBody>
                     </Table>
                 </TableContainer>
