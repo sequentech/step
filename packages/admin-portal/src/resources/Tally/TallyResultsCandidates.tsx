@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useGetList, useGetOne} from "react-admin"
+import {useGetList, useGetOne, useRecordContext} from "react-admin"
 
 import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Results_Area_Contest,
     Sequent_Backend_Results_Area_Contest_Candidate,
+    Sequent_Backend_Election_Event
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
 import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
@@ -27,6 +28,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -108,6 +110,12 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         }
     }, [general?.[0]])
 
+    const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()
+    const weightedVotingForAreas = useMemo((): boolean => {
+        return eventRecord?.presentation?.weighted_voting_policy ===
+            EElectionEventWeightedVotingPolicy.AREAS_WEIGHTED_VOTING
+    }, [eventRecord])
+    
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -295,15 +303,17 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                         : "-"}
                                 </TableCell>
                             </TableRow>
-                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
-                                <TableCell component="th" scope="row">
-                                    {t("tally.table.weight")}
-                                </TableCell>
-                                <TableCell align="right">
-                                    {weight ?? "-"}
-                                </TableCell>
-                                <TableCell align="right"></TableCell>
-                            </TableRow>
+                            {weightedVotingForAreas && (
+                                <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                    <TableCell component="th" scope="row">
+                                        {t("tally.table.weight")}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        {weight ?? "-"}
+                                    </TableCell>
+                                    <TableCell align="right"></TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </TableContainer>
