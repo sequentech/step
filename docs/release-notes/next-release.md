@@ -225,3 +225,10 @@ Event is created, the sidebar is automatically updated.
 
 Added a post tally task that renders all the html reports to pdf. The pdfs are 
 included into the event tar.gz file that can be downloaded from the Tally results page in Admin portal.
+
+## 🐞 Further translation issues
+
+In the Voting Portal, the lang HTML tag is set to English/en and it doesn't change even when changing the
+language. This fixes the issue, which was triggering unwanted automatic translations, for example
+translating to German pages that were already in German.
+
