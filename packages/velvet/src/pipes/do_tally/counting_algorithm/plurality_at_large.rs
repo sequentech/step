@@ -146,25 +146,27 @@ impl CountingAlgorithm for PluralityAtLarge {
 
                 let mut extended_metrics = ExtendedMetricsContest::default();
                 let mut total_ballots = 0;
+                let mut total_weight = 0;
 
                 for (vote, weight_opt) in votes {
                     let weight = weight_opt.clone().unwrap_or_default();
-                    total_ballots += weight;
+                    total_ballots += 1;
 
                     extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
                     if vote.is_invalid() {
                         if vote.is_explicit_invalid {
-                            count_invalid_votes.explicit += weight;
+                            count_invalid_votes.explicit += 1;
                         } else {
-                            count_invalid_votes.implicit += weight;
+                            count_invalid_votes.implicit += 1;
                         }
-                        count_invalid += weight;
+                        count_invalid += 1;
                     } else {
                         let mut is_blank = true;
 
                         for choice in &vote.choices {
                             if choice.selected >= 0 {
                                 *vote_count.entry(choice.id.clone()).or_insert(0) += weight;
+                                total_weight += weight;
                                 if is_blank {
                                     is_blank = false;
                                 }
@@ -172,10 +174,10 @@ impl CountingAlgorithm for PluralityAtLarge {
                         }
 
                         if is_blank {
-                            count_blank += weight;
+                            count_blank += 1;
                         }
 
-                        count_valid += weight;
+                        count_valid += 1;
                     }
                 }
 
@@ -217,9 +219,8 @@ impl CountingAlgorithm for PluralityAtLarge {
                                 total_count: count_invalid_votes.explicit,
                             })
                         } else {
-                            let percentage_votes = (total_count as f64
-                                / cmp::max(1, count_valid - count_blank) as f64)
-                                * 100.0;
+                            let percentage_votes =
+                                (total_count as f64 / cmp::max(1, total_weight) as f64) * 100.0;
 
                             Ok(CandidateResult {
                                 candidate,

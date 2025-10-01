@@ -349,12 +349,9 @@ impl Pipe for DoTally {
                                             &tally_sheet.id, // Assuming TallySheet has an id field
                                         );
                                     fs::create_dir_all(&output_tally_sheets_folder_path)?;
-                                    let contest_result_sheet = tally::process_tally_sheet(
-                                        &tally_sheet,
-                                        &contest_object,
-                                        area_weight,
-                                    )
-                                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                                    let contest_result_sheet =
+                                        tally::process_tally_sheet(&tally_sheet, &contest_object)
+                                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                                     let output_tally_sheets_file_path =
                                         output_tally_sheets_folder_path
