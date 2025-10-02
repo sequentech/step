@@ -527,11 +527,16 @@ const ConfirmationScreen: React.FC = () => {
             <Typography variant="h5" fontSize="18px" fontWeight="bold">
                 {t("confirmationScreen.verifyCastTitle")}
             </Typography>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography
+                variant="body2"
+                sx={{color: theme.palette.customGrey.main}}
+                id="qr-code-description"
+            >
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
-            <QRContainer>
+            <QRContainer className="qr-container">
                 <QRCode
+                    ariaLabelledby="qr-code-description"
                     value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl ?? ""}
                 />
             </QRContainer>
