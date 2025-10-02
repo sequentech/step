@@ -16,13 +16,19 @@ pages that were already in German.
 
 - Issue: [#8470](https://github.com/sequentech/meta/issues/8470)
 
+## 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections
+
+At the trustees tally ceremony, all elections were fetched instead of only those
+selected to participate in the tally.
+
+- Issue: [#7584](https://github.com/sequentech/meta/issues/7584)
+
 ## 🐞 Duplicate Votes is slow
 
 Remove slowness of the duplicate votes script by disabling within the insert
 sql transaction some slow constrain.
 
 - Issue: [#8475](https://github.com/sequentech/meta/issues/8475)
-
 
 ## 🐞 Inconsistencies in Voting Portal
 
