@@ -589,8 +589,10 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    const confirmStartAction = async () => {
+    const createCeremonyAction = async () => {
         try {
+            console.log("createCeremonyAction. Page: ", page)
+            console.log("createCeremonyAction. Status: ", tallySession?.execution_status)
             setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
                 variables: {
@@ -623,26 +625,29 @@ export const TallyCeremony: React.FC = () => {
     const confirmCeremonyAction = async () => {
         setIsConfirming(true)
         try {
-            const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
-                variables: {
-                    election_event_id: record?.id,
-                    tally_session_id: tallyId,
-                    status: ITallyExecutionStatus.IN_PROGRESS,
-                },
-            })
 
-            if (errors) {
-                notify(t("tally.startTallyError"), {type: "error"})
-                setIsConfirming(false)
-                return
-            }
+            console.log("confirmCeremonyAction.")
 
-            if (nextStatus) {
+            // const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
+            //     variables: {
+            //         election_event_id: record?.id,
+            //         tally_session_id: tallyId,
+            //         status: ITallyExecutionStatus.IN_PROGRESS,
+            //     },
+            // })
+
+            // if (errors) {
+            //     notify(t("tally.startTallyError"), {type: "error"})
+            //     setIsConfirming(false)
+            //     return
+            // }
+
+            // if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
                 refetchTallySession()
                 setIsConfirming(false)
                 setCreatingFlag(null)
-            }
+            // }
         } catch (error) {
             setIsConfirming(false)
             notify(t("tally.startTallyError"), {type: "error"})
@@ -797,6 +802,9 @@ export const TallyCeremony: React.FC = () => {
         steps.push("tally.breadcrumbSteps.results")
         return steps
     }
+
+    console.log("Page: ", page)
+    console.log("Status: ", tallySession?.execution_status)
 
     return (
         <TallyStyles.WizardContainer>
@@ -1225,7 +1233,7 @@ export const TallyCeremony: React.FC = () => {
                     if (result) {
                         if (allowTallyCeremonyCreation.current) {
                             allowTallyCeremonyCreation.current = false
-                            confirmStartAction() // Creates the ceremony
+                            createCeremonyAction() // Creates the ceremony
                         }
                     } else {
                         setIsButtonDisabled(false)
