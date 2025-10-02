@@ -232,3 +232,7 @@ In the Voting Portal, the lang HTML tag is set to English/en and it doesn't chan
 language. This fixes the issue, which was triggering unwanted automatic translations, for example
 translating to German pages that were already in German.
 
+## 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections
+
+At the trustees tally ceremony, all elections were fetched instead of only those
+selected to participate in the tally.
