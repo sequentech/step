@@ -211,14 +211,35 @@ On Candidate Lists for the Voting Portal, the top border was missing.
 Filtering voters by whether they have voted or not wasn't working and a fix
 was implemented.
 
+## 🐞 Inconsistencies in Voting Portal
+
+Removed inconsistencies and bugs when selecting candidates, explicit blank,
+null votes, undervotes, overvotes and with single/multi-contest encoding.
+
 ## 🐞 Errors deleting Election Event
 
 Fixed error deleting election event in specific cases. Also when an Election 
 Event is created, the sidebar is automatically updated.
 
+## ✨ Automatically generate tally documents after tally finishes
+
+Added a post tally task that renders all the html reports to pdf. The pdfs are 
+included into the event tar.gz file that can be downloaded from the Tally results page in Admin portal.
+
+## 🐞 Further translation issues
+
+In the Voting Portal, the lang HTML tag is set to English/en and it doesn't change even when changing the
+language. This fixes the issue, which was triggering unwanted automatic translations, for example
+translating to German pages that were already in German.
+
+## 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections
+
+At the trustees tally ceremony, all elections were fetched instead of only those
+selected to participate in the tally.
+
 ## ✨ Weighted voting for areas
 
-add a new election event policy: `weighted_voting_policy`.
-When the policy is set to `areas-weighted-voting`, it allows assigning a weight
+Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
+When the policy is set to `Weighted Voting for Areas`, it allows assigning a weight
 to each area. Tally results will then be calculated based on these weights, 
 which are taken from the ballot style of each area defined at publication.

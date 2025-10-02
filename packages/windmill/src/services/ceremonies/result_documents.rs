@@ -205,6 +205,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             html: None,
             tar_gz: Some(base_path.display().to_string()),
             tar_gz_original: None,
+            tar_gz_pdfs: None,
             vote_receipts_pdf: None,
         }
     }
@@ -358,6 +359,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 html: None,
                 tar_gz: Some(document.id),
                 tar_gz_original: Some(original_document.id),
+                tar_gz_pdfs: None,
                 vote_receipts_pdf: None,
             };
 
@@ -377,8 +379,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                     results_event_id,
                     &contest.election_event_id,
                     &documents,
-                )
-                .await?;
+                )?;
             }
 
             Ok(documents)
@@ -389,6 +390,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 html: None,
                 tar_gz: None,
                 tar_gz_original: None,
+                tar_gz_pdfs: None,
                 vote_receipts_pdf: None,
             })
         }
@@ -427,6 +429,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             },
             tar_gz: None,
             tar_gz_original: None,
+            tar_gz_pdfs: None,
             vote_receipts_pdf: None,
         }
     }
@@ -555,6 +558,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             },
             tar_gz: None,
             tar_gz_original: None,
+            tar_gz_pdfs: None,
             vote_receipts_pdf: vote_receipts_pdf,
         }
     }
@@ -816,6 +820,7 @@ fn get_area_document_paths(
         },
         tar_gz: None,
         tar_gz_original: None,
+        tar_gz_pdfs: None,
         vote_receipts_pdf: None,
     }
 }
