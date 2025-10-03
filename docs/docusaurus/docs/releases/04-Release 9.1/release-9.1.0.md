@@ -14,11 +14,6 @@ and then went to the /tenant page to select the tenant, the page didn't load
 correctly the first time. This change fixes the issue.
 
 - Issue: [#7086](https://github.com/sequentech/meta/issues/7086)
-- Main commit: `5d4a7424c`
-- Cherry-picks:
-  - release/8.6: `01f5ac3cf`
-  - release/8.7: `439d7a0a8`
-  - release/9.0: `90e5561a9`
 
 
 ## ✨ Add automatic keys/tally ceremonies
@@ -80,10 +75,6 @@ The election name shown in the section "Results & Participation" of the Tally in
 the Admin Portal is shown as 0 rather than its actual name.
 
 - Issue: [#7684](https://github.com/sequentech/meta/issues/7684)
-- Main commit: `70feb9590`
-- Cherry-picks:
-  - release/9.0: `f3951c1ad`
-  - release/9.1: `fb6655339`
 
 ## 🐞 Error message in voting portal should be a warning
 
@@ -92,10 +83,6 @@ ballot. In this case the dialog text should be different than in the case of
 an invalid/blank ballot.
 
 - Issue: [#8091](https://github.com/sequentech/meta/issues/8091)
-- Main commit: `1755ef677`
-- Cherry-picks:
-  - release/9.0: `786b6e6ff`
-  - release/9.1: `dd97b6f51`
 
 ## 🐞 Errors deleting Election Event
 
@@ -103,10 +90,6 @@ Fixed error deleting election event in specific cases. Also when an Election
 Event is created, the sidebar is automatically updated.
 
 - Issue: [#8298](https://github.com/sequentech/meta/issues/8298)
-- Main commit: `8bd1b0167`
-- Cherry-picks:
-  - release/9.0: `2a5a42e76`
-  - release/9.1: `61d3e0997`
 
 ## ✨ Improve demo mode
 
