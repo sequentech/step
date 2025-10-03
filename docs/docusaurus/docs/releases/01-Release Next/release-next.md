@@ -36,3 +36,8 @@ At the trustees tally ceremony, all elections were fetched instead of only those
 selected to participate in the tally.
 
 - Issue: [#7584](https://github.com/sequentech/meta/issues/7584)
+
+## ✨ Move release notes to Docusaurus
+
+Moved developer release notes to Docusaurus. Updated release notes for various
+existing versions, `v8.7.5`, `v8.7.6`, `v9.1.0` and `v9.1.1`.
