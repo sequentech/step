@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Release Notes 9.1.0 | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2047/docs/releases/Release 9.1/release-9.1.0"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes 9.1.0 | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2047/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2047/docs/releases/Release 9.1/release-9.1.0"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2047/docs/releases/Release 9.1/release-9.1.0" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2047/docs/releases/Release 9.1/release-9.1.0" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes 9.1.0","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2047/docs/releases/Release 9.1/release-9.1.0"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2047/assets/css/styles.fe236151.css">
-<script src="/docusaurus/pr-preview/pr-2047/assets/js/runtime~main.f7de4cf2.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2047/assets/js/runtime~main.fca8c5e8.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2047/assets/js/main.d76776cf.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -17,14 +17,6 @@ and then went to the /tenant page to select the tenant, the page didn&#x27;t loa
 correctly the first time. This change fixes the issue.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/7086" target="_blank" rel="noopener noreferrer">#7086</a></li>
-<li>Main commit: <code>5d4a7424c</code></li>
-<li>Cherry-picks:<!-- -->
-<ul>
-<li>release/8.6: <code>01f5ac3cf</code></li>
-<li>release/8.7: <code>439d7a0a8</code></li>
-<li>release/9.0: <code>90e5561a9</code></li>
-</ul>
-</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-add-automatic-keystally-ceremonies">✨ Add automatic keys/tally ceremonies<a href="#-add-automatic-keystally-ceremonies" class="hash-link" aria-label="Direct link to ✨ Add automatic keys/tally ceremonies" title="Direct link to ✨ Add automatic keys/tally ceremonies">​</a></h2>
 <p>Add a new Ceremonies Policy at the election event level.
@@ -73,13 +65,6 @@ it goes correctly or the errors if not.</p>
 the Admin Portal is shown as 0 rather than its actual name.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/7684" target="_blank" rel="noopener noreferrer">#7684</a></li>
-<li>Main commit: <code>70feb9590</code></li>
-<li>Cherry-picks:<!-- -->
-<ul>
-<li>release/9.0: <code>f3951c1ad</code></li>
-<li>release/9.1: <code>fb6655339</code></li>
-</ul>
-</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-error-message-in-voting-portal-should-be-a-warning">🐞 Error message in voting portal should be a warning<a href="#-error-message-in-voting-portal-should-be-a-warning" class="hash-link" aria-label="Direct link to 🐞 Error message in voting portal should be a warning" title="Direct link to 🐞 Error message in voting portal should be a warning">​</a></h2>
 <p>Sometimes the voting portal shows an alert dialog but the ballot is a valid
@@ -87,26 +72,12 @@ ballot. In this case the dialog text should be different than in the case of
 an invalid/blank ballot.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/8091" target="_blank" rel="noopener noreferrer">#8091</a></li>
-<li>Main commit: <code>1755ef677</code></li>
-<li>Cherry-picks:<!-- -->
-<ul>
-<li>release/9.0: <code>786b6e6ff</code></li>
-<li>release/9.1: <code>dd97b6f51</code></li>
-</ul>
-</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-errors-deleting-election-event">🐞 Errors deleting Election Event<a href="#-errors-deleting-election-event" class="hash-link" aria-label="Direct link to 🐞 Errors deleting Election Event" title="Direct link to 🐞 Errors deleting Election Event">​</a></h2>
 <p>Fixed error deleting election event in specific cases. Also when an Election
 Event is created, the sidebar is automatically updated.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/8298" target="_blank" rel="noopener noreferrer">#8298</a></li>
-<li>Main commit: <code>8bd1b0167</code></li>
-<li>Cherry-picks:<!-- -->
-<ul>
-<li>release/9.0: <code>2a5a42e76</code></li>
-<li>release/9.1: <code>61d3e0997</code></li>
-</ul>
-</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-improve-demo-mode">✨ Improve demo mode<a href="#-improve-demo-mode" class="hash-link" aria-label="Direct link to ✨ Improve demo mode" title="Direct link to ✨ Improve demo mode">​</a></h2>
 <p>With this change, the DEMO tiled background and the Demo warning dialog
