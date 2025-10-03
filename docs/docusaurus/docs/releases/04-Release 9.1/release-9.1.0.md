@@ -188,9 +188,44 @@ Also shortened the spanish translations.
 
 - Issue: [#6806](https://github.com/sequentech/meta/issues/6806)
 
+## 🐞 Voter actions are not logged
+
+Voter actions were not being logged because they were published to a message queue
+that didn't include the environment prefix.
+
+- Issue: [#7561](https://github.com/sequentech/meta/issues/7561)
+
+## ✨ Voting Booth: Security confirmation checkbox support
+
+Add a security confirmation checkbox to the election Start Screen. Enable it from
+the Election > Data > Advanced Configurations in the Admin Portal, then configure
+it from  Election > Data > General translations section.
+
+- Issue: [#7495](https://github.com/sequentech/meta/issues/7495)
+
+## ✨ Voting Portal > Start Screen: Allow Showing Election Event Title instead of Election Title
+
+The title of the Start Screen (Voting Portal) can be to either the election title or the Election Event Title. 
+The default value is the Election title, so there is no action required by the admin.
+
+This an be changed at election level > Data > Advanced Configuration.
+
+- Issue: [#7252](https://github.com/sequentech/meta/issues/7252)
 
 
+## ✨ Voting Portal Immutable Logs table
 
+To enable the feature change the policy in Admin Portal at Election Event level, 
+Data > Ballot Design > Show Cast Vote Logs Tab.
+To see the Immutable logs of the type `CastVote` go to the Voting Portal landing page
+/election-chooser > "Locate Your Ballot" button, there the tab LOGS should appear.
 
+- Issue: [#6684](https://github.com/sequentech/meta/issues/6684)
 
+## 🐞 Voting script for loadtesting takes screenshots when it shouldn't
 
+The loadtesting script for voting with nightwatch was saving some screenshots
+event when the screenshots option was disabled. This took a lot of space in the
+tests, filling in the disk.
+
+- Issue: [#7753](https://github.com/sequentech/meta/issues/7753)
