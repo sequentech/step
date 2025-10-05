@@ -12,6 +12,7 @@ import {
     useGetOne,
     Toolbar,
     SaveButton,
+    required,
     useUpdate,
     useNotify,
     RaRecord,
@@ -48,6 +49,7 @@ import {
     ILanguageConf,
     ICandidateUrl,
     IElectionPresentation,
+    IInvalidVotePosition,
 } from "@sequentech/ui-core"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {CANDIDATE_TYPES} from "./constants"
@@ -181,6 +183,17 @@ export const CandidateDataForm: React.FC<{
         },
         [electionEvent]
     )
+
+    const invalidVotePositionChoices = () => {
+        const choices: {id: IInvalidVotePosition | "null"; name: string}[] = Object.values(
+            IInvalidVotePosition
+        ).map((value) => ({
+            id: value,
+            name: t(`candidateScreen.invalidVotePosition.${value}`),
+        }))
+        choices.unshift({id: "null", name: t("candidateScreen.invalidVotePosition.null")})
+        return choices
+    }
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
@@ -437,6 +450,17 @@ export const CandidateDataForm: React.FC<{
                                 <BooleanInput
                                     source={`presentation.is_write_in`}
                                     label={t("candidateScreen.edit.isWriteIn")}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.invalid_vote_position`}
+                                    choices={invalidVotePositionChoices()}
+                                    format={(value) => (typeof value == "string" ? value : "null")}
+                                    parse={(value) => (value == "null" ? null : value)}
+                                    label={t(`candidateScreen.invalidVotePosition.label`)}
+                                    emptyValue={t(`candidateScreen.invalidVotePosition.null`)}
+                                    defaultValue={null}
+                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>

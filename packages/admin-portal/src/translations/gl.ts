@@ -1209,6 +1209,12 @@ const galegoTranslation: TranslationType = {
                 "invalid-vote": "Voto Nulo",
                 "blank-vote": "Voto en Branco",
             },
+            invalidVotePosition: {
+                label: "Posición do Voto Nulo",
+                null: "Ningunha (Por defecto)",
+                top: "Arriba",
+                bottom: "Abaixo",
+            },
             error: {},
             createCandidateSuccess: "Candidato creado",
             createCandidateError: "Erro ao crear o candidato",

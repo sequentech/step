@@ -1204,6 +1204,12 @@ const basqueTranslation: TranslationType = {
                 "invalid-vote": "Baliogabeko Botoa",
                 "blank-vote": "Boto Zuria",
             },
+            invalidVotePosition: {
+                label: "Baliogabeko Botoaren Posizioa",
+                null: "Ezer ez (Lehenetsia)",
+                top: "Goian",
+                bottom: "Behean",
+            },
             error: {},
             createCandidateSuccess: "Hautagaia sortua",
             createCandidateError: "Errorea hautagaia sortzerakoan",
