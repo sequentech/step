@@ -119,10 +119,27 @@ export const Question: React.FC<IQuestionProps> = ({
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
-    let [invalidBottomCandidates, invalidTopCandidates] = splitList(
+
+    // do the shuffling
+    const candidatesOrderType = question.presentation?.candidates_order
+
+    let [invalidBottomCandidatesUnsorted, invalidTopCandidatesUnsorted] = splitList(
         invalidOrBlankCandidates,
         checkPositionIsTop
     )
+
+    // Sort invalid/blank candidates within their top/bottom blocks
+    let invalidBottomCandidates = sortCandidatesInContest(
+        invalidBottomCandidatesUnsorted,
+        candidatesOrderType,
+        true
+    )
+    let invalidTopCandidates = sortCandidatesInContest(
+        invalidTopCandidatesUnsorted,
+        candidatesOrderType,
+        true
+    )
+
     let hasWriteIns = checkAllowWriteIns(question) && !!question.candidates.find(checkIsWriteIn)
 
     useEffect(() => {
@@ -152,8 +169,6 @@ export const Question: React.FC<IQuestionProps> = ({
         }
     }, [selectedChoicesSum])
 
-    // do the shuffling
-    const candidatesOrderType = question.presentation?.candidates_order
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
     if (null === categoriesMapOrder) {

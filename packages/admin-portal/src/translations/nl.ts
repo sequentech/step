@@ -1205,6 +1205,12 @@ const dutchTranslation: TranslationType = {
                 "invalid-vote": "Ongeldige Stem",
                 "blank-vote": "Blanco Stem",
             },
+            invalidVotePosition: {
+                label: "Positie van Ongeldige Stem",
+                null: "Geen (Standaard)",
+                top: "Boven",
+                bottom: "Onder",
+            },
             error: {},
             createCandidateSuccess: "Kandidaat aangemaakt",
             createCandidateError: "Fout bij aanmaken kandidaat",
