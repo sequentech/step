@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.common.util.Time;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.AuthenticationFlowException;
@@ -60,6 +61,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
   public static final String PASSWORD_REQUIRED = "password-required";
   public static final String FORM_MODE = "form-mode";
+  public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE = "password-expiration-user-attribute";
+  public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT = "sequent.read-only.expirationDate";
 
   // define the form modes as an enum with string values:
   public enum FormMode {
@@ -139,6 +142,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             "Define if the password will be shown in the form.",
             ProviderConfigProperty.BOOLEAN_TYPE,
             "true"),
+        new ProviderConfigProperty(
+            PASSWORD_EXPIRATION_USER_ATTRIBUTE,
+            "Password Expiration User Attribute",
+            "User attribute to use for storing the Password Expiration Date. Should be read-only. If the attribute is set and the password has expired, login will fail.",
+            ProviderConfigProperty.STRING_TYPE,
+            PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT),
         formMode);
   }
 
@@ -261,6 +270,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         // Validate password in LOGIN mode
         if (passwordRequired) {
           if (!validatePasswordForLogin(context, user, formData)) {
+            return;
+          }
+          
+          // Check password expiration after successful password validation
+          if (!checkPasswordExpiration(context, user, formData, configMap)) {
             return;
           }
         }
@@ -850,5 +864,81 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     }
     
     return false;
+  }
+  
+  /**
+   * Checks if the user's password has expired based on the configured password expiration attribute.
+   * 
+   * @param context the validation context
+   * @param user the user model
+   * @param formData the form data
+   * @param configMap the authenticator configuration map
+   * @return true if password is not expired or expiration is not configured, false if expired
+   */
+  private boolean checkPasswordExpiration(
+      ValidationContext context,
+      UserModel user,
+      MultivaluedMap<String, String> formData,
+      Map<String, String> configMap) {
+    log.info("checkPasswordExpiration: start");
+    
+    // Get the password expiration user attribute name from configuration
+    String passwordExpirationUserAttribute = 
+        Optional.ofNullable(configMap.get(PASSWORD_EXPIRATION_USER_ATTRIBUTE))
+            .orElse(PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT);
+    
+    if (passwordExpirationUserAttribute == null) {
+      // shouldn't happen since we have a fall-back attribute name
+      log.info("checkPasswordExpiration: password expiration user attribute configuration is null - return true");
+      return true;
+    }
+    
+    String passwordExpiration = user.getFirstAttribute(passwordExpirationUserAttribute);
+    if (passwordExpiration == null) {
+      // if password expiration is null it means the user doesn't have this
+      // attribute set, and thus we can ignore and return true
+      log.info("checkPasswordExpiration: password expiration not set - return true");
+      return true;
+    }
+    
+    try {
+      int passwordExpirationInt = Integer.parseInt(passwordExpiration);
+      int currentTime = Time.currentTime();
+      
+      if (currentTime > passwordExpirationInt) {
+        // the user has an expired password
+        log.infov(
+            "checkPasswordExpiration: expired password, currentTime[{0}] > passwordExpirationInt[{1}]",
+            currentTime, passwordExpirationInt);
+        
+        context.getEvent().user(user);
+        context.getEvent().error(Errors.EXPIRED_CODE);
+        
+        List<FormMessage> errors = new ArrayList<>();
+        errors.add(
+            new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.INVALID_PASSWORD));
+        context.error("Password has expired");
+        
+        // Remove password from form data for security
+        formData.remove(RegistrationPage.FIELD_PASSWORD);
+        formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
+        
+        context.validationError(formData, errors);
+        return false;
+      }
+      
+      log.infov(
+          "checkPasswordExpiration: password not expired, currentTime[{0}] <= passwordExpirationInt[{1}]",
+          currentTime, passwordExpirationInt);
+      return true;
+      
+    } catch (NumberFormatException e) {
+      log.errorv(
+          "checkPasswordExpiration: invalid password expiration format: {0}",
+          passwordExpiration);
+      // If the format is invalid, we'll allow the login to proceed
+      // This is a graceful degradation rather than blocking the user
+      return true;
+    }
   }
 }
