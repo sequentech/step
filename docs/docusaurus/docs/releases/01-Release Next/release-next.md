@@ -14,7 +14,7 @@ top/bottom invalid candidates block.
 
 - Issue: [#8528](https://github.com/sequentech/meta/issues/8528)
 
-### ✨ Added Invalid Vote Position in Admin Portal > Candidate
+## ✨ Added Invalid Vote Position in Admin Portal > Candidate
 
 Added Invalid Vote Position in Admin Portal > Candidate. This was already in the
 backend, but it was not configurable in the Admin Portal.
