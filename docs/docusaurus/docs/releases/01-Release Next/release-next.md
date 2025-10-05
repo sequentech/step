@@ -7,6 +7,17 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order
+
+Voting Portal: Invalid/BlankVote Candidates do not follow sort order within the
+top/bottom invalid candidates block.
+
+- Issue: [#8528](https://github.com/sequentech/meta/issues/8528)
+
+## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
+
+- Issue: [#8527](https://github.com/sequentech/meta/issues/8527)
+
 ## ✨ Automatically generate tally documents after tally finishes
 
 Added a post tally task that renders all the html reports to pdf. The pdfs are 
@@ -41,7 +52,3 @@ selected to participate in the tally.
 
 Moved developer release notes to Docusaurus. Updated release notes for various
 existing versions, `v8.7.5`, `v8.7.6`, `v9.1.0` and `v9.1.1`.
-
-## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
-
-- Issue: [#8527](https://github.com/sequentech/meta/issues/8527)
