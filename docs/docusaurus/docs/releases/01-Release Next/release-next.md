@@ -41,3 +41,7 @@ selected to participate in the tally.
 
 Moved developer release notes to Docusaurus. Updated release notes for various
 existing versions, `v8.7.5`, `v8.7.6`, `v9.1.0` and `v9.1.1`.
+
+## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
+
+- Issue: [#8527](https://github.com/sequentech/meta/issues/8527)
