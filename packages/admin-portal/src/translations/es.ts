@@ -1241,6 +1241,12 @@ const spanishTranslation: TranslationType = {
                 "invalid-vote": "Voto Inválido",
                 "blank-vote": "Voto en Blanco",
             },
+            invalidVotePosition: {
+                label: "Posición del Voto Inválido",
+                null: "Ninguno (Por defecto)",
+                top: "Arriba",
+                bottom: "Abajo",
+            },
             error: {},
             createCandidateSuccess: "Candidato creado",
             createCandidateError: "Error creating candidato",

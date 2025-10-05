@@ -1251,6 +1251,12 @@ const catalanTranslation: TranslationType = {
                 "invalid-vote": "Vot Invàlid",
                 "blank-vote": "Vot en blanc",
             },
+            invalidVotePosition: {
+                label: "Posició del Vot Invàlid",
+                null: "Cap (Per defecte)",
+                top: "Superior",
+                bottom: "Inferior",
+            },
             error: {},
             createCandidateSuccess: "Candidat creat",
             createCandidateError: "Error creant candidat",
