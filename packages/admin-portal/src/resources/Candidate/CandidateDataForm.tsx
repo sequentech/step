@@ -185,13 +185,13 @@ export const CandidateDataForm: React.FC<{
     )
 
     const invalidVotePositionChoices = () => {
-        const choices: {id: IInvalidVotePosition | null; name: string}[] = Object.values(
+        const choices: {id: IInvalidVotePosition | "null"; name: string}[] = Object.values(
             IInvalidVotePosition
         ).map((value) => ({
             id: value,
             name: t(`candidateScreen.invalidVotePosition.${value}`),
         }))
-        choices.unshift({id: null, name: t("candidateScreen.invalidVotePosition.null")})
+        choices.unshift({id: "null", name: t("candidateScreen.invalidVotePosition.null")})
         return choices
     }
 
@@ -455,10 +455,12 @@ export const CandidateDataForm: React.FC<{
                                 <SelectInput
                                     source={`presentation.invalid_vote_position`}
                                     choices={invalidVotePositionChoices()}
+                                    format={value => typeof value == 'string' ? value : 'null' }
+                                    parse={value => value == 'null' ? null : value }
                                     label={t(`candidateScreen.invalidVotePosition.label`)}
+                                    emptyValue={t(`candidateScreen.invalidVotePosition.null`)}
                                     defaultValue={null}
                                     validate={required()}
-                                    
                                 />
                             </AccordionDetails>
                         </Accordion>
