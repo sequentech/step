@@ -18,7 +18,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
-import org.keycloak.common.util.Time;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.AuthenticationFlowException;
@@ -27,6 +26,7 @@ import org.keycloak.authentication.FormActionFactory;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.ValidationContext;
 import org.keycloak.authentication.forms.RegistrationPage;
+import org.keycloak.common.util.Time;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.forms.login.LoginFormsProvider;
@@ -61,8 +61,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
   public static final String PASSWORD_REQUIRED = "password-required";
   public static final String FORM_MODE = "form-mode";
-  public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE = "password-expiration-user-attribute";
-  public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT = "sequent.read-only.expirationDate";
+  public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE =
+      "password-expiration-user-attribute";
+  public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT =
+      "sequent.read-only.expirationDate";
 
   // define the form modes as an enum with string values:
   public enum FormMode {
@@ -266,13 +268,13 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         return;
       }
 
-      if (formMode.equals(FormMode.LOGIN.getValue())) {        
+      if (formMode.equals(FormMode.LOGIN.getValue())) {
         // Validate password in LOGIN mode
         if (passwordRequired) {
           if (!validatePasswordForLogin(context, user, formData)) {
             return;
           }
-          
+
           // Check password expiration after successful password validation
           if (!checkPasswordExpiration(context, user, formData, configMap)) {
             return;
@@ -338,25 +340,25 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         // In registration mode, check if the password and confirmation match.
         context.error(PASSWORD_NOT_MATCHED);
         errors.add(
-          new FormMessage(
-            RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
+            new FormMessage(
+                RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
       }
 
       // If a password is provided, validate it against the realm's password policy.
       if (password != null) {
         PolicyError err =
-          context
-            .getSession()
-            .getProvider(PasswordPolicyManagerProvider.class)
-            .validate(
-              context.getRealm().isRegistrationEmailAsUsername()
-                ? formData.getFirst(RegistrationPage.FIELD_EMAIL)
-                : formData.getFirst(RegistrationPage.FIELD_USERNAME),
-              password);
+            context
+                .getSession()
+                .getProvider(PasswordPolicyManagerProvider.class)
+                .validate(
+                    context.getRealm().isRegistrationEmailAsUsername()
+                        ? formData.getFirst(RegistrationPage.FIELD_EMAIL)
+                        : formData.getFirst(RegistrationPage.FIELD_USERNAME),
+                    password);
         if (err != null) {
           errors.add(
-            new FormMessage(
-              RegistrationPage.FIELD_PASSWORD, err.getMessage(), err.getParameters()));
+              new FormMessage(
+                  RegistrationPage.FIELD_PASSWORD, err.getMessage(), err.getParameters()));
         }
       }
     }
@@ -368,23 +370,23 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
       // Identify fields that are confirmation fields but not the password confirmation.
       if (formKey.endsWith("-confirm")
-        && !formKey.equals(RegistrationPage.FIELD_PASSWORD_CONFIRM)) {
-      log.info("validate: confirm found");
-      String confirmValue = entry.getValue().stream().findFirst().orElse(null);
+          && !formKey.equals(RegistrationPage.FIELD_PASSWORD_CONFIRM)) {
+        log.info("validate: confirm found");
+        String confirmValue = entry.getValue().stream().findFirst().orElse(null);
 
-      // Derive the original field key from the confirmation key.
-      String originalKey = formKey.substring(0, formKey.indexOf("-confirm"));
-      String originalValue = formData.getFirst(originalKey);
+        // Derive the original field key from the confirmation key.
+        String originalKey = formKey.substring(0, formKey.indexOf("-confirm"));
+        String originalValue = formData.getFirst(originalKey);
 
-      // Compare the original value with its confirmation.
-      if (!originalValue.equals(confirmValue)) {
-        log.errorv(
-          "validate: confirm value invalid key:{0} values {1} != {2}",
-          originalKey, originalValue, confirmValue);
-        context.error(INVALID_INPUT);
-        errors.add(new FormMessage(formKey, "invalidConfirmationValue"));
-        context.validationError(formData, errors);
-      }
+        // Compare the original value with its confirmation.
+        if (!originalValue.equals(confirmValue)) {
+          log.errorv(
+              "validate: confirm value invalid key:{0} values {1} != {2}",
+              originalKey, originalValue, confirmValue);
+          context.error(INVALID_INPUT);
+          errors.add(new FormMessage(formKey, "invalidConfirmationValue"));
+          context.validationError(formData, errors);
+        }
       }
     }
 
@@ -695,11 +697,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   }
 
   /**
-   * Validates the password for LOGIN mode with security considerations including:
-   * - Constant-time password comparison via Keycloak's credential manager
-   * - Brute force detection
-   * - Proper error handling
-   * 
+   * Validates the password for LOGIN mode with security considerations including: - Constant-time
+   * password comparison via Keycloak's credential manager - Brute force detection - Proper error
+   * handling
+   *
    * @param context the validation context
    * @param user the user model
    * @param formData the form data containing the password
@@ -708,21 +709,21 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   private boolean validatePasswordForLogin(
       ValidationContext context, UserModel user, MultivaluedMap<String, String> formData) {
     log.info("validatePasswordForLogin: start");
-    
+
     String password = formData.getFirst(CredentialRepresentation.PASSWORD);
-    
+
     // Check for empty password
     if (password == null || password.isEmpty()) {
       log.info("validatePasswordForLogin: empty password");
       return handleBadPassword(context, user, formData, true);
     }
-    
+
     // Check for brute force protection
     if (isDisabledByBruteForce(context, user)) {
       log.info("validatePasswordForLogin: user disabled by brute force");
       return false;
     }
-    
+
     // Validate password using Keycloak's credential manager
     // This uses constant-time comparison internally for security
     if (user.credentialManager().isValid(UserCredentialModel.password(password))) {
@@ -733,10 +734,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       return handleBadPassword(context, user, formData, false);
     }
   }
-  
+
   /**
    * Handles bad password scenarios with proper error reporting.
-   * 
+   *
    * @param context the validation context
    * @param user the user model
    * @param formData the form data
@@ -749,35 +750,34 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       MultivaluedMap<String, String> formData,
       boolean isEmptyPassword) {
     log.info("handleBadPassword: isEmptyPassword=" + isEmptyPassword);
-    
+
     context.getEvent().user(user);
     context.getEvent().error(Errors.INVALID_USER_CREDENTIALS);
-    
+
     List<FormMessage> errors = new ArrayList<>();
     if (isEmptyPassword) {
       errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
       context.error(MISSING_FIELDS);
     } else {
-      errors.add(
-          new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.INVALID_PASSWORD));
+      errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.INVALID_PASSWORD));
       context.error(PASSWORD_NOT_MATCHED);
     }
-    
+
     // Remove password from form data for security
     formData.remove(RegistrationPage.FIELD_PASSWORD);
     formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-    
+
     context.validationError(formData, errors);
     return false;
   }
-  
+
   /**
    * Checks if the user is disabled by brute force protection.
-   * 
-   * Note: ValidationContext doesn't provide direct access to AuthenticationFlowContext,
-   * so we use the session's brute force protector directly. This provides the same
-   * security guarantees as getDisabledByBruteForceEventError but works with ValidationContext.
-   * 
+   *
+   * <p>Note: ValidationContext doesn't provide direct access to AuthenticationFlowContext, so we
+   * use the session's brute force protector directly. This provides the same security guarantees as
+   * getDisabledByBruteForceEventError but works with ValidationContext.
+   *
    * @param context the validation context
    * @param user the user model
    * @return true if user is disabled by brute force, false otherwise
@@ -787,24 +787,24 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     if (!context.getRealm().isBruteForceProtected()) {
       return false;
     }
-    
+
     // Check if user is temporarily disabled due to brute force
     KeycloakSession session = context.getSession();
-    org.keycloak.models.UserLoginFailureModel loginFailure = 
+    org.keycloak.models.UserLoginFailureModel loginFailure =
         session.loginFailures().getUserLoginFailure(context.getRealm(), user.getId());
-    
+
     if (loginFailure != null) {
       int failureFactor = context.getRealm().getFailureFactor();
       int waitSeconds = context.getRealm().getWaitIncrementSeconds();
       int maxWaitSeconds = context.getRealm().getMaxFailureWaitSeconds();
       int maxDeltaTimeSeconds = context.getRealm().getMaxDeltaTimeSeconds();
-      
+
       // Check if account is temporarily disabled
       if (loginFailure.getNumFailures() >= failureFactor) {
         long currentTime = System.currentTimeMillis();
         long lastFailure = loginFailure.getLastFailure();
         long deltaTime = currentTime - lastFailure;
-        
+
         // Calculate wait time with exponential backoff
         int waitTime = waitSeconds;
         if (loginFailure.getNumFailures() > failureFactor) {
@@ -814,61 +814,61 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
             waitTime = maxWaitSeconds;
           }
         }
-        
+
         if (deltaTime < waitTime * 1000L) {
           log.infov(
               "isDisabledByBruteForce: user {0} temporarily disabled. Failures: {1}, Wait time: {2}s",
               user.getUsername(), loginFailure.getNumFailures(), waitTime);
           context.getEvent().user(user);
           context.getEvent().error(Errors.USER_TEMPORARILY_DISABLED);
-          
+
           List<FormMessage> errors = new ArrayList<>();
           errors.add(new FormMessage(null, Messages.INVALID_USER));
           context.error(Messages.INVALID_USER);
-          
+
           MultivaluedMap<String, String> formData =
               context.getHttpRequest().getDecodedFormParameters();
           formData.remove(RegistrationPage.FIELD_PASSWORD);
           formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-          
+
           context.validationError(formData, errors);
           return true;
         }
       }
-      
+
       // Check if account permanently disabled due to max delta time
       if (maxDeltaTimeSeconds > 0) {
         long currentTime = System.currentTimeMillis();
         long lastFailure = loginFailure.getLastFailure();
-        if (loginFailure.getNumFailures() >= failureFactor &&
-            (currentTime - lastFailure) < maxDeltaTimeSeconds * 1000L) {
+        if (loginFailure.getNumFailures() >= failureFactor
+            && (currentTime - lastFailure) < maxDeltaTimeSeconds * 1000L) {
           log.infov(
-              "isDisabledByBruteForce: user {0} disabled by max delta time",
-              user.getUsername());
+              "isDisabledByBruteForce: user {0} disabled by max delta time", user.getUsername());
           context.getEvent().user(user);
           context.getEvent().error(Errors.USER_TEMPORARILY_DISABLED);
-          
+
           List<FormMessage> errors = new ArrayList<>();
           errors.add(new FormMessage(null, Messages.INVALID_USER));
           context.error(Messages.INVALID_USER);
-          
+
           MultivaluedMap<String, String> formData =
               context.getHttpRequest().getDecodedFormParameters();
           formData.remove(RegistrationPage.FIELD_PASSWORD);
           formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-          
+
           context.validationError(formData, errors);
           return true;
         }
       }
     }
-    
+
     return false;
   }
-  
+
   /**
-   * Checks if the user's password has expired based on the configured password expiration attribute.
-   * 
+   * Checks if the user's password has expired based on the configured password expiration
+   * attribute.
+   *
    * @param context the validation context
    * @param user the user model
    * @param formData the form data
@@ -881,18 +881,19 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       MultivaluedMap<String, String> formData,
       Map<String, String> configMap) {
     log.info("checkPasswordExpiration: start");
-    
+
     // Get the password expiration user attribute name from configuration
-    String passwordExpirationUserAttribute = 
+    String passwordExpirationUserAttribute =
         Optional.ofNullable(configMap.get(PASSWORD_EXPIRATION_USER_ATTRIBUTE))
             .orElse(PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT);
-    
+
     if (passwordExpirationUserAttribute == null) {
       // shouldn't happen since we have a fall-back attribute name
-      log.info("checkPasswordExpiration: password expiration user attribute configuration is null - return true");
+      log.info(
+          "checkPasswordExpiration: password expiration user attribute configuration is null - return true");
       return true;
     }
-    
+
     String passwordExpiration = user.getFirstAttribute(passwordExpirationUserAttribute);
     if (passwordExpiration == null) {
       // if password expiration is null it means the user doesn't have this
@@ -900,42 +901,40 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       log.info("checkPasswordExpiration: password expiration not set - return true");
       return true;
     }
-    
+
     try {
       int passwordExpirationInt = Integer.parseInt(passwordExpiration);
       int currentTime = Time.currentTime();
-      
+
       if (currentTime > passwordExpirationInt) {
         // the user has an expired password
         log.infov(
             "checkPasswordExpiration: expired password, currentTime[{0}] > passwordExpirationInt[{1}]",
             currentTime, passwordExpirationInt);
-        
+
         context.getEvent().user(user);
         context.getEvent().error(Errors.EXPIRED_CODE);
-        
+
         List<FormMessage> errors = new ArrayList<>();
-        errors.add(
-            new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.INVALID_PASSWORD));
+        errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.INVALID_PASSWORD));
         context.error("Password has expired");
-        
+
         // Remove password from form data for security
         formData.remove(RegistrationPage.FIELD_PASSWORD);
         formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-        
+
         context.validationError(formData, errors);
         return false;
       }
-      
+
       log.infov(
           "checkPasswordExpiration: password not expired, currentTime[{0}] <= passwordExpirationInt[{1}]",
           currentTime, passwordExpirationInt);
       return true;
-      
+
     } catch (NumberFormatException e) {
       log.errorv(
-          "checkPasswordExpiration: invalid password expiration format: {0}",
-          passwordExpiration);
+          "checkPasswordExpiration: invalid password expiration format: {0}", passwordExpiration);
       // If the format is invalid, we'll allow the login to proceed
       // This is a graceful degradation rather than blocking the user
       return true;
