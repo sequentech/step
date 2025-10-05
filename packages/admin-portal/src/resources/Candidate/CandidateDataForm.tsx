@@ -455,8 +455,8 @@ export const CandidateDataForm: React.FC<{
                                 <SelectInput
                                     source={`presentation.invalid_vote_position`}
                                     choices={invalidVotePositionChoices()}
-                                    format={value => typeof value == 'string' ? value : 'null' }
-                                    parse={value => value == 'null' ? null : value }
+                                    format={(value) => (typeof value == "string" ? value : "null")}
+                                    parse={(value) => (value == "null" ? null : value)}
                                     label={t(`candidateScreen.invalidVotePosition.label`)}
                                     emptyValue={t(`candidateScreen.invalidVotePosition.null`)}
                                     defaultValue={null}
