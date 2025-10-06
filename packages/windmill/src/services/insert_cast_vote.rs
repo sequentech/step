@@ -29,12 +29,10 @@ use futures::try_join;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
 
-use sequent_core::ballot::ElectionPresentation;
-use sequent_core::ballot::ElectionStatus;
-use sequent_core::ballot::VoterSigningPolicy;
-use sequent_core::ballot::VotingPeriodDates;
-use sequent_core::ballot::VotingStatus;
-use sequent_core::ballot::VotingStatusChannel;
+use sequent_core::ballot::{
+    AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
+    VotingPeriodDates, VotingStatus, VotingStatusChannel,
+};
 use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
@@ -167,6 +165,8 @@ pub enum CastVoteError {
     DeserializeBallotFailed(String),
     #[serde(rename = "deserialize_contests_failed")]
     DeserializeContestsFailed(String),
+    #[serde(rename = "deserialize_area_presentation_failed")]
+    DeserializeAreaPresentationFailed(String),
     #[serde(rename = "serialize_voter_id_failed")]
     SerializeVoterIdFailed(String),
     #[serde(rename = "serialize_ballot_failed")]
@@ -201,7 +201,7 @@ pub async fn try_insert_cast_vote(
     tenant_id: &str,
     voter_id: &str,
     area_id: &str,
-    voting_channel: &VotingStatusChannel,
+    voting_channel: VotingStatusChannel,
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
@@ -310,6 +310,13 @@ pub async fn try_insert_cast_vote(
         None
     };
 
+    let area_presentation: AreaPresentation = match area.presentation {
+        Some(presentation) => deserialize_value(presentation)
+            .map_err(|e| CastVoteError::DeserializeAreaPresentationFailed(e.to_string()))?,
+        None => AreaPresentation::default(),
+    };
+    let is_early_voting_area = area_presentation.is_early_voting();
+
     let result = insert_cast_vote_and_commit(
         input,
         hasura_transaction,
@@ -321,6 +328,7 @@ pub async fn try_insert_cast_vote(
         voter_ip,
         voter_country,
         &voter_signing_key,
+        is_early_voting_area,
     )
     .await;
 
@@ -574,13 +582,14 @@ pub async fn insert_cast_vote_and_commit<'a>(
     input: InsertCastVoteInput,
     hasura_transaction: Transaction<'_>,
     election_event: ElectionEvent,
-    voting_channel: &VotingStatusChannel,
+    voting_channel: VotingStatusChannel,
     ids: CastVoteIds<'a>,
     signing_key: StrandSignatureSk,
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
     voter_signing_key: &Option<StrandSignatureSk>,
+    is_early_voting_area: bool,
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
@@ -603,6 +612,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
             &election_event,
             auth_time,
             voting_channel,
+            is_early_voting_area,
         ),
         // Transaction isolation begins at this future (unless above methods are
         // switched from hasura to direct sql)
@@ -698,7 +708,8 @@ async fn check_status(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     auth_time: &Option<i64>,
-    voting_channel: &VotingStatusChannel,
+    voting_channel: VotingStatusChannel,
+    is_early_voting_area: bool,
 ) -> Result<(), CastVoteError> {
     if election_event.is_archived {
         return Err(CastVoteError::CheckStatusFailed(
@@ -813,6 +824,12 @@ async fn check_status(
         .grace_period_policy
         .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
 
+    let allow_early_voting = is_early_voting_area
+        && election_status.status_by_channel(VotingStatusChannel::EARLY_VOTING)
+            == VotingStatus::OPEN
+        && election_status.status_by_channel(VotingStatusChannel::ONLINE)
+            == VotingStatus::NOT_STARTED;
+
     // We can only calculate grace period if there's a close date
     if let Some(close_date) = close_date_opt {
         // We only apply the grace period if:
@@ -820,7 +837,7 @@ async fn check_status(
         // 2. Voting Channel is ONLINE
         // 3. Current Voting Status is not PAUSED
         let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
-            && voting_channel == &VotingStatusChannel::ONLINE
+            && voting_channel == VotingStatusChannel::ONLINE
             && current_voting_status != VotingStatus::PAUSED;
         let grace_period_duration = Duration::seconds(grace_period_secs as i64);
         let close_date_plus_grace_period = close_date + grace_period_duration;
@@ -861,6 +878,8 @@ async fn check_status(
         }
 
     // if there's no closing date, election needs to be open to cast a vote
+    } else if allow_early_voting {
+        info!("Allowing early voting for election id {election_id}");
     } else {
         if current_voting_status != VotingStatus::OPEN {
             return Err(CastVoteError::CheckStatusFailed(

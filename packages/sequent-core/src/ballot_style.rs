@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, AreaAnnotations, CandidatePresentation, ContestPresentation,
-    ElectionEventPresentation, ElectionPresentation, I18nContent,
-    StringifiedPeriodDates, WeightedVotingPolicy,
+    self, AreaAnnotations, AreaPresentation, CandidatePresentation,
+    ContestPresentation, ElectionEventPresentation, ElectionPresentation,
+    I18nContent, StringifiedPeriodDates, WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -113,6 +113,14 @@ pub fn create_ballot_style(
     {
         area_annotations = area.clone().read_annotations()?;
     }
+    let area_presentation: AreaPresentation = match area.presentation {
+        Some(presentation) => {
+            deserialize_value(presentation).map_err(|err| {
+                anyhow!("Error parsing area presentation: {}", err)
+            })?
+        }
+        None => AreaPresentation::default(),
+    };
 
     Ok(ballot::BallotStyle {
         id,
@@ -133,6 +141,7 @@ pub fn create_ballot_style(
                 }),
         ),
         area_id: area.id,
+        area_presentation: Some(area_presentation),
         contests,
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),

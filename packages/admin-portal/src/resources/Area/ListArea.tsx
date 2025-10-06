@@ -84,7 +84,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         canReadArea,
         canDeleteArea,
         canImportArea,
-        canExportArea,
         canUpsertArea,
         showAreaColumns,
         showAreaFilters,
@@ -323,6 +322,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 }}
             >
                 <UpsertArea
+                    record={record}
                     id={recordId}
                     electionEventId={id}
                     close={handleCloseEditDrawer}

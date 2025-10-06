@@ -109,6 +109,9 @@ const galegoTranslation: TranslationType = {
                 header: "Aínda non hai áreas.",
                 action: "Crear Área",
             },
+            formImputs: {
+                allowEarlyVoting: "Permitir Votación Anticipada",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -1147,6 +1150,7 @@ const galegoTranslation: TranslationType = {
             channel: {
                 online: "En Liña",
                 kiosk: "Quiosco",
+                early_voting: "Votación anticipada",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
@@ -1248,6 +1252,12 @@ const galegoTranslation: TranslationType = {
                 "semi-open-list": "Lista Semi Aberta",
                 "invalid-vote": "Voto Nulo",
                 "blank-vote": "Voto en Branco",
+            },
+            invalidVotePosition: {
+                label: "Posición do Voto Nulo",
+                null: "Ningunha (Por defecto)",
+                top: "Arriba",
+                bottom: "Abaixo",
             },
             error: {},
             createCandidateSuccess: "Candidato creado",
@@ -1640,9 +1650,17 @@ const galegoTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Xerar Informe de Inicialización",
                 startVotingPeriod: "Iniciar Votación",
+                startKioskVoting: "Iniciar Votación en Quiosco",
+                startOnlineVoting: "Iniciar Votación en Liña",
+                startEarlyVoting: "Iniciar Votación Anticipada",
                 stopVotingPeriod: "Detener Votación",
+                stopOnlineVoting: "Detener Votación en Liña",
+                stopEarlyVoting: "Detener Votación Anticipada",
                 stopKioskVotingPeriod: "Detener Votación en Quiosco",
                 pauseVotingPeriod: "Pausar Votación",
+                pauseKioskVoting: "Pausar Votación en Quiosco",
+                pauseOnlineVoting: "Pausar Votación en Liña",
+                pauseEarlyVoting: "Pausar Votación Anticipada",
                 generate: "Rexenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",

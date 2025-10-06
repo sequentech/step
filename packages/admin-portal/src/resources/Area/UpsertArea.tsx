@@ -3,19 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect, useState} from "react"
-import {Create, Identifier, EditBase} from "react-admin"
+import {Create, Identifier, EditBase, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useQuery} from "@apollo/client"
 import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {FormContent} from "./FormContent"
+import {IAreaPresentation} from "@sequentech/ui-core"
 
 export interface UpsertAreaProps {
     record?: Sequent_Backend_Election_Event
     id?: Identifier | undefined
     electionEventId: Identifier | undefined
     close?: () => void
+    area_presentation?: IAreaPresentation
     weightedVotingForAreas?: boolean
+}
+
+/**
+ * Wrapper component that accesses the record context to pass presentation data
+ */
+const FormContentWrapper: React.FC<UpsertAreaProps> = (props) => {
+    const area_record = useRecordContext()
+    return <FormContent {...props} area_presentation={area_record?.presentation} />
 }
 
 /**
@@ -62,7 +72,7 @@ export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
                         redirect={false}
                     >
                         <PageHeaderStyles.Wrapper>
-                            <FormContent
+                            <FormContentWrapper
                                 record={record}
                                 id={id}
                                 electionEventId={electionEventId}

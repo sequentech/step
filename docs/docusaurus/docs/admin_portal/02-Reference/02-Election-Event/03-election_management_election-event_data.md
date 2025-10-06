@@ -61,6 +61,14 @@ Manage how the ballot appears in the Voting Portal.
 Define the voting methods available for this Election Event.
 
 - Use radio buttons to enable applicable voting channels.
+- **Online**: Main remote voting channel. Starting/closing Online also governs Early Voting lifecycle (see below).
+- **Kiosk**: In-person device-based voting. Its status is independent from the others.
+- **EARLY_VOTING**: Enables an early voting period prior to the Online voting window for voters whose Areas have Early Voting enabled.
+  - Appears only if allowed here; when started in Publish, only voters assigned to Areas with the Early Voting policy enabled can vote.
+  - Online channel governs Early Voting:
+    - When Online is started or closed, Early Voting will automatically close if it was enabled.
+    - Early Voting cannot be started once Online voting has been started (and thereafter).
+  - If a channel that is already started is later manually disallowed in this section, no immediate action is taken; action buttons remain disabled until the channel is allowed again.
 
 ## Custom URLs Prefix
 
