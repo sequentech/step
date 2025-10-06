@@ -350,7 +350,6 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const renderVotingChannels = (parsedValue: Sequent_Backend_Election_Event_Extended) => {
         let channelNodes = []
-        console.log(parsedValue?.voting_channels)
         for (const channel in parsedValue?.voting_channels) {
             channelNodes.push(
                 <BooleanInput

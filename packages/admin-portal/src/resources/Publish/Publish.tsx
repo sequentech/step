@@ -186,7 +186,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 EVotingStatus.NOT_STARTED
             let is_channel_enabled =
                 (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
-            console.log("earlyVotingEnabled", status, is_channel_enabled) // TODO: Test if it´s being updated
             return {
                 status,
                 is_channel_enabled,

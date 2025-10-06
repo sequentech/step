@@ -192,7 +192,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const onClickToVote = () => {
-        console.log("onClickToVote")
         if (!canVote() || (!isPreview && !isVotingOpen())) {
             console.log("cannot vote")
             return
