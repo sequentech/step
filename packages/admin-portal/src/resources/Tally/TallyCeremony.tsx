@@ -493,7 +493,8 @@ export const TallyCeremony: React.FC = () => {
     }, [elections, tallySession])
 
     useMemo(() => {
-        allowTallyCeremonyCreation.current = tally?.execution_status === undefined && page === WizardSteps.Start
+        allowTallyCeremonyCreation.current =
+            tally?.execution_status === undefined && page === WizardSteps.Start
     }, [tally, page])
 
     useEffect(() => {
@@ -626,7 +627,6 @@ export const TallyCeremony: React.FC = () => {
     const confirmCeremonyAction = async () => {
         setIsConfirming(true)
         try {
-
             const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
                 variables: {
                     election_event_id: record?.id,
