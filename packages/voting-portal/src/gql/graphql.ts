@@ -4317,7 +4317,7 @@ export type Mutation_RootUpload_SignatureArgs = {
 
 /** mutation root */
 export type Mutation_RootUpsert_AreaArgs = {
-  allow_early_voting: EarlyVotingPolicy;
+  allow_early_voting?: InputMaybe<EarlyVotingPolicy>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_contest_ids?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
   description?: InputMaybe<Scalars['String']['input']>;

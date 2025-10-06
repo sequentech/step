@@ -26217,13 +26217,9 @@
                 "name": "allow_early_voting",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "ENUM",
-                    "name": "EarlyVotingPolicy",
-                    "ofType": null
-                  }
+                  "kind": "ENUM",
+                  "name": "EarlyVotingPolicy",
+                  "ofType": null
                 },
                 "defaultValue": null
               },
