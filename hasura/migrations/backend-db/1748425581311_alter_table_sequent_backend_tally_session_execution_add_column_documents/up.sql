@@ -1867,6 +1867,3 @@ ALTER TABLE "sequent_backend"."document" ALTER COLUMN "size" TYPE int8;
 
 alter table "sequent_backend"."tally_session_execution" add column "documents" JSONB
  null;
-
-alter table "sequent_backend"."area" add column "presentation" jsonb
- null;
