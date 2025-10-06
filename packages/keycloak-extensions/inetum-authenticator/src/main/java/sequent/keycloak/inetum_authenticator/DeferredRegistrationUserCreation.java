@@ -774,92 +774,55 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   /**
    * Checks if the user is disabled by brute force protection.
    *
-   * <p>Note: ValidationContext doesn't provide direct access to AuthenticationFlowContext, so we
-   * use the session's brute force protector directly. This provides the same security guarantees as
-   * getDisabledByBruteForceEventError but works with ValidationContext.
+   * <p>Note: We cannot directly use AuthenticatorUtils.getDisabledByBruteForceEventError() because
+   * it requires AuthenticationFlowContext, but we have ValidationContext. These are separate
+   * Keycloak interfaces with no conversion mechanism. Instead, we use Keycloak's
+   * BruteForceProtector service which provides the same brute force detection logic through a
+   * provider interface that works with our context.
    *
    * @param context the validation context
    * @param user the user model
    * @return true if user is disabled by brute force, false otherwise
    */
   private boolean isDisabledByBruteForce(ValidationContext context, UserModel user) {
+    RealmModel realm = context.getRealm();
+
     // Check if brute force protection is enabled
-    if (!context.getRealm().isBruteForceProtected()) {
+    if (!realm.isBruteForceProtected()) {
       return false;
     }
 
-    // Check if user is temporarily disabled due to brute force
+    // Use Keycloak's BruteForceProtector service to check if user is disabled
+    // This delegates to Keycloak's built-in brute force detection logic
     KeycloakSession session = context.getSession();
-    org.keycloak.models.UserLoginFailureModel loginFailure =
-        session.loginFailures().getUserLoginFailure(context.getRealm(), user.getId());
+    org.keycloak.services.managers.BruteForceProtector protector =
+        session.getProvider(org.keycloak.services.managers.BruteForceProtector.class);
 
-    if (loginFailure != null) {
-      int failureFactor = context.getRealm().getFailureFactor();
-      int waitSeconds = context.getRealm().getWaitIncrementSeconds();
-      int maxWaitSeconds = context.getRealm().getMaxFailureWaitSeconds();
-      int maxDeltaTimeSeconds = context.getRealm().getMaxDeltaTimeSeconds();
+    if (protector == null) {
+      log.warn("BruteForceProtector provider not available, skipping brute force check");
+      return false;
+    }
 
-      // Check if account is temporarily disabled
-      if (loginFailure.getNumFailures() >= failureFactor) {
-        long currentTime = System.currentTimeMillis();
-        long lastFailure = loginFailure.getLastFailure();
-        long deltaTime = currentTime - lastFailure;
+    // Check if user is temporarily or permanently disabled
+    boolean isDisabled = protector.isTemporarilyDisabled(session, realm, user);
 
-        // Calculate wait time with exponential backoff
-        int waitTime = waitSeconds;
-        if (loginFailure.getNumFailures() > failureFactor) {
-          int multiplier = loginFailure.getNumFailures() - failureFactor;
-          waitTime = waitSeconds * (int) Math.pow(2, multiplier);
-          if (waitTime > maxWaitSeconds) {
-            waitTime = maxWaitSeconds;
-          }
-        }
+    if (isDisabled) {
+      log.infov(
+          "isDisabledByBruteForce: user {0} is disabled by brute force protection",
+          user.getUsername());
+      context.getEvent().user(user);
+      context.getEvent().error(Errors.USER_TEMPORARILY_DISABLED);
 
-        if (deltaTime < waitTime * 1000L) {
-          log.infov(
-              "isDisabledByBruteForce: user {0} temporarily disabled. Failures: {1}, Wait time: {2}s",
-              user.getUsername(), loginFailure.getNumFailures(), waitTime);
-          context.getEvent().user(user);
-          context.getEvent().error(Errors.USER_TEMPORARILY_DISABLED);
+      List<FormMessage> errors = new ArrayList<>();
+      errors.add(new FormMessage(null, Messages.INVALID_USER));
+      context.error(Messages.INVALID_USER);
 
-          List<FormMessage> errors = new ArrayList<>();
-          errors.add(new FormMessage(null, Messages.INVALID_USER));
-          context.error(Messages.INVALID_USER);
+      MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
+      formData.remove(RegistrationPage.FIELD_PASSWORD);
+      formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
 
-          MultivaluedMap<String, String> formData =
-              context.getHttpRequest().getDecodedFormParameters();
-          formData.remove(RegistrationPage.FIELD_PASSWORD);
-          formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-
-          context.validationError(formData, errors);
-          return true;
-        }
-      }
-
-      // Check if account permanently disabled due to max delta time
-      if (maxDeltaTimeSeconds > 0) {
-        long currentTime = System.currentTimeMillis();
-        long lastFailure = loginFailure.getLastFailure();
-        if (loginFailure.getNumFailures() >= failureFactor
-            && (currentTime - lastFailure) < maxDeltaTimeSeconds * 1000L) {
-          log.infov(
-              "isDisabledByBruteForce: user {0} disabled by max delta time", user.getUsername());
-          context.getEvent().user(user);
-          context.getEvent().error(Errors.USER_TEMPORARILY_DISABLED);
-
-          List<FormMessage> errors = new ArrayList<>();
-          errors.add(new FormMessage(null, Messages.INVALID_USER));
-          context.error(Messages.INVALID_USER);
-
-          MultivaluedMap<String, String> formData =
-              context.getHttpRequest().getDecodedFormParameters();
-          formData.remove(RegistrationPage.FIELD_PASSWORD);
-          formData.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
-
-          context.validationError(formData, errors);
-          return true;
-        }
-      }
+      context.validationError(formData, errors);
+      return true;
     }
 
     return false;
