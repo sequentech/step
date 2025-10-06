@@ -6,7 +6,9 @@ use std::num::TryFromIntError;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::bigint;
 use super::{vec, RawBallotContest};
-use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
+use crate::ballot::{
+    AreaPresentation, BallotStyle, Candidate, Contest, EUnderVotePolicy,
+};
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
     check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
