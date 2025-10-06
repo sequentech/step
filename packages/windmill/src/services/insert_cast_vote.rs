@@ -315,8 +315,11 @@ pub async fn try_insert_cast_vote(
             .map_err(|e| CastVoteError::DeserializeAreaPresentationFailed(e.to_string()))?,
         None => AreaPresentation::default(),
     };
-    let is_early_voting_area =
-        area_presentation.allow_early_voting == EarlyVotingPolicy::AllowEarlyVoting;
+    let is_early_voting_area = area_presentation
+        .allow_early_voting
+        .clone()
+        .unwrap_or_default()
+        == EarlyVotingPolicy::AllowEarlyVoting;
 
     let result = insert_cast_vote_and_commit(
         input,

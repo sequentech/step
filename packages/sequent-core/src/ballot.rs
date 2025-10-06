@@ -1093,13 +1093,7 @@ impl Default for ElectionPresentation {
     Default,
 )]
 pub struct AreaPresentation {
-    pub allow_early_voting: EarlyVotingPolicy,
-}
-
-impl AreaPresentation {
-    pub fn new(allow_early_voting: EarlyVotingPolicy) -> AreaPresentation {
-        AreaPresentation { allow_early_voting }
-    }
+    pub allow_early_voting: Option<EarlyVotingPolicy>,
 }
 
 #[derive(

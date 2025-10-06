@@ -69,14 +69,15 @@ pub async fn upsert_area(
 
     let election_event_id_str = body.election_event_id.to_string();
 
-    let presentation =
-        serde_json::to_value(AreaPresentation::new(body.allow_early_voting))
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error serializing AreaPresentation: {e:?}"),
-                )
-            })?;
+    let presentation = serde_json::to_value(AreaPresentation {
+        allow_early_voting: body.allow_early_voting,
+    })
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error serializing AreaPresentation: {e:?}"),
+        )
+    })?;
     let area = Area {
         id: body
             .id

@@ -94,8 +94,10 @@ pub async fn import_areas_task(
                 }
                 _ => EarlyVotingPolicy::default(),
             };
-            let presentation = serde_json::to_value(AreaPresentation::new(early_voting_pol))
-                .map_err(|e| anyhow!("Error serializing AreaPresentation: {e:?}"))?;
+            let presentation = serde_json::to_value(AreaPresentation {
+                allow_early_voting: Some(early_voting_pol),
+            })
+            .map_err(|e| anyhow!("Error serializing AreaPresentation: {e:?}"))?;
             areas.push(Area {
                 id: new_area_id.to_string(),
                 tenant_id: tenant_id.to_string(),
