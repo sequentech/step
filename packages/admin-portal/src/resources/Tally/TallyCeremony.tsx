@@ -146,7 +146,7 @@ export const TallyCeremony: React.FC = () => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
-    const allowTallyCeremonyCreation = useRef<boolean>(true)
+    const allowTallyCeremonyCreation = useRef<boolean>(false)
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
@@ -492,6 +492,10 @@ export const TallyCeremony: React.FC = () => {
         )
     }, [elections, tallySession])
 
+    useMemo(() => {
+        allowTallyCeremonyCreation.current = tally?.execution_status === undefined && page === WizardSteps.Start
+    }, [tally, page])
+
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
             let isStartAllowed =
@@ -591,8 +595,6 @@ export const TallyCeremony: React.FC = () => {
 
     const createCeremonyAction = async () => {
         try {
-            console.log("createCeremonyAction. Page: ", page)
-            console.log("createCeremonyAction. Status: ", tallySession?.execution_status)
             setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
                 variables: {
@@ -617,7 +619,6 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
         } finally {
-            allowTallyCeremonyCreation.current = true
             refetch()
         }
     }
@@ -626,28 +627,26 @@ export const TallyCeremony: React.FC = () => {
         setIsConfirming(true)
         try {
 
-            console.log("confirmCeremonyAction.")
+            const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
+                variables: {
+                    election_event_id: record?.id,
+                    tally_session_id: tallyId,
+                    status: ITallyExecutionStatus.IN_PROGRESS,
+                },
+            })
 
-            // const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
-            //     variables: {
-            //         election_event_id: record?.id,
-            //         tally_session_id: tallyId,
-            //         status: ITallyExecutionStatus.IN_PROGRESS,
-            //     },
-            // })
+            if (errors) {
+                notify(t("tally.startTallyError"), {type: "error"})
+                setIsConfirming(false)
+                return
+            }
 
-            // if (errors) {
-            //     notify(t("tally.startTallyError"), {type: "error"})
-            //     setIsConfirming(false)
-            //     return
-            // }
-
-            // if (nextStatus) {
+            if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
                 refetchTallySession()
                 setIsConfirming(false)
                 setCreatingFlag(null)
-            // }
+            }
         } catch (error) {
             setIsConfirming(false)
             notify(t("tally.startTallyError"), {type: "error"})
@@ -802,9 +801,6 @@ export const TallyCeremony: React.FC = () => {
         steps.push("tally.breadcrumbSteps.results")
         return steps
     }
-
-    console.log("Page: ", page)
-    console.log("Status: ", tallySession?.execution_status)
 
     return (
         <TallyStyles.WizardContainer>
