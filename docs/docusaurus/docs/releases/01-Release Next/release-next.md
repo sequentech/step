@@ -16,6 +16,14 @@ pages that were already in German.
 
 - Issue: [#8470](https://github.com/sequentech/meta/issues/8470)
 
+## 🐞 Velvet test errors
+
+A failing velvet test was identified due to a recent change: ballots exceeding 
+the maximum allowed votes are now classified as invalid. Since this behavior was
+not previously enforced, the corresponding test required an update.
+
+- Issue: [#8526](https://github.com/sequentech/meta/issues/8526)
+
 ## 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections
 
 At the trustees tally ceremony, all elections were fetched instead of only those
