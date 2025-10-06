@@ -22,6 +22,10 @@ use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumString, IntoStaticStr};
+use strand::signature::StrandSignatureSk;
+use strand::signature::StrandSignaturePk;
+use base64::engine::general_purpose;
+use base64::Engine;
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -122,6 +126,8 @@ pub struct HashableBallot {
     pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
     pub config: String,
     pub ballot_style_hash: String,
+    pub voter_signing_pk: Option<String>,
+    pub voter_ballot_signature: Option<String>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -185,7 +191,7 @@ impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
     }
 }
 
-impl TryFrom<&AuditableBallot> for HashableBallot {
+impl TryFrom<&AuditableBallot> for HashableBallot {  // TODO review
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
@@ -224,8 +230,72 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
             )?,
             config: value.config.id.clone(),
             ballot_style_hash: ballot_style_hash,
+            voter_signing_pk: None,
+            voter_ballot_signature: None,
         })
     }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct SignedContent {
+    public_key: String,
+    signature: String,
+} 
+
+pub fn sign_ballot_with_ephemeral_voter_signing_key(ballot_id: &str, election_id: &str, content: &str) -> Result<SignedContent, String> {
+    // Generate voter ephemeral key for signing
+
+    // Get ballot_bytes_for_signing
+    let ballot_bytes = get_ballot_bytes_for_signing(ballot_id, election_id, content);
+
+    let secret_key = StrandSignatureSk::gen().map_err(|err| format!("Error generating secret key: {err}"))?;
+    let public_key = StrandSignaturePk::from_sk(&secret_key).map_err(|err| format!("Error generating secret key: {err}"))?;
+
+    let ballot_signature = secret_key
+        .sign(&ballot_bytes)
+        .map_err(|err| format!("Failed to sign the ballot: {err}"))?;
+
+    let public_key = public_key.to_der_b64_string().map_err(|err| format!("Failed to sign the ballot: {err}"))?;
+
+    let signature = general_purpose::STANDARD.encode(ballot_signature.to_bytes().to_vec());
+
+    Ok(SignedContent {
+        public_key,
+        signature,
+    })
+}
+
+pub fn get_ballot_bytes_for_signing(ballot_id: &str, election_id: &str, content: &str) -> Vec<u8> {
+    let mut ret: Vec<u8> = vec![];
+
+    let bytes = ballot_id.as_bytes();
+    let mut length = [0u8; 8];
+    let b = bytes.len().to_le_bytes();
+    let l = b.len();
+    length[0..l].copy_from_slice(&bytes[0..l]);
+
+    ret.extend(&length);
+    ret.extend(bytes);
+
+    let bytes = election_id.as_bytes();
+    let mut length = [0u8; 8];
+    let b = bytes.len().to_le_bytes();
+    let l = b.len();
+    length[0..l].copy_from_slice(&bytes[0..l]);
+
+    ret.extend(&length);
+    ret.extend(bytes);
+
+    let bytes = content.as_bytes();
+    let mut length = [0u8; 8];
+    let b = bytes.len().to_le_bytes();
+    let l = b.len();
+    length[0..l].copy_from_slice(&bytes[0..l]);
+
+    ret.extend(&length);
+    ret.extend(bytes);
+
+    ret
 }
 
 #[derive(

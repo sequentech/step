@@ -14,6 +14,7 @@ import {
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
     checkIsBlank,
+    signBallot,
     IDecodedVoteContest,
     IBallotStyle,
     IAuditableBallot,
@@ -22,6 +23,7 @@ import {
     IHashableBallot,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    ISignedContent,
     IContest,
     BallotSelection,
 } from "@sequentech/ui-core"
@@ -58,6 +60,7 @@ export interface IBallotService {
         auditableBallot: IAuditableMultiBallot
     ) => Array<IDecodedVoteContest> | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
+    signBallot: (ballotId: string, electionId: string, hashableBallot: string) => ISignedContent | null
 }
 
 export const provideBallotService = (): IBallotService => ({
@@ -73,4 +76,5 @@ export const provideBallotService = (): IBallotService => ({
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
     checkIsBlank,
+    signBallot,
 })

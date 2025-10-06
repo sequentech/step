@@ -235,7 +235,7 @@ const useTryInsertCastVote = () => {
         setErrorMsg: (msg: CastBallotsErrorType) => void
     ) => {
         try {
-            let result = await insertCastVote({
+            let result = await insertCastVote({ // Here is where insert cast vote happens
                 variables: {
                     electionId,
                     ballotId,
@@ -315,7 +315,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const isCastingBallot = useRef<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
+    const {toHashableBallot, toHashableMultiBallot, signBallot} = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -392,8 +392,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         let hashableBallot: IHashableSingleBallot | IHashableMultiBallot | undefined
         try {
             hashableBallot = isMultiContest
-                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot) // InsertCastVoteInput.content
+                : toHashableBallot(auditableBallot as IAuditableSingleBallot) // InsertCastVoteInput.content
+
+            let signedContent = signBallot(ballotId, ballotStyle.election_id, JSON.stringify(hashableBallot))
+            hashableBallot.voter_signing_pk = signedContent?.public_key
+            hashableBallot.voter_ballot_signature = signedContent?.signature
         } catch (error) {
             isCastingBallot.current = false
             console.error(error)
@@ -421,7 +425,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 ballotId,
                 electionId: ballotStyle.election_id,
                 isDemo,
-                ballot: JSON.stringify(hashableBallot),
+                ballot: JSON.stringify(hashableBallot), // InsertCastVoteInput.content
                 timestamp: Date.now(), // Add timestamp for expiration check
             }
             return await storeBallotDataAndReauth(ballotData)
@@ -656,7 +660,7 @@ export const ReviewScreen: React.FC = () => {
             !(await tryInsertCastVote(
                 ballotData.electionId,
                 ballotData.ballotId,
-                ballotData.ballot,
+                ballotData.ballot, // InsertCastVoteInput.content
                 setErrorMsg
             ))
         ) {

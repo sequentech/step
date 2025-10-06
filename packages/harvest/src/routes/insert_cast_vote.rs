@@ -29,9 +29,9 @@ use windmill::services::insert_cast_vote::{
 /// synchronous windmill library function, `try_insert_cast_vote`) before
 /// returning the error.
 #[instrument(skip_all)]
-#[post("/insert-cast-vote", format = "json", data = "<body>")]
+#[post("/insert-cast-vote", format = "json", data = "<body>")] // This is the endpoint used in harvest
 pub async fn insert_cast_vote(
-    body: Json<InsertCastVoteInput>,
+    body: Json<InsertCastVoteInput>, 
     claims: JwtClaims,
     user_info: UserLocation,
 ) -> Result<Json<InsertCastVoteOutput>, JsonError> {

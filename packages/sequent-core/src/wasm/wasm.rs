@@ -16,6 +16,7 @@ use crate::plaintext::*;
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
+use crate::ballot::sign_ballot_with_ephemeral_voter_signing_key;
 use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
@@ -977,122 +978,29 @@ pub fn get_auth_url_js(
         .into_json()
 }
 
-#[allow(clippy::all)]
 #[wasm_bindgen]
-pub fn generate_sender_signature_js(
-    sender_sk_json: JsValue,
-    event_json: JsValue,
-    election_json: JsValue,
-    pseudonym_h_json: JsValue,
-    vote_h_json: JsValue,
-    ip_json: JsValue,
-    country_json: JsValue,
-    voter_id_json: JsValue,
-    voter_username_json: JsValue,
-    area_id_json: JsValue,
+pub fn sign_ballot_with_ephemeral_voter_signing_key_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    content: JsValue,
 ) -> Result<JsValue, JsValue> {
     // Deserialize inputs
-    let sender_sk: StrandSignatureSk =
-        serde_wasm_bindgen::from_value(sender_sk_json)
-            .map_err(|err| format!("Error deserializing sender_sk: {err}"))
-            .into_json()?;
-    let event: EventIdString = serde_wasm_bindgen::from_value(event_json)
-        .map_err(|err| format!("Error deserializing event: {err}"))
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
         .into_json()?;
-    let election: ElectionIdString =
-        serde_wasm_bindgen::from_value(election_json)
-            .map_err(|err| format!("Error deserializing election: {err}"))
+    let election_id: String =
+        serde_wasm_bindgen::from_value(election_id)
+            .map_err(|err| format!("Error deserializing election_id: {err}"))
             .into_json()?;
-    let pseudonym_h: PseudonymHash =
-        serde_wasm_bindgen::from_value(pseudonym_h_json)
-            .map_err(|err| format!("Error deserializing pseudonym_h: {err}"))
-            .into_json()?;
-    let vote_h: CastVoteHash = serde_wasm_bindgen::from_value(vote_h_json)
-        .map_err(|err| format!("Error deserializing vote_h: {err}"))
-        .into_json()?;
-    let ip: VoterIpString = serde_wasm_bindgen::from_value(ip_json)
-        .map_err(|err| format!("Error deserializing ip: {err}"))
-        .into_json()?;
-    let country: VoterCountryString =
-        serde_wasm_bindgen::from_value(country_json)
-            .map_err(|err| format!("Error deserializing country: {err}"))
-            .into_json()?;
-    let voter_id: Option<String> =
-        serde_wasm_bindgen::from_value(voter_id_json)
-            .map_err(|err| format!("Error deserializing voter_id: {err}"))
-            .into_json()?;
-    let voter_username: Option<String> =
-        serde_wasm_bindgen::from_value(voter_username_json)
-            .map_err(|err| format!("Error deserializing voter_username: {err}"))
-            .into_json()?;
-    let area_id: String = serde_wasm_bindgen::from_value(area_id_json)
-        .map_err(|err| format!("Error deserializing area_id: {err}"))
-        .into_json()?;
-
-    // Generate the statement
-    let body =
-        StatementBody::CastVote(election, pseudonym_h, vote_h, ip, country);
-    let head = StatementHead::from_body(event, &body);
-    let statement = Statement::new(head, body);
-
-    // Serialize the statement into bytes
-    let bytes = statement
-        .strand_serialize()
-        .map_err(|err| format!("Error serializing statement: {err}"))
-        .into_json()?;
-
-    // Sign the statement bytes with the sender's key
-    let sender_signature: StrandSignature = sender_sk
-        .sign(&bytes)
-        .map_err(|err| format!("Error signing statement: {err}"))
-        .into_json()?;
-
-    // Serialize the signature and return it
-    let serializer = Serializer::json_compatible();
-    sender_signature
-        .serialize(&serializer)
-        .map_err(|err| format!("Error serializing signature: {err}"))
-        .into_json()
-}
-
-#[allow(clippy::all)]
-#[wasm_bindgen]
-pub fn get_sender_public_key_js(
-    sender_sk_json: JsValue,
-) -> Result<JsValue, JsValue> {
-    // Deserialize the sender's signing key from JsValue
-    let sender_sk: StrandSignatureSk =
-        serde_wasm_bindgen::from_value(sender_sk_json)
-            .map_err(|err| format!("Error deserializing sender_sk: {err}"))
+    let content: String =
+        serde_wasm_bindgen::from_value(content)
+            .map_err(|err| format!("Error deserializing content: {err}"))
             .into_json()?;
 
-    // Derive the public key
-    let sender_pk: StrandSignaturePk = StrandSignaturePk::from_sk(&sender_sk)
-        .map_err(|err| format!("Error deriving public key: {err}"))
-        .into_json()?;
-
-    // Serialize the public key and return it
-    let serializer = Serializer::json_compatible();
-    sender_pk
-        .serialize(&serializer)
-        .map_err(|err| format!("Error serializing public key: {err}"))
-        .into_json()
-}
-
-#[allow(clippy::all)]
-#[wasm_bindgen]
-pub fn generate_secret_key_js() -> Result<JsValue, JsValue> {
-    // Generate a new, random StrandSignatureSk.
-    // The StrandSignatureSk::new() method would typically handle
-    // the use of a secure random number generator internally.
-    let secret_key = StrandSignatureSk::new()
-        .map_err(|err| format!("Error generating secret key: {err}"))
-        .into_json()?;
-
-    // Serialize the secret key and return it as a JsValue.
-    let serializer = Serializer::json_compatible();
-    secret_key
-        .serialize(&serializer)
-        .map_err(|err| format!("Error serializing secret key: {err}"))
+    // Generates ephemeral voter signing key and signs the ballot
+    let signed_content =
+        sign_ballot_with_ephemeral_voter_signing_key(&ballot_id, &election_id, &content).map_err(|err| format!("Error signing the ballot: {err}"))?;
+    serde_wasm_bindgen::to_value(&signed_content)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

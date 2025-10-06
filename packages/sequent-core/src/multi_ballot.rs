@@ -45,6 +45,8 @@ pub struct HashableMultiBallot {
     pub contests: String,
     pub config: String,
     pub ballot_style_hash: String,
+    pub voter_signing_pk: Option<String>,
+    pub voter_ballot_signature: Option<String>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
@@ -95,7 +97,7 @@ impl HashableMultiBallot {
     }
 }
 
-impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
+impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot { // TODO review
     type Error = BallotError;
 
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
@@ -127,6 +129,8 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
             )?,
             config: value.config.id.clone(),
             ballot_style_hash: ballot_style_hash,
+            voter_signing_pk: None,
+            voter_ballot_signature: None,
         })
     }
 }
