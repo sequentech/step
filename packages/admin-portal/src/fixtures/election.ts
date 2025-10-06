@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ICountingAlgorithm, IVotingType} from "@/resources/Contest/constants"
-import {IBallotStyle, EInvalidVotePolicy, EEnableCheckableLists} from "@sequentech/ui-core"
+import {
+    IBallotStyle,
+    EInvalidVotePolicy,
+    EEnableCheckableLists,
+    EEarlyVotingPolicy,
+} from "@sequentech/ui-core"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
@@ -10,6 +15,9 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
     election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
     election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
     area_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+    area_presentation: {
+        allow_early_voting: EEarlyVotingPolicy.NO_EARLY_VOTING,
+    },
     description: "With categories",
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
@@ -168,6 +176,9 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
     election_event_id: "60e4ddce-2d5b-4dea-bbae-e81010aa1f0f",
     election_id: "60e4ddce-2d5b-4dea-bbae-e81010aa1f0f",
     area_id: "60e4ddce-2d5b-4dea-bbae-e81010aa1f0f",
+    area_presentation: {
+        allow_early_voting: EEarlyVotingPolicy.NO_EARLY_VOTING,
+    },
     description: "Simple election plurality",
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
@@ -277,6 +288,9 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
     election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
     election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
     area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+    area_presentation: {
+        allow_early_voting: EEarlyVotingPolicy.NO_EARLY_VOTING,
+    },
     description: "Write-ins simple",
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
@@ -391,6 +405,9 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
     election_event_id: "45b95ddb-e9b7-4a83-ac14-d6fe21574637",
     election_id: "45b95ddb-e9b7-4a83-ac14-d6fe21574637",
     area_id: "45b95ddb-e9b7-4a83-ac14-d6fe21574637",
+    area_presentation: {
+        allow_early_voting: EEarlyVotingPolicy.NO_EARLY_VOTING,
+    },
     description: "With Invalid Vote",
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",

@@ -110,6 +110,9 @@ const tagalogTranslation: TranslationType = {
                 header: "Wala pang Lugar.",
                 action: "Lumikha ng Lugar",
             },
+            formImputs: {
+                allowEarlyVoting: "Payagan ang Maagang Pagboto",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -1141,6 +1144,7 @@ const tagalogTranslation: TranslationType = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Maagang pagboto",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
@@ -1640,9 +1644,17 @@ const tagalogTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
+                startKioskVoting: "Simulan ang Pagboto sa Kiosk",
+                startOnlineVoting: "Simulan ang Pagboto Online",
+                startEarlyVoting: "Simulan ang Maagang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
+                stopOnlineVoting: "Itigil ang Pagboto Online",
+                stopEarlyVoting: "Itigil ang Maagang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
                 pauseVotingPeriod: "I-pause ang Pagboto",
+                pauseKioskVoting: "I-pause ang Pagboto sa Kiosk",
+                pauseOnlineVoting: "I-pause ang Pagboto Online",
+                pauseEarlyVoting: "I-pause ang Maagang Pagboto",
                 generate: "Muling Lumikha",
                 publish: "Ilathala ang Mga Pagbabago",
                 back: "Bumalik",

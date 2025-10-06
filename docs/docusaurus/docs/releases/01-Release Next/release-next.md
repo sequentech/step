@@ -74,3 +74,18 @@ the maximum allowed votes are now classified as invalid. Since this behavior was
 not previously enforced, the corresponding test required an update.
 
 - Issue: [#8526](https://github.com/sequentech/meta/issues/8526)
+
+## ✨ Early voting for child areas
+
+Add per-area Early Voting policy with UI checkbox (allowed only if the Election
+Event allows the EARLY_VOTING channel) and adapt import/export/upsert support.
+Backend now stores EarlyVotingPolicy and area presentation; publications use
+area_presentation on BallotStyle.
+EARLY_VOTING can be allowed and started at event level, its lifecycle is governed
+by Online (auto-closes on Online start/close; cannot start after Online begins),
+while Kiosk remains independent.
+Publish UI consolidates per-channel actions in a dropdown for every start/pause/stop button;
+Voting Portal and Harvest endpoints honor early voting only for voters in enabled areas
+when the channel is started.
+
+- Issue: [#7681](https://github.com/sequentech/meta/issues/7681)
