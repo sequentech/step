@@ -207,7 +207,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
         setIsDecryptModalOpen(false)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let generateReportResponse = await generateReport({
                 variables: {

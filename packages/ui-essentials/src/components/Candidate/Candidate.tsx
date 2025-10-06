@@ -107,6 +107,7 @@ export interface CandidateProps extends PropsWithChildren {
     isInvalidWriteIn?: boolean
     index?: number
     shouldDisable?: boolean
+    className?: string
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -126,6 +127,7 @@ const Candidate: React.FC<CandidateProps> = ({
     children,
     shouldDisable,
     index,
+    className,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
@@ -156,7 +158,7 @@ const Candidate: React.FC<CandidateProps> = ({
             isinvalidvote={String(!!isInvalidVote)}
             isdisabled={String(!!shouldDisable)}
             onClick={onClick}
-            className="candidate-item"
+            className={`candidate-item ${className}`}
         >
             <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>

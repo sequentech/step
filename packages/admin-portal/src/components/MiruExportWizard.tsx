@@ -524,7 +524,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             let currWidget: WidgetProps | undefined
             try {
                 if (!isTrustee) {
-                    currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE)
+                    currWidget = addWidget(ETasksExecution.CREATE_TRANSMISSION_PACKAGE, undefined)
                 }
                 const {data: nextStatus, errors} = await CreateTransmissionPackage({
                     variables: {

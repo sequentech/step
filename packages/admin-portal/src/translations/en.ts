@@ -1234,6 +1234,12 @@ const englishTranslation = {
                 "invalid-vote": "Invalid Vote",
                 "blank-vote": "Blank Vote",
             },
+            invalidVotePosition: {
+                label: "Invalid Vote Position",
+                null: "None (Default)",
+                top: "Top",
+                bottom: "Bottom",
+            },
             error: {},
             createCandidateSuccess: "Candidate created",
             createCandidateError: "Error creating candidate",

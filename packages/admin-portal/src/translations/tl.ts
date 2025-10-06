@@ -1247,6 +1247,12 @@ const tagalogTranslation: TranslationType = {
                 "invalid-vote": "Di-wastong Boto",
                 "blank-vote": "Blangkong Boto",
             },
+            invalidVotePosition: {
+                label: "Posisyon ng Di-wastong Boto",
+                null: "Wala (Default)",
+                top: "Taas",
+                bottom: "Baba",
+            },
             error: {},
             createCandidateSuccess: "Kandidato ay nalikha",
             createCandidateError: "Error sa paglikha ng kandidato",
