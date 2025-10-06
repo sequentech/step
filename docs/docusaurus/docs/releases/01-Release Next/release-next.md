@@ -65,3 +65,5 @@ existing versions, `v8.7.5`, `v8.7.6`, `v9.1.0` and `v9.1.1`.
 A failing velvet test was identified due to a recent change: ballots exceeding 
 the maximum allowed votes are now classified as invalid. Since this behavior was
 not previously enforced, the corresponding test required an update.
+
+- Issue: [#8526](https://github.com/sequentech/meta/issues/8526)
