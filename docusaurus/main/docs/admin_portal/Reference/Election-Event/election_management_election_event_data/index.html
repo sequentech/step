@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election-Event/election_management_election_event_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election-Event/election_management_election_event_data"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election-Event/election_management_election_event_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election-Event/election_management_election_event_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election-Event/election_management_election_event_data"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.fe236151.css">
-<script src="/docusaurus/main/assets/js/runtime~main.4305de0c.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/runtime~main.6bbcbffe.js" defer="defer"></script>
 <script src="/docusaurus/main/assets/js/main.ece6974f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -55,6 +55,20 @@
 <p>Define the voting methods available for this Election Event.</p>
 <ul>
 <li>Use radio buttons to enable applicable voting channels.</li>
+<li><strong>Online</strong>: Main remote voting channel. Starting/closing Online also governs Early Voting lifecycle (see below).</li>
+<li><strong>Kiosk</strong>: In-person device-based voting. Its status is independent from the others.</li>
+<li><strong>EARLY_VOTING</strong>: Enables an early voting period prior to the Online voting window for voters whose Areas have Early Voting enabled.<!-- -->
+<ul>
+<li>Appears only if allowed here; when started in Publish, only voters assigned to Areas with the Early Voting policy enabled can vote.</li>
+<li>Online channel governs Early Voting:<!-- -->
+<ul>
+<li>When Online is started or closed, Early Voting will automatically close if it was enabled.</li>
+<li>Early Voting cannot be started once Online voting has been started (and thereafter).</li>
+</ul>
+</li>
+<li>If a channel that is already started is later manually disallowed in this section, no immediate action is taken; action buttons remain disabled until the channel is allowed again.</li>
+</ul>
+</li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="custom-urls-prefix">Custom URLs Prefix<a href="#custom-urls-prefix" class="hash-link" aria-label="Direct link to Custom URLs Prefix" title="Direct link to Custom URLs Prefix">​</a></h2>
 <p>Create custom URL prefixes for the Voting and Enrollment portals, and SAML endpoint.</p>

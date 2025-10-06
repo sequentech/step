@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election/election_management_election_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election/election_management_election_data"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election/election_management_election_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election/election_management_election_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://your-docusaurus-site.example.com/docusaurus/main/docs/admin_portal/Reference/Election/election_management_election_data"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.fe236151.css">
-<script src="/docusaurus/main/assets/js/runtime~main.4305de0c.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/runtime~main.6bbcbffe.js" defer="defer"></script>
 <script src="/docusaurus/main/assets/js/main.ece6974f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -72,8 +72,16 @@
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="voting-channels-allowed">Voting Channels Allowed<a href="#voting-channels-allowed" class="hash-link" aria-label="Direct link to Voting Channels Allowed" title="Direct link to Voting Channels Allowed">​</a></h2>
 <p>Specify which voting channels (methods) are applicable for this Election.</p>
 <ul>
-<li>Use radio buttons or checkboxes to enable/disable channels (e.g., Online, Paper, Telephone, Postal).</li>
+<li>Use radio buttons or checkboxes to enable/disable channels (e.g., Online, EARLY_VOTING, Kiosk, Paper).</li>
 <li>Only the selected channels will accept votes in this Election.</li>
+<li><strong>EARLY_VOTING</strong>: Enables an early voting period for voters assigned to Areas where the area policy &quot;Early Voting&quot; is enabled. This appears only if the channel is allowed at the Election Event level.<!-- -->
+<ul>
+<li>When the Election Event starts the <strong>EARLY_VOTING</strong> channel (Publish tab), only voters in eligible Areas can vote early.</li>
+<li>The <strong>Online</strong> channel governs Early Voting lifecycle: starting or closing Online will automatically close Early Voting; Early Voting cannot be started once Online has been started.</li>
+</ul>
+</li>
+<li><strong>Kiosk</strong>: In-person voting at kiosks; its status is independent from Online/Early Voting.</li>
+<li>If a channel that has already been started is later manually disallowed in this section, no immediate action is taken; action buttons remain disabled until the channel is allowed again.</li>
 </ul>
 <hr>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="receipts">Receipts<a href="#receipts" class="hash-link" aria-label="Direct link to Receipts" title="Direct link to Receipts">​</a></h2>
