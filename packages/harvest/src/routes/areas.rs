@@ -34,7 +34,7 @@ pub struct UpsertAreaInput {
     pub annotations: Option<JsonValue>,
     pub labels: Option<JsonValue>,
     pub r#type: Option<String>,
-    pub allow_early_voting: EarlyVotingPolicy,
+    pub allow_early_voting: Option<EarlyVotingPolicy>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
