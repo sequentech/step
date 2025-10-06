@@ -59,26 +59,8 @@ export const StyledStatusButton = muiStyled(Button)`
 
 export const StyledMenuItem = muiStyled(MenuItem)`
     &.MuiMenuItem-root {
-        text-transform: uppercase;
-        border: 1px solid rgba(0, 0, 0, 0.23);
-        margin: 2px 4px;
-        border-radius: 4px;
-        min-width: 140px;
-        padding: 6px 16px;
-        line-height: 1;
-        color: #0F054C;
-        
-        &:hover {
-            border-color: rgba(0, 0, 0, 0.87);
-            background-color: rgba(0, 0, 0, 0.04);
-            color: #0F054C;
-        }
-        
-        &.Mui-disabled {
-            color: #ccc;
-            border-color: #eee;
-            background-color: #f5f5f5;
-        }
+        display: flex;
+        gap: 8px;
     }
 `
 
@@ -678,8 +660,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     </Menu>
                                 </>
                             )}
-
-                            {/* Dedicated Stop Kiosk button removed to avoid duplication; use Stop dropdown */}
 
                             {canWrite && canPublishChanges && (
                                 <StatusButton
