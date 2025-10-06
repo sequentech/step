@@ -1096,6 +1096,13 @@ pub struct AreaPresentation {
     pub allow_early_voting: Option<EarlyVotingPolicy>,
 }
 
+impl AreaPresentation {
+    pub fn is_early_voting(&self) -> bool {
+        self.allow_early_voting.clone().unwrap_or_default()
+            == EarlyVotingPolicy::AllowEarlyVoting
+    }
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
