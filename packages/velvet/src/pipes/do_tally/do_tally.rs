@@ -486,7 +486,8 @@ pub struct ExtendedMetricsContest {
     pub expected_votes: u64,
     //Total counted ballots
     pub total_ballots: u64,
-    pub weight: Weight,
+    pub weight: Weight, // Used to store the actual weight used to tally an specific area.
+    pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
 }
 
 impl ExtendedMetricsContest {
@@ -498,7 +499,7 @@ impl ExtendedMetricsContest {
         result.votes_actually += other.votes_actually;
         result.expected_votes += other.expected_votes;
         result.total_ballots += other.total_ballots;
-
+        result.total_weight += other.total_weight;
         result
     }
 }
@@ -535,14 +536,18 @@ pub struct ContestResult {
 impl ContestResult {
     #[instrument(skip_all)]
     pub fn calculate_percentages(&self) -> ContestResult {
-        let valid_not_blank = self.total_valid_votes - self.total_blank_votes;
+        let total_weight = self
+            .extended_metrics
+            .clone()
+            .unwrap_or_default()
+            .total_weight;
         let candidate_result: Vec<CandidateResult> = self
             .candidate_result
             .clone()
             .into_iter()
             .map(|candidate_result| {
                 let percentage_votes = (candidate_result.total_count as f64
-                    / cmp::max(1, valid_not_blank) as f64)
+                    / cmp::max(1, total_weight) as f64)
                     * 100.0;
                 let mut new_candidate_result = candidate_result.clone();
                 new_candidate_result.percentage_votes = percentage_votes;

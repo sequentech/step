@@ -6,7 +6,7 @@ use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
     tally::Tally, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
-use sequent_core::ballot::Contest;
+use sequent_core::ballot::{Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
 use std::cmp;
 use std::collections::HashMap;
@@ -182,6 +182,7 @@ impl CountingAlgorithm for PluralityAtLarge {
                 }
 
                 extended_metrics.total_ballots = total_ballots;
+                extended_metrics.total_weight = total_weight;
 
                 let candidate_results_map: HashMap<String, CandidateResult> = vote_count
                     .into_iter()
