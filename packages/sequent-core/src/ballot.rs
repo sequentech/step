@@ -2151,7 +2151,13 @@ impl Deref for Weight {
     Default,
 )]
 pub struct AreaAnnotations {
-    pub weight: Weight,
+    pub weight: Option<Weight>,
+}
+
+impl AreaAnnotations {
+    pub fn get_weight(&self) -> Weight {
+        self.weight.clone().unwrap_or_default()
+    }
 }
 
 impl Area {

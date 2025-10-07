@@ -111,7 +111,7 @@ pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> Weight
         .map(|bs| {
             bs.area_annotations
                 .as_ref()
-                .map(|area_annotations| area_annotations.weight)
+                .map(|area_annotations| area_annotations.get_weight())
         })
         .flatten()
         .unwrap_or_default()

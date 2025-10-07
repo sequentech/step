@@ -113,14 +113,16 @@ pub fn create_ballot_style(
     {
         area_annotations = area.clone().read_annotations()?;
     }
-    let area_presentation: AreaPresentation = match area.presentation {
-        Some(presentation) => {
+    let area_presentation: AreaPresentation = area
+        .presentation
+        .clone()
+        .map(|presentation| {
             deserialize_value(presentation).map_err(|err| {
                 anyhow!("Error parsing area presentation: {}", err)
-            })?
-        }
-        None => AreaPresentation::default(),
-    };
+            })
+        })
+        .transpose()?
+        .unwrap_or_default();
 
     Ok(ballot::BallotStyle {
         id,
