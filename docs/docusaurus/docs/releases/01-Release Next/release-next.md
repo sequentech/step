@@ -90,6 +90,13 @@ when the channel is started.
 
 - Issue: [#7681](https://github.com/sequentech/meta/issues/7681)
 
+## ✨ Improve Dashboard print look
+
+Improve the election event/election dashboard so that all necessary data (statistics)
+are displayed correctly in print mode.
+
+- Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
+
 ## ✨ Weighted voting for areas
 
 Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
