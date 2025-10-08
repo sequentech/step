@@ -6,7 +6,7 @@
 import React, {ReactElement, useContext, useMemo} from "react"
 import {DatagridConfigurable, FunctionField, List, TextField, useSidebarState} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {Typography} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
@@ -26,6 +26,11 @@ export interface ListIpAddressProps {
     aside?: ReactElement
     electionEventId?: string
     electionId?: string
+}
+
+export interface RecordVoteCloudflareData {
+    ip?: string
+    country?: string
 }
 
 export const ListIpAddress: React.FC<ListIpAddressProps> = ({
@@ -83,7 +88,7 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
     }
 
     return (
-        <div className="print-hidden">
+        <Box className="print-hidden">
             <Typography variant="h4">{t(`dashboard.ipAddress.title`)}</Typography>
             <ListStyle
                 resource="ip_address"
@@ -102,13 +107,15 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
                         source="ip"
                         sortable={false}
                         label={`${t(`dashboard.ipAddress.ip`)}`}
-                        render={(record: any) => (record.ip ? record.ip : "-")}
+                        render={(record: RecordVoteCloudflareData) => (record.ip ? record.ip : "-")}
                     />
                     <FunctionField
                         source="country"
                         sortable={false}
                         label={`${t(`dashboard.ipAddress.country`)}`}
-                        render={(record: any) => (record.ip ? record.ip : "-")}
+                        render={(record: RecordVoteCloudflareData) =>
+                            record.country ? record.country : "-"
+                        }
                     />
                     <TextField
                         source="vote_count"
@@ -127,6 +134,6 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
                     />
                 </DatagridConfigurable>
             </ListStyle>
-        </div>
+        </Box>
     )
 }
