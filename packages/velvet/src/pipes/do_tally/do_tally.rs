@@ -550,7 +550,7 @@ impl ContestResult {
                     / cmp::max(1, total_weight) as f64)
                     * 100.0;
                 let mut new_candidate_result = candidate_result.clone();
-                new_candidate_result.percentage_votes = percentage_votes;
+                new_candidate_result.percentage_votes = percentage_votes.clamp(0.0, 100.0);
 
                 new_candidate_result
             })
@@ -602,8 +602,8 @@ impl ContestResult {
             aggregate.census += other.census;
         }
         let aggregate_metrics = aggregate.extended_metrics.unwrap_or_default();
-        aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default());
-        aggregate.extended_metrics = Some(aggregate_metrics);
+        aggregate.extended_metrics =
+            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;
