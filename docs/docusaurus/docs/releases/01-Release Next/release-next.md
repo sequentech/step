@@ -7,6 +7,14 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Keycloak: Redirect To Registration Authenticator doesn't work when `http-relative-path` is set
+
+Keycloak: Redirect authenticator doesn't work when http-relative-path is set.
+The reason is that the http-relative-path is set twice, `/auth` appears twice in
+the URL.
+
+- Issue: [#8574](https://github.com/sequentech/meta/issues/8574)
+
 ## 🐞 Keycloak: Deferred authenticator in Login mode ask for password confirmation
 
 When using the Deferred Authenticator in Login mode, it was asking for password
