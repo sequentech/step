@@ -108,6 +108,9 @@ const englishTranslation = {
                 header: "No Areas yet.",
                 action: "Create Area",
             },
+            formImputs: {
+                allowEarlyVoting: "Allow Early Voting",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -1128,6 +1131,7 @@ const englishTranslation = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Early voting",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
@@ -1229,6 +1233,12 @@ const englishTranslation = {
                 "semi-open-list": "Semi Open List",
                 "invalid-vote": "Invalid Vote",
                 "blank-vote": "Blank Vote",
+            },
+            invalidVotePosition: {
+                label: "Invalid Vote Position",
+                null: "None (Default)",
+                top: "Top",
+                bottom: "Bottom",
             },
             error: {},
             createCandidateSuccess: "Candidate created",
@@ -1618,9 +1628,17 @@ const englishTranslation = {
             action: {
                 generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
+                startKioskVoting: "Start Kiosk Voting",
+                startOnlineVoting: "Start Online Voting",
+                startEarlyVoting: "Start Early Voting",
                 stopVotingPeriod: "Stop Voting",
+                stopOnlineVoting: "Stop Online Voting",
+                stopEarlyVoting: "Stop Early Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
+                pauseKioskVoting: "Pause Kiosk Voting",
+                pauseOnlineVoting: "Pause Online Voting",
+                pauseEarlyVoting: "Pause Early Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",

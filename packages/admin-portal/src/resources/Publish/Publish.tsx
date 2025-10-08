@@ -45,6 +45,7 @@ import {
     IElectionPresentation,
     IElectionStatus,
     IVotingChannelsConfig,
+    IChannelButtonInfo,
 } from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {convertToNumber} from "@/lib/helpers"
@@ -157,7 +158,38 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const kioskModeEnabled = () => {
-            return (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
+            let status =
+                (record?.status as IElectionStatus)?.kiosk_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.kiosk ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
+        }
+
+        const onlineModeEnabled = () => {
+            let status =
+                (record?.status as IElectionStatus)?.voting_status ?? EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.online ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
+        }
+
+        const earlyVotingEnabled = () => {
+            let status =
+                (record?.status as IElectionStatus)?.early_voting_status ??
+                EVotingStatus.NOT_STARTED
+            let is_channel_enabled =
+                (record?.voting_channels as IVotingChannelsConfig)?.early_voting ?? false
+            return {
+                status,
+                is_channel_enabled,
+            } as IChannelButtonInfo
         }
 
         const onGenerate = async () => {
@@ -216,10 +248,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         votingChannel,
                     },
                 })
-                // TODO: Right now if we are opening or pausing for online, we
-                // also do it for kiosk if kiosk mode is enabled. In the future,
-                // we should be able to do this individually in the UI for each
-                // channel separatedly.
+                // No matter the channel, we need to update the general publish status.
+                // That´s used to control the loading icon in the buttons for the transitions.
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
                 setChangingStatus(false)
                 refresh()
@@ -427,6 +457,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         publishType={type}
                         canWrite={canWrite}
                         kioskModeEnabled={kioskModeEnabled()}
+                        onlineModeEnabled={onlineModeEnabled()}
+                        earlyVotingEnabled={earlyVotingEnabled()}
                         changingStatus={changingStatus}
                         electionId={electionId}
                         onGenerate={onGenerate}
@@ -460,6 +492,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionEventId={electionEventId}
                         fetchAllPublishChanges={fetchAllPublishChanges}
                         onPreview={onPreview}
+                        kioskModeEnabled={kioskModeEnabled()}
+                        onlineModeEnabled={onlineModeEnabled()}
+                        earlyVotingEnabled={earlyVotingEnabled()}
                     />
                 )}
                 <FormDialog

@@ -961,20 +961,6 @@ actions:
       permissions:
           - role: cloudflare-write
           - role: admin-user
-    - name: list_cast_vote_messages
-      definition:
-          kind: synchronous
-          handler: http://{{HARVEST_DOMAIN}}/list-cast-vote-messages
-          forward_client_headers: true
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: user
-      comment: List electoral log entries of statement_kind CastVote
     - name: listElectoralLog
       definition:
           kind: ""
@@ -1025,6 +1011,20 @@ actions:
           - role: immudb:log:read
           - role: admin-user
       comment: List PostgreSQL audit logs
+    - name: list_cast_vote_messages
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/list-cast-vote-messages
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: List electoral log entries of statement_kind CastVote
     - name: list_keys_ceremony
       definition:
           kind: ""
@@ -1306,6 +1306,14 @@ actions:
       comment: upsert_areas
 custom_types:
     enums:
+        - name: EarlyVotingPolicy
+          values:
+              - description: null
+                is_deprecated: null
+                value: allow_early_voting
+              - description: null
+                is_deprecated: null
+                value: no_early_voting
         - name: ReportEncryptionPolicy
           values:
               - description: null
@@ -1352,6 +1360,9 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: KIOSK
+              - description: null
+                is_deprecated: null
+                value: EARLY_VOTING
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter
