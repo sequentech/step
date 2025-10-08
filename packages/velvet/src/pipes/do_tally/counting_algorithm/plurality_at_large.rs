@@ -123,7 +123,8 @@ impl CountingAlgorithm for PluralityAtLarge {
     fn tally(&self) -> Result<ContestResult> {
         let contest_result = match self.tally.tally_results.len() > 0 {
             true => {
-                let contest_result = ContestResult::default();
+                let mut contest_result = ContestResult::default();
+                contest_result.contest = self.tally.contest.clone();
                 let aggregated = self
                     .tally
                     .tally_results
