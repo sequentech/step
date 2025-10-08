@@ -66,3 +66,10 @@ selected to participate in the tally.
 
 Moved developer release notes to Docusaurus. Updated release notes for various
 existing versions, `v8.7.5`, `v8.7.6`, `v9.1.0` and `v9.1.1`.
+
+## ✨ Improve Dashboard print look
+
+Improve the election event/election dashboard so that all necessary data (statistics)
+are displayed correctly in print mode.
+
+- Issue: [#7534](https://github.com/sequentech/meta/issues/7534)

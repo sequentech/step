@@ -77,7 +77,7 @@ export default function DashboardElection() {
     const cardHeight = 250
 
     return (
-        <Box sx={{width: 1024, marginX: "auto"}}>
+        <Box sx={{width: 1024, marginX: "auto"}} className="dashboard">
             <Box>
                 <Stats metrics={metrics} />
 

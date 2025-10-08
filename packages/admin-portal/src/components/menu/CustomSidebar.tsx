@@ -22,7 +22,9 @@ export const CustomSidebar = (props: SidebarProps) => {
             open={open}
             onClose={toggleSidebar}
             classes={SidebarClasses}
-            className={trigger && !appBarAlwaysOn ? SidebarClasses.appBarCollapsed : ""}
+            className={`print-hidden ${
+                trigger && !appBarAlwaysOn ? SidebarClasses.appBarCollapsed : ""
+            }`}
             {...rest}
         >
             {children}
