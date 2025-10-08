@@ -978,6 +978,30 @@
             "runOn": "default"
           },
           "problemMatcher": []
-        }
+        },
+        {
+            "label": "fix.docker",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "rm -rf /home/vscode/.docker/",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
     ]
 }
