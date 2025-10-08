@@ -89,3 +89,10 @@ Voting Portal and Harvest endpoints honor early voting only for voters in enable
 when the channel is started.
 
 - Issue: [#7681](https://github.com/sequentech/meta/issues/7681)
+
+## ✨ Improve Dashboard print look
+
+Improve the election event/election dashboard so that all necessary data (statistics)
+are displayed correctly in print mode.
+
+- Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
