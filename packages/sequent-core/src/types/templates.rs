@@ -92,6 +92,29 @@ pub struct PrintToPdfOptionsLocal {
 }
 
 impl PrintToPdfOptionsLocal {
+    pub fn from_pdf_options(
+        pdf_options: PrintToPdfOptions,
+    ) -> PrintToPdfOptionsLocal {
+        PrintToPdfOptionsLocal {
+            landscape: pdf_options.landscape,
+            display_header_footer: pdf_options.display_header_footer,
+            print_background: pdf_options.print_background,
+            scale: pdf_options.scale,
+            paper_width: pdf_options.paper_width,
+            paper_height: pdf_options.paper_height,
+            margin_top: pdf_options.margin_top,
+            margin_bottom: pdf_options.margin_bottom,
+            margin_left: pdf_options.margin_left,
+            margin_right: pdf_options.margin_right,
+            page_ranges: pdf_options.page_ranges.clone(),
+            ignore_invalid_page_ranges: pdf_options.ignore_invalid_page_ranges,
+            header_template: pdf_options.header_template.clone(),
+            footer_template: pdf_options.footer_template.clone(),
+            prefer_css_page_size: pdf_options.prefer_css_page_size,
+            transfer_mode: None,
+        }
+    }
+
     /// Ignores Transfer mode which is private and not clonable
     pub fn to_print_to_pdf_options(&self) -> PrintToPdfOptions {
         PrintToPdfOptions {

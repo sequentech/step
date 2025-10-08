@@ -159,6 +159,7 @@ export interface SelectElectionProps {
     onClickToVote?: () => void
     onClickBallotLocator?: () => void
     electionDates?: IElectionDates
+    isStarted: boolean
 }
 
 /**
@@ -231,6 +232,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     onClickToVote,
     onClickBallotLocator,
     electionDates,
+    isStarted,
 }) => {
     const {t} = useTranslation()
     const startVotingDate = getStartDate(electionDates) ?? ""
@@ -269,6 +271,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 role="button"
                 tabIndex={0}
                 className="election-item"
+                is-start={String(!!isStarted)}
             >
                 <TextContainer className="election-info">
                     <StyledTitle className="election-title">{title}</StyledTitle>

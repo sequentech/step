@@ -7,7 +7,7 @@ import React, {useContext, useEffect, useState} from "react"
 import styled from "@emotion/styled"
 import {styled as muiStyled} from "@mui/material/styles"
 
-import {CircularProgress, Typography} from "@mui/material"
+import {CircularProgress, Typography, Menu, MenuItem} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
@@ -29,6 +29,7 @@ import {
     EVotingStatus,
     IElectionPresentation,
     IElectionStatus,
+    IChannelButtonInfo,
 } from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
@@ -56,6 +57,13 @@ export const StyledStatusButton = muiStyled(Button)`
     }
 `
 
+export const StyledMenuItem = muiStyled(MenuItem)`
+    &.MuiMenuItem-root {
+        display: flex;
+        gap: 8px;
+    }
+`
+
 export type PublishActionsProps = {
     ballotPublicationId?: string | Identifier | null
     data?: any
@@ -63,7 +71,9 @@ export type PublishActionsProps = {
     publishType: EPublishType.Election | EPublishType.Event
     electionStatus: IElectionStatus | null
     electionPresentation: IElectionPresentation | null
-    kioskModeEnabled: boolean
+    kioskModeEnabled: IChannelButtonInfo
+    onlineModeEnabled: IChannelButtonInfo
+    earlyVotingEnabled: IChannelButtonInfo
     changingStatus: boolean
     onPublish?: () => void
     onGenerate: () => void
@@ -77,6 +87,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     type,
     status,
     kioskModeEnabled,
+    onlineModeEnabled,
+    earlyVotingEnabled,
     electionStatus,
     electionPresentation,
     changingStatus,
@@ -102,6 +114,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
     const [currentCallback, setCurrentCallback] = useState<any>(null)
+    const [startAnchorEl, setStartAnchorEl] = useState<null | HTMLElement>(null)
+    const startMenuOpen = Boolean(startAnchorEl)
+    const [pauseAnchorEl, setPauseAnchorEl] = useState<null | HTMLElement>(null)
+    const pauseMenuOpen = Boolean(pauseAnchorEl)
+    const [stopAnchorEl, setStopAnchorEl] = useState<null | HTMLElement>(null)
+    const stopMenuOpen = Boolean(stopAnchorEl)
 
     const {
         canPublishRegenerate,
@@ -112,16 +130,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         showPublishColumns,
         showPublishFilters,
     } = usePublishPermissions()
-
-    const StatusIcon = ({
-        changingStatus,
-        Icon,
-    }: {
-        changingStatus: boolean
-        Icon: SvgIconComponent
-    }) => {
-        return changingStatus ? <CircularProgress size={16} /> : <Icon width={24} />
-    }
 
     const IconOrProgress = ({st, Icon}: {st: PublishStatus; Icon: SvgIconComponent}) => {
         return nextStatus(st) === status && status !== PublishStatus.Void ? (
@@ -178,7 +186,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     // Handler for navigating after a re-authentication action.
-    let reauthCallback = (baseUrl: URL, action: EPublishActions) => {
+    let reauthCallback = (
+        baseUrl: URL,
+        action: EPublishActions,
+        voting_channels?: VotingStatusChannel[]
+    ) => {
         if (publishType === EPublishType.Event) {
             const electionEventPublishTabIndex = localStorage.getItem(
                 "electionEventPublishTabIndex"
@@ -189,10 +201,22 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
         }
         sessionStorage.setItem(action, "true")
+        if (
+            voting_channels &&
+            (action === EPublishActions.PENDING_START_VOTING ||
+                action === EPublishActions.PENDING_PAUSE_VOTING ||
+                action === EPublishActions.PENDING_STOP_VOTING)
+        ) {
+            try {
+                sessionStorage.setItem(`${action}_CHANNELS`, JSON.stringify(voting_channels))
+            } catch (e) {
+                console.warn("Could not persist selected channels for re-auth", e)
+            }
+        }
     }
 
     /**
-     * Specific Handler for "Start Voting" Button:
+     * Specific Handler for Start/Pause/Stop Buttons:
      * Incorporates re-authentication logic for actions that require Gold-level permissions.
      */
     const handleChangeVotingPeriod = (
@@ -220,36 +244,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             try {
                 if (!isGoldUser()) {
                     const baseUrl = new URL(window.location.href)
-                    reauthCallback(baseUrl, action)
+                    reauthCallback(baseUrl, action, voting_channels)
                     await reauthWithGold(baseUrl.toString())
                 } else {
                     onChangeStatus(status, voting_channels)
-                }
-            } catch (error) {
-                console.error("Re-authentication failed:", error)
-            }
-        })
-    }
-
-    /**
-     * Specific Handler for "Stop Kiosk Voting" Button:
-     * Incorporates re-authentication logic for actions that require Gold-level permissions.
-     */
-    const handleStopKioskVoting = () => {
-        const actionText = t(`publish.action.stopKioskVotingPeriod`)
-        const dialogMessage = isGoldUser()
-            ? t("publish.dialog.kioskStopInfo", {action: actionText})
-            : t("publish.dialog.confirmation", {action: actionText})
-        openDialog(dialogMessage)
-
-        setCurrentCallback(() => async () => {
-            try {
-                if (!isGoldUser()) {
-                    const baseUrl = new URL(window.location.href)
-                    reauthCallback(baseUrl, EPublishActions.PENDING_STOP_KIOSK_ACTION)
-                    await reauthWithGold(baseUrl.toString())
-                } else {
-                    onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Kiosk])
                 }
             } catch (error) {
                 console.error("Re-authentication failed:", error)
@@ -303,20 +301,56 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
             const pendingStart = sessionStorage.getItem(EPublishActions.PENDING_START_VOTING)
             if (pendingStart) {
-                isGold && onChangeStatus(ElectionEventStatus.Open)
+                let selectedChannels: VotingStatusChannel[] | undefined = undefined
+                try {
+                    const channelsStr = sessionStorage.getItem(
+                        `${EPublishActions.PENDING_START_VOTING}_CHANNELS`
+                    )
+                    if (channelsStr) {
+                        selectedChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
+                    }
+                } catch (e) {
+                    console.warn("Could not restore selected channels after re-auth", e)
+                }
+                isGold && onChangeStatus(ElectionEventStatus.Open, selectedChannels)
                 sessionStorage.removeItem(EPublishActions.PENDING_START_VOTING)
+                sessionStorage.removeItem(`${EPublishActions.PENDING_START_VOTING}_CHANNELS`)
             }
 
             const pendingPause = sessionStorage.getItem(EPublishActions.PENDING_PAUSE_VOTING)
             if (pendingPause) {
-                isGold && onChangeStatus(ElectionEventStatus.Paused)
+                let selectedPauseChannels: VotingStatusChannel[] | undefined = undefined
+                try {
+                    const channelsStr = sessionStorage.getItem(
+                        `${EPublishActions.PENDING_PAUSE_VOTING}_CHANNELS`
+                    )
+                    if (channelsStr) {
+                        selectedPauseChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
+                    }
+                } catch (e) {
+                    console.warn("Could not restore selected pause channels after re-auth", e)
+                }
+                isGold && onChangeStatus(ElectionEventStatus.Paused, selectedPauseChannels)
                 sessionStorage.removeItem(EPublishActions.PENDING_PAUSE_VOTING)
+                sessionStorage.removeItem(`${EPublishActions.PENDING_PAUSE_VOTING}_CHANNELS`)
             }
 
             const pendingStop = sessionStorage.getItem(EPublishActions.PENDING_STOP_VOTING)
             if (pendingStop) {
-                isGold && onChangeStatus(ElectionEventStatus.Closed, [VotingStatusChannel.Online])
+                let selectedStopChannels: VotingStatusChannel[] | undefined = undefined
+                try {
+                    const channelsStr = sessionStorage.getItem(
+                        `${EPublishActions.PENDING_STOP_VOTING}_CHANNELS`
+                    )
+                    if (channelsStr) {
+                        selectedStopChannels = JSON.parse(channelsStr) as VotingStatusChannel[]
+                    }
+                } catch (e) {
+                    console.warn("Could not restore selected stop channels after re-auth", e)
+                }
+                isGold && onChangeStatus(ElectionEventStatus.Closed, selectedStopChannels)
                 sessionStorage.removeItem(EPublishActions.PENDING_STOP_VOTING)
+                sessionStorage.removeItem(`${EPublishActions.PENDING_STOP_VOTING}_CHANNELS`)
             }
 
             const pendingStopKiosk = sessionStorage.getItem(
@@ -331,12 +365,82 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         executePendingActions()
     }, [isGoldUser, onChangeStatus, onGenerate, record])
 
-    const kioskVotingStarted = () => {
+    // Per-channel menu item disable logic
+    const isStartChannelDisabled = (info?: IChannelButtonInfo): boolean => {
+        const channelEnabled = info?.is_channel_enabled ?? false
+        const st = info?.status
+        return !channelEnabled || st === EVotingStatus.OPEN || st === EVotingStatus.CLOSED
+    }
+
+    const isPauseChannelDisabled = (info?: IChannelButtonInfo): boolean => {
+        const channelEnabled = info?.is_channel_enabled ?? false
+        const st = info?.status
         return (
-            kioskModeEnabled &&
-            [EVotingStatus.OPEN, EVotingStatus.PAUSED].includes(
-                electionStatus?.kiosk_voting_status ?? EVotingStatus.NOT_STARTED
-            )
+            !channelEnabled ||
+            st === EVotingStatus.NOT_STARTED ||
+            st === EVotingStatus.PAUSED ||
+            st === EVotingStatus.CLOSED
+        )
+    }
+
+    const isStopChannelDisabled = (info?: IChannelButtonInfo): boolean => {
+        const channelEnabled = info?.is_channel_enabled ?? false
+        const st = info?.status
+        return !channelEnabled || st === EVotingStatus.CLOSED || st === EVotingStatus.NOT_STARTED
+    }
+
+    const initializationReportNotGenerated = (): boolean => {
+        return (
+            record?.presentation?.initialization_report_policy ===
+                EInitializeReportPolicy.REQUIRED && !record?.initialization_report_generated
+        )
+    }
+
+    // Encapsulated original disabled logic for each main action button
+    const isStartButtonDisabled = (): boolean => {
+        const allChannelsDisabled =
+            isStartChannelDisabled(kioskModeEnabled) &&
+            isStartChannelDisabled(onlineModeEnabled) &&
+            isStartChannelDisabled(earlyVotingEnabled)
+
+        return (
+            changingStatus ||
+            [PublishStatus.GeneratedLoading].includes(status) ||
+            allChannelsDisabled
+        )
+    }
+
+    const isPauseButtonDisabled = (): boolean => {
+        const allChannelsDisabled =
+            isPauseChannelDisabled(kioskModeEnabled) &&
+            isPauseChannelDisabled(onlineModeEnabled) &&
+            isPauseChannelDisabled(earlyVotingEnabled)
+
+        return (
+            changingStatus ||
+            [
+                // PublishStatus.Void,
+                PublishStatus.Generated,
+                PublishStatus.GeneratedLoading,
+            ].includes(status) ||
+            allChannelsDisabled
+        )
+    }
+
+    const isStopButtonDisabled = (): boolean => {
+        const allChannelsDisabled =
+            isStopChannelDisabled(kioskModeEnabled) &&
+            isStopChannelDisabled(onlineModeEnabled) &&
+            isStopChannelDisabled(earlyVotingEnabled)
+
+        return (
+            changingStatus ||
+            [
+                // PublishStatus.Void,
+                PublishStatus.Generated,
+                PublishStatus.GeneratedLoading,
+            ].includes(status) ||
+            allChannelsDisabled
         )
     }
 
@@ -357,85 +461,204 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                             {showPublishColumns ? <SelectColumnsButton /> : null}
                             {showPublishFilters ? <FilterButton /> : null}
                             {canChangeStatus && canPublishStartVoting && (
-                                <StatusButton
-                                    onClick={() =>
-                                        handleChangeVotingPeriod(
-                                            EPublishActions.PENDING_START_VOTING,
-                                            ElectionEventStatus.Open
-                                        )
-                                    }
-                                    label={t("publish.action.startVotingPeriod")}
-                                    st={PublishStatus.Started}
-                                    Icon={PlayCircle}
-                                    disabledStatus={[
-                                        PublishStatus.Stopped,
-                                        PublishStatus.Started,
-                                        PublishStatus.GeneratedLoading,
-                                    ]}
-                                    disabled={
-                                        record?.presentation?.initialization_report_policy ===
-                                            EInitializeReportPolicy.REQUIRED &&
-                                        !record?.initialization_report_generated
-                                    }
-                                />
+                                <>
+                                    <StyledStatusButton
+                                        onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
+                                            setStartAnchorEl(e.currentTarget)
+                                        }
+                                        className={"startVotingMenu"}
+                                        label={t("publish.action.startVotingPeriod")}
+                                        disabled={isStartButtonDisabled()}
+                                    >
+                                        <IconOrProgress
+                                            st={PublishStatus.Started}
+                                            Icon={PlayCircle}
+                                        />
+                                    </StyledStatusButton>
+                                    <Menu
+                                        anchorEl={startAnchorEl}
+                                        open={startMenuOpen}
+                                        onClose={() => setStartAnchorEl(null)}
+                                        anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                                        transformOrigin={{vertical: "top", horizontal: "left"}}
+                                    >
+                                        <StyledMenuItem
+                                            disabled={
+                                                isStartChannelDisabled(onlineModeEnabled) ||
+                                                initializationReportNotGenerated()
+                                            }
+                                            onClick={() => {
+                                                setStartAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_START_VOTING,
+                                                    ElectionEventStatus.Open,
+                                                    [VotingStatusChannel.Online]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.startOnlineVoting")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isStartChannelDisabled(kioskModeEnabled)}
+                                            onClick={() => {
+                                                setStartAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_START_VOTING,
+                                                    ElectionEventStatus.Open,
+                                                    [VotingStatusChannel.Kiosk]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.startKioskVoting")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isStartChannelDisabled(earlyVotingEnabled)}
+                                            onClick={() => {
+                                                setStartAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_START_VOTING,
+                                                    ElectionEventStatus.Open,
+                                                    [VotingStatusChannel.EarlyVoting]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.startEarlyVoting")}
+                                        </StyledMenuItem>
+                                    </Menu>
+                                </>
                             )}
 
                             {canChangeStatus && canPublishPauseVoting && (
-                                <StatusButton
-                                    onClick={() =>
-                                        handleChangeVotingPeriod(
-                                            EPublishActions.PENDING_PAUSE_VOTING,
-                                            ElectionEventStatus.Paused
-                                        )
-                                    }
-                                    label={t("publish.action.pauseVotingPeriod")}
-                                    st={PublishStatus.Paused}
-                                    Icon={PauseCircle}
-                                    disabledStatus={[
-                                        PublishStatus.Void,
-                                        PublishStatus.Paused,
-                                        PublishStatus.Stopped,
-                                        PublishStatus.Generated,
-                                        PublishStatus.GeneratedLoading,
-                                    ]}
-                                />
+                                <>
+                                    <StyledStatusButton
+                                        onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
+                                            setPauseAnchorEl(e.currentTarget)
+                                        }
+                                        className={"pauseVotingMenu"}
+                                        label={t("publish.action.pauseVotingPeriod")}
+                                        disabled={isPauseButtonDisabled()}
+                                    >
+                                        <IconOrProgress
+                                            st={PublishStatus.Paused}
+                                            Icon={PauseCircle}
+                                        />
+                                    </StyledStatusButton>
+                                    <Menu
+                                        anchorEl={pauseAnchorEl}
+                                        open={pauseMenuOpen}
+                                        onClose={() => setPauseAnchorEl(null)}
+                                        anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                                        transformOrigin={{vertical: "top", horizontal: "left"}}
+                                    >
+                                        <StyledMenuItem
+                                            disabled={isPauseChannelDisabled(onlineModeEnabled)}
+                                            onClick={() => {
+                                                setPauseAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_PAUSE_VOTING,
+                                                    ElectionEventStatus.Paused,
+                                                    [VotingStatusChannel.Online]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.pauseOnlineVoting")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isPauseChannelDisabled(kioskModeEnabled)}
+                                            onClick={() => {
+                                                setPauseAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_PAUSE_VOTING,
+                                                    ElectionEventStatus.Paused,
+                                                    [VotingStatusChannel.Kiosk]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.pauseKioskVoting")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isPauseChannelDisabled(earlyVotingEnabled)}
+                                            onClick={() => {
+                                                setPauseAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_PAUSE_VOTING,
+                                                    ElectionEventStatus.Paused,
+                                                    [VotingStatusChannel.EarlyVoting]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.pauseEarlyVoting")}
+                                        </StyledMenuItem>
+                                    </Menu>
+                                </>
                             )}
 
                             {canChangeStatus && canPublishStopVoting && (
-                                <StatusButton
-                                    onClick={() =>
-                                        handleChangeVotingPeriod(
-                                            EPublishActions.PENDING_STOP_VOTING,
-                                            ElectionEventStatus.Closed,
-                                            [VotingStatusChannel.Online]
-                                        )
-                                    }
-                                    label={t("publish.action.stopVotingPeriod")}
-                                    st={PublishStatus.Stopped}
-                                    Icon={StopCircle}
-                                    disabledStatus={[
-                                        PublishStatus.Void,
-                                        PublishStatus.Stopped,
-                                        PublishStatus.Generated,
-                                        PublishStatus.GeneratedLoading,
-                                    ]}
-                                    disabled={isVotingPeriodEndDisallowed}
-                                />
-                            )}
-
-                            {canChangeStatus && kioskModeEnabled && (
-                                <StyledStatusButton
-                                    onClick={handleStopKioskVoting}
-                                    className={"kioskMode"}
-                                    label={t("publish.action.stopKioskVotingPeriod")}
-                                    disabled={
-                                        changingStatus ||
-                                        !kioskVotingStarted() ||
-                                        isVotingPeriodEndDisallowed
-                                    }
-                                >
-                                    <StatusIcon changingStatus={changingStatus} Icon={StopCircle} />
-                                </StyledStatusButton>
+                                <>
+                                    <StyledStatusButton
+                                        onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
+                                            setStopAnchorEl(e.currentTarget)
+                                        }
+                                        className={"stopVotingMenu"}
+                                        label={t("publish.action.stopVotingPeriod")}
+                                        disabled={isStopButtonDisabled()}
+                                    >
+                                        <IconOrProgress
+                                            st={PublishStatus.Stopped}
+                                            Icon={StopCircle}
+                                        />
+                                    </StyledStatusButton>
+                                    <Menu
+                                        anchorEl={stopAnchorEl}
+                                        open={stopMenuOpen}
+                                        onClose={() => setStopAnchorEl(null)}
+                                        anchorOrigin={{vertical: "bottom", horizontal: "left"}}
+                                        transformOrigin={{vertical: "top", horizontal: "left"}}
+                                    >
+                                        <StyledMenuItem
+                                            disabled={
+                                                isStopChannelDisabled(onlineModeEnabled) ||
+                                                isVotingPeriodEndDisallowed
+                                            }
+                                            onClick={() => {
+                                                setStopAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_STOP_VOTING,
+                                                    ElectionEventStatus.Closed,
+                                                    [VotingStatusChannel.Online]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.stopOnlineVoting")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isStopChannelDisabled(kioskModeEnabled)}
+                                            onClick={() => {
+                                                setStopAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_STOP_VOTING,
+                                                    ElectionEventStatus.Closed,
+                                                    [VotingStatusChannel.Kiosk]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.stopKioskVotingPeriod")}
+                                        </StyledMenuItem>
+                                        <StyledMenuItem
+                                            disabled={isStopChannelDisabled(earlyVotingEnabled)}
+                                            onClick={() => {
+                                                setStopAnchorEl(null)
+                                                handleChangeVotingPeriod(
+                                                    EPublishActions.PENDING_STOP_VOTING,
+                                                    ElectionEventStatus.Closed,
+                                                    [VotingStatusChannel.EarlyVoting]
+                                                )
+                                            }}
+                                        >
+                                            {t("publish.action.stopEarlyVoting")}
+                                        </StyledMenuItem>
+                                    </Menu>
+                                </>
                             )}
 
                             {canWrite && canPublishChanges && (
