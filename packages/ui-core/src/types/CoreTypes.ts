@@ -136,7 +136,7 @@ export interface IBallotStyle {
     description?: string
     public_key?: IPublicKeyConfig
     area_id: string
-    area_presentation: IAreaPresentation
+    area_presentation?: IAreaPresentation
     contests: Array<IContest>
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
