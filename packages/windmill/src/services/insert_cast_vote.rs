@@ -29,6 +29,7 @@ use futures::try_join;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
 
+use sequent_core::ballot::get_ballot_bytes_for_signing;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VoterSigningPolicy;
@@ -49,12 +50,12 @@ use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::keycloak::{VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
-use strand::signature::StrandSignaturePk;
-use strand::signature::StrandSignature;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
+use strand::signature::StrandSignature;
+use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
@@ -63,12 +64,13 @@ use tracing::info;
 use tracing::{error, event, instrument, Level};
 use uuid::Uuid;
 // Added imports
+use base64::{engine::general_purpose, Engine as _};
 use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_multi_ballot;
-use base64::{engine::general_purpose, Engine as _};
 use serde_json::Serializer;
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct InsertCastVoteInput { // Here is the class used for voting
+pub struct InsertCastVoteInput {
+    // Here is the class used for voting
     pub ballot_id: String,
     pub election_id: Uuid,
     pub content: String, // Here is the content in JSON
@@ -262,9 +264,9 @@ pub async fn try_insert_cast_vote(
     }
 
     let (pseudonym_h, vote_h) = if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input.content, voter_id)?
+        deserialize_and_check_multi_ballot(&input, voter_id)?
     } else {
-        deserialize_and_check_ballot(&input.content, voter_id)?
+        deserialize_and_check_ballot(&input, voter_id)?
     };
 
     // Here we obtain the signing key
@@ -486,12 +488,12 @@ pub async fn try_insert_cast_vote(
     }
 }
 
-#[instrument(err)]
+#[instrument(skip(input), err)]
 pub fn deserialize_and_check_ballot(
-    content: &str,
+    input: &InsertCastVoteInput,
     voter_id: &str,
 ) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
-    let hashable_ballot: HashableBallot = deserialize_str(&content)
+    let hashable_ballot: HashableBallot = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
     let pseudonym_h = hash_voter_id(voter_id)
@@ -513,47 +515,48 @@ pub fn deserialize_and_check_ballot(
         .collect::<Result<Vec<()>>>()
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
-    // // Check ballot signature
-    // if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (hashable_ballot_contests.voter_ballot_signature, hashable_ballot_contests.voter_signing_pk) {
-    //     let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&voter_signing_pk)
-    //         .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
+    // Check ballot signature
+    if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
+        hashable_ballot.voter_ballot_signature.clone(),
+        hashable_ballot.voter_signing_pk.clone(),
+    ) {
+        let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&voter_signing_pk)
+            .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
-    //     let ballot_signature_bytes = general_purpose::STANDARD.decode(voter_ballot_signature)?;
+        info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
 
-    //     let ballot_signature = StrandSignature::from_bytes(&ballot_signature_bytes).map_err(|err| CastVoteError::BallotVoterSignatureFailed( format!(
-    //                 "Failed to deserialize signature from hashable ballot: {}",
-    //                 err
-    //             )
-    //         ))?;
+        let content = hashable_ballot
+            .get_bytes_for_signing()
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
-    //     let hashable_ballot_to_verify = HashableMultiBallot { 
-    //         version: hashable_ballot_contests.version, 
-    //         issue_date: hashable_ballot_contests.issue_date, 
-    //         contests: hashable_ballot_contests.contests, 
-    //         config: hashable_ballot_contests.config, 
-    //         ballot_style_hash: hashable_ballot_contests.ballot_style_hash, 
-    //         voter_signing_pk: None, 
-    //         voter_ballot_signature: None };
+        let ballot_bytes = get_ballot_bytes_for_signing(
+            &input.ballot_id,
+            &input.election_id.to_string(),
+            &content,
+        );
 
-    //     // Serialize the hashable ballot
-    //     let content = serde_json::to_string(&hashable_ballot_to_verify.map_err(|err| CastVoteError::BallotVoterSignatureFailed( format!(
-    //             "Failed to serialize hashable ballot: {}",
-    //             err
-    //         )
-    //     )))?;
+        info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",  general_purpose::STANDARD.encode(ballot_bytes.clone()));
 
-    //     check_voter_signature(content.as_bytes(), &ballot_signature, &voter_signing_pk)?;
-    // }
+        let ballot_signature =
+            StrandSignature::from_b64_string(&voter_ballot_signature).map_err(|err| {
+                CastVoteError::BallotVoterSignatureFailed(format!(
+                    "Failed to deserialize signature from hashable ballot: {}",
+                    err
+                ))
+            })?;
+
+        check_voter_signature(&ballot_bytes, &ballot_signature, &voter_signing_pk)?;
+    }
 
     Ok((pseudonym_h, vote_h))
 }
 
-#[instrument(skip(content), err)]
+#[instrument(skip(input), err)]
 pub fn deserialize_and_check_multi_ballot(
-    content: &str,
+    input: &InsertCastVoteInput,
     voter_id: &str,
 ) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
-    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(content)
+    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
     let pseudonym_h = hash_voter_id(voter_id)
@@ -573,33 +576,36 @@ pub fn deserialize_and_check_multi_ballot(
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
     // Check ballot signature
-    if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (hashable_multi_ballot.voter_ballot_signature, hashable_multi_ballot.voter_signing_pk) {
+    if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
+        hashable_multi_ballot.voter_ballot_signature.clone(),
+        hashable_multi_ballot.voter_signing_pk.clone(),
+    ) {
         let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&voter_signing_pk)
             .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
-        let ballot_signature = StrandSignature::from_b64_string(&voter_ballot_signature).map_err(|err| CastVoteError::BallotVoterSignatureFailed( format!(
+        info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
+
+        let ballot_signature =
+            StrandSignature::from_b64_string(&voter_ballot_signature).map_err(|err| {
+                CastVoteError::BallotVoterSignatureFailed(format!(
                     "Failed to deserialize signature from hashable ballot: {}",
                     err
-                )
-            ))?;
+                ))
+            })?;
 
-        let hashable_ballot_to_verify = HashableMultiBallot { 
-            version: hashable_multi_ballot.version, 
-            issue_date: hashable_multi_ballot.issue_date, 
-            contests: hashable_multi_ballot.contests, 
-            config: hashable_multi_ballot.config, 
-            ballot_style_hash: hashable_multi_ballot.ballot_style_hash, 
-            voter_signing_pk: None, 
-            voter_ballot_signature: None };
+        let content = hashable_multi_ballot
+            .get_bytes_for_signing()
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
-        // Serialize the hashable ballot
-        let content = serde_json::to_string(&hashable_ballot_to_verify).map_err(|err| CastVoteError::BallotVoterSignatureFailed( format!(
-                "Failed to serialize hashable ballot: {}",
-                err
-            )
-        ))?;
+        let ballot_bytes = get_ballot_bytes_for_signing(
+            &input.ballot_id,
+            &input.election_id.to_string(),
+            &content,
+        );
 
-        check_voter_signature(content.as_bytes(), &ballot_signature, &voter_signing_pk)?;
+        info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",  general_purpose::STANDARD.encode(ballot_bytes.clone()));
+
+        check_voter_signature(&ballot_bytes, &ballot_signature, &voter_signing_pk)?;
     }
 
     Ok((pseudonym_h, vote_h))
@@ -1041,8 +1047,16 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
 }
 
 #[instrument(skip_all, err)]
-fn check_voter_signature(message: &[u8], vote_signature: &StrandSignature, voter_signing_pk: &StrandSignaturePk) -> Result<(), CastVoteError> {
-    voter_signing_pk.verify(vote_signature, message).map_err(|err| CastVoteError::BallotVoterSignatureFailed(format!("Failed to verify signature: {err}")))
+fn check_voter_signature(
+    message: &[u8],
+    vote_signature: &StrandSignature,
+    voter_signing_pk: &StrandSignaturePk,
+) -> Result<(), CastVoteError> {
+    voter_signing_pk
+        .verify(vote_signature, message)
+        .map_err(|err| {
+            CastVoteError::BallotVoterSignatureFailed(format!("Failed to verify signature: {err}"))
+        })
 }
 
 /// Verifies that the ballot_id corresponds to the hash of the ballot content

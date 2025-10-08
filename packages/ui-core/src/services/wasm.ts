@@ -26,7 +26,8 @@ import {
     test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
-    sign_ballot_with_ephemeral_voter_signing_key_js,
+    sign_hashable_ballot_with_ephemeral_voter_signing_key_js,
+    sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js,
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
@@ -190,13 +191,34 @@ export const encryptMultiBallotSelection = (
     }
 }
 
-export const signBallot = (
+export const signHashableBallot = (
     ballot_id: string,
     election_id: string,
-    content: string
+    content: IHashableSingleBallot
 ): ISignedContent => {
     try {
-        return sign_ballot_with_ephemeral_voter_signing_key_js(ballot_id, election_id, content)
+        return sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const signHashableMultiBallot = (
+    ballot_id: string,
+    election_id: string,
+    content: IHashableMultiBallot
+): ISignedContent => {
+    try {
+        return sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
     } catch (error) {
         console.log(error)
         throw error

@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::ballot::{
+    sign_hashable_ballot_with_ephemeral_voter_signing_key,
+    verify_ballot_signature,
+};
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
@@ -16,7 +20,6 @@ use crate::plaintext::*;
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
-use crate::ballot::sign_ballot_with_ephemeral_voter_signing_key;
 use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
@@ -979,7 +982,7 @@ pub fn get_auth_url_js(
 }
 
 #[wasm_bindgen]
-pub fn sign_ballot_with_ephemeral_voter_signing_key_js(
+pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
     ballot_id: JsValue,
     election_id: JsValue,
     content: JsValue,
@@ -988,19 +991,76 @@ pub fn sign_ballot_with_ephemeral_voter_signing_key_js(
     let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
         .map_err(|err| format!("Error deserializing ballot_id: {err}"))
         .into_json()?;
-    let election_id: String =
-        serde_wasm_bindgen::from_value(election_id)
-            .map_err(|err| format!("Error deserializing election_id: {err}"))
-            .into_json()?;
-    let content: String =
-        serde_wasm_bindgen::from_value(content)
-            .map_err(|err| format!("Error deserializing content: {err}"))
-            .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let content: HashableBallot = serde_wasm_bindgen::from_value(content)
+        .map_err(|err| format!("Error deserializing content: {err}"))
+        .into_json()?;
+
+    // Generates ephemeral voter signing key and signs the ballot
+    let signed_content = sign_hashable_ballot_with_ephemeral_voter_signing_key(
+        &ballot_id,
+        &election_id,
+        &content,
+    )
+    .map_err(|err| format!("Error signing the ballot: {err}"))?;
+    serde_wasm_bindgen::to_value(&signed_content)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    content: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let content: HashableMultiBallot = serde_wasm_bindgen::from_value(content)
+        .map_err(|err| format!("Error deserializing content: {err}"))
+        .into_json()?;
 
     // Generates ephemeral voter signing key and signs the ballot
     let signed_content =
-        sign_ballot_with_ephemeral_voter_signing_key(&ballot_id, &election_id, &content).map_err(|err| format!("Error signing the ballot: {err}"))?;
+        sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
+            &ballot_id,
+            &election_id,
+            &content,
+        )
+        .map_err(|err| format!("Error signing the ballot: {err}"))?;
     serde_wasm_bindgen::to_value(&signed_content)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn verify_ballot_signature_js(
+    content: JsValue,
+    signature: JsValue,
+    public_key: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let content: String = serde_wasm_bindgen::from_value(content)
+        .map_err(|err| format!("Error deserializing content: {err}"))
+        .into_json()?;
+    let signature: String = serde_wasm_bindgen::from_value(signature)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let public_key: String = serde_wasm_bindgen::from_value(public_key)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+
+    // Generates ephemeral voter signing key and signs the ballot
+    let result = verify_ballot_signature(&content, &signature, &public_key)
+        .map_err(|err| format!("Error signing the ballot: {err}"))?;
+    serde_wasm_bindgen::to_value(&result)
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

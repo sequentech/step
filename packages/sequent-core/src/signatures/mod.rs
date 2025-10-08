@@ -2,6 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod ballot;
 pub mod ecies_encrypt;
 pub mod shell;
-pub mod ballot;

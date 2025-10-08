@@ -458,7 +458,7 @@ VAULT_MANAGER=AWSSecretManager
 
 ```bash
 cd /workspaces/step/packages/sequent-core
-wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+wasm-pack build --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 ```
 

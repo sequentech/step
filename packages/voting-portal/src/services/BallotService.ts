@@ -14,7 +14,8 @@ import {
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
     checkIsBlank,
-    signBallot,
+    signHashableBallot,
+    signHashableMultiBallot,
     IDecodedVoteContest,
     IBallotStyle,
     IAuditableBallot,
@@ -60,7 +61,16 @@ export interface IBallotService {
         auditableBallot: IAuditableMultiBallot
     ) => Array<IDecodedVoteContest> | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
-    signBallot: (ballotId: string, electionId: string, hashableBallot: string) => ISignedContent | null
+    signHashableBallot: (
+        ballotId: string,
+        electionId: string,
+        hashableBallot: IHashableSingleBallot
+    ) => ISignedContent | null
+    signHashableMultiBallot: (
+        ballotId: string,
+        electionId: string,
+        hashableBallot: IHashableMultiBallot
+    ) => ISignedContent | null
 }
 
 export const provideBallotService = (): IBallotService => ({
@@ -76,5 +86,6 @@ export const provideBallotService = (): IBallotService => ({
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
     checkIsBlank,
-    signBallot,
+    signHashableBallot,
+    signHashableMultiBallot,
 })

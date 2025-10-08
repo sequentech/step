@@ -235,7 +235,8 @@ const useTryInsertCastVote = () => {
         setErrorMsg: (msg: CastBallotsErrorType) => void
     ) => {
         try {
-            let result = await insertCastVote({ // Here is where insert cast vote happens
+            let result = await insertCastVote({
+                // Here is where insert cast vote happens
                 variables: {
                     electionId,
                     ballotId,
@@ -315,7 +316,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const isCastingBallot = useRef<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot, toHashableMultiBallot, signBallot} = provideBallotService()
+    const {toHashableBallot, toHashableMultiBallot, signHashableBallot, signHashableMultiBallot} =
+        provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -395,7 +397,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot) // InsertCastVoteInput.content
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot) // InsertCastVoteInput.content
 
-            let signedContent = signBallot(ballotId, ballotStyle.election_id, JSON.stringify(hashableBallot))
+            let signedContent = isMultiContest
+                ? signHashableMultiBallot(
+                      ballotId,
+                      ballotStyle.election_id,
+                      hashableBallot as IHashableMultiBallot
+                  )
+                : signHashableBallot(
+                      ballotId,
+                      ballotStyle.election_id,
+                      hashableBallot as IHashableSingleBallot
+                  )
             hashableBallot.voter_signing_pk = signedContent?.public_key
             hashableBallot.voter_ballot_signature = signedContent?.signature
         } catch (error) {

@@ -11,8 +11,15 @@ use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 
+use crate::ballot::get_ballot_bytes_for_signing;
+use crate::ballot::SignedContent;
 use crate::ballot::TYPES_VERSION;
 use crate::ballot::{BallotStyle, ReplicationChoice};
+use base64::engine::general_purpose;
+use base64::Engine;
+use strand::signature::StrandSignaturePk;
+use strand::signature::StrandSignatureSk;
+use strand::signature::StrandSignature;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableMultiBallot {
@@ -95,9 +102,41 @@ impl HashableMultiBallot {
     ) -> Result<String, BallotError> {
         Base64Serialize::serialize(&contest)
     }
+
+    pub fn get_bytes_for_signing(&self) -> Result<Vec<u8>, BallotError> {
+        let mut ret: Vec<u8> = vec![];
+
+        let bytes = self.version.to_le_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let bytes = self.issue_date.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let bytes = self.contests.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let bytes = self.config.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let bytes = self.ballot_style_hash.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        Ok(ret)
+    }
 }
 
-impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot { // TODO review
+impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
+    // TODO review
     type Error = BallotError;
 
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
@@ -160,4 +199,88 @@ impl<C: Ctx> From<&AuditableMultiBallotContests<C>>
             proof: value.proof.clone(),
         }
     }
+}
+
+pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
+    ballot_id: &str,
+    election_id: &str,
+    hashable_multi_ballot: &HashableMultiBallot,
+) -> Result<SignedContent, String> {
+    // Get ballot_bytes_for_signing
+    let content_bytes = hashable_multi_ballot
+        .get_bytes_for_signing()
+        .map_err(|err| format!("Error getting signature bytes: {err}"))?;
+    let ballot_bytes =
+        get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
+
+    // Generate voter ephemeral key for signing
+    let secret_key = StrandSignatureSk::gen()
+        .map_err(|err| format!("Error generating secret key: {err}"))?;
+    let public_key = StrandSignaturePk::from_sk(&secret_key)
+        .map_err(|err| format!("Error generating public key: {err}"))?;
+
+    let ballot_signature = secret_key
+        .sign(&ballot_bytes)
+        .map_err(|err| format!("Failed to sign the ballot: {err}"))?;
+
+    let public_key = public_key
+        .to_der_b64_string()
+        .map_err(|err| format!("Failed to serialize the public key: {err}"))?;
+
+    let signature = ballot_signature.to_b64_string()
+        .map_err(|err| format!("Failed to serialize signature: {err}"))?;
+
+    Ok(SignedContent {
+        public_key,
+        signature,
+    })
+}
+
+pub fn verify_multi_ballot_signature(
+    ballot_id: &str,
+    election_id: &str,
+    hashable_multi_ballot: &HashableMultiBallot,
+    signature: &str,
+    public_key: &str,
+) -> Result<bool, String> {
+    let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&public_key)
+        .map_err(|err| 
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            ))?;
+
+    // info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
+
+    let content = hashable_multi_ballot
+        .get_bytes_for_signing()
+        .map_err(|err| 
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            ))?;
+
+    let ballot_bytes = get_ballot_bytes_for_signing(
+        ballot_id,
+        election_id,
+        &content,
+    );
+
+    // info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",  general_purpose::STANDARD.encode(ballot_bytes.clone()));
+
+    let ballot_signature =
+        StrandSignature::from_b64_string(&signature).map_err(|err| {
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            )
+        })?;
+
+    voter_signing_pk
+        .verify(&ballot_signature, &ballot_bytes)
+        .map_err(|err| {
+            format!("Failed to verify signature: {err}")
+        })?;
+        
+    Ok(true)
 }

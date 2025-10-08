@@ -10,6 +10,8 @@ use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core::{self, ElectionEvent};
 use crate::types::scheduled_event::EventProcessors;
+use base64::engine::general_purpose;
+use base64::Engine;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
@@ -19,13 +21,12 @@ use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
+use strand::signature::StrandSignaturePk;
+use strand::signature::StrandSignatureSk;
+use strand::signature::StrandSignature;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumString, IntoStaticStr};
-use strand::signature::StrandSignatureSk;
-use strand::signature::StrandSignaturePk;
-use base64::engine::general_purpose;
-use base64::Engine;
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -166,6 +167,38 @@ impl HashableBallot {
             .into_iter()
             .collect()
     }
+
+    pub fn get_bytes_for_signing(&self) -> Result<Vec<u8>, BallotError> {
+        let mut ret: Vec<u8> = vec![];
+
+        let bytes = self.version.to_le_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let bytes = self.issue_date.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let contests = self.contests.join("");
+        let bytes = contests.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let bytes = self.config.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        let bytes = self.ballot_style_hash.as_bytes();
+        let length = (bytes.len() as u64).to_le_bytes();
+        ret.extend_from_slice(&length);
+        ret.extend_from_slice(&bytes);
+
+        Ok(ret)
+    }
 }
 
 impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
@@ -191,7 +224,8 @@ impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
     }
 }
 
-impl TryFrom<&AuditableBallot> for HashableBallot {  // TODO review
+impl TryFrom<&AuditableBallot> for HashableBallot {
+    // TODO review
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
@@ -238,26 +272,38 @@ impl TryFrom<&AuditableBallot> for HashableBallot {  // TODO review
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct SignedContent {
-    public_key: String,
-    signature: String,
-} 
+    pub public_key: String,
+    pub signature: String,
+}
 
-pub fn sign_ballot_with_ephemeral_voter_signing_key(ballot_id: &str, election_id: &str, content: &str) -> Result<SignedContent, String> {
-    // Generate voter ephemeral key for signing
-
+pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
+    ballot_id: &str,
+    election_id: &str,
+    hashable_ballot: &HashableBallot,
+) -> Result<SignedContent, String> {
     // Get ballot_bytes_for_signing
-    let ballot_bytes = get_ballot_bytes_for_signing(ballot_id, election_id, content);
+    let content_bytes = hashable_ballot
+        .get_bytes_for_signing()
+        .map_err(|err| format!("Error getting signature bytes: {err}"))?;
+    let ballot_bytes =
+        get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
-    let secret_key = StrandSignatureSk::gen().map_err(|err| format!("Error generating secret key: {err}"))?;
-    let public_key = StrandSignaturePk::from_sk(&secret_key).map_err(|err| format!("Error generating secret key: {err}"))?;
+    // Generate voter ephemeral key for signing
+    let secret_key = StrandSignatureSk::gen()
+        .map_err(|err| format!("Error generating secret key: {err}"))?;
+    let public_key = StrandSignaturePk::from_sk(&secret_key)
+        .map_err(|err| format!("Error generating public key: {err}"))?;
 
     let ballot_signature = secret_key
         .sign(&ballot_bytes)
         .map_err(|err| format!("Failed to sign the ballot: {err}"))?;
 
-    let public_key = public_key.to_der_b64_string().map_err(|err| format!("Failed to sign the ballot: {err}"))?;
+    let public_key = public_key
+        .to_der_b64_string()
+        .map_err(|err| format!("Failed to serialize the public key: {err}"))?;
 
-    let signature = general_purpose::STANDARD.encode(ballot_signature.to_bytes().to_vec());
+    let signature = ballot_signature.to_b64_string()
+        .map_err(|err| format!("Failed to serialize signature: {err}"))?;
 
     Ok(SignedContent {
         public_key,
@@ -265,35 +311,76 @@ pub fn sign_ballot_with_ephemeral_voter_signing_key(ballot_id: &str, election_id
     })
 }
 
-pub fn get_ballot_bytes_for_signing(ballot_id: &str, election_id: &str, content: &str) -> Vec<u8> {
+pub fn verify_ballot_signature(
+    ballot_id: &str,
+    election_id: &str,
+    hashable_ballot: &HashableBallot,
+    voter_ballot_signature: &str,
+    voter_signing_pk: &str,
+) -> Result<bool, String> {
+    let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&voter_signing_pk)
+        .map_err(|err| 
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            ))?;
+
+    // info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
+
+    let content = hashable_ballot
+        .get_bytes_for_signing()
+        .map_err(|err| 
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            ))?;
+
+    let ballot_bytes = get_ballot_bytes_for_signing(
+        ballot_id,
+        election_id,
+        &content,
+    );
+
+    // info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",  general_purpose::STANDARD.encode(ballot_bytes.clone()));
+
+    let ballot_signature =
+        StrandSignature::from_b64_string(&voter_ballot_signature).map_err(|err| {
+            format!(
+                "Failed to deserialize signature from hashable ballot: {}",
+                err
+            )
+        })?;
+
+    voter_signing_pk
+        .verify(&ballot_signature, &ballot_bytes)
+        .map_err(|err| {
+            format!("Failed to verify signature: {err}")
+        })?;
+        
+    Ok(true)
+}
+
+pub fn get_ballot_bytes_for_signing(
+    ballot_id: &str,
+    election_id: &str,
+    content: &[u8],
+) -> Vec<u8> {
     let mut ret: Vec<u8> = vec![];
 
     let bytes = ballot_id.as_bytes();
-    let mut length = [0u8; 8];
-    let b = bytes.len().to_le_bytes();
-    let l = b.len();
-    length[0..l].copy_from_slice(&bytes[0..l]);
-
-    ret.extend(&length);
-    ret.extend(bytes);
+    let length = (bytes.len() as u64).to_le_bytes();
+    ret.extend_from_slice(&length);
+    ret.extend_from_slice(&bytes);
 
     let bytes = election_id.as_bytes();
-    let mut length = [0u8; 8];
-    let b = bytes.len().to_le_bytes();
-    let l = b.len();
-    length[0..l].copy_from_slice(&bytes[0..l]);
+    let length = (bytes.len() as u64).to_le_bytes();
+    ret.extend_from_slice(&length);
+    ret.extend_from_slice(&bytes);
 
-    ret.extend(&length);
-    ret.extend(bytes);
-
-    let bytes = content.as_bytes();
-    let mut length = [0u8; 8];
-    let b = bytes.len().to_le_bytes();
-    let l = b.len();
-    length[0..l].copy_from_slice(&bytes[0..l]);
-
-    ret.extend(&length);
-    ret.extend(bytes);
+    let bytes = content;
+    let length = (bytes.len() as u64).to_le_bytes();
+    ret.extend_from_slice(&length);
+    ret.extend_from_slice(&bytes);
 
     ret
 }
