@@ -39,3 +39,11 @@ already in the backend, but it was not configurable in the Admin Portal.
 ## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
 
 - Issue: [#8527](https://github.com/sequentech/meta/issues/8527)
+
+## 🐞 Contest result extended metrics are 0
+
+Fixes the extended metrics calculation that is visible in the json file of the 
+tally result files in `velvet-generate-reports`.
+It contains the value of some election metrics.
+
+- Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
