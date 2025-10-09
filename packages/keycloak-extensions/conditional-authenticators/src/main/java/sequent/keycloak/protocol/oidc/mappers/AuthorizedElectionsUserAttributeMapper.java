@@ -154,6 +154,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       electionsAliasIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
     } catch (Exception e) {
       log.error("Error getting elections from election event", e);
+      e.printStackTrace();
       return;
     }
 
