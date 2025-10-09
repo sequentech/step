@@ -490,7 +490,7 @@ impl ContestResult {
                     / cmp::max(1, valid_not_blank) as f64)
                     * 100.0;
                 let mut new_candidate_result = candidate_result.clone();
-                new_candidate_result.percentage_votes = percentage_votes;
+                new_candidate_result.percentage_votes = percentage_votes.clamp(0.0, 100.0);
 
                 new_candidate_result
             })
