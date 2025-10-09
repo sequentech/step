@@ -1028,6 +1028,24 @@ services:
       B3_PG_DATABASE: ${B3_PG_DATABASE}
       B3_BIND: ${B3_BIND}
 
+  loadtest:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/loadtest
+    container_name: loadtest
+    restart: always
+    build:
+      context: ../
+      dockerfile: ./packages/loadtesting/Dockerfile
+    volumes_from:
+      - devcontainer
+    working_dir: /workspaces/step/
+    entrypoint: [
+      "tail",
+      "-f",
+      "/dev/null",
+    ]
+
 volumes:
   db_data:
   db_logs:
