@@ -7,6 +7,14 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Keycloak Election ids are not filtered by area
+
+When a voter logs in and the voter is not assigned any election, keycloak adds 
+all election ids to the header. However only some election ids are actually 
+related to the user area and only those should be included.
+
+- Issue: [#8593](https://github.com/sequentech/meta/issues/8593)
+
 ## 🐞 Keycloak: Redirect To Registration Authenticator doesn't work when `http-relative-path` is set
 
 Keycloak: Redirect authenticator doesn't work when http-relative-path is set.
