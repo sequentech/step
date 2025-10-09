@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2023-2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -70,10 +70,10 @@ const Container = styled(Box, {
 })<{hasSingle: boolean}>`
     display: flex;
     align-items: center;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 16px;
+    padding-right: 16px;
     & > *:not(:last-child) {
-        margin-right: 1rem;
+        margin-right: 12px;
     }
     padding-top: ${({hasSingle}) => (hasSingle ? "0.375rem" : "0.25rem")};
     padding-bottom: ${({hasSingle}) => (hasSingle ? "0.375rem" : "0.25rem")};

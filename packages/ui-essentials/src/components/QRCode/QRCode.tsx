@@ -12,7 +12,7 @@ export interface QRCodeProps {
 }
 
 const QRCode: React.FC<QRCodeProps> = ({value, ariaLabelledby}) => (
-    <QRCodeSVG value={value} aria-labelledby={ariaLabelledby} />
+    <QRCodeSVG value={value} aria-labelledby={ariaLabelledby} className="qr-code-svg" />
 )
 
 export default QRCode

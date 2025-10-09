@@ -26,6 +26,7 @@ pub fn get_ballot_style_1(
             is_demo: false,
         }),
         area_id: area_id.to_string(),
+        area_presentation: None,
         contests: vec![contests::get_contest_1(
             tenant_id,
             election_event_id,
@@ -59,6 +60,7 @@ pub fn generate_ballot_style(
             is_demo: false,
         }),
         area_id: area_id.to_string(),
+        area_presentation: None,
         contests,
         election_event_presentation: None,
         election_presentation: None,

@@ -1600,6 +1600,29 @@
         "possibleTypes": null
       },
       {
+        "kind": "ENUM",
+        "name": "EarlyVotingPolicy",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "allow_early_voting",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "no_early_voting",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "INPUT_OBJECT",
         "name": "EditUsersInput",
         "description": null,
@@ -7770,6 +7793,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "EARLY_VOTING",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "KIOSK",
             "description": null,
@@ -26312,6 +26341,16 @@
             "name": "upsert_area",
             "description": null,
             "args": [
+              {
+                "name": "allow_early_voting",
+                "description": null,
+                "type": {
+                  "kind": "ENUM",
+                  "name": "EarlyVotingPolicy",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
               {
                 "name": "annotations",
                 "description": null,

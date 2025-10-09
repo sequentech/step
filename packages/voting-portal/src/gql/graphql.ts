@@ -224,6 +224,11 @@ export type DeleteUsersOutput = {
   ids?: Maybe<Scalars['String']['output']>;
 };
 
+export enum EarlyVotingPolicy {
+  AllowEarlyVoting = 'allow_early_voting',
+  NoEarlyVoting = 'no_early_voting'
+}
+
 export type EditUsersInput = {
   attributes?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id?: InputMaybe<Scalars['String']['input']>;
@@ -986,6 +991,7 @@ export enum VotingStatus {
 }
 
 export enum VotingStatusChannel {
+  EarlyVoting = 'EARLY_VOTING',
   Kiosk = 'KIOSK',
   Online = 'ONLINE'
 }
@@ -4329,6 +4335,7 @@ export type Mutation_RootUpload_SignatureArgs = {
 
 /** mutation root */
 export type Mutation_RootUpsert_AreaArgs = {
+  allow_early_voting?: InputMaybe<EarlyVotingPolicy>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_contest_ids?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
   description?: InputMaybe<Scalars['String']['input']>;

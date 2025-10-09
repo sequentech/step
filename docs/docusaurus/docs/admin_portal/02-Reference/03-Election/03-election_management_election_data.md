@@ -75,8 +75,13 @@ Manage presentation of ballot elements for this Election.
 
 Specify which voting channels (methods) are applicable for this Election.
 
-- Use radio buttons or checkboxes to enable/disable channels (e.g., Online, Paper, Telephone, Postal).
+- Use radio buttons or checkboxes to enable/disable channels (e.g., Online, EARLY_VOTING, Kiosk, Paper).
 - Only the selected channels will accept votes in this Election.
+- **EARLY_VOTING**: Enables an early voting period for voters assigned to Areas where the area policy "Early Voting" is enabled. This appears only if the channel is allowed at the Election Event level.
+  - When the Election Event starts the **EARLY_VOTING** channel (Publish tab), only voters in eligible Areas can vote early.
+  - The **Online** channel governs Early Voting lifecycle: starting or closing Online will automatically close Early Voting; Early Voting cannot be started once Online has been started.
+- **Kiosk**: In-person voting at kiosks; its status is independent from Online/Early Voting.
+- If a channel that has already been started is later manually disallowed in this section, no immediate action is taken; action buttons remain disabled until the channel is allowed again.
 
 ---
 

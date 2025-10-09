@@ -109,6 +109,9 @@ const basqueTranslation: TranslationType = {
                 header: "Ez dago Eremurik oraindik.",
                 action: "Sortu Eremua",
             },
+            formImputs: {
+                allowEarlyVoting: "Onartu Goiztiarra Bozketa",
+            },
         },
         integrationsScreen: {
             common: {
@@ -1166,6 +1169,7 @@ const basqueTranslation: TranslationType = {
             channel: {
                 online: "Linea",
                 kiosk: "Kiosko",
+                early_voting: "Aurre-botoa",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
@@ -1267,6 +1271,12 @@ const basqueTranslation: TranslationType = {
                 "semi-open-list": "Zerrenda Erdi Irekia",
                 "invalid-vote": "Baliogabeko Botoa",
                 "blank-vote": "Boto Zuria",
+            },
+            invalidVotePosition: {
+                label: "Baliogabeko Botoaren Posizioa",
+                null: "Ezer ez (Lehenetsia)",
+                top: "Goian",
+                bottom: "Behean",
             },
             error: {},
             createCandidateSuccess: "Hautagaia sortua",
@@ -1658,9 +1668,17 @@ const basqueTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Sortu Hasierako Txostena",
                 startVotingPeriod: "Hasi Bozketa",
+                startKioskVoting: "Hasi Kiosko Bozketa",
+                startOnlineVoting: "Hasi Online Bozketa",
+                startEarlyVoting: "Hasi Aurre-botoa",
                 stopVotingPeriod: "Gelditu Bozketa",
+                stopOnlineVoting: "Gelditu Online Bozketa",
+                stopEarlyVoting: "Gelditu Aurre-botoa",
                 stopKioskVotingPeriod: "Gelditu Kiosko Bozketa",
                 pauseVotingPeriod: "Pausatu Bozketa",
+                pauseKioskVoting: "Pausatu Kiosko Bozketa",
+                pauseOnlineVoting: "Pausatu Online Bozketa",
+                pauseEarlyVoting: "Pausatu Aurre-botoa",
                 generate: "Bersortu",
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",
