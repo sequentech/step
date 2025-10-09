@@ -144,3 +144,42 @@ button.RaFilterFormInput-hideButton {
 .react-js-cron-custom-select-dropdown, .react-js-cron-select-dropdown-period, .react-js-cron-custom-select-dropdown-minutes-large{
 	z-index: 9999999999999;
 }
+
+@media print {
+
+   html, body, .dashboard{
+        width: 100% !important;
+        height: 100%; 
+        margin: 0;
+        padding: 0;
+        overflow: visible !important;
+    }
+
+    body {
+        overflow: visible !important;
+        height: auto !important;
+    }
+
+    .print-hidden{
+      display: none !important;
+    }
+
+    .dashboard{
+      transform: scale(0.618);
+      transform-origin: top left;
+    }
+
+    .dashboard-container{
+      transform: scale(0.618);
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      justify-content: flex-start !important;
+      gap: 20px !important;
+    }
+
+    @page {
+      size: auto;
+      margin: 0;
+    }
+}

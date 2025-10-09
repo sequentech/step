@@ -9,7 +9,8 @@ import csv
 import random
 import re
 import os
-from itertools import cycle
+from itertools import cycle, islice
+import time
 from datetime import datetime, timedelta
 import psycopg2
 import io # Required for csv.writer in helper generator and StringIteratorIO
@@ -336,6 +337,7 @@ def run_duplicate_votes(args):
 
         # 1. Find a vote for this election_event_id (and optionally election_id)
         if election_id:
+            query_start = time.time()
             hasura_cursor.execute(
             """
                 SELECT
@@ -348,7 +350,10 @@ def run_duplicate_votes(args):
                     AND election_id = %s
                 LIMIT 1
             """, (tenant_id, election_event_id, election_id))
+            query_end = time.time()
+            print(f"[Query 1] Find vote with election_id: {query_end - query_start:.4f} seconds")
         else:
+            query_start = time.time()
             hasura_cursor.execute(
             """
                 SELECT
@@ -360,6 +365,8 @@ def run_duplicate_votes(args):
                     AND election_event_id = %s
                 LIMIT 1
             """, (tenant_id, election_event_id))
+            query_end = time.time()
+            print(f"[Query 1] Find vote with election_id: {query_end - query_start:.4f} seconds")
         row = hasura_cursor.fetchone()
         if not row:
             print(f"No cast votes found for election_event_id={election_event_id} (and election_id={election_id} if provided). Cannot proceed.")
@@ -385,8 +392,11 @@ def run_duplicate_votes(args):
         LIMIT %s;
         """
         print(f"Fetching up to {num_votes_requested} voter IDs from Keycloak realm '{realm_name}' for area_id '{area_id}'...")
+        query_start = time.time()
         kc_cursor.execute(get_user_ids_query, (realm_name, area_id, num_votes_requested))
         user_ids = [row[0] for row in kc_cursor.fetchall()]
+        query_end = time.time()
+        print(f"[Query 2] Fetch voter IDs: {query_end - query_start:.4f} seconds")
         if not user_ids:
             print(f"No user IDs found in realm '{realm_name}' for area_id '{area_id}'. Cannot generate votes.")
             return
@@ -399,10 +409,16 @@ def run_duplicate_votes(args):
         get_votes_query = """
         SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
         FROM sequent_backend.cast_vote
-        WHERE election_id = %s AND area_id = %s
+        WHERE election_id = %s AND area_id = %s AND tenant_id = %s AND election_event_id = %s
+        LIMIT %s
         """
+        # Only fetch as many base votes as we need (or a reasonable max like 1000)
+        max_base_votes = min(actual_users_found, 1000)
         votes_stream_cursor = hasura_conn.cursor(name='votes_stream_cursor')  # named cursor for streaming
-        votes_stream_cursor.execute(get_votes_query, (election_id, area_id))
+        query_start = time.time()
+        votes_stream_cursor.execute(get_votes_query, (election_id, area_id, tenant_id, election_event_id, max_base_votes))
+        query_end = time.time()
+        print(f"[Query 3] Fetch base votes: {query_end - query_start:.4f} seconds")
         print("Streaming existing votes for election/area...")
         base_votes = []
         for row in votes_stream_cursor:
@@ -412,6 +428,14 @@ def run_duplicate_votes(args):
             print(f"No existing votes found for election_id={election_id}, area_id={area_id}. Cannot duplicate.")
             return
         print(f"Found {len(base_votes)} base votes to use for duplication.")
+
+        print("\n⚠️  ATTEMPTING TO DISABLE TRIGGER (requires superuser privileges)...")
+        try:
+            hasura_cursor.execute("ALTER TABLE sequent_backend.cast_vote DISABLE TRIGGER check_revote_trigger")
+            print("✓ Trigger disabled successfully")
+        except Exception as e:
+            print(f"✗ Could not disable trigger: {e}")
+            raise e
 
         # 5. Prepare generator for new votes (cycle through base_votes if needed)
         def vote_row_generator(user_ids, base_votes, total_rows):
@@ -439,14 +463,28 @@ def run_duplicate_votes(args):
         """
         print("\nStarting database insert using COPY FROM STDIN...")
         start_time = datetime.now()
+        query_start = time.time()
         print(f"SQL Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         hasura_cursor.copy_expert(sql=copy_sql, file=file_like_adapter)
-        hasura_conn.commit()
+        query_end = time.time()
         end_time = datetime.now()
         print(f"SQL End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[Query 4] Insert votes: {query_end - query_start:.4f} seconds")
         duration = end_time - start_time
         print(f"Successfully inserted {actual_users_found} duplicated vote records.")
         print(f"Insertion duration: {duration}")
+
+        try:
+            hasura_cursor.execute("ALTER TABLE sequent_backend.cast_vote ENABLE TRIGGER check_revote_trigger")
+            print("\n✓ Trigger re-enabled")
+        except Exception as e:
+            print(f"\n✗ Could not re-enable trigger: {e}")
+            raise e
+
+        commit_start = time.time()
+        hasura_conn.commit()
+        commit_end = time.time()
+        print(f"[Query 5] COMMIT transaction: {commit_end - commit_start:.4f} seconds")
 
     except psycopg2.Error as db_err:
         print(f"\nDatabase error occurred: {db_err}")

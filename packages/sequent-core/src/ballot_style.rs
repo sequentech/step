@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, CandidatePresentation, ContestPresentation,
+    self, AreaPresentation, CandidatePresentation, ContestPresentation,
     ElectionEventPresentation, ElectionPresentation, I18nContent,
     StringifiedPeriodDates,
 };
@@ -101,6 +101,15 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
+    let area_presentation: AreaPresentation = match area.presentation {
+        Some(presentation) => {
+            deserialize_value(presentation).map_err(|err| {
+                anyhow!("Error parsing area presentation: {}", err)
+            })?
+        }
+        None => AreaPresentation::default(),
+    };
+
     Ok(ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
@@ -120,6 +129,7 @@ pub fn create_ballot_style(
                 }),
         ),
         area_id: area.id,
+        area_presentation: Some(area_presentation),
         contests,
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),

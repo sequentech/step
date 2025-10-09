@@ -109,6 +109,9 @@ const catalanTranslation: TranslationType = {
                 header: "No hi ha Àrees encara.",
                 action: "Crear una Àrea",
             },
+            formImputs: {
+                allowEarlyVoting: "Permetre Votació Anticipada",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -1149,6 +1152,7 @@ const catalanTranslation: TranslationType = {
             channel: {
                 online: "En línia",
                 kiosk: "Quiosc",
+                early_voting: "Votació anticipada",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
@@ -1250,6 +1254,12 @@ const catalanTranslation: TranslationType = {
                 "semi-open-list": "Llista semioberta",
                 "invalid-vote": "Vot Invàlid",
                 "blank-vote": "Vot en blanc",
+            },
+            invalidVotePosition: {
+                label: "Posició del Vot Invàlid",
+                null: "Cap (Per defecte)",
+                top: "Superior",
+                bottom: "Inferior",
             },
             error: {},
             createCandidateSuccess: "Candidat creat",
@@ -1648,9 +1658,17 @@ const catalanTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
+                startKioskVoting: "Començar Votació al Quiosc",
+                startOnlineVoting: "Començar Votació en Línia",
+                startEarlyVoting: "Començar Votació Anticipada",
                 stopVotingPeriod: "Detenir el període de votació",
+                stopOnlineVoting: "Detenir la Votació en Línia",
+                stopEarlyVoting: "Detenir la Votació Anticipada",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
                 pauseVotingPeriod: "Pausar el període de votació",
+                pauseKioskVoting: "Pausar la Votació al Quiosc",
+                pauseOnlineVoting: "Pausar la Votació en Línia",
+                pauseEarlyVoting: "Pausar la Votació Anticipada",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",

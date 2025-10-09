@@ -7,12 +7,13 @@ use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::{AreaPresentation, EarlyVotingPolicy};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::postgres::area::{
     delete_area_contests, insert_area, update_area,
@@ -33,6 +34,7 @@ pub struct UpsertAreaInput {
     pub annotations: Option<JsonValue>,
     pub labels: Option<JsonValue>,
     pub r#type: Option<String>,
+    pub allow_early_voting: Option<EarlyVotingPolicy>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,6 +55,7 @@ pub async fn upsert_area(
         vec![Permissions::AREA_CREATE],
     )?;
 
+    info!("Policy: {:#?}", body.allow_early_voting);
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -65,6 +68,16 @@ pub async fn upsert_area(
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let election_event_id_str = body.election_event_id.to_string();
+
+    let presentation = serde_json::to_value(AreaPresentation {
+        allow_early_voting: body.allow_early_voting,
+    })
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error serializing AreaPresentation: {e:?}"),
+        )
+    })?;
     let area = Area {
         id: body
             .id
@@ -80,6 +93,7 @@ pub async fn upsert_area(
         parent_id: body.parent_id.map(|uuid| uuid.to_string()),
         created_at: None,
         last_updated_at: None,
+        presentation: Some(presentation),
     };
 
     // Perform insert or update based on presence of ID
