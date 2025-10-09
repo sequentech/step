@@ -197,6 +197,11 @@ type DeleteUsersOutput {
   ids: String
 }
 
+enum EarlyVotingPolicy {
+  allow_early_voting
+  no_early_voting
+}
+
 input EditUsersInput {
   attributes: jsonb
   election_event_id: String
@@ -909,6 +914,7 @@ enum VotingStatus {
 }
 
 enum VotingStatusChannel {
+  EARLY_VOTING
   KIOSK
   ONLINE
 }
@@ -4200,7 +4206,7 @@ type mutation_root {
   ): [trustee_mutation_response]
   update_tally_ceremony(election_event_id: uuid!, status: String!, tally_session_id: uuid!): StartTallyOutput
   upload_signature(area_id: uuid!, document_id: uuid!, election_id: uuid!, password: String!, tally_session_id: uuid!): OptionalId
-  upsert_area(annotations: jsonb, area_contest_ids: [String], description: String, election_event_id: String!, id: String, labels: jsonb, name: String!, parent_id: String, tenant_id: String!, type: String): UpsertAreaOutput
+  upsert_area(allow_early_voting: EarlyVotingPolicy, annotations: jsonb, area_contest_ids: [String], description: String, election_event_id: String!, id: String, labels: jsonb, name: String!, parent_id: String, tenant_id: String!, type: String): UpsertAreaOutput
   """upsert_areas"""
   upsert_areas(document_id: String!, election_event_id: String!): OptionalId
 }
