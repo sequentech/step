@@ -21,8 +21,8 @@ use tracing::instrument;
 pub enum TallyType {
     #[strum(serialize = "plurality-at-large")]
     PluralityAtLarge,
-    #[strum(serialize = "instant-run-off")]
-    InstantRunOff,
+    #[strum(serialize = "instant-runoff")]
+    InstantRunoff,
 }
 
 pub struct Tally {
@@ -184,7 +184,7 @@ pub fn create_tally(
 
     let counting_algorithm = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),
-        TallyType::InstantRunOff => unimplemented!("InstantRunOff not implemented yet"),
+        TallyType::InstantRunoff => unimplemented!("InstantRunoff not implemented yet"),
     };
 
     Ok(Box::new(counting_algorithm))

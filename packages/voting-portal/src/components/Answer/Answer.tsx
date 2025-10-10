@@ -161,13 +161,15 @@ export const Answer: React.FC<IAnswerProps> = ({
             )
         }
 
+        console.log("selectedChoicesSum: ", selectedChoicesSum)
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
                 contestId,
                 voteChoice: {
                     id: answer.id,
-                    selected: value ? 0 : -1,
+                    // selected: value ? 0 : -1,
+                    selected: value ? selectedChoicesSum : -1, // TODO: This is a hack to test IRV
                     write_in_text: cleanedText,
                 },
             })

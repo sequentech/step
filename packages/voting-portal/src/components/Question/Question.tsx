@@ -168,7 +168,7 @@ export const Question: React.FC<IQuestionProps> = ({
         // Calculating the number of selected candidates
         let selectedChoicesCount = 0
         contestState?.choices.forEach((choice) => {
-            choice.selected === 0 && selectedChoicesCount++
+            choice.selected >= 0 && selectedChoicesCount++
         })
         setSelectedChoicesSum(selectedChoicesCount)
     }, [contestState])
