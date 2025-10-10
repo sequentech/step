@@ -10,6 +10,7 @@ use tracing::instrument;
 
 use braid::protocol::board::grpc_m::GrpcB3;
 use braid::protocol::trustee2::Trustee;
+use braid::verify::verifier::BallotForBatch;
 use braid::verify::verifier::Verifier;
 
 use strand::backend::ristretto::RistrettoCtx;
@@ -28,9 +29,8 @@ struct Cli {
 
     /// Checks inclusion of the given ballot
     ///
-    /// NOT YET IMPLEMENTED
     #[arg(long)]
-    ballot_hash: Option<String>,
+    ballot: Option<String>,
 }
 
 /// Entry point for the braid verifier.
@@ -60,7 +60,22 @@ async fn main() -> Result<()> {
         None,
     );
     let board = GrpcB3::new(&args.server_url);
-    let mut session = Verifier::new(trustee, board, &args.board);
+    let mut ballot_for_batch: Option<BallotForBatch> = None;
+    if let Some(batch) = args.ballot.clone() {
+        let mut parts = batch.split(",");
+
+        let ballot = parts.next();
+        let batch_str = parts.next();
+        if let (Some(b), Some(bs)) = (ballot, batch_str) {
+            let batch_number: usize = bs.parse().unwrap();
+
+            ballot_for_batch = Some(BallotForBatch {
+                ballot: b.to_string(),
+                batch_number,
+            });
+        }
+    }
+    let mut session = Verifier::new(trustee, board, &args.board, ballot_for_batch);
     session.run().await?;
 
     Ok(())

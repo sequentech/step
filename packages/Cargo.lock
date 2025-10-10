@@ -1434,6 +1434,7 @@ dependencies = [
  "async-trait",
  "b3",
  "base64 0.22.1",
+ "borsh",
  "cfg-if",
  "clap 4.5.23",
  "colored",

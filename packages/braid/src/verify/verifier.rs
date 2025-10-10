@@ -5,8 +5,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
+use b3::messages::artifact::Ballots;
+use b3::messages::artifact::DkgPublicKey;
+use base64::engine::general_purpose;
+use base64::Engine;
 use colored::*;
 use serde::Serialize;
+use strand::elgamal::Ciphertext;
 use strum::Display;
 use tracing::info;
 
@@ -25,8 +30,11 @@ use crate::util::dbg_hash;
 use crate::verify::datalog::Target;
 use crate::verify::datalog::Verified;
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
+use strand::zkp::Schnorr;
 
 /*
 Verifies the election data published on the bulletin board to implement universal verifiability. The key elements
@@ -113,17 +121,45 @@ enum Check {
     PLAINTEXTS_VALID,
 }
 
+#[derive(PartialEq, Eq, Clone)]
+pub struct BallotForBatch {
+    // serialized ballot
+    pub ballot: String,
+    // batch where the ballot should be found
+    pub batch_number: usize,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct HashableMultiBallotContests<C: Ctx> {
+    pub contest_ids: Vec<String>,
+    pub ciphertext: Ciphertext<C>,
+    pub proof: Schnorr<C>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct HashableBallotContest<C: Ctx> {
+    pub contest_id: String,
+    pub ciphertext: Ciphertext<C>,
+    pub proof: Schnorr<C>,
+}
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
     board: GrpcB3,
     board_name: String,
+    ballot: Option<BallotForBatch>,
 }
 impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
+    pub fn new(
+        trustee: Trustee<C>,
+        board: GrpcB3,
+        board_name: &str,
+        ballot: Option<BallotForBatch>,
+    ) -> Verifier<C> {
         Verifier {
             trustee,
             board,
             board_name: board_name.to_string(),
+            ballot,
         }
     }
 
@@ -200,9 +236,55 @@ impl<C: Ctx> Verifier<C> {
         for message in &vmessages[1..] {
             let predicate =
                 Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
+
+            if let Predicate::PublicKey(_, hash, _, _, _) = predicate.clone() {
+                if let Some(bytes) = message.artifact.clone() {
+                    let dkg_public_key = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+                    let pk_bytes = dkg_public_key.pk.strand_serialize().unwrap();
+                    let pk_b64 = general_purpose::STANDARD_NO_PAD.encode(pk_bytes);
+                    info!("Public Key found: {} {:?}", pk_b64, hash);
+                }
+            }
             predicates.push(predicate);
         }
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
+
+        // check ballot
+        if let Some(ballot) = self.ballot.clone() {
+            info!("Searching ballot");
+            let hashable_ballot_contest_bytes = general_purpose::STANDARD_NO_PAD
+                .decode(ballot.ballot.clone())
+                .unwrap();
+            let hashable_ballot_contest: HashableMultiBallotContests<C> =
+                StrandDeserialize::strand_deserialize(&hashable_ballot_contest_bytes.as_slice())
+                    .unwrap();
+            let ballot_ciphertext_bytes = hashable_ballot_contest.ciphertext.strand_serialize()?;
+
+            for message in &vmessages[1..] {
+                if message.statement.get_batch_number() == ballot.batch_number
+                    && StatementType::Ballots == message.statement.get_kind()
+                {
+                    info!("Found Ballots message for batch {}", ballot.batch_number);
+                    if let Some(bytes) = message.artifact.clone() {
+                        let ballots = Ballots::<C>::strand_deserialize(&bytes).unwrap();
+                        info!(
+                            "Num ciphertexts in Ballots message {}",
+                            ballots.ciphertexts.0.len()
+                        );
+                        for ciphertext in ballots.ciphertexts.0 {
+                            let ciphertext_bytes = ciphertext.strand_serialize()?;
+                            if ballot_ciphertext_bytes == ciphertext_bytes {
+                                info!(
+                                    "Ciphertext found for ballot: {} and batch {}",
+                                    ballot.ballot, ballot.batch_number
+                                );
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         info!("{}", "Deriving verification targets..".blue());
         let (_, targets, _) = crate::verify::datalog::S.run(&predicates);
