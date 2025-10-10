@@ -4,10 +4,7 @@ use std::collections::HashMap;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
-use crate::postgres::election_event::{
-    get_election_event_by_id, update_election_event_status,
-    update_elections_status_by_election_event,
-};
+use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
@@ -79,11 +76,22 @@ pub async fn update_event_voting_status(
             event_channels.push(VotingStatusChannel::KIOSK)
         }
 
+        if VotingStatusChannel::EARLY_VOTING
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            event_channels.push(VotingStatusChannel::EARLY_VOTING)
+        }
+
         event_channels
     } else {
         info!("Default voting channels");
         // Update all if none are configured
-        vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+        vec![
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+            VotingStatusChannel::EARLY_VOTING,
+        ]
     };
 
     if election_event.is_archived {
@@ -92,7 +100,7 @@ pub async fn update_event_voting_status(
     }
 
     for channel in channels {
-        let current_voting_status = status.status_by_channel(&channel).clone();
+        let current_voting_status = status.status_by_channel(channel).clone();
 
         if current_voting_status == new_status.clone() {
             info!("Current voting status is the same as the new voting status, skipping");
@@ -120,15 +128,24 @@ pub async fn update_event_voting_status(
         ));
         }
 
-        status.set_status_by_channel(&channel, new_status.clone());
+        if channel == VotingStatusChannel::EARLY_VOTING
+            && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
+        {
+            return Err(anyhow!(
+                "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
+            ));
+        }
+
+        status.close_early_voting_if_online_status_change(channel, new_status.clone());
+        status.set_status_by_channel(channel, new_status.clone());
 
         let mut elections_ids: Vec<String> = Vec::new();
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
                 if let Some(status) = elections_status.get_mut(&election.id) {
-                    status.set_status_by_channel(&channel, new_status.clone());
+                    status.close_early_voting_if_online_status_change(channel, new_status.clone());
+                    status.set_status_by_channel(channel, new_status.clone());
                 }
-
                 elections_ids.push(election.id.clone());
             }
         }
@@ -212,7 +229,7 @@ pub async fn update_election_voting_status_impl(
 
     let mut status = get_election_status(election.status.clone()).unwrap_or_default();
 
-    let current_voting_status = status.status_by_channel(&channel).clone();
+    let current_voting_status = status.status_by_channel(channel).clone();
 
     if new_status == current_voting_status {
         info!("New status is the same as the current voting status, skipping");
@@ -268,7 +285,16 @@ pub async fn update_election_voting_status_impl(
         ));
     }
 
-    status.set_status_by_channel(&channel, new_status.clone());
+    if channel == VotingStatusChannel::EARLY_VOTING
+        && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
+    {
+        return Err(anyhow!(
+            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
+        ));
+    }
+
+    status.close_early_voting_if_online_status_change(channel, new_status.clone());
+    status.set_status_by_channel(channel, new_status.clone());
 
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 

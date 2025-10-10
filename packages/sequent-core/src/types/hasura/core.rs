@@ -10,10 +10,12 @@ use serde_json::value::Value;
 use std::str::FromStr;
 
 use crate::{
-    ballot::ContestEncryptionPolicy,
+    ballot::{ContestEncryptionPolicy, DecodedBallotsInclusionPolicy},
     serialization::deserialize_with_path::deserialize_value,
     types::{
-        ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
+        ceremonies::{
+            CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+        },
         tally_sheets::AreaContestResults,
     },
 };
@@ -65,6 +67,7 @@ pub struct Area {
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub parent_id: Option<String>,
+    pub presentation: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -180,12 +183,28 @@ pub struct Document {
     pub is_public: Option<bool>,
 }
 
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct SupportMaterial {
+    pub id: String,
+    pub created_at: DateTime<Local>,
+    pub last_updated_at: DateTime<Local>,
+    pub kind: String,
+    pub data: Value,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub labels: Value,
+    pub annotations: Value,
+    pub document_id: Option<String>,
+    pub is_hidden: Option<bool>,
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct VotingChannels {
     pub online: Option<bool>,
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+    pub early_voting: Option<bool>,
 }
 
 impl Default for VotingChannels {
@@ -195,6 +214,7 @@ impl Default for VotingChannels {
             kiosk: None,
             telephone: None,
             paper: None,
+            early_voting: None,
         }
     }
 }
@@ -320,17 +340,34 @@ impl KeysCeremony {
         deserialize_value(self.status.clone().unwrap_or_default())
             .map_err(|err| anyhow!("{:?}", err))
     }
+
+    pub fn policy(&self) -> CeremoniesPolicy {
+        let settings = self.settings.as_ref().unwrap_or(&Value::Null);
+        settings
+            .get("policy")
+            .and_then(|value: &Value| value.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
+            .parse::<CeremoniesPolicy>()
+            .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TallySessionConfiguration {
     pub report_content_template_id: Option<String>,
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
+    pub decoded_ballots_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
 }
 
 impl TallySessionConfiguration {
     pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
         self.contest_encryption_policy.clone().unwrap_or_default()
+    }
+    pub fn get_decoded_ballots_policy(&self) -> DecodedBallotsInclusionPolicy {
+        self.decoded_ballots_inclusion_policy
+            .clone()
+            .unwrap_or_default()
     }
 }
 
@@ -352,6 +389,12 @@ pub struct TallySession {
     pub configuration: Option<TallySessionConfiguration>,
     pub tally_type: Option<String>,
     pub permission_label: Option<Vec<String>>,
+}
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionContestAnnotations {
+    pub elegible_voters: u64,
+    pub ballots_without_voter: u64,
+    pub casted_ballots: u64,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -384,6 +427,7 @@ pub struct TallySessionExecution {
     pub session_ids: Option<Vec<i32>>,
     pub status: Option<Value>,
     pub results_event_id: Option<String>,
+    pub documents: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

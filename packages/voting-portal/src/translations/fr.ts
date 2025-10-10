@@ -15,6 +15,9 @@ const frenchTranslation: TranslationType = {
             confirmation: "Confirmation",
             audit: "Auditer",
         },
+        footer: {
+            poweredBy: "Propulsé par <sequent />",
+        },
         votingScreen: {
             backButton: "Retour",
             reviewButton: "Suivant",
@@ -30,6 +33,14 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs questions.",
                 ok: "Revenir et réviser",
+                continue: "Continuer",
+                cancel: "Annuler",
+            },
+            warningDialog: {
+                title: "Vérifiez votre bulletin",
+                content:
+                    "Votre bulletin contient des sélections qui peuvent nécessiter votre attention (comme sélectionner moins d'options que permis). Votre bulletin est valide et sera compté tel que soumis.",
+                ok: "Retour et vérification",
                 continue: "Continuer",
                 cancel: "Annuler",
             },
@@ -123,6 +134,14 @@ const frenchTranslation: TranslationType = {
                     "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_unexpected:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_timeout:
+                    "Erreur de délai pour voter. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Vous avez dépassé la limite de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Vous avez dépassé le nombre autorisé de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Vous avez déjà voté dans une autre zone. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
                 CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
@@ -147,6 +166,23 @@ const frenchTranslation: TranslationType = {
                     "Une erreur est survenue lors de la sérialisation du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 UNKNOWN_ERROR:
                     "Une erreur est survenue. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                REAUTH_FAILED:
+                    "L'authentification a échoué. Veuillez réessayer ou contacter le support pour obtenir de l'aide.",
+                SESSION_EXPIRED: "Votre session a expiré. Veuillez recommencer depuis le début.",
+                CAST_VOTE_BallotIdMismatch:
+                    "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
+                SESSION_STORAGE_ERROR:
+                    "Le stockage de session n'est pas disponible. Veuillez réessayer ou contacter le support.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Une erreur s'est produite lors de l'analyse des données du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Les données du bulletin de vote ne sont pas valides. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Erreur de délai d'attente pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Erreur lors de la conversion en bulletin de vote hashable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                INTERNAL_ERROR:
+                    "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
         },
         confirmationScreen: {
@@ -311,6 +347,10 @@ const frenchTranslation: TranslationType = {
             notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été localisé",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
+            ballotIdNotFoundAtFilter:
+                "Non trouvé, veuillez verifier que l'ID du Bulletin soit correct et appartenir a cet utilisateur.",
+            filterByBallotId: "Filtrez par ID de Bulletin",
+            totalBallots: "Total: {{total}}",
             steps: {
                 lookup: "Localisez votre Bulletin",
                 result: "Résultat",
@@ -320,6 +360,16 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Cet écran permet au votant de trouver son bulletin en utilisant l'ID du Bulletin pour le récupérer. Cette procédure permet de vérifier que son vote a été émis correctement et que le vote enregistré correspond au vote chiffré émis.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localisez votre Bulletin",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Marque de temps",
+                username: "Nom d'utilisateur",
+                ballot_id: "ID de Bulletin",
             },
         },
     },

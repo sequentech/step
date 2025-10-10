@@ -18,7 +18,7 @@ use std::time::Instant;
 use tracing::{debug, error, info, instrument};
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
-    InsertCastVoteOutput,
+    InsertCastVoteOutput, InsertCastVoteResult,
 };
 
 /// API endpoint for inserting votes. POST coming from the
@@ -54,7 +54,7 @@ pub async fn insert_cast_vote(
 
     info!("insert-cast-vote: starting");
 
-    let insert_result = retry_with_exponential_backoff(
+    let insert_result_wrapped = retry_with_exponential_backoff(
         // The closure we want to call repeatedly
         || async {
             try_insert_cast_vote(
@@ -62,7 +62,7 @@ pub async fn insert_cast_vote(
                 &claims.hasura_claims.tenant_id,
                 &claims.hasura_claims.user_id,
                 &area_id,
-                &voting_channel,
+                voting_channel,
                 &claims.auth_time,
                 &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
@@ -78,6 +78,19 @@ pub async fn insert_cast_vote(
         Duration::from_millis(100),
     )
     .await;
+
+    // Unwrap SkipRetryFailure into a normal Result/Error
+    let insert_result = match insert_result_wrapped {
+        Ok(insert_cv_result) => match insert_cv_result {
+            InsertCastVoteResult::Success(inserted_cast_vote) => {
+                Ok(inserted_cast_vote)
+            }
+            InsertCastVoteResult::SkipRetryFailure(cast_vote_error) => {
+                Err(cast_vote_error)
+            }
+        },
+        Err(e) => Err(e),
+    };
 
     let inserted_cast_vote = insert_result
     .map_err(|cast_vote_err| {
@@ -108,9 +121,9 @@ pub async fn insert_cast_vote(
                     ErrorCode::ElectoralLogNotFound,
                 )
             }
-            CastVoteError::CheckStatusFailed(_) => ErrorResponse::new(
+            CastVoteError::CheckStatusFailed(msg) => ErrorResponse::new(
                 Status::Unauthorized,
-                ErrorCode::CheckStatusFailed.to_string().as_str(),
+                &msg,
                 ErrorCode::CheckStatusFailed,
             ),
             CastVoteError::VotingChannelNotEnabled(_) => ErrorResponse::new(
@@ -123,13 +136,32 @@ pub async fn insert_cast_vote(
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,
             ),
-            CastVoteError::CheckPreviousVotesFailed(_) => {
+            CastVoteError::CheckPreviousVotesFailed(msg) => {
                 ErrorResponse::new(
                     Status::BadRequest,
-                    ErrorCode::CheckPreviousVotesFailed.to_string().as_str(),
+                    &msg,
                     ErrorCode::CheckPreviousVotesFailed,
                 )
             }
+            CastVoteError::CheckRevotesFailed(msg) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &msg,
+                    ErrorCode::CheckRevotesFailed,
+                )
+            }
+            CastVoteError::CheckVotesInOtherAreasFailed(msg) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &msg,
+                    ErrorCode::CheckVotesInOtherAreasFailed,
+                )
+            }
+            CastVoteError::InsertFailedExceedsAllowedRevotes => ErrorResponse::new(
+                Status::BadRequest,
+                ErrorCode::InsertFailedExceedsAllowedRevotes.to_string().as_str(),
+                ErrorCode::InsertFailedExceedsAllowedRevotes,
+            ),
             CastVoteError::InsertFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
                 ErrorCode::InternalServerError.to_string().as_str(),
@@ -178,6 +210,13 @@ pub async fn insert_cast_vote(
                     ErrorCode::DeserializeContestsFailed,
                 )
             }
+            CastVoteError::DeserializeAreaPresentationFailed(_) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    ErrorCode::DeserializeAreaPresentationFailed.to_string().as_str(),
+                    ErrorCode::DeserializeAreaPresentationFailed,
+                )
+            }
             CastVoteError::SerializeVoterIdFailed(_) => {
                 ErrorResponse::new(
                     Status::InternalServerError,
@@ -220,6 +259,11 @@ pub async fn insert_cast_vote(
                 Status::InternalServerError,
                 ErrorCode::UnknownError.to_string().as_str(),
                 ErrorCode::UnknownError,
+            ),
+            CastVoteError::BallotIdMismatch(msg) => ErrorResponse::new(
+                Status::BadRequest,
+                &msg,
+                ErrorCode::BallotIdMismatch,
             ),
         }
     })?;

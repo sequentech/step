@@ -13,31 +13,28 @@ import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import {initCore} from "@sequentech/ui-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 import {createBrowserRouter, RouterProvider, useLocation, useMatch} from "react-router-dom"
 import {ErrorPage} from "./routes/ErrorPage"
 import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
-import Loader from "./components/Loader"
-
-const TenantEvent = lazy(() => import("./routes/TenantEvent"))
-const PreviewPublicationEvent = lazy(() => import("./routes/PreviewPublicationEvent"))
-const ElectionSelectionScreen = lazy(() => import("./routes/ElectionSelectionScreen"))
-const LoginScreen = lazy(() => import("./routes/LoginScreen"))
-const RegisterScreen = lazy(() => import("./routes/RegisterScreen"))
-const StartScreen = lazy(() => import("./routes/StartScreen"))
-const VotingScreen = lazy(() => import("./routes/VotingScreen"))
-const ReviewScreen = lazy(() => import("./routes/ReviewScreen"))
-const ConfirmationScreen = lazy(() => import("./routes/ConfirmationScreen"))
-const AuditScreen = lazy(() => import("./routes/AuditScreen"))
-const BallotLocator = lazy(() => import("./routes/BallotLocator"))
-const SupportMaterialsScreen = lazy(() => import("./routes/SupportMaterialsScreen"))
+import {Loader} from "@sequentech/ui-essentials"
+import TenantEvent from "./routes/TenantEvent"
+import PreviewPublicationEvent from "./routes/PreviewPublicationEvent"
+import ElectionSelectionScreen from "./routes/ElectionSelectionScreen"
+import LoginScreen from "./routes/LoginScreen"
+import RegisterScreen from "./routes/RegisterScreen"
+import StartScreen from "./routes/StartScreen"
+import VotingScreen from "./routes/VotingScreen"
+import ReviewScreen from "./routes/ReviewScreen"
+import ConfirmationScreen from "./routes/ConfirmationScreen"
+import AuditScreen from "./routes/AuditScreen"
+import BallotLocator from "./routes/BallotLocator"
+import SupportMaterialsScreen from "./routes/SupportMaterialsScreen"
+import {WasmWrapper} from "./providers/WasmWrapper"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
-
-initCore()
 
 export type TenantEventType = {
     tenantId: string
@@ -189,15 +186,17 @@ const router = createBrowserRouter(
 
 root.render(
     <React.StrictMode>
-        <SettingsWrapper>
-            <KeycloakProviderContainer>
-                <Provider store={store}>
-                    <ThemeProvider theme={theme}>
-                        <RouterProvider router={router} />
-                    </ThemeProvider>
-                </Provider>
-            </KeycloakProviderContainer>
-        </SettingsWrapper>
+        <WasmWrapper>
+            <SettingsWrapper>
+                <KeycloakProviderContainer>
+                    <Provider store={store}>
+                        <ThemeProvider theme={theme}>
+                            <RouterProvider router={router} />
+                        </ThemeProvider>
+                    </Provider>
+                </KeycloakProviderContainer>
+            </SettingsWrapper>
+        </WasmWrapper>
     </React.StrictMode>
 )
 

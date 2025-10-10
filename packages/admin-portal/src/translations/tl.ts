@@ -80,6 +80,11 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_APPLICATION: "I-export ang Mga Aplikasyon",
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
+                RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
+                DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
+                PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
+                EXPORT_TALLY_RESULTS_XLSX:
+                    "I-export ang mga resulta ng pagbibilang sa format na XLSX",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -98,11 +103,15 @@ const tagalogTranslation: TranslationType = {
                 deleteError: "Error sa pagtanggal ng lugar",
             },
             createAreaSuccess: "Lugar na nalikha",
+            updateAreaSuccess: "Na-update ang lugar",
             createAreaError: "Hindi makalikha ng Lugar",
             sequent_backend_area_contest: "Mga Paligsahan",
             empty: {
                 header: "Wala pang Lugar.",
                 action: "Lumikha ng Lugar",
+            },
+            formImputs: {
+                allowEarlyVoting: "Payagan ang Maagang Pagboto",
             },
         },
         lookAndFeelScreen: {
@@ -279,12 +288,23 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                showCastVoteLogs: {
+                    policyLabel: "Patakaran sa Ipakita ng mga Log ng Pagboto",
+                    options: {
+                        "show-logs-tab": "Ipakita ang Tab ng mga Log ng Pagboto",
+                        "hide-logs-tab": "Laktawan ang Tab ng mga Log ng Pagboto",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Kalagayan ng Lockdown",
                     options: {
                         "locked-down": "Naka-lockdown",
                         "not-locked-down": "Hindi naka-lockdown",
                     },
+                },
+                decodedBallots: {
+                    policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
+                    options: {"included": "Isama", "not-included": "Huwag isama"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -319,6 +339,13 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         enabled: "Naka-enable",
                         disabled: "Naka-disable",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Patakaran sa mga Seremonya ng Susi/Pagbilang",
+                    options: {
+                        "automated-ceremonies": "Payagan ang mga Awtomatikong Seremonya",
+                        "manual-ceremonies": "Mga Manu-manong Seremonya",
                     },
                 },
             },
@@ -417,6 +444,10 @@ const tagalogTranslation: TranslationType = {
                         "Ang Seremonya ng Pagbibilang ay hindi maaaring magsimula hangga't hindi ka lumilikha ng isang post sa tab na I-publish.",
                     participateNow:
                         "Naanyayahan kang makibahagi sa seremonya ng Tally. Mangyaring <1>i-click ang Aksyon ng Key ng seremonya</1> upang makilahok.",
+                    startDisabled:
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil walang napiling eleksyon o ang eleksyon ay hindi pa na-publish.",
+                    ceremonyDisabled:
+                        "Hindi mo maaaring ipagpatuloy ang seremonya dahil ang tally session ay hindi konektado o ang pagsisimula ng seremonya ay hindi pinapayagan.",
                 },
             },
             importAreas: {
@@ -483,6 +514,7 @@ const tagalogTranslation: TranslationType = {
                 copiedError: "Error sa pag-copy ng password sa clipboard",
                 reports: "Mga Ulat",
                 applications: "Mga Aplikasyon",
+                tally: "Bilang",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -525,6 +557,12 @@ const tagalogTranslation: TranslationType = {
                 scheduledClosing: "Naka-iskedyul na Pagsasara",
                 alias: "Alias",
                 description: "Paglalarawan",
+                securityConfirmationHtml: "HTML ng Kumpirmasyon sa Seguridad",
+            },
+            securityConfirmationPolicy: {
+                label: "Patakaran sa Checkbox ng Kumpirmasyon sa Seguridad",
+                none: "Wala",
+                mandatory: "Kinakailangan",
             },
             error: {
                 fileError: "Error sa pag-upload ng file",
@@ -565,6 +603,13 @@ const tagalogTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Patakaran sa Pamagat ng Pangunahing Screen",
+                options: {
+                    "election": "Pamagat ng halalan",
+                    "election-event": "Pamagat ng kaganapan ng halalan",
                 },
             },
         },
@@ -980,6 +1025,8 @@ const tagalogTranslation: TranslationType = {
                 decryptFileTitle: "Decrypt File",
                 decryptInstructions:
                     "1. '-in' : Ang path patungo sa naka-encrypt na file. \n2. '-out' : Ang path kung saan ise-save ang na-decrypt na file. \n3. '-pass' : Ang password na ginamit para i-encrypt ang file. \n",
+                encryptSuccess: "Matagumpay na na-setup ang pag-encrypt ng ulat",
+                encryptError: "Error sa pag-setup ng pag-encrypt ng ulat",
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
@@ -1078,6 +1125,11 @@ const tagalogTranslation: TranslationType = {
                 kind: "Uri ng file",
                 filter: "Pasadyang mga filter",
                 approve: "Aprubahan",
+                continue: "Magpatuloy",
+                logout: "Mag-logout",
+                selectTenant: "Pumili ng Tenant",
+                processing: "Nagpro-process...",
+                tenantName: "Pangalan ng Tenant",
             },
             language: {
                 es: "Espanyol",
@@ -1085,13 +1137,18 @@ const tagalogTranslation: TranslationType = {
                 fr: "Pranses",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galego",
+                nl: "Nederlands",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Maagang pagboto",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
+                continueOrLogout: "Gusto mo bang magpatuloy o mag-logout?",
             },
         },
         createResource: {
@@ -1189,6 +1246,12 @@ const tagalogTranslation: TranslationType = {
                 "semi-open-list": "Semi Bukas na Listahan",
                 "invalid-vote": "Di-wastong Boto",
                 "blank-vote": "Blangkong Boto",
+            },
+            invalidVotePosition: {
+                label: "Posisyon ng Di-wastong Boto",
+                null: "Wala (Default)",
+                top: "Taas",
+                bottom: "Baba",
             },
             error: {},
             createCandidateSuccess: "Kandidato ay nalikha",
@@ -1297,10 +1360,17 @@ const tagalogTranslation: TranslationType = {
                     ok: "Oo, Lumikha ng Seremonya ng Mga Susi",
                     cancel: "Kanselahin",
                     title: "Sigurado ka bang nais mong lumikha ng Seremonya ng Mga Susi?",
+                    automaticCeremonyTitle:
+                        "Sigurado ka bang gusto mong lumikha ng isang Awtomatikong Seremonya ng mga Susi?",
                     description:
                         "Ikaw ay malapit nang lumikha ng Seremonya ng Mga Susi. Ang aksyong ito ay magpapadala ng abiso sa mga Trustee upang lumahok sa paglikha at pamamahagi ng Mga Susi ng Kaganapan sa Halalan.",
+                    automaticCeremonyDescription:
+                        "Ikaw ay lilikha ng isang Awtomatikong Seremonya ng mga Susi. Hindi nito aabisuhan ang mga Trustee na lumahok.",
                 },
                 filterTrustees: "I-filter ang mga trustee",
+                errorPermisionLabels:
+                    "Hindi maipagawa ang keys ceremony: may nawawala sa isa o higit pang permission label.",
+                automaticCeremonyToggle: "Awtomatikong Seremonya",
             },
             ceremonyStep: {
                 cancel: "Kanselahin ang Seremonya ng Mga Susi",
@@ -1519,6 +1589,8 @@ const tagalogTranslation: TranslationType = {
                         "Malapit ka nang kanselahin ang seremonya ng pagbibilang. Hindi na mababawi ang aksyong ito.",
                     ceremony:
                         "Na-verify na ng lahat ng kinakailangang tagapagtiwala ang kanilang mga fragment ng key. Handa na ang lahat para simulan ang pagtanggap ng mga resulta. Nais mo bang simulan ang Pagbibilang?",
+                    startAutomatedTallyMessage:
+                        "Piliin ang 'Start Tally' upang patakbuhin ang proseso ng pagbilang at ipakita ang mga resulta, o 'Close' upang kanselahin.",
                 },
             },
             table: {
@@ -1572,9 +1644,17 @@ const tagalogTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
+                startKioskVoting: "Simulan ang Pagboto sa Kiosk",
+                startOnlineVoting: "Simulan ang Pagboto Online",
+                startEarlyVoting: "Simulan ang Maagang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
+                stopOnlineVoting: "Itigil ang Pagboto Online",
+                stopEarlyVoting: "Itigil ang Maagang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
                 pauseVotingPeriod: "I-pause ang Pagboto",
+                pauseKioskVoting: "I-pause ang Pagboto sa Kiosk",
+                pauseOnlineVoting: "I-pause ang Pagboto Online",
+                pauseEarlyVoting: "I-pause ang Maagang Pagboto",
                 generate: "Muling Lumikha",
                 publish: "Ilathala ang Mga Pagbabago",
                 back: "Bumalik",
@@ -1825,7 +1905,7 @@ const tagalogTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
                 LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                OV_TURNOUT_PERCENTAGE: "Turnout ng mga Botante sa Ibang Bansa",
+                VOTERS_TURNOUT_PERCENTAGE: "Turnout ng mga Botante",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
@@ -1867,6 +1947,10 @@ const tagalogTranslation: TranslationType = {
             fields: {
                 isHidden: "Nakatago",
                 publicUrl: "Publikong URL",
+            },
+            empty: {
+                header: "Wala pang support material",
+                action: "Gumawa ng support material",
             },
         },
         widget: {

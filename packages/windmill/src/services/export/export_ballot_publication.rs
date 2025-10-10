@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication;
-use crate::postgres::ballot_style::{
-    export_event_ballot_styles, get_ballot_styles_by_ballot_publication_by_id,
-};
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::postgres::ballot_style::export_event_ballot_styles;
+use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -34,7 +32,7 @@ pub async fn write_export_document(
             .map_err(|e| anyhow!("Error writing into named temp file: {e:?}"))?;
 
     if to_upload {
-        upload_and_return_document_postgres(
+        upload_and_return_document(
             transaction,
             &temp_path_string,
             file_size,

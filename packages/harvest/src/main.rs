@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+#![recursion_limit = "256"]
 #[macro_use]
 extern crate rocket;
 
@@ -52,9 +52,12 @@ async fn rocket() -> _ {
                 routes::ballot_publication::get_ballot_publication_changes,
                 routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
+                routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
+                routes::voter_electoral_log::list_cast_vote_messages,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
                 routes::elections::create_election,
+                routes::areas::upsert_area,
                 routes::election_event_stats::get_election_event_stats,
                 routes::election_stats::get_election_stats,
                 routes::scheduled_event::create_scheduled_event,
@@ -118,6 +121,7 @@ async fn rocket() -> _ {
                 routes::import_templates::import_templates_route,
                 routes::election_event_stats::get_election_event_top_votes_by_ip,
                 routes::export_ballot_publication::export_ballot_publication_route,
+                routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
@@ -131,6 +135,7 @@ async fn rocket() -> _ {
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
                 routes::set_voter_authentication::set_voter_authentication,
+                routes::export_tally_results::export_tally_results_route,
             ],
         )
         .manage(LastDatafixAccessToken::init())

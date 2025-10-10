@@ -10,6 +10,10 @@ import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
+import galegoTranslation from "../translations/gl"
+import dutchTranslation from "../translations/nl"
+import basqueTranslation from "../translations/eu"
+import {IElectionEventPresentation} from "../types/ElectionEventPresentation"
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
     const libTranslations: Resource = {
@@ -18,6 +22,9 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
         cat: catalanTranslation,
         fr: frenchTranslation,
         tl: tagalogTranslation,
+        gl: galegoTranslation,
+        nl: dutchTranslation,
+        eu: basqueTranslation,
     }
     const mergedTranslations = deepmerge(libTranslations, externalTranslations)
     const i18nConfig: InitOptions = {
@@ -45,13 +52,52 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
     } else {
         i18n.use(LanguageDetector).use(initReactI18next).init(i18nConfig) // Use LanguageDetector if no language is explicitly provided
     }
+
+    // BCP 47-compliant tags initially and on language changes
+    const toBCP47 = (lang: string): string => {
+        // Map internal/non-standard codes to valid BCP 47 when needed
+        const map: Record<string, string> = {
+            cat: "ca", // Catalan
+        }
+        const candidate = map[lang] || lang
+
+        // Simple BCP 47 normalization: lowercase language, uppercase country
+        // e.g., "en-us" -> "en-US", "ES-es" -> "es-ES"
+        const parts = candidate.split("-")
+        if (parts.length === 1) {
+            return parts[0].toLowerCase()
+        }
+        const [language, ...rest] = parts
+        const normalizedRest = rest.map((part, index) => {
+            // Country codes (2 letters) should be uppercase, others lowercase
+            return part.length === 2 && index === 0 ? part.toUpperCase() : part.toLowerCase()
+        })
+        return [language.toLowerCase(), ...normalizedRest].join("-")
+    }
+
+    const updateHtmlLang = (lng?: string) => {
+        if (typeof document === "undefined") return
+        const tag = toBCP47(lng || i18n.language || "en")
+        document.documentElement.setAttribute("lang", tag)
+    }
+
+    // Initial set and subscribe to changes
+    updateHtmlLang(language)
+    i18n.on("languageChanged", updateHtmlLang)
 }
 
 export const getLanguages = (i18n: I18N) => Object.keys(i18n.services.resourceStore.data)
 
-export const overwriteTranslations = (electionEventObj: any) => {
-    if (!electionEventObj || !electionEventObj?.["presentation"]?.["i18n"]) return // Check object has translations to overwrite
-    const i18nObj = electionEventObj.presentation.i18n
+export const overwriteTranslations = (
+    electionEventPresentation: IElectionEventPresentation | undefined,
+    changeDefaultLanguage: boolean = true
+): boolean => {
+    // Check object has translations to overwrite
+    let hasChangedDefaultLanguage = false
+    const i18nObj = electionEventPresentation?.i18n
+    if (!i18nObj) {
+        return hasChangedDefaultLanguage
+    }
 
     Object.keys(i18nObj).forEach((lang) => {
         const translations = i18nObj[lang]
@@ -70,6 +116,23 @@ export const overwriteTranslations = (electionEventObj: any) => {
 
         i18n.addResourceBundle(lang, "translations", mergedResources, true, true) // Overwriting existing resource for language
     })
+
+    if (changeDefaultLanguage) {
+        let languageConf = electionEventPresentation?.language_conf
+        let enabledLanguages = languageConf?.enabled_language_codes ?? ["en"]
+        let defaultLanguage = languageConf?.default_language_code
+        let currentLanguage = i18n.language
+        if (
+            !!enabledLanguages &&
+            !!defaultLanguage &&
+            defaultLanguage !== currentLanguage &&
+            enabledLanguages.includes(defaultLanguage)
+        ) {
+            i18n.changeLanguage(defaultLanguage)
+            hasChangedDefaultLanguage = true
+        }
+    }
+    return hasChangedDefaultLanguage
 }
 
 export default i18n

@@ -64,7 +64,9 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Funciona con",
+        footer: {
+            poweredBy: "Funciona con <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",

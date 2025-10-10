@@ -72,7 +72,9 @@ const tagalogTranslation = {
             points: "({{points}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
         },
-        poweredBy: "Pinapagana ng",
+        footer: {
+            poweredBy: "Pinapagana ng <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Hindi sapat na mga pagpipilian upang ma-decode",

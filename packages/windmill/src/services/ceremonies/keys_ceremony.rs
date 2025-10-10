@@ -2,10 +2,9 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use crate::hasura::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::election::{
-    get_election_by_id, get_elections_by_keys_ceremony_id, set_election_keys_ceremony,
+    get_election_by_id, get_election_permission_label, get_elections_by_keys_ceremony_id,
+    set_election_keys_ceremony,
 };
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
@@ -20,16 +19,16 @@ use crate::services::protocol_manager::get_election_board;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::{
-    KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
 };
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use std::collections::HashSet;
 use tracing::instrument;
-use tracing::{event, Level};
+use tracing::{event, info, Level};
 use uuid::Uuid;
 
 // returns (board_name, election_id), where the election_id might be None for an event Board
@@ -65,7 +64,8 @@ pub async fn get_keys_ceremony_board(
                 keys_ceremony.id
             )
         })?;
-        let board = get_election_board(tenant_id, &election.id);
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board = get_election_board(tenant_id, &election.id, &slug);
         Ok((board, Some(election.id)))
     }
 }
@@ -323,6 +323,7 @@ pub async fn create_keys_ceremony(
     trustee_names: Vec<String>,
     election_id: Option<String>,
     name: Option<String>,
+    is_automatic_ceremony: bool,
 ) -> Result<String> {
     // verify trustee names and fetch their objects to get their ids
     let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
@@ -420,6 +421,16 @@ pub async fn create_keys_ceremony(
         .into_iter()
         .collect(); // Convert back to Vec
 
+    let ceremony_policy = if is_automatic_ceremony {
+        CeremoniesPolicy::AUTOMATED_CEREMONIES
+    } else {
+        CeremoniesPolicy::MANUAL_CEREMONIES
+    };
+
+    let settings = serde_json::json!({
+        "policy": ceremony_policy.to_string(),
+    });
+
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
         &transaction,
@@ -431,7 +442,7 @@ pub async fn create_keys_ceremony(
         /* status */ Some(status),
         /* execution_status */ Some(execution_status),
         name,
-        None,
+        Some(settings),
         is_default,
         permission_labels,
     )
@@ -443,6 +454,7 @@ pub async fn create_keys_ceremony(
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let election_ids = election_id.clone().map(|id| vec![id]);
     let electoral_log = ElectoralLog::for_admin_user(
         &transaction,
         &board_name,
@@ -450,7 +462,7 @@ pub async fn create_keys_ceremony(
         &election_event.id,
         user_id,
         Some(username.to_string()),
-        election_id.clone(),
+        election_ids.clone(),
         None,
     )
     .await?;
@@ -465,4 +477,48 @@ pub async fn create_keys_ceremony(
         .with_context(|| "error posting to the electoral log")?;
 
     Ok(keys_ceremony_id)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn validate_permission_labels(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<String>,
+    user_permission_labels: Option<String>,
+) -> Result<bool> {
+    let elections_permission_label = get_election_permission_label(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id.clone(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Error getting election permissionlabel {:?}", e))?;
+
+    let user_permission_labels = match user_permission_labels {
+        Some(perms) => perms,
+        None => return Err(anyhow!("user dont have permission labels")),
+    };
+
+    let user_permission_labels_json = user_permission_labels
+        .trim()
+        .strip_prefix('{')
+        .unwrap_or(&user_permission_labels)
+        .strip_suffix('}')
+        .unwrap_or(&user_permission_labels)
+        .to_string();
+    let user_permission_labels_json = format!("[{}]", user_permission_labels_json);
+
+    let user_permission_labels_vec: HashSet<String> =
+        deserialize_str(&user_permission_labels_json)?;
+
+    info!(elections_permission_label = ?elections_permission_label);
+    info!(user_permission_labels_vec = ?user_permission_labels_vec);
+
+    let is_valid_permission_labels = elections_permission_label
+        .iter()
+        .all(|c| user_permission_labels_vec.contains(c));
+
+    Ok(is_valid_permission_labels)
 }

@@ -4,7 +4,7 @@
 
 # Sequent CLI
 A tool created to automate and streamline actions within the sequent ecosystem
-> Either run the task init.cli to have the cli available through the terminal using ```seq COMMAND``` or run directly in the step-cli folder via ```cargo run -- COMMAND```
+> Either run the task init.cli to have the cli available through the terminal using ```step-cli COMMAND``` or run directly in the step-cli folder via ```cargo run -- COMMAND```
 
 ## Help
 Run 
@@ -216,6 +216,10 @@ Run ```step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TAL
 ## Hash password csv
 >This takes a voter_list.csv as input where the input has password column and outputs a voter_list.csv with hashed passwords and salts for the passwords to make it faster to import. 
 > Run ```step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>```
+
+## Export cast votes csv
+> This accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
+> Run ```step export-cast-votes --server-url http://immudb:3322 --username immudb --password immudb --board-db tenant90505c8a23a94cdfaevent3a9fcf6515c4478db32105e02b509899```
 
 - iterations = number of iterations for the hashing where the default if 600000
 

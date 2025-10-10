@@ -168,7 +168,7 @@ export const SettingsTrustees: React.FC<void> = () => {
     }
 
     const doExport = async () => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TRUSTEES)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TRUSTEES, undefined)
         setLoadingExport(true)
         const generatedPassword = generateRandomPassword()
         setPassword(generatedPassword)
@@ -273,7 +273,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                         onDownload={() => {
                             setExportDocumentId(null)
                         }}
-                        onSucess={() => undefined}
+                        onSuccess={() => undefined}
                     />
                 </>
             )}

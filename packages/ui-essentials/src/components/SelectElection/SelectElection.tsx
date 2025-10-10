@@ -19,7 +19,7 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
         ${({isopen, theme}) =>
             "true" === isopen ? theme.palette.brandSuccess : theme.palette.customGrey.light};
     ${({isopen, theme}) =>
-        "true" === isopen ? `background-color: ${theme.palette.lightBackground};` : ""}
+        "true" === isopen ? `backgroundColor: ${theme.palette.lightBackground};` : ""}
     display: flex;
     flex-direction: row;
     padding: 19px 38px;
@@ -30,14 +30,14 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
         "true" === isopen
             ? `
             &:hover {
-                box-shadow: 0 5px 5px rgba(0,0,0,.5);
-                background-color: ${theme.palette.customGrey.light};
+                boxShadow: 0 5px 5px rgba(0,0,0,.5);
+                backgroundColor: ${theme.palette.customGrey.light};
             }
             &:focus {
                 border: 2px solid ${theme.palette.brandColor};
             }
             &:active {
-                background-color: unset;
+                backgroundColor: unset;
             }
         `
             : ""}
@@ -94,14 +94,14 @@ const VotedContainer = styled(Box)<{hasvoted: string}>`
     align-items: center;
     gap: 4px;
     color: ${({hasvoted, theme}) =>
-        "true" === hasvoted ? theme.palette.brandSuccess : theme.palette.errorColor};
+        "true" === hasvoted ? theme.palette.green.dark : theme.palette.errorColor};
 `
 
 const StatusBanner = styled(Box)<{isopen: string}>`
-    font-size: 14px;
+    fontsize: 14px;
     line-height: 20px;
     font-weight: 700;
-    text-transform: uppercase;
+    texttransform: uppercase;
     min-width: 85px;
     text-align: center;
     background-color: ${({isopen, theme}) =>
@@ -159,6 +159,7 @@ export interface SelectElectionProps {
     onClickToVote?: () => void
     onClickBallotLocator?: () => void
     electionDates?: IElectionDates
+    isStarted: boolean
 }
 
 /**
@@ -231,6 +232,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     onClickToVote,
     onClickBallotLocator,
     electionDates,
+    isStarted,
 }) => {
     const {t} = useTranslation()
     const startVotingDate = getStartDate(electionDates) ?? ""
@@ -269,6 +271,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 role="button"
                 tabIndex={0}
                 className="election-item"
+                is-start={String(!!isStarted)}
             >
                 <TextContainer className="election-info">
                     <StyledTitle className="election-title">{title}</StyledTitle>

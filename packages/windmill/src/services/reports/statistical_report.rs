@@ -402,7 +402,9 @@ pub async fn generate_contest_results_data(
     results_area_contest: &ResultsAreaContest,
     registered_voters: &Option<i64>,
 ) -> Result<ReportContestData> {
-    let elective_position = contest.name.clone().unwrap();
+    let Some(elective_position) = contest.name.clone() else {
+        return Err(anyhow!("Contest with empty name"));
+    };
 
     let registered_voters = match registered_voters {
         Some(voters) => *voters,

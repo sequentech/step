@@ -68,6 +68,7 @@ impl CliRun {
         Ok(config)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -96,7 +97,7 @@ mod tests {
         assert!(config.stages.stages_def.contains_key("main"));
 
         let main_stage = config.stages.stages_def.get("main").unwrap();
-        assert_eq!(main_stage.pipeline.len(), 5);
+        assert_eq!(main_stage.pipeline.len(), 6);
 
         Ok(())
     }

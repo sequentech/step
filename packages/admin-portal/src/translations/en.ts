@@ -79,6 +79,10 @@ const englishTranslation = {
                 EXPORT_APPLICATION: "Export Applications",
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
+                RENDER_DOCUMENT_PDF: "Render Document PDF",
+                DELETE_ELECTION_EVENT: "Delete Election Event",
+                PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
+                EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -97,11 +101,15 @@ const englishTranslation = {
                 deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
+            updateAreaSuccess: "Area updated",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
             empty: {
                 header: "No Areas yet.",
                 action: "Create Area",
+            },
+            formImputs: {
+                allowEarlyVoting: "Allow Early Voting",
             },
         },
         lookAndFeelScreen: {
@@ -277,11 +285,25 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                showCastVoteLogs: {
+                    policyLabel: "Show Cast Vote Logs Tab",
+                    options: {
+                        "show-logs-tab": "Show Cast Vote Logs Tab",
+                        "hide-logs-tab": "Hide Cast Vote Logs Tab",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Lockdown Status",
                     options: {
                         "locked-down": "Locked Down",
                         "not-locked-down": "Not Locked Down",
+                    },
+                },
+                decodedBallots: {
+                    policyLabel: "Include decoded ballots to results database",
+                    options: {
+                        "included": "Include",
+                        "not-included": "Don't include",
                     },
                 },
                 contestEncryptionPolicy: {
@@ -317,6 +339,13 @@ const englishTranslation = {
                     options: {
                         enabled: "Enabled",
                         disabled: "Disabled",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Keys/Tally Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Allow Automatic Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
                     },
                 },
             },
@@ -415,6 +444,10 @@ const englishTranslation = {
                         "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
                         "You have been invited to participate in a Tally ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                    startDisabled:
+                        "You cannot continue the ceremony because no elections are selected or the elections are not published.",
+                    ceremonyDisabled:
+                        "You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed.",
                 },
             },
             importAreas: {
@@ -480,6 +513,7 @@ const englishTranslation = {
                 copiedError: "Error copying password",
                 reports: "Reports",
                 applications: "Applications",
+                tally: "Tally",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -522,6 +556,12 @@ const englishTranslation = {
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Security Confirmation Html",
+            },
+            securityConfirmationPolicy: {
+                label: "Security Confirmation Checkbox Policy",
+                none: "None",
+                mandatory: "Mandatory",
             },
             error: {
                 fileError: "Error uploading file",
@@ -562,6 +602,13 @@ const englishTranslation = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Start Screen Title Policy",
+                options: {
+                    "election": "Election title",
+                    "election-event": "Election event title",
                 },
             },
         },
@@ -966,6 +1013,8 @@ const englishTranslation = {
                 incorectPassword: "Incorrect password",
                 decryptFileTitle: "How to decrypt the file",
                 decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
+                encryptSuccess: "Successfully set up report encryption",
+                encryptError: "Error setting up report encryption",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
@@ -1063,6 +1112,11 @@ const englishTranslation = {
                 kind: "File type",
                 filter: "Custom Filters",
                 approve: "Approve",
+                continue: "Continue",
+                logout: "Logout",
+                selectTenant: "Select Tenant",
+                processing: "Processing...",
+                tenantName: "Tenant Name",
             },
             language: {
                 es: "Spanish",
@@ -1070,13 +1124,18 @@ const englishTranslation = {
                 fr: "French",
                 cat: "Valencian",
                 tl: "Tagalog",
+                gl: "Galician",
+                nl: "Dutch",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Early voting",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
+                continueOrLogout: "Do you want to stay connected to this tenant or logout?",
             },
         },
         createResource: {
@@ -1174,6 +1233,12 @@ const englishTranslation = {
                 "semi-open-list": "Semi Open List",
                 "invalid-vote": "Invalid Vote",
                 "blank-vote": "Blank Vote",
+            },
+            invalidVotePosition: {
+                label: "Invalid Vote Position",
+                null: "None (Default)",
+                top: "Top",
+                bottom: "Bottom",
             },
             error: {},
             createCandidateSuccess: "Candidate created",
@@ -1280,10 +1345,17 @@ const englishTranslation = {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
                     title: "Are you sure you want to Create Keys Ceremony?",
+                    automaticCeremonyTitle:
+                        "Are you sure you want to Create Automatic Keys Ceremony?",
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    automaticCeremonyDescription:
+                        "You are about to Create an Automatic Keys Ceremony. This will not notify the Trustees to participate.",
                 },
                 filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Cannot create keys ceremony: one or more permission labels are missing.",
+                automaticCeremonyToggle: "Automatic Ceremony",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -1501,6 +1573,8 @@ const englishTranslation = {
                         "You are about to cancel the tally ceremony. This action is not undoable.",
                     ceremony:
                         "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {
@@ -1554,9 +1628,17 @@ const englishTranslation = {
             action: {
                 generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
+                startKioskVoting: "Start Kiosk Voting",
+                startOnlineVoting: "Start Online Voting",
+                startEarlyVoting: "Start Early Voting",
                 stopVotingPeriod: "Stop Voting",
+                stopOnlineVoting: "Stop Online Voting",
+                stopEarlyVoting: "Stop Early Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
+                pauseKioskVoting: "Pause Kiosk Voting",
+                pauseOnlineVoting: "Pause Online Voting",
+                pauseEarlyVoting: "Pause Early Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -1805,7 +1887,7 @@ const englishTranslation = {
                 OV_WHO_VOTED: "OV Users Who Voted",
                 PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
                 LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
-                OV_TURNOUT_PERCENTAGE: "Overseas Voters Turnout",
+                VOTERS_TURNOUT_PERCENTAGE: "Voters Turnout",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Overseas Voters’ Turnout - per Aboard Status and Sex",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
@@ -1846,6 +1928,10 @@ const englishTranslation = {
             fields: {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
+            },
+            empty: {
+                header: "No support material yet",
+                action: "Generate support material  ",
             },
         },
         widget: {

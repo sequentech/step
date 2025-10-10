@@ -8,6 +8,7 @@ import {createContext, useEffect, useState} from "react"
 import {sleep} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
+import {useTranslation} from "react-i18next"
 import {IPermissions} from "../types/keycloak"
 
 /**
@@ -137,6 +138,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
+
+    const {i18n} = useTranslation()
 
     useEffect(() => {
         function createKeycloak() {
@@ -334,6 +337,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             await keycloak?.login({
                 acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
                 redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
+                locale: i18n.language,
             })
         } catch (error) {
             console.error("Re-authentication failed:", error)

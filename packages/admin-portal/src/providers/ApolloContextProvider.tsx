@@ -48,6 +48,10 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
         const authLink = setContext((operation, {headers}) => {
             // get the authentication token from local storage if it exists
             const token = getAccessToken()
+            if (!token) {
+                console.error("No access token available")
+                return {}
+            }
             // return the headers to the context so httpLink can read them
             const operationRole = getOperationRole(
                 operation,
@@ -71,16 +75,27 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
     }
 
     useEffect(() => {
-        if (apolloClient || !isAuthenticated) {
+        // Clear client if not authenticated (logout case)
+        if (!isAuthenticated) {
+            if (apolloClient) {
+                setApolloClient(null)
+            }
             return
         }
-        let token = getAccessToken()
+
+        // Don't recreate if we already have a client
+        if (apolloClient) {
+            return
+        }
+
+        const token = getAccessToken()
         if (!token) {
             return
         }
+
         let newClient = createApolloClient()
         setApolloClient(newClient)
-    }, [isAuthenticated, apolloClient])
+    }, [isAuthenticated, apolloClient, getAccessToken])
 
     // Setup the context provider
     return (
@@ -97,17 +112,18 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {apolloClient} = useContext(ApolloContext)
-    return (
-        <>
-            {null === apolloClient ? (
-                <Box>
-                    <CircularProgress />
-                </Box>
-            ) : (
-                <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
-            )}
-        </>
-    )
+
+    // Show loading spinner while waiting for client
+    if (null === apolloClient) {
+        return (
+            <Box className="apollo-wrapper">
+                <CircularProgress />
+            </Box>
+        )
+    }
+
+    // Show app content when authenticated and client is ready
+    return <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
 }
 
 export const CustomApolloContextProvider: React.FC<ApolloContextProviderProps> = ({

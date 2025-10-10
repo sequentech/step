@@ -401,6 +401,7 @@ mod tests {
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
+    use sequent_core::util::init_log;
     use std::fs;
     use std::io::Read;
     use std::io::Write;
@@ -500,6 +501,8 @@ mod tests {
 
     #[test]
     fn test_pipes_exec_mcballots() -> Result<()> {
+        //sequent_core::util::init_log::init_log(true);
+
         let election_num = 5;
         let contest_num = 10;
         let area_num = 3;
@@ -604,11 +607,16 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // Generate database
+        state.exec_next()?;
+
         Ok(())
     }
 
     #[test]
     fn test_pipes_exec() -> Result<()> {
+        sequent_core::util::init_log::init_log(true);
+
         let election_num = 5;
         let contest_num = 10;
         let area_num = 3;
@@ -716,6 +724,9 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // Generate database
+        state.exec_next()?;
+
         Ok(())
     }
 
@@ -751,6 +762,9 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
+        state.exec_next()?;
+
+        // Generate database
         state.exec_next()?;
 
         Ok(())
@@ -1111,6 +1125,9 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // Generate database
+        state.exec_next()?;
+
         // test first contest
         let mut path = cli.output_dir.clone();
         path.push("velvet-generate-reports");
@@ -1123,17 +1140,29 @@ mod tests {
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
 
-        assert_eq!(report.contest_result.total_votes, 142);
-        assert_eq!(report.contest_result.total_valid_votes, 142);
-        assert_eq!(report.contest_result.total_blank_votes, 6);
-        assert_eq!(report.contest_result.census, 200);
+        assert_eq!(report.contest_result.total_votes, 142, "total_votes");
+        assert_eq!(
+            report.contest_result.total_invalid_votes, 2,
+            "total_invalid_votes"
+        );
+        assert_eq!(report.contest_result.auditable_votes, 0, "auditable_votes");
+        assert_eq!(
+            report.contest_result.total_valid_votes, 140,
+            "total_valid_votes"
+        );
+        assert_eq!(
+            report.contest_result.total_blank_votes, 6,
+            "total_blank_votes"
+        );
+        assert_eq!(report.contest_result.census, 200, "census");
         assert_eq!(
             report
                 .candidate_result
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            138
+            134,
+            "sum candidates"
         );
 
         let mut path = cli.output_dir.clone();
@@ -1149,9 +1178,12 @@ mod tests {
         let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.total_votes, 100);
-        assert_eq!(report.contest_result.total_valid_votes, 100);
+        assert_eq!(
+            report.contest_result.total_invalid_votes, 1,
+            "total_invalid_votes"
+        );
+        assert_eq!(report.contest_result.total_valid_votes, 99);
         assert_eq!(report.contest_result.total_blank_votes, 3);
-        assert_eq!(report.contest_result.total_invalid_votes, 0);
         assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
@@ -1159,7 +1191,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            98
+            96
         );
 
         // test second contest
@@ -1176,9 +1208,9 @@ mod tests {
         let report = &reports.reports[0];
 
         assert_eq!(report.contest_result.total_votes, 20);
-        assert_eq!(report.contest_result.total_valid_votes, 20);
+        assert_eq!(report.contest_result.total_valid_votes, 19);
         assert_eq!(report.contest_result.total_blank_votes, 3);
-        assert_eq!(report.contest_result.total_invalid_votes, 0);
+        assert_eq!(report.contest_result.total_invalid_votes, 1);
         assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
@@ -1186,7 +1218,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            18
+            16
         );
 
         Ok(())
@@ -1263,6 +1295,9 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
+        state.exec_next()?;
+
+        // Generate database
         state.exec_next()?;
 
         let mut path = cli.output_dir.clone();
@@ -1414,6 +1449,9 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
+        state.exec_next()?;
+
+        // Generate database
         state.exec_next()?;
 
         let mut path = cli.output_dir.clone();
@@ -1571,6 +1609,9 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
+        state.exec_next()?;
+
+        // Generate database
         state.exec_next()?;
 
         let mut path = cli.output_dir.clone();

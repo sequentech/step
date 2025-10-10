@@ -149,51 +149,6 @@ pub async fn get_all_ballot_styles(
 }
 
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_ballot_styles_by_ballot_publication_by_id(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    ballot_publication_id: &str,
-) -> Result<Vec<BallotStyle>> {
-    let query: tokio_postgres::Statement = hasura_transaction
-        .prepare(
-            r#"
-            SELECT
-                *
-            FROM
-                sequent_backend.ballot_style
-            WHERE
-                tenant_id = $1 AND
-                election_event_id = $2 AND
-                ballot_publication_id = $3 AND
-                deleted_at IS NULL;
-            "#,
-        )
-        .await?;
-
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &query,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(ballot_publication_id)?,
-            ],
-        )
-        .await?;
-
-    let results: Vec<BallotStyle> = rows
-        .into_iter()
-        .map(|row| -> Result<BallotStyle> {
-            row.try_into()
-                .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
-        })
-        .collect::<Result<Vec<BallotStyle>>>()?;
-
-    Ok(results)
-}
-
-#[instrument(skip(hasura_transaction), err)]
 pub async fn export_event_ballot_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -286,4 +241,53 @@ pub async fn get_ballot_styles_by_elections(
         .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
 
     Ok(results)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_publication_ballot_styles(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+    limit: Option<usize>,
+) -> Result<Vec<BallotStyle>> {
+    let limit_clause = if let Some(limit) = limit {
+        format!("LIMIT {}", limit)
+    } else {
+        String::new()
+    };
+
+    let query_str = format!(
+        "
+        SELECT
+            *
+        FROM
+            sequent_backend.ballot_style
+        WHERE
+            election_event_id = $1
+            AND tenant_id = $2
+            AND ballot_publication_id = $3
+        ORDER BY election_id ASC, area_id ASC
+        {limit_clause}"
+    );
+
+    let query = hasura_transaction.prepare(query_str.as_str()).await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &query,
+            &[
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(ballot_publication_id)?,
+            ],
+        )
+        .await?;
+
+    let styles: Vec<BallotStyle> = rows
+        .into_iter()
+        .map(|row| row.try_into().map(|wrapper: BallotStyleWrapper| wrapper.0))
+        .collect::<anyhow::Result<Vec<BallotStyle>>>()?;
+
+    Ok(styles)
 }

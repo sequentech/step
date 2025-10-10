@@ -17,8 +17,6 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Box, Button, Drawer, Typography} from "@mui/material"
-import {EditArea} from "./EditArea"
-import {CreateArea} from "./CreateArea"
 import {ImportAreasMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
@@ -38,8 +36,7 @@ import styled from "@emotion/styled"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useAreaPermissions} from "./useAreaPermissions"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../User/DownloadDocument"
+import {UpsertArea} from "./UpsertArea"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -258,8 +255,9 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                     open={openDrawer}
                                     setOpen={setOpenDrawer}
                                     Component={
-                                        <CreateArea
+                                        <UpsertArea
                                             record={record}
+                                            electionEventId={id}
                                             close={handleCloseCreateDrawer}
                                         />
                                     }
@@ -316,7 +314,12 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
+                <UpsertArea
+                    record={record}
+                    id={recordId}
+                    electionEventId={id}
+                    close={handleCloseEditDrawer}
+                />
             </Drawer>
             <Drawer
                 anchor="right"
@@ -326,7 +329,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <CreateArea record={record} close={handleCloseCreateDrawer} />
+                <UpsertArea record={record} electionEventId={id} close={handleCloseCreateDrawer} />
             </Drawer>
             <Dialog
                 variant="warning"

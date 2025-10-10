@@ -45,7 +45,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
         e.preventDefault()
         e.stopPropagation()
         setDocumentId(null)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let {data} = await generateTemplate({
                 variables: {
@@ -58,7 +58,6 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
                             : "VoteReceipts",
                 },
             })
-            console.log("aa onClick data", data)
             let response = data?.generate_template
             let taskId = response?.task_execution?.id
             let generatedDocumentId = response?.document_id
@@ -76,7 +75,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     }
 
     return (
-        <MenuItem onClick={onClick}>
+        <MenuItem onClick={onClick} key={reportType}>
             <Box
                 sx={{
                     textOverflow: "ellipsis",

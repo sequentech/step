@@ -2,15 +2,20 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rustlang/rust:nightly-slim as builder
+FROM rustlang/rust:nightly-bookworm-slim as builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    protobuf-compiler \
-    libprotobuf-dev \
-    m4 \
-    make \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends debian-archive-keyring \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        protobuf-compiler \
+        libprotobuf-dev \
+        m4 \
+        make \
+        unzip \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN rustup toolchain install nightly-2024-09-01 \

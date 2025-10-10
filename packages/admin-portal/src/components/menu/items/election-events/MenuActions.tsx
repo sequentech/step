@@ -18,11 +18,14 @@ import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
 import {divContainer} from "@/components/styles/Menu"
 import {useMutation} from "@apollo/client"
-import {DeleteElectionEvent} from "@/gql/graphql"
+import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -75,13 +78,16 @@ export default function MenuAction({
 
     const [deleteOne] = useDelete()
     const [update] = useUpdate()
-    const [delete_election_event] = useMutation<DeleteElectionEvent>(DELETE_ELECTION_EVENT, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+    const [delete_election_event] = useMutation<DeleteElectionEventMutation>(
+        DELETE_ELECTION_EVENT,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+                },
             },
-        },
-    })
+        }
+    )
 
     const notify = useNotify()
 
@@ -93,7 +99,7 @@ export default function MenuAction({
         action: Action
         payload: ActionPayload
     } | null>(null)
-
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
     const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag, setCandidateIdFlag} =
         useElectionEventTallyStore()
@@ -180,24 +186,28 @@ export default function MenuAction({
     }
 
     const deleteElectionEventAction = async (payload: ActionPayload) => {
+        const currWidget: WidgetProps = addWidget(ETasksExecution.DELETE_ELECTION_EVENT, undefined)
         try {
-            await delete_election_event({
+            const {data, errors} = await delete_election_event({
                 variables: {
                     electionEventId: payload.id,
                 },
             })
-            notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
-                type: "success",
+
+            if (data?.delete_election_event?.error_msg || errors) {
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            const taskId = data?.delete_election_event?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, taskId, () => {
+                setSelectedActionModal(null)
+                setElectionEventIdFlag(null)
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
+                reloadTree()
             })
-            setSelectedActionModal(null)
-            setElectionEventIdFlag(null)
-            setElectionIdFlag(null)
-            setContestIdFlag(null)
-            reloadTree()
         } catch (error) {
-            notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
-                type: "error",
-            })
+            updateWidgetFail(currWidget.identifier)
         }
     }
 

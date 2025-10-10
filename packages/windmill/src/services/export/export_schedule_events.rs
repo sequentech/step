@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::documents::upload_and_return_document_postgres;
+use crate::services::documents::upload_and_return_document;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
@@ -86,7 +86,7 @@ pub async fn write_export_document(
             .with_context(|| "Failed to write scheduled events into temp file")?;
 
     if to_upload {
-        upload_and_return_document_postgres(
+        upload_and_return_document(
             transaction,
             &temp_path_string,
             file_size,

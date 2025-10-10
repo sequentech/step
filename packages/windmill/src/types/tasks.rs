@@ -24,6 +24,10 @@ pub enum ETasksExecution {
     EXPORT_APPLICATION,
     IMPORT_APPLICATION,
     EXPORT_TRUSTEES,
+    RENDER_DOCUMENT_PDF,
+    DELETE_ELECTION_EVENT,
+    PREPARE_PUBLICATION_PREVIEW,
+    EXPORT_TALLY_RESULTS_XLSX,
 }
 
 impl ETasksExecution {
@@ -47,6 +51,10 @@ impl ETasksExecution {
             ETasksExecution::EXPORT_APPLICATION => "Export Application",
             ETasksExecution::IMPORT_APPLICATION => "Import Application",
             ETasksExecution::EXPORT_TRUSTEES => "Export Trustees",
+            ETasksExecution::RENDER_DOCUMENT_PDF => "Render Document PDF",
+            ETasksExecution::DELETE_ELECTION_EVENT => "Delete Election Event",
+            ETasksExecution::PREPARE_PUBLICATION_PREVIEW => "Prepare Publication Preview",
+            ETasksExecution::EXPORT_TALLY_RESULTS_XLSX => "Export Tally Results To XLSX",
         }
     }
 }

@@ -20,9 +20,11 @@ use crate::multi_ballot::{
     AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
     RawHashableMultiBallot,
 };
+use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
+use crate::util::normalize_vote::normalize_election;
 use base64::engine::general_purpose;
 use base64::Engine;
 use strand::serialization::StrandSerialize;
@@ -155,12 +157,17 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         )));
     }
 
-    let contest_choices = decoded_contests
+    let contest_choices: Vec<_> = decoded_contests
         .iter()
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    let ballot_choices = BallotChoices::new(false, contest_choices);
+    let is_explicit_invalid = decoded_contests
+        .iter()
+        .any(|choice| choice.is_explicit_invalid);
+
+    let ballot_choices =
+        BallotChoices::new(is_explicit_invalid, contest_choices);
 
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
@@ -191,7 +198,11 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    let ballot = BallotChoices::new(false, contest_choices);
+    let is_explicit_invalid = decoded_contests
+        .iter()
+        .any(|choice| choice.is_explicit_invalid);
+
+    let ballot = BallotChoices::new(is_explicit_invalid, contest_choices);
 
     encrypt_multi_ballot(ctx, &ballot, config)
 }
@@ -385,6 +396,8 @@ mod tests {
     use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
+    use crate::plaintext::DecodedVoteContest;
+    use crate::serialization::deserialize_with_path::deserialize_value;
     use crate::util::normalize_vote::normalize_vote_contest;
 
     use strand::backend::ristretto::RistrettoCtx;

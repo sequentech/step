@@ -110,10 +110,11 @@ pub async fn read_election_event_boards(
     let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
     let b3_client = get_b3_pgsql_client().await?;
     let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     // event board
     {
-        let board_name = get_event_board(tenant_id, election_event_id);
+        let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
         boards_map.insert("".to_string(), b3_messages);
@@ -122,7 +123,7 @@ pub async fn read_election_event_boards(
     // elections
     let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
     for election in elections {
-        let board_name = get_election_board(tenant_id, &election.id);
+        let board_name = get_election_board(tenant_id, &election.id, &slug);
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
         boards_map.insert(election.id.clone(), b3_messages);
     }
@@ -142,10 +143,11 @@ pub async fn read_protocol_manager_keys(
     );
     let headers = vec!["election_id".to_string(), "key".to_string()];
     writer.write_record(&headers)?;
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     // first the event board
     {
-        let board_name = get_event_board(tenant_id, election_event_id);
+        let board_name = get_event_board(tenant_id, election_event_id, &slug);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
         let protocol_manager_data = vault::read_secret(
             transaction,
@@ -165,7 +167,7 @@ pub async fn read_protocol_manager_keys(
     let elections = get_elections(transaction, tenant_id, election_event_id, None).await?;
 
     for election in elections {
-        let board_name = get_election_board(tenant_id, &election.id);
+        let board_name = get_election_board(tenant_id, &election.id, &slug);
         let protocol_manager_key = get_protocol_manager_secret_path(&board_name);
         let protocol_manager_data = vault::read_secret(
             transaction,

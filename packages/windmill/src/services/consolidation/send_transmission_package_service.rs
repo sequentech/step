@@ -22,7 +22,7 @@ use crate::{
     },
     services::{
         database::get_hasura_pool,
-        documents::{get_document_as_temp_file, upload_and_return_document_postgres},
+        documents::{get_document_as_temp_file, upload_and_return_document},
     },
     types::miru_plugin::{
         MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,

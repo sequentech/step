@@ -35,6 +35,7 @@ import {
     useRefresh,
     WrapperField,
     FilterPayload,
+    SelectInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -70,6 +71,7 @@ import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
 import {DecryptHelp} from "@/components/election-event/export-data/PasswordDialog"
+import {EventProcessors} from "../ScheduledEvents/CreateScheduledEvent"
 
 export const decryptionCommand = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
 
@@ -205,7 +207,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
         setIsDecryptModalOpen(false)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let generateReportResponse = await generateReport({
                 variables: {
@@ -240,7 +242,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
         {
-            pagination: {page: 1, perPage: 100},
+            pagination: {page: 1, perPage: 1000},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
@@ -257,7 +259,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 200},
+            pagination: {page: 1, perPage: 1000},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
@@ -299,6 +301,24 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const OMIT_FIELDS: Array<string> = ["id"]
 
     const Filters: Array<ReactElement> = [
+        <SelectInput
+            source="report_type"
+            key="event_processor_filter"
+            label={t("reportsScreen.fields.reportType")}
+            choices={Object.values(EReportType).map((eventType) => ({
+                id: eventType,
+                name: t(`template.type.${eventType}`),
+            }))}
+        />,
+        <SelectInput
+            source="election_id"
+            key="election_id_filter"
+            label={t("reportsScreen.fields.electionId")}
+            choices={elections?.map((election) => ({
+                id: election.id,
+                name: election.alias || election.name || "-",
+            }))}
+        />,
         <FilterTextInput label="Template" source="template_alias" key={0} />,
     ]
 

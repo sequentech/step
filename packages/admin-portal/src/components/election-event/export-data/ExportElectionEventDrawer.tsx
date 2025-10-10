@@ -53,6 +53,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [openPasswordDialog, setOpenPasswordDialog] = useState<boolean>(false)
     const [reports, setReports] = useState(false)
     const [applications, setApplications] = useState(false)
+    const [tally, setTally] = useState(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -74,12 +75,13 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setOpenPasswordDialog(false)
         setReports(false)
         setApplications(false)
+        setTally(false)
     }
 
     const confirmExportAction = async () => {
         console.log("CONFIRM EXPORT")
         setOpenExport(false)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_ELECTION_EVENT, undefined)
         setLoadingExport(true)
         const isEncrypted = encryptWithPassword || bulletinBoard || reports || applications
 
@@ -97,6 +99,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         scheduled_events: scheduledEvents,
                         reports: reports,
                         applications: applications,
+                        tally: tally,
                     },
                 },
             })
@@ -135,6 +138,24 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setter(newValue)
         if (newValue) {
             setEncryptWithPassword(newValue)
+        }
+    }
+
+    const toggleBulletinBoard = (newValue: boolean) => {
+        setBulletinBoard(newValue)
+        if (newValue) {
+            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
+        }
+        // Tally has to be exported with bulletin board
+        if (!newValue && tally) {
+            setTally(false)
+        }
+    }
+
+    const toggleTallyCheckBox = (newValue: boolean) => {
+        setTally(newValue)
+        if (newValue) {
+            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
         }
     }
 
@@ -189,9 +210,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={bulletinBoard}
-                                onChange={() =>
-                                    toggleCheckBoxWithPassword(setBulletinBoard, !bulletinBoard)
-                                }
+                                onChange={() => toggleBulletinBoard(!bulletinBoard)}
                             />
                         }
                         label={t("electionEventScreen.export.bulletinBoard")}
@@ -243,6 +262,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         }
                         label={t("electionEventScreen.export.applications")}
                     />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
+                                checked={tally}
+                                onChange={() => toggleTallyCheckBox(!tally)}
+                            />
+                        }
+                        label={"Tally"}
+                    />
                 </FormGroup>
             </Dialog>
             {exportDocumentId && (
@@ -257,7 +285,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             setExportDocumentId(undefined)
                             setOpenExport(false)
                         }}
-                        onSucess={onDownloadSuccess}
+                        onSuccess={onDownloadSuccess}
                     />
                 </>
             )}

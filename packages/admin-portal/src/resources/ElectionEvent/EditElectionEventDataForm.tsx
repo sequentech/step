@@ -51,6 +51,9 @@ import {
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
+    EShowCastVoteLogsPolicy,
+    EElectionEventDecodedBallots,
+    EElectionEventCeremoniesPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -187,6 +190,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
+        early_voting: tenant?.voting_channels?.early_voting || false,
     })
 
     useEffect(() => {
@@ -458,9 +462,16 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const showCastVoteLogsChoices = (): Array<EnumChoice<EShowCastVoteLogsPolicy>> => {
+        return Object.values(EShowCastVoteLogsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.showCastVoteLogs.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
-        const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES)
+        const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES, undefined)
         try {
             let {data, errors} = await importCandidates({
                 variables: {
@@ -570,6 +581,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return sortOrderA - sortOrderB
     })
 
+    const decodedBallotsStateChoices = () => {
+        return Object.values(EElectionEventDecodedBallots).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.decodedBallots.options.${value}`),
+        }))
+    }
+
     const lockdownStateChoices = () => {
         return Object.values(EElectionEventLockedDown).map((value) => ({
             id: value,
@@ -612,6 +630,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const ceremonyPolicyOptions = () => {
+        return Object.values(EElectionEventCeremoniesPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ceremoniesPolicy.options.${value}`),
+        }))
+    }
+
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
     const updateCustomFilters = (
@@ -636,6 +661,8 @@ export const EditElectionEventDataForm: React.FC = () => {
             otp: event.target.value,
         }))
     }
+
+    console.log("ceremonyPolicyOptions: ", ceremonyPolicyOptions())
 
     return (
         <>
@@ -799,6 +826,15 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         source="presentation.elections_order"
                                         choices={orderAnswerChoices()}
                                         validate={required()}
+                                    />
+                                    <SelectInput
+                                        source="presentation.show_cast_vote_logs"
+                                        choices={showCastVoteLogsChoices()}
+                                        validate={required()}
+                                        defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
+                                        label={t(
+                                            "electionEventScreen.field.showCastVoteLogs.policyLabel"
+                                        )}
                                     />
                                     <FormDataConsumer>
                                         {({formData, ...rest}) => {
@@ -1101,6 +1137,28 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             "electionEventScreen.field.lockdownState.policyLabel"
                                         )}
                                         defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.decoded_ballot_inclusion_policy"}
+                                        choices={decodedBallotsStateChoices()}
+                                        label={t(
+                                            "electionEventScreen.field.decodedBallots.policyLabel"
+                                        )}
+                                        defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.ceremonies_policy"}
+                                        choices={ceremonyPolicyOptions()}
+                                        label={t(
+                                            "electionEventScreen.field.ceremoniesPolicy.policyLabel"
+                                        )}
+                                        defaultValue={
+                                            EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
+                                        }
                                         emptyText={undefined}
                                         validate={required()}
                                     />

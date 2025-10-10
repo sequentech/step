@@ -5,6 +5,7 @@
 import {TranslationDict} from "../services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
 import {IContestPresentation} from "./ContestPresentation"
+import {IAreaPresentation} from "./AreaPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
@@ -29,6 +30,12 @@ export enum EVotingStatus {
 export interface IVotingChannelsConfig {
     kiosk: boolean
     online: boolean
+    early_voting: boolean
+}
+
+export interface IChannelButtonInfo {
+    status: EVotingStatus
+    is_channel_enabled: boolean
 }
 
 export interface IPeriodDates {
@@ -43,14 +50,18 @@ export interface IPeriodDates {
 export interface IElectionEventStatus {
     is_published?: boolean
     voting_status: EVotingStatus
+    kiosk_voting_status: EVotingStatus
+    early_voting_status: EVotingStatus
 }
 
 export interface IElectionStatus {
     is_published?: boolean
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
+    early_voting_status: EVotingStatus
     voting_period_dates: IPeriodDates
     kiosk_voting_period_dates: IPeriodDates
+    early_voting_period_dates: IPeriodDates
 }
 
 export interface IElectionEventStatistics {
@@ -125,6 +136,7 @@ export interface IBallotStyle {
     description?: string
     public_key?: IPublicKeyConfig
     area_id: string
+    area_presentation?: IAreaPresentation
     contests: Array<IContest>
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
@@ -204,8 +216,25 @@ export interface ITaskExecuted {
     type: string
 }
 
+export enum EGraphQLInternalErrorMessage {
+    TIMEOUT_ERROR = "Response timeout",
+}
+
+export enum EGraphQLErrorCode {
+    UNEXPECTED = "unexpected",
+}
+
+export interface IExtensionErrorInternalError {
+    message?: string | null
+}
+
+export interface IExtensionErrorInternal {
+    error?: IExtensionErrorInternalError | null
+}
+
 export interface IExtensionError {
     code?: string | null
+    internal?: IExtensionErrorInternal | null
 }
 
 export interface IGraphQLError {

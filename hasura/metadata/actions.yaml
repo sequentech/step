@@ -411,6 +411,19 @@ actions:
                   template: "{{$body.input}}"
               template_engine: Kriti
               version: 2
+    - name: export_tally_results
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-tally-results
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tally-results-read
     - name: export_tasks_execution
       definition:
           kind: synchronous
@@ -998,6 +1011,20 @@ actions:
           - role: immudb:log:read
           - role: admin-user
       comment: List PostgreSQL audit logs
+    - name: list_cast_vote_messages
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/list-cast-vote-messages
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: List electoral log entries of statement_kind CastVote
     - name: list_keys_ceremony
       definition:
           kind: ""
@@ -1053,6 +1080,19 @@ actions:
           - role: scheduled-event-write
           - role: election-event-write
           - role: admin-user
+    - name: prepare_ballot_publication_preview
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/prepare-ballot-publication-preview
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: publish_ballot
       definition:
           kind: synchronous
@@ -1082,6 +1122,19 @@ actions:
           - role: tally-sheet-publish
           - role: admin-user
       comment: publish_tally_sheet
+    - name: render_document_pdf
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/render-document-pdf
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: report-read
     - name: restore_private_key
       definition:
           kind: synchronous
@@ -1221,6 +1274,19 @@ actions:
       permissions:
           - role: miru-sign
           - role: admin-user
+    - name: upsert_area
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/upsert-area
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: upsert_areas
       definition:
           kind: synchronous
@@ -1233,10 +1299,21 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
+          - role: area-read
+          - role: area-upsert
+          - role: area-create
           - role: area-write
       comment: upsert_areas
 custom_types:
     enums:
+        - name: EarlyVotingPolicy
+          values:
+              - description: null
+                is_deprecated: null
+                value: allow_early_voting
+              - description: null
+                is_deprecated: null
+                value: no_early_voting
         - name: ReportEncryptionPolicy
           values:
               - description: null
@@ -1283,6 +1360,9 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: KIOSK
+              - description: null
+                is_deprecated: null
+                value: EARLY_VOTING
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter
@@ -1334,6 +1414,8 @@ custom_types:
         - name: DataListPgAudit
         - name: TotalAggregate
         - name: ElectoralLogRow
+        - name: CastVoteEntry
+        - name: ListCastVoteMessagesOutput
         - name: DataListElectoralLog
         - name: ScheduledEventOutput2
         - name: ScheduledEventOutput3
@@ -1353,6 +1435,7 @@ custom_types:
         - name: CreateUserOutput
         - name: SetRolePermissionOutput
         - name: OptionalId
+        - name: PrepareBallotPublicationPreviewOutput
         - name: ExportUsersOutput
         - name: SetUserRoleOutput
         - name: CreateTallyOutput
@@ -1420,4 +1503,7 @@ custom_types:
         - name: GenerateTemplateOutput
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
+        - name: RenderDocumentPDFOutput
+        - name: UpsertAreaOutput
+        - name: ExportTallyResultsOutput
     scalars: []

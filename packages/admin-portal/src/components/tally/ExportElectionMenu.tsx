@@ -20,6 +20,8 @@ import {notDeepEqual} from "assert"
 import {StyledAppAtom} from "@/App"
 import {ETemplateType} from "@/types/templates"
 import {GenerateReport} from "./GenerateReport"
+import {GeneratePDF} from "./GeneratePdf"
+import {GenerateResultsXlsx} from "./GenerateResultsXlsx"
 
 interface PerformDownloadProps {
     onDownload: () => void
@@ -96,6 +98,8 @@ interface ExportElectionMenuProps {
     electionId?: string | null
     miruExportloading?: boolean
     onCreateTransmissionPackage?: (v: {area_id: string; election_id: string}) => void
+    tenantId?: string | null
+    resultsEventId?: string | null
 }
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
@@ -109,6 +113,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         electionId,
         miruExportloading,
         onCreateTransmissionPackage,
+        tenantId,
+        resultsEventId,
     } = props
     const {globalSettings} = useContext(SettingsContext)
     const {t} = useTranslation()
@@ -135,6 +141,12 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
             return
         }
 
+        // If the requested format is tar_gz, check if a tar_gz_pdfs version exists.
+        // If it does, use it as the primary download source.
+        if (format === EExportFormat.TAR_GZ && documents?.tar_gz_pdfs) {
+            documentId = documents.tar_gz_pdfs
+        }
+
         console.log("handleExport setPerformDownload")
         if (format === EExportFormat.RECEIPTS_PDF) {
             setPerformDownload({
@@ -151,34 +163,6 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
             })
         }
     }
-
-    const exportFormatItem = itemName /*election
-        ? election?.name?.slice(0, 12)
-        : contest
-        ? contest?.name?.slice(0, 12)
-        : area && area !== "all"
-        ? areaName?.slice(0, 12)
-        : area
-        ? t("common.label.globalAreaResults")
-        : t("common.label.allResults")*/
-    /*
-    if (election) {
-	    election?.name?.slice(0, 12)
-    } else {
-        if (contest?.name?.slice(0, 12)) {
-        } else {
-            if (area && area !== "all") {
-                areaName?.slice(0, 12)
-            } else {
-                if (area) {
-                    t("common.label.globalAreaResults")
-                } else {
-                    t("common.label.allResults")
-                }
-            }
-        }
-    } 
-    */
 
     const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
         !documents?.[format]
@@ -210,7 +194,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     }
 
     return (
-        <div>
+        <div key={itemName}>
             <ExportButton
                 aria-label="export election data"
                 aria-controls="export-menu"
@@ -250,45 +234,60 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                 onClose={handleClose}
             >
                 <StyledAppAtom>
-                    {documentsList?.map((documents) =>
-                        EXPORT_FORMATS.map((format) =>
-                            isExportFormatDisabled(documents.documents, format.value) ? null : (
-                                <MenuItem
-                                    className={getMenuClassName(
-                                        format.value,
-                                        documents.class_type,
-                                        documents.class_subtype
-                                    )}
-                                    key={format.value}
-                                    onClick={(e: React.MouseEvent<HTMLElement>) => {
-                                        e.preventDefault()
-                                        e.stopPropagation()
-                                        setTimeout(() => handleClose(), 0)
-                                        handleExport(documents.documents, format.value)
-                                    }}
-                                    disabled={isExportFormatDisabled(
-                                        documents.documents,
-                                        format.value
-                                    )}
-                                >
-                                    <Box
-                                        sx={{
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                            overflow: "hidden",
-                                        }}
+                    {documentsList?.map((documents) => (
+                        <React.Fragment key={documents.class_type + documents.name}>
+                            {EXPORT_FORMATS.map((format) =>
+                                isExportFormatDisabled(documents.documents, format.value) ? null : (
+                                    <React.Fragment
+                                        key={`${documents.class_type}:${documents.name}:${format.value}`}
                                     >
-                                        <span title={format.label}>
-                                            {t("common.label.exportFormat", {
-                                                item: documents.name,
-                                                format: format.label,
-                                            })}
-                                        </span>
-                                    </Box>
-                                </MenuItem>
-                            )
-                        )
-                    )}
+                                        <MenuItem
+                                            className={getMenuClassName(
+                                                format.value,
+                                                documents.class_type,
+                                                documents.class_subtype
+                                            )}
+                                            key={format.value}
+                                            onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                                e.preventDefault()
+                                                e.stopPropagation()
+                                                setTimeout(() => handleClose(), 0)
+                                                handleExport(documents.documents, format.value)
+                                            }}
+                                            disabled={isExportFormatDisabled(
+                                                documents.documents,
+                                                format.value
+                                            )}
+                                        >
+                                            <Box
+                                                sx={{
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                    overflow: "hidden",
+                                                }}
+                                            >
+                                                <span title={format.label}>
+                                                    {t("common.label.exportFormat", {
+                                                        item: documents.name,
+                                                        format: format.label,
+                                                    })}
+                                                </span>
+                                            </Box>
+                                        </MenuItem>
+                                        {format.value === EExportFormat.HTML ? (
+                                            <GeneratePDF
+                                                key={documents.name}
+                                                documents={documents.documents}
+                                                name={documents.name}
+                                                electionEventId={electionEventId}
+                                                tallySessionId={tallySessionId}
+                                            />
+                                        ) : null}
+                                    </React.Fragment>
+                                )
+                            )}
+                        </React.Fragment>
+                    ))}
                     {globalSettings?.ACTIVATE_MIRU_EXPORT &&
                     tallyType !== ETallyType.INITIALIZATION_REPORT &&
                     onCreateTransmissionPackage &&
@@ -320,6 +319,21 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             />
                         </>
                     ) : null}
+                    {tenantId &&
+                        resultsEventId &&
+                        electionEventId &&
+                        documentsList &&
+                        documentsList.length > 0 &&
+                        documentsList[0].class_type === "event" && (
+                            <GenerateResultsXlsx
+                                eventName={itemName}
+                                electionEventId={electionEventId}
+                                tallySessionId={tallySessionId}
+                                tenantId={tenantId}
+                                handleClose={handleClose}
+                                resultsEventId={resultsEventId}
+                            />
+                        )}
                 </StyledAppAtom>
             </Menu>
         </div>

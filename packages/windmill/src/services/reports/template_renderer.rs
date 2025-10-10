@@ -311,7 +311,7 @@ pub trait TemplateRenderer: Debug {
             .get_default_extra_config_file()
             .await
             .map_err(|e| anyhow::anyhow!(format!("Error to get the extra config data {e:?}")))?;
-        let data: ReportExtraConfig = serde_json::from_str(&json_data)?;
+        let data: ReportExtraConfig = deserialize_str(&json_data)?;
 
         Ok(data)
     }
@@ -626,10 +626,6 @@ pub trait TemplateRenderer: Debug {
             final_file_path, file_size, final_report_name, mimetype
         );
 
-        let auth_headers = keycloak::get_client_credentials()
-            .await
-            .map_err(|err| anyhow!("Error getting client credentials: {err:?}"))?;
-
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
@@ -671,13 +667,13 @@ pub trait TemplateRenderer: Debug {
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
             let _document = upload_and_return_document(
-                encrypted_temp_path,
+                hasura_transaction,
+                &encrypted_temp_path,
                 enc_temp_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                enc_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &enc_report_name,
                 Some(document_id.to_string()),
                 true,
             )
@@ -711,13 +707,13 @@ pub trait TemplateRenderer: Debug {
             }
         } else {
             let _document = upload_and_return_document(
-                final_file_path.clone(),
+                hasura_transaction,
+                &final_file_path,
                 file_size,
-                mimetype.clone(),
-                auth_headers.clone(),
-                tenant_id.to_string(),
-                election_event_id.to_string(),
-                final_report_name.clone(),
+                &mimetype,
+                tenant_id,
+                Some(election_event_id.to_string()),
+                &final_report_name,
                 Some(document_id.to_string()),
                 true,
             )

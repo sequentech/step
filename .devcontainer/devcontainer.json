@@ -22,9 +22,6 @@
 		"b3:50051"
 	],
 
-
-
-
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
 	"initializeCommand": [
@@ -35,6 +32,12 @@
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
+
+	// Mount claude code config from developer folder (if existing) to ensure
+	// config and credentials work well
+    "mounts": [
+      "source=${localEnv:HOME}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached"
+    ],
 
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
@@ -115,7 +118,10 @@
 				"ms-python.python",
 
 				// Useful to check interactions with keyloak´s DB or other SQL databases
-				"cweijan.vscode-database-client2"
+				"cweijan.vscode-database-client2",
+
+				// Rewarp lines with Alt+Q or Cmd+Q
+				"stkb.rewrap",
     		]
 		},
 		"devpod": {

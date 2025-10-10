@@ -2,26 +2,72 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
-use log::info;
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-
 use crate::assign_value;
+use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fmt::Debug;
-use tokio::time::{sleep, Duration};
+use std::fmt::Display;
+use strum_macros::Display;
+use tokio_stream::StreamExt; // Added for streaming
+use tracing::{error, info, instrument, warn};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
 const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
 const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+/// 36 chars + EOL + some padding
+const ID_VARCHAR_LENGTH: usize = 40;
+/// Longest possible statement kind must be < 40
+const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
+/// 64 chars + EOL + some padding
+const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 
 #[derive(Debug)]
 pub struct BoardClient {
     client: Client,
 }
 
+#[derive(Debug, Clone, Display, PartialEq, Eq, Ord, PartialOrd)]
+#[strum(serialize_all = "snake_case")]
+pub enum ElectoralLogVarCharColumn {
+    StatementKind,
+    UserId,
+    BallotId,
+    Username,
+    SenderPk,
+    ElectionId,
+    AreaId,
+    Version,
+}
+
+/// SQL comparison operators supported by immudb.
+/// ILIKE is not supported.
+#[derive(Display, Debug, Clone)]
+pub enum SqlCompOperators {
+    #[strum(to_string = "=")]
+    Equal,
+    #[strum(to_string = "!=")]
+    NotEqual,
+    #[strum(to_string = ">")]
+    GreaterThan,
+    #[strum(to_string = "<")]
+    LessThan,
+    #[strum(to_string = ">=")]
+    GreaterThanOrEqual,
+    #[strum(to_string = "<=")]
+    LessThanOrEqual,
+    #[strum(to_string = "LIKE")]
+    Like,
+    #[strum(to_string = "IN")]
+    In,
+    #[strum(to_string = "NOT IN")]
+    NotIn,
+}
+
+pub type WhereClauseBTreeMap = BTreeMap<ElectoralLogVarCharColumn, (SqlCompOperators, String)>;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ElectoralLogMessage {
     pub id: i64,
@@ -35,6 +81,7 @@ pub struct ElectoralLogMessage {
     pub username: Option<String>,
     pub election_id: Option<String>,
     pub area_id: Option<String>,
+    pub ballot_id: Option<String>,
 }
 
 impl TryFrom<&Row> for ElectoralLogMessage {
@@ -52,6 +99,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut username: Option<String> = None;
         let mut election_id: Option<String> = None;
         let mut area_id: Option<String> = None;
+        let mut ballot_id: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
@@ -114,6 +162,17 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                         ))
                     }
                 },
+                "ballot_id" => match value.value.as_ref() {
+                    Some(Value::S(inner)) => ballot_id = Some(inner.clone()),
+                    Some(Value::Null(_)) => ballot_id = None,
+                    None => ballot_id = None,
+                    _ => {
+                        return Err(anyhow!(
+                            "invalid column value for 'ballod_id': {:?}",
+                            value.value.as_ref()
+                        ))
+                    }
+                },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
         }
@@ -130,7 +189,28 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             username,
             election_id,
             area_id,
+            ballot_id,
         })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Aggregate {
+    pub count: i64,
+}
+
+impl TryFrom<&Row> for Aggregate {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut count = 0;
+
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            match column.as_str() {
+                _ => assign_value!(Value::N, value, count),
+            }
+        }
+        Ok(Aggregate { count })
     }
 }
 
@@ -192,6 +272,8 @@ impl BoardClient {
             message,
             version,
             user_id,
+            area_id,
+            ballot_id,
             username
         FROM {}
         WHERE id > @last_id
@@ -222,25 +304,41 @@ impl BoardClient {
         Ok(messages)
     }
 
-    pub async fn get_electoral_log_messages_filtered(
+    /// columns_matcher represents the columns that will be used to filter the messages,
+    /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
+    /// BTreeMap ensures the order is preserved no matter the insertion sequence.
+    pub async fn get_electoral_log_messages_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
-        kind: &str,
-        sender_pk: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        order_by: Option<HashMap<K, V>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
-        self.get_filtered(board_db, kind, sender_pk, min_ts, max_ts)
-            .await
+        self.get_filtered(
+            board_db,
+            columns_matcher,
+            min_ts,
+            max_ts,
+            limit,
+            offset,
+            order_by,
+        )
+        .await
     }
 
-    async fn get_filtered(
+    #[instrument(skip_all, err)]
+    async fn get_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
-        kind: &str,
-        sender_pk: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        order_by: Option<HashMap<K, V>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND created >= @min_ts", min_ts)
@@ -254,40 +352,56 @@ impl BoardClient {
             ("", 0)
         };
 
+        let mut params = vec![];
+        let mut where_clause = String::from("statement_kind IS NOT NULL ");
+        if let Some(columns_matcher) = &columns_matcher {
+            for (key, (op, value)) in columns_matcher {
+                where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                params.push(NamedParam {
+                    name: key.to_string(),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(value.to_owned())),
+                    }),
+                })
+            }
+        }
+
+        let order_by_clauses = if let Some(order_by) = order_by {
+            order_by
+                .iter()
+                .map(|(field, direction)| format!("ORDER BY {field} {direction}"))
+                .collect::<Vec<String>>()
+                .join(", ")
+        } else {
+            format!("ORDER BY id desc")
+        };
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
         SELECT
             id,
+            username,
+            user_id,
+            area_id,
+            election_id,
+            ballot_id,
             created,
             sender_pk,
             statement_timestamp,
             statement_kind,
             message,
             version
-        FROM {}
-        WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind
-        {}
-        {}
-        ORDER BY id;
-        "#,
-            ELECTORAL_LOG_TABLE, min_clause, max_clause,
+        FROM {ELECTORAL_LOG_TABLE}
+        WHERE {where_clause}
+        {min_clause}
+        {max_clause}
+        {order_by_clauses}
+        LIMIT @limit
+        OFFSET @offset;
+        "#
         );
 
-        let mut params = vec![
-            NamedParam {
-                name: String::from("sender_pk"),
-                value: Some(SqlValue {
-                    value: Some(Value::S(sender_pk.to_string())),
-                }),
-            },
-            NamedParam {
-                name: String::from("statement_kind"),
-                value: Some(SqlValue {
-                    value: Some(Value::S(kind.to_string())),
-                }),
-            },
-        ];
         if min_clause_value != 0 {
             params.push(NamedParam {
                 name: String::from("min_ts"),
@@ -305,15 +419,102 @@ impl BoardClient {
             })
         }
 
+        params.push(NamedParam {
+            name: String::from("limit"),
+            value: Some(SqlValue {
+                value: Some(Value::N(limit.unwrap_or(IMMUDB_DEFAULT_LIMIT as i64))),
+            }),
+        });
+
+        params.push(NamedParam {
+            name: String::from("offset"),
+            value: Some(SqlValue {
+                value: Some(Value::N(offset.unwrap_or(IMMUDB_DEFAULT_OFFSET as i64))),
+            }),
+        });
+
+        info!("SQL query: {}", sql);
+        let response_stream = self.client.streaming_sql_query(&sql, params)
+            .await
+            .with_context(|| "Failed to execute streaming_sql_query using immudb-rs v0.1.0. This version streams batches (SqlQueryResult).")?;
+        let mut stream = response_stream.into_inner(); // Get the tonic::Streaming<SqlQueryResult>
+
+        let mut messages: Vec<ElectoralLogMessage> = vec![];
+        let mut total_rows_fetched = 0;
+
+        while let Some(batch_result) = stream.next().await {
+            // Iterates over SqlQueryResult batches
+            match batch_result {
+                Ok(sql_query_result_batch) => {
+                    for individual_row in &sql_query_result_batch.rows {
+                        total_rows_fetched += 1;
+                        if total_rows_fetched % 1000 == 0 {
+                            info!(total_rows_fetched, "Processed rows from stream...");
+                        }
+
+                        let elog_row = match ElectoralLogMessage::try_from(individual_row) {
+                            Ok(elog_row) => elog_row,
+                            Err(e) => {
+                                warn!(error = %e, "Failed to parse ImmudbRow into ElectoralLogRow from stream batch.");
+                                continue;
+                            }
+                        };
+                        messages.push(elog_row);
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Error receiving batch from Immudb stream.");
+                    // Depending on the error, you might want to break or continue.
+                    // For now, we'll log and break for stream errors to avoid infinite loops on persistent errors.
+                    break;
+                }
+            }
+        }
+
+        Ok(messages)
+    }
+
+    #[instrument(err)]
+    pub async fn count_electoral_log_messages(
+        &mut self,
+        board_db: &str,
+        columns_matcher: Option<WhereClauseBTreeMap>,
+    ) -> Result<i64> {
+        let mut params = vec![];
+        let mut where_clause = String::from("statement_kind IS NOT NULL ");
+        if let Some(columns_matcher) = &columns_matcher {
+            for (key, (op, value)) in columns_matcher {
+                where_clause.push_str(&format!("AND {key} {op} @{key} "));
+                params.push(NamedParam {
+                    name: key.to_string(),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(value.to_owned())),
+                    }),
+                })
+            }
+        }
+
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+            SELECT COUNT(*)
+            FROM {ELECTORAL_LOG_TABLE}
+            WHERE {where_clause}
+            "#,
+        );
+
+        info!("SQL query: {}", sql);
         let sql_query_response = self.client.sql_query(&sql, params).await?;
-        let messages = sql_query_response
+        let mut rows_iter = sql_query_response
             .get_ref()
             .rows
             .iter()
-            .map(ElectoralLogMessage::try_from)
-            .collect::<Result<Vec<ElectoralLogMessage>>>()?;
+            .map(Aggregate::try_from);
+        let aggregate = rows_iter
+            .next()
+            .ok_or_else(|| anyhow!("No aggregate found"))??;
 
-        Ok(messages)
+        Ok(aggregate.count as i64)
     }
 
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
@@ -353,7 +554,8 @@ impl BoardClient {
                     user_id,
                     username,
                     election_id,
-                    area_id
+                    area_id,
+                    ballot_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -364,7 +566,8 @@ impl BoardClient {
                     @user_id,
                     @username,
                     @election_id,
-                    @area_id
+                    @area_id,
+                    @ballot_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -442,6 +645,15 @@ impl BoardClient {
                         },
                     }),
                 },
+                NamedParam {
+                    name: String::from("ballot_id"),
+                    value: Some(SqlValue {
+                        value: match message.ballot_id.clone() {
+                            Some(ballot_id) => Some(Value::S(ballot_id)),
+                            None => None,
+                        },
+                    }),
+                },
             ];
             let result = self
                 .client
@@ -452,6 +664,7 @@ impl BoardClient {
         Ok(())
     }
 
+    #[instrument(skip(self, messages))]
     pub async fn insert_electoral_log_messages(
         &mut self,
         board_db: &str,
@@ -480,7 +693,8 @@ impl BoardClient {
                     user_id,
                     username,
                     election_id,
-                    area_id
+                    area_id,
+                    ballot_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -491,7 +705,8 @@ impl BoardClient {
                     @user_id,
                     @username,
                     @election_id,
-                    @area_id
+                    @area_id,
+                    @ballot_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
@@ -565,6 +780,15 @@ impl BoardClient {
                     value: Some(SqlValue {
                         value: match message.area_id.clone() {
                             Some(area_id) => Some(Value::S(area_id)),
+                            None => None,
+                        },
+                    }),
+                },
+                NamedParam {
+                    name: String::from("ballot_id"),
+                    value: Some(SqlValue {
+                        value: match message.ballot_id.clone() {
+                            Some(ballot_id) => Some(Value::S(ballot_id)),
                             None => None,
                         },
                     }),
@@ -604,24 +828,39 @@ impl BoardClient {
     pub async fn upsert_electoral_log_db(&mut self, board_dbname: &str) -> Result<()> {
         let sql = format!(
             r#"
-         CREATE TABLE IF NOT EXISTS {} (
+         CREATE TABLE IF NOT EXISTS {ELECTORAL_LOG_TABLE} (
             id INTEGER AUTO_INCREMENT,
             created TIMESTAMP,
             sender_pk VARCHAR,
             statement_timestamp TIMESTAMP,
-            statement_kind VARCHAR,
+            statement_kind VARCHAR[{STATEMENT_KIND_VARCHAR_LENGTH}],
             message BLOB,
             version VARCHAR,
-            user_id VARCHAR,
+            user_id VARCHAR[{ID_VARCHAR_LENGTH}],
             username VARCHAR,
-            election_id VARCHAR,
-            area_id VARCHAR,
+            election_id VARCHAR[{ID_VARCHAR_LENGTH}],
+            area_id VARCHAR[{ID_VARCHAR_LENGTH}],
+            ballot_id VARCHAR[{BALLOT_ID_VARCHAR_LENGTH}],
             PRIMARY KEY id
         );
-        "#,
-            ELECTORAL_LOG_TABLE
+        "#
         );
-        self.upsert_database(board_dbname, &sql).await
+
+        // This is the order of the cols in the where clauses, as defined in ElectoralLogVarCharColumn
+        // Note Username cannot be indexed because it is not constrained to 512B, but is not needded since we have user_id
+        // StatementKind, UserId, BallotId, Username, SenderPk, ElectionId, AreaId, Version,
+        let elog_indexes = vec![
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, election_id, id)"), // To list or count cast_vote_messages and Order by id
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, user_id, ballot_id, election_id, statement_timestamp)"), // Order by statement_timestamp
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, id)"), // Order by id
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (statement_kind, election_id, statement_timestamp)"), // Order by statement_timestamp
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (user_id, election_id, area_id, id)"), // Other posible filters...
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (election_id, area_id, id)"),
+            format!("CREATE INDEX IF NOT EXISTS ON {ELECTORAL_LOG_TABLE} (area_id, id)"),
+        ];
+
+        self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
+            .await
     }
 
     /// Deletes the immudb database.
@@ -634,20 +873,29 @@ impl BoardClient {
     }
 
     /// Creates the requested immudb database, only if it doesn't exist. It also creates
-    /// the requested tables if they don't exist.
-    async fn upsert_database(&mut self, database_name: &str, tables: &str) -> Result<()> {
+    /// the requested tables and indexes if they don't exist.
+    async fn upsert_database(
+        &mut self,
+        database_name: &str,
+        tables: &str,
+        indexes: &[String],
+    ) -> Result<()> {
         // create database if it doesn't exist
         if !self.client.has_database(database_name).await? {
             println!("Database not found, creating..");
             self.client.create_database(database_name).await?;
-            event!(Level::INFO, "Database created!");
+            info!("Database created!");
         };
         self.client.use_database(database_name).await?;
 
         // List tables and create them if missing
         if !self.client.has_tables().await? {
-            event!(Level::INFO, "no tables! let's create them");
+            info!("no tables! let's create them");
             self.client.sql_exec(&tables, vec![]).await?;
+        }
+        for index in indexes {
+            info!("Inserting index...");
+            self.client.sql_exec(index, vec![]).await?;
         }
         Ok(())
     }
@@ -695,6 +943,7 @@ pub(crate) mod tests {
             username: None,
             election_id: None,
             area_id: None,
+            ballot_id: None,
         };
         let messages = vec![electoral_log_message];
 
@@ -704,28 +953,79 @@ pub(crate) mod tests {
 
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
+
+        let cols_match = BTreeMap::from([
+            (
+                ElectoralLogVarCharColumn::StatementKind,
+                (SqlCompOperators::Equal, "".to_string()),
+            ),
+            (
+                ElectoralLogVarCharColumn::SenderPk,
+                (SqlCompOperators::Equal, "".to_string()),
+            ),
+        ]);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, None)
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                Some(cols_match),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), None)
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                Some(cols_match),
+                Some(1i64),
+                None,
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, Some(556i64))
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                Some(cols_match),
+                None,
+                Some(556i64),
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), Some(556i64))
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                Some(cols_match),
+                Some(1i64),
+                Some(556i64),
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(556i64), Some(666i64))
+            .get_electoral_log_messages_filtered(
+                BOARD_DB,
+                Some(cols_match),
+                Some(556i64),
+                Some(666i64),
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         assert_eq!(ret.len(), 0);

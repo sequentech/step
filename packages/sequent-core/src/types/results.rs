@@ -25,6 +25,7 @@ pub struct ResultDocuments {
     pub html: Option<String>,
     pub tar_gz: Option<String>,
     pub tar_gz_original: Option<String>,
+    pub tar_gz_pdfs: Option<String>,
     pub vote_receipts_pdf: Option<String>,
 }
 
@@ -75,6 +76,20 @@ pub struct ResultsElection {
     pub annotations: Option<Value>,
     pub total_voters_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ResultsElectionArea {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub election_id: String,
+    pub area_id: String,
+    pub results_event_id: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub documents: Option<ResultDocuments>,
+    pub name: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

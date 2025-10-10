@@ -6,7 +6,7 @@
         "tagAnnotation": "Release v${version}",
         "requireCleanWorkingDir": false,
         "requireUpstream": false,
-        "requireCommits": true,
+        "requireCommits": false,
         "addUntrackedFiles": false,
         "commit": true,
         "tag": true,
@@ -14,8 +14,7 @@
     },
     "github": {
         "release": true,
-        "releaseName": "Release v${version}",
-        "releaseNotes": null
+        "releaseName": "Release v${version}"
     },
     "npm": {
         "publish": false
