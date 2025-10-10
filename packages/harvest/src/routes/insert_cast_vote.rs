@@ -29,7 +29,7 @@ use windmill::services::insert_cast_vote::{
 /// synchronous windmill library function, `try_insert_cast_vote`) before
 /// returning the error.
 #[instrument(skip_all)]
-#[post("/insert-cast-vote", format = "json", data = "<body>")] // This is the endpoint used in harvest
+#[post("/insert-cast-vote", format = "json", data = "<body>")]
 pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,

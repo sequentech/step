@@ -336,7 +336,7 @@ impl ElectoralLog {
             election,
             pseudonym_h,
             vote_h,
-            &self.sd, // Here is the voter sk
+            &self.sd,
             ip,
             country,
             Some(voter_id.clone()),

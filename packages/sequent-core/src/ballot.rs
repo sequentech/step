@@ -339,8 +339,6 @@ pub fn verify_ballot_signature(
         )
     })?;
 
-    // info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
-
     let content = hashable_ballot.get_bytes_for_signing().map_err(|err| {
         format!(
             "Failed to get bytes for signing from hashable ballot: {}",
@@ -350,9 +348,6 @@ pub fn verify_ballot_signature(
 
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content);
-
-    // info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",
-    // general_purpose::STANDARD.encode(ballot_bytes.clone()));
 
     let ballot_signature = StrandSignature::from_b64_string(
         &voter_ballot_signature,

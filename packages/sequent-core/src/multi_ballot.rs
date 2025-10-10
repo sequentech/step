@@ -262,8 +262,6 @@ pub fn verify_multi_ballot_signature(
             )
         })?;
 
-    // info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
-
     let content =
         hashable_multi_ballot
             .get_bytes_for_signing()
@@ -276,9 +274,6 @@ pub fn verify_multi_ballot_signature(
 
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content);
-
-    // info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",
-    // general_purpose::STANDARD.encode(ballot_bytes.clone()));
 
     let ballot_signature = StrandSignature::from_b64_string(&signature)
         .map_err(|err| {

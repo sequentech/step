@@ -271,7 +271,6 @@ pub async fn try_insert_cast_vote(
         deserialize_and_check_ballot(&input, voter_id)?
     };
 
-    // Here we obtain the signing key
     let (electoral_log, signing_key) =
         get_electoral_log(&hasura_transaction, &tenant_id, &election_event)
             .await
@@ -303,7 +302,6 @@ pub async fn try_insert_cast_vote(
             .with_context(|| "missing bulletin board")
             .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
 
-        // Here we get the voter key
         let voter_signing_key = get_voter_signing_key(
             &hasura_transaction,
             &board_name,
@@ -426,7 +424,7 @@ pub async fn try_insert_cast_vote(
                 tenant_id,
                 election_event_id,
                 voter_id,
-                &voter_signing_key, // Here is the voter_signing_key
+                &voter_signing_key,
             )
             .await;
 
@@ -438,7 +436,6 @@ pub async fn try_insert_cast_vote(
                 }
             };
 
-            // Here is where the ballot is signed with the voter_signing_key. electoral_log contains the voter_signing_key
             let log_result = electoral_log
                 .post_cast_vote(
                     tenant_id.to_string(),
@@ -572,9 +569,6 @@ pub async fn get_ballot_signature(
     // These are unhashed bytes, the signing code will hash it first.
     let ballot_bytes = input.get_bytes_for_signing();
 
-    // TODO use input if ballot signature is included
-
-    // Here is where the signature is generated
     let ballot_signature = signing_key
         .sign(&ballot_bytes)
         .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
@@ -996,19 +990,6 @@ fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) 
     }
 
     Ok(())
-}
-
-#[instrument(skip_all, err)]
-fn check_voter_signature(
-    message: &[u8],
-    vote_signature: &StrandSignature,
-    voter_signing_pk: &StrandSignaturePk,
-) -> Result<(), CastVoteError> {
-    voter_signing_pk
-        .verify(vote_signature, message)
-        .map_err(|err| {
-            CastVoteError::BallotVoterSignatureFailed(format!("Failed to verify signature: {err}"))
-        })
 }
 
 /// Verifies that the ballot_id corresponds to the hash of the ballot content

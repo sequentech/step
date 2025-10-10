@@ -1082,7 +1082,6 @@ pub fn verify_ballot_signature_js(
     election_id: JsValue,
     content: JsValue,
 ) -> Result<JsValue, JsValue> {
-
     // Deserialize inputs
     let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
         .map_err(|err| format!("Error deserializing ballot_id: {err}"))
@@ -1177,14 +1176,13 @@ pub fn verify_multi_ballot_signature_js(
         .into_json()
 }
 
-
 // --- Test Suite ---
 #[cfg(test)]
 mod tests {
     use super::*;
     use wasm_bindgen_test::*;
     use web_sys::js_sys::JSON; // **FIX**: Import the JSON utility
-    
+
     // Configure tests to run in a browser environment
     wasm_bindgen_test_configure!(run_in_browser);
 
@@ -1194,11 +1192,16 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_verify_success() {
         // Arrange
-        let ballot_id = JsValue::from_str("e1c33f34f847dbacb2a33c2e122d5133731f58cc03d015c6a50667dcb06cce9a");
-        let election_id = JsValue::from_str("9ff8a69d-fa1b-4cc8-a7f0-507b57d0196e");
-        
-        // **FIX**: Parse the string into a JS object before passing it to the function.
-        let auditable_multi_ballot_json = JSON::parse(VALID_BALLOT_JSON).unwrap();
+        let ballot_id = JsValue::from_str(
+            "e1c33f34f847dbacb2a33c2e122d5133731f58cc03d015c6a50667dcb06cce9a",
+        );
+        let election_id =
+            JsValue::from_str("9ff8a69d-fa1b-4cc8-a7f0-507b57d0196e");
+
+        // **FIX**: Parse the string into a JS object before passing it to the
+        // function.
+        let auditable_multi_ballot_json =
+            JSON::parse(VALID_BALLOT_JSON).unwrap();
 
         // Act
         let result = verify_ballot_signature_js(
@@ -1208,24 +1211,37 @@ mod tests {
         );
 
         // Assert
-        assert!(result.is_ok(), "Verification should succeed. Error: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Verification should succeed. Error: {:?}",
+            result.err()
+        );
         let js_val = result.unwrap();
-        let verification_result: bool = serde_wasm_bindgen::from_value(js_val).unwrap();
-        assert_eq!(verification_result, true, "The verification result should be true");
+        let verification_result: bool =
+            serde_wasm_bindgen::from_value(js_val).unwrap();
+        assert_eq!(
+            verification_result, true,
+            "The verification result should be true"
+        );
     }
 
     #[wasm_bindgen_test]
     fn test_verify_fails_on_bad_signature() {
         // Arrange
-        let ballot_id = JsValue::from_str("e1c33f34f847dbacb2a33c2e122d5133731f58cc03d015c6a50667dcb06cce9a");
-        let election_id = JsValue::from_str("9ff8a69d-fa1b-4cc8-a7f0-507b57d0196e");
+        let ballot_id = JsValue::from_str(
+            "e1c33f34f847dbacb2a33c2e122d5133731f58cc03d015c6a50667dcb06cce9a",
+        );
+        let election_id =
+            JsValue::from_str("9ff8a69d-fa1b-4cc8-a7f0-507b57d0196e");
 
         // Create a mutable JSON Value to modify the signature
-        let mut ballot_value: Value = serde_json::from_str(VALID_BALLOT_JSON).unwrap();
+        let mut ballot_value: Value =
+            serde_json::from_str(VALID_BALLOT_JSON).unwrap();
         ballot_value["voter_ballot_signature"] = Value::String("pi8aqhz3a/zCoCNE8x8hASwQfH+LmDB/KzThhD3MORliVcmZAej/ldanmL00mf0pgvft+8vaSYR8TqW+LYGLDQ==".to_string());
-        
+
         // **FIX**: Parse the modified string into a JS object.
-        let auditable_multi_ballot_json = JSON::parse(&ballot_value.to_string()).unwrap();
+        let auditable_multi_ballot_json =
+            JSON::parse(&ballot_value.to_string()).unwrap();
 
         // Act
         let result = verify_ballot_signature_js(
@@ -1235,18 +1251,25 @@ mod tests {
         );
 
         // Assert
-        assert!(result.is_err(), "Verification should fail due to bad signature");
+        assert!(
+            result.is_err(),
+            "Verification should fail due to bad signature"
+        );
         let error_string = result.err().unwrap().as_string().unwrap();
         assert_eq!(error_string, "Error signing the ballot: Invalid signature");
     }
-    
+
     // These tests remain useful for edge cases
     #[wasm_bindgen_test]
     fn test_fails_on_malformed_auditable_ballot_json() {
         // Arrange
-        let ballot_id = JsValue::from_str("e1c33f34f847dbacb2a33c2e122d5133731f58cc03d015c6a50667dcb06cce9a");
-        let election_id = JsValue::from_str("9ff8a69d-fa1b-4cc8-a7f0-507b57d0196e");
-        let auditable_multi_ballot_json = JsValue::from_str("{ not valid json }");
+        let ballot_id = JsValue::from_str(
+            "e1c33f34f847dbacb2a33c2e122d5133731f58cc03d015c6a50667dcb06cce9a",
+        );
+        let election_id =
+            JsValue::from_str("9ff8a69d-fa1b-4cc8-a7f0-507b57d0196e");
+        let auditable_multi_ballot_json =
+            JsValue::from_str("{ not valid json }");
 
         // Act
         let result = verify_ballot_signature_js(
@@ -1258,7 +1281,10 @@ mod tests {
         // Assert
         assert!(result.is_err(), "Should fail on auditable ballot parsing");
         let error_string = result.err().unwrap().as_string().unwrap();
-        // The error message changes slightly due to the simplified deserialization
-        assert!(error_string.contains("Error deserializing auditable multi ballot"));
+        // The error message changes slightly due to the simplified
+        // deserialization
+        assert!(
+            error_string.contains("Error deserializing auditable multi ballot")
+        );
     }
 }
