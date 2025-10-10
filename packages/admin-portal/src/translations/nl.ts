@@ -108,6 +108,9 @@ const dutchTranslation: TranslationType = {
                 header: "Nog geen gebieden.",
                 action: "Gebied aanmaken",
             },
+            formImputs: {
+                allowEarlyVoting: "Vroeg Stemmen Toestaan",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -1135,6 +1138,7 @@ const dutchTranslation: TranslationType = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Vroeg stemmen",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
@@ -1237,6 +1241,12 @@ const dutchTranslation: TranslationType = {
                 "semi-open-list": "Semi-open Lijst",
                 "invalid-vote": "Ongeldige Stem",
                 "blank-vote": "Blanco Stem",
+            },
+            invalidVotePosition: {
+                label: "Positie van Ongeldige Stem",
+                null: "Geen (Standaard)",
+                top: "Boven",
+                bottom: "Onder",
             },
             error: {},
             createCandidateSuccess: "Kandidaat aangemaakt",
@@ -1627,9 +1637,17 @@ const dutchTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Initialisatierapport Genereren",
                 startVotingPeriod: "Stemperiode Starten",
+                startKioskVoting: "Kioskstemmen Starten",
+                startOnlineVoting: "Online Stemmen Starten",
+                startEarlyVoting: "Vroeg Stemmen Starten",
                 stopVotingPeriod: "Stemperiode Stoppen",
+                stopOnlineVoting: "Online Stemmen Stoppen",
+                stopEarlyVoting: "Vroeg Stemmen Stoppen",
                 stopKioskVotingPeriod: "Kiosk Stemmen Stoppen",
                 pauseVotingPeriod: "Stemperiode Pauzeren",
+                pauseKioskVoting: "Kioskstemmen Pauzeren",
+                pauseOnlineVoting: "Online Stemmen Pauzeren",
+                pauseEarlyVoting: "Vroeg Stemmen Pauzeren",
                 generate: "Regenereren",
                 publish: "Wijzigingen Publiceren",
                 back: "Terug",
