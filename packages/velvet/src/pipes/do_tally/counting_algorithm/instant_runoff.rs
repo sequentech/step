@@ -27,14 +27,54 @@ enum BallotStatus {
 /// With this type we will need to:
 /// - Create a list with all the candidate ids and statuses set to CandidateStatus::Active
 /// - Check if an specific candidate id is Active
-type CandidatesStatus = HashMap<String, CandidateStatus>;
+struct CandidatesStatus {
+    candidates_map: HashMap<String, CandidateStatus>,
+}
 
-type CandidateFirstChoices = HashMap<String, u64>;
+impl CandidatesStatus {
+    fn is_candidate_active(&self, candidate_id: &str) -> bool {
+        match self.candidates_map.get(candidate_id) {
+            Some(candidate_status) => match candidate_status {
+                CandidateStatus::Active => true,
+                CandidateStatus::Eliminated => false,
+            },
+            None => false,
+        }
+    }
+}
+
+/// Number of first choices for each candidate id
+type CandidatesFirstChoices = HashMap<String, u64>;
 
 /// With this type we will need to:
 /// - Create an array with all the ballots status to BallotStatus::Valid
 /// - For an specific candidate id, count all the ballots which rank is 0 (first choice)
-type BallotsStatus = Vec<BallotStatus, &DecodedVoteContest>;
+struct BallotsStatus {
+    ballots_status: Vec<(BallotStatus, &DecodedVoteContest)>,
+}
+
+impl BallotsStatus {
+    fn count_candidate_first_choices(&self, candidate_id: &str) -> u64 {
+        let active_ballots = self
+            .ballots_status
+            .iter()
+            .filter_map(|(ballot_status, vote)| {
+                if *ballot_status == BallotStatus::Valid {
+                    Some(vote)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<&DecodedVoteContest>>();
+        let wins = active_ballots.iter().fold(0, |acc, vote| {
+            let candidate_choice = vote.choices.iter().find(|vote| vote.id == candidate_id);
+            match candidate_choice {
+                Some(candidate_choice) if candidate_choice.selected == 0 => acc + 1,
+                _ => acc,
+            }
+        });
+    }
+}
 
 pub struct InstantRunoff {
     pub tally: Tally,
@@ -57,8 +97,6 @@ impl InstantRunoff {
 
     fn initialize_ballots_status(&self) -> BallotsStatus {
         let votes = &self.tally.ballots;
-        // Create an array like Vec<BallotStatus, &DecodedVoteContest>
-        // with all the statues to BallotStatus::Valid
         let mut statuses: BallotsStatus = Vec::with_capacity(votes.len());
         for vote in votes {
             statuses.push(BallotStatus::Valid, vote);

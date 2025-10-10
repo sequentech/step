@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod error;
+pub mod instant_runoff;
 pub mod plurality_at_large;
 
 mod counting_algorithm;
