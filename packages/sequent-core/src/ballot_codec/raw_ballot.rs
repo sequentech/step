@@ -96,18 +96,32 @@ impl RawBallotCodec for Contest {
             if candidate.is_explicit_invalid() {
                 continue;
             }
-            if self.get_counting_algorithm() == "plurality-at-large" {
-                // We just flag if the candidate was selected or not with 1 for
-                // selected and 0 otherwise
-                choices.push(u64::from(choice.selected > -1));
-            } else {
-                // we add 1 because the counting starts with 1, as zero means
-                // this candidate was not voted / ranked
-                let value =
-                    (choice.selected + 1).to_u64().ok_or_else(|| {
-                        "selected value must be positive or zero".to_string()
+            match self.get_counting_algorithm().as_str() {
+                "plurality-at-large" => {
+                    // We just flag if the candidate was selected or not with 1
+                    // for selected and 0 otherwise
+                    choices.push(u64::from(choice.selected > -1));
+                }
+                "instant-runoff" => {
+                    // choice.selected > -1 is a requirement for instant-runoff
+                    // because the candidates are ranked in order of preference
+                    // from 0..nCandidates
+                    let rank = choice.selected.to_u64().ok_or_else(|| {
+                        "selected value must be positive".to_string()
                     })?;
-                choices.push(value);
+                    choices.push(rank);
+                }
+                _ => {
+                    // we add 1 because the counting starts with 1, as zero
+                    // means this candidate was not voted /
+                    // ranked
+                    let value =
+                        (choice.selected + 1).to_u64().ok_or_else(|| {
+                            "selected value must be positive or zero"
+                                .to_string()
+                        })?;
+                    choices.push(value);
+                }
             }
         }
         // Populate the bases and the raw_ballot values with the write-ins

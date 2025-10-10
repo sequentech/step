@@ -4,8 +4,10 @@
 
 export enum IVotingType {
     NON_PREFERENTIAL = "non-preferential",
+    PREFERENTIAL = "preferential",
 }
 
 export enum ICountingAlgorithm {
     PLURALITY_AT_LARGE = "plurality-at-large",
+    INSTANT_RUNOFF = "instant-runoff",
 }
