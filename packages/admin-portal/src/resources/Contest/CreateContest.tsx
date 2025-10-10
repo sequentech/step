@@ -52,6 +52,13 @@ export const CreateContest: React.FC = () => {
             name: t(`contestScreen.options.${value.toLowerCase()}`),
         }))
     }
+    
+    const countingAlgorithmChoices = () => {
+        return (Object.values(ICountingAlgorithm) as ICountingAlgorithm[]).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
 
     const {setContestIdFlag} = useElectionEventTallyStore()
 
@@ -105,12 +112,7 @@ export const CreateContest: React.FC = () => {
                     <SelectInput
                         source="counting_algorithm"
                         defaultValue={ICountingAlgorithm.PLURALITY_AT_LARGE}
-                        choices={[
-                            {
-                                id: ICountingAlgorithm.PLURALITY_AT_LARGE,
-                                name: t("contestScreen.options.plurality-at-large"),
-                            },
-                        ]}
+                        choices={countingAlgorithmChoices()} // TODO: Add the translations
                     />
                     <SelectInput
                         source="presentation.candidates_order"

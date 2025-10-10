@@ -22,6 +22,7 @@ impl BasesCodec for Contest {
         let candidate_base: u64 = match self.get_counting_algorithm().as_str() {
             "plurality-at-large" => 2,
             "cumulative" => self.cumulative_number_of_checkboxes() + 1u64,
+            "instant-runoff" => self.candidates.len() as u64,
             _ => (self.max_votes + 1i64).try_into().unwrap(),
         };
 

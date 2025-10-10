@@ -12,11 +12,17 @@ use sequent_core::ballot::ContestPresentation;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::cmp;
+use std::str::FromStr;
 use std::{fs, path::PathBuf};
+use strum_macros::{Display, EnumString};
 use tracing::instrument;
 
+#[derive(Debug, EnumString, Display)]
 pub enum TallyType {
+    #[strum(serialize = "plurality-at-large")]
     PluralityAtLarge,
+    #[strum(serialize = "instant-run-off")]
+    InstantRunOff,
 }
 
 pub struct Tally {
@@ -54,14 +60,13 @@ impl Tally {
     #[instrument(err, skip_all)]
     fn get_tally_type(contest: &Contest) -> Result<TallyType> {
         if let Some(val) = &contest.counting_algorithm {
-            if val == "plurality-at-large" {
-                return Ok(TallyType::PluralityAtLarge);
-            } else {
-                return Err(Box::new(Error::TallyTypeNotImplemented(val.to_owned())));
+            match TallyType::from_str(val) {
+                Ok(val) => Ok(val),
+                Err(_) => Err(Box::new(Error::TallyTypeNotImplemented(val.to_owned()))),
             }
+        } else {
+            Err(Box::new(Error::TallyTypeNotFound))
         }
-
-        Err(Box::new(Error::TallyTypeNotFound))
     }
 
     #[instrument(err, skip_all)]
@@ -179,6 +184,7 @@ pub fn create_tally(
 
     let counting_algorithm = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),
+        TallyType::InstantRunOff => unimplemented!("InstantRunOff not implemented yet"),
     };
 
     Ok(Box::new(counting_algorithm))
