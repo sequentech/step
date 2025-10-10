@@ -396,20 +396,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             hashableBallot = isMultiContest
                 ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot) // InsertCastVoteInput.content
                 : toHashableBallot(auditableBallot as IAuditableSingleBallot) // InsertCastVoteInput.content
-
-            let signedContent = isMultiContest
-                ? signHashableMultiBallot(
-                      ballotId,
-                      ballotStyle.election_id,
-                      hashableBallot as IHashableMultiBallot
-                  )
-                : signHashableBallot(
-                      ballotId,
-                      ballotStyle.election_id,
-                      hashableBallot as IHashableSingleBallot
-                  )
-            hashableBallot.voter_signing_pk = signedContent?.public_key
-            hashableBallot.voter_ballot_signature = signedContent?.signature
         } catch (error) {
             isCastingBallot.current = false
             console.error(error)

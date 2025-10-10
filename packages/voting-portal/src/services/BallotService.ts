@@ -64,12 +64,12 @@ export interface IBallotService {
     signHashableBallot: (
         ballotId: string,
         electionId: string,
-        hashableBallot: IHashableSingleBallot
+        hashableBallot: IAuditableSingleBallot
     ) => ISignedContent | null
     signHashableMultiBallot: (
         ballotId: string,
         electionId: string,
-        hashableBallot: IHashableMultiBallot
+        hashableBallot: IAuditableMultiBallot
     ) => ISignedContent | null
 }
 

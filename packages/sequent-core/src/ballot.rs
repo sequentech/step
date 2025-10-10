@@ -21,9 +21,9 @@ use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
+use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
-use strand::signature::StrandSignature;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumString, IntoStaticStr};
@@ -80,6 +80,8 @@ pub struct AuditableBallot {
     pub config: BallotStyle,
     pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
+    pub voter_signing_pk: Option<String>,
+    pub voter_ballot_signature: Option<String>,
 }
 
 impl AuditableBallot {
@@ -264,8 +266,8 @@ impl TryFrom<&AuditableBallot> for HashableBallot {
             )?,
             config: value.config.id.clone(),
             ballot_style_hash: ballot_style_hash,
-            voter_signing_pk: None,
-            voter_ballot_signature: None,
+            voter_signing_pk: value.voter_signing_pk.clone(),
+            voter_ballot_signature: value.voter_ballot_signature.clone(),
         })
     }
 }
@@ -302,7 +304,8 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
         .to_der_b64_string()
         .map_err(|err| format!("Failed to serialize the public key: {err}"))?;
 
-    let signature = ballot_signature.to_b64_string()
+    let signature = ballot_signature
+        .to_b64_string()
         .map_err(|err| format!("Failed to serialize signature: {err}"))?;
 
     Ok(SignedContent {
@@ -315,48 +318,56 @@ pub fn verify_ballot_signature(
     ballot_id: &str,
     election_id: &str,
     hashable_ballot: &HashableBallot,
-    voter_ballot_signature: &str,
-    voter_signing_pk: &str,
 ) -> Result<bool, String> {
-    let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&voter_signing_pk)
-        .map_err(|err| 
-            format!(
-                "Failed to deserialize signature from hashable ballot: {}",
-                err
-            ))?;
+    let (voter_ballot_signature, voter_signing_pk) =
+        if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
+            hashable_ballot.voter_ballot_signature.clone(),
+            hashable_ballot.voter_signing_pk.clone(),
+        ) {
+            (voter_ballot_signature, voter_signing_pk)
+        } else {
+            return Ok(false);
+        };
+
+    let voter_signing_pk = StrandSignaturePk::from_der_b64_string(
+        &voter_signing_pk,
+    )
+    .map_err(|err| {
+        format!(
+            "Failed to deserialize signature from hashable ballot: {}",
+            err
+        )
+    })?;
 
     // info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
 
-    let content = hashable_ballot
-        .get_bytes_for_signing()
-        .map_err(|err| 
-            format!(
-                "Failed to deserialize signature from hashable ballot: {}",
-                err
-            ))?;
+    let content = hashable_ballot.get_bytes_for_signing().map_err(|err| {
+        format!(
+            "Failed to get bytes for signing from hashable ballot: {}",
+            err
+        )
+    })?;
 
-    let ballot_bytes = get_ballot_bytes_for_signing(
-        ballot_id,
-        election_id,
-        &content,
-    );
+    let ballot_bytes =
+        get_ballot_bytes_for_signing(ballot_id, election_id, &content);
 
-    // info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",  general_purpose::STANDARD.encode(ballot_bytes.clone()));
+    // info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",
+    // general_purpose::STANDARD.encode(ballot_bytes.clone()));
 
-    let ballot_signature =
-        StrandSignature::from_b64_string(&voter_ballot_signature).map_err(|err| {
-            format!(
-                "Failed to deserialize signature from hashable ballot: {}",
-                err
-            )
-        })?;
+    let ballot_signature = StrandSignature::from_b64_string(
+        &voter_ballot_signature,
+    )
+    .map_err(|err| {
+        format!(
+            "Failed to deserialize signature from hashable ballot: {}",
+            err
+        )
+    })?;
 
     voter_signing_pk
         .verify(&ballot_signature, &ballot_bytes)
-        .map_err(|err| {
-            format!("Failed to verify signature: {err}")
-        })?;
-        
+        .map_err(|err| format!("Failed to verify signature: {err}"))?;
+
     Ok(true)
 }
 

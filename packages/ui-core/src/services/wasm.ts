@@ -31,6 +31,8 @@ import {
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
+    verify_ballot_signature_js,
+    verify_multi_ballot_signature_js,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -194,7 +196,7 @@ export const encryptMultiBallotSelection = (
 export const signHashableBallot = (
     ballot_id: string,
     election_id: string,
-    content: IHashableSingleBallot
+    content: IAuditableSingleBallot
 ): ISignedContent => {
     try {
         return sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
@@ -211,7 +213,7 @@ export const signHashableBallot = (
 export const signHashableMultiBallot = (
     ballot_id: string,
     election_id: string,
-    content: IHashableMultiBallot
+    content: IAuditableMultiBallot
 ): ISignedContent => {
     try {
         return sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
@@ -303,6 +305,34 @@ export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
     try {
         let is_blank: boolean = check_is_blank_js(contest)
         return is_blank
+    } catch (error) {
+        console.log(error)
+        return null
+    }
+}
+
+export const verifyBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableSingleBallot
+): boolean | null => {
+    try {
+        let is_verified: boolean = verify_ballot_signature_js(ballot_id, election_id, content)
+        return is_verified
+    } catch (error) {
+        console.log(error)
+        return null
+    }
+}
+
+export const verifyMultiBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableMultiBallot
+): boolean | null => {
+    try {
+        let is_verified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
+        return is_verified
     } catch (error) {
         console.log(error)
         return null

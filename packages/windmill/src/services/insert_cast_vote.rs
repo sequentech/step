@@ -30,6 +30,7 @@ use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
 
 use sequent_core::ballot::get_ballot_bytes_for_signing;
+use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VoterSigningPolicy;
@@ -40,6 +41,7 @@ use sequent_core::ballot::{HashableBallot, HashableBallotContest};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
+use sequent_core::multi_ballot::verify_multi_ballot_signature;
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -516,37 +518,10 @@ pub fn deserialize_and_check_ballot(
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
     // Check ballot signature
-    if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
-        hashable_ballot.voter_ballot_signature.clone(),
-        hashable_ballot.voter_signing_pk.clone(),
-    ) {
-        let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&voter_signing_pk)
-            .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
-
-        info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
-
-        let content = hashable_ballot
-            .get_bytes_for_signing()
-            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
-
-        let ballot_bytes = get_ballot_bytes_for_signing(
-            &input.ballot_id,
-            &input.election_id.to_string(),
-            &content,
-        );
-
-        info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",  general_purpose::STANDARD.encode(ballot_bytes.clone()));
-
-        let ballot_signature =
-            StrandSignature::from_b64_string(&voter_ballot_signature).map_err(|err| {
-                CastVoteError::BallotVoterSignatureFailed(format!(
-                    "Failed to deserialize signature from hashable ballot: {}",
-                    err
-                ))
-            })?;
-
-        check_voter_signature(&ballot_bytes, &ballot_signature, &voter_signing_pk)?;
-    }
+    let election_id = input.election_id.to_string();
+    verify_ballot_signature(&input.ballot_id, &election_id, &hashable_ballot).map_err(|err| {
+        CastVoteError::BallotVoterSignatureFailed(format!("Ballot signature check failed: {err}"))
+    })?;
 
     Ok((pseudonym_h, vote_h))
 }
@@ -576,37 +551,14 @@ pub fn deserialize_and_check_multi_ballot(
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
 
     // Check ballot signature
-    if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
-        hashable_multi_ballot.voter_ballot_signature.clone(),
-        hashable_multi_ballot.voter_signing_pk.clone(),
-    ) {
-        let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&voter_signing_pk)
-            .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
-
-        info!("VOTER BALLOT SIGNATURE: {voter_ballot_signature}");
-
-        let ballot_signature =
-            StrandSignature::from_b64_string(&voter_ballot_signature).map_err(|err| {
-                CastVoteError::BallotVoterSignatureFailed(format!(
-                    "Failed to deserialize signature from hashable ballot: {}",
-                    err
-                ))
-            })?;
-
-        let content = hashable_multi_ballot
-            .get_bytes_for_signing()
-            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
-
-        let ballot_bytes = get_ballot_bytes_for_signing(
-            &input.ballot_id,
-            &input.election_id.to_string(),
-            &content,
-        );
-
-        info!("VOTER BALLOT SIGNATURE SHOULD BE: {}",  general_purpose::STANDARD.encode(ballot_bytes.clone()));
-
-        check_voter_signature(&ballot_bytes, &ballot_signature, &voter_signing_pk)?;
-    }
+    let election_id = input.election_id.to_string();
+    verify_multi_ballot_signature(&input.ballot_id, &election_id, &hashable_multi_ballot).map_err(
+        |err| {
+            CastVoteError::BallotVoterSignatureFailed(format!(
+                "Ballot signature check failed: {err}"
+            ))
+        },
+    )?;
 
     Ok((pseudonym_h, vote_h))
 }

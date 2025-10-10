@@ -262,6 +262,8 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         contests: AuditableBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
     let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
@@ -361,6 +363,8 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
         contests: AuditableMultiBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
     let hashable_ballot = HashableMultiBallot::try_from(&auditable_ballot)?;

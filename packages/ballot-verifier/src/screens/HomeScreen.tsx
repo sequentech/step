@@ -188,6 +188,30 @@ export const HomeScreen: React.FC<IProps> = ({
         let ballotHash = isMultiContest
             ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
+
+        if (
+            auditableBallot?.voter_ballot_signature !== undefined &&
+            auditableBallot?.voter_signing_pk !== undefined
+        ) {
+            let signature_verification_result = isMultiContest
+                ? ballotService.verifyMultiBallotSignature(
+                      ballotId,
+                      ballotStyle.election_id,
+                      auditableBallot as IAuditableMultiBallot
+                  )
+                : ballotService.verifyBallotSignature(
+                      ballotId,
+                      ballotStyle.election_id,
+                      auditableBallot as IAuditableSingleBallot
+                  )
+
+            if (null === signature_verification_result || false === signature_verification_result) {
+                setShowError(true)
+                setConfirmationBallot(null)
+                return
+            }
+        }
+
         setConfirmationBallot({
             ballot_hash: ballotHash,
             election_config: ballotStyle,

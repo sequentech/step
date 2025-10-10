@@ -287,6 +287,10 @@ const VotingScreen: React.FC = () => {
         encryptMultiBallotSelection,
         decodeAuditableBallot,
         decodeAuditableMultiBallot,
+        signHashableMultiBallot,
+        signHashableBallot,
+        hashMultiBallot,
+        hashBallot,
     } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
@@ -355,6 +359,24 @@ const VotingScreen: React.FC = () => {
             const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
                 : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+
+            let ballotId = isMultiContest
+                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : hashBallot(auditableBallot as IAuditableSingleBallot)
+
+            let signedContent = isMultiContest
+                ? signHashableMultiBallot(
+                      ballotId,
+                      ballotStyle.election_id,
+                      auditableBallot as IAuditableMultiBallot
+                  )
+                : signHashableBallot(
+                      ballotId,
+                      ballotStyle.election_id,
+                      auditableBallot as IAuditableSingleBallot
+                  )
+            auditableBallot.voter_signing_pk = signedContent?.public_key
+            auditableBallot.voter_ballot_signature = signedContent?.signature
 
             dispatch(
                 setAuditableBallot({
