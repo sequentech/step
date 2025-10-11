@@ -126,11 +126,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(event.currentTarget)
     }
 
-    // const handleClose = () => {
-    //     setAnchorEl(null)
-    // }
-
     const handleClose = useCallback(() => {
+        console.log("closing menu")
         setAnchorEl(null)
     }, [])
 
@@ -275,6 +272,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                 name={documents.name}
                                                 electionEventId={electionEventId}
                                                 tallySessionId={tallySessionId}
+                                                handleClose={handleClose}
                                             />
                                         ) : null}
                                     </React.Fragment>
