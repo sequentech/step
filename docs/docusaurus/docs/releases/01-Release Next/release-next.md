@@ -7,6 +7,17 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Import Election Event: Password Dialog doesn't auto focus
+
+When importing an election event that is encrypted, a dialog pops up asking for
+the password. But the password field doesn't autofocus so the admin user has to
+click on it.
+
+Additionally, when an error is shown in the import election event dialog, it
+will reappear when closing and reopening the import drawer.
+
+- Issue: [#8613](https://github.com/sequentech/meta/issues/8613)
+
 ## 🐞 Keycloak Election ids are not filtered by area
 
 When a voter logs in and the voter is not assigned any election, keycloak adds 
