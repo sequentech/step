@@ -132,3 +132,12 @@ Improve the election event/election dashboard so that all necessary data (statis
 are displayed correctly in print mode.
 
 - Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
+
+## ✨ Weighted voting for areas
+
+Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
+When the policy is set to `Weighted Voting for Areas`, it allows assigning a weight
+to each area. Tally results will then be calculated based on these weights, 
+which are taken from the ballot style of each area defined at publication.
+
+- Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
