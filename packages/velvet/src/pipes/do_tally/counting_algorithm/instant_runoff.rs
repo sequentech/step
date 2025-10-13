@@ -119,11 +119,12 @@ impl BallotsStatus<'_> {
 }
 
 /// Number of first choices for each candidate id
-type CandidatesFirstChoices = HashMap<String, u64>;
+type CandidatesWins = HashMap<String, u64>;
 
 #[derive(Default, Debug)]
 struct Round {
     winner: Option<String>,
+    candidates_wins: CandidatesWins,
 }
 
 #[derive(Default, Debug)]
@@ -149,13 +150,14 @@ impl RunoffStatus {
     }
 
     #[instrument(skip_all)]
-    fn get_active_candidates(&self) -> HashMap<String, CandidateStatus> {
-        let res = self
-            .candidates_status
-            .iter()
-            .filter(|(_, candidate_status)| candidate_status.is_active())
-            .collect();
-        res
+    fn get_active_candidates(&self) -> Vec<String> {
+        let mut active_candidates: Vec<String> = Vec::new();
+        for (candidate_id, candidate_status) in &self.candidates_status {
+            if candidate_status.is_active() {
+                active_candidates.push(candidate_id.clone());
+            }
+        }
+        active_candidates
     }
 
     #[instrument(skip_all)]
@@ -173,25 +175,29 @@ impl RunoffStatus {
     fn run_round(&mut self, ballots_status: &mut BallotsStatus) {
         // TODO: Implement rounds
         let mut round = Round::default();
-        let mut candidates_first_choices: CandidatesFirstChoices = HashMap::new();
+        let mut candidates_wins: CandidatesWins = HashMap::new();
         let mut min_wins = ballots_status.count_valid;
 
-        for (candidate_id, _) in self.get_active_candidates() {
-            let wins = ballots_status.count_candidate_first_choices(candidate_id);
+        let act_candidates = self.get_active_candidates();
+        for candidate_id in act_candidates {
+            let wins = ballots_status.count_candidate_first_choices(&candidate_id);
             min_wins = min_wins.min(wins);
-            candidates_first_choices.insert(candidate_id.clone(), wins);
+            candidates_wins.insert(candidate_id.clone(), wins);
             if wins > ballots_status.count_valid / 2 {
                 round.winner = Some(candidate_id.clone());
             }
         }
 
         if round.winner.is_none() {
-            let last_round_winner = self.get_last_round_winner();
-            if let Some(last_round_winner) = last_round_winner {
-                round.winner = Some(last_round_winner);
-            }
+            // find the Active candidate(s) with the fewest votes. (filter by min number in candidates_wins)
+            // if there s a tie (more than one is left after the filter) try to find only one by the loopback rule
+            // Continue the loop back until the tie is broken
+
+            // Simultaneous Elimination: If not found the clear looser, eliminate all the candidates with the min wins,
+            // but if all active candidates have min wins (all to be eliminated) then there is a winner tie, so end the election and the winner will be decided by lot.
         }
 
+        round.candidates_wins = candidates_wins;
         self.round_count += 1;
         self.rounds.push(round);
     }
