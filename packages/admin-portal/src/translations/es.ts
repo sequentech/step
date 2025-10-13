@@ -360,6 +360,13 @@ const spanishTranslation: TranslationType = {
                         "manual-ceremonies": "Ceremonias manuales",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votación Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -1655,6 +1662,7 @@ const spanishTranslation: TranslationType = {
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
                 winning_position: "Winning position",
+                weight: "Peso",
             },
         },
         publish: {

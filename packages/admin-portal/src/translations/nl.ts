@@ -357,6 +357,13 @@ const dutchTranslation: TranslationType = {
                         "manual-ceremonies": "Handmatige ceremonies",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Beleid voor Gewogen Stemmen",
+                    options: {
+                        "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",
@@ -1650,6 +1657,7 @@ const dutchTranslation: TranslationType = {
                 blank_votes_percent: "Percentage Blanco Stemmen",
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
+                weight: "Gewicht",
             },
         },
         publish: {

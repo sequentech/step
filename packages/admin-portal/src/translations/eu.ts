@@ -359,6 +359,13 @@ const basqueTranslation: TranslationType = {
                         "manual-ceremonies": "Eskuzko zeremoniak",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Bozketa Ponderatuaren Politika",
+                    options: {
+                        "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",
@@ -1649,6 +1656,7 @@ const basqueTranslation: TranslationType = {
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
+                weight: "Pisua",
             },
         },
         publish: {

@@ -359,6 +359,13 @@ const galegoTranslation: TranslationType = {
                         "manual-ceremonies": "Cerimonias manuais",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votación Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "disabled-weighted-voting": "Votación Ponderada Desactivada",
+                    },
+                },
             },
             error: {
                 endDate: "A data de fin debe ser posterior á data de inicio",
@@ -1655,6 +1662,7 @@ const galegoTranslation: TranslationType = {
                 blank_votes_percent: "Porcentaxe de Votos en Branco",
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",
+                weight: "Peso",
             },
         },
         publish: {

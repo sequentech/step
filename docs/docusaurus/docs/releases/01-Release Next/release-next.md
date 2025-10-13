@@ -7,6 +7,15 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Videoconference links from Admin Portal
+
+Added a Google Meet component with a button to generate a link in EVENT > DATA to
+support creating a google meeting.
+Created INTEGRATIONS tab in tenant settings to add the google api credentials.
+Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
+
+- Issue: [#8189](https://github.com/sequentech/meta/issues/8189)
+
 ## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
 Within the `Results & Participation` section of the Tally tab of the Admin
@@ -133,9 +142,11 @@ are displayed correctly in print mode.
 
 - Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
 
-## ✨ Videoconference links from Admin Portal
+## ✨ Weighted voting for areas
 
-Added a Google Meet component with a button to generate a link in EVENT > DATA to
-support creating a google meeting.
-Created INTEGRATIONS tab in tenant settings to add the google api credentials.
-Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
+Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
+When the policy is set to `Weighted Voting for Areas`, it allows assigning a weight
+to each area. Tally results will then be calculated based on these weights, 
+which are taken from the ballot style of each area defined at publication.
+
+- Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
