@@ -26,10 +26,10 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use futures::try_join;
-use sequent_core::ballot::ContestEncryptionPolicy;
-use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::get_ballot_bytes_for_signing;
 use sequent_core::ballot::verify_ballot_signature;
+use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VoterSigningPolicy;
@@ -78,7 +78,7 @@ pub struct InsertCastVoteInput {
     // Here is the class used for voting
     pub ballot_id: String,
     pub election_id: Uuid,
-    pub content: String, // Here is the content in JSON
+    pub content: String,
 }
 impl InsertCastVoteInput {
     /// Returns a byte representation of this object suitable for hashing

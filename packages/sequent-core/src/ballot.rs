@@ -228,7 +228,6 @@ impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
 }
 
 impl TryFrom<&AuditableBallot> for HashableBallot {
-    // TODO review
     type Error = BallotError;
 
     fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {

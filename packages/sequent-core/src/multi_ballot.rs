@@ -138,7 +138,6 @@ impl HashableMultiBallot {
 }
 
 impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
-    // TODO review
     type Error = BallotError;
 
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {

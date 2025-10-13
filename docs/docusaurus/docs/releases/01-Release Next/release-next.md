@@ -7,6 +7,13 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Move voter signature to the voting portal
+
+The voting portal will sign the ballot using an ephemeral key. The ballot will 
+now include this voter signature and the voter public key for verification. This 
+signature is verified while the ballot is cast and it's checked aswell in the 
+ballot verifier.
+
 ## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
 Within the `Results & Participation` section of the Tally tab of the Admin
