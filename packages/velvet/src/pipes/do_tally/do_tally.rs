@@ -401,7 +401,7 @@ impl Pipe for DoTally {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
 pub struct InvalidVotes {
     pub explicit: u64,
     pub implicit: u64,
@@ -418,7 +418,7 @@ impl InvalidVotes {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
 pub struct ExtendedMetricsContest {
     // Voted more candidates than the allowed amount per contest
     pub over_votes: u64,

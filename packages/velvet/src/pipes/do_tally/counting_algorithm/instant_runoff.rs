@@ -7,8 +7,9 @@ use crate::pipes::do_tally::{
     counting_algorithm::common::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
-use sequent_core::ballot::{Candidate, Contest};
+use sequent_core::ballot::{self, Candidate, Contest};
 use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
+use sequent_core::sqlite::candidate;
 use std::cmp;
 use std::collections::HashMap;
 use tracing::{info, instrument};
@@ -21,37 +22,9 @@ enum CandidateStatus {
     Eliminated,
 }
 
-/// Map of candidate id -> candidate status
-struct CandidatesStatus {
-    map: HashMap<String, CandidateStatus>,
-}
-
-impl CandidatesStatus {
-    fn new(candidates: &Vec<Candidate>) -> CandidatesStatus {
-        let mut candidates_status: CandidatesStatus = CandidatesStatus {
-            map: HashMap::new(),
-        };
-        for candidate in candidates {
-            candidates_status
-                .map
-                .insert(candidate.id.clone(), CandidateStatus::Active);
-        }
-        candidates_status
-    }
-
-    fn is_candidate_active(&self, candidate_id: &str) -> bool {
-        match self.map.get(candidate_id) {
-            Some(candidate_status) => match candidate_status {
-                CandidateStatus::Active => true,
-                CandidateStatus::Eliminated => false,
-            },
-            None => false,
-        }
-    }
-
-    fn set_candidate_to_eliminated(&mut self, candidate_id: &str) {
-        self.map
-            .insert(candidate_id.to_string(), CandidateStatus::Eliminated);
+impl CandidateStatus {
+    fn is_active(&self) -> bool {
+        self == &CandidateStatus::Active
     }
 }
 
@@ -63,9 +36,7 @@ enum BallotStatus {
     Blank,
 }
 
-/// With this type we will need to:
-/// - Create an array with all the ballots status to BallotStatus::Valid
-/// - For an specific candidate id, count all the ballots which rank is 0 (first choice)
+#[derive(Debug)]
 struct BallotsStatus<'a> {
     ballots: Vec<(BallotStatus, &'a DecodedVoteContest)>,
     count_valid: u64,
@@ -75,8 +46,9 @@ struct BallotsStatus<'a> {
 }
 
 impl BallotsStatus<'_> {
-    /// Set initial statuses for all the ballots depending on if they are valid, invalid or blank
+    /// Set initial statuses for all the ballots depending on if they are valid, invalid or blank.
     /// Set the metrics and counts.
+    #[instrument(skip_all)]
     fn initialize_statuses<'a>(
         votes: &'a Vec<DecodedVoteContest>,
         contest: &Contest,
@@ -85,7 +57,6 @@ impl BallotsStatus<'_> {
             explicit: 0,
             implicit: 0,
         };
-        let mut count_valid: u64 = 0;
         let mut count_blank: u64 = 0;
         let mut extended_metrics = ExtendedMetricsContest::default();
         let mut ballots = Vec::with_capacity(votes.len());
@@ -104,16 +75,17 @@ impl BallotsStatus<'_> {
                     count_blank += 1;
                     BallotStatus::Blank
                 }
-                (false, false) => {
-                    count_valid += 1;
-                    BallotStatus::Valid
-                }
+                (false, false) => BallotStatus::Valid,
             };
             extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
             ballots.push((status, vote));
         }
-        extended_metrics.total_ballots = votes.len() as u64;
-
+        let total_ballots = votes.len() as u64;
+        extended_metrics.total_ballots = total_ballots;
+        let count_valid = total_ballots
+            - count_invalid_votes.explicit
+            - count_invalid_votes.implicit
+            - count_blank;
         BallotsStatus {
             ballots,
             count_valid,
@@ -123,6 +95,7 @@ impl BallotsStatus<'_> {
         }
     }
 
+    #[instrument(skip_all)]
     fn count_candidate_first_choices(&self, candidate_id: &str) -> u64 {
         let wins = self
             .ballots
@@ -148,6 +121,82 @@ impl BallotsStatus<'_> {
 /// Number of first choices for each candidate id
 type CandidatesFirstChoices = HashMap<String, u64>;
 
+#[derive(Default, Debug)]
+struct Round {
+    winner: Option<String>,
+}
+
+#[derive(Default, Debug)]
+struct RunoffStatus {
+    candidates_status: HashMap<String, CandidateStatus>,
+    round_count: u64,
+    rounds: Vec<Round>,
+}
+
+impl RunoffStatus {
+    #[instrument(skip_all)]
+    fn initialize_statuses(candidates: &Vec<Candidate>) -> RunoffStatus {
+        let mut status: RunoffStatus = RunoffStatus {
+            candidates_status: HashMap::new(),
+            ..Default::default()
+        };
+        for candidate in candidates {
+            status
+                .candidates_status
+                .insert(candidate.id.clone(), CandidateStatus::Active);
+        }
+        status
+    }
+
+    #[instrument(skip_all)]
+    fn get_active_candidates(&self) -> HashMap<String, CandidateStatus> {
+        let res = self
+            .candidates_status
+            .iter()
+            .filter(|(_, candidate_status)| candidate_status.is_active())
+            .collect();
+        res
+    }
+
+    #[instrument(skip_all)]
+    fn set_candidate_to_eliminated(&mut self, candidate_id: &str) {
+        self.candidates_status
+            .insert(candidate_id.to_string(), CandidateStatus::Eliminated);
+    }
+
+    #[instrument(skip_all)]
+    fn get_last_round_winner(&self) -> Option<String> {
+        self.rounds.last().and_then(|r| r.winner.clone())
+    }
+
+    #[instrument(skip_all)]
+    fn run_round(&mut self, ballots_status: &mut BallotsStatus) {
+        // TODO: Implement rounds
+        let mut round = Round::default();
+        let mut candidates_first_choices: CandidatesFirstChoices = HashMap::new();
+        let mut min_wins = ballots_status.count_valid;
+
+        for (candidate_id, _) in self.get_active_candidates() {
+            let wins = ballots_status.count_candidate_first_choices(candidate_id);
+            min_wins = min_wins.min(wins);
+            candidates_first_choices.insert(candidate_id.clone(), wins);
+            if wins > ballots_status.count_valid / 2 {
+                round.winner = Some(candidate_id.clone());
+            }
+        }
+
+        if round.winner.is_none() {
+            let last_round_winner = self.get_last_round_winner();
+            if let Some(last_round_winner) = last_round_winner {
+                round.winner = Some(last_round_winner);
+            }
+        }
+
+        self.round_count += 1;
+        self.rounds.push(round);
+    }
+}
+
 pub struct InstantRunoff {
     pub tally: Tally,
 }
@@ -171,8 +220,12 @@ impl CountingAlgorithm for InstantRunoff {
         let count_invalid_votes = ballots_status.count_invalid_votes;
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
         let extended_metrics = ballots_status.extended_metrics;
+        let mut candidates_status = RunoffStatus::initialize_statuses(&contest.candidates);
 
-        //... TODO: Implement rounds
+        //... TODO: Finnish to implement rounds
+        while candidates_status.get_last_round_winner().is_none() {
+            candidates_status.run_round(&mut ballots_status);
+        }
 
         let mut vote_count: HashMap<String, u64> = HashMap::new(); // TODO: Remove left over from plurality
 
