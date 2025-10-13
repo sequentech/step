@@ -195,12 +195,12 @@ export const HomeScreen: React.FC<IProps> = ({
         ) {
             let signature_verification_result = isMultiContest
                 ? ballotService.verifyMultiBallotSignature(
-                      ballotId,
+                      ballotHash,
                       ballotStyle.election_id,
                       auditableBallot as IAuditableMultiBallot
                   )
                 : ballotService.verifyBallotSignature(
-                      ballotId,
+                      ballotHash,
                       ballotStyle.election_id,
                       auditableBallot as IAuditableSingleBallot
                   )
