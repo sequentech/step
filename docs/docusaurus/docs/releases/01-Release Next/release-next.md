@@ -14,6 +14,8 @@ now include this voter signature and the voter public key for verification. This
 signature is verified while the ballot is cast and it's checked aswell in the 
 ballot verifier.
 
+- Issue: [#5518](https://github.com/sequentech/meta/issues/5518)
+
 ## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
 Within the `Results & Participation` section of the Tally tab of the Admin
