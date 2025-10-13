@@ -4,42 +4,60 @@
 
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    tally::Tally, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
+    counting_algorithm::common::*, tally::Tally, CandidateResult, ContestResult,
+    ExtendedMetricsContest, InvalidVotes,
 };
-use sequent_core::ballot::Contest;
+use sequent_core::ballot::{Candidate, Contest};
 use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
 use std::cmp;
 use std::collections::HashMap;
-use tracing::{event, instrument, Level};
+use tracing::{info, instrument};
 
 use super::Result;
 
+#[derive(PartialEq, Debug)]
 enum CandidateStatus {
     Active,
     Eliminated,
 }
 
+#[derive(PartialEq, Debug)]
 enum BallotStatus {
     Valid,
     Exhausted,
 }
 
-/// With this type we will need to:
-/// - Create a list with all the candidate ids and statuses set to CandidateStatus::Active
-/// - Check if an specific candidate id is Active
+/// Map of candidate id -> candidate status
 struct CandidatesStatus {
-    candidates_map: HashMap<String, CandidateStatus>,
+    map: HashMap<String, CandidateStatus>,
 }
 
 impl CandidatesStatus {
+    fn new(candidates: &Vec<Candidate>) -> CandidatesStatus {
+        let mut candidates_status: CandidatesStatus = CandidatesStatus {
+            map: HashMap::new(),
+        };
+        for candidate in candidates {
+            candidates_status
+                .map
+                .insert(candidate.id.clone(), CandidateStatus::Active);
+        }
+        candidates_status
+    }
+
     fn is_candidate_active(&self, candidate_id: &str) -> bool {
-        match self.candidates_map.get(candidate_id) {
+        match self.map.get(candidate_id) {
             Some(candidate_status) => match candidate_status {
                 CandidateStatus::Active => true,
                 CandidateStatus::Eliminated => false,
             },
             None => false,
         }
+    }
+
+    fn set_candidate_to_eliminated(&mut self, candidate_id: &str) {
+        self.map
+            .insert(candidate_id.to_string(), CandidateStatus::Eliminated);
     }
 }
 
@@ -49,14 +67,24 @@ type CandidatesFirstChoices = HashMap<String, u64>;
 /// With this type we will need to:
 /// - Create an array with all the ballots status to BallotStatus::Valid
 /// - For an specific candidate id, count all the ballots which rank is 0 (first choice)
-struct BallotsStatus {
-    ballots_status: Vec<(BallotStatus, &DecodedVoteContest)>,
+struct BallotsStatus<'a> {
+    vec: Vec<(BallotStatus, &'a DecodedVoteContest)>,
 }
 
-impl BallotsStatus {
+impl BallotsStatus<'_> {
+    fn new(votes: &Vec<DecodedVoteContest>) -> BallotsStatus {
+        let mut statuses: BallotsStatus = BallotsStatus {
+            vec: Vec::with_capacity(votes.len()),
+        };
+        for vote in votes {
+            statuses.vec.push((BallotStatus::Valid, vote));
+        }
+        statuses
+    }
+
     fn count_candidate_first_choices(&self, candidate_id: &str) -> u64 {
-        let active_ballots = self
-            .ballots_status
+        let wins = self
+            .vec
             .iter()
             .filter_map(|(ballot_status, vote)| {
                 if *ballot_status == BallotStatus::Valid {
@@ -65,14 +93,14 @@ impl BallotsStatus {
                     None
                 }
             })
-            .collect::<Vec<&DecodedVoteContest>>();
-        let wins = active_ballots.iter().fold(0, |acc, vote| {
-            let candidate_choice = vote.choices.iter().find(|vote| vote.id == candidate_id);
-            match candidate_choice {
-                Some(candidate_choice) if candidate_choice.selected == 0 => acc + 1,
-                _ => acc,
-            }
-        });
+            .fold(0, |acc, vote| {
+                let candidate_choice = vote.choices.iter().find(|vote| vote.id == candidate_id);
+                match candidate_choice {
+                    Some(candidate_choice) if candidate_choice.selected == 0 => acc + 1,
+                    _ => acc,
+                }
+            });
+        wins
     }
 }
 
@@ -85,31 +113,13 @@ impl InstantRunoff {
     pub fn new(tally: Tally) -> Self {
         Self { tally }
     }
-
-    fn initialize_candidates_status(&self) -> CandidatesStatus {
-        let candidates = self.tally.contest.candidates;
-        let mut candidates_status: CandidatesStatus = HashMap::new();
-        for candidate in candidates {
-            candidates_status.insert(candidate.id.clone(), CandidateStatus::Active);
-        }
-        candidates_status
-    }
-
-    fn initialize_ballots_status(&self) -> BallotsStatus {
-        let votes = &self.tally.ballots;
-        let mut statuses: BallotsStatus = Vec::with_capacity(votes.len());
-        for vote in votes {
-            statuses.push(BallotStatus::Valid, vote);
-        }
-        statuses
-    }
 }
 
 impl CountingAlgorithm for InstantRunoff {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest = &self.tally.contest;
-        let votes = &self.tally.ballots;
+        let votes: &Vec<DecodedVoteContest> = &self.tally.ballots;
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
         let mut count_invalid_votes = InvalidVotes {
