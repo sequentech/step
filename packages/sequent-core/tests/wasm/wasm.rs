@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use wasm_bindgen_test::*;
-use wasm_bindgen::JsValue;
-use web_sys::js_sys::JSON;
 use serde_json::Value;
+use wasm_bindgen::JsValue;
+use wasm_bindgen_test::*;
+use web_sys::js_sys::JSON;
 
 use sequent_core::wasm::wasm::verify_ballot_signature_js;
 

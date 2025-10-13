@@ -30,12 +30,6 @@ use sequent_core::ballot::get_ballot_bytes_for_signing;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
-use sequent_core::ballot::ElectionPresentation;
-use sequent_core::ballot::ElectionStatus;
-use sequent_core::ballot::VoterSigningPolicy;
-use sequent_core::ballot::VotingPeriodDates;
-use sequent_core::ballot::VotingStatus;
-use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::ballot::{
     AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
