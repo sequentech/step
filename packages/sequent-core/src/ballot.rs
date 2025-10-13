@@ -8,7 +8,7 @@ use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core::{self, ElectionEvent};
+use crate::types::hasura::core::{self, Area, ElectionEvent};
 use crate::types::scheduled_event::EventProcessors;
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -19,6 +19,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_path_to_error::Error;
 use std::hash::Hash;
+use std::ops::Deref;
 use std::{collections::HashMap, default::Default};
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignature;
@@ -954,6 +955,7 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    pub weighted_voting_policy: Option<WeightedVotingPolicy>,
 }
 
 impl ElectionEvent {
@@ -2252,6 +2254,7 @@ pub struct BallotStyle {
     pub election_dates: Option<StringifiedPeriodDates>,
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
+    pub area_annotations: Option<AreaAnnotations>,
 }
 
 #[derive(
@@ -2270,4 +2273,87 @@ pub struct CustomUrls {
     pub login: Option<String>,
     pub enrollment: Option<String>,
     pub saml: Option<String>,
+}
+
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub struct Weight(Option<u64>);
+
+impl Default for Weight {
+    fn default() -> Self {
+        Self { 0: Some(1) } // default weight is 1
+    }
+}
+
+impl Deref for Weight {
+    type Target = Option<u64>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+)]
+pub struct AreaAnnotations {
+    pub weight: Option<Weight>,
+}
+
+impl AreaAnnotations {
+    pub fn get_weight(&self) -> Weight {
+        self.weight.clone().unwrap_or_default()
+    }
+}
+
+impl Area {
+    pub fn read_annotations(
+        &self,
+    ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
+        let area_annotations: Option<AreaAnnotations> =
+            self.annotations.clone().map(|annotations_value| {
+                deserialize_value(annotations_value)
+                    .unwrap_or_else(|_| AreaAnnotations::default())
+            });
+        Ok(area_annotations)
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum WeightedVotingPolicy {
+    #[default]
+    #[serde(rename = "disabled-weighted-voting")]
+    DISABLED_WEIGHTED_VOTING,
+    #[serde(rename = "areas-weighted-voting")]
+    AREAS_WEIGHTED_VOTING,
 }

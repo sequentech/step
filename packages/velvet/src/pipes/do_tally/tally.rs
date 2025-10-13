@@ -8,7 +8,7 @@ use super::{CandidateResult, ContestResult, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
-use sequent_core::ballot::ContestPresentation;
+use sequent_core::ballot::{ContestPresentation, Weight};
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::cmp;
@@ -22,32 +22,36 @@ pub enum TallyType {
 pub struct Tally {
     pub id: TallyType,
     pub contest: Contest,
-    pub ballots: Vec<DecodedVoteContest>,
+    pub ballots: Vec<(DecodedVoteContest, Weight)>,
     pub census: u64,
     pub auditable_votes: u64,
     pub tally_sheet_results: Vec<ContestResult>,
+    pub tally_results: Vec<ContestResult>,
 }
 
 impl Tally {
-    #[instrument(err, skip(contest), name = "Tally::new")]
+    #[instrument(err, skip(contest, tally_results), name = "Tally::new")]
     pub fn new(
         contest: &Contest,
-        ballots_files: Vec<PathBuf>,
+        ballots_files: Vec<(PathBuf, Weight)>,
         census: u64,
         auditable_votes: u64,
         tally_sheet_results: Vec<ContestResult>,
+        tally_results: Vec<ContestResult>,
     ) -> Result<Self> {
         let contest = contest.clone();
-        let ballots = Self::get_ballots(ballots_files)?;
+        let ballots_with_weights: Vec<(DecodedVoteContest, Weight)> =
+            Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
 
         Ok(Self {
             id,
             contest,
-            ballots,
+            ballots: ballots_with_weights,
             census,
             auditable_votes,
             tally_sheet_results,
+            tally_results,
         })
     }
 
@@ -65,19 +69,21 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
-    fn get_ballots(files: Vec<PathBuf>) -> Result<Vec<DecodedVoteContest>> {
+    fn get_ballots(files: Vec<(PathBuf, Weight)>) -> Result<Vec<(DecodedVoteContest, Weight)>> {
         let mut res = vec![];
 
-        for f in files {
+        for (f, weight) in files {
             let f = fs::File::open(&f).map_err(|e| PipesError::FileAccess(f, e))?;
             let votes: Vec<DecodedVoteContest> = parse_file(f)?;
-            res.push(votes);
+            let votes_with_weight: Vec<(DecodedVoteContest, Weight)> =
+                votes.into_iter().map(|v| (v, weight)).collect();
+            res.push(votes_with_weight);
         }
 
         Ok(res
             .into_iter()
             .flatten()
-            .collect::<Vec<DecodedVoteContest>>())
+            .collect::<Vec<(DecodedVoteContest, Weight)>>())
     }
 }
 
@@ -148,14 +154,15 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
 #[instrument(err, skip_all)]
 pub fn create_tally(
     contest: &Contest,
-    ballots_files: Vec<PathBuf>,
+    ballots_files: Vec<(PathBuf, Weight)>, // (path, weight)
     census: u64,
     auditable_votes: u64,
     tally_sheet_results: Vec<ContestResult>,
+    tally_results: Vec<ContestResult>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
-    let ballots_files = ballots_files
+    let ballots_files: Vec<(PathBuf, Weight)> = ballots_files
         .iter()
-        .filter(|f| {
+        .filter(|(f, _weight)| {
             let exist = f.exists();
             if !exist {
                 println!(
@@ -166,7 +173,7 @@ pub fn create_tally(
             }
             exist
         })
-        .map(|p| PathBuf::from(p.as_path()))
+        .map(|(p, weight)| (PathBuf::from(p.as_path()), weight.clone()))
         .collect();
 
     let tally = Tally::new(
@@ -175,6 +182,7 @@ pub fn create_tally(
         census,
         auditable_votes,
         tally_sheet_results,
+        tally_results,
     )?;
 
     let counting_algorithm = match tally.id {

@@ -7,6 +7,26 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
+
+Within the `Results & Participation` section of the Tally tab of the Admin
+Portal, when clicking in some action item inside the Actions Popup Menu for
+Elections, the Popup Menu didn't automatically close and also in some cases it
+moved to the bottom right corner.
+
+- Issue: [#8614](https://github.com/sequentech/meta/issues/8614)
+
+## 🐞 Admin Portal > Import Election Event: Password Dialog doesn't auto focus
+
+When importing an election event that is encrypted, a dialog pops up asking for
+the password. But the password field doesn't autofocus so the admin user has to
+click on it.
+
+Additionally, when an error is shown in the import election event dialog, it
+will reappear when closing and reopening the import drawer.
+
+- Issue: [#8613](https://github.com/sequentech/meta/issues/8613)
+
 ## 🐞 Keycloak Election ids are not filtered by area
 
 When a voter logs in and the voter is not assigned any election, keycloak adds 
@@ -112,3 +132,12 @@ Improve the election event/election dashboard so that all necessary data (statis
 are displayed correctly in print mode.
 
 - Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
+
+## ✨ Weighted voting for areas
+
+Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
+When the policy is set to `Weighted Voting for Areas`, it allows assigning a weight
+to each area. Tally results will then be calculated based on these weights, 
+which are taken from the ballot style of each area defined at publication.
+
+- Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
