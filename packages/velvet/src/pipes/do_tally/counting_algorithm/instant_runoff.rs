@@ -21,12 +21,6 @@ enum CandidateStatus {
     Eliminated,
 }
 
-#[derive(PartialEq, Debug)]
-enum BallotStatus {
-    Valid,
-    Exhausted,
-}
-
 /// Map of candidate id -> candidate status
 struct CandidatesStatus {
     map: HashMap<String, CandidateStatus>,
@@ -61,30 +55,77 @@ impl CandidatesStatus {
     }
 }
 
-/// Number of first choices for each candidate id
-type CandidatesFirstChoices = HashMap<String, u64>;
+#[derive(PartialEq, Debug)]
+enum BallotStatus {
+    Valid,
+    Exhausted,
+    Invalid,
+    Blank,
+}
 
 /// With this type we will need to:
 /// - Create an array with all the ballots status to BallotStatus::Valid
 /// - For an specific candidate id, count all the ballots which rank is 0 (first choice)
 struct BallotsStatus<'a> {
-    vec: Vec<(BallotStatus, &'a DecodedVoteContest)>,
+    ballots: Vec<(BallotStatus, &'a DecodedVoteContest)>,
+    count_valid: u64,
+    count_invalid_votes: InvalidVotes,
+    count_blank: u64,
+    extended_metrics: ExtendedMetricsContest,
 }
 
 impl BallotsStatus<'_> {
-    fn new(votes: &Vec<DecodedVoteContest>) -> BallotsStatus {
-        let mut statuses: BallotsStatus = BallotsStatus {
-            vec: Vec::with_capacity(votes.len()),
+    /// Set initial statuses for all the ballots depending on if they are valid, invalid or blank
+    /// Set the metrics and counts.
+    fn initialize_statuses<'a>(
+        votes: &'a Vec<DecodedVoteContest>,
+        contest: &Contest,
+    ) -> BallotsStatus<'a> {
+        let mut count_invalid_votes = InvalidVotes {
+            explicit: 0,
+            implicit: 0,
         };
+        let mut count_valid: u64 = 0;
+        let mut count_blank: u64 = 0;
+        let mut extended_metrics = ExtendedMetricsContest::default();
+        let mut ballots = Vec::with_capacity(votes.len());
+
         for vote in votes {
-            statuses.vec.push((BallotStatus::Valid, vote));
+            let status = match (vote.is_invalid(), vote.is_blank()) {
+                (true, _) => {
+                    if vote.is_explicit_invalid {
+                        count_invalid_votes.explicit += 1;
+                    } else {
+                        count_invalid_votes.implicit += 1;
+                    }
+                    BallotStatus::Invalid
+                }
+                (false, true) => {
+                    count_blank += 1;
+                    BallotStatus::Blank
+                }
+                (false, false) => {
+                    count_valid += 1;
+                    BallotStatus::Valid
+                }
+            };
+            extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
+            ballots.push((status, vote));
         }
-        statuses
+        extended_metrics.total_ballots = votes.len() as u64;
+
+        BallotsStatus {
+            ballots,
+            count_valid,
+            count_invalid_votes,
+            extended_metrics,
+            count_blank,
+        }
     }
 
     fn count_candidate_first_choices(&self, candidate_id: &str) -> u64 {
         let wins = self
-            .vec
+            .ballots
             .iter()
             .filter_map(|(ballot_status, vote)| {
                 if *ballot_status == BallotStatus::Valid {
@@ -104,6 +145,9 @@ impl BallotsStatus<'_> {
     }
 }
 
+/// Number of first choices for each candidate id
+type CandidatesFirstChoices = HashMap<String, u64>;
+
 pub struct InstantRunoff {
     pub tally: Tally,
 }
@@ -121,48 +165,19 @@ impl CountingAlgorithm for InstantRunoff {
         let contest = &self.tally.contest;
         let votes: &Vec<DecodedVoteContest> = &self.tally.ballots;
 
-        let mut vote_count: HashMap<String, u64> = HashMap::new();
-        let mut count_invalid_votes = InvalidVotes {
-            explicit: 0,
-            implicit: 0,
-        };
-        let mut count_valid: u64 = 0;
-        let mut count_invalid: u64 = 0;
-        let mut count_blank: u64 = 0;
+        let mut ballots_status = BallotsStatus::initialize_statuses(votes, contest);
+        let count_blank = ballots_status.count_blank;
+        let count_valid = ballots_status.count_valid;
+        let count_invalid_votes = ballots_status.count_invalid_votes;
+        let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
+        let extended_metrics = ballots_status.extended_metrics;
 
-        let mut extended_metrics = ExtendedMetricsContest::default();
+        //... TODO: Implement rounds
 
-        for vote in votes {
-            extended_metrics = update_extended_metrics(vote, &extended_metrics, &contest);
-            if vote.is_invalid() {
-                if vote.is_explicit_invalid {
-                    count_invalid_votes.explicit += 1;
-                } else {
-                    count_invalid_votes.implicit += 1;
-                }
-                count_invalid += 1;
-            } else {
-                let mut is_blank = true;
+        let mut vote_count: HashMap<String, u64> = HashMap::new(); // TODO: Remove left over from plurality
 
-                for choice in &vote.choices {
-                    if choice.selected >= 0 {
-                        *vote_count.entry(choice.id.clone()).or_insert(0) += 1;
-                        if is_blank {
-                            is_blank = false;
-                        }
-                    }
-                }
-
-                if is_blank {
-                    count_blank += 1;
-                }
-
-                count_valid += 1;
-            }
-        }
-
-        extended_metrics.total_ballots = votes.len() as u64;
-
+        // Set percentage votes for each candidate
+        // TODO: recicle code from plurality to common
         let candidate_results_map: HashMap<String, CandidateResult> = vote_count
             .into_iter()
             .map(|(id, total_count)| {
