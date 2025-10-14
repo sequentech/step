@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useGetList, useGetOne} from "react-admin"
+import {useGetList, useGetOne, useRecordContext} from "react-admin"
 
 import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Results_Area_Contest,
     Sequent_Backend_Results_Area_Contest_Candidate,
+    Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
 import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
@@ -29,6 +30,7 @@ import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
 
 interface TallyResultsCandidatesProps {
@@ -38,6 +40,19 @@ interface TallyResultsCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
+}
+
+interface ExtendedMetricsContest {
+    over_votes: number
+    under_votes: number
+    votes_actually: number
+    expected_votes: number
+    total_ballots: number
+    weight: number
+}
+
+interface ParsedAnnotations {
+    extended_metrics: ExtendedMetricsContest
 }
 
 // Define the comparator function
@@ -89,6 +104,25 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             ),
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
+
+    const weight = useMemo((): number | null => {
+        try {
+            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
+                ? (JSON.parse(general[0].annotations as string) as ParsedAnnotations)
+                : null
+            return parsedAnnotations?.extended_metrics?.weight ?? null
+        } catch {
+            return null
+        }
+    }, [general?.[0]])
+
+    const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()
+    const weightedVotingForAreas = useMemo((): boolean => {
+        return (
+            eventRecord?.presentation?.weighted_voting_policy ===
+            EElectionEventWeightedVotingPolicy.AREAS_WEIGHTED_VOTING
+        )
+    }, [eventRecord])
 
     const electionName: string | undefined = useMemo(
         () =>
@@ -356,6 +390,15 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                                     : "-"}
                                             </TableCell>
                                         </TableRow>
+                                        {weightedVotingForAreas && (
+                                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                                <TableCell component="th" scope="row">
+                                                    {t("tally.table.weight")}
+                                                </TableCell>
+                                                <TableCell align="right">{weight ?? "-"}</TableCell>
+                                                <TableCell align="right"></TableCell>
+                                            </TableRow>
+                                        )}
                                     </TableBody>
                                 </Table>
                             </TableContainer>
