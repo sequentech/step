@@ -8,23 +8,24 @@ use crate::pipes::do_tally::{
     ExtendedMetricsContest, InvalidVotes,
 };
 use sequent_core::ballot::{self, Candidate, Contest};
-use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextErrorType};
 use sequent_core::sqlite::candidate;
 use std::cmp;
 use std::collections::HashMap;
+use std::ops::{Deref, DerefMut};
 use tracing::{info, instrument};
 
 use super::Result;
 
 #[derive(PartialEq, Debug)]
-enum CandidateStatus {
+enum ECandidateStatus {
     Active,
     Eliminated,
 }
 
-impl CandidateStatus {
+impl ECandidateStatus {
     fn is_active(&self) -> bool {
-        self == &CandidateStatus::Active
+        self == &ECandidateStatus::Active
     }
 }
 
@@ -95,8 +96,48 @@ impl BallotsStatus<'_> {
         }
     }
 
+    /// We take into account the redristribution of votes here.
+    /// The first choice is the one which candidate is not eliminated in order of preference.
+    /// This avoids having to modify the ballots list in memory.
     #[instrument(skip_all)]
-    fn count_candidate_first_choices(&self, candidate_id: &str) -> u64 {
+    fn is_first_not_eliminated_choice(
+        &self,
+        candidate_id: &str,
+        choices: &Vec<DecodedVoteChoice>,
+        candidates_status: &CandidatesStatus,
+    ) -> bool {
+        // First find the original preferece of the candidate
+        let candidate_choice = choices.iter().find(|vote| vote.id == candidate_id);
+        let preference = match candidate_choice {
+            Some(candidate_choice) if candidate_choice.selected >= 0 => candidate_choice.selected,
+            _ => return false,
+        };
+        // Check if all choices with more preference are eliminated candidates, only then it is a first choice in this round
+        // if preference is 0 (highest) then it does not enter the loop and the fn returns true
+        for p in 0..preference {
+            // Find the candidate id for this preference
+            let choice_candidate_id = choices
+                .iter()
+                .find(|choice| choice.selected == p)
+                .map(|choice| choice.id.clone());
+            match choice_candidate_id {
+                Some(choice_candidate_id) => {
+                    if candidates_status.is_active_candidate(&choice_candidate_id) {
+                        return false; // A non eliminated candidate is found
+                    }
+                }
+                None => return false,
+            }
+        }
+        true
+    }
+
+    #[instrument(skip_all)]
+    fn count_candidate_first_choices(
+        &self,
+        candidate_id: &str,
+        candidates_status: &CandidatesStatus,
+    ) -> u64 {
         let wins = self
             .ballots
             .iter()
@@ -108,10 +149,13 @@ impl BallotsStatus<'_> {
                 }
             })
             .fold(0, |acc, vote| {
-                let candidate_choice = vote.choices.iter().find(|vote| vote.id == candidate_id);
-                match candidate_choice {
-                    Some(candidate_choice) if candidate_choice.selected == 0 => acc + 1,
-                    _ => acc,
+                match self.is_first_not_eliminated_choice(
+                    candidate_id,
+                    &vote.choices,
+                    candidates_status,
+                ) {
+                    true => acc + 1,
+                    false => acc,
                 }
             });
         wins
@@ -121,38 +165,34 @@ impl BallotsStatus<'_> {
 /// Number of first choices for each candidate id
 type CandidatesWins = HashMap<String, u64>;
 
-#[derive(Default, Debug)]
-struct Round {
-    winner: Option<String>,
-    candidates_wins: CandidatesWins,
+#[derive(Debug, Default)]
+struct CandidatesStatus(HashMap<String, ECandidateStatus>);
+
+impl Deref for CandidatesStatus {
+    type Target = HashMap<String, ECandidateStatus>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-#[derive(Default, Debug)]
-struct RunoffStatus {
-    candidates_status: HashMap<String, CandidateStatus>,
-    round_count: u64,
-    rounds: Vec<Round>,
+impl DerefMut for CandidatesStatus {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
-impl RunoffStatus {
+impl CandidatesStatus {
     #[instrument(skip_all)]
-    fn initialize_statuses(candidates: &Vec<Candidate>) -> RunoffStatus {
-        let mut status: RunoffStatus = RunoffStatus {
-            candidates_status: HashMap::new(),
-            ..Default::default()
-        };
-        for candidate in candidates {
-            status
-                .candidates_status
-                .insert(candidate.id.clone(), CandidateStatus::Active);
-        }
-        status
+    fn is_active_candidate(&self, candidate_id: &str) -> bool {
+        self.get(candidate_id)
+            .map(|candidate_status| candidate_status.is_active())
+            .unwrap_or(false)
     }
 
     #[instrument(skip_all)]
     fn get_active_candidates(&self) -> Vec<String> {
         let mut active_candidates: Vec<String> = Vec::new();
-        for (candidate_id, candidate_status) in &self.candidates_status {
+        for (candidate_id, candidate_status) in &self.0 {
             if candidate_status.is_active() {
                 active_candidates.push(candidate_id.clone());
             }
@@ -162,8 +202,36 @@ impl RunoffStatus {
 
     #[instrument(skip_all)]
     fn set_candidate_to_eliminated(&mut self, candidate_id: &str) {
-        self.candidates_status
-            .insert(candidate_id.to_string(), CandidateStatus::Eliminated);
+        self.insert(candidate_id.to_string(), ECandidateStatus::Eliminated);
+    }
+}
+
+#[derive(Default, Debug)]
+struct Round {
+    winner: Option<String>,
+    candidates_wins: CandidatesWins,
+}
+
+#[derive(Default, Debug)]
+struct RunoffStatus {
+    candidates_status: CandidatesStatus,
+    round_count: u64,
+    rounds: Vec<Round>,
+}
+
+impl RunoffStatus {
+    #[instrument(skip_all)]
+    fn initialize_statuses(candidates: &Vec<Candidate>) -> RunoffStatus {
+        let mut status: RunoffStatus = RunoffStatus {
+            candidates_status: CandidatesStatus(HashMap::new()),
+            ..Default::default()
+        };
+        for candidate in candidates {
+            status
+                .candidates_status
+                .insert(candidate.id.clone(), ECandidateStatus::Active);
+        }
+        status
     }
 
     #[instrument(skip_all)]
@@ -178,9 +246,10 @@ impl RunoffStatus {
         let mut candidates_wins: CandidatesWins = HashMap::new();
         let mut min_wins = ballots_status.count_valid;
 
-        let act_candidates = self.get_active_candidates();
+        let act_candidates = self.candidates_status.get_active_candidates();
         for candidate_id in act_candidates {
-            let wins = ballots_status.count_candidate_first_choices(&candidate_id);
+            let wins = ballots_status
+                .count_candidate_first_choices(&candidate_id, &self.candidates_status);
             min_wins = min_wins.min(wins);
             candidates_wins.insert(candidate_id.clone(), wins);
             if wins > ballots_status.count_valid / 2 {
@@ -188,7 +257,9 @@ impl RunoffStatus {
             }
         }
 
-        if round.winner.is_none() {
+        if round.winner.is_none()
+        /* And there is not a tie */
+        {
             // find the Active candidate(s) with the fewest votes. (filter by min number in candidates_wins)
             // if there s a tie (more than one is left after the filter) try to find only one by the loopback rule
             // Continue the loop back until the tie is broken
