@@ -147,3 +147,4 @@ which are taken from the ballot style of each area defined at publication.
 Added Charts in the Admin Portal's Tally Results below the data tables to display
  the General Information, Participation Results and Candidate Results.
 
+- Issue: [#1975](https://github.com/sequentech/meta/issues/1975)
