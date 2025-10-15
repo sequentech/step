@@ -7,6 +7,7 @@
 pub use crate::auditable_ballot::*;
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core::{self, Area, ElectionEvent};
+#[cfg(feature = "default_features")]
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;

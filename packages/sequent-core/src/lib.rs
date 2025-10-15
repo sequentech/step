@@ -53,3 +53,5 @@ pub mod wasm;
 
 pub mod plugins;
 pub mod std_temp_path;
+
+pub mod password;

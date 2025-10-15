@@ -11,7 +11,10 @@ interface documents {
     render-template-text: func(template-string:string, variables-map:string) -> result<string, string>;
     hash-sha256: func(bytes: list<u8>) -> result<list<u8>, string>;
     upload-and-return-document: func(file-size: u64,media-type: string,tenant-id: string,election-event-id: option<string>,name: string,document-id: option<string>,is-public: bool) -> result<string, string>;
-    print-data: func(data:string);
+    run-shell-command-generate-ecies-key-pair: func(java-jar-file: string, temp-public-pem-file-name: string, temp-private-pem-file-name: string) -> result<_, string>;
+    encrypt-file: func(input-file-name: string, output-file-name: string, password: string) -> result<_, string>; 
+    run-shell-command-ecies-encrypt-string: func(java-jar-file: string, temp-pem-file-name: string, password: string) -> result<string, string>; 
+    run-shell-command-ecies-sign-data: func(java-jar-file: string, temp-pem-file-name: string, temp-data-file-name: string) -> result<string, string>; 
 }
 
 world documents-manager {

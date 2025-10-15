@@ -12,3 +12,4 @@ pub mod miru_plugin_types;
 pub mod signatures;
 pub mod transmission_package;
 pub mod xz_compress;
+pub mod zip;

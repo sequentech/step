@@ -9,6 +9,7 @@ use sequent_core::{
         reports,
         s3::{download_s3_file_to_string, get_public_asset_file_path},
     },
+    signatures::shell::run_shell_command,
     types::hasura::core::Document,
 };
 use serde_json::{Map, Value};
@@ -18,10 +19,7 @@ use tempfile::NamedTempFile;
 
 use sequent_core::plugins_wit::lib::documents_bindings::plugins_manager::documents_manager::documents::Host;
 use crate::services::{
-    ceremonies::velvet_tally::generate_initial_state,
-    documents::{get_document_as_temp_file_at_dir, upload_and_return_document},
-    folders::list_files,
-    plugins_manager::plugin::PluginServices
+    ceremonies::velvet_tally::generate_initial_state, consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc, documents::{get_document_as_temp_file_at_dir, upload_and_return_document}, folders::list_files, plugins_manager::plugin::PluginServices
 };
 
 // A struct to hold the host's state, including a map to manage the temporary files.
@@ -68,10 +66,6 @@ impl Host for PluginServices {
         self.documents.open_temp_files.push(named_temp_file);
 
         Ok(file_name)
-    }
-
-    async fn print_data(&mut self, data: String) {
-        println!("Data to print: {}", data);
     }
 
     async fn get_tally_results(&mut self, tally_base_path: String) -> Result<String, String> {
@@ -168,5 +162,93 @@ impl Host for PluginServices {
             .map_err(|e| format!("Failed to serialize document: {}", e))?;
 
         Ok(document_json)
+    }
+
+    async fn run_shell_command_generate_ecies_key_pair(
+        &mut self,
+        java_jar_file: String,
+        temp_public_pem_file_name: String,
+        temp_private_pem_file_name: String,
+    ) -> Result<(), String> {
+        let base_path = &self.documents.path_dir;
+        let public_pem_path = PathBuf::from(base_path).join(&temp_public_pem_file_name);
+        let private_pem_path = PathBuf::from(base_path).join(&temp_private_pem_file_name);
+
+        let command = format!(
+            "java -jar {} create-keys {} {}",
+            java_jar_file,
+            public_pem_path.to_string_lossy().to_string(),
+            private_pem_path.to_string_lossy().to_string(),
+        );
+
+        run_shell_command(&command);
+        Ok(())
+    }
+    async fn encrypt_file(
+        &mut self,
+        input_file_name: String,
+        output_file_name: String,
+        password: String,
+    ) -> Result<(), String> {
+        let base_path = &self.documents.path_dir;
+        let input_path = PathBuf::from(base_path)
+            .join(&input_file_name)
+            .to_string_lossy()
+            .to_string();
+        let output_path = PathBuf::from(base_path)
+            .join(&output_file_name)
+            .to_string_lossy()
+            .to_string();
+
+        encrypt_file_aes_256_cbc(&input_path, &output_path, &password);
+
+        Ok(())
+    }
+
+    async fn run_shell_command_ecies_encrypt_string(
+        &mut self,
+        java_jar_file: String,
+        temp_pem_file_name: String,
+        password: String,
+    ) -> Result<String, String> {
+        let base_path = &self.documents.path_dir;
+        let pem_path = PathBuf::from(base_path).join(&temp_pem_file_name);
+
+        let command = format!(
+            "java -jar {} encrypt {} {}",
+            java_jar_file,
+            pem_path.to_string_lossy().to_string(),
+            password
+        );
+
+        let result = run_shell_command(&command)
+            .map_err(|err| format!("Failed run shell command"))?
+            .replace("\n", "");
+
+        Ok(result)
+    }
+
+    async fn run_shell_command_ecies_sign_data(
+        &mut self,
+        java_jar_file: String,
+        temp_pem_file_name: String,
+        temp_data_file_name: String,
+    ) -> Result<String, String> {
+        let base_path = &self.documents.path_dir;
+        let pem_path = PathBuf::from(base_path).join(&temp_pem_file_name);
+        let data_path = PathBuf::from(base_path).join(&temp_data_file_name);
+
+        let command = format!(
+            "java -jar {} sign {} {}",
+            java_jar_file,
+            pem_path.to_string_lossy().to_string(),
+            data_path.to_string_lossy().to_string()
+        );
+
+        let result = run_shell_command(&command)
+            .map_err(|err| format!("Failed run shell command"))?
+            .replace("\n", "");
+
+        Ok(result)
     }
 }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use std::fs::{self, File, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::plugins::{get_plugin_shared_dir, Plugins};
@@ -47,9 +47,9 @@ fn generate_unique_filename(prefix: &str, suffix: &str) -> String {
 pub fn create_temp_file(
     prefix: &str,
     suffix: &str,
+    base_path: &str,
 ) -> Result<(TempFileGuard, String), String> {
     let filename = generate_unique_filename(prefix, suffix);
-    let base_path = get_plugin_shared_dir(&Plugins::MIRU);
     let path = PathBuf::from(base_path).join(filename.clone());
 
     File::create(&path).map_err(|e| {
@@ -64,8 +64,10 @@ pub fn write_into_named_temp_file(
     data: &[u8],
     prefix: &str,
     suffix: &str,
+    base_path: &str,
 ) -> Result<(TempFileGuard, String, String, u64), String> {
-    let (temp_file_guard, file_name) = create_temp_file(prefix, suffix)?;
+    let (temp_file_guard, file_name) =
+        create_temp_file(prefix, suffix, base_path)?;
     let temp_path = temp_file_guard.path();
 
     {
@@ -91,9 +93,26 @@ pub fn write_into_named_temp_file(
 }
 
 /// Obtains the size of a file.
-fn get_file_size(path: &Path) -> Result<u64, String> {
+pub fn get_file_size(path: &Path) -> Result<u64, String> {
     let metadata = fs::metadata(path).map_err(|e| {
         format!("Error obtaining file metadata for {:?}: {}", path, e)
     })?;
     Ok(metadata.len())
+}
+
+pub fn read_temp_file(
+    temp_file_guard: &TempFileGuard,
+) -> Result<Vec<u8>, String> {
+    let path = temp_file_guard.path();
+
+    let mut file = File::open(path).map_err(|e| {
+        format!("Error opening temp file for reading at {:?}: {}", path, e)
+    })?;
+
+    let mut file_bytes = Vec::new();
+    file.read_to_end(&mut file_bytes).map_err(|e| {
+        format!("Error reading contents of temp file at {:?}: {}", path, e)
+    })?;
+
+    Ok(file_bytes)
 }

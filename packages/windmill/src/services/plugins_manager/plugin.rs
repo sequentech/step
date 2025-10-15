@@ -192,20 +192,21 @@ impl Plugin {
         let mut linker = Linker::<PluginStore>::new(&engine);
 
         println!("Loading plugin from file: {}", wasm_file_name);
-        let component = Component::from_binary(&engine, &wasm_bytes)?;
-        //  {
-        //     Ok(c) => c,
-        //     Err(e) => {
-        //         println!("Failed to load component from file {}: {}", wasm_file_name, e);
-        //         return Ok(None);
-        //     }
-        // };]
+        let component = match Component::from_binary(&engine, &wasm_bytes) {
+            Ok(c) => c,
+            Err(e) => {
+                println!(
+                    "Failed to load component from file {}: {}",
+                    wasm_file_name, e
+                );
+                return Ok(None);
+            }
+        };
 
         println!(
             "Successfully loaded component for plugin: {}",
             wasm_file_name
         );
-        // let host_temp_path = files_temp_dir.as_path().to_owned();
 
         let mut builder = WasiCtxBuilder::new();
         let host_temp_path = files_temp_dir.as_path();

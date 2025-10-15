@@ -5504,8 +5504,10 @@ dependencies = [
  "tar",
  "tracing",
  "uuid",
+ "walkdir",
  "wit-bindgen",
  "wit-bindgen-rt 0.43.0",
+ "zip 2.2.2",
 ]
 
 [[package]]

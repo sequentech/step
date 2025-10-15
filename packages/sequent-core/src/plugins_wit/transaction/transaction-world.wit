@@ -20,6 +20,7 @@ interface postgres-queries {
     get-area-by-id: func(tenant-id:string, area-id:string) -> result<option<string>, string>;
     get-last-tally-session-execution: func(tenant-id:string,election-event-id:string,tally-session-id:string) -> result<option<string>, string>;
     get-results-event-by-id: func(tenant-id:string, election-event-id:string, results-event-id:string) -> result<string, string>;
+    update-tally-session-annotation: func(tenant-id:string,election-event-id:string,tally-session-id:string, new-tally-annotations: string) -> result<_, string>;
 }
 
 interface vault {

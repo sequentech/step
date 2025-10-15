@@ -2,22 +2,31 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use core::convert::Into;
-use std::{env, fs};
+use std::fs;
 
 use crate::{
     bindings::plugins_manager::{
         documents_manager::documents::{
             create_document_as_temp_file, get_tally_results, upload_and_return_document,
         },
-        transactions_manager::postgres_queries::{
-            get_area_by_id, get_document, get_election_by_id, get_election_event_by_election_area,
-            get_last_tally_session_execution, get_results_event_by_id, get_tally_session_by_id,
+        transactions_manager::{
+            postgres_queries::{
+                get_area_by_id, get_document, get_election_by_id,
+                get_election_event_by_election_area, get_last_tally_session_execution,
+                get_results_event_by_id, get_tally_session_by_id, update_tally_session_annotation,
+            },
+            transaction::commit_hasura_transaction,
         },
     },
     services::{
-        acm_json::get_acm_key_pair, acm_transaction::generate_transaction_id,
-        eml_types::ACMTrustee, logs::create_transmission_package_log,
-        transmission_package::generate_base_compressed_xml,
+        acm_json::get_acm_key_pair,
+        acm_transaction::generate_transaction_id,
+        eml_types::ACMTrustee,
+        logs::create_transmission_package_log,
+        transmission_package::{
+            create_logs_package, create_transmission_package, generate_base_compressed_xml,
+        },
+        zip::compress_folder_to_zip,
     },
 };
 use chrono::{DateTime, Local, Utc};
@@ -25,7 +34,7 @@ use sequent_core::{
     ballot::Annotations,
     plugins::{get_plugin_shared_dir, Plugins},
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
-    std_temp_path::write_into_named_temp_file,
+    std_temp_path::{create_temp_file, get_file_size, write_into_named_temp_file},
     types::{
         ceremonies::Log,
         date_time::TimeZone,
@@ -38,6 +47,7 @@ use sequent_core::{
     util::date_time::PHILIPPINO_TIMEZONE,
 };
 use tracing::instrument;
+use wit_bindgen_rt::async_support::futures::TryFutureExt;
 
 use super::eml_generator::{
     find_miru_annotation, prepend_miru_annotation, MiruAreaAnnotations, MiruElectionAnnotations,
@@ -56,15 +66,15 @@ use tar::{Archive, Entries};
 use uuid::Uuid;
 
 pub fn decompress_file(input_file_name: &str) -> Result<(String, PathBuf), String> {
-    let base_path = get_plugin_shared_dir(&Plugins::MIRU);
+    let dir_base_path = get_plugin_shared_dir(&Plugins::MIRU);
     let unique_dir_name = format!("temp-{}", Uuid::new_v4());
-    let temp_dir_path = Path::new(&base_path).join(&unique_dir_name);
+    let temp_dir_path = Path::new(&dir_base_path).join(&unique_dir_name);
     fs::create_dir_all(&temp_dir_path)
         .map_err(|e| format!("Failed to create temporary directory: {}", e))?;
     let output_path = temp_dir_path.as_path();
     println!("Created temporary directory at: {}", output_path.display());
 
-    let input_dir = PathBuf::from(&base_path);
+    let input_dir = PathBuf::from(&dir_base_path);
     let input_path = input_dir.join(input_file_name);
     let file = File::open(&input_path).map_err(|e| e.to_string())?;
 
@@ -340,10 +350,12 @@ pub fn create_transmission_package_service(
     )
     .map_err(|e| e.to_string())?;
 
+    let dir_base_path = get_plugin_shared_dir(&Plugins::MIRU);
+
     // upload .xz
     let xz_name = format!("er_{}.xz", transaction_id);
     let (_temp_file, xz_file_name, _temp_path_string, file_size) =
-        write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
+        write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz", &dir_base_path)?;
     let xz_document_str = upload_and_return_document(
         file_size,
         "applization/xml",
@@ -359,7 +371,7 @@ pub fn create_transmission_package_service(
     // upload eml
     let eml_name = format!("er_{}.xml", transaction_id);
     let (_temp_file, eml_file_name, _temp_path_string, file_size) =
-        write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
+        write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml", &dir_base_path)?;
     let eml_document_str = upload_and_return_document(
         file_size,
         "applization/xml",
@@ -386,7 +398,7 @@ pub fn create_transmission_package_service(
         &area_name,
     ));
 
-    generate_all_servers_document(
+    let all_servers_document = generate_all_servers_document(
         &eml_hash,
         &eml,
         base_compressed_xml.clone(),
@@ -400,44 +412,42 @@ pub fn create_transmission_package_service(
         vec![],
         &logs,
         &election_annotations,
+        &dir_base_path,
     )?;
 
-    // let new_transmission_package_data = MiruTransmissionPackageData {
-    //     election_id: election_id.to_string(),
-    //     area_id: area_id.to_string(),
-    //     servers: ccs_servers.clone(),
-    //     documents: vec![MiruDocument {
-    //         document_ids: MiruDocumentIds {
-    //             eml: eml_document.id.clone(),
-    //             xz: xz_document.id.clone(),
-    //             all_servers: all_servers_document.id.clone(),
-    //         },
-    //         transaction_id: transaction_id.clone(),
-    //         servers_sent_to: vec![],
-    //         created_at: ISO8601::to_string(&now_local),
-    //         signatures: vec![],
-    //     }],
-    //     logs,
-    //     threshold: threshold,
-    // };
-    // update_transmission_package_annotations(
-    //     &hasura_transaction,
-    //     tenant_id,
-    //     &election_event.id,
-    //     tally_session_id,
-    //     area_id,
-    //     election_id,
-    //     transmission_data.clone(),
-    //     new_transmission_package_data,
-    //     tally_annotations.clone(),
-    // )
-    // ?;
+    let new_transmission_package_data = MiruTransmissionPackageData {
+        election_id: election_id.to_string(),
+        area_id: area_id.to_string(),
+        servers: ccs_servers.clone(),
+        documents: vec![MiruDocument {
+            document_ids: MiruDocumentIds {
+                eml: eml_document.id.clone(),
+                xz: xz_document.id.clone(),
+                all_servers: all_servers_document.id.clone(),
+            },
+            transaction_id: transaction_id.clone(),
+            servers_sent_to: vec![],
+            created_at: now_local.to_rfc3339(),
+            signatures: vec![],
+        }],
+        logs,
+        threshold: threshold,
+    };
+    update_transmission_package_annotations(
+        tenant_id,
+        &election_event.id,
+        tally_session_id,
+        area_id,
+        election_id,
+        transmission_data.clone(),
+        new_transmission_package_data,
+        tally_annotations.clone(),
+    )?;
 
-    // hasura_transaction
-    //     .commit()
-    //
-    //     .with_context(|| "error comitting transaction")?;
-    Ok(format!("Transmission package created with the result"))
+    match commit_hasura_transaction() {
+        Ok(_) => Ok(("Transmission package created successfully".to_string())),
+        Err(e) => return Err(format!("Error creating hasura transaction: {}", e)),
+    }
 }
 
 #[instrument(skip_all, err)]
@@ -455,11 +465,12 @@ pub fn generate_all_servers_document(
     server_signatures: Vec<ACMTrustee>,
     logs: &Vec<Log>,
     election_annotations: &MiruElectionAnnotations,
-    // ) -> Result<Document,String> {
-) -> Result<(), String> {
+    dir_base_path: &str,
+) -> Result<Document, String> {
     println!("[Guest Plugin] Generating all servers document");
     let acm_key_pair = get_acm_key_pair(tenant_id, election_event_id).map_err(|e| e.to_string())?;
-    let mut temp_dir_path = env::temp_dir();
+
+    let temp_dir_path = PathBuf::new();
     fs::create_dir_all(&temp_dir_path).map_err(|e| e.to_string())?;
 
     for ccs_server in ccs_servers {
@@ -472,59 +483,105 @@ pub fn generate_all_servers_document(
             )
         })?;
         let zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
-        // create_transmission_package(
-        //     eml_hash,
-        //     eml,
-        //     time_zone.clone(),
-        //     now_utc.clone(),
-        //     election_event_annotations,
-        //     compressed_xml_bytes.clone(),
-        //     &acm_key_pair,
-        //     &ccs_server.public_key_pem,
-        //     area_annotations,
-        //     &zip_file_path,
-        //     &server_signatures,
-        //     &election_annotations,
-        // )
-        // .await?;
-        // let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
-        // if with_logs {
-        //     let zip_file_path = server_path.join(format!("al_{}.zip", area_annotations.station_id));
-        //     create_logs_package(
-        //         time_zone.clone(),
-        //         now_utc.clone(),
-        //         election_event_annotations,
-        //         &election_annotations,
-        //         &acm_key_pair,
-        //         &ccs_server.public_key_pem,
-        //         area_annotations,
-        //         &zip_file_path,
-        //         &server_signatures,
-        //         logs,
-        //     )
-        //     .await?;
-        // }
+        let a = create_transmission_package(
+            eml_hash,
+            eml,
+            time_zone.clone(),
+            now_utc.clone(),
+            election_event_annotations,
+            compressed_xml_bytes.clone(),
+            &acm_key_pair,
+            &ccs_server.public_key_pem,
+            area_annotations,
+            &zip_file_path,
+            &server_signatures,
+            &election_annotations,
+            dir_base_path,
+        )?;
+
+        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        if with_logs {
+            let zip_file_path = server_path.join(format!("al_{}.zip", area_annotations.station_id));
+            create_logs_package(
+                time_zone.clone(),
+                now_utc.clone(),
+                election_event_annotations,
+                &election_annotations,
+                &acm_key_pair,
+                &ccs_server.public_key_pem,
+                area_annotations,
+                &zip_file_path,
+                &server_signatures,
+                logs,
+                dir_base_path,
+            )?;
+        }
     }
 
-    // let dst_file = generate_temp_file("all_servers", ".zip")?;
-    // let dst_file_path = dst_file.path();
-    // let dst_file_string = dst_file_path.to_string_lossy().to_string();
+    let (dst_file, dst_file_name) = create_temp_file("all_servers", ".zip", dir_base_path)?;
+    let dst_file_path = dst_file.path();
+    let dst_file_string = dst_file_path.to_string_lossy().to_string();
 
-    // compress_folder_to_zip(temp_dir_path, dst_file.path())?;
-    // let file_size =
-    //     get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
+    compress_folder_to_zip(temp_dir_path.as_path(), dst_file_path)?;
+    let file_size =
+        get_file_size(dst_file_path).map_err(|e| format!("Error obtaining file size: {}", e))?;
 
-    // let document = upload_and_return_document(
-    //     file_size,
-    //     "applization/zip",
-    //     tenant_id,
-    //     Some(election_event_id.to_string()),
-    //     "all_servers.zip",
-    //     None,
-    //     false,
-    // )
-    // .await?;
+    let document_str = upload_and_return_document(
+        file_size,
+        "applization/zip",
+        tenant_id,
+        Some(election_event_id),
+        &dst_file_name,
+        None,
+        false,
+    )?;
 
-    // Ok(document)
+    let document = deserialize_str::<Document>(&document_str)
+        .map_err(|e| format!("Failed to deserialize Document: {}", e))?;
+
+    Ok(document)
+}
+
+#[instrument(err)]
+pub fn update_transmission_package_annotations(
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    area_id: &str,
+    election_id: &str,
+    transmission_data: Vec<MiruTransmissionPackageData>,
+    new_transmission_package_data: MiruTransmissionPackageData,
+    tally_annotations: Annotations,
+) -> Result<(), String> {
+    let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
+        .clone()
+        .into_iter()
+        .filter(|data| {
+            data.area_id != area_id.to_string() || data.election_id != election_id.to_string()
+        })
+        .collect();
+    new_transmission_data.push(new_transmission_package_data);
+    let new_transmission_data_str = serde_json::to_string(&new_transmission_data)
+        .map_err(|e| format!("Error serializing new transmission data: {}", e))?;
+
+    let mut new_tally_annotations = tally_annotations.clone();
+    let annotation_key = prepend_miru_annotation(MIRU_TALLY_SESSION_DATA);
+    new_tally_annotations.insert(annotation_key, new_transmission_data_str);
+
+    let new_tally_annotations_str = serde_json::to_string(&new_tally_annotations)
+        .map_err(|e| format!("Error serializing new tally annotations map: {}", e))?;
+
+    println!(
+        "Updating tally session annotations: {}",
+        new_tally_annotations_str
+    );
+
+    update_tally_session_annotation(
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        &new_tally_annotations_str,
+    )?;
+
     Ok(())
 }

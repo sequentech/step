@@ -2,32 +2,37 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
-    // acm_json::generate_acm_json,
-    // aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
+    acm_json::generate_acm_json,
     eml_generator::{
         render_eml_file, MiruAreaAnnotations, MiruElectionAnnotations, MiruElectionEventAnnotations,
     },
     eml_types::ACMJson,
     xz_compress::xz_compress,
-    // zip::compress_folder_to_zip,
+    zip::compress_folder_to_zip,
 };
-use crate::bindings::plugins_manager::documents_manager::documents::{
-    download_s3_file_to_string, get_s3_public_asset_file_path, hash_sha256, render_template_text,
+use crate::{
+    bindings::plugins_manager::documents_manager::documents::{
+        download_s3_file_to_string, encrypt_file, get_s3_public_asset_file_path, hash_sha256,
+        render_template_text,
+    },
+    services::{
+        eml_types::ACMTrustee,
+        signatures::{ecies_encrypt_string, ecies_sign_data, EciesKeyPair},
+    },
 };
 use chrono::{DateTime, Utc};
-use sequent_core::types::velvet::ReportData;
-// use crate::services::consolidation::eml_types::ACMTrustee;
-// use crate::services::password::generate_random_string_with_charset;
-// use anyhow::{anyhow, Context, Result};
-// use base64::{engine::general_purpose, Engine as _};
-
-// use sequent_core::signatures::ecies_encrypt::{
-//     ecies_encrypt_string, ecies_sign_data, EciesKeyPair,
-// };
 use sequent_core::types::date_time::TimeZone;
-// use sequent_core::{ballot::Annotations, types::ceremonies::Log};
+use sequent_core::{
+    password::generate_random_string_with_charset,
+    std_temp_path::{create_temp_file, read_temp_file, write_into_named_temp_file, TempFileGuard},
+    types::{ceremonies::Log, velvet::ReportData},
+};
 use serde_json::{Map, Value};
+use std::fs::File;
+use std::io::Write;
+use std::{env, fs, path::Path};
 use tracing::instrument;
+use wit_bindgen_rt::async_support::futures::TryFutureExt;
 
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 
@@ -92,173 +97,186 @@ pub fn generate_base_compressed_xml(
     Ok((compressed_xml, render_xml, rendered_xml_hash))
 }
 
-// #[instrument(skip(compressed_xml), err)]
-// async fn generate_encrypted_compressed_xml(
-//     compressed_xml: Vec<u8>,
-//     public_key_pem: &str,
-// ) -> Result<(NamedTempFile, String)> {
-//     let charset: String = "0123456789abcdef".into();
-//     let random_pass = generate_random_string_with_charset(64, &charset);
+#[instrument(skip(compressed_xml), err)]
+fn generate_encrypted_compressed_xml(
+    compressed_xml: Vec<u8>,
+    public_key_pem: &str,
+    dir_base_path: &str,
+) -> Result<(TempFileGuard, String), String> {
+    let charset: String = "0123456789abcdef".into();
+    let random_pass = generate_random_string_with_charset(64, &charset);
 
-//     let (_temp_path, temp_path_string, _file_size) =
-//         write_into_named_temp_file(&compressed_xml, "template", ".xz")
-//             .map_err(|e| anyhow!("Error writing into temp file: {e:?}"))?;
-//     let exz_temp_file = generate_temp_file("er_xxxxxxxx", ".exz")
-//         .map_err(|e| anyhow!("Error creating temp file: {e:?}"))?;
-//     let exz_temp_file_string = exz_temp_file.path().to_string_lossy().to_string();
-//     encrypt_file_aes_256_cbc(&temp_path_string, &exz_temp_file_string, &random_pass)
-//         .map_err(|e| anyhow!("Error encrypting the ZIP file: {e:?}"))?;
+    let (_temp_path, temp_path_file_name, temp_path_string, _file_size) =
+        write_into_named_temp_file(&compressed_xml, "template", ".xz", dir_base_path)
+            .map_err(|e| format!("Error writing into temp file: {e:?}"))?;
 
-//     let encrypted_random_pass_base64 = ecies_encrypt_string(public_key_pem, &random_pass)
-//         .map_err(|e| anyhow!("Error encrypting the random pass: {e:?}"))?;
-//     Ok((exz_temp_file, encrypted_random_pass_base64))
-// }
+    let (exz_temp_file, exz_temp_file_name) =
+        create_temp_file("er_xxxxxxxx", ".exz", dir_base_path)
+            .map_err(|e| format!("Error creating temp file: {e:?}"))?;
 
-// #[instrument(skip_all, err)]
-// fn generate_er_final_zip(
-//     exz_temp_file_bytes: Vec<u8>,
-//     acm_json: ACMJson,
-//     area_station_id: &str,
-//     output_file_path: &Path,
-//     is_log: bool,
-// ) -> Result<()> {
-//     let MIRU_STATION_ID = area_station_id.to_string();
-//     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
-//     let temp_dir_path = temp_dir.path();
+    // Encrypt the temporary files using AES-256-CBC
+    encrypt_file(&temp_path_file_name, &exz_temp_file_name, &random_pass);
 
-//     let prefix = if is_log { "al_" } else { "er_" };
+    let encrypted_random_pass_base64 =
+        ecies_encrypt_string(public_key_pem, &random_pass, dir_base_path)
+            .map_err(|e| format!("Error encrypting the random pass: {e:?}"))?;
+    Ok((exz_temp_file, encrypted_random_pass_base64))
+}
 
-//     let exz_xml_path = temp_dir_path.join(format!("{}{}.exz", prefix, MIRU_STATION_ID).as_str());
-//     {
-//         let mut exz_xml_file = File::create(&exz_xml_path)
-//             .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
-//         exz_xml_file
-//             .write_all(&exz_temp_file_bytes)
-//             .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
-//     }
+#[instrument(skip_all, err)]
+fn generate_er_final_zip(
+    exz_temp_file_bytes: Vec<u8>,
+    acm_json: ACMJson,
+    area_station_id: &str,
+    output_file_path: &Path,
+    is_log: bool,
+) -> Result<(), String> {
+    let MIRU_STATION_ID = area_station_id.to_string();
 
-//     let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
-//     let exz_json_path = temp_dir_path.join(format!("{}{}.json", prefix, MIRU_STATION_ID).as_str());
-//     {
-//         let mut exz_json_file = File::create(&exz_json_path)
-//             .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
-//         exz_json_file
-//             .write_all(acm_json_stringified.as_bytes())
-//             .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
-//     }
+    let mut temp_dir_path = env::temp_dir();
+    fs::create_dir_all(&temp_dir_path).map_err(|e| e.to_string())?;
 
-//     compress_folder_to_zip(temp_dir_path, output_file_path)?;
-//     Ok(())
-// }
+    let prefix = if is_log { "al_" } else { "er_" };
 
-// #[instrument(skip(acm_key_pair), err)]
-// pub async fn create_logs_package(
-//     time_zone: TimeZone,
-//     date_time: DateTime<Utc>,
-//     election_event_annotations: &MiruElectionEventAnnotations,
-//     election_annotations: &MiruElectionAnnotations,
-//     acm_key_pair: &EciesKeyPair,
-//     ccs_public_key_pem_str: &str,
-//     area_annotations: &MiruAreaAnnotations,
-//     output_file_path: &Path,
-//     server_signatures: &Vec<ACMTrustee>,
-//     logs: &Vec<Log>,
-// ) -> Result<()> {
-//     let logs_str = serde_json::to_string(logs).context("Can't stringify logs")?;
+    let exz_xml_path = temp_dir_path.join(format!("{}{}.exz", prefix, MIRU_STATION_ID).as_str());
+    {
+        let mut exz_xml_file = File::create(&exz_xml_path)
+            .map_err(|e| format!("Failed to create or open file: {:?}", exz_xml_path))?;
+        exz_xml_file
+            .write_all(&exz_temp_file_bytes)
+            .map_err(|e| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+    }
 
-//     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&logs_str)?;
+    let acm_json_stringified = serde_json::to_string_pretty(&acm_json)
+        .map_err(|e| format!("Failed convert acm_json to string: {}", e))?;
 
-//     let (mut exz_temp_file, encrypted_random_pass_base64) =
-//         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
+    let exz_json_path = temp_dir_path.join(format!("{}{}.json", prefix, MIRU_STATION_ID).as_str());
+    {
+        let mut exz_json_file = File::create(&exz_json_path)
+            .map_err(|e| format!("Failed to create or open file: {:?}", exz_json_path))?;
+        exz_json_file
+            .write_all(acm_json_stringified.as_bytes())
+            .map_err(|e| format!("Failed to write data to file: {:?}", exz_json_path))?;
+    }
 
-//     let exz_temp_file_bytes =
-//         read_temp_file(&mut exz_temp_file).with_context(|| "Error reading the exz")?;
-//     let signed_eml_base64 =
-//         ecies_sign_data(acm_key_pair, &logs_str).with_context(|| "Error signing the eml hash")?;
+    compress_folder_to_zip(temp_dir_path.as_path(), output_file_path)
+        .map_err(|e| format!("Error compress folder to zip: {}", e))?;
 
-//     info!(
-//         "create_logs_package(): acm_key_pair.public_key_pem = {:?}",
-//         acm_key_pair.public_key_pem
-//     );
-//     let logs_servers: Vec<ACMTrustee> = server_signatures
-//         .clone()
-//         .into_iter()
-//         .map(|server| ACMTrustee {
-//             id: server.id.clone(),
-//             signature: None,
-//             publickey: None,
-//             name: server.name.clone(),
-//         })
-//         .collect();
-//     let acm_json = generate_acm_json(
-//         &rendered_xml_hash,
-//         &encrypted_random_pass_base64,
-//         &signed_eml_base64,
-//         &acm_key_pair.public_key_pem,
-//         time_zone,
-//         date_time,
-//         election_event_annotations,
-//         election_annotations,
-//         area_annotations,
-//         &logs_servers,
-//     )?;
-//     generate_er_final_zip(
-//         exz_temp_file_bytes,
-//         acm_json,
-//         &area_annotations.station_id,
-//         output_file_path,
-//         true,
-//     )?;
+    Ok(())
+}
 
-//     Ok(())
-// }
+#[instrument(skip(acm_key_pair), err)]
+pub fn create_logs_package(
+    time_zone: TimeZone,
+    date_time: DateTime<Utc>,
+    election_event_annotations: &MiruElectionEventAnnotations,
+    election_annotations: &MiruElectionAnnotations,
+    acm_key_pair: &EciesKeyPair,
+    ccs_public_key_pem_str: &str,
+    area_annotations: &MiruAreaAnnotations,
+    output_file_path: &Path,
+    server_signatures: &Vec<ACMTrustee>,
+    logs: &Vec<Log>,
+    dir_base_path: &str,
+) -> Result<(), String> {
+    let logs_str =
+        serde_json::to_string(logs).map_err(|e| format!("Can't stringify logs: {}", e))?;
 
-// #[instrument(skip(compressed_xml, acm_key_pair), err)]
-// pub async fn create_transmission_package(
-//     eml_hash: &str,
-//     eml: &str,
-//     time_zone: TimeZone,
-//     date_time: DateTime<Utc>,
-//     election_event_annotations: &MiruElectionEventAnnotations,
-//     compressed_xml: Vec<u8>,
-//     acm_key_pair: &EciesKeyPair,
-//     ccs_public_key_pem_str: &str,
-//     area_annotations: &MiruAreaAnnotations,
-//     output_file_path: &Path,
-//     server_signatures: &Vec<ACMTrustee>,
-//     election_annotations: &MiruElectionAnnotations,
-// ) -> Result<()> {
-//     let (mut exz_temp_file, encrypted_random_pass_base64) =
-//         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str).await?;
+    let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&logs_str)?;
 
-//     let exz_temp_file_bytes =
-//         read_temp_file(&mut exz_temp_file).with_context(|| "Error reading the exz")?;
-//     let signed_eml_base64 =
-//         ecies_sign_data(acm_key_pair, eml).with_context(|| "Error signing the eml hash")?;
+    let (mut exz_temp_file, encrypted_random_pass_base64): (TempFileGuard, String) =
+        generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str, dir_base_path)
+            .map_err(|e| format!(" Error in generate_encrypted_compressed_xml: {}", e))?;
 
-//     info!(
-//         "create_transmission_package(): acm_key_pair.public_key_pem = {:?}",
-//         acm_key_pair.public_key_pem
-//     );
-//     let acm_json = generate_acm_json(
-//         eml_hash,
-//         &encrypted_random_pass_base64,
-//         &signed_eml_base64,
-//         &acm_key_pair.public_key_pem,
-//         time_zone,
-//         date_time,
-//         election_event_annotations,
-//         election_annotations,
-//         area_annotations,
-//         server_signatures,
-//     )?;
-//     generate_er_final_zip(
-//         exz_temp_file_bytes,
-//         acm_json,
-//         &area_annotations.station_id,
-//         output_file_path,
-//         false,
-//     )?;
+    let exz_temp_file_bytes =
+        read_temp_file(&mut exz_temp_file).map_err(|e| format!("Error reading the exz: {}", e))?;
+    let signed_eml_base64 = ecies_sign_data(acm_key_pair, &logs_str, dir_base_path)
+        .map_err(|e| format!("Error signing the eml hash: {}", e))?;
 
-//     Ok(())
-// }
+    println!(
+        "create_logs_package(): acm_key_pair.public_key_pem = {:?}",
+        acm_key_pair.public_key_pem
+    );
+    let logs_servers: Vec<ACMTrustee> = server_signatures
+        .clone()
+        .into_iter()
+        .map(|server| ACMTrustee {
+            id: server.id.clone(),
+            signature: None,
+            publickey: None,
+            name: server.name.clone(),
+        })
+        .collect();
+    let acm_json = generate_acm_json(
+        &rendered_xml_hash,
+        &encrypted_random_pass_base64,
+        &signed_eml_base64,
+        &acm_key_pair.public_key_pem,
+        time_zone,
+        date_time,
+        election_event_annotations,
+        election_annotations,
+        area_annotations,
+        &logs_servers,
+    )?;
+    generate_er_final_zip(
+        exz_temp_file_bytes,
+        acm_json,
+        &area_annotations.station_id,
+        output_file_path,
+        true,
+    )?;
+
+    Ok(())
+}
+
+#[instrument(skip(compressed_xml, acm_key_pair), err)]
+pub fn create_transmission_package(
+    eml_hash: &str,
+    eml: &str,
+    time_zone: TimeZone,
+    date_time: DateTime<Utc>,
+    election_event_annotations: &MiruElectionEventAnnotations,
+    compressed_xml: Vec<u8>,
+    acm_key_pair: &EciesKeyPair,
+    ccs_public_key_pem_str: &str,
+    area_annotations: &MiruAreaAnnotations,
+    output_file_path: &Path,
+    server_signatures: &Vec<ACMTrustee>,
+    election_annotations: &MiruElectionAnnotations,
+    dir_base_path: &str,
+) -> Result<(), String> {
+    let (mut exz_temp_file, encrypted_random_pass_base64) =
+        generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str, dir_base_path)?;
+
+    let exz_temp_file_bytes =
+        read_temp_file(&exz_temp_file).map_err(|e| format!("Error reading the exz: {}", e))?;
+    let signed_eml_base64 = ecies_sign_data(acm_key_pair, eml, dir_base_path)
+        .map_err(|e| format!("Error signing the eml hash: {}", e))?;
+
+    println!(
+        "create_transmission_package(): acm_key_pair.public_key_pem = {:?}",
+        acm_key_pair.public_key_pem
+    );
+    let acm_json = generate_acm_json(
+        eml_hash,
+        &encrypted_random_pass_base64,
+        &signed_eml_base64,
+        &acm_key_pair.public_key_pem,
+        time_zone,
+        date_time,
+        election_event_annotations,
+        election_annotations,
+        area_annotations,
+        server_signatures,
+    )?;
+    generate_er_final_zip(
+        exz_temp_file_bytes,
+        acm_json,
+        &area_annotations.station_id,
+        output_file_path,
+        false,
+    )?;
+
+    Ok(())
+}

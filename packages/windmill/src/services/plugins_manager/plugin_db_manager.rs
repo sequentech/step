@@ -6,12 +6,13 @@ use crate::postgres::document::get_document;
 use crate::postgres::election::{get_election_by_id as get_election_by_id_postgres};
 use crate::postgres::election_event::get_election_event_by_election_area as get_election_event_by_election_area_postgres;
 use crate::postgres::results_event::get_results_event_by_id;
-use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::plugins_manager::plugin::PluginServices;
 use crate::services::vault;
 use deadpool_postgres::{GenericClient, Object, Transaction};
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use serde_json::{Value, Map};
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
@@ -468,6 +469,7 @@ impl PostgresHost for PluginServices {
         let hasura_transaction: &Transaction<'_> = manager
             .with_txn(|opt| opt.as_ref())
             .ok_or("No transaction")?;
+
         let res = get_results_event_by_id(
             hasura_transaction,
             &tenant_id,
@@ -479,6 +481,34 @@ impl PostgresHost for PluginServices {
         let str = serde_json::to_string(&res)
             .map_err(|e| format!("Failed to serialize results event: {}", e))?;
         Ok(str)
+    }
+
+    async fn update_tally_session_annotation(
+        &mut self,
+        tenant_id: String,
+        election_event_id: String,
+        tally_session_id: String,
+        new_tally_annotations: String,
+    ) -> Result<(), String> {
+        let mut manager = self.transactions.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+
+        let new_tally_annotations_value = deserialize_str::<Value>(&new_tally_annotations)
+            .map_err(|e| format!("Failed to parse new tally annotations: {}", e))?;
+
+        update_tally_session_annotation(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+            new_tally_annotations_value,
+        )
+        .await
+        .map_err(|e| format!("Failed to update tally session annotation: {}", e))?;
+
+        Ok(())
     }
 }
 

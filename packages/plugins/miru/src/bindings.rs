@@ -775,24 +775,415 @@ pub mod plugins_manager {
                 }
             }
             #[allow(unused_unsafe, clippy::all)]
-            pub fn print_data(data: &str) -> () {
+            pub fn run_shell_command_generate_ecies_key_pair(
+                java_jar_file: &str,
+                temp_public_pem_file_name: &str,
+                temp_private_pem_file_name: &str,
+            ) -> Result<(), _rt::String> {
                 unsafe {
-                    let vec0 = data;
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = java_jar_file;
                     let ptr0 = vec0.as_ptr().cast::<u8>();
                     let len0 = vec0.len();
+                    let vec1 = temp_public_pem_file_name;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = temp_private_pem_file_name;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
                     #[cfg(target_arch = "wasm32")]
                     #[link(
                         wasm_import_module = "plugins-manager:documents-manager/documents"
                     )]
                     unsafe extern "C" {
-                        #[link_name = "print-data"]
-                        fn wit_import1(_: *mut u8, _: usize);
+                        #[link_name = "run-shell-command-generate-ecies-key-pair"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
                     }
                     #[cfg(not(target_arch = "wasm32"))]
-                    unsafe extern "C" fn wit_import1(_: *mut u8, _: usize) {
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
                         unreachable!()
                     }
-                    unsafe { wit_import1(ptr0.cast_mut(), len0) };
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result9 = match l5 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result9
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            pub fn encrypt_file(
+                input_file_name: &str,
+                output_file_name: &str,
+                password: &str,
+            ) -> Result<(), _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = input_file_name;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = output_file_name;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = password;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:documents-manager/documents"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "encrypt-file"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result9 = match l5 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result9
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            pub fn run_shell_command_ecies_encrypt_string(
+                java_jar_file: &str,
+                temp_pem_file_name: &str,
+                password: &str,
+            ) -> Result<_rt::String, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = java_jar_file;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = temp_pem_file_name;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = password;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:documents-manager/documents"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "run-shell-command-ecies-encrypt-string"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result12 = match l5 {
+                        0 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l9 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l10 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len11 = l10;
+                                let bytes11 = _rt::Vec::from_raw_parts(
+                                    l9.cast(),
+                                    len11,
+                                    len11,
+                                );
+                                _rt::string_lift(bytes11)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result12
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
+            pub fn run_shell_command_ecies_sign_data(
+                java_jar_file: &str,
+                temp_pem_file_name: &str,
+                temp_data_file_name: &str,
+            ) -> Result<_rt::String, _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = java_jar_file;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = temp_pem_file_name;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = temp_data_file_name;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:documents-manager/documents"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "run-shell-command-ecies-sign-data"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result12 = match l5 {
+                        0 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l9 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l10 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len11 = l10;
+                                let bytes11 = _rt::Vec::from_raw_parts(
+                                    l9.cast(),
+                                    len11,
+                                    len11,
+                                );
+                                _rt::string_lift(bytes11)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result12
                 }
             }
         }
@@ -2237,6 +2628,112 @@ pub mod plugins_manager {
                     result12
                 }
             }
+            #[allow(unused_unsafe, clippy::all)]
+            pub fn update_tally_session_annotation(
+                tenant_id: &str,
+                election_event_id: &str,
+                tally_session_id: &str,
+                new_tally_annotations: &str,
+            ) -> Result<(), _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = tenant_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = election_event_id;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = tally_session_id;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let vec3 = new_tally_annotations;
+                    let ptr3 = vec3.as_ptr().cast::<u8>();
+                    let len3 = vec3.len();
+                    let ptr4 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:transactions-manager/postgres-queries"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "update-tally-session-annotation"]
+                        fn wit_import5(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import5(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import5(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3.cast_mut(),
+                            len3,
+                            ptr4,
+                        )
+                    };
+                    let l6 = i32::from(*ptr4.add(0).cast::<u8>());
+                    let result10 = match l6 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l7 = *ptr4
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l8 = *ptr4
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len9 = l8;
+                                let bytes9 = _rt::Vec::from_raw_parts(
+                                    l7.cast(),
+                                    len9,
+                                    len9,
+                                );
+                                _rt::string_lift(bytes9)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result10
+                }
+            }
         }
         #[allow(dead_code, async_fn_in_trait, unused_imports, clippy::all)]
         pub mod vault {
@@ -2859,14 +3356,14 @@ pub(crate) use __export_miru_plugin_impl as export;
 #[unsafe(link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 2185] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x87\x10\x01A\x02\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 2661] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xe3\x13\x01A\x02\x01\
 A\x13\x01B\x0b\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
 \x04\0\x1bcreate-keycloak-transaction\x01\x01\x01ps\x01j\x01s\x01s\x01@\x02\x03s\
 qls\x06params\x02\0\x03\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-k\
 eycloak-query\x01\x04\x04\0\x19commit-hasura-transaction\x01\x01\x04\0\x1bcommit\
 -keycloak-transaction\x01\x01\x03\00plugins-manager:transactions-manager/transac\
-tion\x05\0\x01B\x11\x01j\x01s\x01s\x01@\x03\x09tenant-ids\x0belection-ids\x07are\
+tion\x05\0\x01B\x14\x01j\x01s\x01s\x01@\x03\x09tenant-ids\x0belection-ids\x07are\
 a-ids\0\0\x04\0#get-election-event-by-election-area\x01\x01\x01ks\x01j\x01\x02\x01\
 s\x01@\x03\x09tenant-ids\x11election-event-ids\x0belection-ids\0\x03\x04\0\x12ge\
 t-election-by-id\x01\x04\x01@\x03\x09tenant-ids\x11election-event-ids\x10tally-s\
@@ -2875,33 +3372,41 @@ election-event-id\x02\x0bdocument-ids\0\x03\x04\0\x0cget-document\x01\x06\x01@\x
 \x09tenant-ids\x07area-ids\0\x03\x04\0\x0eget-area-by-id\x01\x07\x01@\x03\x09ten\
 ant-ids\x11election-event-ids\x10tally-session-ids\0\x03\x04\0\x20get-last-tally\
 -session-execution\x01\x08\x01@\x03\x09tenant-ids\x11election-event-ids\x10resul\
-ts-event-ids\0\0\x04\0\x17get-results-event-by-id\x01\x09\x03\05plugins-manager:\
-transactions-manager/postgres-queries\x05\x01\x01B\x07\x01ks\x01j\x01\0\x01s\x01\
-@\x03\x09tenant-ids\x11election-event-id\0\x03keys\0\x01\x04\0\x0bread-secret\x01\
-\x02\x01j\0\x01s\x01@\x04\x09tenant-ids\x11election-event-id\0\x03keys\x05values\
-\0\x03\x04\0\x0bsave-secret\x01\x04\x03\0*plugins-manager:transactions-manager/v\
-ault\x05\x02\x01B\x05\x01ks\x01ps\x01j\0\x01s\x01@\x04\x06claimss\x16allow-super\
--admin-auth\x7f\x0dtenant-id-opt\0\x0bpermissions\x01\0\x02\x04\0\x09authorize\x01\
-\x03\x03\0!plugins-manager:jwt/authorization\x05\x03\x01B\x14\x01j\x01s\x01s\x01\
-@\x02\x09tenant-ids\x08documents\0\0\x04\0\x1ccreate-document-as-temp-file\x01\x01\
-\x01@\x01\x0ftally-base-paths\0\0\x04\0\x11get-tally-results\x01\x02\x01@\x01\x09\
-file-names\0\0\x04\0\x1dget-s3-public-asset-file-path\x01\x03\x01@\x01\x08file-u\
-rls\0\0\x04\0\x1adownload-s3-file-to-string\x01\x04\x01@\x02\x0ftemplate-strings\
-\x0dvariables-maps\0\0\x04\0\x14render-template-text\x01\x05\x01p}\x01j\x01\x06\x01\
-s\x01@\x01\x05bytes\x06\0\x07\x04\0\x0bhash-sha256\x01\x08\x01ks\x01@\x07\x09fil\
-e-sizew\x0amedia-types\x09tenant-ids\x11election-event-id\x09\x04names\x0bdocume\
-nt-id\x09\x09is-public\x7f\0\0\x04\0\x1aupload-and-return-document\x01\x0a\x01@\x01\
-\x04datas\x01\0\x04\0\x0aprint-data\x01\x0b\x03\0+plugins-manager:documents-mana\
-ger/documents\x05\x04\x01B\x06\x01r\x03\x04paths\x07handlers\x0fprocess-as-task\x7f\
-\x04\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01r\x04\x0bplugin-names\x05hooks\x02\
-\x06routes\x03\x05tasks\x02\x04\0\x08manifest\x03\0\x04\x03\0\x1cplugins-manager\
-:common/types\x05\x05\x01j\0\x01s\x01@\x01\x04datas\0\x06\x04\0\x1bcreate-transm\
-ission-package\x01\x07\x02\x03\0\x05\x08manifest\x02\x03\0\x05\x0cplugin-route\x01\
-B\x06\x02\x03\x02\x01\x08\x04\0\x08manifest\x03\0\0\x02\x03\x02\x01\x09\x04\0\x0c\
-plugin-route\x03\0\x02\x01@\0\0\x01\x04\0\x0cget-manifest\x01\x04\x04\0$plugins-\
-manager:common/plugin-common\x05\x0a\x04\0'plugins-manager:miru-plugin/miru-plug\
-in\x04\0\x0b\x11\x01\0\x0bmiru-plugin\x03\0\0\0G\x09producers\x01\x0cprocessed-b\
-y\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+ts-event-ids\0\0\x04\0\x17get-results-event-by-id\x01\x09\x01j\0\x01s\x01@\x04\x09\
+tenant-ids\x11election-event-ids\x10tally-session-ids\x15new-tally-annotationss\0\
+\x0a\x04\0\x1fupdate-tally-session-annotation\x01\x0b\x03\05plugins-manager:tran\
+sactions-manager/postgres-queries\x05\x01\x01B\x07\x01ks\x01j\x01\0\x01s\x01@\x03\
+\x09tenant-ids\x11election-event-id\0\x03keys\0\x01\x04\0\x0bread-secret\x01\x02\
+\x01j\0\x01s\x01@\x04\x09tenant-ids\x11election-event-id\0\x03keys\x05values\0\x03\
+\x04\0\x0bsave-secret\x01\x04\x03\0*plugins-manager:transactions-manager/vault\x05\
+\x02\x01B\x05\x01ks\x01ps\x01j\0\x01s\x01@\x04\x06claimss\x16allow-super-admin-a\
+uth\x7f\x0dtenant-id-opt\0\x0bpermissions\x01\0\x02\x04\0\x09authorize\x01\x03\x03\
+\0!plugins-manager:jwt/authorization\x05\x03\x01B\x1b\x01j\x01s\x01s\x01@\x02\x09\
+tenant-ids\x08documents\0\0\x04\0\x1ccreate-document-as-temp-file\x01\x01\x01@\x01\
+\x0ftally-base-paths\0\0\x04\0\x11get-tally-results\x01\x02\x01@\x01\x09file-nam\
+es\0\0\x04\0\x1dget-s3-public-asset-file-path\x01\x03\x01@\x01\x08file-urls\0\0\x04\
+\0\x1adownload-s3-file-to-string\x01\x04\x01@\x02\x0ftemplate-strings\x0dvariabl\
+es-maps\0\0\x04\0\x14render-template-text\x01\x05\x01p}\x01j\x01\x06\x01s\x01@\x01\
+\x05bytes\x06\0\x07\x04\0\x0bhash-sha256\x01\x08\x01ks\x01@\x07\x09file-sizew\x0a\
+media-types\x09tenant-ids\x11election-event-id\x09\x04names\x0bdocument-id\x09\x09\
+is-public\x7f\0\0\x04\0\x1aupload-and-return-document\x01\x0a\x01j\0\x01s\x01@\x03\
+\x0djava-jar-files\x19temp-public-pem-file-names\x1atemp-private-pem-file-names\0\
+\x0b\x04\0)run-shell-command-generate-ecies-key-pair\x01\x0c\x01@\x03\x0finput-f\
+ile-names\x10output-file-names\x08passwords\0\x0b\x04\0\x0cencrypt-file\x01\x0d\x01\
+@\x03\x0djava-jar-files\x12temp-pem-file-names\x08passwords\0\0\x04\0&run-shell-\
+command-ecies-encrypt-string\x01\x0e\x01@\x03\x0djava-jar-files\x12temp-pem-file\
+-names\x13temp-data-file-names\0\0\x04\0!run-shell-command-ecies-sign-data\x01\x0f\
+\x03\0+plugins-manager:documents-manager/documents\x05\x04\x01B\x06\x01r\x03\x04\
+paths\x07handlers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\x01\
+p\x01\x01r\x04\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08\
+manifest\x03\0\x04\x03\0\x1cplugins-manager:common/types\x05\x05\x01j\0\x01s\x01\
+@\x01\x04datas\0\x06\x04\0\x1bcreate-transmission-package\x01\x07\x02\x03\0\x05\x08\
+manifest\x02\x03\0\x05\x0cplugin-route\x01B\x06\x02\x03\x02\x01\x08\x04\0\x08man\
+ifest\x03\0\0\x02\x03\x02\x01\x09\x04\0\x0cplugin-route\x03\0\x02\x01@\0\0\x01\x04\
+\0\x0cget-manifest\x01\x04\x04\0$plugins-manager:common/plugin-common\x05\x0a\x04\
+\0'plugins-manager:miru-plugin/miru-plugin\x04\0\x0b\x11\x01\0\x0bmiru-plugin\x03\
+\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-\
+bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {
