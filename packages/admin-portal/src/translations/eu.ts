@@ -109,6 +109,9 @@ const basqueTranslation: TranslationType = {
                 header: "Ez dago Eremurik oraindik.",
                 action: "Sortu Eremua",
             },
+            formImputs: {
+                allowEarlyVoting: "Onartu Goiztiarra Bozketa",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -344,6 +347,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Zeremonia automatikoak baimendu",
                         "manual-ceremonies": "Eskuzko zeremoniak",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Bozketa Ponderatuaren Politika",
+                    options: {
+                        "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
                 },
             },
@@ -1135,6 +1145,7 @@ const basqueTranslation: TranslationType = {
             channel: {
                 online: "Linea",
                 kiosk: "Kiosko",
+                early_voting: "Aurre-botoa",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
@@ -1236,6 +1247,12 @@ const basqueTranslation: TranslationType = {
                 "semi-open-list": "Zerrenda Erdi Irekia",
                 "invalid-vote": "Baliogabeko Botoa",
                 "blank-vote": "Boto Zuria",
+            },
+            invalidVotePosition: {
+                label: "Baliogabeko Botoaren Posizioa",
+                null: "Ezer ez (Lehenetsia)",
+                top: "Goian",
+                bottom: "Behean",
             },
             error: {},
             createCandidateSuccess: "Hautagaia sortua",
@@ -1608,6 +1625,7 @@ const basqueTranslation: TranslationType = {
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
+                weight: "Pisua",
             },
         },
         publish: {
@@ -1627,9 +1645,17 @@ const basqueTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Sortu Hasierako Txostena",
                 startVotingPeriod: "Hasi Bozketa",
+                startKioskVoting: "Hasi Kiosko Bozketa",
+                startOnlineVoting: "Hasi Online Bozketa",
+                startEarlyVoting: "Hasi Aurre-botoa",
                 stopVotingPeriod: "Gelditu Bozketa",
+                stopOnlineVoting: "Gelditu Online Bozketa",
+                stopEarlyVoting: "Gelditu Aurre-botoa",
                 stopKioskVotingPeriod: "Gelditu Kiosko Bozketa",
                 pauseVotingPeriod: "Pausatu Bozketa",
+                pauseKioskVoting: "Pausatu Kiosko Bozketa",
+                pauseOnlineVoting: "Pausatu Online Bozketa",
+                pauseEarlyVoting: "Pausatu Aurre-botoa",
                 generate: "Bersortu",
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",

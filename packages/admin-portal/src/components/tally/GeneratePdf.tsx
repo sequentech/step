@@ -20,6 +20,7 @@ interface GenerateReportProps {
     name: string
     electionEventId: string
     tallySessionId: string
+    handleClose: () => void
 }
 
 export const GeneratePDF: React.FC<GenerateReportProps> = ({
@@ -27,6 +28,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     name,
     electionEventId,
     tallySessionId,
+    handleClose,
 }) => {
     const {t} = useTranslation()
     const [documentId, setDocumentId] = useState<string | null>(null)
@@ -51,11 +53,12 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     const onClick = async (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
+        handleClose()
         if (!documentId) {
             return
         }
         setOutputDocumentId(null)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.RENDER_DOCUMENT_PDF)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.RENDER_DOCUMENT_PDF, true)
         try {
             let {data} = await generateDocumentPdf({
                 variables: {
@@ -87,7 +90,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     return (
         <MenuItem
             onClick={onClick}
-            className="generate-pdf"
+            className="generate-pdf-item"
             key={EExportFormat.PDF + "-" + documentId}
         >
             <Box

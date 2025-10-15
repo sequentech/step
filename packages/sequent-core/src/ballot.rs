@@ -6,13 +6,16 @@
 #[cfg(feature = "default_features")]
 pub use crate::auditable_ballot::*;
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core::{self, ElectionEvent};
+use crate::types::hasura::core::{self, Area, ElectionEvent};
+use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_path_to_error::Error;
+use std::hash::Hash;
+use std::ops::Deref;
 use std::{collections::HashMap, default::Default};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
@@ -201,6 +204,31 @@ pub enum CandidatesOrder {
     #[serde(rename = "alphabetical")]
     #[default]
     Alphabetical,
+}
+
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    Copy,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EarlyVotingPolicy {
+    #[strum(serialize = "allow_early_voting")]
+    #[serde(rename = "allow_early_voting")]
+    AllowEarlyVoting,
+    #[strum(serialize = "no_early_voting")]
+    #[serde(rename = "no_early_voting")]
+    #[default]
+    NoEarlyVoting,
 }
 
 #[derive(
@@ -576,6 +604,7 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    pub weighted_voting_policy: Option<WeightedVotingPolicy>,
 }
 
 impl ElectionEvent {
@@ -862,6 +891,29 @@ impl Default for ElectionPresentation {
             initialization_report_policy: None,
             security_confirmation_policy: None,
         }
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct AreaPresentation {
+    pub allow_early_voting: Option<EarlyVotingPolicy>,
+}
+
+impl AreaPresentation {
+    pub fn is_early_voting(&self) -> bool {
+        self.allow_early_voting.clone().unwrap_or_default()
+            == EarlyVotingPolicy::AllowEarlyVoting
     }
 }
 
@@ -1250,8 +1302,10 @@ pub struct ElectionEventStatus {
     pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
     pub kiosk_voting_status: VotingStatus,
+    pub early_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
+    pub early_voting_period_dates: PeriodDates,
 }
 
 impl Default for ElectionEventStatus {
@@ -1260,8 +1314,10 @@ impl Default for ElectionEventStatus {
             is_published: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
+            early_voting_period_dates: Default::default(),
         }
     }
 }
@@ -1269,27 +1325,56 @@ impl Default for ElectionEventStatus {
 impl ElectionEventStatus {
     pub fn status_by_channel(
         &self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
     ) -> VotingStatus {
         match channel {
-            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
-            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status.clone()
+            }
+        }
+    }
+
+    /// Close EARLY_VOTING channel's status automatically if the new online
+    /// status is OPEN or CLOSED
+    pub fn close_early_voting_if_online_status_change(
+        &mut self,
+        channel: VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
+        let should_close_early_voting = channel == VotingStatusChannel::ONLINE
+            && (new_status == VotingStatus::OPEN
+                || new_status == VotingStatus::CLOSED);
+
+        if should_close_early_voting
+            && self.status_by_channel(VotingStatusChannel::EARLY_VOTING)
+                != VotingStatus::NOT_STARTED
+        {
+            self.set_status_by_channel(
+                VotingStatusChannel::EARLY_VOTING,
+                VotingStatus::CLOSED,
+            );
         }
     }
 
     pub fn set_status_by_channel(
         &mut self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
         new_status: VotingStatus,
     ) {
         let mut period_dates = match channel {
-            &VotingStatusChannel::ONLINE => {
+            VotingStatusChannel::ONLINE => {
                 self.voting_status = new_status.clone();
                 &mut self.voting_period_dates
             }
-            &VotingStatusChannel::KIOSK => {
+            VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_status = new_status.clone();
                 &mut self.kiosk_voting_period_dates
+            }
+            VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status = new_status.clone();
+                &mut self.early_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
@@ -1318,6 +1403,57 @@ pub enum VotingStatus {
     OPEN,
     PAUSED,
     CLOSED,
+}
+
+impl VotingStatus {
+    pub fn is_not_started(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => true,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => false,
+            VotingStatus::CLOSED => false,
+        }
+    }
+
+    pub fn is_started(&self) -> bool {
+        !self.is_not_started()
+    }
+
+    pub fn is_open(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => false,
+            VotingStatus::OPEN => true,
+            VotingStatus::PAUSED => true,
+            VotingStatus::CLOSED => false,
+        }
+    }
+
+    pub fn is_paused(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => false,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => true,
+            VotingStatus::CLOSED => false,
+        }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => false,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => false,
+            VotingStatus::CLOSED => true,
+        }
+    }
+
+    pub fn is_closed_or_never_started(&self) -> bool {
+        match self {
+            VotingStatus::NOT_STARTED => true,
+            VotingStatus::OPEN => false,
+            VotingStatus::PAUSED => false,
+            VotingStatus::CLOSED => true,
+        }
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -1360,6 +1496,7 @@ pub enum AllowTallyStatus {
     PartialEq,
     Eq,
     Clone,
+    Copy,
     EnumString,
     JsonSchema,
     IntoStaticStr,
@@ -1367,6 +1504,7 @@ pub enum AllowTallyStatus {
 pub enum VotingStatusChannel {
     ONLINE,
     KIOSK,
+    EARLY_VOTING,
 }
 
 impl VotingStatusChannel {
@@ -1377,6 +1515,7 @@ impl VotingStatusChannel {
         match self {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
             &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
+            &VotingStatusChannel::EARLY_VOTING => channels.early_voting.clone(),
         }
     }
 }
@@ -1641,8 +1780,10 @@ pub struct ElectionStatus {
     pub voting_status: VotingStatus,
     pub init_report: InitReport,
     pub kiosk_voting_status: VotingStatus,
+    pub early_voting_status: VotingStatus,
     pub voting_period_dates: PeriodDates,
     pub kiosk_voting_period_dates: PeriodDates,
+    pub early_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
 }
 
@@ -1653,8 +1794,10 @@ impl Default for ElectionStatus {
             voting_status: VotingStatus::NOT_STARTED,
             init_report: InitReport::ALLOWED,
             kiosk_voting_status: VotingStatus::NOT_STARTED,
+            early_voting_status: VotingStatus::NOT_STARTED,
             voting_period_dates: Default::default(),
             kiosk_voting_period_dates: Default::default(),
+            early_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
         }
     }
@@ -1663,39 +1806,71 @@ impl Default for ElectionStatus {
 impl ElectionStatus {
     pub fn status_by_channel(
         &self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
     ) -> VotingStatus {
         match channel {
-            &VotingStatusChannel::ONLINE => self.voting_status.clone(),
-            &VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            VotingStatusChannel::ONLINE => self.voting_status.clone(),
+            VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
+            VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status.clone()
+            }
         }
     }
 
     pub fn dates_by_channel(
         &self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
     ) -> PeriodDates {
         match channel {
-            &VotingStatusChannel::ONLINE => self.voting_period_dates.clone(),
-            &VotingStatusChannel::KIOSK => {
+            VotingStatusChannel::ONLINE => self.voting_period_dates.clone(),
+            VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_period_dates.clone()
             }
+            VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_period_dates.clone()
+            }
+        }
+    }
+
+    /// Close EARLY_VOTING channel's status automatically if the new online
+    /// status is OPEN or CLOSED
+    pub fn close_early_voting_if_online_status_change(
+        &mut self,
+        channel: VotingStatusChannel,
+        new_status: VotingStatus,
+    ) {
+        let should_close_early_voting = channel == VotingStatusChannel::ONLINE
+            && (new_status.is_open() || new_status.is_closed());
+
+        if should_close_early_voting
+            && self
+                .status_by_channel(VotingStatusChannel::EARLY_VOTING)
+                .is_started()
+        {
+            self.set_status_by_channel(
+                VotingStatusChannel::EARLY_VOTING,
+                VotingStatus::CLOSED,
+            );
         }
     }
 
     pub fn set_status_by_channel(
         &mut self,
-        channel: &VotingStatusChannel,
+        channel: VotingStatusChannel,
         new_status: VotingStatus,
     ) {
         let period_dates = match channel {
-            &VotingStatusChannel::ONLINE => {
+            VotingStatusChannel::ONLINE => {
                 self.voting_status = new_status.clone();
                 &mut self.voting_period_dates
             }
-            &VotingStatusChannel::KIOSK => {
+            VotingStatusChannel::KIOSK => {
                 self.kiosk_voting_status = new_status.clone();
                 &mut self.kiosk_voting_period_dates
+            }
+            VotingStatusChannel::EARLY_VOTING => {
+                self.early_voting_status = new_status.clone();
+                &mut self.early_voting_period_dates
             }
         };
         period_dates.update_period_dates(&new_status);
@@ -1721,12 +1896,14 @@ pub struct BallotStyle {
     pub description: Option<String>,
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: String,
+    pub area_presentation: Option<AreaPresentation>,
     pub contests: Vec<Contest>,
     pub election_event_presentation: Option<ElectionEventPresentation>,
     pub election_presentation: Option<ElectionPresentation>,
     pub election_dates: Option<StringifiedPeriodDates>,
     pub election_event_annotations: Option<HashMap<String, String>>,
     pub election_annotations: Option<HashMap<String, String>>,
+    pub area_annotations: Option<AreaAnnotations>,
 }
 
 #[derive(
@@ -1745,4 +1922,87 @@ pub struct CustomUrls {
     pub login: Option<String>,
     pub enrollment: Option<String>,
     pub saml: Option<String>,
+}
+
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub struct Weight(Option<u64>);
+
+impl Default for Weight {
+    fn default() -> Self {
+        Self { 0: Some(1) } // default weight is 1
+    }
+}
+
+impl Deref for Weight {
+    type Target = Option<u64>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+)]
+pub struct AreaAnnotations {
+    pub weight: Option<Weight>,
+}
+
+impl AreaAnnotations {
+    pub fn get_weight(&self) -> Weight {
+        self.weight.clone().unwrap_or_default()
+    }
+}
+
+impl Area {
+    pub fn read_annotations(
+        &self,
+    ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
+        let area_annotations: Option<AreaAnnotations> =
+            self.annotations.clone().map(|annotations_value| {
+                deserialize_value(annotations_value)
+                    .unwrap_or_else(|_| AreaAnnotations::default())
+            });
+        Ok(area_annotations)
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum WeightedVotingPolicy {
+    #[default]
+    #[serde(rename = "disabled-weighted-voting")]
+    DISABLED_WEIGHTED_VOTING,
+    #[serde(rename = "areas-weighted-voting")]
+    AREAS_WEIGHTED_VOTING,
 }

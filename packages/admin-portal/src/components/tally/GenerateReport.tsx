@@ -45,7 +45,8 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
         e.preventDefault()
         e.stopPropagation()
         setDocumentId(null)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        handleClose()
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let {data} = await generateTemplate({
                 variables: {

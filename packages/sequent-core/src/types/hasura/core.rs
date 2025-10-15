@@ -66,6 +66,7 @@ pub struct Area {
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub parent_id: Option<String>,
+    pub presentation: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -202,6 +203,7 @@ pub struct VotingChannels {
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+    pub early_voting: Option<bool>,
 }
 
 impl Default for VotingChannels {
@@ -211,6 +213,7 @@ impl Default for VotingChannels {
             kiosk: None,
             telephone: None,
             paper: None,
+            early_voting: None,
         }
     }
 }
