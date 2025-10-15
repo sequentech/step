@@ -211,7 +211,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     return (
         <>
             {resultsData.length ? (
-                <Box sx={{display: "flex", flexDirection: {xs: "column", lg: "row"}, gap: 4, alignItems: "flex-start"}}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: {xs: "column", lg: "row"},
+                        gap: 4,
+                        alignItems: "flex-start",
+                    }}
+                >
                     <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                         <GeneralInformationCharts
                             results={resultsData}

@@ -237,7 +237,10 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         {/* Table on the right */}
                         <Box sx={{flex: "1 1 auto", mt: 2, minWidth: 0}}>
                             <TableContainer component={Paper}>
-                                <Table sx={{minWidth: {xs: 300, sm: 650}}} aria-label="simple table">
+                                <Table
+                                    sx={{minWidth: {xs: 300, sm: 650}}}
+                                    aria-label="simple table"
+                                >
                                     <TableHead>
                                         <TableRow>
                                             <TableCell></TableCell>

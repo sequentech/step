@@ -119,7 +119,10 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
     }
 
     return (
-        <Box key={result.id} sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}>
+        <Box
+            key={result.id}
+            sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}
+        >
             <CardChart title={chartName} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
@@ -196,7 +199,10 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     }
 
     return (
-        <Box key={chartName + "-candidates"} sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}>
+        <Box
+            key={chartName + "-candidates"}
+            sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}
+        >
             <CardChart title={chartName} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
@@ -350,9 +356,19 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                                 chartName={getChartName(general?.[0].name ?? undefined)}
                             />
                         </Box>
-                        <Box sx={{flex: "1 1 auto", mt: 2, border: "1px solid #cccccc99", minWidth: 0}}>
+                        <Box
+                            sx={{
+                                flex: "1 1 auto",
+                                mt: 2,
+                                border: "1px solid #cccccc99",
+                                minWidth: 0,
+                            }}
+                        >
                             <TableContainer component={Paper}>
-                                <Table sx={{minWidth: {xs: 300, sm: 650}}} aria-label="simple table">
+                                <Table
+                                    sx={{minWidth: {xs: 300, sm: 650}}}
+                                    aria-label="simple table"
+                                >
                                     <TableHead>
                                         <TableRow>
                                             <TableCell></TableCell>
