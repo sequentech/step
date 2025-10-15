@@ -29,7 +29,7 @@ impl ECandidateStatus {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 enum BallotStatus {
     Valid,
     Exhausted,
@@ -94,71 +94,6 @@ impl BallotsStatus<'_> {
             extended_metrics,
             count_blank,
         }
-    }
-
-    /// We take into account the redristribution of votes here.
-    /// The first choice is the one which candidate is not eliminated in order of preference.
-    /// This avoids having to modify the ballots list in memory.
-    #[instrument(skip_all)]
-    fn is_first_not_eliminated_choice(
-        &self,
-        candidate_id: &str,
-        choices: &Vec<DecodedVoteChoice>,
-        candidates_status: &CandidatesStatus,
-    ) -> bool {
-        // First find the original preferece of the candidate
-        let candidate_choice = choices.iter().find(|vote| vote.id == candidate_id);
-        let preference = match candidate_choice {
-            Some(candidate_choice) if candidate_choice.selected >= 0 => candidate_choice.selected,
-            _ => return false,
-        };
-        // Check if all choices with more preference are eliminated candidates, only then it is a first choice in this round.
-        // if preference is 0 (highest) then it does not enter the loop and the fn returns true.
-        for p in 0..preference {
-            // Find the candidate id for this preference
-            let choice_candidate_id = choices
-                .iter()
-                .find(|choice| choice.selected == p)
-                .map(|choice| choice.id.clone());
-            match choice_candidate_id {
-                Some(choice_candidate_id) => {
-                    if candidates_status.is_active_candidate(&choice_candidate_id) {
-                        return false; // A non eliminated candidate is found
-                    }
-                }
-                None => return false,
-            }
-        }
-        true
-    }
-
-    #[instrument(skip_all)]
-    fn count_candidate_first_choices(
-        &self,
-        candidate_id: &str,
-        candidates_status: &CandidatesStatus,
-    ) -> u64 {
-        let wins = self
-            .ballots
-            .iter()
-            .filter_map(|(ballot_status, vote)| {
-                if *ballot_status == BallotStatus::Valid {
-                    Some(vote)
-                } else {
-                    None
-                }
-            })
-            .fold(0, |acc, vote| {
-                match self.is_first_not_eliminated_choice(
-                    candidate_id,
-                    &vote.choices,
-                    candidates_status,
-                ) {
-                    true => acc + 1,
-                    false => acc,
-                }
-            });
-        wins
     }
 }
 
@@ -257,12 +192,14 @@ impl RunoffStatus {
             .collect()
     }
 
-    /// Find single candidate to eliminate looking at the previous rounds.
+    /// Tries to reduce the candidates to eliminate by looking at the previous rounds.
+    /// Returns a list of candidates to eliminate.
+    /// When the list is reduced to 1 candidate, returns only that candidate, but if there is a tie, returns the latest reduced list.
     #[instrument(skip_all)]
     fn find_single_candidate_to_eliminate(
         &self,
         candidates_to_eliminate: &Vec<String>,
-    ) -> Option<String> {
+    ) -> Vec<String> {
         let mut round_possible_losers = candidates_to_eliminate.clone();
         for round in self.rounds.iter().rev() {
             // Get the relevant results
@@ -275,13 +212,13 @@ impl RunoffStatus {
             let min_wins = candidates_to_untie.values().min().unwrap_or(&0);
             let losers = self.filter_candidates_by_number_of_wins(&candidates_to_untie, *min_wins);
             if losers.len() == 1 {
-                return losers.first().cloned();
+                return losers;
             } else {
                 // Continue the loop back until the tie is broken
                 round_possible_losers = losers;
             }
         }
-        None
+        round_possible_losers
     }
 
     /// Returns true if the candidates were eliminated.
@@ -293,60 +230,91 @@ impl RunoffStatus {
         candidates_to_eliminate: &Vec<String>,
     ) -> bool {
         let active_count = candidates_wins.len();
-        let mut single_candidate = None;
-        if candidates_to_eliminate.is_empty() {
-            return false;
-        } else if candidates_to_eliminate.len() == 1 {
-            single_candidate = candidates_to_eliminate.first().cloned();
-        } else {
-            // Loop back case
-            // If there s a tie (more than one have least_wins) try to find the looser by the loopback rule.
-            single_candidate = self.find_single_candidate_to_eliminate(candidates_to_eliminate);
-        }
+        let reduced_list = match candidates_to_eliminate.len() {
+            0 => return false,
+            1 => candidates_to_eliminate.clone(),
+            _ => self.find_single_candidate_to_eliminate(candidates_to_eliminate), // Loop back case
+                                                                                   // If there s a tie (more than one have least_wins) try to find the looser by the loopback rule.
+        };
 
-        if let Some(candidate_id) = single_candidate {
-            self.candidates_status
-                .set_candidate_to_eliminated(&candidate_id);
-        } else if active_count == candidates_to_eliminate.len() {
+        if active_count == reduced_list.len() {
             // if all active candidates have the same wins (all to be eliminated) then there is a winner tie, so end the election and the winner will be decided by lot.
             return false;
-        } else {
-            // Simultaneous Elimination: If not found the clear looser, eliminate all the candidates with the min wins
-            for candidate_id in candidates_to_eliminate {
-                self.candidates_status
-                    .set_candidate_to_eliminated(candidate_id);
+        }
+
+        // Single or Simultaneous Elimination: At this point reduced_list should contain one or more candidates. Eliminate all the candidates with the min wins
+        for candidate_id in &reduced_list {
+            self.candidates_status
+                .set_candidate_to_eliminated(candidate_id);
+        }
+
+        return true;
+    }
+
+    /// Returns None if the ballot is Exhausted
+    /// We take into account the redristribution of votes here.
+    /// The first choice is the one which candidate is not eliminated in order of preference.
+    /// This avoids having to modify the ballots list in memory.
+    #[instrument(skip_all)]
+    fn find_first_active_choice(
+        &self,
+        choices: &Vec<DecodedVoteChoice>,
+        active_candidates: &Vec<String>,
+    ) -> Option<String> {
+        let mut choices: Vec<DecodedVoteChoice> = choices
+            .iter()
+            .filter(|choice| choice.selected >= 0)
+            .cloned()
+            .collect();
+
+        choices.sort_by(|a, b| a.selected.cmp(&b.selected));
+        for choice in choices {
+            if active_candidates.contains(&choice.id) {
+                return Some(choice.id.clone());
             }
         }
-        return true;
+        None
     }
 
     /// Returns true if the process should continue for a next round.
     /// Returns false if there is a winner or a tie was concluded.
     #[instrument(skip_all)]
     fn run_next_round(&mut self, ballots_status: &mut BallotsStatus) -> bool {
-        // TODO: Implement rounds
         let mut round = Round::default();
         let mut candidates_wins: CandidatesWins = HashMap::new();
-
         let act_candidates = self.candidates_status.get_active_candidates();
         let act_candidates_count = act_candidates.len() as u64;
-        for candidate_id in act_candidates {
-            let wins = ballots_status
-                .count_candidate_first_choices(&candidate_id, &self.candidates_status);
-            candidates_wins.insert(candidate_id.clone(), wins);
-            if wins > ballots_status.count_valid / 2 {
-                round.winner = Some(candidate_id.clone());
+        for &mut (mut ballotstatus, ballot) in ballots_status.ballots.iter_mut() {
+            let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidates);
+
+            if let Some(candidate_id) = candidate_id {
+                candidates_wins
+                    .entry(candidate_id.clone())
+                    .and_modify(|e| *e += 1)
+                    .or_insert(1);
+            } else {
+                ballotstatus = BallotStatus::Exhausted;
             }
         }
 
-        // Find the Active candidate(s) with the fewest votes
-        let least_wins = candidates_wins.values().min().unwrap_or(&0);
-        let candidates_to_eliminate: Vec<String> =
-            self.filter_candidates_by_number_of_wins(&candidates_wins, *least_wins);
+        let max_wins = candidates_wins.values().max().unwrap_or(&0);
+        if *max_wins > act_candidates_count / 2 {
+            let candidate_id_opt = self
+                .filter_candidates_by_number_of_wins(&candidates_wins, *max_wins)
+                .get(0)
+                .map(|s| s.clone());
+            round.winner = candidate_id_opt;
+        }
 
         let continue_next_round = match round.winner.is_some() {
             true => false,
-            false => self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate),
+            false => {
+                // Find the Active candidate(s) with the fewest votes
+                let least_wins = candidates_wins.values().min().unwrap_or(&0);
+                let candidates_to_eliminate: Vec<String> =
+                    self.filter_candidates_by_number_of_wins(&candidates_wins, *least_wins);
+                self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate)
+            }
         };
 
         round.active_count = act_candidates_count;
