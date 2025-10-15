@@ -140,10 +140,11 @@ impl CandidatesStatus {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct Round {
     winner: Option<String>,
     candidates_wins: CandidatesWins,
+    eliminated_candidates: Option<Vec<String>>,
     active_count: u64, // Number of active candidates when starting this round
 }
 
@@ -170,8 +171,8 @@ impl RunoffStatus {
     }
 
     #[instrument(skip_all)]
-    fn get_last_round_winner(&self) -> Option<String> {
-        self.rounds.last().and_then(|r| r.winner.clone())
+    fn get_last_round(&self) -> Option<Round> {
+        self.rounds.last().cloned()
     }
 
     fn filter_candidates_by_number_of_wins(
@@ -220,17 +221,17 @@ impl RunoffStatus {
         round_possible_losers
     }
 
-    /// Returns true if the candidates were eliminated.
-    /// Returns false if cannot do the eliminations because a tie was found.
+    /// Returns which candidates were eliminated.
+    /// Returns None if cannot do the eliminations because a tie was found.
     #[instrument(skip_all)]
     fn do_round_eliminations(
         &mut self,
         candidates_wins: &CandidatesWins,
         candidates_to_eliminate: &Vec<String>,
-    ) -> bool {
+    ) -> Option<Vec<String>> {
         let active_count = candidates_wins.len();
         let reduced_list = match candidates_to_eliminate.len() {
-            0 => return false,
+            0 => return None,
             1 => candidates_to_eliminate.clone(),
             _ => self.find_single_candidate_to_eliminate(candidates_to_eliminate), // Loop back case
                                                                                    // If there s a tie (more than one have least_wins) try to find the looser by the loopback rule.
@@ -238,7 +239,7 @@ impl RunoffStatus {
 
         if active_count == reduced_list.len() {
             // if all active candidates have the same wins (all to be eliminated) then there is a winner tie, so end the election and the winner will be decided by lot.
-            return false;
+            return None;
         }
 
         // Single or Simultaneous Elimination: At this point reduced_list should contain one or more candidates. Eliminate all the candidates with the min wins
@@ -247,7 +248,7 @@ impl RunoffStatus {
                 .set_candidate_to_eliminated(candidate_id);
         }
 
-        return true;
+        return Some(reduced_list);
     }
 
     /// Returns None if the ballot is Exhausted
@@ -314,7 +315,11 @@ impl RunoffStatus {
                 let least_wins = candidates_wins.values().min().unwrap_or(&0);
                 let candidates_to_eliminate: Vec<String> =
                     self.filter_candidates_by_number_of_wins(&candidates_wins, *least_wins);
-                self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate)
+                let eliminated_candidates =
+                    self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate);
+                let continue_next_round = eliminated_candidates.is_some();
+                round.eliminated_candidates = eliminated_candidates;
+                continue_next_round
             }
         };
 
@@ -353,7 +358,10 @@ impl CountingAlgorithm for InstantRunoff {
 
         while runoff.run_next_round(&mut ballots_status) {}
 
-        let mut vote_count: HashMap<String, u64> = HashMap::new(); // TODO: Remove left over from plurality
+        let mut vote_count: HashMap<String, u64> = HashMap::new(); // TODO: Adapt the output results to have every round information.
+        if let Some(results) = runoff.get_last_round() {
+            vote_count = results.candidates_wins;
+        }
 
         // Set percentage votes for each candidate
         // TODO: recicle code from plurality to common
