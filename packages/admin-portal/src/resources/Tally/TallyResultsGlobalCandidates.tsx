@@ -120,7 +120,7 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
 
     return (
         <Box key={result.id} sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}>
-            <CardChart title={chartName}>
+            <CardChart title={chartName} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}
@@ -197,7 +197,7 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
 
     return (
         <Box key={chartName + "-candidates"} sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}>
-            <CardChart title={chartName}>
+            <CardChart title={chartName} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}

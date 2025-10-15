@@ -112,7 +112,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                 maxWidth: {xs: "100%", lg: 450},
             }}
         >
-            <CardChart title={result.name}>
+            <CardChart title={result.name} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}
