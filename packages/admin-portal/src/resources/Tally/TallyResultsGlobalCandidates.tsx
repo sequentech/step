@@ -119,13 +119,13 @@ export const ParticipationSummaryChart: React.FC<ParticipationSummaryChartProps>
     }
 
     return (
-        <Box key={result.id} sx={{mb: 2, border: "1px solid #cccccc99"}}>
+        <Box key={result.id} sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}>
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}
                     type="pie"
-                    width={400}
+                    width="100%"
                     height={300}
                 />
             </CardChart>
@@ -196,13 +196,13 @@ export const CandidatesResultsCharts: React.FC<CandidatesResultsChartsProps> = (
     }
 
     return (
-        <Box key={chartName + "-candidates"} sx={{mb: 2, border: "1px solid #cccccc99"}}>
+        <Box key={chartName + "-candidates"} sx={{mb: 2, border: "1px solid #cccccc99", maxWidth: {xs: "100%", md: 450}}}>
             <CardChart title={chartName}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}
                     type="pie"
-                    width={400}
+                    width="100%"
                     height={300}
                 />
             </CardChart>
@@ -339,20 +339,20 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     <Box
                         sx={{
                             display: "flex",
-                            flexDirection: "row",
+                            flexDirection: {xs: "column", lg: "row"},
                             gap: 4,
                             alignItems: "flex-start",
                         }}
                     >
-                        <Box sx={{flex: "0 0 auto", mt: 2}}>
+                        <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                             <ParticipationSummaryChart
                                 result={general?.[0]}
                                 chartName={getChartName(general?.[0].name ?? undefined)}
                             />
                         </Box>
-                        <Box sx={{flex: "1 1 auto", mt: 2, border: "1px solid #cccccc99"}}>
+                        <Box sx={{flex: "1 1 auto", mt: 2, border: "1px solid #cccccc99", minWidth: 0}}>
                             <TableContainer component={Paper}>
-                                <Table sx={{minWidth: 650}} aria-label="simple table">
+                                <Table sx={{minWidth: {xs: 300, sm: 650}}} aria-label="simple table">
                                     <TableHead>
                                         <TableRow>
                                             <TableCell></TableCell>
@@ -520,18 +520,18 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     <Box
                         sx={{
                             display: "flex",
-                            flexDirection: "row",
+                            flexDirection: {xs: "column", lg: "row"},
                             gap: 4,
                             alignItems: "flex-start",
                         }}
                     >
-                        <Box sx={{flex: "0 0 auto", mt: 2}}>
+                        <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                             <CandidatesResultsCharts
                                 results={orderedResultsData}
                                 chartName={getChartName(general?.[0].name ?? undefined)}
                             />
                         </Box>
-                        <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2}}>
+                        <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}>
                             <DataGrid
                                 sx={{mt: 0}}
                                 rows={orderedResultsData}

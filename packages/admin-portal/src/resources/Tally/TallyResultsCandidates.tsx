@@ -222,22 +222,22 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     <Box
                         sx={{
                             display: "flex",
-                            flexDirection: "row",
+                            flexDirection: {xs: "column", lg: "row"},
                             gap: 4,
                             alignItems: "flex-start",
                         }}
                     >
                         {/* Chart on the left */}
-                        <Box sx={{flex: "0 0 auto", mt: 2}}>
+                        <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                             <ParticipationSummaryChart
                                 result={general?.[0]}
                                 chartName={getChartName()}
                             />
                         </Box>
                         {/* Table on the right */}
-                        <Box sx={{flex: "1 1 auto", mt: 2}}>
+                        <Box sx={{flex: "1 1 auto", mt: 2, minWidth: 0}}>
                             <TableContainer component={Paper}>
-                                <Table sx={{minWidth: 650}} aria-label="simple table">
+                                <Table sx={{minWidth: {xs: 300, sm: 650}}} aria-label="simple table">
                                     <TableHead>
                                         <TableRow>
                                             <TableCell></TableCell>
@@ -422,18 +422,18 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     <Box
                         sx={{
                             display: "flex",
-                            flexDirection: "row",
+                            flexDirection: {xs: "column", lg: "row"},
                             gap: 4,
                             alignItems: "flex-start",
                         }}
                     >
-                        <Box sx={{flex: "0 0 auto", mt: 2}}>
+                        <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                             <CandidatesResultsCharts
                                 results={orderedResultsData as Sequent_Backend_Candidate_Extended[]}
                                 chartName={getChartName()}
                             />
                         </Box>
-                        <Box sx={{flex: "1 1 auto", mt: 2}}>
+                        <Box sx={{flex: "1 1 auto", mt: 2, minWidth: 0}}>
                             <DataGrid
                                 sx={{mt: 0}}
                                 rows={orderedResultsData}

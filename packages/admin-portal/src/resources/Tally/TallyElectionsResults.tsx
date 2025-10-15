@@ -109,6 +109,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                 alignItems: "center",
                 mb: 2,
                 border: "1px solid #cccccc99",
+                maxWidth: {xs: "100%", lg: 450},
             }}
         >
             <CardChart title={result.name}>
@@ -116,7 +117,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                     options={chartOptions.options}
                     series={chartOptions.series}
                     type="pie"
-                    width={400}
+                    width="100%"
                     height={300}
                 />
             </CardChart>
@@ -210,14 +211,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     return (
         <>
             {resultsData.length ? (
-                <Box sx={{display: "flex", flexDirection: "row", gap: 4, alignItems: "flex-start"}}>
-                    <Box sx={{flex: "0 0 auto", mt: 2}}>
+                <Box sx={{display: "flex", flexDirection: {xs: "column", lg: "row"}, gap: 4, alignItems: "flex-start"}}>
+                    <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                         <GeneralInformationCharts
                             results={resultsData}
                             selectedElectionId={selectedElectionId || undefined}
                         />
                     </Box>
-                    <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2}}>
+                    <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}>
                         <DataGrid
                             sx={{
                                 "mt": 0,
