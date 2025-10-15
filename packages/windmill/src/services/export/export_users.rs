@@ -109,7 +109,7 @@ fn get_headers(
     .concat()
 }
 
-#[instrument]
+#[instrument(skip(elections, areas_by_id, user_attributes))]
 fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
     areas_by_id: &Option<HashMap<String, String>>,
