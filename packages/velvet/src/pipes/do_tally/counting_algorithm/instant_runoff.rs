@@ -9,7 +9,6 @@ use crate::pipes::do_tally::{
 };
 use sequent_core::ballot::{self, Candidate, Contest};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextErrorType};
-use sequent_core::sqlite::candidate;
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -284,16 +283,18 @@ impl RunoffStatus {
         let mut candidates_wins: CandidatesWins = HashMap::new();
         let act_candidates = self.candidates_status.get_active_candidates();
         let act_candidates_count = act_candidates.len() as u64;
-        for &mut (mut ballotstatus, ballot) in ballots_status.ballots.iter_mut() {
+        for (ballot_st, ballot) in ballots_status.ballots.iter_mut() {
+            if *ballot_st == BallotStatus::Exhausted {
+                continue;
+            }
             let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidates);
-
             if let Some(candidate_id) = candidate_id {
                 candidates_wins
                     .entry(candidate_id.clone())
                     .and_modify(|e| *e += 1)
                     .or_insert(1);
             } else {
-                ballotstatus = BallotStatus::Exhausted;
+                *ballot_st = BallotStatus::Exhausted;
             }
         }
 
@@ -301,8 +302,8 @@ impl RunoffStatus {
         if *max_wins > act_candidates_count / 2 {
             let candidate_id_opt = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, *max_wins)
-                .get(0)
-                .map(|s| s.clone());
+                .first()
+                .cloned();
             round.winner = candidate_id_opt;
         }
 
@@ -319,8 +320,8 @@ impl RunoffStatus {
 
         round.active_count = act_candidates_count;
         round.candidates_wins = candidates_wins;
-        self.round_count += 1;
         self.rounds.push(round);
+        self.round_count += 1;
         return continue_next_round;
     }
 }
