@@ -1627,6 +1627,13 @@ const dutchTranslation: TranslationType = {
                 winning_position: "Winnende positie",
                 weight: "Gewicht",
             },
+            chart: {
+                votesForCandidates: "Stemmen voor Kandidaten",
+                blankVotes: "Blanco Stemmen",
+                invalidVotes: "Ongeldige Stemmen",
+                totalVoters: "Totaal Kiezers",
+                nonVoters: "Niet-kiezers",
+            },
         },
         publish: {
             preview: {

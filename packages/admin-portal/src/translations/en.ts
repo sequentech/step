@@ -1618,6 +1618,13 @@ const englishTranslation = {
                 winning_position: "Winning position",
                 weight: "Weight",
             },
+            chart: {
+                votesForCandidates: "Votes For Candidates",
+                blankVotes: "Blank Votes",
+                invalidVotes: "Invalid Votes",
+                totalVoters: "Total Voters",
+                nonVoters: "Non Voters",
+            },
         },
         publish: {
             preview: {

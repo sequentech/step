@@ -141,3 +141,10 @@ to each area. Tally results will then be calculated based on these weights,
 which are taken from the ballot style of each area defined at publication.
 
 - Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
+
+## ✨ Electoral results charts/visualization
+
+Added Charts in the Admin Portal's Tally Results below the data tables to display
+ the General Information, Participation Results and Candidate Results.
+
+- Issue: [#7531](https://github.com/sequentech/meta/issues/7531)
