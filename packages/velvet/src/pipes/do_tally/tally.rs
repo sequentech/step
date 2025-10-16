@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAlgorithm};
+use super::counting_algorithm::{
+    instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge, CountingAlgorithm,
+};
 use super::error::{Error, Result};
 use super::{CandidateResult, ContestResult, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
@@ -182,10 +184,8 @@ pub fn create_tally(
         tally_sheet_results,
     )?;
 
-    let counting_algorithm = match tally.id {
-        TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),
-        TallyType::InstantRunoff => unimplemented!("InstantRunoff not implemented yet"),
-    };
-
-    Ok(Box::new(counting_algorithm))
+    match tally.id {
+        TallyType::PluralityAtLarge => Ok(Box::new(PluralityAtLarge::new(tally))),
+        TallyType::InstantRunoff => Ok(Box::new(InstantRunoff::new(tally))),
+    }
 }
