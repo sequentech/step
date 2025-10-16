@@ -2,19 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
     counting_algorithm::common::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
+use rand::thread_rng;
+use rand::Rng;
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use tracing::{info, instrument};
-
-use super::Result;
 
 #[derive(PartialEq, Debug)]
 pub enum ECandidateStatus {
@@ -135,10 +136,10 @@ impl CandidatesStatus {
 
 #[derive(Default, Debug, Clone)]
 pub struct Round {
-    winner: Option<String>,
-    candidates_wins: CandidatesWins,
-    eliminated_candidates: Option<Vec<String>>,
-    active_count: u64, // Number of active candidates when starting this round
+    pub winner: Option<String>,
+    pub candidates_wins: CandidatesWins,
+    pub eliminated_candidates: Option<String>,
+    pub active_count: u64, // Number of active candidates when starting this round
 }
 
 #[derive(Default, Debug)]
@@ -186,11 +187,11 @@ impl RunoffStatus {
             .collect()
     }
 
-    /// Tries to reduce the candidates to eliminate by looking at the previous rounds.
+    /// Tries to reduce the candidates to eliminate by the look back rule.
     /// Returns a list of candidates to eliminate.
     /// When the list is reduced to 1 candidate, returns only that candidate, but if there is a tie, returns the latest reduced list.
     #[instrument(skip_all)]
-    fn find_single_candidate_to_eliminate(
+    pub fn find_single_candidate_to_eliminate(
         &self,
         candidates_to_eliminate: &Vec<String>,
     ) -> Vec<String> {
@@ -218,11 +219,11 @@ impl RunoffStatus {
     /// Returns which candidates were eliminated.
     /// Returns None if cannot do the eliminations because a tie was found.
     #[instrument(skip_all)]
-    fn do_round_eliminations(
+    pub fn do_round_eliminations(
         &mut self,
         candidates_wins: &CandidatesWins,
         candidates_to_eliminate: &Vec<String>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<String> {
         let active_count = candidates_wins.len();
         let reduced_list = match candidates_to_eliminate.len() {
             0 => return None,
@@ -234,20 +235,27 @@ impl RunoffStatus {
         if active_count == reduced_list.len() {
             // if all active candidates have the same wins (all to be eliminated) then there is a winner tie, so end the election and the winner will be decided by lot.
             return None;
-        }
-
-        // Single or Simultaneous Elimination: At this point reduced_list should contain one or more candidates. Eliminate all the candidates with the min wins
-        for candidate_id in &reduced_list {
+        } else if reduced_list.len() == 1 {
+            // If there is only one candidate left, eliminate it.
             self.candidates_status
-                .set_candidate_to_eliminated(candidate_id);
+                .set_candidate_to_eliminated(&reduced_list[0]);
+            return Some(reduced_list[0].clone());
+        } else {
+            // Simultaneous Elimination can create corner cases where a winner is decided unfairly.
+            // So then we need to do a random elimination.
+            // Note: Some systems can do simultaneous elimination when it is mathematically safe,
+            // this is if the distance to the next more voted candidate is big enough.
+            let random_index = thread_rng().gen_range(0..reduced_list.len());
+            let candidate_id = reduced_list[random_index].clone();
+            self.candidates_status
+                .set_candidate_to_eliminated(&candidate_id);
+            return Some(candidate_id);
         }
-
-        return Some(reduced_list);
     }
 
-    /// Returns None if the ballot is Exhausted
-    /// We take into account the redristribution of votes here.
-    /// The first choice is the one which candidate is not eliminated in order of preference.
+    /// Returns None if the ballot is Exhausted.
+    /// We take into account the redristribution of votes here...
+    /// The first choice is the first not eliminated candidate_id in order of preference.
     /// This avoids having to modify the ballots list in memory.
     #[instrument(skip_all)]
     pub fn find_first_active_choice(
