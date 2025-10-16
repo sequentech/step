@@ -7,6 +7,12 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Can't export voters list
+
+In specific cases of Election Events with hundreds of areas and elections and
+millions of voters, exporting voters failed because of an issue with logging
+a specific function.
+
 ## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
 Within the `Results & Participation` section of the Tally tab of the Admin
