@@ -117,13 +117,6 @@ impl DerefMut for CandidatesStatus {
 
 impl CandidatesStatus {
     #[instrument(skip_all)]
-    fn is_active_candidate(&self, candidate_id: &str) -> bool {
-        self.get(candidate_id)
-            .map(|candidate_status| candidate_status.is_active())
-            .unwrap_or(false)
-    }
-
-    #[instrument(skip_all)]
     fn get_active_candidates(&self) -> Vec<String> {
         let mut active_candidates: Vec<String> = Vec::new();
         for (candidate_id, candidate_status) in &self.0 {
@@ -175,7 +168,8 @@ impl RunoffStatus {
         self.rounds.last().cloned()
     }
 
-    fn filter_candidates_by_number_of_wins(
+    #[instrument(skip_all)]
+    pub fn filter_candidates_by_number_of_wins(
         &self,
         candidates_wins: &CandidatesWins,
         n: u64,
