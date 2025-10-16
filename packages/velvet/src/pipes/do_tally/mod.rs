@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-mod counting_algorithm;
+pub mod counting_algorithm;
 mod error;
 pub mod tally;
 

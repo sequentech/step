@@ -17,7 +17,7 @@ use tracing::{info, instrument};
 use super::Result;
 
 #[derive(PartialEq, Debug)]
-enum ECandidateStatus {
+pub enum ECandidateStatus {
     Active,
     Eliminated,
 }
@@ -100,7 +100,7 @@ impl BallotsStatus<'_> {
 type CandidatesWins = HashMap<String, u64>;
 
 #[derive(Debug, Default)]
-struct CandidatesStatus(HashMap<String, ECandidateStatus>);
+pub struct CandidatesStatus(pub HashMap<String, ECandidateStatus>);
 
 impl Deref for CandidatesStatus {
     type Target = HashMap<String, ECandidateStatus>;
@@ -141,7 +141,7 @@ impl CandidatesStatus {
 }
 
 #[derive(Default, Debug, Clone)]
-struct Round {
+pub struct Round {
     winner: Option<String>,
     candidates_wins: CandidatesWins,
     eliminated_candidates: Option<Vec<String>>,
@@ -149,10 +149,10 @@ struct Round {
 }
 
 #[derive(Default, Debug)]
-struct RunoffStatus {
-    candidates_status: CandidatesStatus,
-    round_count: u64,
-    rounds: Vec<Round>,
+pub struct RunoffStatus {
+    pub candidates_status: CandidatesStatus,
+    pub round_count: u64,
+    pub rounds: Vec<Round>,
 }
 
 impl RunoffStatus {
@@ -256,7 +256,7 @@ impl RunoffStatus {
     /// The first choice is the one which candidate is not eliminated in order of preference.
     /// This avoids having to modify the ballots list in memory.
     #[instrument(skip_all)]
-    fn find_first_active_choice(
+    pub fn find_first_active_choice(
         &self,
         choices: &Vec<DecodedVoteChoice>,
         active_candidates: &Vec<String>,
