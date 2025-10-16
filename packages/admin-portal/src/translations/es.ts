@@ -349,6 +349,13 @@ const spanishTranslation: TranslationType = {
                         "manual-ceremonies": "Ceremonias manuales",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votación Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -1621,7 +1628,15 @@ const spanishTranslation: TranslationType = {
                 blank_votes: "Votos en blanco",
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
-                winning_position: "Winning position",
+                winning_position: "Posición ganadora",
+                weight: "Peso",
+            },
+            chart: {
+                votesForCandidates: "Votos por Candidatos",
+                blankVotes: "Votos en Blanco",
+                invalidVotes: "Votos Inválidos",
+                totalVoters: "Total de Votantes",
+                nonVoters: "No Votantes",
             },
         },
         publish: {

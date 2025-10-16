@@ -54,6 +54,7 @@ import {
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
+    EElectionEventWeightedVotingPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -637,6 +638,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const weightedVotingPolicyOptions = () => {
+        return Object.values(EElectionEventWeightedVotingPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.weightedVotingPolicy.options.${value}`),
+        }))
+    }
+
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
     const updateCustomFilters = (
@@ -661,8 +669,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             otp: event.target.value,
         }))
     }
-
-    console.log("ceremonyPolicyOptions: ", ceremonyPolicyOptions())
 
     return (
         <>
@@ -1158,6 +1164,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         )}
                                         defaultValue={
                                             EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
+                                        }
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                    <SelectInput
+                                        source={"presentation.weighted_voting_policy"}
+                                        choices={weightedVotingPolicyOptions()}
+                                        label={"Weighted Voting Policy"}
+                                        defaultValue={
+                                            EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
                                         }
                                         emptyText={undefined}
                                         validate={required()}

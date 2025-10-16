@@ -37,6 +37,7 @@ import {UPSERT_AREAS} from "@/queries/UpsertAreas"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useAreaPermissions} from "./useAreaPermissions"
 import {UpsertArea} from "./UpsertArea"
+import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -83,11 +84,14 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         canReadArea,
         canDeleteArea,
         canImportArea,
-        canExportArea,
         canUpsertArea,
         showAreaColumns,
         showAreaFilters,
     } = useAreaPermissions()
+
+    const weightedVotingForAreas =
+        record?.presentation?.weighted_voting_policy ===
+        EElectionEventWeightedVotingPolicy.AREAS_WEIGHTED_VOTING
 
     const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS, {
         context: {
@@ -259,6 +263,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                             record={record}
                                             electionEventId={id}
                                             close={handleCloseCreateDrawer}
+                                            weightedVotingForAreas={weightedVotingForAreas}
                                         />
                                     }
                                     withComponent={canCreateArea}
@@ -297,7 +302,9 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                     label={t("areas.sequent_backend_area_contest")}
                                     render={(record: any) => <AreaContestItems record={record} />}
                                 />
-
+                                {weightedVotingForAreas && (
+                                    <TextField source="annotations.weight" label="Weight" />
+                                )}
                                 <WrapperField source="actions" label="Actions">
                                     <ActionsColumn actions={actions} />
                                 </WrapperField>
@@ -319,6 +326,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     id={recordId}
                     electionEventId={id}
                     close={handleCloseEditDrawer}
+                    weightedVotingForAreas={weightedVotingForAreas}
                 />
             </Drawer>
             <Drawer
@@ -329,7 +337,12 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <UpsertArea record={record} electionEventId={id} close={handleCloseCreateDrawer} />
+                <UpsertArea
+                    record={record}
+                    electionEventId={id}
+                    close={handleCloseCreateDrawer}
+                    weightedVotingForAreas={weightedVotingForAreas}
+                />
             </Drawer>
             <Dialog
                 variant="warning"

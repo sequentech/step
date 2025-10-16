@@ -108,3 +108,6 @@ Configure advanced system behaviors for this Election Event.
   - Configure the countdown warning and logout alert thresholds.
 - **Keys/Tally Ceremonies Policy**:
   - Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.
+- **Weighted Voting Policy**:
+  - **Weighted Voting for Areas**: Enable weighted voting for areas.
+  - **Disabled Weighted Voting**: Disable weighted voting.

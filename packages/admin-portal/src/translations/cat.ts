@@ -349,6 +349,13 @@ const catalanTranslation: TranslationType = {
                         "manual-ceremonies": "Cerimònies manuals",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votació Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votació Ponderada per Àrees",
+                        "disabled-weighted-voting": "Votació Ponderada Desactivada",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
@@ -1632,6 +1639,14 @@ const catalanTranslation: TranslationType = {
                 blank_votes_percent: "Percentatge de vots en blanc",
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
+                weight: "Pes",
+            },
+            chart: {
+                votesForCandidates: "Vots per Candidats",
+                blankVotes: "Vots en Blanc",
+                invalidVotes: "Vots Invàlids",
+                totalVoters: "Total de Votants",
+                nonVoters: "No Votants",
             },
         },
         publish: {

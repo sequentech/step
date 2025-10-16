@@ -7,8 +7,8 @@ use crate::pipes::do_tally::{
     counting_algorithm::common::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
-use sequent_core::ballot::{self, Candidate, Contest};
-use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextErrorType};
+use sequent_core::ballot::{Candidate, Contest, Weight};
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -50,7 +50,7 @@ impl BallotsStatus<'_> {
     /// Set the metrics and counts.
     #[instrument(skip_all)]
     fn initialize_statuses<'a>(
-        votes: &'a Vec<DecodedVoteContest>,
+        votes: &'a Vec<(DecodedVoteContest, Weight)>,
         contest: &Contest,
     ) -> BallotsStatus<'a> {
         let mut count_invalid_votes = InvalidVotes {
@@ -61,7 +61,7 @@ impl BallotsStatus<'_> {
         let mut extended_metrics = ExtendedMetricsContest::default();
         let mut ballots = Vec::with_capacity(votes.len());
 
-        for vote in votes {
+        for (vote, _) in votes {
             let status = match (vote.is_invalid(), vote.is_blank()) {
                 (true, _) => {
                     if vote.is_explicit_invalid {
@@ -346,7 +346,7 @@ impl CountingAlgorithm for InstantRunoff {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest = &self.tally.contest;
-        let votes: &Vec<DecodedVoteContest> = &self.tally.ballots;
+        let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
 
         let mut ballots_status = BallotsStatus::initialize_statuses(votes, contest);
         let count_blank = ballots_status.count_blank;

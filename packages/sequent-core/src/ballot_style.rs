@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, AreaPresentation, CandidatePresentation, ContestPresentation,
-    ElectionEventPresentation, ElectionPresentation, I18nContent,
-    StringifiedPeriodDates,
+    self, AreaAnnotations, AreaPresentation, CandidatePresentation,
+    ContestPresentation, ElectionEventPresentation, ElectionPresentation,
+    I18nContent, StringifiedPeriodDates, WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core as hasura_types;
+use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::env;
@@ -101,14 +101,28 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    let area_presentation: AreaPresentation = match area.presentation {
-        Some(presentation) => {
+    let event_weighted_voting_policy: WeightedVotingPolicy =
+        election_event_presentation
+            .weighted_voting_policy
+            .clone()
+            .unwrap_or(WeightedVotingPolicy::default());
+
+    let mut area_annotations: Option<AreaAnnotations> = None;
+    if event_weighted_voting_policy
+        == WeightedVotingPolicy::AREAS_WEIGHTED_VOTING
+    {
+        area_annotations = area.clone().read_annotations()?;
+    }
+    let area_presentation: AreaPresentation = area
+        .presentation
+        .clone()
+        .map(|presentation| {
             deserialize_value(presentation).map_err(|err| {
                 anyhow!("Error parsing area presentation: {}", err)
-            })?
-        }
-        None => AreaPresentation::default(),
-    };
+            })
+        })
+        .transpose()?
+        .unwrap_or_default();
 
     Ok(ballot::BallotStyle {
         id,
@@ -136,6 +150,7 @@ pub fn create_ballot_style(
         election_dates: Some(election_dates),
         election_event_annotations: Some(election_event_annotations),
         election_annotations: Some(election_annotations),
+        area_annotations,
     })
 }
 

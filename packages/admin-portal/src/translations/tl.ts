@@ -348,6 +348,13 @@ const tagalogTranslation: TranslationType = {
                         "manual-ceremonies": "Mga Manu-manong Seremonya",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Patakaran sa Timbang na Pagboto",
+                    options: {
+                        "areas-weighted-voting": "Timbang na Pagboto ayon sa mga Lugar",
+                        "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",
@@ -1624,7 +1631,15 @@ const tagalogTranslation: TranslationType = {
                 blank_votes: "Mga botong walang laman",
                 blank_votes_percent: "Porsyento ng mga botong walang laman",
                 number_of_votes: "Bilang ng mga boto",
-                winning_position: "Winning position",
+                winning_position: "Panalong posisyon",
+                weight: "Timbang",
+            },
+            chart: {
+                votesForCandidates: "Mga Boto para sa mga Kandidato",
+                blankVotes: "Mga Blankong Boto",
+                invalidVotes: "Mga Hindi Wastong Boto",
+                totalVoters: "Kabuuang mga Botante",
+                nonVoters: "Hindi Bumoto",
             },
         },
         publish: {

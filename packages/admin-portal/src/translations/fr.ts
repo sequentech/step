@@ -349,6 +349,13 @@ const frenchTranslation: TranslationType = {
                         "manual-ceremonies": "Cérémonies manuelles",
                     },
                 },
+                weightedVotingPolicy: {
+                    policyLabel: "Politique de Vote Pondéré",
+                    options: {
+                        "areas-weighted-voting": "Vote Pondéré par Zones",
+                        "disabled-weighted-voting": "Vote Pondéré Désactivé",
+                    },
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -1634,6 +1641,14 @@ const frenchTranslation: TranslationType = {
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
+                weight: "Poids",
+            },
+            chart: {
+                votesForCandidates: "Votes pour les Candidats",
+                blankVotes: "Votes Blancs",
+                invalidVotes: "Votes Invalides",
+                totalVoters: "Total des Électeurs",
+                nonVoters: "Non-Électeurs",
             },
         },
         publish: {
