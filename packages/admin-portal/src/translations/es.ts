@@ -1661,8 +1661,15 @@ const spanishTranslation: TranslationType = {
                 blank_votes: "Votos en blanco",
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
-                winning_position: "Winning position",
+                winning_position: "Posición ganadora",
                 weight: "Peso",
+            },
+            chart: {
+                votesForCandidates: "Votos por Candidatos",
+                blankVotes: "Votos en Blanco",
+                invalidVotes: "Votos Inválidos",
+                totalVoters: "Total de Votantes",
+                nonVoters: "No Votantes",
             },
         },
         publish: {

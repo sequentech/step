@@ -16,6 +16,12 @@ Document on how to create credentials added to docusaurus in Admin Portal Tutori
 
 - Issue: [#8189](https://github.com/sequentech/meta/issues/8189)
 
+## 🐞 Can't export voters list
+
+In specific cases of Election Events with hundreds of areas and elections and
+millions of voters, exporting voters failed because of an issue with logging
+a specific function.
+
 ## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
 Within the `Results & Participation` section of the Tally tab of the Admin
@@ -150,3 +156,10 @@ to each area. Tally results will then be calculated based on these weights,
 which are taken from the ballot style of each area defined at publication.
 
 - Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
+
+## ✨ Electoral results charts/visualization
+
+Added Charts in the Admin Portal's Tally Results below the data tables to display
+ the General Information, Participation Results and Candidate Results.
+
+- Issue: [#7531](https://github.com/sequentech/meta/issues/7531)

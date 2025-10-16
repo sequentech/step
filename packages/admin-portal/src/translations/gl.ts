@@ -1664,6 +1664,13 @@ const galegoTranslation: TranslationType = {
                 winning_position: "Posición Gañadora",
                 weight: "Peso",
             },
+            chart: {
+                votesForCandidates: "Votos polos Candidatos",
+                blankVotes: "Votos en Branco",
+                invalidVotes: "Votos Inválidos",
+                totalVoters: "Total de Votantes",
+                nonVoters: "Non Votantes",
+            },
         },
         publish: {
             preview: {

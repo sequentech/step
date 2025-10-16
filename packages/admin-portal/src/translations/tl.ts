@@ -1663,8 +1663,15 @@ const tagalogTranslation: TranslationType = {
                 blank_votes: "Mga botong walang laman",
                 blank_votes_percent: "Porsyento ng mga botong walang laman",
                 number_of_votes: "Bilang ng mga boto",
-                winning_position: "Winning position",
+                winning_position: "Panalong posisyon",
                 weight: "Timbang",
+            },
+            chart: {
+                votesForCandidates: "Mga Boto para sa mga Kandidato",
+                blankVotes: "Mga Blankong Boto",
+                invalidVotes: "Mga Hindi Wastong Boto",
+                totalVoters: "Kabuuang mga Botante",
+                nonVoters: "Hindi Bumoto",
             },
         },
         publish: {

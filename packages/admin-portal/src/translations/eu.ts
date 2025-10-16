@@ -1658,6 +1658,13 @@ const basqueTranslation: TranslationType = {
                 winning_position: "Irabazle posizioa",
                 weight: "Pisua",
             },
+            chart: {
+                votesForCandidates: "Hautagaientzako Botoak",
+                blankVotes: "Boto Zuriak",
+                invalidVotes: "Boto Baliogabeak",
+                totalVoters: "Bozkatzaile Guztiak",
+                nonVoters: "Ez-bozkatzaileak",
+            },
         },
         publish: {
             preview: {
