@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use core::convert::Into;
-use std::fs;
+use std::{collections::HashMap, env, fs, hash::Hash};
 
 use crate::{
     bindings::plugins_manager::{
@@ -46,6 +46,7 @@ use sequent_core::{
     },
     util::date_time::PHILIPPINO_TIMEZONE,
 };
+use serde_json::Value;
 use tracing::instrument;
 use wit_bindgen_rt::async_support::futures::TryFutureExt;
 
@@ -66,61 +67,96 @@ use tar::{Archive, Entries};
 use uuid::Uuid;
 
 pub fn decompress_file(input_file_name: &str) -> Result<(String, PathBuf), String> {
+    // --- Setup and File Open ---
     let dir_base_path = get_plugin_shared_dir(&Plugins::MIRU);
     let unique_dir_name = format!("temp-{}", Uuid::new_v4());
-    let temp_dir_path = Path::new(&dir_base_path).join(&unique_dir_name);
+    let temp_dir_path = PathBuf::from(&dir_base_path).join(&unique_dir_name);
     fs::create_dir_all(&temp_dir_path)
         .map_err(|e| format!("Failed to create temporary directory: {}", e))?;
-    let output_path = temp_dir_path.as_path();
-    println!("Created temporary directory at: {}", output_path.display());
+
+    // let temp_dir_path_buf = temp_dir.path().to_path_buf();
+
+    // let output_path = temp_dir_path.as_path();
+    // println!("[Guest Plugin] Created temporary directory at: {}", output_path.display());
 
     let input_dir = PathBuf::from(&dir_base_path);
     let input_path = input_dir.join(input_file_name);
     let file = File::open(&input_path).map_err(|e| e.to_string())?;
 
-    let dec = GzDecoder::new(file);
-    let mut archive: Archive<GzDecoder<std::fs::File>> = Archive::new(dec);
+    println!(
+        "[Guest Plugin] Opened file for decompression: {:?}",
+        file.metadata()
+    );
 
-    let output_path = temp_dir_path.clone(); // Clone the PathBuf
+    println!("[Guest Plugin] Starting to decompress archive into directory...");
 
-    for entry_result in archive
-        .entries()
-        .map_err(|e| format!("Error getting archive entries: {}", e))?
-    {
-        let mut entry = entry_result.map_err(|e| format!("Error reading archive entry: {}", e))?;
+    // let output_path = temp_dir_path.clone(); // Clone the PathBuf
 
-        // Get the entry's path and join it with your output directory.
-        // The tar crate returns a clean, relative path for the entry.
-        let entry_path = entry.path().map_err(|e| e.to_string())?;
-        let full_path = output_path.join(&entry_path);
+    println!("[Guest Plugin] use new method to decompress");
 
-        // Get the entry's header to check if it's a file or directory
-        let header = entry.header();
-        let file_type = header.entry_type();
+    let mut archive = Archive::new(file); // Archive takes ownership of file
 
-        if file_type.is_dir() {
-            // Create the directory
-            fs::create_dir_all(&full_path)
-                .map_err(|e| format!("Failed to create directory: {}", e))?;
-        } else if file_type.is_file() {
-            // Create parent directories if they don't exist
-            if let Some(parent) = full_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create parent directories: {}", e))?;
+    let entries = archive.entries().map_err(|e| {
+        println!("[Guest Plugin] Error reading archive entries: {}", e);
+        format!("Error reading archive entries: {}", e)
+    })?;
+
+    for entry_result in entries {
+        let mut entry = entry_result.map_err(|e| {
+            println!("[Guest Plugin Error] Error reading next entry: {}", e);
+            format!("Error reading next entry: {}", e)
+        })?;
+
+        // Use the entry header path for the destination file/directory name
+        let entry_path = entry.path().map_err(|e| {
+            println!(
+                "[Guest Plugin Error] Error extracting path from tar entry: {}",
+                e
+            );
+            format!("Error extracting path from tar entry: {}", e)
+        })?;
+
+        // Construct the full path within the destination directory.
+        // The previously selected line `let temp_dir_path = base_path.join(&unique_dir_name);`
+        // ensures `dest_dir_path` is a clean, unique base, making this join safe.
+        let file_path = temp_dir_path.join(&entry_path);
+
+        if entry.header().entry_type().is_dir() {
+            // Manually create directories.
+            fs::create_dir_all(&file_path)
+                .map_err(|e| format!("Failed to create directory {:?}: {}", file_path, e))?;
+        } else if entry.header().entry_type().is_file() {
+            // Ensure parent directories exist before writing the file.
+            if let Some(parent) = file_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| {
+                    format!("Failed to create parent directory {:?}: {}", parent, e)
+                })?;
             }
 
-            // Create the file and copy the contents
-            let mut file = fs::File::create(&full_path)
-                .map_err(|e| format!("Failed to create file: {}", e))?;
-            std::io::copy(&mut entry, &mut file)
-                .map_err(|e| format!("Failed to copy file contents: {}", e))?;
-        } else {
-            println!("Skipping unsupported entry type: {:?}", file_type);
+            // Copy the file contents, ignoring complex metadata and permissions.
+            let mut dest_file = File::create(&file_path).map_err(|e| {
+                format!(
+                    "[Guest Plugin Error] Failed to create file {:?}: {}",
+                    file_path, e
+                )
+            })?;
+
+            io::copy(&mut entry, &mut dest_file).map_err(|e| {
+                format!(
+                    "[Guest Plugin Error] Failed to copy data for file {:?}: {}",
+                    file_path, e
+                )
+            })?;
         }
+        // Symlinks and hard links are ignored as they often fail in Wasm/WASI sandboxes.
     }
+
+    println!(
+        "Decompressed file to temporary directory at: {}",
+        temp_dir_path.display()
+    );
     Ok((unique_dir_name, temp_dir_path))
 }
-
 fn list_all_temp_files_directly(dir: &PathBuf) -> Result<(), String> {
     println!(
         "[Guest Plugin] Listing all files recursively in directory: {:?}",
@@ -163,7 +199,6 @@ fn list_all_temp_files_directly(dir: &PathBuf) -> Result<(), String> {
         }
     }
 
-    println!("[Guest Plugin] Listed files directly: {:?}", file_names);
     Ok(())
 }
 
@@ -232,22 +267,63 @@ pub fn create_transmission_package_service(
     let election_event_json = get_election_event_by_election_area(tenant_id, election_id, area_id)
         .map_err(|e| e.to_string())?;
 
-    let election_event: ElectionEvent =
-        deserialize_str::<ElectionEvent>(&election_event_json).map_err(|e| e.to_string())?;
+    let election_event: ElectionEvent = deserialize_str::<ElectionEvent>(&election_event_json)
+        .map_err(|e| {
+            println!(
+                "[Guest Plugin Error] Failed to deserialize ElectionEvent: {}",
+                e
+            );
+            e.to_string()
+        })?;
 
     let tally_session_json =
-        get_tally_session_by_id(tenant_id, &election_event.id, tally_session_id)
-            .map_err(|e| format!("Failed to get tally session by id: {}", e))?;
+        get_tally_session_by_id(tenant_id, &election_event.id, tally_session_id).map_err(|e| {
+            println!(
+                "[Guest Plugin Error] Failed to get tally session by id: {}",
+                e
+            );
+            e.to_string()
+        })?;
+
     let tally_session: TallySession = deserialize_str::<TallySession>(&tally_session_json)
-        .map_err(|e| format!("Failed to deserialize TallySession: {}", e))?;
+        .map_err(|e| {
+            println!(
+                "[Guest Plugin Error] Failed to deserialize TallySession: {}",
+                e
+            );
+            e.to_string()
+        })?;
+
+    println!(
+        "[Guest Plugin] Successfully retrieved tally session: {:?}",
+        tally_session
+    );
 
     let tally_annotations: Annotations = tally_session
         .annotations
         .clone()
-        .map(|value| deserialize_value(value))
-        .transpose()
-        .map_err(|e| e.to_string())?
-        .unwrap_or_default();
+        .map(
+            |value| match deserialize_value::<HashMap<String, Value>>(value) {
+                Ok(raw_map) => raw_map,
+                Err(e) => {
+                    println!(
+                        "[Guest Plugin Error] Failed to deserialize tally annotations: {}",
+                        e
+                    );
+                    HashMap::new()
+                }
+            },
+        )
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(key, value)| {
+            let string_val = match value {
+                Value::String(s) => s,
+                _ => value.to_string(),
+            };
+            (key, string_val)
+        })
+        .collect();
 
     let transmission_data = tally_session.get_annotations().unwrap_or(vec![]);
 
@@ -257,6 +333,7 @@ pub fn create_transmission_package_service(
 
     if found_package.is_some() && !force {
         // info!("transmission package already found, skipping");
+        println!("[Guest Plugin] Transmission package already found, skipping");
         return Ok("Transmission package already found".to_string());
     }
 
@@ -267,19 +344,35 @@ pub fn create_transmission_package_service(
         return Err("Election not found".to_string());
     };
 
-    let election: Election = deserialize_str::<Election>(&election_str)
-        .map_err(|e| format!("Failed to deserialize ElectionEvent: {}", e))?;
-    let election_annotations = election.get_annotations().map_err(|e| e.to_string())?;
+    let election: Election = deserialize_str::<Election>(&election_str).map_err(|e| {
+        println!(
+            "[Guest Plugin Error] Failed to deserialize ElectionEvent: {}",
+            e
+        );
+        e.to_string()
+    })?;
+    let election_annotations = election.get_annotations().map_err(|e| {
+        println!(
+            "[Guest Plugin Error] Failed to get election annotations: {}",
+            e
+        );
+        e.to_string()
+    })?;
 
     let Some(area_str) = get_area_by_id(tenant_id, area_id).map_err(|e| e.to_string())? else {
         // info!("Area not found");
         return Err("Area not found".to_string());
     };
 
-    let area: Area = deserialize_str::<Area>(&area_str)
-        .map_err(|e| format!("Failed to deserialize Area: {}", e))?;
+    let area: Area = deserialize_str::<Area>(&area_str).map_err(|e| {
+        println!("[Guest Plugin Error] Failed to deserialize Area: {}", e);
+        e.to_string()
+    })?;
 
-    let area_annotations = area.get_annotations().map_err(|e| e.to_string())?;
+    let area_annotations = area.get_annotations().map_err(|e| {
+        println!("[Guest Plugin Error] Failed to get area annotations: {}", e);
+        e.to_string()
+    })?;
 
     let area_station_id = area_annotations.station_id.clone();
 
@@ -291,6 +384,10 @@ pub fn create_transmission_package_service(
         download_tally_tar_gz_to_file(tenant_id, &election_event.id, &tally_session.id)
             .map_err(|e| e.to_string())?;
 
+    println!(
+        "[Guest Plugin] Downloaded tally .tar.gz file: {}",
+        tally_tr_gz_file_name
+    );
     let (tally_file_name, tally_path) = decompress_file(&tally_tr_gz_file_name)?;
 
     println!(
@@ -300,12 +397,27 @@ pub fn create_transmission_package_service(
 
     list_all_temp_files_directly(&tally_path)?;
 
-    let tally_results_str = get_tally_results(&tally_file_name)
-        .map_err(|e| format!("Error getting tally results: {:?}", e))?;
+    let tally_results_str = get_tally_results(&tally_file_name).map_err(|e| {
+        println!(
+            "[Guest Plugin Error] Failed to get tally results from decompressed file: {}",
+            e
+        );
+        e.to_string()
+    })?;
 
     let tally_results: Vec<ElectionReportDataComputed> =
-        deserialize_str::<Vec<ElectionReportDataComputed>>(&tally_results_str)
-            .map_err(|e| e.to_string())?;
+        deserialize_str::<Vec<ElectionReportDataComputed>>(&tally_results_str).map_err(|e| {
+            println!(
+                "[Guest Plugin Error] Failed to deserialize tally results: {}",
+                e
+            );
+            e.to_string()
+        })?;
+
+    println!(
+        "[Guest Plugin] Retrieved tally results: {} entries",
+        tally_results.len()
+    );
 
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
@@ -338,6 +450,12 @@ pub fn create_transmission_package_service(
         .map(|report_computed| report_computed.into())
         .collect();
 
+    println!(
+        "[Guest Plugin] Filtered reports for area_id {}: {} reports",
+        area_id,
+        reports.len()
+    );
+
     let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
@@ -349,6 +467,12 @@ pub fn create_transmission_package_service(
         &reports,
     )
     .map_err(|e| e.to_string())?;
+
+    println!(
+        "[Guest Plugin] Generated base compressed XML and EML, sizes: {} bytes (XML), {} bytes (EML)",
+        base_compressed_xml.len(),
+        eml.len()
+    );
 
     let dir_base_path = get_plugin_shared_dir(&Plugins::MIRU);
 
@@ -365,8 +489,13 @@ pub fn create_transmission_package_service(
         None,
         false,
     )?;
-    let xz_document = deserialize_str::<Document>(&xz_document_str)
-        .map_err(|e| format!("Failed to deserialize Document: {}", e))?;
+    let xz_document = deserialize_str::<Document>(&xz_document_str).map_err(|e| {
+        println!(
+            "[Guest Plugin Error] Failed to deserialize XZ Document: {}",
+            e
+        );
+        e.to_string()
+    })?;
 
     // upload eml
     let eml_name = format!("er_{}.xml", transaction_id);
@@ -381,8 +510,13 @@ pub fn create_transmission_package_service(
         None,
         false,
     )?;
-    let eml_document = deserialize_str::<Document>(&eml_document_str)
-        .map_err(|e| format!("Failed to deserialize Document: {}", e))?;
+    let eml_document = deserialize_str::<Document>(&eml_document_str).map_err(|e| {
+        println!(
+            "[Guest Plugin Error] Failed to deserialize EML Document: {}",
+            e
+        );
+        e.to_string()
+    })?;
 
     let area_name = area.name.clone().unwrap_or("".into());
     let mut logs = if let Some(package) = found_package {
@@ -470,7 +604,18 @@ pub fn generate_all_servers_document(
     println!("[Guest Plugin] Generating all servers document");
     let acm_key_pair = get_acm_key_pair(tenant_id, election_event_id).map_err(|e| e.to_string())?;
 
+    println!(
+        "[Guest Plugin] Retrieved ACM key pair with public key: {}",
+        acm_key_pair.public_key_pem
+    );
+
     let temp_dir_path = PathBuf::new();
+
+    println!(
+        "[Guest Plugin] Using temporary directory for server packages: {:?}",
+        temp_dir_path.display()
+    );
+
     fs::create_dir_all(&temp_dir_path).map_err(|e| e.to_string())?;
 
     for ccs_server in ccs_servers {
@@ -483,7 +628,11 @@ pub fn generate_all_servers_document(
             )
         })?;
         let zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
-        let a = create_transmission_package(
+        println!(
+            "[Guest Plugin] Creating transmission package for server: {}",
+            ccs_server.tag
+        );
+        create_transmission_package(
             eml_hash,
             eml,
             time_zone.clone(),

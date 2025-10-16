@@ -19,7 +19,7 @@ use tempfile::NamedTempFile;
 
 use sequent_core::plugins_wit::lib::documents_bindings::plugins_manager::documents_manager::documents::Host;
 use crate::services::{
-    ceremonies::velvet_tally::generate_initial_state, consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc, documents::{get_document_as_temp_file_at_dir, upload_and_return_document}, folders::list_files, plugins_manager::plugin::PluginServices
+    ceremonies::velvet_tally::generate_initial_state, consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc, documents::{get_document_as_temp_file, get_document_as_temp_file_at_dir, upload_and_return_document}, folders::list_files, plugins_manager::plugin::PluginServices
 };
 
 // A struct to hold the host's state, including a map to manage the temporary files.
@@ -51,10 +51,6 @@ impl Host for PluginServices {
             get_document_as_temp_file_at_dir(&tenant_id, &document, &self.documents.path_dir)
                 .await
                 .map_err(|e| format!("Failed to get document as temp file: {}", e))?;
-        println!(
-            "Temporary file created at: {}",
-            named_temp_file.path().display()
-        );
 
         let file_name = named_temp_file
             .path()
@@ -200,7 +196,8 @@ impl Host for PluginServices {
             .to_string_lossy()
             .to_string();
 
-        encrypt_file_aes_256_cbc(&input_path, &output_path, &password);
+        encrypt_file_aes_256_cbc(&input_path, &output_path, &password)
+            .map_err(|e| format!("Failed encrypt file: {}", e))?;
 
         Ok(())
     }

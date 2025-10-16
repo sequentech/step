@@ -28,9 +28,9 @@ use sequent_core::{
     types::{ceremonies::Log, velvet::ReportData},
 };
 use serde_json::{Map, Value};
-use std::fs::File;
 use std::io::Write;
 use std::{env, fs, path::Path};
+use std::{fs::File, path::PathBuf};
 use tracing::instrument;
 use wit_bindgen_rt::async_support::futures::TryFutureExt;
 
@@ -88,11 +88,15 @@ pub fn generate_base_compressed_xml(
     // render handlebars template
     let variables_map_str = serde_json::to_string(&variables_map)
         .map_err(|e| format!("Error serializing variables map: {}", e))?;
-    let render_xml = render_template_text(&template_string, &variables_map_str)
-        .map_err(|err| format!("{}", err))?;
+    let render_xml = render_template_text(&template_string, &variables_map_str).map_err(|err| {
+        println!("[Guest Plugin] Error rendering template: {}", err);
+        format!("{}", err)
+    })?;
 
-    let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml)
-        .map_err(|e| format!("Error compressing and hashing EML: {}", e))?;
+    let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml).map_err(|e| {
+        println!("[Guest Plugin] Error compressing and hashing EML: {}", e);
+        format!("Error compressing and hashing EML: {}", e)
+    })?;
 
     Ok((compressed_xml, render_xml, rendered_xml_hash))
 }
@@ -133,7 +137,7 @@ fn generate_er_final_zip(
 ) -> Result<(), String> {
     let MIRU_STATION_ID = area_station_id.to_string();
 
-    let mut temp_dir_path = env::temp_dir();
+    let mut temp_dir_path = PathBuf::new();
     fs::create_dir_all(&temp_dir_path).map_err(|e| e.to_string())?;
 
     let prefix = if is_log { "al_" } else { "er_" };

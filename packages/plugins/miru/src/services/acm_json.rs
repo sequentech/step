@@ -63,7 +63,6 @@ pub fn get_acm_key_pair(tenant_id: &str, election_event_id: &str) -> Result<Ecie
         deserialize_str(&secret_str).map_err(|e| e.to_string())?
     } else {
         println!("[Guest Plugin] ACM Key Pair not found in vault, generating new key pair");
-        //TODO: check this function -> not working inside wasm and stop the process.
         let key_pair = generate_ecies_key_pair().map_err(|e| e.to_string())?;
         let secret_str = serde_json::to_string(&key_pair).map_err(|e| e.to_string())?;
         save_secret(tenant_id, Some(election_event_id), &secret_key, &secret_str)

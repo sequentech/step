@@ -91,7 +91,7 @@ pub fn generate_temp_file_at_dir(
         .prefix(prefix) // Optional: specify a prefix for the file name.
         .suffix(suffix) // Optional: specify a suffix for the file name.
         .rand_bytes(12) // Optional: specify the number of random bytes to use for the name.
-        .tempfile_in(&temp_dir)
+        .tempfile_in(temp_dir)
         .with_context(|| "Error generating temp file")?;
 
     Ok(temp_file)

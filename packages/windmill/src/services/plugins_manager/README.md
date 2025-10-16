@@ -82,7 +82,7 @@ When creating a new plugin under `packages/plugins`, you must:
 
 * Example build command:
     ```sh
-    cargo build --target wasm32-wasip2 --release
+    cargo build --target wasm32-wasip2
     ```
     * **Tip:** To simplify your build command, you can configure Cargo to always build for `wasm32-wasip2` by default for your plugin. Create a `.cargo` folder in your plugin's root directory (e.g., `packages/plugins/my_plugin/.cargo/`) and add a `config.toml` file with the following content:
 
