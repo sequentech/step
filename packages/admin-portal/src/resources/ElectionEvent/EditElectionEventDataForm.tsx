@@ -679,6 +679,31 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const extraActionsButtons = () => {
+        let buttons = [
+            <Button
+                className="import-candidates"
+                onClick={() => setOpenImportCandidates(true)}
+                label={t("electionEventScreen.edit.importCandidates")}
+                key="1"
+            >
+                <DownloadIcon />
+            </Button>,
+        ]
+        if (canCreateGoogleMeeting) {
+            buttons.push(
+                <Button
+                    className="google-meet-generator"
+                    onClick={() => setOpenGoogleMeet(true)}
+                    label={t("googleMeet.generateButton", "Generate Google Meet")}
+                    key="2"
+                >
+                    <VideoCallIcon />
+                </Button>
+            )
+        }
+        return buttons
+    }
     return (
         <>
             <Box
@@ -696,24 +721,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
-                    extraActions={[
-                        <Button
-                            className="import-candidates"
-                            onClick={() => setOpenImportCandidates(true)}
-                            label={t("electionEventScreen.edit.importCandidates")}
-                            key="1"
-                        >
-                            <DownloadIcon />
-                        </Button>,
-                        <Button
-                            className="google-meet-generator"
-                            onClick={() => setOpenGoogleMeet(true)}
-                            label={t("googleMeet.generateButton", "Generate Google Meet")}
-                            key="2"
-                        >
-                            <VideoCallIcon />
-                        </Button>,
-                    ]}
+                    extraActions={extraActionsButtons()}
                 />
             </Box>
             <RecordContext.Consumer>

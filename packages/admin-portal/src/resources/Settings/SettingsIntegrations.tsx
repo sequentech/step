@@ -33,8 +33,6 @@ export const SettingsIntegrations: React.FC<void> = () => {
     const [saveDisabled, setSaveDisabled] = useState<boolean>(true)
 
     useEffect(() => {
-        console.log("useEffect gapiKey: ", saveDisabled)
-
         if (gapiKeyChanged || gapiEmailChanged) {
             setSaveDisabled(false)
         } else {
@@ -45,7 +43,6 @@ export const SettingsIntegrations: React.FC<void> = () => {
     const handleGapiKeyChange = (
         event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-        console.log("handleGapiKeyChange")
         const inputValue = event.target.value
         try {
             const parsedGapiKey =
@@ -54,7 +51,6 @@ export const SettingsIntegrations: React.FC<void> = () => {
             if (typeof parsedGapiKey === "object" && parsedGapiKey !== null) {
                 setGapiKey(parsedGapiKey)
                 setGapiKeyChanged(true)
-                console.log("setGapiKey")
             } else if (parsedGapiKey === null) {
                 setGapiKey(null)
                 setGapiKeyChanged(true)
@@ -69,7 +65,6 @@ export const SettingsIntegrations: React.FC<void> = () => {
     const handleGapiEmailChange = (
         event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-        console.log("handleGapiEmailChange")
         const inputValue = event.target.value
         setGapiEmail(inputValue)
         setGapiEmailChanged(true)

@@ -32,7 +32,7 @@ pub async fn generate_google_meeting(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_USER, Permissions::GOOGLE_MEET_LINK],
+        vec![Permissions::GOOGLE_MEET_LINK],
     )
     .map_err(|(status, msg)| {
         (
