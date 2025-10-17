@@ -15,8 +15,8 @@ Created INTEGRATIONS tab in tenant settings to add the google api credentials.
 Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
 A new permission `google-meet-link` needs to be added manually in Keycloak, the procedure followed is:
 
-1. Go to realm roles, select the admin role and click on `Create role`
-2. Add all the roles in the list
+1. Go to realm roles in the tenant realm (i.e. dev) and click on `Create role`
+2. Add the role to the list
 3. Then Go to `Groups` and choose `admin` group name
 4. Go to `role mapping` and click on `Assign role` and add those permissions
 

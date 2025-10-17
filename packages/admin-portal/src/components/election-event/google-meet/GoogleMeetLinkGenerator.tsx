@@ -23,6 +23,7 @@ import {useMutation} from "@apollo/client"
 import {GENERATE_GOOGLE_MEET} from "../../../queries/GenerateGoogleMeet"
 import {IGraphQLActionError} from "@sequentech/ui-core"
 import {GenerateGoogleMeetMutation} from "@/gql/graphql"
+import {IPermissions} from "@/types/keycloak"
 
 interface GoogleMeetLinkGeneratorProps {
     open: boolean
@@ -49,7 +50,13 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
     const [copySuccess, setCopySuccess] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
 
-    const [generateGoogleMeet] = useMutation<GenerateGoogleMeetMutation>(GENERATE_GOOGLE_MEET)
+    const [generateGoogleMeet] = useMutation<GenerateGoogleMeetMutation>(GENERATE_GOOGLE_MEET, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.GOOGLE_MEET_LINK,
+            },
+        },
+    })
 
     const handleClose = () => {
         setGeneratedLink("")
