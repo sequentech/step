@@ -973,7 +973,6 @@ const basqueTranslation: TranslationType = {
                 "cloudflare-write": "Editatu Herrialde Blokeo Arauak Cloudflare-n",
                 "transmission-report-generate": "Sortu Transmisio Txostena",
                 "google-meet-link": "Google Meet Esteka Sortu",
-                "google-meet-api-tokens": "Idatzi Google Meet API Tokenak tenant ezarpenetan",
             },
         },
         generalSettingsScreen: {

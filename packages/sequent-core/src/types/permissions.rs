@@ -397,8 +397,6 @@ pub enum Permissions {
     VOTER_EMAIL_TLF_EDIT,
     #[strum(serialize = "google-meet-link")]
     GOOGLE_MEET_LINK,
-    #[strum(serialize = "google-meet-api-tokens")]
-    GOOGLE_MEET_API_TOKENS,
 }
 
 #[allow(non_camel_case_types)]

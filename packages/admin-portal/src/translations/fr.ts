@@ -983,8 +983,6 @@ const frenchTranslation: TranslationType = {
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
                 "google-meet-link": "Générer un Lien Google Meet",
-                "google-meet-api-tokens":
-                    "Écrire les Tokens de l'API Google Meet dans les paramètres du tenant",
             },
         },
         generalSettingsScreen: {

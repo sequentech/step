@@ -987,8 +987,6 @@ const catalanTranslation: TranslationType = {
                 "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmissió",
                 "google-meet-link": "Generar Enllaç de Google Meet",
-                "google-meet-api-tokens":
-                    "Escriure Tokens de l'API de Google Meet a la configuració del tenant",
             },
         },
         generalSettingsScreen: {

@@ -24,7 +24,6 @@ export const SettingsIntegrations: React.FC<void> = () => {
 
     const canEdit = authContext.isAuthorized(true, authContext.tenantId, [
         IPermissions.TENANT_WRITE,
-        IPermissions.GOOGLE_MEET_API_TOKENS,
     ])
     const [gapiKey, setGapiKey] = useState<object | null>(null)
     const [gapiEmail, setGapiEmail] = useState<string>("")

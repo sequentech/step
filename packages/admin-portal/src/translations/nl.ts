@@ -973,8 +973,6 @@ const dutchTranslation: TranslationType = {
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
                 "google-meet-link": "Google Meet Link Genereren",
-                "google-meet-api-tokens":
-                    "Google Meet API Tokens Schrijven naar Tenant Instellingen",
             },
         },
         generalSettingsScreen: {

@@ -196,5 +196,4 @@ export enum IPermissions {
     VOTER_VOTED_EDIT = "voter-voted-edit", // permission to edit a voter that has already cast a vote
     VOTER_EMAIL_TLF_EDIT = "voter-email-tlf-edit", // permission to edit voter fields: email and mobile number
     GOOGLE_MEET_LINK = "google-meet-link",
-    GOOGLE_MEET_API_TOKENS = "google-meet-api-tokens",
 }
