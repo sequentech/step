@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::celery_app::{get_celery_app, get_queues, Queue};
+use crate::services::celery_app::{get_celery_app, get_celery_connection, get_queues, Queue};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
@@ -49,6 +49,16 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
     }
 
     let queues_to_check = get_queues();
+
+    let slug = std::env::var("ENV_SLUG").unwrap_or("dev".to_string());
+    let queue_name = Queue::ElectoralLogBeat.queue_name(&slug);
+    if queues_to_check.contains(&queue_name) {
+        info!("Checking rabbitmq connection");
+        let conn = get_celery_connection().await;
+        if conn.is_err() {
+            error!("Failed to check consumer health: {:?}", conn);
+        }
+    }
 
     match celery_app.check_consumer_health(&queues_to_check).await {
         Ok(health_info) => {
