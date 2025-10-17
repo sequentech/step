@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Release Notes next | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2024/docs/releases/Release Next/release-next"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes next | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2024/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2024/docs/releases/Release Next/release-next"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2024/docs/releases/Release Next/release-next" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2024/docs/releases/Release Next/release-next" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes next","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2024/docs/releases/Release Next/release-next"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2024/assets/css/styles.fe236151.css">
-<script src="/docusaurus/pr-preview/pr-2024/assets/js/runtime~main.b10fbf0b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2024/assets/js/runtime~main.7c50f91a.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2024/assets/js/main.b1d5a978.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,7 +15,14 @@
 <p>Added a Google Meet component with a button to generate a link in EVENT &gt; DATA to
 support creating a google meeting.
 Created INTEGRATIONS tab in tenant settings to add the google api credentials.
-Document on how to create credentials added to docusaurus in Admin Portal Tutorials.</p>
+Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
+A new permission <code>google-meet-link</code> needs to be added manually in Keycloak, the procedure followed is:</p>
+<ol>
+<li>Go to realm roles, select the admin role and click on <code>Create role</code></li>
+<li>Add all the roles in the list</li>
+<li>Then Go to <code>Groups</code> and choose <code>admin</code> group name</li>
+<li>Go to <code>role mapping</code> and click on <code>Assign role</code> and add those permissions</li>
+</ol>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/8189" target="_blank" rel="noopener noreferrer">#8189</a></li>
 </ul>
