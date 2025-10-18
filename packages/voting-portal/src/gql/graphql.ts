@@ -432,6 +432,11 @@ export type FetchDocumentOutput = {
   url: Scalars['String']['output'];
 };
 
+export type GenerateGoogleMeetOutput = {
+  __typename?: 'GenerateGoogleMeetOutput';
+  meet_link?: Maybe<Scalars['String']['output']>;
+};
+
 export type GenerateTemplateOutput = {
   __typename?: 'GenerateTemplateOutput';
   document_id: Scalars['String']['output'];
@@ -1288,6 +1293,8 @@ export type Mutation_Root = {
   export_tenant_users?: Maybe<ExportTenantUsersOutput>;
   export_users?: Maybe<ExportUsersOutput>;
   generate_ballot_publication?: Maybe<PublishBallotOutput>;
+  /** generate Google Meet link for election events */
+  generate_google_meet?: Maybe<GenerateGoogleMeetOutput>;
   generate_report?: Maybe<GenerateReportOutput>;
   generate_template?: Maybe<GenerateTemplateOutput>;
   generate_transmission_report?: Maybe<GenerateReportOutput>;
@@ -2429,6 +2436,17 @@ export type Mutation_RootExport_UsersArgs = {
 export type Mutation_RootGenerate_Ballot_PublicationArgs = {
   election_event_id: Scalars['uuid']['input'];
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootGenerate_Google_MeetArgs = {
+  attendee_emails: Array<Scalars['String']['input']>;
+  description: Scalars['String']['input'];
+  end_date_time: Scalars['String']['input'];
+  start_date_time: Scalars['String']['input'];
+  summary: Scalars['String']['input'];
+  time_zone: Scalars['String']['input'];
 };
 
 

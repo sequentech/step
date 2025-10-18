@@ -113,6 +113,16 @@ const spanishTranslation: TranslationType = {
                 allowEarlyVoting: "Permitir Votación Temprana",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clave de Cuenta de Servicio de Google Calendar",
+                gapiEmail: "Correo de Autenticación de Google Calendar",
+            },
+            errors: {
+                invalidGapiKey:
+                    "Formato de Clave de Cuenta de Servicio de Google Calendar inválido",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Enlaces de Ayuda",
@@ -150,6 +160,7 @@ const spanishTranslation: TranslationType = {
                 templates: "PLANTILLAS",
                 languages: "IDIOMAS",
                 localization: "LOCALIZACIÓN",
+                integrations: "INTEGRACIONES",
                 lookAndFeel: "PERSONILIZACIÓN DE APARIENCIA",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
@@ -966,6 +977,7 @@ const spanishTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmisión",
+                "google-meet-link": "Generar Enlace de Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1091,6 +1103,25 @@ const spanishTranslation: TranslationType = {
                 edit: "Editar",
                 preview: "Vista previa",
             },
+        },
+        googleMeet: {
+            title: "Generar Enlace de Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Título de la Reunión",
+            description: "Descripción (Opcional)",
+            startDate: "Fecha de Inicio",
+            startTime: "Hora de Inicio",
+            duration: "Duración (minutos)",
+            attendeeEmails: "Emails de los Participantes",
+            attendeeEmailHelp: "Emails separados por comas para los participantes de la reunión",
+            note: "Nota: Esto creará un evento de calendario en tu Google Calendar con un enlace de Google Meet. Necesitarás iniciar sesión en tu cuenta de Google.",
+            success: "¡Enlace de Google Meet Generado Exitosamente!",
+            copy: "Copiar al portapapeles",
+            copied: "¡Enlace copiado al portapapeles!",
+            instructions:
+                "Comparte este enlace con los participantes para unirse a la reunión. El evento de calendario ha sido añadido a tu Google Calendar.",
+            generating: "Generando...",
+            generate: "Generar Enlace de Meet",
         },
         common: {
             export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
@@ -1628,8 +1659,15 @@ const spanishTranslation: TranslationType = {
                 blank_votes: "Votos en blanco",
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
-                winning_position: "Winning position",
+                winning_position: "Posición ganadora",
                 weight: "Peso",
+            },
+            chart: {
+                votesForCandidates: "Votos por Candidatos",
+                blankVotes: "Votos en Blanco",
+                invalidVotes: "Votos Inválidos",
+                totalVoters: "Total de Votantes",
+                nonVoters: "No Votantes",
             },
         },
         publish: {

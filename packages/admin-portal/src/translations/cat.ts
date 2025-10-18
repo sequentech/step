@@ -113,6 +113,15 @@ const catalanTranslation: TranslationType = {
                 allowEarlyVoting: "Permetre Votació Anticipada",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clau de Compte de Servei de Google Calendar",
+                gapiEmail: "Correu d'Autenticació de Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clau de Compte de Servei de Google Calendar invàlid",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Enllaços d'Ajuda",
@@ -150,6 +159,7 @@ const catalanTranslation: TranslationType = {
                 templates: "PLANTILLES",
                 localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
+                integrations: "INTEGRACIONS",
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
@@ -976,6 +986,7 @@ const catalanTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
                 "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmissió",
+                "google-meet-link": "Generar Enllaç de Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1101,6 +1112,25 @@ const catalanTranslation: TranslationType = {
                 edit: "Editar",
                 preview: "Previsualitzar",
             },
+        },
+        googleMeet: {
+            title: "Generar Enllaç de Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Títol de la Reunió",
+            description: "Descripció (Opcional)",
+            startDate: "Data d'Inici",
+            startTime: "Hora d'Inici",
+            duration: "Durada (minuts)",
+            attendeeEmails: "Emails dels Participants",
+            attendeeEmailHelp: "Emails separats per comes per als participants de la reunió",
+            note: "Nota: Això crearà un esdeveniment de calendari al teu Google Calendar amb un enllaç de Google Meet. Necessitaràs iniciar sessió al teu compte de Google.",
+            success: "Enllaç de Google Meet Generat Correctament!",
+            copy: "Copiar al porta-retalls",
+            copied: "Enllaç copiat al porta-retalls!",
+            instructions:
+                "Comparteix aquest enllaç amb els participants per unir-se a la reunió. L'esdeveniment de calendari s'ha afegit al teu Google Calendar.",
+            generating: "Generant...",
+            generate: "Generar Enllaç de Meet",
         },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",
@@ -1640,6 +1670,13 @@ const catalanTranslation: TranslationType = {
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
                 weight: "Pes",
+            },
+            chart: {
+                votesForCandidates: "Vots per Candidats",
+                blankVotes: "Vots en Blanc",
+                invalidVotes: "Vots Invàlids",
+                totalVoters: "Total de Votants",
+                nonVoters: "No Votants",
             },
         },
         publish: {

@@ -19,6 +19,7 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
+import {SettingsIntegrations} from "@/resources/Settings/SettingsIntegrations"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
@@ -88,6 +89,12 @@ export const SettingsScreen: React.FC = () => {
                         label: t("electionTypeScreen.tabs.localization"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsLocalization} />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.integrations"),
+                        component: () => (
+                            <Resource name="sequent_backend_tenant" list={SettingsIntegrations} />
                         ),
                     },
                     {
