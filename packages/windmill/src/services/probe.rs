@@ -50,6 +50,7 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
 
     let queues_to_check = get_queues();
 
+    // If subscribed to ElectoralLogBeat, check the standalone rabbitmq connection
     let slug = std::env::var("ENV_SLUG").unwrap_or("dev".to_string());
     let queue_name = Queue::ElectoralLogBeat.queue_name(&slug);
     if queues_to_check.contains(&queue_name) {
