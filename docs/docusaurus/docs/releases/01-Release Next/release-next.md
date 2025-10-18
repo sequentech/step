@@ -7,6 +7,21 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Videoconference links from Admin Portal
+
+Added a Google Meet component with a button to generate a link in EVENT > DATA to
+support creating a google meeting.
+Created INTEGRATIONS tab in tenant settings to add the google api credentials.
+Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
+A new permission `google-meet-link` needs to be added manually in Keycloak, the procedure followed is:
+
+1. Go to realm roles in the tenant realm (i.e. dev) and click on `Create role`
+2. Add the role to the list
+3. Then Go to `Groups` and choose `admin` group name
+4. Go to `role mapping` and click on `Assign role` and add those permissions
+
+- Issue: [#8189](https://github.com/sequentech/meta/issues/8189)
+
 ## 🐞 Investigate rabbitmq issues
 
 The Electoral Log Windmill maintains a RabbitMQ connection, but sometimes it
