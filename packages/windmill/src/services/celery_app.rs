@@ -5,12 +5,10 @@ use anyhow::{anyhow, Context, Result};
 use async_once::AsyncOnce;
 use celery::prelude::Task;
 use celery::Celery;
-use futures::future::Lazy;
-use lapin::{Channel, Connection, ConnectionProperties};
+use lapin::{Connection, ConnectionProperties};
 use std;
 use std::convert::AsRef;
 use std::sync::Arc;
-use std::sync::OnceLock;
 use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{event, info, instrument, Level};
@@ -189,7 +187,8 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
             Ok(connection) => {
                 let arc_conn = Arc::new(connection);
                 // Set the global connection so it can be reused.
-                let _ = CELERY_CONNECTION.set(arc_conn.clone());
+                let mut conn_guard = CELERY_CONNECTION.write().await;
+                *conn_guard = Some(arc_conn.clone());
                 return Ok((arc_conn, amqp_url));
             }
             Err(e) => {
@@ -333,16 +332,27 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     .map_err(|err| anyhow!("{:?}", err))
 }
 
-static CELERY_CONNECTION: OnceLock<Arc<Connection>> = OnceLock::new();
+static CELERY_CONNECTION: RwLock<Option<Arc<Connection>>> = RwLock::const_new(None);
 
 /// Returns a reused AMQP connection wrapped in an Arc.
 /// If no connection exists (or if it’s disconnected), a new connection is created and stored.
 #[instrument]
 pub async fn get_celery_connection() -> Result<Arc<Connection>> {
-    if let Some(conn) = CELERY_CONNECTION.get() {
-        // For simplicity we assume the connection is still valid.
+    let conn_guard = CELERY_CONNECTION.read().await;
+
+    if let Some(conn) = conn_guard.as_ref() {
+        if !conn.status().connected() {
+            drop(conn_guard); // Release read lock before acquiring write lock
+
+            info!("Existing AMQP connection is disconnected, creating new connection");
+            // Create and return a new connection (this will replace the old one)
+            return create_connection().await.map(|(connection, _)| connection);
+        }
+        // Connection is still valid, return clone
         return Ok(conn.clone());
     }
+    drop(conn_guard); // Release read lock
 
+    // No connection exists, create a new one
     create_connection().await.map(|(connection, _)| connection)
 }
