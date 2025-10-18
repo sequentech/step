@@ -22,11 +22,23 @@ A new permission `google-meet-link` needs to be added manually in Keycloak, the 
 
 - Issue: [#8189](https://github.com/sequentech/meta/issues/8189)
 
+## 🐞 Investigate rabbitmq issues
+
+The Electoral Log Windmill maintains a RabbitMQ connection, but sometimes it
+gets disconnected and Windmill didn't try reconnecting. Moreover, the probe
+didn't check the connection status. This fixes the issue by checking the
+connection status and reconnecting if necessary and checking the status of the
+connection in the probe.
+
+- Issue [#8626](https://github.com/sequentech/meta/issues/8626)
+
 ## 🐞 Can't export voters list
 
 In specific cases of Election Events with hundreds of areas and elections and
 millions of voters, exporting voters failed because of an issue with logging
 a specific function.
+
+- Issue [#8622](https://github.com/sequentech/meta/issues/8622)
 
 ## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
