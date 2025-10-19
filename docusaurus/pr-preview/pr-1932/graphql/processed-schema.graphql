@@ -387,6 +387,10 @@ type FetchDocumentOutput {
   url: String!
 }
 
+type GenerateGoogleMeetOutput {
+  meet_link: String
+}
+
 type GenerateTemplateOutput {
   document_id: String!
   task_execution: tasks_execution_type
@@ -1481,6 +1485,8 @@ type mutation_root {
   export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
   export_users(election_event_id: String, election_id: String, tenant_id: String!): ExportUsersOutput
   generate_ballot_publication(election_event_id: uuid!, election_id: uuid): PublishBallotOutput
+  """generate Google Meet link for election events"""
+  generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
   generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!): generateReportOutput
   generate_template(election_event_id: String!, election_id: String!, tally_session_id: String!, type: String!): GenerateTemplateOutput
   generate_transmission_report(election_event_id: String!, election_id: String, tally_session_id: String, tenant_id: String!): generateReportOutput
