@@ -32,20 +32,18 @@ use std::io::Write;
 use std::{env, fs, path::Path};
 use std::{fs::File, path::PathBuf};
 use tracing::instrument;
+use uuid::Uuid;
 use wit_bindgen_rt::async_support::futures::TryFutureExt;
 
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
 
-// returns (base_compressed_xml, eml, eml_hash)
 #[instrument(skip_all, err)]
 pub fn compress_hash_eml(eml: &str) -> Result<(Vec<u8>, String), String> {
-    println!("Compressing and hashing EML...");
     let rendered_xml_hash = hash_sha256(eml.as_bytes())
         .map_err(|e| format!("Error hashing the rendered XML: {}", e))?
         .iter()
         .map(|byte| format!("{:02X}", byte))
         .collect();
-    println!("Rendered XML hash: {}", rendered_xml_hash);
 
     let compressed_xml = xz_compress(eml.as_bytes())
         .map_err(|e| format!("Error compressing the rendered XML: {}", e))?;
@@ -73,7 +71,10 @@ pub fn generate_base_compressed_xml(
         area_annotations,
         &reports,
     )
-    .map_err(|e| format!("Error render eml file: {}", e))?;
+    .map_err(|e| {
+        println!("[Guest Plugin] Error render eml file: {}", e);
+        e.to_string()
+    })?;
     let mut variables_map: Map<String, Value> = Map::new();
     variables_map.insert(
         "data".to_string(),
@@ -82,7 +83,7 @@ pub fn generate_base_compressed_xml(
     let template_path = PUBLIC_ASSETS_EML_BASE_TEMPLATE;
     let s3_template_url = get_s3_public_asset_file_path(&template_path)
         .map_err(|e| format!("Error fetching S3 template URL: {}", e))?;
-    println!("S3 Template URL: {}", s3_template_url);
+
     let template_string = download_s3_file_to_string(&s3_template_url)
         .map_err(|e| format!("Error downloading S3 template file: {}", e))?;
     // render handlebars template
@@ -90,12 +91,12 @@ pub fn generate_base_compressed_xml(
         .map_err(|e| format!("Error serializing variables map: {}", e))?;
     let render_xml = render_template_text(&template_string, &variables_map_str).map_err(|err| {
         println!("[Guest Plugin] Error rendering template: {}", err);
-        format!("{}", err)
+        err.to_string()
     })?;
 
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml).map_err(|e| {
         println!("[Guest Plugin] Error compressing and hashing EML: {}", e);
-        format!("Error compressing and hashing EML: {}", e)
+        e.to_string()
     })?;
 
     Ok((compressed_xml, render_xml, rendered_xml_hash))
@@ -122,8 +123,10 @@ fn generate_encrypted_compressed_xml(
     encrypt_file(&temp_path_file_name, &exz_temp_file_name, &random_pass);
 
     let encrypted_random_pass_base64 =
-        ecies_encrypt_string(public_key_pem, &random_pass, dir_base_path)
-            .map_err(|e| format!("Error encrypting the random pass: {e:?}"))?;
+        ecies_encrypt_string(public_key_pem, &random_pass, dir_base_path).map_err(|e| {
+            println!("[Guest Plugin] Error encrypting the random password: {}", e);
+            e
+        })?;
     Ok((exz_temp_file, encrypted_random_pass_base64))
 }
 
@@ -134,37 +137,63 @@ fn generate_er_final_zip(
     area_station_id: &str,
     output_file_path: &Path,
     is_log: bool,
+    dir_base_path: &str,
 ) -> Result<(), String> {
     let MIRU_STATION_ID = area_station_id.to_string();
 
-    let mut temp_dir_path = PathBuf::new();
+    let unique_dir_name = format!("temp-{}", Uuid::new_v4());
+    let mut temp_dir_path = PathBuf::from(&dir_base_path).join(&unique_dir_name);
     fs::create_dir_all(&temp_dir_path).map_err(|e| e.to_string())?;
 
     let prefix = if is_log { "al_" } else { "er_" };
 
     let exz_xml_path = temp_dir_path.join(format!("{}{}.exz", prefix, MIRU_STATION_ID).as_str());
     {
-        let mut exz_xml_file = File::create(&exz_xml_path)
-            .map_err(|e| format!("Failed to create or open file: {:?}", exz_xml_path))?;
-        exz_xml_file
-            .write_all(&exz_temp_file_bytes)
-            .map_err(|e| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+        let mut exz_xml_file = File::create(&exz_xml_path).map_err(|e| {
+            println!(
+                "[Guest Plugin] Failed to create or open file: {:?}",
+                exz_xml_path
+            );
+            e.to_string()
+        })?;
+        exz_xml_file.write_all(&exz_temp_file_bytes).map_err(|e| {
+            println!(
+                "[Guest Plugin] Failed to write data to file: {:?}",
+                exz_xml_path
+            );
+            e.to_string()
+        })?;
     }
 
-    let acm_json_stringified = serde_json::to_string_pretty(&acm_json)
-        .map_err(|e| format!("Failed convert acm_json to string: {}", e))?;
+    let acm_json_stringified = serde_json::to_string_pretty(&acm_json).map_err(|e| {
+        println!("[Guest Plugin] Failed convert acm_json to string: {}", e);
+        e.to_string()
+    })?;
 
     let exz_json_path = temp_dir_path.join(format!("{}{}.json", prefix, MIRU_STATION_ID).as_str());
     {
-        let mut exz_json_file = File::create(&exz_json_path)
-            .map_err(|e| format!("Failed to create or open file: {:?}", exz_json_path))?;
+        let mut exz_json_file = File::create(&exz_json_path).map_err(|e| {
+            println!(
+                "[Guest Plugin] Failed to create or open file: {:?}",
+                exz_json_path
+            );
+            e.to_string()
+        })?;
         exz_json_file
             .write_all(acm_json_stringified.as_bytes())
-            .map_err(|e| format!("Failed to write data to file: {:?}", exz_json_path))?;
+            .map_err(|e| {
+                println!(
+                    "[Guest Plugin] Failed to write data to file: {:?}",
+                    exz_json_path
+                );
+                e.to_string()
+            })?;
     }
 
-    compress_folder_to_zip(temp_dir_path.as_path(), output_file_path)
-        .map_err(|e| format!("Error compress folder to zip: {}", e))?;
+    compress_folder_to_zip(temp_dir_path.as_path(), output_file_path).map_err(|e| {
+        println!("[Guest Plugin] Error compress folder to zip: {}", e);
+        e.to_string()
+    })?;
 
     Ok(())
 }
@@ -190,12 +219,23 @@ pub fn create_logs_package(
 
     let (mut exz_temp_file, encrypted_random_pass_base64): (TempFileGuard, String) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str, dir_base_path)
-            .map_err(|e| format!(" Error in generate_encrypted_compressed_xml: {}", e))?;
+            .map_err(|e| {
+                println!(
+                    "[Guest Plugin] Error in generate_encrypted_compressed_xml: {}",
+                    e
+                );
+                e.to_string()
+            })?;
 
-    let exz_temp_file_bytes =
-        read_temp_file(&mut exz_temp_file).map_err(|e| format!("Error reading the exz: {}", e))?;
-    let signed_eml_base64 = ecies_sign_data(acm_key_pair, &logs_str, dir_base_path)
-        .map_err(|e| format!("Error signing the eml hash: {}", e))?;
+    let exz_temp_file_bytes = read_temp_file(&mut exz_temp_file).map_err(|e| {
+        println!("[Guest Plugin] Error reading the exz: {}", e);
+        e.to_string()
+    })?;
+    let signed_eml_base64 =
+        ecies_sign_data(acm_key_pair, &logs_str, dir_base_path).map_err(|e| {
+            println!("[Guest Plugin] Error signing the eml hash: {}", e);
+            e.to_string()
+        })?;
 
     println!(
         "create_logs_package(): acm_key_pair.public_key_pem = {:?}",
@@ -229,6 +269,7 @@ pub fn create_logs_package(
         &area_annotations.station_id,
         output_file_path,
         true,
+        dir_base_path,
     )?;
 
     Ok(())
@@ -253,10 +294,14 @@ pub fn create_transmission_package(
     let (mut exz_temp_file, encrypted_random_pass_base64) =
         generate_encrypted_compressed_xml(compressed_xml, ccs_public_key_pem_str, dir_base_path)?;
 
-    let exz_temp_file_bytes =
-        read_temp_file(&exz_temp_file).map_err(|e| format!("Error reading the exz: {}", e))?;
-    let signed_eml_base64 = ecies_sign_data(acm_key_pair, eml, dir_base_path)
-        .map_err(|e| format!("Error signing the eml hash: {}", e))?;
+    let exz_temp_file_bytes = read_temp_file(&exz_temp_file).map_err(|e| {
+        println!("[Guest Plugin] Error reading the exz: {}", e);
+        e.to_string()
+    })?;
+    let signed_eml_base64 = ecies_sign_data(acm_key_pair, eml, dir_base_path).map_err(|e| {
+        println!("[Guest Plugin] Error signing the eml hash: {}", e);
+        e.to_string()
+    })?;
 
     println!(
         "create_transmission_package(): acm_key_pair.public_key_pem = {:?}",
@@ -280,6 +325,7 @@ pub fn create_transmission_package(
         &area_annotations.station_id,
         output_file_path,
         false,
+        dir_base_path,
     )?;
 
     Ok(())

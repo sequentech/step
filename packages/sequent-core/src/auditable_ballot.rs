@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::{BallotStyle, TYPES_VERSION};
 use crate::ballot_codec::PlaintextCodec;
 use crate::encrypt::hash_ballot_style;

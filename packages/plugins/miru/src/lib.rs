@@ -19,62 +19,54 @@ use crate::{
 use bindings::exports::plugins_manager::common::plugin_common::Guest as PluginCommonGuest;
 use bindings::plugins_manager::jwt::authorization::authorize;
 use core::result::Result::{self, Ok};
-use sequent_core::{plugins::Plugins, types::permissions::Permissions};
+use sequent_core::{
+    plugins::Plugins, serialization::deserialize_with_path::deserialize_str,
+    types::permissions::Permissions,
+};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 struct Component;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CreateTransmissionPackageInput {
+    tenant_id: String,
+    election_id: String,
+    area_id: String,
+    tally_session_id: String,
+    claims: String,
+}
 
 impl Guest for Component {
     fn create_transmission_package(input: String) -> Result<(), String> {
-        // let parsed_data: Value = match serde_json::from_str(&input) {
-        //     Ok(value) => value,
-        //     Err(e) => {
-        //         return Err(format!("Error parsed input as json value: {}", e));
-        //     }
-        // };
+        let data: CreateTransmissionPackageInput =
+            deserialize_str::<CreateTransmissionPackageInput>(&input)
+                .map_err(|e| format!("Error deserializing input: {}", e))?;
 
-        // let claims_value: &Value = match parsed_data.get("claims") {
-        //     Some(value) => value,
-        //     None => {
-        //         return Err("Error get claims".to_string());
-        //     }
-        // };
+        let original_perms: Vec<Permissions> = vec![Permissions::MIRU_CREATE];
+        let claims_str: &str = &data.claims.clone();
+        let tenant_id = data.tenant_id.clone();
+        let election_id = data.election_id.clone();
+        let area_id = data.area_id.clone();
+        let tally_session_id = data.tally_session_id.clone();
 
-        // let claims_str: &str = match claims_value.as_str() {
-        //     Some(s) => s,
-        //     None => {
-        //         return Err("Error parsed claims as str".to_string());
-        //     }
-        // };
-
-        // let original_perms: Vec<Permissions> = vec![Permissions::ADMIN_USER];
-
-        // let perm_strings: Vec<String> = original_perms.iter().map(|p| p.to_string()).collect();
-        // let res = authorize(
-        //     claims_str,
-        //     true,
-        //     Some("90505c8a-23a9-4cdf-a26b-4e19f6a097d5"),
-        //     perm_strings.as_slice(),
-        // );
-        // if let Err(e) = res {
-        //     return Err(format!("Error authorizing: {}", e));
-        // }
+        let perm_strings: Vec<String> = original_perms.iter().map(|p| p.to_string()).collect();
+        let auth_res = authorize(claims_str, true, Some(&tenant_id), perm_strings.as_slice());
+        if let Err(e) = auth_res {
+            return Err(format!("Error authorizing: {}", e));
+        }
 
         match create_hasura_transaction() {
             Ok(_) => {
-                let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-                let election_id = "d7727a18-fcb7-4f44-8957-b6b0eec4da99";
-                let area_id = "5d1edc88-1477-4f28-8b53-5c701980a855";
-                let tally_session_id = "8a71f294-3333-4e8b-a450-7a4a9eeb5e6c";
-                let force = false;
-
-                let _ = create_transmission_package_service(
-                    tenant_id,
-                    election_id,
-                    area_id,
-                    tally_session_id,
-                    force,
-                );
+                match create_transmission_package_service(
+                    &tenant_id,
+                    &election_id,
+                    &area_id,
+                    &tally_session_id,
+                    false,
+                ) {
+                    Ok(_) => {}
+                    Err(e) => return Err(format!("Error creating transmission package: {}", e)),
+                }
             }
             Err(e) => return Err(format!("Error creating hasura transaction: {}", e)),
         };

@@ -66,45 +66,28 @@ use std::path::{Path, PathBuf};
 use tar::{Archive, Entries};
 use uuid::Uuid;
 
-pub fn decompress_file(input_file_name: &str) -> Result<(String, PathBuf), String> {
-    // --- Setup and File Open ---
+pub fn extract_archive_to_temp_dir(input_file_name: &str) -> Result<(String, PathBuf), String> {
     let dir_base_path = get_plugin_shared_dir(&Plugins::MIRU);
     let unique_dir_name = format!("temp-{}", Uuid::new_v4());
     let temp_dir_path = PathBuf::from(&dir_base_path).join(&unique_dir_name);
     fs::create_dir_all(&temp_dir_path)
         .map_err(|e| format!("Failed to create temporary directory: {}", e))?;
 
-    // let temp_dir_path_buf = temp_dir.path().to_path_buf();
-
-    // let output_path = temp_dir_path.as_path();
-    // println!("[Guest Plugin] Created temporary directory at: {}", output_path.display());
-
     let input_dir = PathBuf::from(&dir_base_path);
     let input_path = input_dir.join(input_file_name);
     let file = File::open(&input_path).map_err(|e| e.to_string())?;
-
-    println!(
-        "[Guest Plugin] Opened file for decompression: {:?}",
-        file.metadata()
-    );
-
-    println!("[Guest Plugin] Starting to decompress archive into directory...");
-
-    // let output_path = temp_dir_path.clone(); // Clone the PathBuf
-
-    println!("[Guest Plugin] use new method to decompress");
 
     let mut archive = Archive::new(file); // Archive takes ownership of file
 
     let entries = archive.entries().map_err(|e| {
         println!("[Guest Plugin] Error reading archive entries: {}", e);
-        format!("Error reading archive entries: {}", e)
+        e.to_string()
     })?;
 
     for entry_result in entries {
         let mut entry = entry_result.map_err(|e| {
             println!("[Guest Plugin Error] Error reading next entry: {}", e);
-            format!("Error reading next entry: {}", e)
+            e.to_string()
         })?;
 
         // Use the entry header path for the destination file/directory name
@@ -113,16 +96,13 @@ pub fn decompress_file(input_file_name: &str) -> Result<(String, PathBuf), Strin
                 "[Guest Plugin Error] Error extracting path from tar entry: {}",
                 e
             );
-            format!("Error extracting path from tar entry: {}", e)
+            e.to_string()
         })?;
 
         // Construct the full path within the destination directory.
-        // The previously selected line `let temp_dir_path = base_path.join(&unique_dir_name);`
-        // ensures `dest_dir_path` is a clean, unique base, making this join safe.
         let file_path = temp_dir_path.join(&entry_path);
 
         if entry.header().entry_type().is_dir() {
-            // Manually create directories.
             fs::create_dir_all(&file_path)
                 .map_err(|e| format!("Failed to create directory {:?}: {}", file_path, e))?;
         } else if entry.header().entry_type().is_file() {
@@ -133,7 +113,6 @@ pub fn decompress_file(input_file_name: &str) -> Result<(String, PathBuf), Strin
                 })?;
             }
 
-            // Copy the file contents, ignoring complex metadata and permissions.
             let mut dest_file = File::create(&file_path).map_err(|e| {
                 format!(
                     "[Guest Plugin Error] Failed to create file {:?}: {}",
@@ -148,13 +127,8 @@ pub fn decompress_file(input_file_name: &str) -> Result<(String, PathBuf), Strin
                 )
             })?;
         }
-        // Symlinks and hard links are ignored as they often fail in Wasm/WASI sandboxes.
     }
 
-    println!(
-        "Decompressed file to temporary directory at: {}",
-        temp_dir_path.display()
-    );
     Ok((unique_dir_name, temp_dir_path))
 }
 fn list_all_temp_files_directly(dir: &PathBuf) -> Result<(), String> {
@@ -224,8 +198,13 @@ pub fn download_tally_tar_gz_to_file(
         .ok_or_else(|| format!("Missing results_event_id in tally session execution"))?;
 
     let result_event_json =
-        get_results_event_by_id(tenant_id, election_event_id, &results_event_id)
-            .map_err(|e| e.to_string())?;
+        get_results_event_by_id(tenant_id, election_event_id, &results_event_id).map_err(|e| {
+            println!(
+                "[Guest Plugin Error] Failed to get results event by id: {}",
+                e
+            );
+            e.to_string()
+        })?;
 
     let result_event: ResultsEvent =
         deserialize_str::<ResultsEvent>(&result_event_json).map_err(|e| e.to_string())?;
@@ -237,8 +216,10 @@ pub fn download_tally_tar_gz_to_file(
         .get_document_by_type(&document_type)
         .ok_or_else(|| format!("Missing {:?} in results_event", document_type))?;
 
-    let document = get_document(tenant_id, Some(election_event_id), &document_id)
-        .map_err(|e| e.to_string())?;
+    let document = get_document(tenant_id, Some(election_event_id), &document_id).map_err(|e| {
+        println!("[Guest Plugin Error] Failed to get document by id: {}", e);
+        e.to_string()
+    })?;
 
     if document.is_none() {
         return Err(format!("Document with id {} not found", document_id));
@@ -248,10 +229,6 @@ pub fn download_tally_tar_gz_to_file(
 
     let tally_tr_gz_file_name =
         create_document_as_temp_file(&tenant_id, &document).map_err(|e| e.to_string())?;
-    println!(
-        "[Guest Plugin] Document created at: {}",
-        tally_tr_gz_file_name
-    );
 
     Ok(tally_tr_gz_file_name)
 }
@@ -263,7 +240,7 @@ pub fn create_transmission_package_service(
     area_id: &str,
     tally_session_id: &str,
     force: bool,
-) -> Result<String, String> {
+) -> Result<(), String> {
     let election_event_json = get_election_event_by_election_area(tenant_id, election_id, area_id)
         .map_err(|e| e.to_string())?;
 
@@ -293,11 +270,6 @@ pub fn create_transmission_package_service(
             );
             e.to_string()
         })?;
-
-    println!(
-        "[Guest Plugin] Successfully retrieved tally session: {:?}",
-        tally_session
-    );
 
     let tally_annotations: Annotations = tally_session
         .annotations
@@ -332,15 +304,13 @@ pub fn create_transmission_package_service(
     });
 
     if found_package.is_some() && !force {
-        // info!("transmission package already found, skipping");
         println!("[Guest Plugin] Transmission package already found, skipping");
-        return Ok("Transmission package already found".to_string());
+        return Ok(());
     }
 
     let Some(election_str) = get_election_by_id(tenant_id, &election_event.id, election_id)
         .map_err(|e| e.to_string())?
     else {
-        // info!("Election not found");
         return Err("Election not found".to_string());
     };
 
@@ -360,7 +330,6 @@ pub fn create_transmission_package_service(
     })?;
 
     let Some(area_str) = get_area_by_id(tenant_id, area_id).map_err(|e| e.to_string())? else {
-        // info!("Area not found");
         return Err("Area not found".to_string());
     };
 
@@ -380,20 +349,19 @@ pub fn create_transmission_package_service(
 
     let ccs_servers = area_annotations.ccs_servers.clone();
 
-    let tally_tr_gz_file_name =
-        download_tally_tar_gz_to_file(tenant_id, &election_event.id, &tally_session.id)
-            .map_err(|e| e.to_string())?;
-
-    println!(
-        "[Guest Plugin] Downloaded tally .tar.gz file: {}",
-        tally_tr_gz_file_name
-    );
-    let (tally_file_name, tally_path) = decompress_file(&tally_tr_gz_file_name)?;
-
-    println!(
-        "[Guest Plugin] After decompression, tally file name: {}",
-        tally_file_name
-    );
+    let download_tally_tar_gz_to_file =
+        match download_tally_tar_gz_to_file(tenant_id, &election_event.id, tally_session_id) {
+            Ok(file_name) => file_name,
+            Err(e) => {
+                println!(
+                    "[Guest Plugin Error] Failed to download tally .tar.gz file: {}",
+                    e
+                );
+                return Err(e);
+            }
+        };
+    let (tally_file_name, tally_path) =
+        extract_archive_to_temp_dir(&download_tally_tar_gz_to_file)?;
 
     list_all_temp_files_directly(&tally_path)?;
 
@@ -414,11 +382,6 @@ pub fn create_transmission_package_service(
             e.to_string()
         })?;
 
-    println!(
-        "[Guest Plugin] Retrieved tally results: {} entries",
-        tally_results.len()
-    );
-
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
     let time_zone = PHILIPPINO_TIMEZONE.clone();
@@ -436,7 +399,7 @@ pub fn create_transmission_package_service(
             "[Guest Plugin] Tally result not found for election_id: {}",
             election_id
         );
-        return Ok("".to_string());
+        return Ok(());
     };
     let reports: Vec<ReportData> = result
         .reports
@@ -450,12 +413,6 @@ pub fn create_transmission_package_service(
         .map(|report_computed| report_computed.into())
         .collect();
 
-    println!(
-        "[Guest Plugin] Filtered reports for area_id {}: {} reports",
-        area_id,
-        reports.len()
-    );
-
     let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
@@ -467,12 +424,6 @@ pub fn create_transmission_package_service(
         &reports,
     )
     .map_err(|e| e.to_string())?;
-
-    println!(
-        "[Guest Plugin] Generated base compressed XML and EML, sizes: {} bytes (XML), {} bytes (EML)",
-        base_compressed_xml.len(),
-        eml.len()
-    );
 
     let dir_base_path = get_plugin_shared_dir(&Plugins::MIRU);
 
@@ -524,6 +475,7 @@ pub fn create_transmission_package_service(
     } else {
         vec![]
     };
+
     logs.push(create_transmission_package_log(
         &now_local,
         election_id,
@@ -579,8 +531,8 @@ pub fn create_transmission_package_service(
     )?;
 
     match commit_hasura_transaction() {
-        Ok(_) => Ok(("Transmission package created successfully".to_string())),
-        Err(e) => return Err(format!("Error creating hasura transaction: {}", e)),
+        Ok(_) => Ok(()),
+        Err(e) => return Err(format!("Error committing hasura transaction: {}", e)),
     }
 }
 
@@ -604,17 +556,8 @@ pub fn generate_all_servers_document(
     println!("[Guest Plugin] Generating all servers document");
     let acm_key_pair = get_acm_key_pair(tenant_id, election_event_id).map_err(|e| e.to_string())?;
 
-    println!(
-        "[Guest Plugin] Retrieved ACM key pair with public key: {}",
-        acm_key_pair.public_key_pem
-    );
-
-    let temp_dir_path = PathBuf::new();
-
-    println!(
-        "[Guest Plugin] Using temporary directory for server packages: {:?}",
-        temp_dir_path.display()
-    );
+    let unique_dir_name = format!("temp-{}", Uuid::new_v4());
+    let temp_dir_path = PathBuf::from(&dir_base_path).join(&unique_dir_name);
 
     fs::create_dir_all(&temp_dir_path).map_err(|e| e.to_string())?;
 
@@ -719,11 +662,6 @@ pub fn update_transmission_package_annotations(
 
     let new_tally_annotations_str = serde_json::to_string(&new_tally_annotations)
         .map_err(|e| format!("Error serializing new tally annotations map: {}", e))?;
-
-    println!(
-        "Updating tally session annotations: {}",
-        new_tally_annotations_str
-    );
 
     update_tally_session_annotation(
         tenant_id,

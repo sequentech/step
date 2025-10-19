@@ -12,13 +12,13 @@ use serde_json::Value;
 #[async_trait]
 pub trait PluginHooks {
     //Add plugins hooks here
-    async fn create_transmission_package(&self, input: Value) -> Result<String>;
+    async fn create_transmission_package(&self, input: Value) -> Result<()>;
 }
 
 #[async_trait]
 impl PluginHooks for PluginManager {
     //Implement the PluginHooks trait for PluginManager
-    async fn create_transmission_package(&self, input: Value) -> Result<String> {
+    async fn create_transmission_package(&self, input: Value) -> Result<()> {
         let res: Vec<Vec<HookValue>> = self
             .call_hook(
                 "create-transmission-package",
@@ -31,11 +31,7 @@ impl PluginHooks for PluginManager {
         let result = &res[0];
         if let Some(result_hook_value) = result.get(0) {
             match result_hook_value {
-                HookValue::Result(Ok(Some(boxed_value))) => match &**boxed_value {
-                    HookValue::String(value) => Ok(value.clone()),
-                    _ => Err(anyhow!("Unexpected boxed hook value type")),
-                },
-                HookValue::Result(Ok(None)) => Err(anyhow!("No value returned from plugin hook")),
+                HookValue::Result(Ok(out)) => Ok(()),
                 HookValue::Result(Err(Some(e))) => match &**e {
                     HookValue::String(e) => Err(anyhow!("Plugin hook error: {}", e)),
                     _ => Err(anyhow!("Error executing plugin hook",)),
