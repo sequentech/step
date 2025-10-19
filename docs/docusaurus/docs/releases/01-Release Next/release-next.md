@@ -7,6 +7,39 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Videoconference links from Admin Portal
+
+Added a Google Meet component with a button to generate a link in EVENT > DATA to
+support creating a google meeting.
+Created INTEGRATIONS tab in tenant settings to add the google api credentials.
+Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
+A new permission `google-meet-link` needs to be added manually in Keycloak, the procedure followed is:
+
+1. Go to realm roles in the tenant realm (i.e. dev) and click on `Create role`
+2. Add the role to the list
+3. Then Go to `Groups` and choose `admin` group name
+4. Go to `role mapping` and click on `Assign role` and add those permissions
+
+- Issue: [#8189](https://github.com/sequentech/meta/issues/8189)
+
+## 🐞 Investigate rabbitmq issues
+
+The Electoral Log Windmill maintains a RabbitMQ connection, but sometimes it
+gets disconnected and Windmill didn't try reconnecting. Moreover, the probe
+didn't check the connection status. This fixes the issue by checking the
+connection status and reconnecting if necessary and checking the status of the
+connection in the probe.
+
+- Issue [#8626](https://github.com/sequentech/meta/issues/8626)
+
+## 🐞 Can't export voters list
+
+In specific cases of Election Events with hundreds of areas and elections and
+millions of voters, exporting voters failed because of an issue with logging
+a specific function.
+
+- Issue [#8622](https://github.com/sequentech/meta/issues/8622)
+
 ## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
 Within the `Results & Participation` section of the Tally tab of the Admin
@@ -141,3 +174,10 @@ to each area. Tally results will then be calculated based on these weights,
 which are taken from the ballot style of each area defined at publication.
 
 - Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
+
+## ✨ Electoral results charts/visualization
+
+Added Charts in the Admin Portal's Tally Results below the data tables to display
+ the General Information, Participation Results and Candidate Results.
+
+- Issue: [#7531](https://github.com/sequentech/meta/issues/7531)

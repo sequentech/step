@@ -1663,3 +1663,18 @@ type ExportTallyResultsOutput {
     task_execution: tasks_execution_type!
     error_msg: String
 }
+
+type Mutation {
+    generate_google_meet(
+        summary: String!
+        description: String!
+        start_date_time: String!
+        end_date_time: String!
+        time_zone: String!
+        attendee_emails: [String!]!
+    ): GenerateGoogleMeetOutput
+}
+
+type GenerateGoogleMeetOutput {
+    meet_link: String
+}

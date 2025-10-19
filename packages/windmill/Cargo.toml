@@ -131,6 +131,10 @@ ordered-float = { version = "4.4.0", features = ["serde"] }
 ouroboros = "0.18.5"
 rust_xlsxwriter = "0.90.0"
 
+# Google Calendar API
+google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
+rustls = { version = "0.23.32", features = ["ring"] }
+
 [package.metadata.component]
 
 [package.metadata.component.target.dependencies]
