@@ -5,9 +5,11 @@
 // Integration tests for Instant Runoff Voting algorithm
 // These tests verify that multiple components work together correctly
 
+use rand::Rng;
+use sequent_core::ballot::{Candidate, Contest, Weight};
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::*;
-
 /// Helper function to create a candidate UUID with a specific suffix
 fn candidate_id(suffix: &str) -> String {
     let prefix = match suffix.chars().next().unwrap_or('a') {
@@ -73,10 +75,12 @@ fn test_tie_breaking_using_previous_round() {
 
     let round1_wins = create_wins(&[("caa", 35), ("cab", 40), ("cac", 50), ("cad", 25)]);
     let round2_wins = create_wins(&[("caa", 40), ("cab", 40), ("cac", 70)]);
+    let max_rounds = round1_wins.len() as u64 + 1;
 
     let runoff = RunoffStatus {
         candidates_status: CandidatesStatus::default(),
         round_count: 2,
+        max_rounds,
         rounds: vec![
             create_round(round1_wins, 4), // Round 1 had 4 active candidates
             create_round(round2_wins, 3), // Round 2 has 3 active candidates (D was eliminated)
@@ -164,10 +168,12 @@ fn test_tie_persists_through_lookback() {
         ("cam", 45),
         ("can", 45),
     ]);
+    let max_rounds = round1_wins.len() as u64 + 1;
 
     let runoff = RunoffStatus {
         candidates_status: CandidatesStatus::default(),
         round_count: 3,
+        max_rounds,
         rounds: vec![
             create_round(round1_wins, 14), // Round 1: 14 active candidates
             create_round(round2_wins, 11), // Round 2: 11 active (A, B, C eliminated)
@@ -250,10 +256,12 @@ fn test_do_round_eliminations_with_tie_resolution() {
         ("cae", 20),
         ("caf", 60), // E will be eliminated before processing the next round
     ]);
+    let max_rounds = round1_wins.len() as u64 + 1;
 
     let mut runoff = RunoffStatus {
         candidates_status: CandidatesStatus::default(),
         round_count: 3,
+        max_rounds,
         rounds: vec![
             create_round(round1_wins, 6), // Round 1: 6 active candidates
             create_round(round2_wins, 5), // Round 2: 5 active (A eliminated)
@@ -321,9 +329,11 @@ fn test_do_round_eliminations_unbreakable_tie_simultaneus_elimination() {
         ("cad", 20), // 3-way tie
     ]);
 
+    let max_rounds = round1_wins.len() as u64 + 1;
     let mut runoff = RunoffStatus {
         candidates_status: CandidatesStatus::default(),
         round_count: 1,
+        max_rounds,
         rounds: vec![
             create_round(round1_wins, 4), // Round 1: 4 active candidates
         ],
@@ -360,5 +370,187 @@ fn test_do_round_eliminations_unbreakable_tie_simultaneus_elimination() {
     assert_eq!(
         runoff.candidates_status.get(&candidate_id("cac")),
         Some(&ECandidateStatus::Eliminated)
+    );
+}
+
+// ============================================================================
+// Integration Tests for run_next_round
+// ============================================================================
+
+/// Helper function to create a simple Candidate for testing
+fn create_candidate(id: &str) -> Candidate {
+    Candidate {
+        id: id.to_string(),
+        tenant_id: "test-tenant".to_string(),
+        election_event_id: "test-event".to_string(),
+        election_id: "test-election".to_string(),
+        contest_id: "test-contest".to_string(),
+        name: Some(format!("Candidate {}", id)),
+        name_i18n: None,
+        description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
+        candidate_type: None,
+        presentation: None,
+        annotations: None,
+    }
+}
+
+/// Helper function to set up random choices for a ballot
+///
+/// Parameters:
+/// - candidate_ids: List of all candidate IDs
+/// - num_selected: Number of candidates to select (0 to n)
+///
+/// Returns a Vec<DecodedVoteChoice> where:
+/// - Selected candidates are ordered from 0 to num_selected-1 (no gaps)
+/// - Non-selected candidates have selected = -1
+/// - The array has one entry for each candidate
+fn set_up_choices(candidate_ids: &[String], num_selected: usize) -> Vec<DecodedVoteChoice> {
+    let mut rng = rand::thread_rng();
+    let num_candidates = candidate_ids.len();
+
+    // Create a shuffled list of candidate indices
+    let mut indices: Vec<usize> = (0..num_candidates).collect();
+    for i in (1..indices.len()).rev() {
+        let j = rng.gen_range(0..=i);
+        indices.swap(i, j);
+    }
+
+    // Create choices array
+    let mut choices = Vec::new();
+    for (idx, candidate_id) in candidate_ids.iter().enumerate() {
+        // Find the position of this candidate in the shuffled list
+        let position = indices.iter().position(|&i| i == idx).unwrap_or_default();
+
+        // If this candidate is in the first num_selected positions, assign a preference
+        let selected = if position < num_selected {
+            position as i64
+        } else {
+            -1
+        };
+
+        choices.push(DecodedVoteChoice {
+            id: candidate_id.clone(),
+            selected,
+            write_in_text: None,
+        });
+    }
+
+    choices
+}
+
+#[test]
+fn test_run_with_random_ballots() {
+    // Setup: Create 5 candidates
+    let candidate_ids = vec![
+        candidate_id("a"),
+        candidate_id("b"),
+        candidate_id("c"),
+        candidate_id("d"),
+        candidate_id("e"),
+    ];
+
+    let candidates: Vec<Candidate> = candidate_ids
+        .iter()
+        .map(|id| create_candidate(id))
+        .collect();
+
+    // Create a contest with the candidates
+    let contest = Contest {
+        id: "test-contest".to_string(),
+        tenant_id: "test-tenant".to_string(),
+        election_event_id: "test-event".to_string(),
+        election_id: "test-election".to_string(),
+        name: Some("Test Contest".to_string()),
+        name_i18n: None,
+        description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
+        max_votes: 1,
+        min_votes: 1,
+        winning_candidates_num: 1,
+        voting_type: Some("instant-runoff".to_string()),
+        counting_algorithm: Some("instant-runoff".to_string()),
+        is_encrypted: false,
+        candidates: candidates.clone(),
+        presentation: None,
+        created_at: None,
+        annotations: None,
+    };
+
+    // Create random ballots
+    let mut rng = rand::thread_rng();
+    let num_ballots = 100;
+    let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
+
+    for _ in 0..num_ballots {
+        // Randomly decide how many candidates to select (1 to 5)
+        let num_selected = rng.gen_range(1..=5);
+        let choices = set_up_choices(&candidate_ids, num_selected);
+
+        let decoded_vote = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: Vec::new(),
+            invalid_alerts: Vec::new(),
+            choices,
+        };
+
+        votes.push((decoded_vote, Weight::default()));
+    }
+
+    println!("Votes: {:#?}", votes);
+
+    // Initialize statuses
+    let mut ballots_status = BallotsStatus::initialize_statuses(&votes, &contest);
+    let mut runoff = RunoffStatus::initialize_statuses(&candidates);
+    runoff.run(&mut ballots_status);
+
+    println!("RunoffStatus: {:#?}", runoff);
+
+    // Verify that the process completed
+    assert!(
+        runoff.round_count < runoff.max_rounds,
+        "Process should complete within max_rounds"
+    );
+
+    // Get the last round
+    let last_round = runoff.get_last_round();
+    assert!(last_round.is_some(), "There should be at least one round");
+
+    let last_round = last_round.unwrap();
+
+    // Verify that either there's a winner or there's a tie (eliminated_candidates is None)
+    let has_winner = last_round.winner.is_some();
+    let has_tie = last_round.eliminated_candidates.is_none() && last_round.winner.is_none();
+
+    assert!(
+        has_winner || has_tie,
+        "The election should end with either a winner or a tie. \
+         Winner: {:?}, Eliminated: {:?}",
+        last_round.winner,
+        last_round.eliminated_candidates
+    );
+
+    // Additional verification: if there's a winner, check it's a valid candidate
+    if let Some(winner_id) = &last_round.winner {
+        assert!(
+            candidate_ids.contains(winner_id),
+            "Winner ID should be one of the candidates: {}",
+            winner_id
+        );
+    }
+
+    // Verify that some rounds were executed
+    assert!(
+        runoff.round_count > 0,
+        "At least one round should have been executed"
+    );
+    assert!(
+        !runoff.rounds.is_empty(),
+        "Rounds vector should not be empty"
     );
 }
