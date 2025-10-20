@@ -137,7 +137,8 @@ pub struct Round {
     pub winner: Option<String>,
     pub candidates_wins: CandidatesWins,
     pub eliminated_candidates: Option<Vec<String>>,
-    pub active_count: u64, // Number of active candidates when starting this round
+    pub active_candidates_count: u64, // Number of active candidates when starting this round
+    pub active_ballots_count: u64,    // Number of active ballots when starting this round
 }
 
 #[derive(Default, Debug)]
@@ -304,6 +305,8 @@ impl RunoffStatus {
             }
         }
 
+        info!("act_ballots in round {}: {act_ballots}", self.round_count);
+
         let max_wins = candidates_wins.values().max().unwrap_or(&0);
         if *max_wins > act_ballots / 2 {
             let candidate_id_opt = self
@@ -327,8 +330,8 @@ impl RunoffStatus {
                 continue_next_round
             }
         };
-
-        round.active_count = act_candidates_count;
+        round.active_ballots_count = act_ballots;
+        round.active_candidates_count = act_candidates_count;
         round.candidates_wins = candidates_wins;
         self.rounds.push(round);
         self.round_count += 1;

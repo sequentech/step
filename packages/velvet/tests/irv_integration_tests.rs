@@ -46,7 +46,8 @@ fn create_round(candidates_wins: HashMap<String, u64>, active_count: u64) -> Rou
         winner: None,
         candidates_wins,
         eliminated_candidates: None,
-        active_count,
+        active_candidates_count: active_count,
+        active_ballots_count: 0,
     }
 }
 
