@@ -36,6 +36,14 @@ const dutchTranslation: TranslationType = {
                 continue: "Doorgaan",
                 cancel: "Annuleren",
             },
+            warningDialog: {
+                title: "Controleer uw stembiljet",
+                content:
+                    "Uw stembiljet bevat keuzes die mogelijk uw aandacht nodig hebben (zoals het selecteren van minder opties dan toegestaan). Uw stembiljet is geldig en zal worden geteld zoals ingediend.",
+                ok: "Terug en controleren",
+                continue: "Doorgaan",
+                cancel: "Annuleren",
+            },
         },
         startScreen: {
             startButton: "Begin met stemmen",

@@ -36,6 +36,14 @@ const basqueTranslation: TranslationType = {
                 continue: "Jarraitu",
                 cancel: "Ezeztatu",
             },
+            warningDialog: {
+                title: "Berrikusi zure boto-txartela",
+                content:
+                    "Zure boto-txartelak arreta behar dezaketen hautaketak ditu (adibidez, baimendutakoak baino aukera gutxiago hautatzea). Zure boto-txartela baliozkoa da eta bidali bezala zenbatuko da.",
+                ok: "Atzera eta berrikusi",
+                continue: "Jarraitu",
+                cancel: "Utzi",
+            },
         },
         startScreen: {
             startButton: "Hasi Bozketa",

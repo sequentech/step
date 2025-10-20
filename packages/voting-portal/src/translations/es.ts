@@ -36,6 +36,14 @@ const spanishTranslation: TranslationType = {
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
+            warningDialog: {
+                title: "Revisa tu papeleta",
+                content:
+                    "Tu papeleta contiene selecciones que pueden necesitar tu atención (como seleccionar menos opciones de las permitidas). Tu papeleta es válida y se contará tal como se ha enviado.",
+                ok: "Volver y revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
         },
         startScreen: {
             startButton: "Empezar a votar",

@@ -52,6 +52,38 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
     } else {
         i18n.use(LanguageDetector).use(initReactI18next).init(i18nConfig) // Use LanguageDetector if no language is explicitly provided
     }
+
+    // BCP 47-compliant tags initially and on language changes
+    const toBCP47 = (lang: string): string => {
+        // Map internal/non-standard codes to valid BCP 47 when needed
+        const map: Record<string, string> = {
+            cat: "ca", // Catalan
+        }
+        const candidate = map[lang] || lang
+
+        // Simple BCP 47 normalization: lowercase language, uppercase country
+        // e.g., "en-us" -> "en-US", "ES-es" -> "es-ES"
+        const parts = candidate.split("-")
+        if (parts.length === 1) {
+            return parts[0].toLowerCase()
+        }
+        const [language, ...rest] = parts
+        const normalizedRest = rest.map((part, index) => {
+            // Country codes (2 letters) should be uppercase, others lowercase
+            return part.length === 2 && index === 0 ? part.toUpperCase() : part.toLowerCase()
+        })
+        return [language.toLowerCase(), ...normalizedRest].join("-")
+    }
+
+    const updateHtmlLang = (lng?: string) => {
+        if (typeof document === "undefined") return
+        const tag = toBCP47(lng || i18n.language || "en")
+        document.documentElement.setAttribute("lang", tag)
+    }
+
+    // Initial set and subscribe to changes
+    updateHtmlLang(language)
+    i18n.on("languageChanged", updateHtmlLang)
 }
 
 export const getLanguages = (i18n: I18N) => Object.keys(i18n.services.resourceStore.data)

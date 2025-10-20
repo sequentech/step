@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Usage: ./script.sh <subcommand> [options]
-# Subcommands: vote-cast, shell, sleep, tally
+# Subcommands: e2e, load-tool, vote-cast, shell, sleep, tally
 # For vote-cast: ./script.sh vote-cast --voting-url <value>
 # If --voting-url is not provided, falls back to $VOTING_URL or $LOADTESTING_VOTING_URL.
 
@@ -13,7 +13,7 @@
 if [ $# -eq 0 ]; then
   echo "Error: Missing subcommand" >&2
   echo "Usage: $0 <subcommand> [options]" >&2
-  echo "Subcommands: load-tool, vote-cast, shell, sleep, step-cli" >&2
+  echo "Subcommands: e2e, load-tool, vote-cast, shell, sleep, step-cli" >&2
   exit 1
 fi
 
@@ -28,11 +28,12 @@ fi
 
 # Validate subcommand
 case "$SUBCOMMAND" in
-  load-tool|vote-cast|shell|sleep|step-cli)
+  e2e|load-tool|vote-cast|shell|sleep|step-cli)
     ;;
   --help|-h)
     echo "Usage: $0 <subcommand> [options]"
     echo "Subcommands:"
+    echo "  e2e          Run e2e nightwatch tests"
     echo "  load-tool    Run the load-tool tool"
     echo "  vote-cast    Run vote casting load tests [--voting-url <value>]"
     echo "  shell        Start an interactive shell"
@@ -46,14 +47,16 @@ case "$SUBCOMMAND" in
     ;;
   *)
     echo "Error: Unknown subcommand '$SUBCOMMAND'" >&2
-    echo "Valid subcommands: load-tool, vote-cast, shell, sleep, step-cli" >&2
+    echo "Valid subcommands: e2e,load-tool, vote-cast, shell, sleep, step-cli" >&2
     exit 1
     ;;
 esac
 
 # Parse CLI args (only for vote-cast subcommand)
-if [ "$SUBCOMMAND" = "load-tool" ]; then
-  /opt/sequent-step/load-tool "$@"
+if [ "$SUBCOMMAND" = "e2e" ]; then
+  exec /run_bg_voting.sh "$@"
+elif [ "$SUBCOMMAND" = "load-tool" ]; then
+  exec /opt/sequent-step/load-tool "$@"
 elif [ "$SUBCOMMAND" = "vote-cast" ]; then
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -83,9 +86,9 @@ elif [ "$SUBCOMMAND" = "vote-cast" ]; then
   # Delegate to the orchestrator; it will consume VOTING_URL and remaining flags
   exec /run_bg_voting.sh "$@"
 elif [ "$SUBCOMMAND" = "shell" ]; then
-  bash "$@"
+  exec bash "$@"
 elif [ "$SUBCOMMAND" = "sleep" ]; then
-  sleep infinity
+  exec sleep infinity
 elif [ "$SUBCOMMAND" = "step-cli" ]; then
-  /opt/sequentech/step-cli "$@"
+  exec /opt/sequentech/step-cli "$@"
 fi

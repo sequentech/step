@@ -44,7 +44,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
     })
 
     const handleBackup = async () => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TENANT_CONFIG)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TENANT_CONFIG, undefined)
         try {
             setLoading(true)
             let {data, errors} = await export_tenant_config({
@@ -79,7 +79,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
     })
 
     const handleRestore = async (documentId: string, sha256: string) => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TENANT_CONFIG, undefined)
         try {
             setLoading(true)
             setOpenImportDrawer(false)
@@ -226,7 +226,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             setExportDocumentId(undefined)
                             setLoading(false)
                         }}
-                        onSucess={() => setLoading(false)}
+                        onSuccess={() => setLoading(false)}
                     />
                 </>
             )}

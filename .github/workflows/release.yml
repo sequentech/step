@@ -22,6 +22,12 @@ on:
         required: false
         type: boolean
         default: true
+      infra_only:
+        description: 'Beyond-Infra Deployment Only'
+        required: false
+        type: boolean
+        default: false
+
 
 permissions:
   contents: write
@@ -236,6 +242,7 @@ jobs:
   # Build & Push the images
 
   build-and-push:
+    if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push.yml
     needs: release
     secrets: inherit
@@ -243,16 +250,18 @@ jobs:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
 
-  build-and-push-root-account:
-    uses: ./.github/workflows/reusable_build_push_root.yml
-    needs: release
-    secrets: inherit
-    with:
-      tag: ${{ needs.release.outputs.VERSION }}
-      push: true
+  # build-and-push-root-account:
+  #   if: ${{ github.event.inputs.infra_only == 'false' }}
+  #   uses: ./.github/workflows/reusable_build_push_root.yml
+  #   needs: release
+  #   secrets: inherit
+  #   with:
+  #     tag: ${{ needs.release.outputs.VERSION }}
+  #     push: true
 
   trigger-beyond-release:
-    needs: [release, build-and-push]
+    needs: [release]
+    if: ${{ always() && needs.release.result == 'success' }}
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}
@@ -269,26 +278,9 @@ jobs:
         inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
         wait-for-completion: true
 
-  trigger-gitops-release:
-    needs: [release, build-and-push]
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
-    steps:
-    - name: Trigger GitOps Release Workflow
-      uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
-      with:
-        repo: 'sequentech/gitops'
-        ref: ${{ github.ref }}
-        workflow: 'Automated Release Process'
-        token: ${{ secrets.PAT }}
-        inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
-        wait-for-completion: true
-
   trigger-deployer:
-    needs: [release, create-release-branch, build-and-push, trigger-beyond-release, trigger-gitops-release]
+    needs: [release, create-release-branch, trigger-beyond-release]
+    if: ${{ always() && needs.release.result == 'success' && needs.create-release-branch.result == 'success' }}
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}
@@ -302,12 +294,12 @@ jobs:
         ref: main # always use main for now #${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }} 
         workflow: Deployer Workflow
         token: ${{ secrets.PAT }}
-        inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}"}'
+        inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}", "infra_only":"${{ github.event.inputs.infra_only }}" }'
 
   cleanup:
     if: failure()
     # Here define the depenency jobs
-    needs: [release,build-and-push]
+    needs: [release]
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}
@@ -327,7 +319,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   slack-report:
-    needs: [release, build-and-push, trigger-deployer, cleanup]
+    needs: [release, trigger-deployer, cleanup]
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}

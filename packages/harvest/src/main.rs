@@ -135,6 +135,8 @@ async fn rocket() -> _ {
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
                 routes::set_voter_authentication::set_voter_authentication,
+                routes::export_tally_results::export_tally_results_route,
+                routes::google_meet::generate_google_meeting,
             ],
         )
         .manage(LastDatafixAccessToken::init())

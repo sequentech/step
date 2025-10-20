@@ -664,6 +664,7 @@ impl BoardClient {
         Ok(())
     }
 
+    #[instrument(skip(self, messages))]
     pub async fn insert_electoral_log_messages(
         &mut self,
         board_db: &str,

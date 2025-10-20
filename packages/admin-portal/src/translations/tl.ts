@@ -83,6 +83,8 @@ const tagalogTranslation: TranslationType = {
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
+                EXPORT_TALLY_RESULTS_XLSX:
+                    "I-export ang mga resulta ng pagbibilang sa format na XLSX",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -107,6 +109,18 @@ const tagalogTranslation: TranslationType = {
             empty: {
                 header: "Wala pang Lugar.",
                 action: "Lumikha ng Lugar",
+            },
+            formImputs: {
+                allowEarlyVoting: "Payagan ang Maagang Pagboto",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Key",
+                gapiEmail: "Google Calendar Authentication Email",
+            },
+            errors: {
+                invalidGapiKey: "Hindi wastong format ng Google Calendar Service Account Key",
             },
         },
         lookAndFeelScreen: {
@@ -146,6 +160,7 @@ const tagalogTranslation: TranslationType = {
                 templates: "MGA TEMPLATE",
                 languages: "WIKA",
                 localization: "LOKALISASYON",
+                integrations: "MGA INTEGRASYON",
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
@@ -341,6 +356,13 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Payagan ang mga Awtomatikong Seremonya",
                         "manual-ceremonies": "Mga Manu-manong Seremonya",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Patakaran sa Timbang na Pagboto",
+                    options: {
+                        "areas-weighted-voting": "Timbang na Pagboto ayon sa mga Lugar",
+                        "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
                     },
                 },
             },
@@ -955,6 +977,7 @@ const tagalogTranslation: TranslationType = {
                 "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
                 "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
+                "google-meet-link": "Bumuo ng Google Meet Link",
             },
         },
         generalSettingsScreen: {
@@ -1082,6 +1105,25 @@ const tagalogTranslation: TranslationType = {
                 preview: "I-preview",
             },
         },
+        googleMeet: {
+            title: "Bumuo ng Google Meet Link",
+            generateButton: "Google Meet",
+            meetingTitle: "Pamagat ng Meeting",
+            description: "Paglalarawan (Opsyonal)",
+            startDate: "Petsa ng Simula",
+            startTime: "Oras ng Simula",
+            duration: "Tagal (mga minuto)",
+            attendeeEmails: "Mga Email ng mga Kalahok",
+            attendeeEmailHelp: "Mga email na pinaghiwalay ng kuwit para sa mga kalahok sa meeting",
+            note: "Paalala: Ito ay lilikha ng calendar event sa inyong Google Calendar na may Google Meet link. Kailangan ninyong mag-sign in sa inyong Google account.",
+            success: "Matagumpay na Nabuo ang Google Meet Link!",
+            copy: "Kopyahin sa clipboard",
+            copied: "Nakopya na ang link sa clipboard!",
+            instructions:
+                "Ibahagi ang link na ito sa mga kalahok para sumali sa meeting. Naidagdag na ang calendar event sa inyong Google Calendar.",
+            generating: "Bumubuo...",
+            generate: "Bumuo ng Meet Link",
+        },
         common: {
             export: "Maaaring magtagal ang pag-export. Sigurado ka bang nais mong i-export ang mga rekord?",
             resources: {
@@ -1139,6 +1181,7 @@ const tagalogTranslation: TranslationType = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Maagang pagboto",
             },
             message: {
                 delete: "Sigurado ka bang gusto mong tanggalin ang item na ito?",
@@ -1240,6 +1283,12 @@ const tagalogTranslation: TranslationType = {
                 "semi-open-list": "Semi Bukas na Listahan",
                 "invalid-vote": "Di-wastong Boto",
                 "blank-vote": "Blangkong Boto",
+            },
+            invalidVotePosition: {
+                label: "Posisyon ng Di-wastong Boto",
+                null: "Wala (Default)",
+                top: "Taas",
+                bottom: "Baba",
             },
             error: {},
             createCandidateSuccess: "Kandidato ay nalikha",
@@ -1612,7 +1661,15 @@ const tagalogTranslation: TranslationType = {
                 blank_votes: "Mga botong walang laman",
                 blank_votes_percent: "Porsyento ng mga botong walang laman",
                 number_of_votes: "Bilang ng mga boto",
-                winning_position: "Winning position",
+                winning_position: "Panalong posisyon",
+                weight: "Timbang",
+            },
+            chart: {
+                votesForCandidates: "Mga Boto para sa mga Kandidato",
+                blankVotes: "Mga Blankong Boto",
+                invalidVotes: "Mga Hindi Wastong Boto",
+                totalVoters: "Kabuuang mga Botante",
+                nonVoters: "Hindi Bumoto",
             },
         },
         publish: {
@@ -1632,9 +1689,17 @@ const tagalogTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Gumawa ng Ulat sa Inisyal na Pagsisimula",
                 startVotingPeriod: "Simulan ang Pagboto",
+                startKioskVoting: "Simulan ang Pagboto sa Kiosk",
+                startOnlineVoting: "Simulan ang Pagboto Online",
+                startEarlyVoting: "Simulan ang Maagang Pagboto",
                 stopVotingPeriod: "Itigil ang Pagboto",
+                stopOnlineVoting: "Itigil ang Pagboto Online",
+                stopEarlyVoting: "Itigil ang Maagang Pagboto",
                 stopKioskVotingPeriod: "Itigil ang Pagboto sa Kiosk",
                 pauseVotingPeriod: "I-pause ang Pagboto",
+                pauseKioskVoting: "I-pause ang Pagboto sa Kiosk",
+                pauseOnlineVoting: "I-pause ang Pagboto Online",
+                pauseEarlyVoting: "I-pause ang Maagang Pagboto",
                 generate: "Muling Lumikha",
                 publish: "Ilathala ang Mga Pagbabago",
                 back: "Bumalik",
@@ -1885,7 +1950,7 @@ const tagalogTranslation: TranslationType = {
                 PRE_ENROLLED_OV_BUT_DISAPPROVED:
                     "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
                 LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                OV_TURNOUT_PERCENTAGE: "Turnout ng mga Botante sa Ibang Bansa",
+                VOTERS_TURNOUT_PERCENTAGE: "Turnout ng mga Botante",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX:
                     "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
                 OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
