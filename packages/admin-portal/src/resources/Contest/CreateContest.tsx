@@ -52,7 +52,7 @@ export const CreateContest: React.FC = () => {
             name: t(`contestScreen.options.${value.toLowerCase()}`),
         }))
     }
-    
+
     const countingAlgorithmChoices = () => {
         return (Object.values(ICountingAlgorithm) as ICountingAlgorithm[]).map((value) => ({
             id: value,
