@@ -36,7 +36,7 @@ enum BallotStatus {
 }
 
 #[derive(Debug)]
-struct BallotsStatus<'a> {
+pub struct BallotsStatus<'a> {
     ballots: Vec<(BallotStatus, &'a DecodedVoteContest)>,
     count_valid: u64,
     count_invalid_votes: InvalidVotes,
@@ -48,7 +48,7 @@ impl BallotsStatus<'_> {
     /// Set initial statuses for all the ballots depending on if they are valid, invalid or blank.
     /// Set the metrics and counts.
     #[instrument(skip_all)]
-    fn initialize_statuses<'a>(
+    pub fn initialize_statuses<'a>(
         votes: &'a Vec<(DecodedVoteContest, Weight)>,
         contest: &Contest,
     ) -> BallotsStatus<'a> {
@@ -145,13 +145,16 @@ pub struct RunoffStatus {
     pub candidates_status: CandidatesStatus,
     pub round_count: u64,
     pub rounds: Vec<Round>,
+    pub max_rounds: u64,
 }
 
 impl RunoffStatus {
     #[instrument(skip_all)]
-    fn initialize_statuses(candidates: &Vec<Candidate>) -> RunoffStatus {
+    pub fn initialize_statuses(candidates: &Vec<Candidate>) -> RunoffStatus {
+        let max_rounds = candidates.len() as u64 + 1; // At least 1 candidate is eliminated per round
         let mut status: RunoffStatus = RunoffStatus {
             candidates_status: CandidatesStatus(HashMap::new()),
+            max_rounds,
             ..Default::default()
         };
         for candidate in candidates {
@@ -163,7 +166,7 @@ impl RunoffStatus {
     }
 
     #[instrument(skip_all)]
-    fn get_last_round(&self) -> Option<Round> {
+    pub fn get_last_round(&self) -> Option<Round> {
         self.rounds.last().cloned()
     }
 
@@ -279,15 +282,17 @@ impl RunoffStatus {
     /// Returns true if the process should continue for a next round.
     /// Returns false if there is a winner or a tie was concluded.
     #[instrument(skip_all)]
-    fn run_next_round(&mut self, ballots_status: &mut BallotsStatus) -> bool {
+    pub fn run_next_round(&mut self, ballots_status: &mut BallotsStatus) -> bool {
         let mut round = Round::default();
         let mut candidates_wins: CandidatesWins = HashMap::new();
         let act_candidates = self.candidates_status.get_active_candidates();
         let act_candidates_count = act_candidates.len() as u64;
+        let mut act_ballots = 0;
         for (ballot_st, ballot) in ballots_status.ballots.iter_mut() {
-            if *ballot_st == BallotStatus::Exhausted {
+            if *ballot_st != BallotStatus::Valid {
                 continue;
             }
+            act_ballots += 1;
             let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidates);
             if let Some(candidate_id) = candidate_id {
                 candidates_wins
@@ -300,7 +305,7 @@ impl RunoffStatus {
         }
 
         let max_wins = candidates_wins.values().max().unwrap_or(&0);
-        if *max_wins > act_candidates_count / 2 {
+        if *max_wins > act_ballots / 2 {
             let candidate_id_opt = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, *max_wins)
                 .first()
@@ -329,6 +334,14 @@ impl RunoffStatus {
         self.round_count += 1;
         return continue_next_round;
     }
+
+    #[instrument(skip_all)]
+    pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
+        let mut iterations = 0;
+        while self.run_next_round(ballots_status) && iterations < self.max_rounds {
+            iterations += 1;
+        }
+    }
 }
 
 pub struct InstantRunoff {
@@ -355,8 +368,7 @@ impl CountingAlgorithm for InstantRunoff {
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
         let extended_metrics = ballots_status.extended_metrics;
         let mut runoff = RunoffStatus::initialize_statuses(&contest.candidates);
-
-        while runoff.run_next_round(&mut ballots_status) {}
+        runoff.run(&mut ballots_status);
 
         let mut vote_count: HashMap<String, u64> = HashMap::new(); // TODO: Adapt the output results to have every round information.
         if let Some(results) = runoff.get_last_round() {
