@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use std::fs;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io;
 use std::path::Path;
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
-use zip::write::{FileOptions, SimpleFileOptions};
+use zip::write::SimpleFileOptions;
 
 #[instrument(skip_all, err)]
 pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<(), String> {
@@ -81,8 +81,10 @@ pub fn unzip_file(src_file: &Path, dst_dir: &Path) -> Result<(), String> {
             use std::os::unix::fs::PermissionsExt;
 
             if let Some(mode) = file.unix_mode() {
-                fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))
-                    .with_context(|| format!("Failed to set permissions for: {:?}", out_path))?;
+                fs::set_permissions(&out_path, fs::Permissions::from_mode(mode)).map_err(|e| {
+                    println!("Failed to set permissions for: {:?}: {:?}", out_path, e);
+                    e.to_string()
+                })?;
             }
         }
     }
