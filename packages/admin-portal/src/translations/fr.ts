@@ -113,6 +113,15 @@ const frenchTranslation: TranslationType = {
                 allowEarlyVoting: "Autoriser le Vote Anticipé",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clé de Compte de Service Google Calendar",
+                gapiEmail: "Email d'Authentification Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Liens d'Aide",
@@ -150,6 +159,7 @@ const frenchTranslation: TranslationType = {
                 templates: "MODÈLES",
                 languages: "LANGUES",
                 localization: "LOCALISATION",
+                integrations: "INTÉGRATIONS",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
@@ -972,6 +982,7 @@ const frenchTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
+                "google-meet-link": "Générer un Lien Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1098,6 +1109,26 @@ const frenchTranslation: TranslationType = {
                 edit: "Modifier",
                 preview: "Aperçu",
             },
+        },
+        googleMeet: {
+            title: "Générer un Lien Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Titre de la Réunion",
+            description: "Description (Optionnel)",
+            startDate: "Date de Début",
+            startTime: "Heure de Début",
+            duration: "Durée (minutes)",
+            attendeeEmails: "Emails des Participants",
+            attendeeEmailHelp:
+                "Emails séparés par des virgules pour les participants de la réunion",
+            note: "Note : Cela créera un événement de calendrier dans votre Google Calendar avec un lien Google Meet. Vous devrez vous connecter à votre compte Google.",
+            success: "Lien Google Meet Généré avec Succès !",
+            copy: "Copier dans le presse-papiers",
+            copied: "Lien copié dans le presse-papiers !",
+            instructions:
+                "Partagez ce lien avec les participants pour rejoindre la réunion. L'événement de calendrier a été ajouté à votre Google Calendar.",
+            generating: "Génération...",
+            generate: "Générer le Lien Meet",
         },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",
