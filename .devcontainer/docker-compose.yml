@@ -26,15 +26,29 @@ services:
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
-  simplesaml:
+  simplesamlphp:
     profiles: ["full"]
-    image: kenchan0130/simplesamlphp
+    image: sequentech.local/simplesamlphp
     container_name: simplesamlphp
+    build:
+      context: ./simplesamlphp
+      dockerfile: Dockerfile
     ports:
-      - "8083:8080"
+      - "8083:80"
     volumes:
-      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
-      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
+      - ./simplesamlphp/authsources.php:/var/simplesamlphp/config/authsources.php
+      - ./simplesamlphp/saml20-sp-remote.php:/var/simplesamlphp/metadata/saml20-sp-remote.php
+      - ./simplesamlphp/saml20-idp-hosted.php:/var/simplesamlphp/metadata/saml20-idp-hosted.php
+      - ./simplesamlphp/cert:/var/simplesamlphp/cert
+      - ./simplesamlphp/config/config-override.php:/var/simplesamlphp/config/config-override.php
+      - ./simplesamlphp/config/config-override-base.php:/var/simplesamlphp/config/config-override-base.php
+      - ./simplesamlphp/public/idp-initiated-sso.php:/var/simplesamlphp/public/idp-initiated-sso.php
+      - ./simplesamlphp/000-default.conf:/etc/apache2/sites-available/000-default.conf
+    environment:
+      - SSP_ADMIN_PASSWORD=${SSP_ADMIN_PASSWORD}
+      - SSP_ENABLED_MODULES=${SSP_ENABLED_MODULES}
+      - SSP_ENABLE_IDP=${SSP_ENABLE_IDP}
+      - APACHE_CERT_NAME=ssl-cert-snakeoil
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
