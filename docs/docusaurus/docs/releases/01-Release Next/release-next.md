@@ -181,3 +181,9 @@ Added Charts in the Admin Portal's Tally Results below the data tables to displa
  the General Information, Participation Results and Candidate Results.
 
 - Issue: [#7531](https://github.com/sequentech/meta/issues/7531)
+
+## ✨ Voting Portal > Logs: Show Message column, to ensure signature shown
+
+Added the message column on the log´s table of the Voting portal´s ballot-locator screen.
+
+- Issue: [#8213](https://github.com/sequentech/meta/issues/8213)
