@@ -15,8 +15,9 @@ Refer to your specific login instructions for additional information.
 
 * Enter your login credentials and select Login.
 
-
-
+<br>
+<br>
+<br>
 
 ![Ballot List](/img/voter_guide/voter_ballot_list.png)
 Shows the list of ballots available to you.
@@ -24,9 +25,9 @@ Shows the list of ballots available to you.
 
 * Select Click to Vote in the ballot you wish to vote on, note that multiple ballots may appear depending on your eligibility.
  
-
-
-
+<br>
+<br>
+<br>
 
 ![Voter Instructions](/img/voter_guide/voter_instructions.png)
 Gives simple instructions on how to vote and navigate the ballot.
@@ -37,9 +38,9 @@ Gives simple instructions on how to vote and navigate the ballot.
 ![Ballot Marking](/img/voter_guide/voter_candidate_selection.png)
 This is where you choose your candidates and make selections.
 
-
-
-
+<br>
+<br>
+<br>
 
 * Select your preferred candidates
 * Select Next to proceed to the Ballot Review screen or the next available ballot to mark
@@ -48,9 +49,9 @@ This is where you choose your candidates and make selections.
 * Select Clear Selection to clear all selected candidates
 * Select Back to return to the ballot selection screen
 
-
-
-
+<br>
+<br>
+<br>
 
 ![Ballot Review](/img/voter_guide/voter_ballot_review.png)
 Shows all your selections so you can review them before submitting.
@@ -64,9 +65,9 @@ Shows all your selections so you can review them before submitting.
 * Go back to Edit your Ballot
 * Audit your Ballot, to ensure your selections were correctly encrypted. This will void the ballot (see the Auditing your Ballot section for more information).
 
-
-
-
+<br>
+<br>
+<br>
 
 ![Voter Receipt](/img/voter_guide/voter_ballot_receipt.png)
 Confirms your vote was cast. Shows a unique Ballot ID to help you track it.
