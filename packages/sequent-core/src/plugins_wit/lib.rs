@@ -31,3 +31,11 @@ pub mod documents_bindings {
         async: true,
     });
 }
+
+pub mod  client_request_bindings {
+    wasmtime::component::bindgen!({
+        path: "src/plugins_wit/client_request/client-request.wit",
+        world: "client-request-manager",
+        async: true,
+    });
+}

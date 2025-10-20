@@ -7,8 +7,7 @@ pub unsafe fn _export_create_transmission_package_cabi<T: Guest>(
     arg0: *mut u8,
     arg1: usize,
 ) -> *mut u8 {
-    #[cfg(target_arch = "wasm32")]
-    _rt::run_ctors_once();
+    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
     let len0 = arg1;
     let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
     let result1 = T::create_transmission_package(_rt::string_lift(bytes0));
@@ -23,12 +22,9 @@ pub unsafe fn _export_create_transmission_package_cabi<T: Guest>(
             let ptr3 = vec3.as_ptr().cast::<u8>();
             let len3 = vec3.len();
             ::core::mem::forget(vec3);
-            *ptr2
-                .add(2 * ::core::mem::size_of::<*const u8>())
-                .cast::<usize>() = len3;
-            *ptr2
-                .add(::core::mem::size_of::<*const u8>())
-                .cast::<*mut u8>() = ptr3.cast_mut();
+            *ptr2.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len3;
+            *ptr2.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>() = ptr3
+                .cast_mut();
         }
     };
     ptr2
@@ -40,18 +36,56 @@ pub unsafe fn __post_return_create_transmission_package<T: Guest>(arg0: *mut u8)
     match l0 {
         0 => {}
         _ => {
-            let l1 = *arg0
-                .add(::core::mem::size_of::<*const u8>())
-                .cast::<*mut u8>();
-            let l2 = *arg0
-                .add(2 * ::core::mem::size_of::<*const u8>())
-                .cast::<usize>();
+            let l1 = *arg0.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>();
+            let l2 = *arg0.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>();
+            _rt::cabi_dealloc(l1, l2, 1);
+        }
+    }
+}
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn _export_send_transmission_package_cabi<T: Guest>(
+    arg0: *mut u8,
+    arg1: usize,
+) -> *mut u8 {
+    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
+    let len0 = arg1;
+    let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
+    let result1 = T::send_transmission_package(_rt::string_lift(bytes0));
+    let ptr2 = (&raw mut _RET_AREA.0).cast::<u8>();
+    match result1 {
+        Ok(_) => {
+            *ptr2.add(0).cast::<u8>() = (0i32) as u8;
+        }
+        Err(e) => {
+            *ptr2.add(0).cast::<u8>() = (1i32) as u8;
+            let vec3 = (e.into_bytes()).into_boxed_slice();
+            let ptr3 = vec3.as_ptr().cast::<u8>();
+            let len3 = vec3.len();
+            ::core::mem::forget(vec3);
+            *ptr2.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len3;
+            *ptr2.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>() = ptr3
+                .cast_mut();
+        }
+    };
+    ptr2
+}
+#[doc(hidden)]
+#[allow(non_snake_case)]
+pub unsafe fn __post_return_send_transmission_package<T: Guest>(arg0: *mut u8) {
+    let l0 = i32::from(*arg0.add(0).cast::<u8>());
+    match l0 {
+        0 => {}
+        _ => {
+            let l1 = *arg0.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>();
+            let l2 = *arg0.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>();
             _rt::cabi_dealloc(l1, l2, 1);
         }
     }
 }
 pub trait Guest {
     fn create_transmission_package(data: _rt::String) -> Result<(), _rt::String>;
+    fn send_transmission_package(data: _rt::String) -> Result<(), _rt::String>;
 }
 #[doc(hidden)]
 macro_rules! __export_world_miru_plugin_cabi {
@@ -63,7 +97,13 @@ macro_rules! __export_world_miru_plugin_cabi {
         (export_name = "cabi_post_create-transmission-package")] unsafe extern "C" fn
         _post_return_create_transmission_package(arg0 : * mut u8,) { unsafe {
         $($path_to_types)*:: __post_return_create_transmission_package::<$ty > (arg0) } }
-        };
+        #[unsafe (export_name = "send-transmission-package")] unsafe extern "C" fn
+        export_send_transmission_package(arg0 : * mut u8, arg1 : usize,) -> * mut u8 {
+        unsafe { $($path_to_types)*:: _export_send_transmission_package_cabi::<$ty >
+        (arg0, arg1) } } #[unsafe (export_name = "cabi_post_send-transmission-package")]
+        unsafe extern "C" fn _post_return_send_transmission_package(arg0 : * mut u8,) {
+        unsafe { $($path_to_types)*:: __post_return_send_transmission_package::<$ty >
+        (arg0) } } };
     };
 }
 #[doc(hidden)]
@@ -71,11 +111,98 @@ pub(crate) use __export_world_miru_plugin_cabi;
 #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
 #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
 struct _RetArea([::core::mem::MaybeUninit<u8>; 3 * ::core::mem::size_of::<*const u8>()]);
-static mut _RET_AREA: _RetArea =
-    _RetArea([::core::mem::MaybeUninit::uninit(); 3 * ::core::mem::size_of::<*const u8>()]);
+static mut _RET_AREA: _RetArea = _RetArea(
+    [::core::mem::MaybeUninit::uninit(); 3 * ::core::mem::size_of::<*const u8>()],
+);
 #[rustfmt::skip]
 #[allow(dead_code, clippy::all)]
 pub mod plugins_manager {
+    pub mod client_request_manager {
+        #[allow(dead_code, async_fn_in_trait, unused_imports, clippy::all)]
+        pub mod client_request {
+            #[used]
+            #[doc(hidden)]
+            static __FORCE_SECTION_REF: fn() = super::super::super::__link_custom_section_describing_imports;
+            use super::super::super::_rt;
+            #[allow(unused_unsafe, clippy::all)]
+            pub fn send_zip(zip_path: &str, uri: &str) -> Result<(), _rt::String> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 3 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 3
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = zip_path;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = uri;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let ptr2 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(
+                        wasm_import_module = "plugins-manager:client-request-manager/client-request"
+                    )]
+                    unsafe extern "C" {
+                        #[link_name = "send-zip"]
+                        fn wit_import3(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import3(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import3(ptr0.cast_mut(), len0, ptr1.cast_mut(), len1, ptr2)
+                    };
+                    let l4 = i32::from(*ptr2.add(0).cast::<u8>());
+                    let result8 = match l4 {
+                        0 => {
+                            let e = ();
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l5 = *ptr2
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l6 = *ptr2
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len7 = l6;
+                                let bytes7 = _rt::Vec::from_raw_parts(
+                                    l5.cast(),
+                                    len7,
+                                    len7,
+                                );
+                                _rt::string_lift(bytes7)
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result8
+                }
+            }
+        }
+    }
     pub mod common {
         #[allow(dead_code, async_fn_in_trait, unused_imports, clippy::all)]
         pub mod types {
@@ -3353,12 +3480,14 @@ macro_rules! __export_miru_plugin_impl {
 #[doc(inline)]
 pub(crate) use __export_miru_plugin_impl as export;
 #[cfg(target_arch = "wasm32")]
-#[unsafe(link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world")]
+#[unsafe(
+    link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world"
+)]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 2661] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xe3\x13\x01A\x02\x01\
-A\x13\x01B\x0b\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 2790] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xe4\x14\x01A\x02\x01\
+A\x16\x01B\x0b\x01j\0\x01s\x01@\0\0\0\x04\0\x19create-hasura-transaction\x01\x01\
 \x04\0\x1bcreate-keycloak-transaction\x01\x01\x01ps\x01j\x01s\x01s\x01@\x02\x03s\
 qls\x06params\x02\0\x03\x04\0\x14execute-hasura-query\x01\x04\x04\0\x16execute-k\
 eycloak-query\x01\x04\x04\0\x19commit-hasura-transaction\x01\x01\x04\0\x1bcommit\
@@ -3396,17 +3525,19 @@ ile-names\x10output-file-names\x08passwords\0\x0b\x04\0\x0cencrypt-file\x01\x0d\
 @\x03\x0djava-jar-files\x12temp-pem-file-names\x08passwords\0\0\x04\0&run-shell-\
 command-ecies-encrypt-string\x01\x0e\x01@\x03\x0djava-jar-files\x12temp-pem-file\
 -names\x13temp-data-file-names\0\0\x04\0!run-shell-command-ecies-sign-data\x01\x0f\
-\x03\0+plugins-manager:documents-manager/documents\x05\x04\x01B\x06\x01r\x03\x04\
-paths\x07handlers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\x01\
-p\x01\x01r\x04\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08\
-manifest\x03\0\x04\x03\0\x1cplugins-manager:common/types\x05\x05\x01j\0\x01s\x01\
-@\x01\x04datas\0\x06\x04\0\x1bcreate-transmission-package\x01\x07\x02\x03\0\x05\x08\
-manifest\x02\x03\0\x05\x0cplugin-route\x01B\x06\x02\x03\x02\x01\x08\x04\0\x08man\
-ifest\x03\0\0\x02\x03\x02\x01\x09\x04\0\x0cplugin-route\x03\0\x02\x01@\0\0\x01\x04\
-\0\x0cget-manifest\x01\x04\x04\0$plugins-manager:common/plugin-common\x05\x0a\x04\
-\0'plugins-manager:miru-plugin/miru-plugin\x04\0\x0b\x11\x01\0\x0bmiru-plugin\x03\
-\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-component\x070.227.1\x10wit-\
-bindgen-rust\x060.41.0";
+\x03\0+plugins-manager:documents-manager/documents\x05\x04\x01B\x03\x01j\0\x01s\x01\
+@\x02\x08zip-paths\x03uris\0\0\x04\0\x08send-zip\x01\x01\x03\05plugins-manager:c\
+lient-request-manager/client-request\x05\x05\x01B\x06\x01r\x03\x04paths\x07handl\
+ers\x0fprocess-as-task\x7f\x04\0\x0cplugin-route\x03\0\0\x01ps\x01p\x01\x01r\x04\
+\x0bplugin-names\x05hooks\x02\x06routes\x03\x05tasks\x02\x04\0\x08manifest\x03\0\
+\x04\x03\0\x1cplugins-manager:common/types\x05\x06\x01j\0\x01s\x01@\x01\x04datas\
+\0\x07\x04\0\x1bcreate-transmission-package\x01\x08\x04\0\x19send-transmission-p\
+ackage\x01\x08\x02\x03\0\x06\x08manifest\x02\x03\0\x06\x0cplugin-route\x01B\x06\x02\
+\x03\x02\x01\x09\x04\0\x08manifest\x03\0\0\x02\x03\x02\x01\x0a\x04\0\x0cplugin-r\
+oute\x03\0\x02\x01@\0\0\x01\x04\0\x0cget-manifest\x01\x04\x04\0$plugins-manager:\
+common/plugin-common\x05\x0b\x04\0'plugins-manager:miru-plugin/miru-plugin\x04\0\
+\x0b\x11\x01\0\x0bmiru-plugin\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0d\
+wit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

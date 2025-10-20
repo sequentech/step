@@ -25,7 +25,7 @@ use crate::services::{
 // A struct to hold the host's state, including a map to manage the temporary files.
 pub struct PluginDocumentsManager {
     open_temp_files: Vec<NamedTempFile>,
-    path_dir: PathBuf,
+    pub path_dir: PathBuf,
 }
 
 impl PluginDocumentsManager {

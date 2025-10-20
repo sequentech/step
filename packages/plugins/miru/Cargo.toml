@@ -41,3 +41,4 @@ path = "./wit/world.wit"
 "plugins-manager:common" = { path = "../../sequent-core/src/plugins_wit/plugin/plugin-world.wit" }
 "plugins-manager:jwt" = { path = "../../sequent-core/src/plugins_wit/jwt/jwt-world.wit" }
 "plugins-manager:documents-manager" = { path = "../../sequent-core/src/plugins_wit/documents/documents-world.wit" }
+"plugins-manager:client-request-manager" = { path = "../../sequent-core/src/plugins_wit/client_request/client-request.wit" }

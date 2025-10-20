@@ -1,0 +1,12 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package plugins-manager:client-request-manager;
+
+interface client-request {
+  send-zip: func(zip-path: string, uri: string) -> result<_, string>;
+}
+
+world client-request-manager {
+    import client-request;
+}

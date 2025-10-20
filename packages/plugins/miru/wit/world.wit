@@ -8,5 +8,7 @@ world miru-plugin {
     export plugins-manager:common/plugin-common;
     import plugins-manager:jwt/authorization;
     import plugins-manager:documents-manager/documents;
+    import plugins-manager:client-request-manager/client-request;
     export create-transmission-package: func(data: string) -> result<_,string>;
+    export send-transmission-package: func(data: string) -> result<_,string>;
 }

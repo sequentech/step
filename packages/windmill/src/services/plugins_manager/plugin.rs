@@ -23,6 +23,9 @@ use sequent_core::{
             transaction::add_to_linker as add_transaction_linker,
             vault::add_to_linker as add_vault_to_linker,
         },
+        client_request_bindings::plugins_manager::client_request_manager::client_request::{
+            add_to_linker as add_client_request_to_linker,
+        },
     },
     services::{authorization::authorize, jwt::JwtClaims},
     types::permissions::Permissions,
@@ -282,6 +285,8 @@ impl Plugin {
         add_documents_to_linker(&mut linker, |store: &mut PluginStore| &mut store.services)?;
 
         add_vault_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
+
+        add_client_request_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 
