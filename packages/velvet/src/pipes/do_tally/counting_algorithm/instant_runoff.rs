@@ -8,8 +8,6 @@ use crate::pipes::do_tally::{
     counting_algorithm::common::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
-use rand::thread_rng;
-use rand::Rng;
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use std::cmp;
@@ -138,7 +136,7 @@ impl CandidatesStatus {
 pub struct Round {
     pub winner: Option<String>,
     pub candidates_wins: CandidatesWins,
-    pub eliminated_candidates: Option<String>,
+    pub eliminated_candidates: Option<Vec<String>>,
     pub active_count: u64, // Number of active candidates when starting this round
 }
 
@@ -223,7 +221,7 @@ impl RunoffStatus {
         &mut self,
         candidates_wins: &CandidatesWins,
         candidates_to_eliminate: &Vec<String>,
-    ) -> Option<String> {
+    ) -> Option<Vec<String>> {
         let active_count = candidates_wins.len();
         let reduced_list = match candidates_to_eliminate.len() {
             0 => return None,
@@ -239,17 +237,17 @@ impl RunoffStatus {
             // If there is only one candidate left, eliminate it.
             self.candidates_status
                 .set_candidate_to_eliminated(&reduced_list[0]);
-            return Some(reduced_list[0].clone());
+            return Some(reduced_list);
         } else {
             // Simultaneous Elimination can create corner cases where a winner is decided unfairly.
-            // So then we need to do a random elimination.
+            // So many electoral systems pick a random candidate from the reduced list instead.
             // Note: Some systems can do simultaneous elimination when it is mathematically safe,
             // this is if the distance to the next more voted candidate is big enough.
-            let random_index = thread_rng().gen_range(0..reduced_list.len());
-            let candidate_id = reduced_list[random_index].clone();
-            self.candidates_status
-                .set_candidate_to_eliminated(&candidate_id);
-            return Some(candidate_id);
+            for candidate_id in &reduced_list {
+                self.candidates_status
+                    .set_candidate_to_eliminated(candidate_id);
+            }
+            return Some(reduced_list);
         }
     }
 

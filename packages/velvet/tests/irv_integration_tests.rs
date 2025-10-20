@@ -284,7 +284,8 @@ fn test_do_round_eliminations_with_tie_resolution() {
 
     // Expected: Should successfully eliminate candidate B (who had fewer in Round 2)
     assert!(result.is_some());
-    assert_eq!(result, Some(candidate_id("cab")));
+    let list = result.unwrap_or_default();
+    assert!(list.contains(&candidate_id("cab")));
 
     // Verify candidate B's status was updated to Eliminated
     assert_eq!(
@@ -300,17 +301,17 @@ fn test_do_round_eliminations_with_tie_resolution() {
 }
 
 #[test]
-fn test_do_round_eliminations_unbreakable_tie_random_removal() {
+fn test_do_round_eliminations_unbreakable_tie_simultaneus_elimination() {
     // Setup: Create a scenario where all remaining candidates are tied throughout all rounds
     //
     // Round 1 (4 candidates):
     //   - Candidate A: 25 votes
     //   - Candidates B, C, D: 20 votes each (3-way TIE for lowest) - Should be eliminated but tie persists
     //
-    // Current state: 3 candidates, 1 eliminated randomly.
+    // Current state: 3 candidates, B and C tied for lowest.
     //
-    // Expected: Since all active candidates are tied and lookback doesn't break the tie,
-    // do_round_eliminations should remove a random candidate.
+    // Expected: Since 2 active lowest are tied and lookback doesn't break the tie,
+    // do_round_eliminations should remove both
 
     // Round 1: B, C, D tied for lowest
     let round1_wins = create_wins(&[
@@ -344,17 +345,20 @@ fn test_do_round_eliminations_unbreakable_tie_random_removal() {
     // Call the function under test
     let result = runoff.do_round_eliminations(&current_wins, &candidates_to_eliminate);
 
-    // Expected: Should return None because all active candidates are tied
-    // (active_count == reduced_list.len() triggers the tie condition)
-    assert!(result.is_some());
-
+    assert!(result.is_some()); // B and C eliminated
+    let list = result.unwrap_or_default();
+    assert!(list.len() == 2);
     // Verify that caa is Active
     assert_eq!(
         runoff.candidates_status.get(&candidate_id("caa")),
         Some(&ECandidateStatus::Active)
     );
-    // The Other 2 candidates have different status, because one was eliminated randomly
-    let st_cab = runoff.candidates_status.get(&candidate_id("cab"));
-    let st_cac = runoff.candidates_status.get(&candidate_id("cac"));
-    assert_ne!(st_cab, st_cac);
+    assert_eq!(
+        runoff.candidates_status.get(&candidate_id("cab")),
+        Some(&ECandidateStatus::Eliminated)
+    );
+    assert_eq!(
+        runoff.candidates_status.get(&candidate_id("cac")),
+        Some(&ECandidateStatus::Eliminated)
+    );
 }
