@@ -555,3 +555,302 @@ fn test_run_with_random_ballots() {
         "Rounds vector should not be empty"
     );
 }
+
+#[test]
+fn test_all_invalid_ballots() {
+    // Setup: Create 3 candidates
+    let candidate_ids = vec![
+        candidate_id("a"),
+        candidate_id("b"),
+        candidate_id("c"),
+    ];
+
+    let candidates: Vec<Candidate> = candidate_ids
+        .iter()
+        .map(|id| create_candidate(id))
+        .collect();
+
+    // Create a contest with the candidates
+    let contest = Contest {
+        id: "test-contest".to_string(),
+        tenant_id: "test-tenant".to_string(),
+        election_event_id: "test-event".to_string(),
+        election_id: "test-election".to_string(),
+        name: Some("Test Contest".to_string()),
+        name_i18n: None,
+        description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
+        max_votes: 1,
+        min_votes: 1,
+        winning_candidates_num: 1,
+        voting_type: Some("instant-runoff".to_string()),
+        counting_algorithm: Some("instant-runoff".to_string()),
+        is_encrypted: false,
+        candidates: candidates.clone(),
+        presentation: None,
+        created_at: None,
+        annotations: None,
+    };
+
+    // Create 10 ballots where all choices have selected = -1 (all invalid)
+    let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
+
+    for _ in 0..10 {
+        let choices: Vec<DecodedVoteChoice> = candidate_ids
+            .iter()
+            .map(|id| DecodedVoteChoice {
+                id: id.clone(),
+                selected: -1, // All candidates unselected
+                write_in_text: None,
+            })
+            .collect();
+
+        let decoded_vote = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: Vec::new(),
+            invalid_alerts: Vec::new(),
+            choices,
+        };
+
+        votes.push((decoded_vote, Weight::default()));
+    }
+
+    println!("Votes (all invalid): {:#?}", votes);
+
+    // Initialize statuses and run
+    let mut ballots_status = BallotsStatus::initialize_statuses(&votes, &contest);
+    let mut runoff = RunoffStatus::initialize_statuses(&candidates);
+    runoff.run(&mut ballots_status);
+
+    println!("RunoffStatus (all invalid): {:#?}", runoff);
+
+    // Verify that there's no winner
+    let last_round = runoff.get_last_round();
+    assert!(last_round.is_some(), "There should be at least one round");
+    
+    let last_round = last_round.unwrap();
+    assert!(
+        last_round.winner.is_none(),
+        "There should be no winner when all ballots are invalid"
+    );
+}
+
+#[test]
+fn test_tie_in_final_round() {
+    // Setup: Create 3 candidates (A, B, C)
+    // Strategy: 
+    // - Round 1: A gets 4 votes, B gets 4 votes, C gets 2 votes → C is eliminated
+    // - Round 2: C's votes are redistributed equally to A and B → both get 5 votes → Tie!
+    
+    let candidate_ids = vec![
+        candidate_id("a"),
+        candidate_id("b"),
+        candidate_id("c"),
+    ];
+
+    let candidates: Vec<Candidate> = candidate_ids
+        .iter()
+        .map(|id| create_candidate(id))
+        .collect();
+
+    // Create a contest with the candidates
+    let contest = Contest {
+        id: "test-contest".to_string(),
+        tenant_id: "test-tenant".to_string(),
+        election_event_id: "test-event".to_string(),
+        election_id: "test-election".to_string(),
+        name: Some("Test Contest".to_string()),
+        name_i18n: None,
+        description: None,
+        description_i18n: None,
+        alias: None,
+        alias_i18n: None,
+        max_votes: 1,
+        min_votes: 1,
+        winning_candidates_num: 1,
+        voting_type: Some("instant-runoff".to_string()),
+        counting_algorithm: Some("instant-runoff".to_string()),
+        is_encrypted: false,
+        candidates: candidates.clone(),
+        presentation: None,
+        created_at: None,
+        annotations: None,
+    };
+
+    let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
+
+    // 4 ballots: A first (0), B second (1), C third (2)
+    for _ in 0..4 {
+        let choices = vec![
+            DecodedVoteChoice {
+                id: candidate_id("a"),
+                selected: 0,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: candidate_id("b"),
+                selected: 1,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: candidate_id("c"),
+                selected: 2,
+                write_in_text: None,
+            },
+        ];
+
+        votes.push((
+            DecodedVoteContest {
+                contest_id: contest.id.clone(),
+                is_explicit_invalid: false,
+                invalid_errors: Vec::new(),
+                invalid_alerts: Vec::new(),
+                choices,
+            },
+            Weight::default(),
+        ));
+    }
+
+    // 4 ballots: B first (0), A second (1), C third (2)
+    for _ in 0..4 {
+        let choices = vec![
+            DecodedVoteChoice {
+                id: candidate_id("a"),
+                selected: 1,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: candidate_id("b"),
+                selected: 0,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: candidate_id("c"),
+                selected: 2,
+                write_in_text: None,
+            },
+        ];
+
+        votes.push((
+            DecodedVoteContest {
+                contest_id: contest.id.clone(),
+                is_explicit_invalid: false,
+                invalid_errors: Vec::new(),
+                invalid_alerts: Vec::new(),
+                choices,
+            },
+            Weight::default(),
+        ));
+    }
+
+    // 1 ballot: C first (0), A second (1), B third (2)
+    let choices = vec![
+        DecodedVoteChoice {
+            id: candidate_id("a"),
+            selected: 1,
+            write_in_text: None,
+        },
+        DecodedVoteChoice {
+            id: candidate_id("b"),
+            selected: 2,
+            write_in_text: None,
+        },
+        DecodedVoteChoice {
+            id: candidate_id("c"),
+            selected: 0,
+            write_in_text: None,
+        },
+    ];
+
+    votes.push((
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: Vec::new(),
+            invalid_alerts: Vec::new(),
+            choices,
+        },
+        Weight::default(),
+    ));
+
+    // 1 ballot: C first (0), B second (1), A third (2)
+    let choices = vec![
+        DecodedVoteChoice {
+            id: candidate_id("a"),
+            selected: 2,
+            write_in_text: None,
+        },
+        DecodedVoteChoice {
+            id: candidate_id("b"),
+            selected: 1,
+            write_in_text: None,
+        },
+        DecodedVoteChoice {
+            id: candidate_id("c"),
+            selected: 0,
+            write_in_text: None,
+        },
+    ];
+
+    votes.push((
+        DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: Vec::new(),
+            invalid_alerts: Vec::new(),
+            choices,
+        },
+        Weight::default(),
+    ));
+
+    println!("Votes (tie scenario): {:#?}", votes);
+
+    // Initialize statuses and run
+    let mut ballots_status = BallotsStatus::initialize_statuses(&votes, &contest);
+    let mut runoff = RunoffStatus::initialize_statuses(&candidates);
+    runoff.run(&mut ballots_status);
+
+    println!("RunoffStatus (tie scenario): {:#?}", runoff);
+
+    // Verify that there are at least 2 rounds
+    assert!(
+        runoff.rounds.len() >= 2,
+        "There should be at least 2 rounds"
+    );
+
+    // Check the last round
+    let last_round = runoff.get_last_round();
+    assert!(last_round.is_some(), "There should be at least one round");
+    
+    let last_round = last_round.unwrap();
+    
+    // Verify that:
+    // 1. There's no winner (it's a tie)
+    // 2. There are 2 active candidates in the last round
+    // 3. eliminated_candidates is None (indicating a tie)
+    assert!(
+        last_round.winner.is_none(),
+        "There should be no winner in a tie scenario"
+    );
+    
+    assert_eq!(
+        last_round.active_candidates_count, 2,
+        "There should be exactly 2 active candidates in the final round"
+    );
+    
+    assert!(
+        last_round.eliminated_candidates.is_none(),
+        "eliminated_candidates should be None in a tie"
+    );
+    
+    // Verify that both remaining candidates have equal votes in the last round
+    let votes_vec: Vec<u64> = last_round.candidates_wins.values().copied().collect();
+    assert_eq!(votes_vec.len(), 2, "Should have exactly 2 candidates with votes");
+    assert_eq!(
+        votes_vec[0], votes_vec[1],
+        "Both candidates should have equal votes in a tie"
+    );
+}
