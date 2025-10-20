@@ -12,25 +12,23 @@ use crate::services::{plugins_manager::plugin::PluginServices};
 pub struct PluginClientRequestManager;
 
 impl Host for PluginServices {
-    async fn send_zip(
-        &mut self,
-        zip_path: String,
-        uri: String,
-    ) -> Result<(), String> {
+    async fn send_zip(&mut self, zip_path: String, uri: String) -> Result<(), String> {
         let base_path = &self.documents.path_dir;
         let new_zip_path = PathBuf::from(base_path).join(zip_path);
         let zip_bytes = std::fs::read(new_zip_path).map_err(|err| format!("{:?}", err))?;
 
         let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .build().map_err(|err| format!("{:?}", err))?;
+            .danger_accept_invalid_certs(true)
+            .build()
+            .map_err(|err| format!("{:?}", err))?;
 
         // Create a multipart form
         let form = multipart::Form::new().part(
             "zip",
             multipart::Part::bytes(zip_bytes)
                 .file_name("file.zip")
-                .mime_str("application/zip").map_err(|err| format!("{:?}", err))?,
+                .mime_str("application/zip")
+                .map_err(|err| format!("{:?}", err))?,
         );
 
         // Send the POST request
@@ -47,14 +45,16 @@ impl Host for PluginServices {
             response_str
         );
         let is_success = response.status().is_success();
-        let text = response.text().await.map_err(|e| format!("Failed get response text: {}", e))?;
+        let text = response
+            .text()
+            .await
+            .map_err(|e| format!("Failed get response text: {}", e))?;
 
         // Check if the request was successful
         if !is_success {
             return Err(format!(
                 "Failed to send package. Text: {}. Response: {}",
-                text,
-                response_str
+                text, response_str
             ));
         }
         Ok(())

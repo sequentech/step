@@ -7,7 +7,8 @@ pub unsafe fn _export_create_transmission_package_cabi<T: Guest>(
     arg0: *mut u8,
     arg1: usize,
 ) -> *mut u8 {
-    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
+    #[cfg(target_arch = "wasm32")]
+    _rt::run_ctors_once();
     let len0 = arg1;
     let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
     let result1 = T::create_transmission_package(_rt::string_lift(bytes0));
@@ -22,9 +23,12 @@ pub unsafe fn _export_create_transmission_package_cabi<T: Guest>(
             let ptr3 = vec3.as_ptr().cast::<u8>();
             let len3 = vec3.len();
             ::core::mem::forget(vec3);
-            *ptr2.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len3;
-            *ptr2.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>() = ptr3
-                .cast_mut();
+            *ptr2
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>() = len3;
+            *ptr2
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>() = ptr3.cast_mut();
         }
     };
     ptr2
@@ -36,8 +40,12 @@ pub unsafe fn __post_return_create_transmission_package<T: Guest>(arg0: *mut u8)
     match l0 {
         0 => {}
         _ => {
-            let l1 = *arg0.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>();
-            let l2 = *arg0.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>();
+            let l1 = *arg0
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>();
+            let l2 = *arg0
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>();
             _rt::cabi_dealloc(l1, l2, 1);
         }
     }
@@ -48,7 +56,8 @@ pub unsafe fn _export_send_transmission_package_cabi<T: Guest>(
     arg0: *mut u8,
     arg1: usize,
 ) -> *mut u8 {
-    #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
+    #[cfg(target_arch = "wasm32")]
+    _rt::run_ctors_once();
     let len0 = arg1;
     let bytes0 = _rt::Vec::from_raw_parts(arg0.cast(), len0, len0);
     let result1 = T::send_transmission_package(_rt::string_lift(bytes0));
@@ -63,9 +72,12 @@ pub unsafe fn _export_send_transmission_package_cabi<T: Guest>(
             let ptr3 = vec3.as_ptr().cast::<u8>();
             let len3 = vec3.len();
             ::core::mem::forget(vec3);
-            *ptr2.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>() = len3;
-            *ptr2.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>() = ptr3
-                .cast_mut();
+            *ptr2
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>() = len3;
+            *ptr2
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>() = ptr3.cast_mut();
         }
     };
     ptr2
@@ -77,8 +89,12 @@ pub unsafe fn __post_return_send_transmission_package<T: Guest>(arg0: *mut u8) {
     match l0 {
         0 => {}
         _ => {
-            let l1 = *arg0.add(::core::mem::size_of::<*const u8>()).cast::<*mut u8>();
-            let l2 = *arg0.add(2 * ::core::mem::size_of::<*const u8>()).cast::<usize>();
+            let l1 = *arg0
+                .add(::core::mem::size_of::<*const u8>())
+                .cast::<*mut u8>();
+            let l2 = *arg0
+                .add(2 * ::core::mem::size_of::<*const u8>())
+                .cast::<usize>();
             _rt::cabi_dealloc(l1, l2, 1);
         }
     }
@@ -111,9 +127,8 @@ pub(crate) use __export_world_miru_plugin_cabi;
 #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
 #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
 struct _RetArea([::core::mem::MaybeUninit<u8>; 3 * ::core::mem::size_of::<*const u8>()]);
-static mut _RET_AREA: _RetArea = _RetArea(
-    [::core::mem::MaybeUninit::uninit(); 3 * ::core::mem::size_of::<*const u8>()],
-);
+static mut _RET_AREA: _RetArea =
+    _RetArea([::core::mem::MaybeUninit::uninit(); 3 * ::core::mem::size_of::<*const u8>()]);
 #[rustfmt::skip]
 #[allow(dead_code, clippy::all)]
 pub mod plugins_manager {
@@ -3480,9 +3495,7 @@ macro_rules! __export_miru_plugin_impl {
 #[doc(inline)]
 pub(crate) use __export_miru_plugin_impl as export;
 #[cfg(target_arch = "wasm32")]
-#[unsafe(
-    link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world"
-)]
+#[unsafe(link_section = "component-type:wit-bindgen:0.41.0:plugins-manager:miru-plugin:miru-plugin:encoded world")]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
 pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 2790] = *b"\
