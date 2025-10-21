@@ -14,6 +14,14 @@ Prevent error when switching between elections on the "Data" tab by safely
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
 
+## 🐞 Failed scheduled event
+
+Scheduled events and scheduled reports were being repeated because of a
+difference between the look forward time and the beat task rate. This change
+aligns both values to avoid tasks repetition.
+
+- Issue: https://github.com/sequentech/meta/issues/8681
+
 ## 🐞 Investigate rabbitmq issues
 
 The Electoral Log Windmill maintains a RabbitMQ connection, but sometimes it
