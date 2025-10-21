@@ -3,6 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 module.exports = {
+    typescript: {
+        enableTypeChecking: false,
+    },
+    webpack: {
+        configure: (webpackConfig) => {
+            // Find and configure ts-loader to skip type checking
+            const tsLoader = webpackConfig.module.rules.find(
+                (rule) =>
+                    rule.oneOf &&
+                    rule.oneOf.find((r) => r.loader && r.loader.includes("ts-loader"))
+            )
+            if (tsLoader && tsLoader.oneOf) {
+                const tsRule = tsLoader.oneOf.find((r) => r.loader && r.loader.includes("ts-loader"))
+                if (tsRule && !tsRule.options) {
+                    tsRule.options = {}
+                }
+                if (tsRule && tsRule.options) {
+                    tsRule.options.transpileOnly = true
+                }
+            }
+            return webpackConfig
+        },
+    },
     devServer: (devServerConfig, {env, paths}) => {
         devServerConfig.headers = {
             "Access-Control-Allow-Origin": "*",

@@ -15,10 +15,8 @@ module.exports = function (env, argv) {
         output: {
             filename: "index.js",
             library: {
-                name: "$",
-                type: "umd",
+                type: "commonjs2",
             },
-            globalObject: "this",
             path: path.resolve(__dirname, "dist"),
         },
         devtool: "source-map",

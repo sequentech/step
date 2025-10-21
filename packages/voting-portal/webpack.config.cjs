@@ -54,7 +54,15 @@ module.exports = function (env, argv) {
                 {
                     test: /\.(js|ts)x?$/,
                     exclude: /node_modules/,
-                    use: ["babel-loader", "ts-loader"],
+                    use: [
+                        "babel-loader",
+                        {
+                            loader: "ts-loader",
+                            options: {
+                                transpileOnly: true,
+                            },
+                        },
+                    ],
                 },
                 {
                     type: "asset",

@@ -33,7 +33,7 @@ import {
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useMutation, useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client/react"
 import {CREATE_BALLOT_RECEIPT} from "../queries/CreateBallotReceipt"
 import {useGetPublicDocumentUrl} from "../hooks/public-document-url"
 import Stepper from "../components/Stepper"

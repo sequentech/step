@@ -21,7 +21,7 @@ import {
 import {IElectionEvent, selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {useQuery} from "@apollo/client"
+import {useQuery} from "@apollo/client/react"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 import {setDocument} from "../store/documents/documentsSlice"
 
