@@ -5,8 +5,8 @@ const CracoAlias = require("craco-alias")
 const path = require("path")
 
 module.exports = {
-    devServer: {
-        headers: {
+    devServer: (devServerConfig, {env, paths}) => {
+        devServerConfig.headers = {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "*",
             "Access-Control-Allow-Headers": "*",
@@ -14,7 +14,24 @@ module.exports = {
             "Cross-Origin-Resource-Policy": "cross-origin",
             "Referrer-Policy": "no-referrer",
             "Cross-Origin-Embedder-Policy": "credentialless",
-        },
+        };
+        
+        // Remove deprecated properties for webpack-dev-server v5 compatibility
+        delete devServerConfig.onAfterSetupMiddleware;
+        delete devServerConfig.onBeforeSetupMiddleware;
+        delete devServerConfig.https;
+        
+        // Use the new setupMiddlewares instead
+        devServerConfig.setupMiddlewares = (middlewares, devServer) => {
+            return middlewares;
+        };
+        
+        // Configure HTTPS properly for webpack-dev-server v5
+        if (process.env.HTTPS === 'true') {
+            devServerConfig.server = 'https';
+        }
+        
+        return devServerConfig;
     },
     webpack: {
         alias: {

@@ -57,7 +57,7 @@ enum CeleryOpt {
         task_max_retries: u32,
         #[arg(short, long, default_value = "5")]
         broker_connection_max_retries: u32,
-        #[arg(short, long, default_value = "10")]
+        #[arg(short = 'H', long, default_value = "10")]
         heartbeat: u16,
         #[arg(short, long)]
         worker_threads: Option<usize>,
