@@ -559,11 +559,7 @@ fn test_run_with_random_ballots() {
 #[test]
 fn test_all_invalid_ballots() {
     // Setup: Create 3 candidates
-    let candidate_ids = vec![
-        candidate_id("a"),
-        candidate_id("b"),
-        candidate_id("c"),
-    ];
+    let candidate_ids = vec![candidate_id("a"), candidate_id("b"), candidate_id("c")];
 
     let candidates: Vec<Candidate> = candidate_ids
         .iter()
@@ -630,7 +626,7 @@ fn test_all_invalid_ballots() {
     // Verify that there's no winner
     let last_round = runoff.get_last_round();
     assert!(last_round.is_some(), "There should be at least one round");
-    
+
     let last_round = last_round.unwrap();
     assert!(
         last_round.winner.is_none(),
@@ -641,15 +637,11 @@ fn test_all_invalid_ballots() {
 #[test]
 fn test_tie_in_final_round() {
     // Setup: Create 3 candidates (A, B, C)
-    // Strategy: 
+    // Strategy:
     // - Round 1: A gets 4 votes, B gets 4 votes, C gets 2 votes → C is eliminated
     // - Round 2: C's votes are redistributed equally to A and B → both get 5 votes → Tie!
-    
-    let candidate_ids = vec![
-        candidate_id("a"),
-        candidate_id("b"),
-        candidate_id("c"),
-    ];
+
+    let candidate_ids = vec![candidate_id("a"), candidate_id("b"), candidate_id("c")];
 
     let candidates: Vec<Candidate> = candidate_ids
         .iter()
@@ -824,9 +816,9 @@ fn test_tie_in_final_round() {
     // Check the last round
     let last_round = runoff.get_last_round();
     assert!(last_round.is_some(), "There should be at least one round");
-    
+
     let last_round = last_round.unwrap();
-    
+
     // Verify that:
     // 1. There's no winner (it's a tie)
     // 2. There are 2 active candidates in the last round
@@ -835,20 +827,24 @@ fn test_tie_in_final_round() {
         last_round.winner.is_none(),
         "There should be no winner in a tie scenario"
     );
-    
+
     assert_eq!(
         last_round.active_candidates_count, 2,
         "There should be exactly 2 active candidates in the final round"
     );
-    
+
     assert!(
         last_round.eliminated_candidates.is_none(),
         "eliminated_candidates should be None in a tie"
     );
-    
+
     // Verify that both remaining candidates have equal votes in the last round
     let votes_vec: Vec<u64> = last_round.candidates_wins.values().copied().collect();
-    assert_eq!(votes_vec.len(), 2, "Should have exactly 2 candidates with votes");
+    assert_eq!(
+        votes_vec.len(),
+        2,
+        "Should have exactly 2 candidates with votes"
+    );
     assert_eq!(
         votes_vec[0], votes_vec[1],
         "Both candidates should have equal votes in a tie"

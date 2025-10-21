@@ -12,6 +12,7 @@ fn create_runoff_status_simple() -> RunoffStatus {
         candidates_status: CandidatesStatus::default(),
         round_count: 0,
         rounds: Vec::new(),
+        max_rounds: 1,
     }
 }
 
@@ -21,10 +22,12 @@ fn create_runoff_status(active_candidate_ids: Vec<&str>) -> RunoffStatus {
     for id in active_candidate_ids {
         candidates_status.insert(id.to_string(), ECandidateStatus::Active);
     }
+    let max_rounds = active_candidate_ids.len() as u64 + 1;
     RunoffStatus {
         candidates_status,
         round_count: 0,
         rounds: Vec::new(),
+        max_rounds,
     }
 }
 
