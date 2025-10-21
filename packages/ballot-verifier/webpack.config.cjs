@@ -78,7 +78,6 @@ module.exports = function (env, argv) {
                 template: path.resolve(__dirname, "public/index.html"),
                 favicon: path.resolve(__dirname, "public/favicon.ico"),
                 filename: "./index.html",
-                favicon: "./public/favicon.ico",
                 // pass variables to the template
                 templateParameters: {
                     PUBLIC_URL: "", // Replace %PUBLIC_URL% with an empty string
@@ -102,9 +101,7 @@ module.exports = function (env, argv) {
                 ],
             }),
             new ProgressPlugin(),
-            new ESLintPlugin({
-                extensions: [".js", ".jsx", ".ts", ".tsx"],
-            }),
+            new ESLintPlugin(),
             new CleanWebpackPlugin(),
         ],
         devServer: {
@@ -112,7 +109,7 @@ module.exports = function (env, argv) {
                 directory: path.resolve(__dirname, "dist"),
             },
             compress: true, // Enable gzip compression
-            port: 3000, // Run on port 3000
+            port: 3001, // Run on port 3001
             open: true, // Automatically open the browser
             historyApiFallback: true,
         },

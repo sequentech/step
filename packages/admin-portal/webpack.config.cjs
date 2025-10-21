@@ -1,8 +1,14 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 const path = require("path")
+// webpack.config.js
+const webpack = require("webpack")
+const dotenv = require("dotenv")
+
+// this will update the process.env with environment variables in .env file
+dotenv.config()
 
 const {CleanWebpackPlugin} = require("clean-webpack-plugin")
 const ESLintPlugin = require("eslint-webpack-plugin")
@@ -48,7 +54,7 @@ module.exports = function (env, argv) {
             rules: [
                 {
                     test: /\.css$/i,
-                    include: path.resolve(__dirname, "src"),
+                    include: [path.resolve(__dirname, "src"), /node_modules/],
                     use: ["style-loader", "css-loader", "postcss-loader"],
                 },
                 {
@@ -64,6 +70,13 @@ module.exports = function (env, argv) {
         },
         externals: {},
         resolve: {
+            fallback: {
+                fs: false,
+                path: require.resolve("path-browserify"),
+                crypto: require.resolve("crypto-browserify"),
+                vm: require.resolve("vm-browserify"),
+                stream: require.resolve("stream-browserify"),
+            },
             alias: {
                 "@root": path.resolve(__dirname, "src"),
                 "@": path.resolve(__dirname, "src"),
@@ -78,6 +91,7 @@ module.exports = function (env, argv) {
                 template: path.resolve(__dirname, "public/index.html"),
                 favicon: path.resolve(__dirname, "public/favicon.ico"),
                 filename: "./index.html",
+                favicon: "./public/favicon.ico",
                 // pass variables to the template
                 templateParameters: {
                     PUBLIC_URL: "", // Replace %PUBLIC_URL% with an empty string
@@ -101,17 +115,18 @@ module.exports = function (env, argv) {
                 ],
             }),
             new ProgressPlugin(),
-            new ESLintPlugin({
-                extensions: [".js", ".jsx", ".ts", ".tsx"],
-            }),
+            new ESLintPlugin(),
             new CleanWebpackPlugin(),
+            new webpack.DefinePlugin({
+                "process.env": JSON.stringify(process.env),
+            }),
         ],
         devServer: {
             static: {
                 directory: path.resolve(__dirname, "dist"),
             },
             compress: true, // Enable gzip compression
-            port: 3001, // Run on port 3001
+            port: 3002, // Run on port 3002
             open: true, // Automatically open the browser
             historyApiFallback: true,
         },

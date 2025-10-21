@@ -14,8 +14,11 @@ module.exports = function (env, argv) {
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
             filename: "index.js",
-            library: "$",
-            libraryTarget: "umd",
+            library: {
+                name: "$",
+                type: "umd",
+            },
+            globalObject: "this",
             path: path.resolve(__dirname, "dist"),
         },
         devtool: "source-map",
@@ -41,22 +44,17 @@ module.exports = function (env, argv) {
             "mui-image": "mui-image",
             "react-i18next": "react-i18next",
             "react-router-dom": "react-router-dom",
-            "sequent-core": "sequent-core",
+            "@sequentech/ui-core": "@sequentech/ui-core",
         },
         resolve: {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
             },
-            extensions: [".js", ".jsx", ".ts", ".tsx", ".wasm"],
-        },
-        experiments: {
-            asyncWebAssembly: true,
+            extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
         plugins: [
             new ProgressPlugin(),
-            new ESLintPlugin({
-                extensions: [".js", ".jsx", ".ts", ".tsx"],
-            }),
+            new ESLintPlugin(),
             new CleanWebpackPlugin(),
         ],
     }

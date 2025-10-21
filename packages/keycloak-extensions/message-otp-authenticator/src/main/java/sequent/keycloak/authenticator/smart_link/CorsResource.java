@@ -28,7 +28,12 @@ public class CorsResource {
   @Path("{any:.*}")
   public Response preflight() {
     log.debug("CORS OPTIONS preflight request");
-    return session.getProvider(Cors.class).auth().allowedMethods(METHODS).preflight().add(Response.ok());
+    return session
+        .getProvider(Cors.class)
+        .auth()
+        .allowedMethods(METHODS)
+        .preflight()
+        .add(Response.ok());
   }
 
   public static void setupCors(KeycloakSession session, AdminAuth auth) {
