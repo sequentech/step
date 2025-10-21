@@ -1314,6 +1314,7 @@ const spanishTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
+                "instant-runoff": "Segunda Vuelta Instantánea",
                 "random": "Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",

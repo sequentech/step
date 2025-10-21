@@ -1323,6 +1323,7 @@ const catalanTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sense Preferència",
                 "plurality-at-large": "Majoria Plural",
+                "instant-runoff": "Segona Volta Instantània",
                 "random": "Aleatòries",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",

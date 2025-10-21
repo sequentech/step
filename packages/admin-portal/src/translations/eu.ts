@@ -1309,6 +1309,7 @@ const basqueTranslation: TranslationType = {
             options: {
                 "non-preferential": "Ez Lehentasuna",
                 "plurality-at-large": "Pluralitatea Orokorrean",
+                "instant-runoff": "Berehalako Bigarren Itzulia",
                 "random": "Ausazkoa",
                 "custom": "Pertsonalizatua",
                 "alphabetical": "Alfabetikoa",

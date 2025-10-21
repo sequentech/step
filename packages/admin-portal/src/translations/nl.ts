@@ -1310,6 +1310,7 @@ const dutchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Niet-preferentieel",
                 "plurality-at-large": "Meerderheidsstelsel (meervoudig)",
+                "instant-runoff": "Instant-runoff stemmen",
                 "random": "Willekeurig",
                 "custom": "Aangepast",
                 "alphabetical": "Alfabetisch",

@@ -1314,6 +1314,7 @@ const galegoTranslation: TranslationType = {
             options: {
                 "non-preferential": "Non Preferencial",
                 "plurality-at-large": "Pluralidade en Xeral",
+                "instant-runoff": "Segunda Volta Instantánea",
                 "random": "Aleatorio",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",

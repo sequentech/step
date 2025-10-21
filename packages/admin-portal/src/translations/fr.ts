@@ -1322,6 +1322,7 @@ const frenchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sans Préférence",
                 "plurality-at-large": "Pluralité Générale",
+                "instant-runoff": "Vote à Second Tour Instantané",
                 "random": "Aléatoire",
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",

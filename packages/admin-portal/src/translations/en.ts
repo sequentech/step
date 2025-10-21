@@ -1302,6 +1302,7 @@ const englishTranslation = {
             options: {
                 "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
+                "instant-runoff": "Instant Runoff",
                 "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",

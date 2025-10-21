@@ -1315,6 +1315,7 @@ const tagalogTranslation: TranslationType = {
             options: {
                 "non-preferential": "Walang Preferensyal",
                 "plurality-at-large": "Pluralidad sa Lahat",
+                "instant-runoff": "Instant Runoff",
                 "random": "Random",
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
