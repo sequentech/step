@@ -6,6 +6,7 @@
 use crate::ballot_codec::PlaintextCodec;
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
+use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::hasura::core::{self, Area, ElectionEvent};
@@ -1306,6 +1307,43 @@ impl Contest {
             .iter()
             .map(|candidate| candidate.id.clone())
             .collect()
+    }
+
+    /// Checks whether the ballot is valid for this Contest or not.
+    /// - Candidate ids of the selection must be present in the contest.
+    /// - For instant-runoff, the preference order must be valid, without gaps.
+    pub fn is_valid_ballot(
+        &self,
+        decoded_contest: &DecodedVoteContest,
+    ) -> bool {
+        // Check all candidate ids are asociated with this contest
+        let candidate_ids: String =
+            self.candidates.iter().map(|c| c.id.clone()).collect();
+        let contains_all = decoded_contest
+            .choices
+            .iter()
+            .all(|choice| candidate_ids.contains(&choice.id));
+        if !contains_all {
+            return false;
+        }
+        if &self.get_counting_algorithm() == "instant-runoff" {
+            // Check that there are no gaps in the preference order
+            let mut valid_choices: Vec<DecodedVoteChoice> = decoded_contest
+                .choices
+                .iter()
+                .filter(|choice| choice.selected >= 0)
+                .cloned()
+                .collect();
+            valid_choices.sort_by(|a, b| a.selected.cmp(&b.selected));
+            let valid_choices_order: Vec<i64> =
+                valid_choices.iter().map(|choice| choice.selected).collect();
+            let expected_order: Vec<i64> =
+                (0..valid_choices_order.len() as i64).collect();
+            if valid_choices_order != expected_order {
+                return false;
+            }
+        }
+        true
     }
 }
 

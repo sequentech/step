@@ -153,3 +153,20 @@ pub fn check_is_blank(decoded_contest: DecodedVoteContest) -> bool {
             .iter()
             .all(|choice| choice.selected < 0)
 }
+
+/// Check the ballot for its validity according to the its contest counting
+/// algorithm rules.
+pub fn check_ballot_validity(
+    contests: &[Contest],
+    decoded_contests: &[DecodedVoteContest],
+) -> bool {
+    for decoded_contest in decoded_contests.iter() {
+        let contest =
+            contests.iter().find(|c| c.id == decoded_contest.contest_id);
+        match contest {
+            Some(contest) if contest.is_valid_ballot(decoded_contest) => {}
+            _ => return false,
+        }
+    }
+    true
+}
