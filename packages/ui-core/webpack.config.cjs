@@ -53,10 +53,6 @@ module.exports = function (env, argv) {
         experiments: {
             asyncWebAssembly: true,
         },
-        plugins: [
-            new ProgressPlugin(),
-            new ESLintPlugin(),
-            new CleanWebpackPlugin(),
-        ],
+        plugins: [new ProgressPlugin(), new ESLintPlugin(), new CleanWebpackPlugin()],
     }
 }

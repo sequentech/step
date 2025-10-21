@@ -276,8 +276,18 @@ const useTryInsertCastVote = () => {
                         t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`)
                     )
                 }
-            } else if (error && typeof error === 'object' && 'networkError' in error && error.networkError) {
-                console.log((error as any).name, (error as any).message, (error as any).cause, (error as any).networkError)
+            } else if (
+                error &&
+                typeof error === "object" &&
+                "networkError" in error &&
+                error.networkError
+            ) {
+                console.log(
+                    (error as any).name,
+                    (error as any).message,
+                    (error as any).cause,
+                    (error as any).networkError
+                )
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error

@@ -50,10 +50,6 @@ module.exports = function (env, argv) {
             },
             extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
-        plugins: [
-            new ProgressPlugin(),
-            new ESLintPlugin(),
-            new CleanWebpackPlugin(),
-        ],
+        plugins: [new ProgressPlugin(), new ESLintPlugin(), new CleanWebpackPlugin()],
     }
 }

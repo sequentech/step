@@ -11,11 +11,12 @@ module.exports = {
             // Find and configure ts-loader to skip type checking
             const tsLoader = webpackConfig.module.rules.find(
                 (rule) =>
-                    rule.oneOf &&
-                    rule.oneOf.find((r) => r.loader && r.loader.includes("ts-loader"))
+                    rule.oneOf && rule.oneOf.find((r) => r.loader && r.loader.includes("ts-loader"))
             )
             if (tsLoader && tsLoader.oneOf) {
-                const tsRule = tsLoader.oneOf.find((r) => r.loader && r.loader.includes("ts-loader"))
+                const tsRule = tsLoader.oneOf.find(
+                    (r) => r.loader && r.loader.includes("ts-loader")
+                )
                 if (tsRule && !tsRule.options) {
                     tsRule.options = {}
                 }
