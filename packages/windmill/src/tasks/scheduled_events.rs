@@ -359,10 +359,10 @@ pub async fn handle_election_allow_tally(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn scheduled_events() -> Result<()> {
+pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
     let celery_app = get_celery_app().await;
     let now = ISO8601::now();
-    let one_minute_later = now + Duration::seconds(60);
+    let nsecs_later = now + Duration::seconds(rate_seconds as i64);
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -383,7 +383,7 @@ pub async fn scheduled_events() -> Result<()> {
             let Some(formatted_date) = get_datetime(&event) else {
                 return false;
             };
-            formatted_date < one_minute_later
+            formatted_date < nsecs_later
         })
         .collect::<Vec<_>>();
     info!("Found {} events to be run now", to_be_run_now.len());

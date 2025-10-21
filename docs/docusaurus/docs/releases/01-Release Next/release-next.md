@@ -7,6 +7,14 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Failed scheduled event
+
+Scheduled events and scheduled reports were being repeated because of a
+difference between the look forward time and the beat task rate. This change
+aligns both values to avoid tasks repetition.
+
+- Issue: https://github.com/sequentech/meta/issues/8681
+
 ## ✨ Videoconference links from Admin Portal
 
 Added a Google Meet component with a button to generate a link in EVENT > DATA to
