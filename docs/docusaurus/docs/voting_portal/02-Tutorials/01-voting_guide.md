@@ -35,12 +35,13 @@ Gives simple instructions on how to vote and navigate the ballot.
 
 * Review the instructions and select Start Voting
 
+<br></br>
+<br></br>
+<br></br>
+
 ![Ballot Marking](/img/voter_guide/voter_candidate_selection.png)
 This is where you choose your candidates and make selections.
 
-<br></br>
-<br></br>
-<br></br>
 
 * Select your preferred candidates
 * Select Next to proceed to the Ballot Review screen or the next available ballot to mark
