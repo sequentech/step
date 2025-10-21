@@ -89,6 +89,8 @@ pub struct PrintToPdfOptionsLocal {
     pub footer_template: Option<String>,
     pub prefer_css_page_size: Option<bool>,
     pub transfer_mode: Option<String>,
+    pub generate_document_outline: Option<bool>,
+    pub generate_tagged_pdf: Option<bool>,
 }
 
 impl PrintToPdfOptionsLocal {
@@ -112,6 +114,8 @@ impl PrintToPdfOptionsLocal {
             footer_template: pdf_options.footer_template.clone(),
             prefer_css_page_size: pdf_options.prefer_css_page_size,
             transfer_mode: None,
+            generate_document_outline: pdf_options.generate_document_outline,
+            generate_tagged_pdf: pdf_options.generate_tagged_pdf,
         }
     }
 
@@ -133,6 +137,8 @@ impl PrintToPdfOptionsLocal {
             header_template: self.header_template.clone(),
             footer_template: self.footer_template.clone(),
             prefer_css_page_size: self.prefer_css_page_size,
+            generate_document_outline: self.generate_document_outline,
+            generate_tagged_pdf: self.generate_tagged_pdf,
             transfer_mode: None,
         }
     }

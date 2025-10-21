@@ -937,6 +937,32 @@
             "problemMatcher": []
         },
         {
+            "label": "build.sequent-core",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+              "-l",
+              "-c",
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "dedicated",
+              "showReuseMessage": true,
+              "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+              "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.orare",
             "command": "docker",
             "args": [

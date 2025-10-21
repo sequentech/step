@@ -128,6 +128,7 @@ export const TallyCeremony: React.FC = () => {
     const [openModal, setOpenModal] = useState(false)
     const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
+    const [nextStartTransition, setNextStartTransition] = useState(false)
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [pristine, setPristine] = useState<boolean>(true)
@@ -1258,6 +1259,7 @@ export const TallyCeremony: React.FC = () => {
                         // enables the button again because the user cancelled the dialog
                         // so the user can try again.
                     }
+                    setNextStartTransition(false)
                 }}
             >
                 {t("tally.common.dialog.ceremony")}

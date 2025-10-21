@@ -9,8 +9,9 @@ use deadpool_postgres::Transaction;
 use fake::faker::number::raw::NumberWithFormat;
 use fake::locales::EN;
 use fake::Fake;
+use rand::rng;
+use rand::seq::IndexedRandom;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
@@ -202,7 +203,7 @@ async fn set_applications(
         let application_status = match status.clone() {
             Some(status) => status.to_string(),
             None => ApplicationStatus::VARIANTS
-                .choose(&mut thread_rng())
+                .choose(&mut rng())
                 .unwrap()
                 .to_string(),
         };
@@ -216,7 +217,7 @@ async fn set_applications(
                 } else {
                     println!("Setting verification no pendong");
                     ApplicationType::VARIANTS
-                        .choose(&mut thread_rng())
+                        .choose(&mut rng())
                         .unwrap()
                         .to_string()
                 }

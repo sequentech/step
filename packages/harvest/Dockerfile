@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.82.0
+FROM rust:1.88.0-slim-bookworm
 
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
@@ -18,8 +18,9 @@ COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 
+RUN rustup toolchain install nightly-2025-05-04 \
+    && rustup default nightly-2025-05-04
 RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
-RUN rustup default nightly
 
 WORKDIR /app/harvest
 RUN cargo build
