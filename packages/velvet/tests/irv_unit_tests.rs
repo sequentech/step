@@ -19,7 +19,7 @@ fn create_runoff_status_simple() -> RunoffStatus {
 /// Helper function to create a test RunoffStatus with specific candidates
 fn create_runoff_status(active_candidate_ids: Vec<&str>) -> RunoffStatus {
     let mut candidates_status = CandidatesStatus::default();
-    for id in active_candidate_ids {
+    for id in &active_candidate_ids {
         candidates_status.insert(id.to_string(), ECandidateStatus::Active);
     }
     let max_rounds = active_candidate_ids.len() as u64 + 1;
