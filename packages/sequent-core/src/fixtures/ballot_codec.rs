@@ -263,6 +263,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             is_demo: false,
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        area_presentation: None,
         election_event_presentation: None,
         election_presentation: None,
         election_event_annotations: Default::default(),
@@ -447,6 +448,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 columns: None,
             }),
         }],
+        area_annotations: None,
     }
 }
 

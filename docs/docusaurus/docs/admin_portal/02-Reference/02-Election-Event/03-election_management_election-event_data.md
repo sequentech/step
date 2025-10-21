@@ -11,6 +11,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The Data tab is similar across multiple entities in the system (Election Events, Elections, Contests, and Candidates). In this tab, you can configure the main values of each entity. Specifically for Election Events, all related data can be managed here.
 
+
+## Actions buttons in the Election Event Data Tab
+
+- **Export**: Export election event data.
+- **Import candidates**: Import candidates for the election event.
+- **Google meet**: Generate google meet link and create event in google calendar.
+
+
 ## Sections in the Election Event Data Tab
 
 Each section serves a specific purpose and provides a comprehensive breakdown of information:
@@ -61,6 +69,14 @@ Manage how the ballot appears in the Voting Portal.
 Define the voting methods available for this Election Event.
 
 - Use radio buttons to enable applicable voting channels.
+- **Online**: Main remote voting channel. Starting/closing Online also governs Early Voting lifecycle (see below).
+- **Kiosk**: In-person device-based voting. Its status is independent from the others.
+- **EARLY_VOTING**: Enables an early voting period prior to the Online voting window for voters whose Areas have Early Voting enabled.
+  - Appears only if allowed here; when started in Publish, only voters assigned to Areas with the Early Voting policy enabled can vote.
+  - Online channel governs Early Voting:
+    - When Online is started or closed, Early Voting will automatically close if it was enabled.
+    - Early Voting cannot be started once Online voting has been started (and thereafter).
+  - If a channel that is already started is later manually disallowed in this section, no immediate action is taken; action buttons remain disabled until the channel is allowed again.
 
 ## Custom URLs Prefix
 
@@ -100,3 +116,6 @@ Configure advanced system behaviors for this Election Event.
   - Configure the countdown warning and logout alert thresholds.
 - **Keys/Tally Ceremonies Policy**:
   - Allow for the automatic generation of keys and tallies, eliminating the need for trustees involvement.
+- **Weighted Voting Policy**:
+  - **Weighted Voting for Areas**: Enable weighted voting for areas.
+  - **Disabled Weighted Voting**: Disable weighted voting.

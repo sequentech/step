@@ -5,7 +5,7 @@
 import {Box, styled, Button, TextField, InputLabel} from "@mui/material"
 import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
-import React, {useEffect, memo, useState} from "react"
+import React, {useEffect, useRef, memo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -51,6 +51,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
         const [isEncrypted, setIsEncrypted] = useState<boolean>(false)
         const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
+        const passwordInputRef = useRef<HTMLInputElement>(null)
         const [password, setPassword] = useState<string>("")
         const [theFile, setTheFile] = useState<File | undefined>()
 
@@ -58,6 +59,15 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setShaField("")
             setDocumentId(null)
         }, [refresh])
+
+        // Used to autofocus the password input field in the modal dialog. Just
+        // using the autofocus property in PasswordInputStyle's inputProps
+        // doesn't work
+        useEffect(() => {
+            if (passwordDialogOpen && passwordInputRef?.current) {
+                passwordInputRef.current.focus()
+            }
+        }, [passwordDialogOpen, passwordInputRef.current])
 
         const uploadFile = async (url: string, file: File) => {
             await fetch(url, {
@@ -217,6 +227,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                 source="password"
                                 helperText={false}
                                 onChange={(e) => setPassword(e.target.value)}
+                                inputProps={{
+                                    ref: passwordInputRef,
+                                }}
                             />
                         </Box>
                     </SimpleForm>

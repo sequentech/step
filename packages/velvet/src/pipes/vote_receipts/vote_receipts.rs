@@ -10,7 +10,7 @@ use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 
-use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
+use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates, Weight};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
@@ -57,12 +57,25 @@ impl VoteReceipts {
         pipe_config: &PipeConfigVoteReceipts,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
-        let tally = Tally::new(contest, vec![path.to_path_buf()], 0, 0, vec![])
-            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+        let tally = Tally::new(
+            contest,
+            vec![(path.to_path_buf(), Weight::default())],
+            0,
+            0,
+            vec![],
+            vec![],
+        )
+        .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+        let ballots = tally
+            .ballots
+            .iter()
+            .map(|(ballot, _weight)| ballot.clone())
+            .collect::<Vec<DecodedVoteContest>>();
 
         let data = TemplateData {
             contest: tally.contest.clone(),
-            ballots: tally.ballots.clone(),
+            ballots,
             election_name: election_input.name.clone(),
             election_annotations: election_input.annotations.clone(),
             election_dates: election_input.dates.clone(),

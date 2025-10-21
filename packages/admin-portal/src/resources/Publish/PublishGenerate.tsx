@@ -18,6 +18,7 @@ import {EPublishActionsType, EPublishType} from "./EPublishType"
 import {PublishStatus} from "./EPublishStatus"
 import {usePublishPermissions} from "./usePublishPermissions"
 import PublishExport from "./PublishExport"
+import {IChannelButtonInfo} from "@sequentech/ui-core"
 
 const PublishGenerateStyled = {
     Container: styled.div`
@@ -70,6 +71,9 @@ export type TPublishGenerate = {
     electionEventId: string
     fetchAllPublishChanges: () => Promise<void>
     onPreview: (id: string | Identifier) => void
+    kioskModeEnabled: IChannelButtonInfo
+    onlineModeEnabled: IChannelButtonInfo
+    earlyVotingEnabled: IChannelButtonInfo
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
@@ -84,6 +88,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     onGenerate = () => null,
     fetchAllPublishChanges,
     onPreview = () => null,
+    kioskModeEnabled,
+    onlineModeEnabled,
+    earlyVotingEnabled,
 }): React.JSX.Element => {
     const {t} = useTranslation()
     const notify = useNotify()
@@ -124,7 +131,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     publishType={publishType}
                     electionStatus={null}
                     electionPresentation={null}
-                    kioskModeEnabled={false}
+                    kioskModeEnabled={kioskModeEnabled}
+                    onlineModeEnabled={onlineModeEnabled}
+                    earlyVotingEnabled={earlyVotingEnabled}
                     changingStatus={changingStatus}
                     onPublish={onPublish}
                     onGenerate={onGenerate}

@@ -442,18 +442,6 @@ type Mutation {
 }
 
 type Query {
-    list_cast_vote_messages(
-        tenant_id: String!
-        election_event_id: String!
-        election_id: String
-        ballot_id: String!
-        limit: Int
-        offset: Int
-        order_by: ElectoralLogOrderBy
-    ): ListCastVoteMessagesOutput
-}
-
-type Query {
     listElectoralLog(
         limit: Int
         offset: Int
@@ -471,6 +459,18 @@ type Query {
         order_by: PgAuditOrderBy
         audit_table: PgAuditTable
     ): DataListPgAudit
+}
+
+type Query {
+    list_cast_vote_messages(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_id: String!
+        limit: Int
+        offset: Int
+        order_by: ElectoralLogOrderBy
+    ): ListCastVoteMessagesOutput
 }
 
 type Query {
@@ -628,11 +628,17 @@ type Mutation {
         annotations: jsonb
         labels: jsonb
         type: String
+        allow_early_voting: EarlyVotingPolicy
     ): UpsertAreaOutput
 }
 
 type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
+}
+
+enum EarlyVotingPolicy {
+    allow_early_voting
+    no_early_voting
 }
 
 enum ReportEncryptionPolicy {
@@ -660,6 +666,7 @@ enum VotingStatus {
 enum VotingStatusChannel {
     ONLINE
     KIOSK
+    EARLY_VOTING
 }
 
 input TemplateInput {
@@ -1647,4 +1654,19 @@ type ExportTallyResultsOutput {
     document_id: String!
     task_execution: tasks_execution_type!
     error_msg: String
+}
+
+type Mutation {
+    generate_google_meet(
+        summary: String!
+        description: String!
+        start_date_time: String!
+        end_date_time: String!
+        time_zone: String!
+        attendee_emails: [String!]!
+    ): GenerateGoogleMeetOutput
+}
+
+type GenerateGoogleMeetOutput {
+    meet_link: String
 }

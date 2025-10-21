@@ -123,3 +123,7 @@ num_cpus = "1.16"
 ordered-float = { version = "5.0", features = ["serde"] }
 
 rust_xlsxwriter = "0.90.0"
+
+# Google Calendar API
+google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
+rustls = { version = "0.23.32", features = ["ring"] }

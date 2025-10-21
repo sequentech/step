@@ -32,6 +32,7 @@ import {
 } from "@mui/material"
 import styled from "@emotion/styled"
 import DownloadIcon from "@mui/icons-material/Download"
+import VideoCallIcon from "@mui/icons-material/VideoCall"
 import React, {useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ETemplateType} from "@/types/templates"
@@ -54,6 +55,7 @@ import {
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
+    EElectionEventWeightedVotingPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -85,6 +87,7 @@ import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
+import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -116,6 +119,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         IPermissions.ELECTION_EVENT_WRITE
     )
 
+    const canCreateGoogleMeeting = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.GOOGLE_MEET_LINK
+    )
+
     const [value, setValue] = useState(0)
     const [valueMaterials, setValueMaterials] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
@@ -125,6 +134,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
+    const [openGoogleMeet, setOpenGoogleMeet] = useState(false)
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
@@ -190,6 +200,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,
+        early_voting: tenant?.voting_channels?.early_voting || false,
     })
 
     useEffect(() => {
@@ -636,6 +647,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const weightedVotingPolicyOptions = () => {
+        return Object.values(EElectionEventWeightedVotingPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.weightedVotingPolicy.options.${value}`),
+        }))
+    }
+
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
     const updateCustomFilters = (
@@ -661,8 +679,31 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
-    console.log("ceremonyPolicyOptions: ", ceremonyPolicyOptions())
-
+    const extraActionsButtons = () => {
+        let buttons = [
+            <Button
+                className="import-candidates"
+                onClick={() => setOpenImportCandidates(true)}
+                label={t("electionEventScreen.edit.importCandidates")}
+                key="1"
+            >
+                <DownloadIcon />
+            </Button>,
+        ]
+        if (canCreateGoogleMeeting) {
+            buttons.push(
+                <Button
+                    className="google-meet-generator"
+                    onClick={() => setOpenGoogleMeet(true)}
+                    label={t("googleMeet.generateButton", "Generate Google Meet")}
+                    key="2"
+                >
+                    <VideoCallIcon />
+                </Button>
+            )
+        }
+        return buttons
+    }
     return (
         <>
             <Box
@@ -680,16 +721,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     isExportDisabled={openExport || loadingExport}
                     withColumns={false}
                     withFilter={false}
-                    extraActions={[
-                        <Button
-                            className="import-candidates"
-                            onClick={() => setOpenImportCandidates(true)}
-                            label={t("electionEventScreen.edit.importCandidates")}
-                            key="1"
-                        >
-                            <DownloadIcon />
-                        </Button>,
-                    ]}
+                    extraActions={extraActionsButtons()}
                 />
             </Box>
             <RecordContext.Consumer>
@@ -1161,6 +1193,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         emptyText={undefined}
                                         validate={required()}
                                     />
+                                    <SelectInput
+                                        source={"presentation.weighted_voting_policy"}
+                                        choices={weightedVotingPolicyOptions()}
+                                        label={"Weighted Voting Policy"}
+                                        defaultValue={
+                                            EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
+                                        }
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
                                     <Typography
                                         variant="body1"
                                         component="span"
@@ -1320,6 +1362,24 @@ export const EditElectionEventDataForm: React.FC = () => {
                 setExportDocumentId={setExportDocumentId}
                 setLoadingExport={setLoadingExport}
             />
+
+            {canCreateGoogleMeeting && (
+                <GoogleMeetLinkGenerator
+                    open={openGoogleMeet}
+                    onClose={() => setOpenGoogleMeet(false)}
+                    electionEventName={
+                        (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.en
+                            ?.name ||
+                        (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.[
+                            Object.keys(
+                                (record?.presentation as IElectionEventPresentation | undefined)
+                                    ?.i18n || {}
+                            )[0]
+                        ]?.name ||
+                        "Election Event"
+                    }
+                />
+            )}
         </>
     )
 }
