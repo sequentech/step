@@ -9,9 +9,9 @@
 use anyhow::{Context, Result};
 use celery::beat::DeltaSchedule;
 use celery::prelude::Task;
+use clap::Parser;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
-use clap::Parser;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::probe::{setup_probe, AppName};
@@ -21,10 +21,7 @@ use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 
 #[derive(Debug, Parser)]
-#[command(
-    name = "beat",
-    about = "Windmill's periodic task scheduler."
-)]
+#[command(name = "beat", about = "Windmill's periodic task scheduler.")]
 struct CeleryOpt {
     #[arg(short = 'r', long, default_value = "15")]
     review_boards_interval: u64,

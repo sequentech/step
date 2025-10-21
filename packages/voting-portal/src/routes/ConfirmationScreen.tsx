@@ -537,7 +537,7 @@ const ConfirmationScreen: React.FC = () => {
             <QRContainer className="qr-container">
                 <QRCode
                     ariaLabelledby="qr-code-description"
-                    value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl ?? ""}
+                    value={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
                 />
             </QRContainer>
             <ActionButtons

@@ -12,10 +12,10 @@ use lazy_static::lazy_static;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use celery::Celery;
+use clap::Parser;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
-use clap::Parser;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
@@ -41,10 +41,7 @@ lazy_static! {
 }
 
 #[derive(Debug, Parser, Clone)]
-#[command(
-    name = "windmill",
-    about = "Windmill task queue prosumer."
-)]
+#[command(name = "windmill", about = "Windmill task queue prosumer.")]
 enum CeleryOpt {
     Consume {
         #[arg(short, long, default_values_t = vec![BEAT_QUEUE_NAME.clone()])]
