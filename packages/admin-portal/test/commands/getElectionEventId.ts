@@ -7,7 +7,7 @@ export const getElectionEventId = async function (browser) {
         return result.value
     })
 
-    const electionEventIdMatch = currentUrl.match(/sequent_backend_election_event\/([^\/]+)/)
+    const electionEventIdMatch = currentUrl.match(/sequent_backend_election_event\/([^/]+)/)
     if (electionEventIdMatch) {
         const electionEventId = electionEventIdMatch[1]
         return electionEventId

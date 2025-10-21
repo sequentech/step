@@ -64,7 +64,7 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 interface IMiruExportWizardProps {}
 
-export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
+export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     const elementRef = useRef(null)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {globalSettings} = useContext(SettingsContext)

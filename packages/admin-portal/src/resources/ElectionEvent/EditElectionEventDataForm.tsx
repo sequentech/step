@@ -308,9 +308,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
         }
 
-        temp.presentation.enrollment = temp?.presentation.enrollment
-        temp.presentation.otp = temp?.presentation.otp
-
         return temp
     }
 

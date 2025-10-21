@@ -23,6 +23,8 @@ export default [
             "public/sql-wasm.js",
             "*.config.js",
             "*.config.ts",
+            "**/*.mdx",
+            "**/*.license",
         ],
     },
     {
@@ -88,6 +90,10 @@ export default [
                 afterEach: "readonly",
                 expect: "readonly",
             },
+        },
+        rules: {
+            // Disable Jest-specific rules for Nightwatch tests
+            "jest/valid-describe-callback": "off",
         },
     },
     {

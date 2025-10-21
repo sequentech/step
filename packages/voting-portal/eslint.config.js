@@ -18,6 +18,8 @@ export default [
             "public/**",
             "*.config.js",
             "*.config.ts",
+            "**/*.mdx",
+            "**/*.license",
         ],
     },
     {

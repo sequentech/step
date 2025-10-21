@@ -19,6 +19,8 @@ export default [
             "build/**",
             "*.config.js",
             "*.config.ts",
+            "**/*.mdx",
+            "**/*.license",
         ],
     },
     {
@@ -71,7 +73,7 @@ export default [
         },
     },
     {
-        files: ["**/*.test.*", "**/test/**/*", "**/nightwatch/**/*"],
+        files: ["**/*.test.*", "**/test/**/*", "**/nightwatch/**/*", "**/browserstack/**/*"],
         languageOptions: {
             globals: {
                 ...globals.jest,
@@ -83,6 +85,7 @@ export default [
                 after: "readonly",
                 afterEach: "readonly",
                 expect: "readonly",
+                browser: "readonly",
             },
         },
     },

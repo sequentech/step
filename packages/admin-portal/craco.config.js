@@ -14,24 +14,24 @@ module.exports = {
             "Cross-Origin-Resource-Policy": "cross-origin",
             "Referrer-Policy": "no-referrer",
             "Cross-Origin-Embedder-Policy": "credentialless",
-        };
-        
+        }
+
         // Remove deprecated properties for webpack-dev-server v5 compatibility
-        delete devServerConfig.onAfterSetupMiddleware;
-        delete devServerConfig.onBeforeSetupMiddleware;
-        delete devServerConfig.https;
-        
+        delete devServerConfig.onAfterSetupMiddleware
+        delete devServerConfig.onBeforeSetupMiddleware
+        delete devServerConfig.https
+
         // Use the new setupMiddlewares instead
         devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-            return middlewares;
-        };
-        
-        // Configure HTTPS properly for webpack-dev-server v5
-        if (process.env.HTTPS === 'true') {
-            devServerConfig.server = 'https';
+            return middlewares
         }
-        
-        return devServerConfig;
+
+        // Configure HTTPS properly for webpack-dev-server v5
+        if (process.env.HTTPS === "true") {
+            devServerConfig.server = "https"
+        }
+
+        return devServerConfig
     },
     webpack: {
         alias: {

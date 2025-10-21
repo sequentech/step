@@ -386,7 +386,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
-    let timeoutId: NodeJS.Timeout
+    let timeoutId: ReturnType<typeof setTimeout>
     const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>) => {
         const {value} = event.target
         clearTimeout(timeoutId)

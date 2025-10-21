@@ -600,13 +600,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params} // Spread all params provided by Autocomplete
-                                                label={
-                                                    `${getTranslationLabel(
-                                                        attr.name,
-                                                        attr.display_name,
-                                                        t
-                                                    )} ${isRequired ? "*" : ""}` || "-"
-                                                }
+                                                label={`${getTranslationLabel(
+                                                    attr.name,
+                                                    attr.display_name,
+                                                    t
+                                                )} ${isRequired ? "*" : ""}`}
                                                 inputProps={{
                                                     ...params.inputProps,
                                                     id: "autocomplete-input",

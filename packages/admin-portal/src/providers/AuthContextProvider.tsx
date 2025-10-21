@@ -452,7 +452,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const extractPermissionLabels = (input: string): string[] => {
-        const regex = /\"(.*?)\"/g
+        const regex = /"(.*?)"/g
         const matches = []
         let match
         while ((match = regex.exec(input)) !== null) {

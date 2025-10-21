@@ -69,7 +69,6 @@ const Footer: React.FC<PaperProps> = (args) => {
 }
 
 declare global {
-    // eslint-disable-next-line @typescript-eslint/no-namespace
     namespace JSX {
         interface IntrinsicElements {
             sequent: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>

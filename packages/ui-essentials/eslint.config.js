@@ -19,6 +19,8 @@ export default [
             "build/**",
             "*.config.js",
             "*.config.ts",
+            "**/*.mdx",
+            "**/*.license",
         ],
     },
     {

@@ -15,8 +15,8 @@
   "scripts": {
     "build": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=production ",
     "build:dev": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=development",
-    "prettify": "prettier --check .",
-    "prettify:fix": "prettier --write .",
+    "prettify": "prettier --check . --ignore-path .prettierignore",
+    "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "test": "jest",
