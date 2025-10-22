@@ -113,6 +113,11 @@ impl BigUIntCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String> {
+        // The validations can be splitted in 2 parts like that:
+        // in impl Contest
+        // self.validate_candidate_ids(plaintext: &DecodedVoteContest) &&
+        // in impl DecodedVoteContest
+        // paintext.validate_preferencial_order()
         if !self.is_valid_ballot(plaintext) {
             return Err(format!("Invalid ballot"));
         }

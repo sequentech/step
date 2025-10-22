@@ -8,6 +8,7 @@
 use rand::Rng;
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::types::ceremonies::CountingAlgType;
 use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::*;
 /// Helper function to create a candidate UUID with a specific suffix
@@ -474,7 +475,7 @@ fn test_run_with_random_ballots() {
         min_votes: 1,
         winning_candidates_num: 1,
         voting_type: Some("instant-runoff".to_string()),
-        counting_algorithm: Some("instant-runoff".to_string()),
+        counting_algorithm: Some(CountingAlgType::InstantRunoff),
         is_encrypted: false,
         candidates: candidates.clone(),
         presentation: None,
@@ -582,7 +583,7 @@ fn test_all_invalid_ballots() {
         min_votes: 1,
         winning_candidates_num: 1,
         voting_type: Some("instant-runoff".to_string()),
-        counting_algorithm: Some("instant-runoff".to_string()),
+        counting_algorithm: Some(CountingAlgType::InstantRunoff),
         is_encrypted: false,
         candidates: candidates.clone(),
         presentation: None,
@@ -664,7 +665,7 @@ fn test_tie_in_final_round() {
         min_votes: 1,
         winning_candidates_num: 1,
         voting_type: Some("instant-runoff".to_string()),
-        counting_algorithm: Some("instant-runoff".to_string()),
+        counting_algorithm: Some(CountingAlgType::InstantRunoff),
         is_encrypted: false,
         candidates: candidates.clone(),
         presentation: None,
