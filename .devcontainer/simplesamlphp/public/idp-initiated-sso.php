@@ -7,7 +7,8 @@ $simpleSamlBaseUrl = '/simplesaml';
 $keycloakSpEntityId = 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f';
 
 // This is the final destination where the user should land after a successful login.
-$finalRedirectUrl = 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f/protocol/openid-connect/auth?client_id=voting-portal&response_type=code&scope=openid&redirect_uri=' . urlencode('http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/37eb51a7-c6b9-456f-93b4-5bd05081b18f/vote');
+$finalRedirectUrl = 'http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/37eb51a7-c6b9-456f-93b4-5bd05081b18f/login';
+// $finalRedirectUrl = 'aHR0cDovL2xvY2FsaG9zdDozMDAwL3RlbmFudC85MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUvZXZlbnQvMzdlYjUxYTctYzZiOS00NTZmLTkzYjQtNWJkMDUwODFiMThmL3ZvdGU';
 
 // --- Logic ---
 $idpSsoUrl = "{$simpleSamlBaseUrl}/saml2/idp/SSOService.php";

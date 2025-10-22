@@ -52,3 +52,9 @@ RUN cp /var/simplesamlphp/config/config.php.dist /var/simplesamlphp/config/confi
 
 RUN chown -R www-data:www-data /var/simplesamlphp/data
 RUN chmod -R 775 /var/simplesamlphp/data
+
+COPY scripts/entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+CMD ["apache2-foreground"]

@@ -23,7 +23,7 @@ $metadata['http://localhost:8083/simplesaml/saml2/idp/metadata.php'] = [
      * 'config/authsources.php'.
      */
     'auth' => 'example-userpass',
-    'saml20.sendartifact' => true,
+    // 'saml20.sendartifact' => true,
     'ArtifactResolutionService' => [
         [
             'index' => 0,
@@ -31,6 +31,12 @@ $metadata['http://localhost:8083/simplesaml/saml2/idp/metadata.php'] = [
             'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:SOAP',
         ],
     ],
+
+    'SingleSignOnServiceBinding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+
+    'sign.logout' => true,
+    'saml20.sign.response' => true,
+    'saml20.sign.assertion' => true,
     // 'https.certificate' => '/etc/ssl/certs/ssl-cert-snakeoil.pem',
 
     /* Uncomment the following to use the uri NameFormat on attributes. */

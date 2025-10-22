@@ -331,11 +331,11 @@
             "problemMatcher": []
         },
         {
-          "label": "logs.restart.simplesaml",
+          "label": "logs.restart.simplesamlphp",
           "command": "bash",
           "args": [
             "-c",
-            "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker compose logs -f --tail 100 simplesaml"
+            "docker compose stop simplesamlphp; docker compose build simplesamlphp && docker compose up -d --no-deps simplesamlphp && docker compose logs -f --tail 100 simplesamlphp"
           ],
           "options": {
             "env": {
@@ -536,7 +536,7 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.simplesaml",
+            "label": "logs.simplesamlphp",
             "command": "docker",
             "args": [
                 "compose",
@@ -544,7 +544,7 @@
                 "-f",
                 "--tail",
                 "200",
-                "simplesaml",
+                "simplesamlphp",
             ],
             "options": {
                 "env": {
