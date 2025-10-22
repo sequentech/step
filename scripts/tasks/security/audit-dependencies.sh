@@ -286,6 +286,8 @@ audit_maven() {
         ERROR_COUNT=$((ERROR_COUNT + 1))
         MANUAL_COMMANDS+=("# To audit $name manually (requires Maven):")
         MANUAL_COMMANDS+=("cd $dir && mvn org.owasp:dependency-check-maven:check")
+        MANUAL_COMMANDS+=("# With NVD API key (much faster - get key at https://nvd.nist.gov/developers/request-an-api-key):")
+        MANUAL_COMMANDS+=("cd $dir && mvn org.owasp:dependency-check-maven:check -DnvdApiKey=YOUR_API_KEY")
         MANUAL_COMMANDS+=("")
         return
     fi
@@ -293,7 +295,26 @@ audit_maven() {
     # Run Maven OWASP dependency-check
     # We use the plugin directly without requiring it in pom.xml
     echo "  Running OWASP dependency-check (this may take a while on first run)..."
-    MAVEN_OUTPUT=$(mvn org.owasp:dependency-check-maven:check -DskipTests 2>&1)
+    
+    # Check for NVD API key from various sources
+    NVD_KEY=""
+    if [ -n "$NVD_API_KEY" ]; then
+        NVD_KEY="$NVD_API_KEY"
+    elif [ -f "$HOME/.nvd-api-key" ]; then
+        NVD_KEY=$(cat "$HOME/.nvd-api-key" | tr -d '[:space:]')
+    elif [ -f "$HOME/.secrets/nvd-api-key" ]; then
+        NVD_KEY=$(cat "$HOME/.secrets/nvd-api-key" | tr -d '[:space:]')
+    fi
+    
+    # Build Maven command with API key if available
+    if [ -n "$NVD_KEY" ]; then
+        echo "  Using NVD API key for faster updates..."
+        MAVEN_OUTPUT=$(mvn org.owasp:dependency-check-maven:check -DskipTests -DnvdApiKey="$NVD_KEY" 2>&1)
+    else
+        echo "  ${YELLOW}⚠ No NVD API key found - this will be SLOW. Get one at: https://nvd.nist.gov/developers/request-an-api-key${NC}"
+        echo "  ${YELLOW}  Set NVD_API_KEY env var or create ~/.nvd-api-key file${NC}"
+        MAVEN_OUTPUT=$(mvn org.owasp:dependency-check-maven:check -DskipTests 2>&1)
+    fi
     MAVEN_EXIT_CODE=$?
     
     if [ $MAVEN_EXIT_CODE -ne 0 ]; then
@@ -343,6 +364,8 @@ audit_maven() {
             FAILED_AUDITS+=("$name (maven)")
             MANUAL_COMMANDS+=("# To audit $name manually:")
             MANUAL_COMMANDS+=("cd $dir && mvn org.owasp:dependency-check-maven:check")
+            MANUAL_COMMANDS+=("# With NVD API key (much faster):")
+            MANUAL_COMMANDS+=("cd $dir && mvn org.owasp:dependency-check-maven:check -DnvdApiKey=YOUR_API_KEY")
             MANUAL_COMMANDS+=("# View report:")
             MANUAL_COMMANDS+=("xdg-open $REPORT_FILE  # or open $REPORT_FILE on macOS")
             MANUAL_COMMANDS+=("# To fix, update dependencies in pom.xml")
