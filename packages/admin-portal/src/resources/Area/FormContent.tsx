@@ -18,6 +18,7 @@ import {
     TextInput,
     AutocompleteArrayInput,
     ReferenceArrayInput,
+    NumberInput,
     BooleanInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -53,7 +54,7 @@ const StyledCheckbox = styled(Checkbox)({
  * - Supports contest selection with autocomplete and filtering.
  */
 export const FormContent: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close, area_presentation} = props
+    const {record, id, electionEventId, close, area_presentation, weightedVotingForAreas} = props
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -212,6 +213,15 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                                 />
                             </>
                         ) : null}
+                        {weightedVotingForAreas && (
+                            <NumberInput
+                                label="Weight"
+                                source="annotations.weight"
+                                format={(value) => Math.floor(value)}
+                                min={1}
+                                defaultValue={1}
+                            />
+                        )}
                         <BooleanInput
                             source="allow_early_voting_boolean"
                             defaultValue={getAllowEarlyVotingDefaultValue()}

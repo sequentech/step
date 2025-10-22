@@ -114,6 +114,15 @@ const tagalogTranslation: TranslationType = {
                 allowEarlyVoting: "Payagan ang Maagang Pagboto",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Key",
+                gapiEmail: "Google Calendar Authentication Email",
+            },
+            errors: {
+                invalidGapiKey: "Hindi wastong format ng Google Calendar Service Account Key",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Mga Link ng Tulong",
@@ -151,6 +160,7 @@ const tagalogTranslation: TranslationType = {
                 templates: "MGA TEMPLATE",
                 languages: "WIKA",
                 localization: "LOKALISASYON",
+                integrations: "MGA INTEGRASYON",
                 lookAndFeel: "PAGPASADYA KAN ITSURA",
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
@@ -346,6 +356,13 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Payagan ang mga Awtomatikong Seremonya",
                         "manual-ceremonies": "Mga Manu-manong Seremonya",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Patakaran sa Timbang na Pagboto",
+                    options: {
+                        "areas-weighted-voting": "Timbang na Pagboto ayon sa mga Lugar",
+                        "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
                     },
                 },
             },
@@ -960,6 +977,7 @@ const tagalogTranslation: TranslationType = {
                 "voter-email-tlf-edit": "I-edit ang mga field ng email/telepono ng mga botante",
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
                 "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
+                "google-meet-link": "Bumuo ng Google Meet Link",
             },
         },
         generalSettingsScreen: {
@@ -1086,6 +1104,25 @@ const tagalogTranslation: TranslationType = {
                 edit: "I-edit",
                 preview: "I-preview",
             },
+        },
+        googleMeet: {
+            title: "Bumuo ng Google Meet Link",
+            generateButton: "Google Meet",
+            meetingTitle: "Pamagat ng Meeting",
+            description: "Paglalarawan (Opsyonal)",
+            startDate: "Petsa ng Simula",
+            startTime: "Oras ng Simula",
+            duration: "Tagal (mga minuto)",
+            attendeeEmails: "Mga Email ng mga Kalahok",
+            attendeeEmailHelp: "Mga email na pinaghiwalay ng kuwit para sa mga kalahok sa meeting",
+            note: "Paalala: Ito ay lilikha ng calendar event sa inyong Google Calendar na may Google Meet link. Kailangan ninyong mag-sign in sa inyong Google account.",
+            success: "Matagumpay na Nabuo ang Google Meet Link!",
+            copy: "Kopyahin sa clipboard",
+            copied: "Nakopya na ang link sa clipboard!",
+            instructions:
+                "Ibahagi ang link na ito sa mga kalahok para sumali sa meeting. Naidagdag na ang calendar event sa inyong Google Calendar.",
+            generating: "Bumubuo...",
+            generate: "Bumuo ng Meet Link",
         },
         common: {
             export: "Maaaring magtagal ang pag-export. Sigurado ka bang nais mong i-export ang mga rekord?",
@@ -1624,7 +1661,15 @@ const tagalogTranslation: TranslationType = {
                 blank_votes: "Mga botong walang laman",
                 blank_votes_percent: "Porsyento ng mga botong walang laman",
                 number_of_votes: "Bilang ng mga boto",
-                winning_position: "Winning position",
+                winning_position: "Panalong posisyon",
+                weight: "Timbang",
+            },
+            chart: {
+                votesForCandidates: "Mga Boto para sa mga Kandidato",
+                blankVotes: "Mga Blankong Boto",
+                invalidVotes: "Mga Hindi Wastong Boto",
+                totalVoters: "Kabuuang mga Botante",
+                nonVoters: "Hindi Bumoto",
             },
         },
         publish: {

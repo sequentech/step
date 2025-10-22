@@ -113,6 +113,15 @@ const basqueTranslation: TranslationType = {
                 allowEarlyVoting: "Onartu Goiztiarra Bozketa",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
+                gapiEmail: "Google Calendar Autentifikazio Helbide Elektronikoa",
+            },
+            errors: {
+                invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Laguntza Estekak",
@@ -150,6 +159,7 @@ const basqueTranslation: TranslationType = {
                 templates: "TXANTILOIAK",
                 languages: "HIZKUNTZAK",
                 localization: "LOKALIZAZIOA",
+                integrations: "Integrazioak",
                 lookAndFeel: "Itxura eta Sentimendua",
                 schedules: "PROGRAMATUTAKO GERTAERAK",
                 trustees: "FIDEIKOMISARIOAK",
@@ -347,6 +357,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Zeremonia automatikoak baimendu",
                         "manual-ceremonies": "Eskuzko zeremoniak",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Bozketa Ponderatuaren Politika",
+                    options: {
+                        "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
                 },
             },
@@ -955,6 +972,7 @@ const basqueTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editatu bozkatzaileen email/telefono eremuak",
                 "cloudflare-write": "Editatu Herrialde Blokeo Arauak Cloudflare-n",
                 "transmission-report-generate": "Sortu Transmisio Txostena",
+                "google-meet-link": "Google Meet Esteka Sortu",
             },
         },
         generalSettingsScreen: {
@@ -1080,6 +1098,25 @@ const basqueTranslation: TranslationType = {
                 edit: "Editatu",
                 preview: "Aurreikusi",
             },
+        },
+        googleMeet: {
+            title: "Google Meet Esteka Sortu",
+            generateButton: "Google Meet",
+            meetingTitle: "Bileraren Izenburua",
+            description: "Deskribapena (Aukerakoa)",
+            startDate: "Hasiera Data",
+            startTime: "Hasiera Ordua",
+            duration: "Iraupena (minutuak)",
+            attendeeEmails: "Partaideen Emailak",
+            attendeeEmailHelp: "Komaz banandutako emailak bilerako partaideentzat",
+            note: "Oharra: Honek zure Google Calendar-en gertaera bat sortuko du Google Meet esteka batekin. Zure Google kontuan saioa hasi beharko duzu.",
+            success: "Google Meet Esteka Arrakastaz Sortua!",
+            copy: "Arbelera kopiatu",
+            copied: "Esteka arbelera kopiatua!",
+            instructions:
+                "Partekatu esteka hau partaideekin bileran parte hartzeko. Egutegi gertaera zure Google Calendar-era gehitu da.",
+            generating: "Sortzen...",
+            generate: "Meet Esteka Sortu",
         },
         common: {
             export: "Esportazioa eragiketa luzea izan daiteke. Ziur zaude erregistroak esportatu nahi dituzula?",
@@ -1618,6 +1655,14 @@ const basqueTranslation: TranslationType = {
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
+                weight: "Pisua",
+            },
+            chart: {
+                votesForCandidates: "Hautagaientzako Botoak",
+                blankVotes: "Boto Zuriak",
+                invalidVotes: "Boto Baliogabeak",
+                totalVoters: "Bozkatzaile Guztiak",
+                nonVoters: "Ez-bozkatzaileak",
             },
         },
         publish: {

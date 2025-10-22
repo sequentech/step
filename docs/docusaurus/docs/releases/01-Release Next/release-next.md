@@ -7,6 +7,75 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Videoconference links from Admin Portal
+
+Added a Google Meet component with a button to generate a link in EVENT > DATA to
+support creating a google meeting.
+Created INTEGRATIONS tab in tenant settings to add the google api credentials.
+Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
+A new permission `google-meet-link` needs to be added manually in Keycloak, the procedure followed is:
+
+1. Go to realm roles in the tenant realm (i.e. dev) and click on `Create role`
+2. Add the role to the list
+3. Then Go to `Groups` and choose `admin` group name
+4. Go to `role mapping` and click on `Assign role` and add those permissions
+
+- Issue: [#8189](https://github.com/sequentech/meta/issues/8189)
+
+## 🐞 Investigate rabbitmq issues
+
+The Electoral Log Windmill maintains a RabbitMQ connection, but sometimes it
+gets disconnected and Windmill didn't try reconnecting. Moreover, the probe
+didn't check the connection status. This fixes the issue by checking the
+connection status and reconnecting if necessary and checking the status of the
+connection in the probe.
+
+- Issue [#8626](https://github.com/sequentech/meta/issues/8626)
+
+## 🐞 Can't export voters list
+
+In specific cases of Election Events with hundreds of areas and elections and
+millions of voters, exporting voters failed because of an issue with logging
+a specific function.
+
+- Issue [#8622](https://github.com/sequentech/meta/issues/8622)
+
+## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
+
+Within the `Results & Participation` section of the Tally tab of the Admin
+Portal, when clicking in some action item inside the Actions Popup Menu for
+Elections, the Popup Menu didn't automatically close and also in some cases it
+moved to the bottom right corner.
+
+- Issue: [#8614](https://github.com/sequentech/meta/issues/8614)
+
+## 🐞 Admin Portal > Import Election Event: Password Dialog doesn't auto focus
+
+When importing an election event that is encrypted, a dialog pops up asking for
+the password. But the password field doesn't autofocus so the admin user has to
+click on it.
+
+Additionally, when an error is shown in the import election event dialog, it
+will reappear when closing and reopening the import drawer.
+
+- Issue: [#8613](https://github.com/sequentech/meta/issues/8613)
+
+## 🐞 Keycloak Election ids are not filtered by area
+
+When a voter logs in and the voter is not assigned any election, keycloak adds 
+all election ids to the header. However only some election ids are actually 
+related to the user area and only those should be included.
+
+- Issue: [#8593](https://github.com/sequentech/meta/issues/8593)
+
+## 🐞 Keycloak: Redirect To Registration Authenticator doesn't work when `http-relative-path` is set
+
+Keycloak: Redirect authenticator doesn't work when http-relative-path is set.
+The reason is that the http-relative-path is set twice, `/auth` appears twice in
+the URL.
+
+- Issue: [#8574](https://github.com/sequentech/meta/issues/8574)
+
 ## 🐞 Keycloak: Deferred authenticator in Login mode ask for password confirmation
 
 When using the Deferred Authenticator in Login mode, it was asking for password
@@ -96,3 +165,19 @@ Improve the election event/election dashboard so that all necessary data (statis
 are displayed correctly in print mode.
 
 - Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
+
+## ✨ Weighted voting for areas
+
+Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
+When the policy is set to `Weighted Voting for Areas`, it allows assigning a weight
+to each area. Tally results will then be calculated based on these weights, 
+which are taken from the ballot style of each area defined at publication.
+
+- Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
+
+## ✨ Electoral results charts/visualization
+
+Added Charts in the Admin Portal's Tally Results below the data tables to display
+ the General Information, Participation Results and Candidate Results.
+
+- Issue: [#7531](https://github.com/sequentech/meta/issues/7531)

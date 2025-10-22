@@ -60,13 +60,13 @@ pub enum ExportBody {
     },
 }
 
-#[instrument]
+#[instrument(level = "trace")]
 fn sanitize_name(name: &str) -> String {
     // Replace all characters not matching the regex with an underscore '_'
     SAFE_CHARS_RE.replace_all(name, "_").to_string()
 }
 
-#[instrument]
+#[instrument(skip(elections))]
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
@@ -109,7 +109,7 @@ fn get_headers(
     .concat()
 }
 
-#[instrument]
+#[instrument(skip(elections, areas_by_id, user_attributes), level = "trace")]
 fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
     areas_by_id: &Option<HashMap<String, String>>,

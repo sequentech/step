@@ -112,6 +112,15 @@ const dutchTranslation: TranslationType = {
                 allowEarlyVoting: "Vroeg Stemmen Toestaan",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Sleutel",
+                gapiEmail: "Google Calendar Authenticatie E-mail",
+            },
+            errors: {
+                invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Help Links",
@@ -149,6 +158,7 @@ const dutchTranslation: TranslationType = {
                 templates: "SJABLONEN",
                 languages: "TALEN",
                 localization: "LOCALISATIE",
+                integrations: "INTEGRATIES",
                 lookAndFeel: "LOOK & FEEL",
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",
@@ -345,6 +355,13 @@ const dutchTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Automatische ceremonies toestaan",
                         "manual-ceremonies": "Handmatige ceremonies",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Beleid voor Gewogen Stemmen",
+                    options: {
+                        "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
                 },
             },
@@ -955,6 +972,7 @@ const dutchTranslation: TranslationType = {
                 "voter-email-tlf-edit": "E-mail/telefoonvelden kiezers bewerken",
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
+                "google-meet-link": "Google Meet Link Genereren",
             },
         },
         generalSettingsScreen: {
@@ -1080,6 +1098,25 @@ const dutchTranslation: TranslationType = {
                 edit: "Bewerken",
                 preview: "Voorbeeldweergave",
             },
+        },
+        googleMeet: {
+            title: "Google Meet Link Genereren",
+            generateButton: "Meet Genereren",
+            meetingTitle: "Vergadertitel",
+            description: "Beschrijving (Optioneel)",
+            startDate: "Startdatum",
+            startTime: "Starttijd",
+            duration: "Duur (minuten)",
+            attendeeEmails: "Emails Deelnemers",
+            attendeeEmailHelp: "Komma-gescheiden emails voor vergaderdeelnemers",
+            note: "Opmerking: Dit zal een agenda-evenement aanmaken in uw Google Calendar met een Google Meet link. U moet inloggen op uw Google account.",
+            success: "Google Meet Link Succesvol Gegenereerd!",
+            copy: "Kopiëren naar klembord",
+            copied: "Link gekopieerd naar klembord!",
+            instructions:
+                "Deel deze link met deelnemers om deel te nemen aan de vergadering. Het agenda-evenement is toegevoegd aan uw Google Calendar.",
+            generating: "Genereren...",
+            generate: "Meet Link Genereren",
         },
         common: {
             export: "Exporteren kan lang duren. Weet u zeker dat u records wilt exporteren?",
@@ -1618,6 +1655,14 @@ const dutchTranslation: TranslationType = {
                 blank_votes_percent: "Percentage Blanco Stemmen",
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
+                weight: "Gewicht",
+            },
+            chart: {
+                votesForCandidates: "Stemmen voor Kandidaten",
+                blankVotes: "Blanco Stemmen",
+                invalidVotes: "Ongeldige Stemmen",
+                totalVoters: "Totaal Kiezers",
+                nonVoters: "Niet-kiezers",
             },
         },
         publish: {
