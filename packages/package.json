@@ -28,7 +28,17 @@
     "cross-spawn": "^7.0.6",
     "get-func-name": "^2.0.2",
     "serialize-javascript": "^6.0.2",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "form-data": "^3.0.4",
+    "@babel/traverse": "^7.23.2",
+    "fast-loops": "^1.1.4",
+    "rollup": "^2.79.2",
+    "@babel/helpers": "^7.26.10",
+    "@babel/runtime": "^7.26.10",
+    "ejs": "^3.1.10",
+    "webpack": "^5.94.0",
+    "brace-expansion": "^2.0.2",
+    "on-headers": "^1.1.0"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
