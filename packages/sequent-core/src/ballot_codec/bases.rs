@@ -21,7 +21,7 @@ impl BasesCodec for Contest {
 
         let candidate_base: u64 = match self.get_counting_algorithm() {
             CountingAlgType::PluralityAtLarge => 2,
-            CountingAlgType::Cummulative => {
+            CountingAlgType::Cumulative => {
                 self.cumulative_number_of_checkboxes() + 1u64
             }
             CountingAlgType::InstantRunoff => self.candidates.len() as u64,

@@ -208,6 +208,20 @@ pub enum CountingAlgType {
     PluralityAtLarge,
     #[strum(serialize = "instant-runoff")]
     InstantRunoff,
-    #[strum(serialize = "cummulative")]
-    Cummulative,
+    #[strum(serialize = "borda-nauru")]
+    BordaNauru,
+    #[strum(serialize = "borda")]
+    Borda,
+    #[strum(serialize = "borda-mas-madrid")]
+    BordaMasMadrid,
+    #[strum(serialize = "pairwise-beta")]
+    PairwiseBeta,
+    #[strum(serialize = "desborda3")]
+    Desborda3,
+    #[strum(serialize = "desborda2")]
+    Desborda2,
+    #[strum(serialize = "desborda")]
+    Desborda,
+    #[strum(serialize = "cumulative")]
+    Cumulative,
 }

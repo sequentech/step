@@ -512,7 +512,11 @@ pub async fn save_results(
                     ),
                     blank_votes: Some(contest.contest_result.total_blank_votes as i64),
                     voting_type: contest.contest.voting_type.clone(),
-                    counting_algorithm: contest.contest.counting_algorithm.clone(),
+                    counting_algorithm: contest
+                        .contest
+                        .counting_algorithm
+                        .unwrap_or_default()
+                        .to_string(),
                     name: contest.contest.name.clone(),
                     created_at: None,
                     last_updated_at: None,

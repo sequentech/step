@@ -19,12 +19,12 @@ use crate::plaintext::{
     map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest,
     InvalidPlaintextError, InvalidPlaintextErrorType,
 };
+use crate::types::ceremonies::CountingAlgType;
 use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
-use crate::types::ceremonies::CountingAlgType;
 use crate::util::normalize_vote::normalize_election;
 use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
@@ -1153,7 +1153,7 @@ mod tests {
             min_votes,
             winning_candidates_num: 0,
             voting_type: None,
-            counting_algorithm: Some("plurality-at-large".to_string()),
+            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
             is_encrypted: true,
             candidates,
             presentation: None,

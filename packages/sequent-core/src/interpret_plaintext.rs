@@ -60,48 +60,53 @@ pub fn get_layout_properties(
         });
     }*/
 
-    match contest.get_counting_algorithm().as_str() {
-        "plurality-at-large" => Some(ContestLayoutProperties {
+    match contest.get_counting_algorithm() {
+        CountingAlgType::PluralityAtLarge => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: false,
         }),
-        "borda-nauru" => Some(ContestLayoutProperties {
+        CountingAlgType::InstantRunoff => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "borda" => Some(ContestLayoutProperties {
+        CountingAlgType::BordaNauru => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "borda-mas-madrid" => Some(ContestLayoutProperties {
+        CountingAlgType::Borda => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "pairwise-beta" => Some(ContestLayoutProperties {
+        CountingAlgType::BordaMasMadrid => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
+            sorted: true,
+            ordered: true,
+        }),
+        CountingAlgType::PairwiseBeta => Some(ContestLayoutProperties {
             state: ContestState::PairwiseBeta,
             sorted: true,
             ordered: true,
         }),
-        "desborda3" => Some(ContestLayoutProperties {
+        CountingAlgType::Desborda3 => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "desborda2" => Some(ContestLayoutProperties {
+        CountingAlgType::Desborda2 => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "desborda" => Some(ContestLayoutProperties {
+        CountingAlgType::Desborda => Some(ContestLayoutProperties {
             state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "cumulative" => Some(ContestLayoutProperties {
+        CountingAlgType::Cumulative => Some(ContestLayoutProperties {
             state: ContestState::SimultaneousContestsScreen,
             sorted: false,
             ordered: false,
@@ -123,14 +128,16 @@ pub fn get_points(
     if candidate.selected < 0 {
         return Some(0);
     }
-    match contest.get_counting_algorithm().as_str() {
-        "plurality-at-large" => Some(1),
-        "borda" => Some((contest.max_votes as i64) - candidate.selected),
+    match contest.get_counting_algorithm() {
+        CountingAlgType::PluralityAtLarge => Some(1),
+        CountingAlgType::Borda => {
+            Some((contest.max_votes as i64) - candidate.selected)
+        }
         // "borda-mas-madrid" => return scope.contest.max -
         // scope.option.selected
-        "borda-nauru" => Some(1 + candidate.selected), /* 1 / (1 + candidate. */
+        CountingAlgType::BordaNauru => Some(1 + candidate.selected), /* 1 / (1 + candidate. */
         // selected)
-        "pairwise-beta" => None,
+        CountingAlgType::PairwiseBeta => None,
         /*"desborda3" => Some(cmp::max(
             1,
             (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
@@ -141,8 +148,8 @@ pub fn get_points(
             (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
                 .trunc() as i64,
         )),*/
-        "desborda" => Some(80 - candidate.selected),
-        "cummulative" => Some(candidate.selected + 1),
+        CountingAlgType::Desborda => Some(80 - candidate.selected),
+        CountingAlgType::Cumulative => Some(candidate.selected + 1),
         _ => None,
     }
 }

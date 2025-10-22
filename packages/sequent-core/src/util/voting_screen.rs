@@ -4,6 +4,7 @@
 
 use crate::ballot::*;
 use crate::plaintext::*;
+use crate::types::ceremonies::CountingAlgType;
 use crate::util::console_log;
 
 use std::collections::HashMap;
@@ -184,7 +185,7 @@ pub fn get_contest_plurality(
         max_votes: 3,
         min_votes,
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()),
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: true,
         annotations: None,
         candidates: vec![
