@@ -747,13 +747,13 @@ pub fn test_contest_reencoding_js(
 
     let input_compare = normalize_vote_contest(
         &decoded_contest,
-        contest.get_counting_algorithm().as_str(),
+        contest.get_counting_algorithm(),
         true,
         &invalid_candidate_ids,
     );
     let output_compare = normalize_vote_contest(
         &modified_decoded_contest,
-        contest.get_counting_algorithm().as_str(),
+        contest.get_counting_algorithm(),
         true,
         &invalid_candidate_ids,
     );

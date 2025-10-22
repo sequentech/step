@@ -199,7 +199,7 @@ mod tests {
                 assert_eq!(
                     normalize_vote_contest(
                         &fixture.plaintext,
-                        fixture.contest.get_counting_algorithm().as_str(),
+                        fixture.contest.get_counting_algorithm(),
                         false,
                         &vec![]
                     )
@@ -207,7 +207,7 @@ mod tests {
                     normalize_vote_contest(
                         &decoded_plaintext
                             .expect("Expected value but got error"),
-                        fixture.contest.get_counting_algorithm().as_str(),
+                        fixture.contest.get_counting_algorithm(),
                         false,
                         &vec![]
                     )
