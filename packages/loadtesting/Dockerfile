@@ -16,7 +16,8 @@ RUN apt-get update && \
     apt-get autoremove
 WORKDIR /app
 COPY . /app
-RUN cd /app/packages && cargo build --release --bin=step-cli --bin=e2e
+# Uncomment when the step-cli or the e2e binary is used in the e2e tests
+# RUN cd /app/packages && cargo build --release --bin=step-cli --bin=e2e
 
 FROM ubuntu:noble
 RUN apt-get update -y && \
@@ -29,8 +30,10 @@ RUN curl -sL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh &
       apt install -y nodejs
 WORKDIR /opt/sequentech
 RUN mkdir -p /opt/sequentech
-COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
-COPY --from=builder /app/packages/target/release/e2e /opt/sequentech/e2e
+# Uncomment when the step-cli is used in the e2e tests
+# COPY --from=builder /app/packages/target/release/step-cli /opt/sequentech/step-cli
+# Uncomment when the e2e binary is used in the e2e tests
+# COPY --from=builder /app/packages/target/release/e2e /opt/sequentech/e2e
 COPY ./packages/windmill/external-bin/janitor/scripts/setup.sh /opt/sequentech/janitor-setup
 RUN mkdir -p /opt/sequentech/janitor
 COPY ./packages/windmill/external-bin/janitor/ /opt/sequentech/janitor
@@ -48,11 +51,10 @@ COPY ./packages/loadtesting/entrypoint.sh /entrypoint.sh
 COPY ./packages/loadtesting/run_bg_voting.sh /run_bg_voting.sh
 RUN chmod +x /entrypoint.sh
 RUN chmod +x /run_bg_voting.sh
-RUN mkdir -p /workspaces/step/packages /nightwatch/src/admin-portal /nightwatch/src/e2e /nightwatch/src/loadtesting /nightwatch/src/voting-portal
+RUN mkdir -p /workspaces/step/packages /nightwatch/src/admin-portal/nightwatch /nightwatch/src/e2e /nightwatch/src/loadtesting /nightwatch/src/voting-portal/nightwatch
 COPY ./packages/loadtesting/nightwatch/ /nightwatch/
-COPY ./packages/admin-portal/nightwatch/ /nightwatch/src/admin-portal
-COPY ./packages/e2e/src/scenarios/ /nightwatch/src/e2e
-COPY ./packages/voting-portal/nightwatch/ /nightwatch/src/voting-portal
+COPY ./packages/admin-portal/test/ /nightwatch/src/admin-portal
+COPY ./packages/voting-portal/test/ /nightwatch/src/voting-portal
 RUN cd /nightwatch && npm install .
 
 ENTRYPOINT ["/entrypoint.sh"]

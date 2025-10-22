@@ -4,25 +4,28 @@
 
 name: E2E Tests
 on:
+  # Remove me on merge
+  pull_request:
   workflow_dispatch:
-    inputs:
-      loadtestingImage:
-        description: 'Load testing image to use'
-        required: true
-        type: string
-        default: '133529410358.dkr.ecr.eu-west-1.amazonaws.com/loadtesting'
-
 jobs:
   e2e:
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
+      - runner=4cpu-linux-x64
       - image=ubuntu24-full-x64
+      - disk=large
     steps:
-    - uses: actions/checkout@v3
-    - name: Set loadtestingImage variable with default fallback
-      run: echo "LOADTESTING_IMAGE=${{ github.event.inputs.loadtestingImage || 'loadtesting:latest' }}" >> $GITHUB_ENV
+    - uses: actions/checkout@v4
+    - uses: cachix/install-nix-action@v26
+    - uses: cachix/cachix-action@v14
+      with:
+        name: devenv
+    - name: Install devenv.sh
+      run: nix profile install nixpkgs#devenv
+    - name: Run admin and voting portal
+      run: scripts/e2e-up.sh
+    - run: echo 'LOADTESTING_IMAGE=loadtesting:latest' >> $GITHUB_ENV
     - name: Build image
       uses: docker/build-push-action@v5
       with:
@@ -32,4 +35,4 @@ jobs:
         tags: ${{ env.LOADTESTING_IMAGE }}
     - name: Run e2e tests
       run: |
-        docker run ${{ env.LOADTESTING_IMAGE }} e2e
+        docker run --network=host ${{ env.LOADTESTING_IMAGE }} e2e
