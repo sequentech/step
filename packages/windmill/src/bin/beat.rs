@@ -50,12 +50,12 @@ async fn main() -> Result<()> {
             scheduled_events::NAME => {
                 scheduled_events,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().schedule_events_interval)),
-                args = (),
+                args = (CeleryOpt::parse().schedule_events_interval),
             },
             scheduled_reports::NAME => {
                 scheduled_reports,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().schedule_reports_interval)),
-                args = (),
+                args = (CeleryOpt::parse().schedule_events_interval),
             },
             electoral_log_batch_dispatcher::NAME => {
                 electoral_log_batch_dispatcher,
