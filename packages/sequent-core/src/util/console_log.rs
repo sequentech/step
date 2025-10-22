@@ -14,9 +14,16 @@ macro_rules! console_log {
     }
 }
 
-#[cfg(not(feature = "wasm"))]
+#[cfg(all(not(feature = "wasm"), any(feature = "signatures", feature = "reports", feature = "keycloak", feature = "log")))]
 macro_rules! console_log {
     ($($t:tt)*) => {
         ::tracing::info!("{}", format_args!($($t)*));
+    }
+}
+
+#[cfg(all(not(feature = "wasm"), not(any(feature = "signatures", feature = "reports", feature = "keycloak", feature = "log"))))]
+macro_rules! console_log {
+    ($($t:tt)*) => {
+        println!("{}", format_args!($($t)*));
     }
 }

@@ -25,7 +25,7 @@
     openssl
     glibc
     openssh
-    postgresql_15
+    postgresql_18
     python3
     openssh
 
@@ -95,7 +95,7 @@
   languages.rust = {
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
-    channel = "nightly";
+    channel = "stable";
     toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
