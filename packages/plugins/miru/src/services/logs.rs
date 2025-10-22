@@ -105,20 +105,20 @@ pub fn error_sending_transmission_package_to_ccs_log(
     }
 }
 
-// #[instrument(skip_all)]
-// pub fn sign_transmission_package_log(
-//     datetime: &DateTime<Local>,
-//     election_id: &str,
-//     election_name: &str,
-//     area_id: &str,
-//     area_name: &str,
-//     sbei_id: &str,
-// ) -> Log {
-//     Log {
-//         created_date: ISO8601::to_string(datetime),
-//         log_text: format!(
-//             "Signed transmission package xml for election '{}' ({}) and area '{}' ({}) by sbei  '{}'",
-//             election_id, election_name, area_id, area_name, sbei_id
-//         ),
-//     }
-// }
+#[instrument(skip_all)]
+pub fn sign_transmission_package_log(
+    datetime: &DateTime<Local>,
+    election_id: &str,
+    election_name: &str,
+    area_id: &str,
+    area_name: &str,
+    sbei_id: &str,
+) -> Log {
+    Log {
+        created_date: datetime.to_rfc3339(),
+        log_text: format!(
+            "Signed transmission package xml for election '{}' ({}) and area '{}' ({}) by sbei  '{}'",
+            election_id, election_name, area_id, area_name, sbei_id
+        ),
+    }
+}

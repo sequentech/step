@@ -16,8 +16,11 @@ use sequent_core::{
         authorization_bindings::plugins_manager::jwt::authorization::{
             add_to_linker as add_auth_to_linker, Host as HostAuth,
         },
-        client_request_bindings::plugins_manager::client_request_manager::client_request::add_to_linker as add_client_request_to_linker,
         documents_bindings::plugins_manager::documents_manager::documents::add_to_linker as add_documents_to_linker,
+        extra_services_bindings::plugins_manager::extra_services_manager::{
+            cli_service::add_to_linker as add_cli_service_to_linker,
+            request_service::add_to_linker as add_request_service_to_linker,
+        },
         plugin_bindings::{plugins_manager::common::types::Manifest, Plugin as PluginInterface},
         transactions_manager_bindings::plugins_manager::transactions_manager::{
             postgres_queries::add_to_linker as add_postgres_queries_to_linker,
@@ -273,18 +276,14 @@ impl Plugin {
         let mut store = Store::new(engine, plugin_store);
 
         add_transaction_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
-
         add_postgres_queries_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
-
         add_auth_to_linker(&mut linker, |store: &mut PluginStore| {
             &mut store.plugin_auth
         })?;
-
         add_documents_to_linker(&mut linker, |store: &mut PluginStore| &mut store.services)?;
-
         add_vault_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
-
-        add_client_request_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
+        add_request_service_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
+        add_cli_service_to_linker(&mut linker, |s: &mut PluginStore| &mut s.services)?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 

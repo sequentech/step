@@ -32,10 +32,10 @@ pub mod documents_bindings {
     });
 }
 
-pub mod client_request_bindings {
+pub mod extra_services_bindings {
     wasmtime::component::bindgen!({
-        path: "src/plugins_wit/client_request/client-request.wit",
-        world: "client-request-manager",
+        path: "src/plugins_wit/extra_services/extra-services-world.wit",
+        world: "extra-services-manager",
         async: true,
     });
 }

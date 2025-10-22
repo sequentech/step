@@ -11,14 +11,13 @@ use serde_json::Value;
 // Each plugin hook is a method that can be called by the plugin manager to interact with plugins.
 #[async_trait]
 pub trait PluginHooks {
-    //Add plugins hooks here
     async fn create_transmission_package(&self, input: Value) -> Result<()>;
     async fn send_transmission_package(&self, input: Value) -> Result<()>;
+    async fn upload_transmission_package_signature(&self, input: Value) -> Result<()>;
 }
 
 #[async_trait]
 impl PluginHooks for PluginManager {
-    //Implement the PluginHooks trait for PluginManager
     async fn create_transmission_package(&self, input: Value) -> Result<()> {
         let res: Vec<Vec<HookValue>> = self
             .call_hook(
@@ -27,12 +26,17 @@ impl PluginHooks for PluginManager {
                 vec![HookValue::Result(core::result::Result::Ok(None))],
             )
             .await
-            .map_err(|e| anyhow!("Failed to call plugin hook: {}", e))?;
+            .map_err(|e| {
+                anyhow!(
+                    "Failed to call plugin create_transmission_package hook: {}",
+                    e
+                )
+            })?;
 
         let result = &res[0];
         if let Some(result_hook_value) = result.get(0) {
             match result_hook_value {
-                HookValue::Result(Ok(out)) => Ok(()),
+                HookValue::Result(Ok(_)) => Ok(()),
                 HookValue::Result(Err(Some(e))) => match &**e {
                     HookValue::String(e) => Err(anyhow!("Plugin hook error: {}", e)),
                     _ => Err(anyhow!("Error executing plugin hook",)),
@@ -51,12 +55,47 @@ impl PluginHooks for PluginManager {
                 vec![HookValue::Result(core::result::Result::Ok(None))],
             )
             .await
-            .map_err(|e| anyhow!("Failed to call plugin hook: {}", e))?;
+            .map_err(|e| {
+                anyhow!(
+                    "Failed to call plugin send_transmission_package hook: {}",
+                    e
+                )
+            })?;
 
         let result = &res[0];
         if let Some(result_hook_value) = result.get(0) {
             match result_hook_value {
-                HookValue::Result(Ok(out)) => Ok(()),
+                HookValue::Result(Ok(_)) => Ok(()),
+                HookValue::Result(Err(Some(e))) => match &**e {
+                    HookValue::String(e) => Err(anyhow!("Plugin hook error: {}", e)),
+                    _ => Err(anyhow!("Error executing plugin hook",)),
+                },
+                _ => Err(anyhow!("Unexpected hook value type")),
+            }
+        } else {
+            Err(anyhow!("No hook value returned"))
+        }
+    }
+
+    async fn upload_transmission_package_signature(&self, input: Value) -> Result<()> {
+        let res: Vec<Vec<HookValue>> = self
+            .call_hook(
+                "upload-transmission-package-signature",
+                vec![HookValue::String(input.to_string())],
+                vec![HookValue::Result(core::result::Result::Ok(None))],
+            )
+            .await
+            .map_err(|e| {
+                anyhow!(
+                    "Failed to call upload_transmission_package_signature hook: {}",
+                    e
+                )
+            })?;
+
+        let result = &res[0];
+        if let Some(result_hook_value) = result.get(0) {
+            match result_hook_value {
+                HookValue::Result(Ok(_)) => Ok(()),
                 HookValue::Result(Err(Some(e))) => match &**e {
                     HookValue::String(e) => Err(anyhow!("Plugin hook error: {}", e)),
                     _ => Err(anyhow!("Error executing plugin hook",)),

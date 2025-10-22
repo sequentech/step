@@ -4,7 +4,7 @@
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::document::get_document;
 use crate::postgres::election::{get_election_by_id as get_election_by_id_postgres};
-use crate::postgres::election_event::get_election_event_by_election_area as get_election_event_by_election_area_postgres;
+use crate::postgres::election_event::{get_election_event_by_election_area as get_election_event_by_election_area_postgres, get_election_event_by_id, update_election_event_annotations};
 use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
@@ -509,6 +509,51 @@ impl PostgresHost for PluginServices {
         .map_err(|e| format!("Failed to update tally session annotation: {}", e))?;
 
         Ok(())
+    }
+
+    async fn update_election_event_annotations(
+        &mut self,
+        tenant_id: String,
+        election_event_id: String,
+        annotations: String,
+    ) -> Result<(), String> {
+        let mut manager = self.transactions.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+
+        let annotations_value = deserialize_str::<Value>(&annotations)
+            .map_err(|e| format!("Failed to parse election event annotations: {}", e))?;
+
+        update_election_event_annotations(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            annotations_value,
+        )
+        .await
+        .map_err(|e| format!("Failed to update election event annotations: {}", e))?;
+
+        Ok(())
+    }
+
+    async fn get_election_event_by_id(
+        &mut self,
+        tenant_id: String,
+        election_event_id: String,
+    ) -> Result<String, String> {
+        let mut manager = self.transactions.hasura_manager.lock().await;
+        let hasura_transaction: &Transaction<'_> = manager
+            .with_txn(|opt| opt.as_ref())
+            .ok_or("No transaction")?;
+
+        let res = get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id)
+            .await
+            .map_err(|e| format!("Failed to get election event by id: {}", e))?;
+
+        let str = serde_json::to_string(&res)
+            .map_err(|e| format!("Failed to serialize election event: {}", e))?;
+        Ok(str)
     }
 }
 

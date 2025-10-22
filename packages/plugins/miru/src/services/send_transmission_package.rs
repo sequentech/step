@@ -4,8 +4,8 @@
 
 use crate::{
     bindings::plugins_manager::{
-        client_request_manager::client_request::send_zip,
         documents_manager::documents::create_document_as_temp_file,
+        extra_services_manager::request_service::send_zip,
         transactions_manager::{
             postgres_queries::{
                 get_area_by_id, get_document, get_election_by_id,
