@@ -112,10 +112,10 @@
     "ts-loader": "9.5.1",
     "ts-node": "^10.9.2",
     "typescript": "^4.4.2",
-    "vite": "^4.0.4",
+    "vite": "^7.1.11",
     "vite-plugin-nightwatch": "^0.4.6",
     "webpack": "5.89.0",
     "webpack-cli": "5.1.4",
-    "webpack-dev-server": "^4.15.1"
+    "webpack-dev-server": "^5.2.2"
   }
 }
