@@ -251,23 +251,21 @@ impl StrandSignatureSk {
 
     /// Returns a pkcs#10 csr der representation.
     pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
+        use rustls_pki_types::PrivateKeyDer;
+
         let cert_sk_der = self.to_der()?;
+        let private_key_der = PrivateKeyDer::Pkcs8(cert_sk_der.into());
         let cert_kp = rcgen::KeyPair::from_der_and_sign_algo(
-            &cert_sk_der,
+            &private_key_der,
             &rcgen::PKCS_ED25519,
         )?;
         let mut cert_params = rcgen::CertificateParams::default();
-        cert_params.alg = &rcgen::PKCS_ED25519;
-        cert_params.key_pair = Some(cert_kp);
         let mut dn = rcgen::DistinguishedName::new();
-        dn.push(
-            rcgen::DnType::CommonName,
-            rcgen::DnValue::PrintableString(name),
-        );
+        dn.push(rcgen::DnType::CommonName, name);
         cert_params.distinguished_name = dn;
 
-        let cert = rcgen::Certificate::from_params(cert_params)?;
-        let csr_der = cert.serialize_request_der()?;
+        let csr = cert_params.serialize_request(&cert_kp)?;
+        let csr_der = csr.der().to_vec();
 
         Ok(csr_der)
     }
@@ -278,18 +276,33 @@ impl StrandSignatureSk {
         self_der: &[u8],
         csr_der: &[u8],
     ) -> Result<Vec<u8>, StrandError> {
-        let sk_der = self.to_der()?;
-        let self_kp = rcgen::KeyPair::from_der(&sk_der)?;
-        let self_params =
-            rcgen::CertificateParams::from_ca_cert_der(&self_der, self_kp)?;
-        let self_ca = rcgen::Certificate::from_params(self_params)?;
+        use rustls_pki_types::PrivateKeyDer;
 
-        let csr = rcgen::CertificateSigningRequest::from_der(&csr_der)?;
-        /* csr.params.serial_number = Some(5555.into());
-        let now = OffsetDateTime::now_utc();
-        csr.params.not_before = now;
-        csr.params.not_after = now.checked_add(Duration::days(30))?;*/
-        let der = csr.serialize_der_with_signer(&self_ca)?;
+        let sk_der = self.to_der()?;
+        let private_key_der = PrivateKeyDer::Pkcs8(sk_der.into());
+        let self_kp = rcgen::KeyPair::from_der_and_sign_algo(
+            &private_key_der,
+            &rcgen::PKCS_ED25519,
+        )?;
+
+        // Parse the self certificate to create issuer
+        let mut self_params = rcgen::CertificateParams::default();
+        self_params.distinguished_name = rcgen::DistinguishedName::new();
+        self_params.is_ca =
+            rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
+        self_params.key_usages = vec![
+            rcgen::KeyUsagePurpose::DigitalSignature,
+            rcgen::KeyUsagePurpose::KeyCertSign,
+            rcgen::KeyUsagePurpose::CrlSign,
+        ];
+
+        let issuer = rcgen::Issuer::new(self_params, self_kp);
+
+        // Parse CSR and sign it
+        let csr_params =
+            rcgen::CertificateSigningRequestParams::from_der(&csr_der.into())?;
+        let cert = csr_params.signed_by(&issuer)?;
+        let der = cert.der().to_vec();
 
         Ok(der)
     }

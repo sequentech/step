@@ -44,7 +44,7 @@ lazy_static! {
 #[command(name = "windmill", about = "Windmill task queue prosumer.")]
 enum CeleryOpt {
     Consume {
-        #[arg(short, long, default_values_t = vec![BEAT_QUEUE_NAME.clone()])]
+        #[arg(short, long, num_args(1..), default_values_t = vec![BEAT_QUEUE_NAME.clone()])]
         queues: Vec<String>,
         #[arg(short, long, default_value = "100")]
         prefetch_count: u16,

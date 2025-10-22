@@ -68,6 +68,7 @@
 
     cargo-watch
     cargo-license
+    cargo-audit
 
     python3
     python3Packages.virtualenvwrapper
