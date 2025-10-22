@@ -228,7 +228,7 @@ mod tests {
         let mut contest = get_configurable_contest(
             1,
             3,
-            "plurality-at-large".to_string(),
+            CountingAlgType::PluralityAtLarge,
             true,
             Some(vec![2]),
             false,

@@ -56,14 +56,9 @@ impl Tally {
 
     #[instrument(err, skip_all)]
     fn get_tally_type(contest: &Contest) -> Result<CountingAlgType> {
-        if let Some(val) = &contest.counting_algorithm {
-            match CountingAlgType::from_str(val) {
-                Ok(val) => Ok(val),
-                Err(_) => Err(Box::new(Error::TallyTypeNotImplemented(val.to_owned()))),
-            }
-        } else {
-            Err(Box::new(Error::TallyTypeNotFound))
-        }
+        contest
+            .counting_algorithm
+            .ok_or_else(|| Box::new(Error::TallyTypeNotFound) as Box<dyn std::error::Error>)
     }
 
     #[instrument(err, skip_all)]
