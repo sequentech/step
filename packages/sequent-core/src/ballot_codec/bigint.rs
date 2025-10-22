@@ -113,6 +113,9 @@ impl BigUIntCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String> {
+        if !self.is_valid_ballot(plaintext) {
+            return Err(format!("Invalid ballot"));
+        }
         let raw_ballot = self.encode_to_raw_ballot(plaintext)?;
         encode(&raw_ballot.choices, &raw_ballot.bases)
     }

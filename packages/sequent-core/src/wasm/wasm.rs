@@ -319,12 +319,6 @@ pub fn encrypt_decoded_contest_js(
     let election: BallotStyle = deserialize_value(election_js)
         .map_err(|err| format!("Error parsing election: {}", err))
         .into_json()?;
-    if !check_ballot_validity(&election.contests, &decoded_contests) {
-        return Err(JsValue::from(ErrorStatus {
-            error_type: BallotError::INVALID_BALLOT,
-            error_msg: "Invalid ballot".to_string(),
-        }));
-    }
     // create context
     let ctx = RistrettoCtx;
 
