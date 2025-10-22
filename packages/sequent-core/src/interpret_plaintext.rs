@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
 use crate::plaintext::*;
+use crate::types::ceremonies::CountingAlgType;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

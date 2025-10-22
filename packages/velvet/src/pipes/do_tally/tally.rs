@@ -11,24 +11,15 @@ use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
 use sequent_core::ballot::{ContestPresentation, Weight};
-use sequent_core::types::hasura::core::TallySheet;
+use sequent_core::types::{ceremonies::CountingAlgType, hasura::core::TallySheet};
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::cmp;
-use std::str::FromStr;
 use std::{fs, path::PathBuf};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 
-#[derive(Debug, EnumString, Display)]
-pub enum TallyType {
-    #[strum(serialize = "plurality-at-large")]
-    PluralityAtLarge,
-    #[strum(serialize = "instant-runoff")]
-    InstantRunoff,
-}
-
 pub struct Tally {
-    pub id: TallyType,
+    pub id: CountingAlgType,
     pub contest: Contest,
     pub ballots: Vec<(DecodedVoteContest, Weight)>,
     pub census: u64,
@@ -64,9 +55,9 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
-    fn get_tally_type(contest: &Contest) -> Result<TallyType> {
+    fn get_tally_type(contest: &Contest) -> Result<CountingAlgType> {
         if let Some(val) = &contest.counting_algorithm {
-            match TallyType::from_str(val) {
+            match CountingAlgType::from_str(val) {
                 Ok(val) => Ok(val),
                 Err(_) => Err(Box::new(Error::TallyTypeNotImplemented(val.to_owned()))),
             }
@@ -193,7 +184,10 @@ pub fn create_tally(
     )?;
 
     match tally.id {
-        TallyType::PluralityAtLarge => Ok(Box::new(PluralityAtLarge::new(tally))),
-        TallyType::InstantRunoff => Ok(Box::new(InstantRunoff::new(tally))),
+        CountingAlgType::PluralityAtLarge => Ok(Box::new(PluralityAtLarge::new(tally))),
+        CountingAlgType::InstantRunoff => Ok(Box::new(InstantRunoff::new(tally))),
+        _ => Err(Box::new(Error::TallyTypeNotImplemented(
+            tally.id.to_string(),
+        ))),
     }
 }

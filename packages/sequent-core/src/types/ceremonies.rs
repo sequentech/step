@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -184,4 +185,29 @@ pub enum CeremoniesPolicy {
     MANUAL_CEREMONIES,
     #[strum(serialize = "automated-ceremonies")]
     AUTOMATED_CEREMONIES,
+}
+
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    EnumString,
+    Display,
+    Default,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    Clone,
+    Copy,
+)]
+pub enum CountingAlgType {
+    #[strum(serialize = "plurality-at-large")]
+    #[default]
+    PluralityAtLarge,
+    #[strum(serialize = "instant-runoff")]
+    InstantRunoff,
+    #[strum(serialize = "cummulative")]
+    Cummulative,
 }

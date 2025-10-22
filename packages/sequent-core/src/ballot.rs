@@ -9,6 +9,7 @@ use crate::error::BallotError;
 use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1238,7 +1239,7 @@ pub struct Contest {
     pub min_votes: i64,
     pub winning_candidates_num: i64,
     pub voting_type: Option<String>,
-    pub counting_algorithm: Option<String>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+    pub counting_algorithm: Option<CountingAlgType>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
     pub is_encrypted: bool,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
@@ -1255,10 +1256,8 @@ impl Contest {
             .unwrap_or(false)
     }
 
-    pub fn get_counting_algorithm(&self) -> String {
-        self.counting_algorithm
-            .clone()
-            .unwrap_or("plurality-at-large".into())
+    pub fn get_counting_algorithm(&self) -> CountingAlgType {
+        self.counting_algorithm.clone().unwrap_or_default()
     }
 
     pub fn base32_writeins(&self) -> bool {
@@ -1326,7 +1325,7 @@ impl Contest {
         if !contains_all {
             return false;
         }
-        if &self.get_counting_algorithm() == "instant-runoff" {
+        if self.get_counting_algorithm() == CountingAlgType::InstantRunoff {
             // Check that there are no gaps in the preference order
             let mut valid_choices: Vec<DecodedVoteChoice> = decoded_contest
                 .choices

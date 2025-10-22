@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::*;
+use crate::{ballot::*, types::ceremonies::CountingAlgType};
 use anyhow::Result;
 use std::convert::TryInto;
 
@@ -19,10 +19,12 @@ impl BasesCodec for Contest {
         // - cummulative: contest.extra_options.cumulative_number_of_checkboxes
         //   + 1
 
-        let candidate_base: u64 = match self.get_counting_algorithm().as_str() {
-            "plurality-at-large" => 2,
-            "cumulative" => self.cumulative_number_of_checkboxes() + 1u64,
-            "instant-runoff" => self.candidates.len() as u64,
+        let candidate_base: u64 = match self.get_counting_algorithm() {
+            CountingAlgType::PluralityAtLarge => 2,
+            CountingAlgType::Cummulative => {
+                self.cumulative_number_of_checkboxes() + 1u64
+            }
+            CountingAlgType::InstantRunoff => self.candidates.len() as u64,
             _ => (self.max_votes + 1i64).try_into().unwrap(),
         };
 

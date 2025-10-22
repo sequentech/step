@@ -24,6 +24,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
+use crate::types::ceremonies::CountingAlgType;
 use crate::util::normalize_vote::normalize_election;
 use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
@@ -690,7 +691,8 @@ impl BallotChoices {
 
         for contest in sorted_contests {
             // Compact encoding only supports plurality
-            if contest.get_counting_algorithm().as_str() != "plurality-at-large"
+            if contest.get_counting_algorithm()
+                != CountingAlgType::PluralityAtLarge
             {
                 return Err(format!("get_bases: multi ballot encoding only supports plurality at large, received {}", contest.get_counting_algorithm()));
             }

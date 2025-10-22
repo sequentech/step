@@ -4,6 +4,7 @@
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
+use crate::types::ceremonies::CountingAlgType;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
@@ -96,13 +97,13 @@ impl RawBallotCodec for Contest {
             if candidate.is_explicit_invalid() {
                 continue;
             }
-            match self.get_counting_algorithm().as_str() {
-                "plurality-at-large" => {
+            match self.get_counting_algorithm() {
+                CountingAlgType::PluralityAtLarge => {
                     // We just flag if the candidate was selected or not with 1
                     // for selected and 0 otherwise
                     choices.push(u64::from(choice.selected > -1));
                 }
-                "instant-runoff" => {
+                CountingAlgType::InstantRunoff => {
                     // choice.selected > -1 is a requirement for instant-runoff
                     // because the candidates are ranked in order of preference
                     // from 0..nCandidates
