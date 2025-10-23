@@ -199,3 +199,9 @@ Added Charts in the Admin Portal's Tally Results below the data tables to displa
  the General Information, Participation Results and Candidate Results.
 
 - Issue: [#7531](https://github.com/sequentech/meta/issues/7531)
+
+
+✨ Tally > Ballot Images: add election_alias
+add to ballot images template data struct election_alias.
+
+- Issue: [#8680](https://github.com/sequentech/meta/issues/8680)
