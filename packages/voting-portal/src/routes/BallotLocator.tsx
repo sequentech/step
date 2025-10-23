@@ -350,13 +350,13 @@ const MessageCell: React.FC<MessageCellProps> = ({message}) => {
             return json
         }
     }
-    
+
     if (!message) {
         return <div>-</div>
     }
-    
+
     const formattedMessage = formatJson(message)
-    
+
     return (
         <Box sx={{position: "relative", width: "100%"}}>
             <IconButton
@@ -414,9 +414,10 @@ const LogsTable: React.FC<LogsTableProps> = ({
     return (
         <>
             <StyledTitle variant="h5">{t("ballotLocator.totalBallots", {total})}</StyledTitle>
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} sx={{overflowX: "auto", width: "100%"}}>
                 <Table
                     sx={{
+                        "tableLayout": "auto",
                         "& .MuiTableCell-root": {
                             border: "1px solid #e0e0e0",
                         },
@@ -434,7 +435,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", width: "150px", maxWidth: "150px"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", minWidth: "120px"}}>
                                 <TableSortLabel
                                     active={orderBy === "ballot_id"}
                                     direction={orderBy === "ballot_id" ? order : "asc"}
@@ -473,8 +474,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 <TableCell
                                     align="center"
                                     sx={{
-                                        width: "150px",
-                                        maxWidth: "150px",
+                                        minWidth: "120px",
                                         wordBreak: "break-all",
                                         whiteSpace: "normal",
                                     }}
@@ -488,8 +488,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                 <TableCell
                                     align="justify"
                                     sx={{
-                                        width: "300px",
-                                        maxWidth: "300px",
+                                        minWidth: "200px",
                                         padding: "8px",
                                         verticalAlign: "top",
                                         position: "relative",
