@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
-use crate::types::ceremonies::CountingAlgType;
 use phf::phf_map;
 use std::str;
 
@@ -147,6 +146,7 @@ mod tests {
     use crate::fixtures::ballot_codec::get_configurable_contest;
     use crate::fixtures::ballot_codec::get_contest_candidates_n;
     use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use crate::types::ceremonies::CountingAlgType;
     use rand::Rng;
 
     #[test]

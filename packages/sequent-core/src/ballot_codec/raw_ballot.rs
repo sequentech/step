@@ -398,6 +398,7 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use crate::mixed_radix::encode;
+    use crate::types::ceremonies::CountingAlgType;
     use std::cmp;
 
     #[test]
