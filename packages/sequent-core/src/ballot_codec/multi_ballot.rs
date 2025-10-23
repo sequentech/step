@@ -304,10 +304,18 @@ impl BallotChoices {
             ));
         }
 
+        // Setting the choices in order of preference to support preferencial
+        // multiballot. When decoding, we will take the order of the
+        // vector to determine the order of preference of each choice.
+        // The invalid ones with seected = -1 will be at the beginning but
+        // will be ignored when decoding anyway because are marked to 0.
+        let mut pref_choices: Vec<ContestChoice> = plaintext.choices.clone();
+        pref_choices.sort_by_key(|c| c.selected);
+
         // We set all values as unset (0) by default
         let mut contest_choices = vec![0u64; max_votes];
         let mut marked = 0;
-        for p in &plaintext.choices {
+        for p in &pref_choices {
             let (position, _candidate) =
                 candidates_map.get(&p.candidate_id).ok_or_else(|| {
                     "choice id is not a valid candidate".to_string()
