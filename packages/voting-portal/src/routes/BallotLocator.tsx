@@ -12,6 +12,7 @@ import {
     InfoDataBox,
     IconButton,
     Dialog,
+    ExpandableText,
 } from "@sequentech/ui-essentials"
 import {stringToHtml, EShowCastVoteLogsPolicy} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack} from "@mui/material"
@@ -341,6 +342,7 @@ interface MessageCellProps {
 }
 
 const MessageCell: React.FC<MessageCellProps> = ({message}) => {
+    const {t} = useTranslation()
     const formatJson = (json: string) => {
         try {
             return JSON.stringify(JSON.parse(json), null, 2)
@@ -348,40 +350,43 @@ const MessageCell: React.FC<MessageCellProps> = ({message}) => {
             return json
         }
     }
+    
+    if (!message) {
+        return <div>-</div>
+    }
+    
+    const formattedMessage = formatJson(message)
+    
     return (
-        <>
-            {message && (
-                <IconButton
-                    icon={faCopy}
-                    size="xs"
-                    onClick={() => navigator.clipboard.writeText(formatJson(message))}
-                    sx={{
-                        "position": "absolute",
-                        "top": "4px",
-                        "right": "4px",
-                        "zIndex": 1,
-                        "backgroundColor": "rgba(255, 255, 255, 0.8)",
-                        "&:hover": {
-                            backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        },
-                        "minWidth": "20px",
-                        "minHeight": "20px",
-                        "padding": "2px",
-                    }}
-                />
-            )}
-            <div
-                style={{
-                    width: "100%",
-                    height: "100%",
-                    overflow: "auto",
-                    paddingRight: "24px",
-                    whiteSpace: "pre",
+        <Box sx={{position: "relative", width: "100%"}}>
+            <IconButton
+                icon={faCopy}
+                size="xs"
+                onClick={() => navigator.clipboard.writeText(formattedMessage)}
+                sx={{
+                    "position": "absolute",
+                    "top": "4px",
+                    "right": "4px",
+                    "zIndex": 1,
+                    "backgroundColor": "rgba(255, 255, 255, 0.8)",
+                    "&:hover": {
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                    },
+                    "minWidth": "20px",
+                    "minHeight": "20px",
+                    "padding": "2px",
                 }}
-            >
-                {message ? formatJson(message) : "-"}
-            </div>
-        </>
+            />
+            <Box sx={{paddingRight: "28px"}}>
+                <ExpandableText
+                    text={formattedMessage}
+                    initialLength={200}
+                    showMoreLabel={t("common.showMore")}
+                    showLessLabel={t("common.showLess")}
+                    preformatted={true}
+                />
+            </Box>
+        </Box>
     )
 }
 
@@ -412,7 +417,6 @@ const LogsTable: React.FC<LogsTableProps> = ({
             <TableContainer component={Paper}>
                 <Table
                     sx={{
-                        "minWidth": 650,
                         "& .MuiTableCell-root": {
                             border: "1px solid #e0e0e0",
                         },
@@ -430,7 +434,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", width: "150px", maxWidth: "150px"}}>
                                 <TableSortLabel
                                     active={orderBy === "ballot_id"}
                                     direction={orderBy === "ballot_id" ? order : "asc"}
@@ -466,7 +470,17 @@ const LogsTable: React.FC<LogsTableProps> = ({
                         {rows.map((row, index) => (
                             <TableRow key={index}>
                                 <TableCell align="center">{row.username ?? "-"}</TableCell>
-                                <TableCell align="center">{row.ballot_id}</TableCell>
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        width: "150px",
+                                        maxWidth: "150px",
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                    }}
+                                >
+                                    {row.ballot_id}
+                                </TableCell>
                                 <TableCell align="center">{row.statement_kind}</TableCell>
                                 <TableCell align="center">
                                     {new Date(row.statement_timestamp * 1000).toUTCString()}
@@ -476,8 +490,6 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     sx={{
                                         width: "300px",
                                         maxWidth: "300px",
-                                        height: "150px",
-                                        maxHeight: "150px",
                                         padding: "8px",
                                         verticalAlign: "top",
                                         position: "relative",

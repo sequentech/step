@@ -7,6 +7,8 @@ const dutchTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Ga terug",
+            showMore: "Toon meer",
+            showLess: "Toon minder",
         },
         breadcrumbSteps: {
             electionList: "Kieslijst",

@@ -7,6 +7,8 @@ const basqueTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Itzuli",
+            showMore: "Erakutsi Gehiago",
+            showLess: "Erakutsi Gutxiago",
         },
         breadcrumbSteps: {
             electionList: "Bozketa Zerrenda",

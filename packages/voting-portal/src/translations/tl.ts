@@ -7,6 +7,8 @@ const tagalogTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Bumalik",
+            showMore: "Lakihan ang nakikita",
+            showLess: "Bawasan ang nakikita",
         },
         breadcrumbSteps: {
             electionList: "Listahan ng mga Balota",

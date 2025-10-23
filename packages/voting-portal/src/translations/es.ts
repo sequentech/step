@@ -7,6 +7,8 @@ const spanishTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Regresar",
+            showMore: "Mostrar más",
+            showLess: "Mostrar menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",

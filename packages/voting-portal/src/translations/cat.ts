@@ -7,6 +7,8 @@ const catalanTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Tornar",
+            showMore: "Mostra'n més",
+            showLess: "Mostra'n menys",
         },
         breadcrumbSteps: {
             electionList: "Llista de Votacions",

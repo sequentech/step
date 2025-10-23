@@ -8,6 +8,8 @@ const englishTranslation = {
     translations: {
         common: {
             goBack: "Go back",
+            showMore: "Show More",
+            showLess: "Show Less",
         },
         breadcrumbSteps: {
             electionList: "Ballot List",

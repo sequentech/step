@@ -8,6 +8,8 @@ const galegoTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Volver",
+            showMore: "Mostrar Máis",
+            showLess: "Mostrar Menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Papeletas",
