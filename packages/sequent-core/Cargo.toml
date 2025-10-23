@@ -127,7 +127,7 @@ ptree = "0.5.0"
 
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
-wasm = ["wasm-bindgen", "areas", "serde-wasm-bindgen"]
+wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen"]
 signatures=["dep:tracing"]
 default = []
 areas = []

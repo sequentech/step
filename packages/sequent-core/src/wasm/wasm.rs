@@ -9,7 +9,7 @@ use crate::encrypt;
 use crate::encrypt::*;
 use crate::fixtures::ballot_codec::*;
 use crate::interpret_plaintext::{
-    check_ballot_validity, check_is_blank, get_layout_properties, get_points,
+    check_is_blank, get_layout_properties, get_points,
 };
 use crate::multi_ballot::*;
 use crate::plaintext::*;
