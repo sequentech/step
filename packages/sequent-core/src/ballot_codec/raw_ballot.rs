@@ -483,7 +483,7 @@ mod tests {
                         fixture.plaintext.choices[idx].write_in_text
                     );
                     if fixture.contest.get_counting_algorithm()
-                        == "plurality-at-large"
+                        == CountingAlgType::PluralityAtLarge
                     {
                         assert_eq!(
                             decoded_ballot.choices[idx].selected,

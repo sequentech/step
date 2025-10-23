@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::types::ceremonies::CountingAlgType;
 use phf::phf_map;
 use std::str;
 

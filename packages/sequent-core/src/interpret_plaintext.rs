@@ -111,7 +111,6 @@ pub fn get_layout_properties(
             sorted: false,
             ordered: false,
         }),
-        _ => None,
     }
 }
 
