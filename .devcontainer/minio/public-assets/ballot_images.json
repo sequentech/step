@@ -20013,6 +20013,7 @@
             }
         ],
         "election_name": "TOKYO - General Election",
+        "election_alias":"TOKYO - General Election",
         "area": "United States Of America",
         "election_dates": {
             "first_started_at": "2024-11-08T00:00:00Z",

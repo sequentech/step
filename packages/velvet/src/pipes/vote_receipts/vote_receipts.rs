@@ -77,6 +77,7 @@ impl VoteReceipts {
             contest: tally.contest.clone(),
             ballots,
             election_name: election_input.name.clone(),
+            election_alias: election_input.alias.clone(),
             election_annotations: election_input.annotations.clone(),
             election_dates: election_input.dates.clone(),
             area: area_name.to_string(),
@@ -257,6 +258,7 @@ struct TemplateData {
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
     pub election_name: String,
+    pub election_alias: String,
     pub area: String,
     pub election_dates: Option<StringifiedPeriodDates>,
     pub election_annotations: HashMap<String, String>,
@@ -283,6 +285,7 @@ pub struct ContestData {
 pub struct ComputedTemplateData {
     pub ballot_data: Vec<BallotData>,
     pub election_name: String,
+    pub election_alias: String,
     pub area: String,
     pub election_dates: Option<StringifiedPeriodDates>,
     pub election_annotations: HashMap<String, String>,
@@ -366,6 +369,7 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
     ComputedTemplateData {
         ballot_data: receipts,
         election_name: data.election_name,
+        election_alias: data.election_alias,
         area: data.area,
         election_annotations: data.election_annotations,
         election_dates: data.election_dates,
