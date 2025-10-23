@@ -32,6 +32,7 @@ import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
+import { LoadingResults } from "./TallyElectionsResults"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -68,6 +69,7 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
+    const [isLoading, setIsLoading] = useState(true)
     const orderedResultsData = useMemo(() => {
         return (resultsData as Sequent_Backend_Candidate_Extended[]).sort(sortCandidates)
     }, [resultsData])
@@ -169,6 +171,10 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             )
 
             setResultsData(temp)
+            setIsLoading(false)
+        }
+        if (tallyData && (!results || !candidates)) {
+            setIsLoading(false)
         }
     }, [results, candidates])
 
@@ -217,7 +223,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.global")}
                 </Typography>
-
                 {general && general.length ? (
                     <Box
                         sx={{
@@ -412,10 +417,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         </Box>
                     </Box>
                 ) : (
-                    <NoItem />
+                    !resultsEventId ? <LoadingResults /> : <NoItem />
                 )}
             </Box>
-
             <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.candidates")}
@@ -454,7 +458,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         </Box>
                     </Box>
                 ) : (
-                    <NoItem />
+                    isLoading || !resultsEventId ? <LoadingResults/> : <NoItem />
                 )}
             </Box>
         </>
