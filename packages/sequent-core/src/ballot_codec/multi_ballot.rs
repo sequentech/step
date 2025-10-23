@@ -928,7 +928,7 @@ mod tests {
                 "min_votes": 0,
                 "winning_candidates_num": 1,
                 "voting_type": "non-preferential",
-                "counting_algorithm": "plurality-at-large",
+                "counting_algorithm": CountingAlgType::PluralityAtLarge,
                 "is_encrypted": true,
                 "candidates": [
                     {

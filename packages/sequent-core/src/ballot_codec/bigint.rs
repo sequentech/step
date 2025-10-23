@@ -113,13 +113,9 @@ impl BigUIntCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String> {
-        // The validations can be splitted in 2 parts like that:
-        // in impl Contest
-        // self.validate_candidate_ids(plaintext: &DecodedVoteContest) &&
-        // in impl DecodedVoteContest
-        // paintext.validate_preferencial_order()
-        if !self.is_valid_ballot(plaintext) {
-            return Err(format!("Invalid ballot"));
+        if !plaintext.validate_preferencial_order(self.get_counting_algorithm())
+        {
+            return Err("Invalid preferential order".to_string());
         }
         let raw_ballot = self.encode_to_raw_ballot(plaintext)?;
         encode(&raw_ballot.choices, &raw_ballot.bases)

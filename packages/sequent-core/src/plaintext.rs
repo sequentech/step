@@ -7,6 +7,7 @@ use crate::ballot_codec::multi_ballot::{
 };
 use crate::ballot_codec::PlaintextCodec;
 use crate::multi_ballot::AuditableMultiBallotContests;
+use crate::types::ceremonies::CountingAlgType;
 use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -48,6 +49,31 @@ impl DecodedVoteContest {
                 .clone()
                 .iter()
                 .all(|choice| choice.selected < 0)
+    }
+
+    /// - For instant-runoff, the preference order must be valid, without gaps.
+    pub fn validate_preferencial_order(
+        &self,
+        counting_algorithm: CountingAlgType,
+    ) -> bool {
+        if counting_algorithm == CountingAlgType::InstantRunoff {
+            // Check that there are no gaps in the preference order
+            let mut valid_choices: Vec<DecodedVoteChoice> = self
+                .choices
+                .iter()
+                .filter(|choice| choice.selected >= 0)
+                .cloned()
+                .collect();
+            valid_choices.sort_by(|a, b| a.selected.cmp(&b.selected));
+            let valid_choices_order: Vec<i64> =
+                valid_choices.iter().map(|choice| choice.selected).collect();
+            let expected_order: Vec<i64> =
+                (0..valid_choices_order.len() as i64).collect();
+            if valid_choices_order != expected_order {
+                return false;
+            }
+        }
+        true
     }
 }
 
