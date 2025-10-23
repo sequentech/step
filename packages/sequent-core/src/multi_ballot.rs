@@ -17,6 +17,7 @@ use crate::ballot::TYPES_VERSION;
 use crate::ballot::{BallotStyle, ReplicationChoice};
 use base64::engine::general_purpose;
 use base64::Engine;
+use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
@@ -43,7 +44,9 @@ pub struct AuditableMultiBallotContests<C: Ctx> {
     pub proof: Schnorr<C>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(
+    BorshSerialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone,
+)]
 pub struct HashableMultiBallot {
     pub version: u32,
     pub issue_date: String,
@@ -51,6 +54,15 @@ pub struct HashableMultiBallot {
     //
     // self::serialize_contests can be deserialized with
     // self::deserialize_contests
+    pub contests: String,
+    pub config: String,
+    pub ballot_style_hash: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+pub struct SignedHashableMultiBallot {
+    pub version: u32,
+    pub issue_date: String,
     pub contests: String,
     pub config: String,
     pub ballot_style_hash: String,
@@ -104,37 +116,6 @@ impl HashableMultiBallot {
     ) -> Result<String, BallotError> {
         Base64Serialize::serialize(&contest)
     }
-
-    pub fn get_bytes_for_signing(&self) -> Result<Vec<u8>, BallotError> {
-        let mut ret: Vec<u8> = vec![];
-
-        let bytes = self.version.to_le_bytes();
-        let length = (bytes.len() as u64).to_le_bytes();
-        ret.extend_from_slice(&length);
-        ret.extend_from_slice(&bytes);
-
-        let bytes = self.issue_date.as_bytes();
-        let length = (bytes.len() as u64).to_le_bytes();
-        ret.extend_from_slice(&length);
-        ret.extend_from_slice(&bytes);
-
-        let bytes = self.contests.as_bytes();
-        let length = (bytes.len() as u64).to_le_bytes();
-        ret.extend_from_slice(&length);
-        ret.extend_from_slice(&bytes);
-
-        let bytes = self.config.as_bytes();
-        let length = (bytes.len() as u64).to_le_bytes();
-        ret.extend_from_slice(&length);
-        ret.extend_from_slice(&bytes);
-
-        let bytes = self.ballot_style_hash.as_bytes();
-        let length = (bytes.len() as u64).to_le_bytes();
-        ret.extend_from_slice(&length);
-        ret.extend_from_slice(&bytes);
-
-        Ok(ret)
-    }
 }
 
 impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
@@ -169,8 +150,67 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
             )?,
             config: value.config.id.clone(),
             ballot_style_hash: ballot_style_hash,
+        })
+    }
+}
+
+impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
+    type Error = BallotError;
+
+    fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
+        if TYPES_VERSION != value.version {
+            return Err(BallotError::Serialization(format!(
+                "Unexpected version {}, expected {}",
+                value.version.to_string(),
+                TYPES_VERSION
+            )));
+        }
+
+        let contests = value.deserialize_contests::<RistrettoCtx>()?;
+        let hashable_ballot_contests =
+            HashableMultiBallotContests::<RistrettoCtx>::from(&contests);
+
+        let ballot_style_hash =
+            hash_ballot_style(&value.config).map_err(|error| {
+                BallotError::Serialization(format!(
+                    "Failed to hash ballot style: {}",
+                    error
+                ))
+            })?;
+
+        Ok(SignedHashableMultiBallot {
+            version: TYPES_VERSION,
+            issue_date: value.issue_date.clone(),
+            contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
+                &hashable_ballot_contests,
+            )?,
+            config: value.config.id.clone(),
+            ballot_style_hash: ballot_style_hash,
             voter_signing_pk: value.voter_signing_pk.clone(),
             voter_ballot_signature: value.voter_ballot_signature.clone(),
+        })
+    }
+}
+
+impl TryFrom<&SignedHashableMultiBallot> for HashableMultiBallot {
+    type Error = BallotError;
+    fn try_from(
+        value: &SignedHashableMultiBallot,
+    ) -> Result<Self, Self::Error> {
+        if TYPES_VERSION != value.version {
+            return Err(BallotError::Serialization(format!(
+                "Unexpected version {}, expected {}",
+                value.version.to_string(),
+                TYPES_VERSION
+            )));
+        }
+
+        Ok(HashableMultiBallot {
+            version: TYPES_VERSION,
+            issue_date: value.issue_date.clone(),
+            contests: value.contests.clone(),
+            config: value.config.clone(),
+            ballot_style_hash: value.ballot_style_hash.clone(),
         })
     }
 }
@@ -209,7 +249,7 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
 ) -> Result<SignedContent, String> {
     // Get ballot_bytes_for_signing
     let content_bytes = hashable_multi_ballot
-        .get_bytes_for_signing()
+        .strand_serialize()
         .map_err(|err| format!("Error getting signature bytes: {err}"))?;
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
@@ -241,12 +281,12 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
 pub fn verify_multi_ballot_signature(
     ballot_id: &str,
     election_id: &str,
-    hashable_multi_ballot: &HashableMultiBallot,
+    signed_hashable_multi_ballot: &SignedHashableMultiBallot,
 ) -> Result<bool, String> {
     let (signature, public_key) =
         if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
-            hashable_multi_ballot.voter_ballot_signature.clone(),
-            hashable_multi_ballot.voter_signing_pk.clone(),
+            signed_hashable_multi_ballot.voter_ballot_signature.clone(),
+            signed_hashable_multi_ballot.voter_signing_pk.clone(),
         ) {
             (voter_ballot_signature, voter_signing_pk)
         } else {
@@ -256,20 +296,22 @@ pub fn verify_multi_ballot_signature(
     let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&public_key)
         .map_err(|err| {
             format!(
-                "Failed to deserialize signature from hashable ballot: {}",
+                "Failed to deserialize signature from hashable multi ballot: {}",
                 err
             )
         })?;
 
-    let content =
-        hashable_multi_ballot
-            .get_bytes_for_signing()
-            .map_err(|err| {
-                format!(
-                    "Failed to deserialize signature from hashable ballot: {}",
-                    err
-                )
-            })?;
+    let hashable_multi_ballot: HashableMultiBallot =
+        signed_hashable_multi_ballot.try_into().map_err(|err| {
+            format!("Failed to convert to hashable multi ballot: {}", err)
+        })?;
+
+    let content = hashable_multi_ballot.strand_serialize().map_err(|err| {
+        format!(
+            "Failed to deserialize signature from hashable multi ballot: {}",
+            err
+        )
+    })?;
 
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content);
@@ -277,7 +319,7 @@ pub fn verify_multi_ballot_signature(
     let ballot_signature = StrandSignature::from_b64_string(&signature)
         .map_err(|err| {
             format!(
-                "Failed to deserialize signature from hashable ballot: {}",
+                "Failed to deserialize signature from hashable multi ballot: {}",
                 err
             )
         })?;

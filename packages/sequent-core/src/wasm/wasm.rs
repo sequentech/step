@@ -1101,24 +1101,20 @@ pub fn verify_ballot_signature_js(
             })
             .into_json()?;
 
-    let ballot_debug_str = format!("{:#?}", auditable_ballot);
-
-    let hashable_ballot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
             format!(
                 "Error converting auditable ballot into hashable multi ballot: {err}",
             )
         })?;
 
-    let ballot_debug_str = format!("{:#?}", hashable_ballot);
-
     // Verifies the ballot signature
-    let result =
-        verify_ballot_signature(&ballot_id, &election_id, &hashable_ballot)
-            .map_err(|err| format!("Error verifying the ballot: {err}"))?;
-
-    // Log the final verification result
-    let result_str = format!("Verification result: {}", result);
+    let result = verify_ballot_signature(
+        &ballot_id,
+        &election_id,
+        &signed_hashable_ballot,
+    )
+    .map_err(|err| format!("Error verifying the ballot: {err}"))?;
 
     serde_wasm_bindgen::to_value(&result)
         .map_err(|err| format!("Error writing javascript string: {err}",))
@@ -1154,8 +1150,8 @@ pub fn verify_multi_ballot_signature_js(
             })
             .into_json()?;
 
-    let hashable_multi_ballot =
-        HashableMultiBallot::try_from(&auditable_multi_ballot).map_err(|err| {
+    let signed_hashable_multi_ballot =
+        SignedHashableMultiBallot::try_from(&auditable_multi_ballot).map_err(|err| {
             format!(
                 "Error converting auditable ballot into hashable multi ballot: {err}",
             )
@@ -1166,7 +1162,7 @@ pub fn verify_multi_ballot_signature_js(
     let result = verify_multi_ballot_signature(
         &ballot_id,
         &election_id,
-        &hashable_multi_ballot,
+        &signed_hashable_multi_ballot,
     )
     .map_err(|err| format!("Error verifying the ballot signature: {err}"))
     .into_json()?;

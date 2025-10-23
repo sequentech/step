@@ -34,13 +34,15 @@ use sequent_core::ballot::{
     AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
 };
-use sequent_core::ballot::{HashableBallot, HashableBallotContest};
+use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
+use sequent_core::error::BallotError;
 use sequent_core::multi_ballot::verify_multi_ballot_signature;
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::multi_ballot::HashableMultiBallotContests;
+use sequent_core::multi_ballot::SignedHashableMultiBallot;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
@@ -499,8 +501,12 @@ pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
 ) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
-    let hashable_ballot: HashableBallot = deserialize_str(&input.content)
+    let signed_hashable_ballot: SignedHashableBallot = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let hashable_ballot: HashableBallot = (&signed_hashable_ballot)
+        .try_into()
+        .map_err(|e: BallotError| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
     let pseudonym_h = hash_voter_id(voter_id)
         .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
@@ -523,9 +529,13 @@ pub fn deserialize_and_check_ballot(
 
     // Check ballot signature
     let election_id = input.election_id.to_string();
-    verify_ballot_signature(&input.ballot_id, &election_id, &hashable_ballot).map_err(|err| {
-        CastVoteError::BallotVoterSignatureFailed(format!("Ballot signature check failed: {err}"))
-    })?;
+    verify_ballot_signature(&input.ballot_id, &election_id, &signed_hashable_ballot).map_err(
+        |err| {
+            CastVoteError::BallotVoterSignatureFailed(format!(
+                "Ballot signature check failed: {err}"
+            ))
+        },
+    )?;
 
     Ok((pseudonym_h, vote_h))
 }
@@ -535,8 +545,13 @@ pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
 ) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
-    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&input.content)
-        .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+    let signed_hashable_multi_ballot: SignedHashableMultiBallot =
+        deserialize_str(&input.content)
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let hashable_multi_ballot: HashableMultiBallot = (&signed_hashable_multi_ballot)
+        .try_into()
+        .map_err(|e: BallotError| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
     let pseudonym_h = hash_voter_id(voter_id)
         .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
@@ -556,13 +571,14 @@ pub fn deserialize_and_check_multi_ballot(
 
     // Check ballot signature
     let election_id = input.election_id.to_string();
-    verify_multi_ballot_signature(&input.ballot_id, &election_id, &hashable_multi_ballot).map_err(
-        |err| {
-            CastVoteError::BallotVoterSignatureFailed(format!(
-                "Ballot signature check failed: {err}"
-            ))
-        },
-    )?;
+    verify_multi_ballot_signature(
+        &input.ballot_id,
+        &election_id,
+        &signed_hashable_multi_ballot,
+    )
+    .map_err(|err| {
+        CastVoteError::BallotVoterSignatureFailed(format!("Ballot signature check failed: {err}"))
+    })?;
 
     Ok((pseudonym_h, vote_h))
 }

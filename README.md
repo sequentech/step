@@ -458,7 +458,7 @@ VAULT_MANAGER=AWSSecretManager
 
 ```bash
 cd /workspaces/step/packages/sequent-core
-wasm-pack build --out-name index --release --target web --features=wasmtest
+wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 ```
 
@@ -491,7 +491,7 @@ cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0
 
 rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
-yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:voting-portal && yarn build:admin-portal
+yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:voting-portal && yarn build:admin-portal && yarn build:ballot-verifier
 ```
 
 And then everything should work and be updated. 
