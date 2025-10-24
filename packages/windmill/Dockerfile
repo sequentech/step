@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.88.0-slim-bookworm AS builder
+FROM rust:1.90.0-slim-bookworm AS builder
 
 # Use Docker build arguments to determine the architecture
 ARG TARGETPLATFORM
@@ -49,8 +49,6 @@ COPY ./velvet ./velvet
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
-RUN rustup toolchain install nightly-2025-05-04 \
-    && rustup default nightly-2025-05-04
 RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev wget \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
     && tar xvf ${JAVA_FILENAME} \
