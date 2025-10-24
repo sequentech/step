@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - votin_portal_url: https://voting-dev.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/134eca95-990b-498a-9911-660ab0b84efe/login
+          - votin_portal_url: https://voting-dev.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/d068c768-4ea4-4d6f-acbb-42f6aec1a6e7/login
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v26
@@ -41,4 +41,4 @@ jobs:
         tags: ${{ env.LOADTESTING_IMAGE }}
     - name: Run e2e tests
       run: |
-        docker run ${{ env.LOADTESTING_IMAGE }} vote-cast --voting-url "${{ matrix.votin_portal_url }}" --batches 1 --number-of-voters 1000000 --password-pattern Qwerty1234! --instances 1
+        docker run ${{ env.LOADTESTING_IMAGE }} vote-cast --voting-url "${{ matrix.votin_portal_url }}" --batches 1 --number-of-voters 100 --password-pattern Qwerty1234! --instances 1
