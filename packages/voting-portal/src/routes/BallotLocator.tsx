@@ -339,9 +339,10 @@ interface LogsTableProps {
 
 interface MessageCellProps {
     message: string | null
+    initialLength: number
 }
 
-const MessageCell: React.FC<MessageCellProps> = ({message}) => {
+const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
     const {t} = useTranslation()
     const formatJson = (json: string) => {
         try {
@@ -380,7 +381,7 @@ const MessageCell: React.FC<MessageCellProps> = ({message}) => {
             <Box sx={{paddingRight: "28px"}}>
                 <ExpandableText
                     text={formattedMessage}
-                    initialLength={200}
+                    initialLength={initialLength}
                     showMoreLabel={t("common.showMore")}
                     showLessLabel={t("common.showLess")}
                     preformatted={true}
@@ -403,6 +404,18 @@ const LogsTable: React.FC<LogsTableProps> = ({
     const {t} = useTranslation()
     const [orderBy, setOrderBy] = useState<string>("")
     const [order, setOrder] = useState<"desc" | "asc" | undefined>("desc")
+    const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth)
+
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth)
+        window.addEventListener("resize", handleResize)
+        return () => window.removeEventListener("resize", handleResize)
+    }, [])
+
+    // Calculate initialLength: 20 at 1200px+, scale down faster (quadratic) below 1200px
+    const ratio = windowWidth / 1200
+    const initialLength =
+        windowWidth >= 1200 ? 20 : Math.max(0, Math.floor(ratio * ratio * ratio * 20))
 
     const onClickHeader = (headerName: string) => {
         setOrderBy(headerName)
@@ -470,7 +483,15 @@ const LogsTable: React.FC<LogsTableProps> = ({
                     <TableBody>
                         {rows.map((row, index) => (
                             <TableRow key={index}>
-                                <TableCell align="center">{row.username ?? "-"}</TableCell>
+                                <TableCell align="center">
+                                    <ExpandableText
+                                        text={row.username ?? "-"}
+                                        initialLength={initialLength}
+                                        showMoreLabel={t("common.showMore")}
+                                        showLessLabel={t("common.showLess")}
+                                        preformatted={true}
+                                    />
+                                </TableCell>
                                 <TableCell
                                     align="center"
                                     sx={{
@@ -479,11 +500,34 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                         whiteSpace: "normal",
                                     }}
                                 >
-                                    {row.ballot_id}
+                                    <ExpandableText
+                                        text={row.ballot_id}
+                                        initialLength={initialLength}
+                                        showMoreLabel={t("common.showMore")}
+                                        showLessLabel={t("common.showLess")}
+                                        preformatted={true}
+                                    />
                                 </TableCell>
-                                <TableCell align="center">{row.statement_kind}</TableCell>
+
                                 <TableCell align="center">
-                                    {new Date(row.statement_timestamp * 1000).toUTCString()}
+                                    <ExpandableText
+                                        text={row.statement_kind}
+                                        initialLength={initialLength}
+                                        showMoreLabel={t("common.showMore")}
+                                        showLessLabel={t("common.showLess")}
+                                        preformatted={true}
+                                    />
+                                </TableCell>
+                                <TableCell align="center">
+                                    <ExpandableText
+                                        text={new Date(
+                                            row.statement_timestamp * 1000
+                                        ).toUTCString()}
+                                        initialLength={initialLength}
+                                        showMoreLabel={t("common.showMore")}
+                                        showLessLabel={t("common.showLess")}
+                                        preformatted={true}
+                                    />
                                 </TableCell>
                                 <TableCell
                                     align="justify"
@@ -494,7 +538,10 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                         position: "relative",
                                     }}
                                 >
-                                    <MessageCell message={row.message} />
+                                    <MessageCell
+                                        message={row.message}
+                                        initialLength={initialLength}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ))}
