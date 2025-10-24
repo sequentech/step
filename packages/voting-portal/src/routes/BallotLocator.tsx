@@ -312,7 +312,13 @@ const BallotLocator: React.FC = () => {
                     somethingWentWrongErr={somethingWentWrongErr}
                 />
             </CustomTabPanel>
-            <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
+            <Box
+                sx={{
+                    order: {xs: 1, md: 2},
+                    marginTop: "20px",
+                    marginLeft: {xs: "16px", md: "16px"},
+                }}
+            >
                 <StyledLink
                     to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
                 >
