@@ -29,7 +29,8 @@ serde_path_to_error = "0.1"
 borsh = { version = "1.5", features = ["derive"] }
 
 # wasm
-wasm-bindgen = {version = "=0.2", features = ['serde-serialize'], optional = true}
+# Note: Using specific version of wasm-bindgen to match Nix version
+wasm-bindgen = {version = "=0.2.100", features = ['serde-serialize'], optional = true}
 serde-wasm-bindgen = { version = "0.6", optional = true }
 web-sys = { version = "0.3", features = ['Performance', 'console'], optional = true}
 cfg-if = "1.0"

@@ -48,9 +48,8 @@ ecdsa = {version = "0.16", features = ["signing"] }
 p384 = "0.13"
 
 # certificates
-x509-parser = "0.18"
-rcgen = {version = "0.14", features = ["x509-parser"] }
-rustls-pki-types = "1.12"
+x509-parser = "0.15.1"
+rcgen = {version = "0.11.3", features = ["x509-parser"] }
 
 # symmetric
 chacha20poly1305 = "0.10"
@@ -72,8 +71,9 @@ rand_core = { version = "0.9", optional = true }
 getrandom = { version = "=0.2", optional = true } # curve25519-dalek depends on digest v10.0 which is stuck at getrandom-0.2.15
 
 # WASM
+# Note: Using specific version of wasm-bindgen to match Nix version
 wasm-bindgen-rayon = {version = "1.3", features = ["no-bundler"], optional = true}
-wasm-bindgen = {version = "=0.2", optional = true}
+wasm-bindgen = {version = "=0.2.100", optional = true}
 serde-wasm-bindgen = {version = "0.6", optional = true}
 web-sys = { version = "0.3", features = ['Performance'], optional = true }
 
