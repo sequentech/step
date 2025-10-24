@@ -373,7 +373,7 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
                 sx={{
                     "position": "absolute",
                     "top": "4px",
-                    "right": "4px",
+                    "left": "4px",
                     "zIndex": 1,
                     "backgroundColor": "rgba(255, 255, 255, 0.8)",
                     "&:hover": {
@@ -384,7 +384,14 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
                     "padding": "2px",
                 }}
             />
-            <Box sx={{paddingRight: "28px"}}>
+            <Box
+                sx={{
+                    "paddingLeft": "28px",
+                    "& > div > div:last-child": {
+                        justifyContent: "flex-start !important",
+                    },
+                }}
+            >
                 <ExpandableText
                     text={formattedMessage}
                     initialLength={initialLength}
@@ -421,7 +428,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
     // Calculate initialLength: 20 at 1200px+, scale down faster (quadratic) below 1200px
     const ratio = windowWidth / 1200
     const initialLength =
-        windowWidth >= 1200 ? 20 : Math.max(0, Math.floor(ratio * ratio * ratio * 20))
+        windowWidth >= 1200 ? 20 : Math.max(3, Math.floor(ratio * ratio * ratio * 20))
 
     const onClickHeader = (headerName: string) => {
         setOrderBy(headerName)
@@ -445,103 +452,144 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 >
                     <TableHead>
                         <TableRow>
-                            <TableCell align="center" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "username"}
                                     direction={orderBy === "username" ? order : "asc"}
                                     onClick={() => onClickHeader("username")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", minWidth: "120px"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "ballot_id"}
                                     direction={orderBy === "ballot_id" ? order : "asc"}
                                     onClick={() => onClickHeader("ballot_id")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.ballot_id")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_kind"}
                                     direction={orderBy === "statement_kind" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_kind")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.statement_kind")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_timestamp"}
                                     direction={orderBy === "statement_timestamp" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_timestamp")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.statement_timestamp")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
-                                {t("ballotLocator.column.message")}
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
+                                >
+                                    {t("ballotLocator.column.message")}
+                                </Box>
                             </TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {rows.map((row, index) => (
                             <TableRow key={index}>
-                                <TableCell align="center">
-                                    <ExpandableText
-                                        text={row.username ?? "-"}
-                                        initialLength={initialLength}
-                                        showMoreLabel={t("common.showMore")}
-                                        showLessLabel={t("common.showLess")}
-                                        preformatted={true}
-                                    />
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
+                                    {row.username ?? "-"}
                                 </TableCell>
                                 <TableCell
                                     align="center"
                                     sx={{
-                                        minWidth: "120px",
                                         wordBreak: "break-all",
                                         whiteSpace: "normal",
+                                        padding: "2px 4px",
                                     }}
                                 >
-                                    <ExpandableText
-                                        text={row.ballot_id}
-                                        initialLength={initialLength}
-                                        showMoreLabel={t("common.showMore")}
-                                        showLessLabel={t("common.showLess")}
-                                        preformatted={true}
-                                    />
+                                    {initialLength < 10 ? (
+                                        <ExpandableText
+                                            text={row.ballot_id}
+                                            initialLength={initialLength}
+                                            showMoreLabel={t("common.showMore")}
+                                            showLessLabel={t("common.showLess")}
+                                            preformatted={true}
+                                        />
+                                    ) : (
+                                        row.ballot_id
+                                    )}
                                 </TableCell>
-
-                                <TableCell align="center">
-                                    <ExpandableText
-                                        text={row.statement_kind}
-                                        initialLength={initialLength}
-                                        showMoreLabel={t("common.showMore")}
-                                        showLessLabel={t("common.showLess")}
-                                        preformatted={true}
-                                    />
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
+                                    {row.statement_kind}
                                 </TableCell>
-                                <TableCell align="center">
-                                    <ExpandableText
-                                        text={new Date(
-                                            row.statement_timestamp * 1000
-                                        ).toUTCString()}
-                                        initialLength={initialLength}
-                                        showMoreLabel={t("common.showMore")}
-                                        showLessLabel={t("common.showLess")}
-                                        preformatted={true}
-                                    />
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
+                                    {new Date(row.statement_timestamp * 1000).toUTCString()}
                                 </TableCell>
                                 <TableCell
                                     align="justify"
                                     sx={{
-                                        minWidth: "200px",
-                                        padding: "8px",
-                                        verticalAlign: "top",
-                                        position: "relative",
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
                                     }}
                                 >
                                     <MessageCell
