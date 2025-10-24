@@ -7,6 +7,17 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 📖 Third-Party Libraries Reference Documentation
+
+Added comprehensive developer documentation for managing Rust versions and
+third-party dependencies. Standardized on Rust stable 1.90.0 across all
+environments (Nix, GitHub Actions, Dockerfiles). Created automated tooling for
+dependency reporting and security audits, including scripts for generating
+dependency lists with licenses and descriptions. Updated all Rust crates, npm
+packages, and Maven dependencies to their latest compatible versions.
+
+- Issue: https://github.com/sequentech/meta/issues/7996
+
 ## 🐞 Failed scheduled event
 
 Scheduled events and reports were being executed multiple times due to a timing 
