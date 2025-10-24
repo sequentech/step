@@ -103,19 +103,11 @@ impl RawBallotCodec for Contest {
                     // for selected and 0 otherwise
                     choices.push(u64::from(choice.selected > -1));
                 }
-                CountingAlgType::InstantRunoff => {
-                    // choice.selected > -1 is a requirement for instant-runoff
-                    // because the candidates are ranked in order of preference
-                    // from 0..nCandidates
-                    let rank = choice.selected.to_u64().ok_or_else(|| {
-                        "selected value must be positive".to_string()
-                    })?;
-                    choices.push(rank);
-                }
                 _ => {
                     // we add 1 because the counting starts with 1, as zero
                     // means this candidate was not voted /
-                    // ranked
+                    // ranked (selected was -1). This should work for IRV and
+                    // other preferencial counting algorithms
                     let value =
                         (choice.selected + 1).to_u64().ok_or_else(|| {
                             "selected value must be positive or zero"
