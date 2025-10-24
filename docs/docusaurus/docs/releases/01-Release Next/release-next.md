@@ -7,6 +7,13 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Can't see Election Lists
+
+Due to a recent change, a bug was introduced that hid Candidate Lists in the
+Voting Portal.
+
+- Issue [#8735](https://github.com/sequentech/meta/issues/8735)
+
 ## 🐞 Failed scheduled event
 
 Scheduled events and reports were being executed multiple times due to a timing 
