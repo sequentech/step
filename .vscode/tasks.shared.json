@@ -156,7 +156,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd docs/docusaurus && yarn start",
+                "cd docs/docusaurus && yarn && yarn start",
             ],
             "presentation": {
                 "echo": true,
