@@ -14,6 +14,23 @@ Voting Portal.
 
 - Issue [#8735](https://github.com/sequentech/meta/issues/8735)
 
+## 🐞 Failed scheduled event
+
+Scheduled events and reports were being executed multiple times due to a timing 
+mismatch between the beat scheduler's polling interval (10 seconds by default) 
+and the look-ahead window used by the tasks (hardcoded to 60 seconds). This 
+caused the same events/reports within the 60-second window to be repeatedly 
+discovered and queued on each 10-second poll. 
+
+The fix passes the configured schedule interval (schedule_events_interval and 
+schedule_reports_interval) from the beat to the task functions, which now use it
+as their look-ahead window instead of the hardcoded 60 seconds, ensuring each 
+scheduled item is processed exactly once.
+
+Also now admin users can schedule start/stop election events, as for those cases
+selecting an election is not required.
+
+- Issue: https://github.com/sequentech/meta/issues/8681
 
 ## 🐞 Investigate rabbitmq issues
 
