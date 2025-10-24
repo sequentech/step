@@ -16,6 +16,10 @@ jobs:
       - runner=4cpu-linux-x64
       - image=ubuntu24-full-x64
       - disk=large
+    strategy:
+      matrix:
+        include:
+          - votin_portal_url: https://voting-dev.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/134eca95-990b-498a-9911-660ab0b84efe/login
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v26
@@ -24,8 +28,8 @@ jobs:
         name: devenv
     - name: Install devenv.sh
       run: nix profile install nixpkgs#devenv
-    - name: Run admin and voting portal
-      run: scripts/e2e-up.sh
+    #- name: Run admin and voting portal
+    #  run: scripts/e2e-up.sh
     - name: Set loadtestingImage variable with default fallback
       run: echo "LOADTESTING_IMAGE=loadtesting:latest" >> $GITHUB_ENV
     - name: Build image
@@ -37,4 +41,4 @@ jobs:
         tags: ${{ env.LOADTESTING_IMAGE }}
     - name: Run e2e tests
       run: |
-        docker run --network=host ${{ env.LOADTESTING_IMAGE }} e2e
+        docker run ${{ env.LOADTESTING_IMAGE }} vote-cast --voting-url "${{ matrix.votin_portal_url }}" --batches 1 --number-of-voters 1000000 --password-pattern Qwerty1234! --instances 1
