@@ -25,7 +25,7 @@ jobs:
     - name: Install devenv.sh
       run: nix profile install nixpkgs#devenv
     - name: Run admin and voting portal
-      run: .devcontainer/scripts/e2e-up.sh
+      run: scripts/e2e-up.sh
     - name: Set loadtestingImage variable with default fallback
       run: echo "LOADTESTING_IMAGE=loadtesting:latest" >> $GITHUB_ENV
     - name: Build image
