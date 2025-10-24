@@ -14,6 +14,13 @@ Voting Portal.
 
 - Issue [#8735](https://github.com/sequentech/meta/issues/8735)
 
+## 🐞 Admin Portal > "Something went wrong" error when switching between diferent elections/questions
+
+Prevent error when switching between elections on the "Data" tab by safely
+ handling an undefined record.
+
+- Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+
 ## 🐞 Failed scheduled event
 
 Scheduled events and reports were being executed multiple times due to a timing 
