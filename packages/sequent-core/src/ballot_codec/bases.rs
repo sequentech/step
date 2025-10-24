@@ -24,7 +24,6 @@ impl BasesCodec for Contest {
             CountingAlgType::Cumulative => {
                 self.cumulative_number_of_checkboxes() + 1u64
             }
-            CountingAlgType::InstantRunoff => self.candidates.len() as u64,
             _ => (self.max_votes + 1i64).try_into().unwrap(),
         };
 

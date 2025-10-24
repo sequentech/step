@@ -554,4 +554,41 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_irv_encode_decode() {
+        let fixture = get_irv_fixture();
+        
+        // Encode the plaintext to raw ballot
+        let encoded_raw_ballot = fixture.contest
+            .encode_to_raw_ballot(&fixture.plaintext)
+            .expect("Failed to encode plaintext to raw ballot");
+        
+        // Decode the raw ballot back to plaintext
+        let decoded_plaintext = fixture.contest
+            .decode_from_raw_ballot(&encoded_raw_ballot)
+            .expect("Failed to decode raw ballot to plaintext");
+        
+        // Compare the selections of the choices
+        assert_eq!(
+            fixture.plaintext.choices.len(),
+            decoded_plaintext.choices.len(),
+            "Number of choices should match"
+        );
+        
+        for idx in 0..fixture.plaintext.choices.len() {
+            assert_eq!(
+                fixture.plaintext.choices[idx].id,
+                decoded_plaintext.choices[idx].id,
+                "Choice ID should match at index {}",
+                idx
+            );
+            assert_eq!(
+                fixture.plaintext.choices[idx].selected,
+                decoded_plaintext.choices[idx].selected,
+                "Choice selection should match at index {}",
+                idx
+            );
+        }
+    }
 }
