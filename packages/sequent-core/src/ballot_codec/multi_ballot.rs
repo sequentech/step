@@ -14,6 +14,7 @@ use crate::ballot_codec::{
     check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
     check_under_vote_policy,
 };
+use crate::error::BallotError;
 use crate::mixed_radix;
 use crate::plaintext::{
     map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest,
@@ -47,15 +48,18 @@ use num_traits::{ToPrimitive, Zero};
 pub struct BallotChoices {
     pub is_explicit_invalid: bool,
     pub choices: Vec<ContestChoices>,
+    pub counting_algorithm: CountingAlgType,
 }
 impl BallotChoices {
     pub fn new(
         is_explicit_invalid: bool,
         choices: Vec<ContestChoices>,
+        counting_algorithm: CountingAlgType,
     ) -> Self {
         BallotChoices {
             is_explicit_invalid,
             choices,
+            counting_algorithm,
         }
     }
 }
@@ -162,6 +166,29 @@ pub struct DecodedBallotChoices {
     pub serial_number: Option<String>,
 }
 
+impl BallotStyle {
+    /// Returns Error if all counting algorithms are not the same.
+    pub fn get_counting_algorithm(
+        &self,
+    ) -> Result<CountingAlgType, BallotError> {
+        let first_counting_algorithm: CountingAlgType = self
+            .contests
+            .first()
+            .map(|c| c.get_counting_algorithm())
+            .unwrap_or_default();
+        match self
+            .contests
+            .iter()
+            .all(|c| c.get_counting_algorithm() == first_counting_algorithm)
+        {
+            true => Ok(first_counting_algorithm),
+            false => Err(BallotError::ConsistencyCheck(
+                "Mixing different counting algorithms".to_string(),
+            )),
+        }
+    }
+}
+
 impl BallotChoices {
     /// Encode this ballot into a 30 byte representation
     ///
@@ -246,7 +273,7 @@ impl BallotChoices {
                 contest
             ))?;
 
-            let contest_choices = Self::encode_contest(&contest, &plaintext)?;
+            let contest_choices = self.encode_contest(&contest, &plaintext)?;
 
             // Accumulate the choices for each contest
             choices.extend(contest_choices);
@@ -260,6 +287,7 @@ impl BallotChoices {
     /// Returns a choice vector of length contest.max_votes,
     /// which the caller will append to the overall ballot choice vector.
     fn encode_contest(
+        &self,
         contest: &Contest,
         plaintext: &ContestChoices,
     ) -> Result<Vec<u64>, String> {
@@ -304,18 +332,27 @@ impl BallotChoices {
             ));
         }
 
-        // Setting the choices in order of preference to support preferencial
-        // multiballot. When decoding, we will take the order of the
-        // vector to determine the order of preference of each choice.
-        // The invalid ones with seected = -1 will be at the beginning but
-        // will be ignored when decoding anyway because are marked to 0.
-        let mut pref_choices: Vec<ContestChoice> = plaintext.choices.clone();
-        pref_choices.sort_by_key(|c| c.selected);
+        let choices_order = match self.counting_algorithm.is_preferential() {
+            true => {
+                // Setting the choices in order of preference to support
+                // preferencial multiballot. When decoding, we
+                // will take the order of the
+                // vector to determine the order of preference of each choice.
+                // The invalid ones with seected = -1 will be at the beginning
+                // but will be ignored when decoding anyway
+                // because are marked to 0.
+                let mut pref_choices: Vec<ContestChoice> =
+                    plaintext.choices.clone();
+                pref_choices.sort_by_key(|c| c.selected);
+                pref_choices
+            }
+            false => plaintext.choices.clone(),
+        };
 
         // We set all values as unset (0) by default
         let mut contest_choices = vec![0u64; max_votes];
         let mut marked = 0;
-        for p in &pref_choices {
+        for p in &choices_order {
             let (position, _candidate) =
                 candidates_map.get(&p.candidate_id).ok_or_else(|| {
                     "choice id is not a valid candidate".to_string()
@@ -1108,7 +1145,11 @@ mod tests {
 
         let ballot_style = random_ballot_style(contests);
 
-        let ballot = BallotChoices::new(false, choices);
+        let ballot = BallotChoices::new(
+            false,
+            choices,
+            CountingAlgType::PluralityAtLarge,
+        );
 
         (ballot, ballot_style)
     }

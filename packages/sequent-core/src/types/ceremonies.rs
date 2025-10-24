@@ -225,3 +225,20 @@ pub enum CountingAlgType {
     #[strum(serialize = "cumulative")]
     Cumulative,
 }
+
+impl CountingAlgType {
+    /// Returns true if the counting algorithm is preferential (ranked-choice).
+    pub fn is_preferential(&self) -> bool {
+        match self {
+            CountingAlgType::InstantRunoff
+            | CountingAlgType::Borda
+            | CountingAlgType::BordaNauru
+            | CountingAlgType::BordaMasMadrid
+            | CountingAlgType::PairwiseBeta
+            | CountingAlgType::Desborda
+            | CountingAlgType::Desborda2
+            | CountingAlgType::Desborda3 => true,
+            _ => false,
+        }
+    }
+}

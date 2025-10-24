@@ -343,7 +343,8 @@ pub fn generate_mcballots(
                 .iter()
                 .map(ContestChoices::from_decoded_vote_contest)
                 .collect();
-            let ballot = BallotChoices::new(false, contest_choices);
+            let ballot =
+                BallotChoices::new(false, contest_choices, CountingAlgType::PluralityAtLarge);
 
             let ballot_style = generate_ballot_style(
                 &election.tenant_id,

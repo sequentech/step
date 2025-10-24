@@ -166,8 +166,12 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         .iter()
         .any(|choice| choice.is_explicit_invalid);
 
-    let ballot_choices =
-        BallotChoices::new(is_explicit_invalid, contest_choices);
+    let counting_algorithm = config.get_counting_algorithm()?;
+    let ballot_choices = BallotChoices::new(
+        is_explicit_invalid,
+        contest_choices,
+        counting_algorithm,
+    );
 
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
@@ -202,7 +206,12 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .iter()
         .any(|choice| choice.is_explicit_invalid);
 
-    let ballot = BallotChoices::new(is_explicit_invalid, contest_choices);
+    let counting_algorithm = config.get_counting_algorithm()?;
+    let ballot = BallotChoices::new(
+        is_explicit_invalid,
+        contest_choices,
+        counting_algorithm,
+    );
 
     encrypt_multi_ballot(ctx, &ballot, config)
 }
