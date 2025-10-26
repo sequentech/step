@@ -1,0 +1,35 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package plugins-manager:transactions-manager;
+
+interface transaction {
+    create-hasura-transaction: func() -> result<_, string>;
+    create-keycloak-transaction: func() -> result<_, string>;
+    execute-hasura-query: func(sql: string, params: list<string>) -> result<string, string>;
+    execute-keycloak-query: func(sql: string, params: list<string>) -> result<string, string>;
+    commit-hasura-transaction: func() -> result<_, string>;
+    commit-keycloak-transaction: func() -> result<_, string>;
+}
+
+interface postgres-queries {
+    get-election-event-by-election-area: func(tenant-id:string, election-id:string, area-id:string) -> result<string, string>;
+    get-election-by-id: func(tenant-id:string,election-event-id:string,election-id:string) -> result<option<string>, string>;
+    get-tally-session-by-id: func(tenant-id: string,election-event-id:string,tally-session-id:string) -> result<string, string>;
+    get-document: func(tenant-id: string, election-event-id: option<string>, document-id: string) -> result<option<string>, string>;
+    get-area-by-id: func(tenant-id:string, area-id:string) -> result<option<string>, string>;
+    get-last-tally-session-execution: func(tenant-id:string,election-event-id:string,tally-session-id:string) -> result<option<string>, string>;
+    get-results-event-by-id: func(tenant-id:string, election-event-id:string, results-event-id:string) -> result<string, string>;
+    update-tally-session-annotation: func(tenant-id:string,election-event-id:string,tally-session-id:string, new-tally-annotations: string) -> result<_, string>;
+}
+
+interface vault {
+    read-secret: func(tenant-id: string, election-event-id: option<string>,key: string) -> result<option<string>, string>;
+    save-secret: func(tenant-id: string, election-event-id: option<string>,key: string, value:string) -> result<_, string>;
+}
+
+world transactions-manager {
+    import transaction;
+    import postgres-queries;
+    import vault;
+}

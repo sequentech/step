@@ -1,0 +1,22 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package plugins-manager:documents-manager;
+
+interface documents {
+    create-document-as-temp-file: func(tenant-id: string, document: string) -> result<string, string>;
+    get-tally-results: func(tally-base-path:string) -> result<string, string>;
+    get-s3-public-asset-file-path: func(file-name: string) -> result<string, string>;
+    download-s3-file-to-string: func(file-url: string) -> result<string, string>;
+    render-template-text: func(template-string:string, variables-map:string) -> result<string, string>;
+    hash-sha256: func(bytes: list<u8>) -> result<list<u8>, string>;
+    upload-and-return-document: func(file-size: u64,media-type: string,tenant-id: string,election-event-id: option<string>,name: string,document-id: option<string>,is-public: bool) -> result<string, string>;
+    run-shell-command-generate-ecies-key-pair: func(java-jar-file: string, temp-public-pem-file-name: string, temp-private-pem-file-name: string) -> result<_, string>;
+    encrypt-file: func(input-file-name: string, output-file-name: string, password: string) -> result<_, string>; 
+    run-shell-command-ecies-encrypt-string: func(java-jar-file: string, temp-pem-file-name: string, password: string) -> result<string, string>; 
+    run-shell-command-ecies-sign-data: func(java-jar-file: string, temp-pem-file-name: string, temp-data-file-name: string) -> result<string, string>; 
+}
+
+world documents-manager {
+    import documents;
+}

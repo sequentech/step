@@ -37,6 +37,19 @@ actions:
           - role: service-account
           - role: admin-user
       comment: Verify User Registration Application
+    - name: call_plugin_route
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/plugin
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
     - name: check_private_key
       definition:
           kind: synchronous
@@ -1518,6 +1531,7 @@ custom_types:
         - name: ApplicationChangeStatusOutput
         - name: CountUsersOutput
         - name: RenderDocumentPDFOutput
+        - name: PluginsRouteOutput
         - name: UpsertAreaOutput
         - name: ExportTallyResultsOutput
     scalars: []

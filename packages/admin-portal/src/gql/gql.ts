@@ -13,6 +13,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Therefore it is highly recommended to use the babel or swc plugin for production.
  */
 const documents = {
+    "\n    mutation CallPluginRoute($path: String!, $data: jsonb!) {\n        call_plugin_route(path: $path, data: $data) {\n            data\n        }\n    }\n": types.CallPluginRouteDocument,
     "\n    mutation ChangeApplicationStatus(\n        $election_event_id: String!\n        $user_id: String!\n        $id: String!\n        $tenant_id: String\n        $area_id: String\n        $rejection_reason: String\n        $rejection_message: String\n    ) {\n        ApplicationChangeStatus(\n            body: {\n                election_event_id: $election_event_id\n                id: $id\n                user_id: $user_id\n                tenant_id: $tenant_id\n                area_id: $area_id\n                rejection_reason: $rejection_reason\n                rejection_message: $rejection_message\n            }\n        ) {\n            message\n            error\n        }\n    }\n": types.ChangeApplicationStatusDocument,
     "\n    mutation CheckPrivateKey(\n        $electionEventId: String!\n        $keysCeremonyId: String!\n        $privateKeyBase64: String!\n    ) {\n        check_private_key(\n            object: {\n                election_event_id: $electionEventId\n                keys_ceremony_id: $keysCeremonyId\n                private_key_base64: $privateKeyBase64\n            }\n        ) {\n            is_valid\n        }\n    }\n": types.CheckPrivateKeyDocument,
     "\n    mutation CreateElection(\n        $electionEventId: String!\n        $name: String!\n        $presentation: jsonb\n        $description: String\n    ) {\n        create_election(\n            election_event_id: $electionEventId\n            name: $name\n            presentation: $presentation\n            description: $description\n        ) {\n            id\n        }\n    }\n": types.CreateElectionDocument,
@@ -137,6 +138,10 @@ const documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation CallPluginRoute($path: String!, $data: jsonb!) {\n        call_plugin_route(path: $path, data: $data) {\n            data\n        }\n    }\n"): (typeof documents)["\n    mutation CallPluginRoute($path: String!, $data: jsonb!) {\n        call_plugin_route(path: $path, data: $data) {\n            data\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -3,12 +3,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
-use chrono::{DateTime, Local};
-use serde::{Deserialize, Serialize};
-use serde_json::value::Value;
-use std::str::FromStr;
-
 use crate::{
     ballot::{ContestEncryptionPolicy, DecodedBallotsInclusionPolicy},
     serialization::deserialize_with_path::deserialize_value,
@@ -19,6 +13,11 @@ use crate::{
         tally_sheets::AreaContestResults,
     },
 };
+use anyhow::{anyhow, Result};
+use chrono::{DateTime, Local};
+use serde::{Deserialize, Serialize};
+use serde_json::value::Value;
+use std::str::FromStr;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPublication {
