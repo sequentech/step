@@ -199,3 +199,9 @@ Added Charts in the Admin Portal's Tally Results below the data tables to displa
  the General Information, Participation Results and Candidate Results.
 
 - Issue: [#7531](https://github.com/sequentech/meta/issues/7531)
+
+## 🐞 Tally > "No Results" while loading the results
+1. Fix Tally results show "No results" while loading for it
+2. Fix Starting new tally after review other tally results shows the previous tally results while process the tally ceremony
+
+- Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
