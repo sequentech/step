@@ -32,6 +32,7 @@ import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -68,6 +69,7 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
+    const [isLoading, setIsLoading] = useState(true)
     const orderedResultsData = useMemo(() => {
         return (resultsData as Sequent_Backend_Candidate_Extended[]).sort(sortCandidates)
     }, [resultsData])
@@ -149,6 +151,10 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         }
     }
 
+    const isExistRightTallyData = useMemo(() => {
+        return tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -169,8 +175,12 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             )
 
             setResultsData(temp)
+            setIsLoading(false)
         }
-    }, [results, candidates])
+        if (isExistRightTallyData && (!candidates?.length || !results?.length)) {
+            setIsLoading(false)
+        }
+    }, [results, candidates, isExistRightTallyData])
 
     const columns: GridColDef[] = [
         {
@@ -217,7 +227,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.global")}
                 </Typography>
-
                 {general && general.length ? (
                     <Box
                         sx={{
@@ -411,11 +420,12 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                             </TableContainer>
                         </Box>
                     </Box>
+                ) : !isExistRightTallyData ? (
+                    <LoadingResults />
                 ) : (
                     <NoItem />
                 )}
             </Box>
-
             <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.candidates")}
@@ -453,6 +463,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                             />
                         </Box>
                     </Box>
+                ) : isLoading || !isExistRightTallyData ? (
+                    <LoadingResults />
                 ) : (
                     <NoItem />
                 )}

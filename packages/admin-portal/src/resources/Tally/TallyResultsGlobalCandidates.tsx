@@ -33,6 +33,7 @@ import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
+import {LoadingResults} from "./TallyElectionsResults"
 
 const MAX_CANDIDATES_REPRESENTED = 5
 
@@ -223,7 +224,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
-
+    const [isLoading, setIsLoading] = useState(true)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
     const orderedResultsData = useMemo(() => {
         return resultsData.sort(sortCandidates)
@@ -242,9 +243,10 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             tallyData?.sequent_backend_results_contest?.filter(
                 (resultsContest) =>
                     contestId === resultsContest.contest_id &&
-                    electionId === resultsContest.election_id
+                    electionId === resultsContest.election_id &&
+                    resultsEventId === resultsContest.results_event_id
             ),
-        [tallyData?.sequent_backend_results_contest, contestId, electionId]
+        [tallyData?.sequent_backend_results_contest, contestId, electionId, resultsEventId]
     )
 
     const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
@@ -252,7 +254,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             tallyData?.sequent_backend_results_contest_candidate?.filter(
                 (resultsContestCandidate) =>
                     contestId === resultsContestCandidate.contest_id &&
-                    electionId === resultsContestCandidate.election_id
+                    electionId === resultsContestCandidate.election_id &&
+                    resultsEventId === resultsContestCandidate.results_event_id
             ),
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
@@ -271,6 +274,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             return "-"
         }
     }
+
+    const isExistRightTallyData = useMemo(() => {
+        return tallyData?.sequent_backend_results_event?.find(
+            (event) => event.id === resultsEventId
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
     useEffect(() => {
         if (results && candidates) {
@@ -292,8 +301,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             )
 
             setResultsData(temp)
+            setIsLoading(false)
         }
-    }, [results, candidates])
+        if (isExistRightTallyData && (!candidates?.length || !results?.length)) {
+            setIsLoading(false)
+        }
+    }, [results, candidates, isExistRightTallyData])
 
     const columns: GridColDef[] = [
         {
@@ -333,14 +346,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             headerAlign: "right",
         },
     ]
-
     return (
         <>
             <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.global")}
                 </Typography>
-
                 {general && general.length ? (
                     <Box
                         sx={{
@@ -350,6 +361,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             alignItems: "flex-start",
                         }}
                     >
+                        fsgfg
                         <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                             <ParticipationSummaryChart
                                 result={general?.[0]}
@@ -522,6 +534,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             </TableContainer>
                         </Box>
                     </Box>
+                ) : !isExistRightTallyData ? (
+                    <LoadingResults />
                 ) : (
                     <NoItem />
                 )}
@@ -532,7 +546,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     {t("tally.table.candidates")}
                 </Typography>
 
-                {resultsData.length ? (
+                {general && general.length && resultsData.length ? (
                     <Box
                         sx={{
                             display: "flex",
@@ -564,6 +578,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             />
                         </Box>
                     </Box>
+                ) : isLoading || !isExistRightTallyData ? (
+                    <LoadingResults />
                 ) : (
                     <NoItem />
                 )}
