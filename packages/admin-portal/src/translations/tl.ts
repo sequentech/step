@@ -1154,7 +1154,7 @@ const tagalogTranslation: TranslationType = {
                 import: "I-import",
                 export: "I-export",
                 loadingData: "Naga-load ng data...",
-                exportFormat: "I-export ang '{{item}}' na resulta sa {{format}} na format",
+                exportFormat: "I-export sa format na {{format}} - Mga resulta ng '{{item}}",
                 allResults: "kaganapan ng halalan",
                 globalAreaResults: "lahat ng lugar",
                 title: "Pamagat",
