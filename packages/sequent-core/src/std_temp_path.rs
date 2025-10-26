@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use crate::plugins::{get_plugin_shared_dir, Plugins};
 
 /// represent a temporary file and ensure it's removed on drop.
+#[derive(Debug, Clone)]
 pub struct TempFileGuard {
     pub path: PathBuf,
 }

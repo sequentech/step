@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use core::result::Result::Ok;
 use sequent_core::plugins::{get_plugin_shared_dir, Plugins};
-use sequent_core::std_temp_path::create_temp_file;
+use sequent_core::std_temp_path::{create_temp_file, TempFileGuard};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::Write;
@@ -132,12 +132,12 @@ pub fn get_p12_cert(
     p12_file_path: &str,
     password: &str,
     base_path: &str,
-) -> Result<String, String> {
-    let (_cert_temp_file, cert_temp_path) = create_temp_file("p12", "cert", base_path)?;
+) -> Result<(TempFileGuard, String), String> {
+    let (cert_temp_file, cert_temp_path) = create_temp_file("p12", "cert", base_path)?;
 
     run_shell_command_get_p12_cert(&p12_file_path, password, &cert_temp_path)?;
 
-    Ok(cert_temp_path)
+    Ok((cert_temp_file, cert_temp_path))
 }
 
 #[instrument(err, ret)]

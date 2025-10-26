@@ -60,7 +60,7 @@ pub fn get_acm_key_pair(tenant_id: &str, election_event_id: &str) -> Result<Ecie
         read_secret(tenant_id, Some(election_event_id), &secret_key).map_err(|e| e.to_string())?
     {
         println!("[Guest Plugin] ACM Key Pair found in vault");
-        deserialize_str(&secret_str).map_err(|e| e.to_string())?
+        Ok(deserialize_str(&secret_str).map_err(|e| e.to_string())?)
     } else {
         println!("[Guest Plugin] ACM Key Pair not found in vault, generating new key pair");
         let key_pair = generate_ecies_key_pair().map_err(|e| e.to_string())?;

@@ -176,7 +176,8 @@ pub fn check_sbei_certificate(
     election_event_annotations: &MiruElectionEventAnnotations,
     dir_base_path: &str,
 ) -> Result<String, String> {
-    let p12_cert_path = get_p12_cert(p12_file_name, password, dir_base_path)?;
+    let (_p12_cert_temp_file, p12_cert_path) =
+        get_p12_cert(p12_file_name, password, dir_base_path)?;
     // return certificate fingerprint
     let input_pk_fingerprint = get_p12_fingerprint(&p12_cert_path)?;
     let found = transmission_data.clone().into_iter().find(|data| {
