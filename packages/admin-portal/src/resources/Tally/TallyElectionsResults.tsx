@@ -16,7 +16,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import { Loader } from "@sequentech/ui-essentials"
+import {Loader} from "@sequentech/ui-essentials"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -39,7 +39,6 @@ interface GeneralInformationChartsProps {
     selectedElectionId?: string
 }
 
-
 export const LoadingResults: React.FC = () => {
     return (
         <Box
@@ -47,11 +46,11 @@ export const LoadingResults: React.FC = () => {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                height: '200px',
+                height: "200px",
                 position: "relative",
             }}
         >
-            <Loader/>
+            <Loader />
         </Box>
     )
 }
@@ -162,15 +161,22 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     )
 
     const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_election &&
-        tallyData?.sequent_backend_results_election.length > 0 ?
-            tallyData?.sequent_backend_results_election.filter((result) => result.results_event_id === resultsEventId) 
-            : undefined,
+        () =>
+            tallyData?.sequent_backend_results_election &&
+            tallyData?.sequent_backend_results_election.length > 0
+                ? tallyData?.sequent_backend_results_election.filter(
+                      (result) => result.results_event_id === resultsEventId
+                  )
+                : undefined,
         [tallyData?.sequent_backend_results_election]
     )
 
+    const isExistRightTallyData = useMemo(() => {
+        return tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
     useEffect(() => {
-        setIsLoading(true);
+        setIsLoading(true)
         if (elections && results && elections.length > 0 && results.length > 0) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
                 (item, index): Sequent_Backend_Election_Extended => {
@@ -196,10 +202,10 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             }
             setIsLoading(false)
         }
-        if (resultsEventId && tallyData && (!elections || !results)) {
-                setIsLoading(false);
+        if (isExistRightTallyData && (!elections?.length || !results?.length)) {
+            setIsLoading(false)
         }
-    }, [results, elections, selectedElectionId, tallyData,resultsEventId])
+    }, [results, elections, selectedElectionId, isExistRightTallyData])
 
     const columns: GridColDef[] = [
         {
@@ -237,7 +243,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            {resultsEventId && resultsData.length ? (
+            {resultsData.length ? (
                 <Box
                     sx={{
                         display: "flex",
@@ -289,8 +295,10 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         />
                     </Box>
                 </Box>
+            ) : isLoading || !isExistRightTallyData ? (
+                <LoadingResults />
             ) : (
-                isLoading || !resultsEventId ? <LoadingResults/> : <NoItem />
+                <NoItem />
             )}
         </>
     )

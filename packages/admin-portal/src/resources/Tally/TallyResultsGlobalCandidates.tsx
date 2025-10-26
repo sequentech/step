@@ -33,7 +33,7 @@ import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
-import { LoadingResults } from "./TallyElectionsResults"
+import {LoadingResults} from "./TallyElectionsResults"
 
 const MAX_CANDIDATES_REPRESENTED = 5
 
@@ -230,8 +230,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         return resultsData.sort(sortCandidates)
     }, [resultsData])
 
-    console.log({tallyData});
-    
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
             tallyData?.sequent_backend_candidate?.filter(
@@ -242,18 +240,13 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const general: Array<Sequent_Backend_Results_Contest> | undefined = useMemo(
         () =>
-            {
-                console.log({resultsEventId});
-                return tallyData?.sequent_backend_results_contest?.filter(
+            tallyData?.sequent_backend_results_contest?.filter(
                 (resultsContest) =>
-                    {
-                        console.log("resultsContest.results_event_id: ",resultsContest.results_event_id);
-                        
-                        return contestId === resultsContest.contest_id &&
+                    contestId === resultsContest.contest_id &&
                     electionId === resultsContest.election_id &&
-                    resultsEventId === resultsContest.results_event_id}
-            )},
-        [tallyData?.sequent_backend_results_contest, contestId, electionId]
+                    resultsEventId === resultsContest.results_event_id
+            ),
+        [tallyData?.sequent_backend_results_contest, contestId, electionId, resultsEventId]
     )
 
     const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
@@ -282,6 +275,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         }
     }
 
+    const isExistRightTallyData = useMemo(() => {
+        return tallyData?.sequent_backend_results_event?.find(
+            (event) => event.id === resultsEventId
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -304,10 +303,10 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             setResultsData(temp)
             setIsLoading(false)
         }
-        if (tallyData && (!results || !candidates)) {
+        if (isExistRightTallyData && (!candidates?.length || !results?.length)) {
             setIsLoading(false)
         }
-    }, [results, candidates, tallyData])
+    }, [results, candidates, isExistRightTallyData])
 
     const columns: GridColDef[] = [
         {
@@ -347,7 +346,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             headerAlign: "right",
         },
     ]
-
     return (
         <>
             <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
@@ -536,8 +534,10 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             </TableContainer>
                         </Box>
                     </Box>
+                ) : !isExistRightTallyData ? (
+                    <LoadingResults />
                 ) : (
-                    !resultsEventId ? <LoadingResults /> : <NoItem />
+                    <NoItem />
                 )}
             </Box>
 
@@ -578,8 +578,10 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             />
                         </Box>
                     </Box>
+                ) : isLoading || !isExistRightTallyData ? (
+                    <LoadingResults />
                 ) : (
-                    isLoading || !resultsEventId ? <LoadingResults /> : <NoItem />
+                    <NoItem />
                 )}
             </Box>
         </>
