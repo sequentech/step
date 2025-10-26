@@ -213,3 +213,9 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+
+## 🐞 Tally > Export option can't be read correctly if title is too long
+
+modify tally export translations to show the format before document name.
+
+- Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
