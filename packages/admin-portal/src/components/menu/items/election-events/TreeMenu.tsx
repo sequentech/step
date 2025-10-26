@@ -360,7 +360,7 @@ function TreeMenuItem({
     const [open, setOpen] = useState(false)
 
     const location = useLocation()
-    const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
+    const {setTallyId, setTaskId, setCustomFilter, setCreatedFlag, setCreatingFlag} = useElectionEventTallyStore()
 
     const onClick = (isLabel: boolean) => {
         if (isLabel && open) {
@@ -390,6 +390,8 @@ function TreeMenuItem({
     useEffect(() => {
         // set context tally to null to allow navigation to new election event tally
         setTallyId(null)
+        setCreatedFlag(false)
+        setCreatingFlag(null)
         // set context task to null to allow navigation to new election event task
         setTaskId(null)
         // set context task to null to allow navigation to new election event task

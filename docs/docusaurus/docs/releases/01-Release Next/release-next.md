@@ -213,3 +213,9 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+
+🐞 Tally > State not cleared when switching events
+
+Fix tally state is not cleared when switching election events on the tally tab.
+
+- Issue: [#8674](https://github.com/sequentech/meta/issues/8674)
