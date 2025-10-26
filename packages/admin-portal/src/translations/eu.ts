@@ -1144,7 +1144,7 @@ const basqueTranslation: TranslationType = {
                 import: "Inportatu",
                 export: "Esportatu",
                 loadingData: "Datuak kargatzen ...",
-                exportFormat: "Esportatu '{{item}}' emaitzak {{format}} formatuan",
+                exportFormat: "{{format}} formatuan esportatu - '{{item}}' emaitzak",
                 allResults: "hauteskunde gertaera",
                 globalAreaResults: "eremu guztiak",
                 title: "Izenburua",
