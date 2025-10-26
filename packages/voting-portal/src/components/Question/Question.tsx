@@ -297,7 +297,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         ))}
                     </InvalidBlankWrapper>
                 ) : null}
-                {categoriesMapOrder?.length ? (
+                {!!categoriesMapOrder && Object.keys(categoriesMapOrder)?.length ? (
                     <CandidateListsWrapper className="candidates-lists-container">
                         {Object.entries(categoriesMapOrder).map(
                             ([categoryName, category], categoryIndex) => (
