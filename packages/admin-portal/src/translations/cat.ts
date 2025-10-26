@@ -1162,7 +1162,7 @@ const catalanTranslation: TranslationType = {
                 import: "Importar",
                 export: "Exportar",
                 loadingData: "Carregant dades...",
-                exportFormat: "Exportar resultats de '{{item}}' en format {{format}}",
+                exportFormat: "Exporta en format {{format}} - Resultats de '{{item}}'",
                 allResults: "de l'esdeveniment electoral",
                 globalAreaResults: "de totes les àrees",
                 title: "Títol",

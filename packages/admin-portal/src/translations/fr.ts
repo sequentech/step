@@ -1160,7 +1160,7 @@ const frenchTranslation: TranslationType = {
                 import: "Importer",
                 export: "Exporter",
                 loadingData: "Chargement des données ...",
-                exportFormat: "Exporter les résultats de '{{item}}' au format {{format}}",
+                exportFormat: "Exporter au format {{format}} - Résultats de '{{item}}",
                 allResults: "de l'événement électoral",
                 globalAreaResults: "de toutes les zones",
                 title: "Titre",
