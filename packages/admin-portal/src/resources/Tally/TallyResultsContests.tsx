@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {Identifier, RaRecord, useGetList} from "react-admin"
-
+import {Identifier, RaRecord} from "react-admin"
 import {Sequent_Backend_Contest, Sequent_Backend_Results_Contest} from "../../gql/graphql"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
@@ -15,7 +14,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-
+import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
     electionId: string | null
@@ -64,6 +63,36 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         [tallyData?.sequent_backend_contest, electionData]
     )
 
+    let electionContestOrder = useMemo(() => {
+        let election = tallyData?.sequent_backend_election?.find(
+            (election) => election.id === electionData
+        )
+        let presentation = election?.presentation
+            ? (JSON.parse(election.presentation) as IElectionPresentation)
+            : undefined
+        return presentation?.contests_order || undefined
+    }, [tallyData?.sequent_backend_election, electionData])
+
+    const sortedContests = useMemo(() => {
+        if (contests && electionContestOrder && electionContestOrder === ContestsOrder.CUSTOM) {
+            let contestsWithPresentation = contests.map((contest) => {
+                let presentation: IContestPresentation | undefined = contest.presentation
+                    ? JSON.parse(contest.presentation)
+                    : undefined
+                return {
+                    ...contest,
+                    presentation: presentation,
+                }
+            })
+            return contestsWithPresentation.sort(
+                (a, b) =>
+                    (a.presentation?.sort_order ?? Infinity) -
+                    (b.presentation?.sort_order ?? Infinity)
+            )
+        }
+        return contests
+    }, [contests, electionContestOrder])
+
     useEffect(() => {
         if (electionId) {
             setElectionData(electionId)
@@ -90,12 +119,12 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     useEffect(() => {
         if (electionData) {
-            setContestsData(contests || [])
-            if (contests?.[0]?.id) {
-                tabClicked(contests?.[0]?.id, 0)
+            setContestsData(sortedContests || [])
+            if (sortedContests?.[0]?.id) {
+                tabClicked(sortedContests?.[0]?.id, 0)
             }
         }
-    }, [electionData, contests])
+    }, [electionData, sortedContests])
 
     interface TabPanelProps {
         children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
@@ -173,9 +202,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                     {t("electionEventScreen.stats.contests")}.{" "}
                 </Typography>
                 <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
-                    {contestsData?.map((contest, index) => (
+                    {sortedContests?.map((contest, index) => (
                         <Tab
-                            key={index}
+                            key={contest.id}
                             label={aliasRenderer(contest)}
                             onClick={() => tabClicked(contest.id, index)}
                         />
