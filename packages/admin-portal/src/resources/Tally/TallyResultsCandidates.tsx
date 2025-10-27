@@ -32,6 +32,7 @@ import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
+import {ICountingAlgorithm} from "../Contest/constants"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -51,8 +52,35 @@ interface ExtendedMetricsContest {
     weight: number
 }
 
+enum ECandidateStatus {
+    Active = "Active",
+    Eliminated = "Eliminated",
+}
+
+interface CandidatesStatus {
+    [candidateId: string]: ECandidateStatus
+}
+
+type CandidatesWins = Record<string, number>
+
+interface Round {
+    winner: string | null
+    candidates_wins: CandidatesWins
+    eliminated_candidates: string[] | null
+    active_candidates_count: number
+    active_ballots_count: number
+}
+
+interface RunoffStatus {
+    candidates_status: CandidatesStatus
+    round_count: number
+    rounds: Round[]
+    max_rounds: number
+}
+
 interface ParsedAnnotations {
     extended_metrics: ExtendedMetricsContest
+    process_results?: RunoffStatus | unknown
 }
 
 // Define the comparator function
@@ -105,6 +133,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 
+    const contest = useMemo(
+        () => tallyData?.sequent_backend_contest?.find((contest) => contest.id === contestId),
+        [tallyData?.sequent_backend_contest, contestId]
+    )
+
     const weight = useMemo((): number | null => {
         try {
             const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
@@ -115,6 +148,34 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             return null
         }
     }, [general?.[0]])
+
+    const processResults = useMemo(() => {
+        try {
+            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
+                ? (JSON.parse(general[0].annotations as string) as ParsedAnnotations)
+                : null
+
+            const results = parsedAnnotations?.process_results ?? null
+
+            if (results && contest?.counting_algorithm) {
+                switch (contest.counting_algorithm) {
+                    case ICountingAlgorithm.INSTANT_RUNOFF: {
+                        const runoffResults = results as RunoffStatus
+                        console.log("InstantRunoff process_results:", runoffResults)
+                        return runoffResults
+                    }
+                    default:
+                        console.log("Unknown counting algorithm process_results:", results)
+                        return results
+                }
+            }
+
+            return null
+        } catch (error) {
+            console.error("Error parsing process_results:", error)
+            return null
+        }
+    }, [general?.[0], contest?.counting_algorithm])
 
     const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const weightedVotingForAreas = useMemo((): boolean => {
