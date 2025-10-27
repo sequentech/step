@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.82.0
+FROM rust:1.86.0-slim-bookworm AS builder
 
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400

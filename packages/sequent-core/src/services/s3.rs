@@ -7,7 +7,8 @@ use crate::util::aws::{
     get_fetch_expiration_secs, get_s3_aws_config, get_upload_expiration_secs,
 };
 use crate::util::temp_path::{
-    generate_temp_file, get_public_assets_path_env_var,
+    generate_temp_file, generate_temp_file_at_dir,
+    get_public_assets_path_env_var,
 };
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
@@ -170,6 +171,7 @@ pub async fn get_object_into_temp_file(
     key: &str,
     prefix: &str,
     suffix: &str,
+    path_dir: Option<&PathBuf>,
 ) -> anyhow::Result<NamedTempFile> {
     let config = get_s3_aws_config(/* private = */ true)
         .await
@@ -186,9 +188,17 @@ pub async fn get_object_into_temp_file(
             anyhow!("Error getting the object from S3: {:?}", err.source())
         })?;
 
+    let mut temp_file = match path_dir {
+        Some(dir) => generate_temp_file_at_dir(prefix, suffix, dir)
+            .with_context(|| {
+                "Error generating temp file at specified directory"
+            })?,
+        None => generate_temp_file(prefix, suffix)
+            .with_context(|| "Error generating temp file")?,
+    };
     // Stream the data into a temporary file
-    let mut temp_file = generate_temp_file(prefix, suffix)
-        .with_context(|| "Error creating temp file")?;
+    // let mut temp_file = generate_temp_file(prefix, suffix)
+    //     .with_context(|| "Error creating temp file")?;
     let mut stream = response.body.into_async_read();
     let mut buffer = [0u8; 1024]; // Adjust buffer size as needed
 
@@ -627,4 +637,66 @@ pub async fn get_files_from_s3(
     }
 
     Ok(file_paths)
+}
+
+#[instrument(err)]
+pub async fn get_files_names_bytes_from_s3(
+    s3_bucket: String,
+    prefix: String,
+) -> Result<Vec<(String, Vec<u8>)>> {
+    // Load AWS/S3 config and create client
+    let config = get_s3_aws_config(true)
+        .await
+        .with_context(|| "Error getting S3 AWS config")?;
+    let client = get_s3_client(config)
+        .await
+        .with_context(|| "Error creating S3 client")?;
+
+    let mut files_data: Vec<(String, Vec<u8>)> = Vec::new();
+
+    // List objects under the given prefix
+    let list_output = client
+        .list_objects_v2()
+        .bucket(&s3_bucket)
+        .prefix(&prefix)
+        .send()
+        .await
+        .with_context(|| {
+            format!(
+                "Error listing objects in bucket `{}` with prefix `{}`",
+                s3_bucket, prefix
+            )
+        })?;
+
+    // For each object, fetch and collect its bytes
+    if let Some(contents) = list_output.contents {
+        for object in contents {
+            if let Some(key) = object.key {
+                let file_name = key.split('/').last().unwrap();
+
+                let get_obj_output = client
+                    .get_object()
+                    .bucket(&s3_bucket)
+                    .key(&key)
+                    .send()
+                    .await
+                    .with_context(|| {
+                        format!("Error getting object `{}`", key)
+                    })?;
+
+                // ByteStream -> Bytes -> Vec<u8>
+                let bytes = ByteStream::collect(get_obj_output.body)
+                    .await
+                    .with_context(|| {
+                        format!("Error streaming object `{}` body", key)
+                    })?
+                    .into_bytes()
+                    .to_vec();
+
+                files_data.push((file_name.to_string(), bytes));
+            }
+        }
+    }
+
+    Ok(files_data)
 }

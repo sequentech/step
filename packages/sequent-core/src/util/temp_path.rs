@@ -7,6 +7,7 @@ use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Seek, Write};
+use std::path::PathBuf;
 use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 
@@ -73,6 +74,24 @@ pub fn generate_temp_file(prefix: &str, suffix: &str) -> Result<NamedTempFile> {
         .suffix(suffix) // Optional: specify a suffix for the file name.
         .rand_bytes(12) // Optional: specify the number of random bytes to use for the name.
         .tempfile_in(&temp_dir)
+        .with_context(|| "Error generating temp file")?;
+
+    Ok(temp_file)
+}
+
+pub fn generate_temp_file_at_dir(
+    prefix: &str,
+    suffix: &str,
+    temp_dir: &PathBuf,
+) -> Result<NamedTempFile> {
+    // Use the Builder to create a temporary file within the temporary
+    // directory. The file will be deleted when the `NamedTempFile` object
+    // goes out of scope.
+    let temp_file = Builder::new()
+        .prefix(prefix) // Optional: specify a prefix for the file name.
+        .suffix(suffix) // Optional: specify a suffix for the file name.
+        .rand_bytes(12) // Optional: specify the number of random bytes to use for the name.
+        .tempfile_in(temp_dir)
         .with_context(|| "Error generating temp file")?;
 
     Ok(temp_file)

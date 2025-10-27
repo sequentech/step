@@ -57,6 +57,10 @@ encoding_rs_io = "0.1.7"
 xz2 = "0.1.7"
 zip = "2.1.6"
 
+# WASM plugin management
+wasmtime = "33.0.0"
+wasmtime-wasi = "33.0.0"
+
 # logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] } # Added for generate_logs binary
@@ -81,8 +85,9 @@ immudb-rs = { path="../immudb-rs" }
 b3 = { path="../b3", features = ["client"] }
 electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
-sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "sqlite"] }
+sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas","sqlite", "default_features","plugins_wit"] }
 velvet = { path="../velvet" }
+
 
 # To connect to the Database
 deadpool = { version = "0.10.0", features = ["rt_tokio_1", "serde"] }
@@ -115,6 +120,7 @@ ring = "0.17"
 hex = "0.4"
 # threading
 once_cell = "1.20.3"
+dashmap = "5.5.3"
 
 walkdir = "2.3"
 croner = "2.0"
@@ -122,8 +128,14 @@ unicode-normalization = "0.1.24"
 num_cpus = "1.16.0"
 ordered-float = { version = "4.4.0", features = ["serde"] }
 
+ouroboros = "0.18.5"
 rust_xlsxwriter = "0.90.0"
 
 # Google Calendar API
 google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
 rustls = { version = "0.23.32", features = ["ring"] }
+
+[package.metadata.component]
+
+[package.metadata.component.target.dependencies]
+"docs:plugin" = { path = "packages/sequent-core/src/wit/plugin_interface.wit" }

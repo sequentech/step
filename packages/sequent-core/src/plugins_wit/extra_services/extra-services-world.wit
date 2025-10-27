@@ -1,0 +1,28 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package plugins-manager:extra-services-manager;
+
+interface request-service {
+  send-zip: func(zip-path: string, uri: string) -> result<_, string>;
+}
+
+interface cli-service {
+    run-shell-command-generate-ecies-key-pair: func(java-jar-file: string, temp-public-pem-file-name: string, temp-private-pem-file-name: string) -> result<_, string>;
+    encrypt-file: func(input-file-name: string, output-file-name: string, password: string) -> result<_, string>; 
+    run-shell-command-ecies-encrypt-string: func(java-jar-file: string, temp-pem-file-name: string, password: string) -> result<string, string>; 
+    run-shell-command-ecies-sign-data: func(java-jar-file: string, temp-pem-file-name: string, temp-data-file-name: string) -> result<string, string>;
+    run-shell-command-derive-public-key-from-p12: func(java-jar-file: string, pk12-file-name: string, password: string) -> result<string, string>;
+    run-shell-command-get-p12-cert: func(p12-file-path: string, password: string, cert-temp-path: string) -> result<string, string>;
+    run-shell-command-get-p12-fingerprint: func(cert-temp-path: string) -> result<string, string>;
+    run-shell-command-check-certificate-cas: func(root-ca-file-path: string, intermediate-ca-file-path: string, p12-cert-path: string) -> result<string, string>;
+    get-pk12-id: func(p12-path: string, password: string) -> result<s32, string>;
+    run-shell-command-rsa-sign-data: func(java-jar-file: string, pk12-file-path: string, data-path: string, password: string) -> result<string, string>;
+    run-shell-command-ecdsa-sign-data: func(java-jar-file: string, pk12-file-path: string, data-path: string, password: string) -> result<string, string>;
+    create-server-signature: func(java-jar-file: string, pk12-file-path: string, data-path: string, password: string) -> result<string, string>;
+}
+
+world extra-services-manager {
+    import request-service;
+    import cli-service;
+}

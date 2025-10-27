@@ -11,6 +11,7 @@ use sequent_core::services::connection::LastDatafixAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
+    plugins_manager::plugin_manager::init_plugin_manager,
     probe::{setup_probe, AppName},
 };
 
@@ -25,6 +26,7 @@ async fn rocket() -> _ {
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
+    init_plugin_manager().await.unwrap();
 
     rocket::build()
         .register(
@@ -139,5 +141,6 @@ async fn rocket() -> _ {
                 routes::google_meet::generate_google_meeting,
             ],
         )
+        .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
 }
