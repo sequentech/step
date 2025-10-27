@@ -36,11 +36,13 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 interface GeneralInformationChartsProps {
     results: Sequent_Backend_Election_Extended[]
     selectedElectionId?: string
+    aliasRenderer: (item: any) => any
 }
 
 const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     results,
     selectedElectionId,
+    aliasRenderer,
 }) => {
     const {t} = useTranslation()
 
@@ -112,7 +114,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                 maxWidth: {xs: "100%", lg: 450},
             }}
         >
-            <CardChart title={result.name} collapsible={true}>
+            <CardChart title={aliasRenderer(result)} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}
@@ -223,6 +225,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         <GeneralInformationCharts
                             results={resultsData}
                             selectedElectionId={selectedElectionId || undefined}
+                            aliasRenderer={aliasRenderer}
                         />
                     </Box>
                     <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}>

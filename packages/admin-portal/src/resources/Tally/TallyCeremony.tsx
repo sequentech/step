@@ -90,6 +90,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const WizardSteps = {
     Start: 0,
@@ -154,6 +155,7 @@ export const TallyCeremony: React.FC = () => {
         useMutation<UpdateTallyCeremonyMutation>(UPDATE_TALLY_CEREMONY)
 
     const {canExportCeremony, showTallyBackButton} = useKeysPermissions()
+    const aliasRenderer = useAliasRenderer()
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-progress": true,
@@ -671,7 +673,7 @@ export const TallyCeremony: React.FC = () => {
         return parsedDocuments
             ? {
                   documents: parsedDocuments,
-                  name: resultsEvent?.[0]?.name ?? "event",
+                  name: aliasRenderer(record) ?? "event",
                   class_type: "event",
               }
             : null
@@ -1130,7 +1132,7 @@ export const TallyCeremony: React.FC = () => {
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }
-                                                itemName={resultsEvent?.[0]?.name ?? "event"}
+                                                itemName={aliasRenderer(record) ?? "event"}
                                                 tenantId={tenantId}
                                                 resultsEventId={resultsEventId}
                                             />
