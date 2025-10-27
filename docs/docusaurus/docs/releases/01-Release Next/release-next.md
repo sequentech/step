@@ -219,3 +219,9 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+
+## 🐞 Keys Ceremony > State not cleared when switching Election Events
+
+Clear keys ceremony state when switching events.
+
+- Issue [#8675](https://github.com/sequentech/meta/issues/8675)
