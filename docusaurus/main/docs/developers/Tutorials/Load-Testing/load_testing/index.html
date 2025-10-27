@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Load Testing | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/Tutorials/Load-Testing/load_testing"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Load Testing | Sequent Online Voting"><meta data-rh="true" name="description" content="Introduction"><meta data-rh="true" property="og:description" content="Introduction"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/Tutorials/Load-Testing/load_testing"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/Tutorials/Load-Testing/load_testing" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/Tutorials/Load-Testing/load_testing" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Load Testing","item":"https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/Tutorials/Load-Testing/load_testing"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.fe236151.css">
-<script src="/docusaurus/main/assets/js/runtime~main.63260497.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/runtime~main.f6e89174.js" defer="defer"></script>
 <script src="/docusaurus/main/assets/js/main.05ab8c8a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -182,6 +182,16 @@ cast today and 576 in total.</li>
 <li>Nightwatch environment. <code>default</code> runs Chrome headless; <code>chrome</code> is non-headless (not recommended in pods).</li>
 </ul>
 </li>
+<li><code>--disable-voter-tracking</code>
+<ul>
+<li>Disables the anti-double-voting mechanism. When disabled, the same voter can be randomly selected multiple times across iterations. <strong>Note</strong>: If the election does not allow revoting, tests will fail when a voter is reused. By default, voter tracking is <strong>enabled</strong> to ensure each voter is used only once per test run.</li>
+</ul>
+</li>
+<li><code>--previous-voters-file &lt;path&gt;</code>
+<ul>
+<li>Path to a <code>used_voters.txt</code> file from a previous test run. Voters listed in this file will be excluded from the current run. Useful for chaining multiple test runs or coordinating distributed load testing across multiple machines without voter overlap.</li>
+</ul>
+</li>
 <li>Advanced:<!-- -->
 <ul>
 <li><code>--base-test &lt;relative_path&gt;</code> (default: <code>nightwatch/src/voting.js</code>)<!-- -->
@@ -191,7 +201,7 @@ cast today and 576 in total.</li>
 </li>
 <li><code>--keep-parallel-files</code>
 <ul>
-<li>Keeps the generated duplicate test files under <code>/nightwatch/src/_parallel_&lt;RUN_ID&gt;</code>.</li>
+<li>Keeps the generated duplicate test files and the <code>used_voters.txt</code> tracking file under <code>/nightwatch/src/_parallel_&lt;RUN_ID&gt;</code> for inspection. By default, these are cleaned up after the test completes.</li>
 </ul>
 </li>
 </ul>
