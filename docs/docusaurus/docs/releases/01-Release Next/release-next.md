@@ -219,3 +219,12 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+
+🐞 Tally > Election aliases not used
+
+Use election alias in all placed in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
+
