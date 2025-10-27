@@ -82,6 +82,10 @@ while [[ $# -gt 0 ]]; do
       echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
+
+# Resolve paths relative to this script so it works from anywhere
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NIGHTWATCH_DIR="$SCRIPT_DIR/nightwatch"
 TESTS_DIR="$NIGHTWATCH_DIR/src"
 BASE_TEST_PATH="$SCRIPT_DIR/$BASE_TEST_REL"
 CONFIG_PATH="$NIGHTWATCH_DIR/nightwatch.conf.js"
