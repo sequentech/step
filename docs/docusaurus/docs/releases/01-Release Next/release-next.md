@@ -213,3 +213,10 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+ 
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on whether the contest-order 
+ field in the election presentation is custom.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
