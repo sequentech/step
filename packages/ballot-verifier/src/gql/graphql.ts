@@ -79,9 +79,10 @@ export type Boolean_Comparison_Exp = {
 export type CastVoteEntry = {
     __typename?: "CastVoteEntry"
     ballot_id: Scalars["String"]["output"]
+    message?: Maybe<Scalars["String"]["output"]>
     statement_kind: Scalars["String"]["output"]
     statement_timestamp: Scalars["Int"]["output"]
-    username: Scalars["String"]["output"]
+    username?: Maybe<Scalars["String"]["output"]>
 }
 
 export type CastVotesByIp = {
