@@ -164,6 +164,24 @@ services:
   #     retries: 5
   #   entrypoint: /opt/vault/entrypoint.sh
 
+  loadtest:
+    profiles: ["full"]
+    stdin_open: true
+    image: sequentech.local/loadtest
+    container_name: loadtest
+    restart: always
+    build:
+      context: ../
+      dockerfile: ./packages/loadtesting/Dockerfile
+    volumes_from:
+      - devcontainer
+    working_dir: /workspaces/step/
+    entrypoint: [
+      "tail",
+      "-f",
+      "/dev/null",
+    ]
+
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
