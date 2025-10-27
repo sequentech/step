@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Release Notes next | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2115/docs/releases/Release Next/release-next"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes next | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2115/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2115/docs/releases/Release Next/release-next"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2115/docs/releases/Release Next/release-next" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2115/docs/releases/Release Next/release-next" hreflang="x-default"><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2115/assets/css/styles.fe236151.css">
-<script src="/docusaurus/pr-preview/pr-2115/assets/js/runtime~main.d2df9d30.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2115/assets/js/runtime~main.bca6ac66.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2115/assets/js/main.1fcd5a0e.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -16,6 +16,12 @@
 Voting Portal.</p>
 <ul>
 <li>Issue <a href="https://github.com/sequentech/meta/issues/8735" target="_blank" rel="noopener noreferrer">#8735</a></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-admin-portal--something-went-wrong-error-when-switching-between-diferent-electionsquestions">🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions<a href="#-admin-portal--something-went-wrong-error-when-switching-between-diferent-electionsquestions" class="hash-link" aria-label="Direct link to 🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions" title="Direct link to 🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions">​</a></h2>
+<p>Prevent error when switching between elections on the &quot;Data&quot; tab by safely
+handling an undefined record.</p>
+<ul>
+<li>Issue: <a href="https://github.com/sequentech/meta/issues/8725" target="_blank" rel="noopener noreferrer">#8725</a></li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-failed-scheduled-event">🐞 Failed scheduled event<a href="#-failed-scheduled-event" class="hash-link" aria-label="Direct link to 🐞 Failed scheduled event" title="Direct link to 🐞 Failed scheduled event">​</a></h2>
 <p>Scheduled events and reports were being executed multiple times due to a timing
@@ -31,21 +37,6 @@ scheduled item is processed exactly once.</p>
 selecting an election is not required.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/8681" target="_blank" rel="noopener noreferrer">https://github.com/sequentech/meta/issues/8681</a></li>
-</ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-videoconference-links-from-admin-portal">✨ Videoconference links from Admin Portal<a href="#-videoconference-links-from-admin-portal" class="hash-link" aria-label="Direct link to ✨ Videoconference links from Admin Portal" title="Direct link to ✨ Videoconference links from Admin Portal">​</a></h2>
-<p>Added a Google Meet component with a button to generate a link in EVENT &gt; DATA to
-support creating a google meeting.
-Created INTEGRATIONS tab in tenant settings to add the google api credentials.
-Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
-A new permission <code>google-meet-link</code> needs to be added manually in Keycloak, the procedure followed is:</p>
-<ol>
-<li>Go to realm roles in the tenant realm (i.e. dev) and click on <code>Create role</code></li>
-<li>Add the role to the list</li>
-<li>Then Go to <code>Groups</code> and choose <code>admin</code> group name</li>
-<li>Go to <code>role mapping</code> and click on <code>Assign role</code> and add those permissions</li>
-</ol>
-<ul>
-<li>Issue: <a href="https://github.com/sequentech/meta/issues/8189" target="_blank" rel="noopener noreferrer">#8189</a></li>
 </ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-investigate-rabbitmq-issues">🐞 Investigate rabbitmq issues<a href="#-investigate-rabbitmq-issues" class="hash-link" aria-label="Direct link to 🐞 Investigate rabbitmq issues" title="Direct link to 🐞 Investigate rabbitmq issues">​</a></h2>
 <p>The Electoral Log Windmill maintains a RabbitMQ connection, but sometimes it
@@ -80,6 +71,38 @@ will reappear when closing and reopening the import drawer.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/8613" target="_blank" rel="noopener noreferrer">#8613</a></li>
 </ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-velvet-test-errors">🐞 Velvet test errors<a href="#-velvet-test-errors" class="hash-link" aria-label="Direct link to 🐞 Velvet test errors" title="Direct link to 🐞 Velvet test errors">​</a></h2>
+<p>A failing velvet test was identified due to a recent change: ballots exceeding
+the maximum allowed votes are now classified as invalid. Since this behavior was
+not previously enforced, the corresponding test required an update.</p>
+<ul>
+<li>Issue: <a href="https://github.com/sequentech/meta/issues/8526" target="_blank" rel="noopener noreferrer">#8526</a></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections">🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections<a href="#-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections" class="hash-link" aria-label="Direct link to 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections" title="Direct link to 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections">​</a></h2>
+<p>At the trustees tally ceremony, all elections were fetched instead of only those
+selected to participate in the tally.</p>
+<ul>
+<li>Issue: <a href="https://github.com/sequentech/meta/issues/7584" target="_blank" rel="noopener noreferrer">#7584</a></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-duplicate-votes-is-slow">🐞 Duplicate Votes is slow<a href="#-duplicate-votes-is-slow" class="hash-link" aria-label="Direct link to 🐞 Duplicate Votes is slow" title="Direct link to 🐞 Duplicate Votes is slow">​</a></h2>
+<p>Remove slowness of the duplicate votes script by disabling within the insert
+sql transaction some slow constrain.</p>
+<ul>
+<li>Issue: <a href="https://github.com/sequentech/meta/issues/8475" target="_blank" rel="noopener noreferrer">#8475</a></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-inconsistencies-in-voting-portal">🐞 Inconsistencies in Voting Portal<a href="#-inconsistencies-in-voting-portal" class="hash-link" aria-label="Direct link to 🐞 Inconsistencies in Voting Portal" title="Direct link to 🐞 Inconsistencies in Voting Portal">​</a></h2>
+<p>Removed inconsistencies and bugs when selecting candidates, explicit blank,
+null votes, undervotes, overvotes and with single/multi-contest encoding.</p>
+<ul>
+<li>Issue: <a href="https://github.com/sequentech/meta/issues/8235" target="_blank" rel="noopener noreferrer">#8235</a></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-voting-portal-avoid-uneeded-google-chrome-automatic-translations">🐞 Voting Portal: Avoid uneeded google chrome automatic translations<a href="#-voting-portal-avoid-uneeded-google-chrome-automatic-translations" class="hash-link" aria-label="Direct link to 🐞 Voting Portal: Avoid uneeded google chrome automatic translations" title="Direct link to 🐞 Voting Portal: Avoid uneeded google chrome automatic translations">​</a></h2>
+<p>The Voting Portal and other frontends did not specify the page language, causing
+browsers with automatic translation features to sometimes apply incorrect
+translations.</p>
+<ul>
+<li>Issue: <a href="https://github.com/sequentech/meta/issues/7983" target="_blank" rel="noopener noreferrer">#7983</a></li>
+</ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-keycloak-election-ids-are-not-filtered-by-area">🐞 Keycloak Election ids are not filtered by area<a href="#-keycloak-election-ids-are-not-filtered-by-area" class="hash-link" aria-label="Direct link to 🐞 Keycloak Election ids are not filtered by area" title="Direct link to 🐞 Keycloak Election ids are not filtered by area">​</a></h2>
 <p>When a voter logs in and the voter is not assigned any election, keycloak adds
 all election ids to the header. However only some election ids are actually
@@ -100,7 +123,7 @@ confirmation and it was not checking that the password matches that of the user.
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/7585" target="_blank" rel="noopener noreferrer">#7585</a></li>
 </ul>
-<p>## 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-voting-portal-invalidblankvote-candidates-do-not-follow-sort-order">🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order<a href="#-voting-portal-invalidblankvote-candidates-do-not-follow-sort-order" class="hash-link" aria-label="Direct link to 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order" title="Direct link to 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order">​</a></h2>
 <p>Voting Portal: Invalid/BlankVote Candidates do not follow sort order within the
 top/bottom invalid candidates block.</p>
 <ul>
@@ -112,7 +135,7 @@ already in the backend, but it was not configurable in the Admin Portal.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/8528" target="_blank" rel="noopener noreferrer">#8528</a></li>
 </ul>
-<p>## 🐞 Admin Portal &gt; Sidebar: Fix left and right margins in tenant &amp; election event actions</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-admin-portal--sidebar-fix-left-and-right-margins-in-tenant--election-event-actions">🐞 Admin Portal &gt; Sidebar: Fix left and right margins in tenant &amp; election event actions<a href="#-admin-portal--sidebar-fix-left-and-right-margins-in-tenant--election-event-actions" class="hash-link" aria-label="Direct link to 🐞 Admin Portal &gt; Sidebar: Fix left and right margins in tenant &amp; election event actions" title="Direct link to 🐞 Admin Portal &gt; Sidebar: Fix left and right margins in tenant &amp; election event actions">​</a></h2>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/8527" target="_blank" rel="noopener noreferrer">#8527</a></li>
 </ul>
@@ -122,7 +145,7 @@ included into the event tar.gz file that can be downloaded from the Tally result
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/7948" target="_blank" rel="noopener noreferrer">#7948</a></li>
 </ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-inconsistencies-in-voting-portal">🐞 Inconsistencies in Voting Portal<a href="#-inconsistencies-in-voting-portal" class="hash-link" aria-label="Direct link to 🐞 Inconsistencies in Voting Portal" title="Direct link to 🐞 Inconsistencies in Voting Portal">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-inconsistencies-in-voting-portal-1">🐞 Inconsistencies in Voting Portal<a href="#-inconsistencies-in-voting-portal-1" class="hash-link" aria-label="Direct link to 🐞 Inconsistencies in Voting Portal" title="Direct link to 🐞 Inconsistencies in Voting Portal">​</a></h2>
 <p>Removed inconsistencies and bugs when selecting candidates, explicit blank,
 null votes, undervotes, overvotes and with single/multi-contest encoding.</p>
 <ul>
@@ -136,7 +159,7 @@ or how to create reports and templates.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/7532" target="_blank" rel="noopener noreferrer">#7532</a></li>
 </ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections">🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections<a href="#-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections" class="hash-link" aria-label="Direct link to 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections" title="Direct link to 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections">​</a></h2>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections-1">🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections<a href="#-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections-1" class="hash-link" aria-label="Direct link to 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections" title="Direct link to 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections">​</a></h2>
 <p>At the trustees tally ceremony, all elections were fetched instead of only those
 selected to participate in the tally.</p>
 <ul>
@@ -145,57 +168,11 @@ selected to participate in the tally.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-move-release-notes-to-docusaurus">✨ Move release notes to Docusaurus<a href="#-move-release-notes-to-docusaurus" class="hash-link" aria-label="Direct link to ✨ Move release notes to Docusaurus" title="Direct link to ✨ Move release notes to Docusaurus">​</a></h2>
 <p>Moved developer release notes to Docusaurus. Updated release notes for various
 existing versions, <code>v8.7.5</code>, <code>v8.7.6</code>, <code>v9.1.0</code> and <code>v9.1.1</code>.</p>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-velvet-test-errors">🐞 Velvet test errors<a href="#-velvet-test-errors" class="hash-link" aria-label="Direct link to 🐞 Velvet test errors" title="Direct link to 🐞 Velvet test errors">​</a></h2>
-<p>A failing velvet test was identified due to a recent change: ballots exceeding
-the maximum allowed votes are now classified as invalid. Since this behavior was
-not previously enforced, the corresponding test required an update.</p>
-<ul>
-<li>Issue: <a href="https://github.com/sequentech/meta/issues/8526" target="_blank" rel="noopener noreferrer">#8526</a></li>
-</ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-early-voting-for-child-areas">✨ Early voting for child areas<a href="#-early-voting-for-child-areas" class="hash-link" aria-label="Direct link to ✨ Early voting for child areas" title="Direct link to ✨ Early voting for child areas">​</a></h2>
-<p>Add per-area Early Voting policy with UI checkbox (allowed only if the Election
-Event allows the EARLY_VOTING channel) and adapt import/export/upsert support.
-Backend now stores EarlyVotingPolicy and area presentation; publications use
-area_presentation on BallotStyle.
-EARLY_VOTING can be allowed and started at event level, its lifecycle is governed
-by Online (auto-closes on Online start/close; cannot start after Online begins),
-while Kiosk remains independent.
-Publish UI consolidates per-channel actions in a dropdown for every start/pause/stop button;
-Voting Portal and Harvest endpoints honor early voting only for voters in enabled areas
-when the channel is started.</p>
-<ul>
-<li>Issue: <a href="https://github.com/sequentech/meta/issues/7681" target="_blank" rel="noopener noreferrer">#7681</a></li>
-</ul>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="-improve-dashboard-print-look">✨ Improve Dashboard print look<a href="#-improve-dashboard-print-look" class="hash-link" aria-label="Direct link to ✨ Improve Dashboard print look" title="Direct link to ✨ Improve Dashboard print look">​</a></h2>
 <p>Improve the election event/election dashboard so that all necessary data (statistics)
 are displayed correctly in print mode.</p>
 <ul>
 <li>Issue: <a href="https://github.com/sequentech/meta/issues/7534" target="_blank" rel="noopener noreferrer">#7534</a></li>
-</ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-weighted-voting-for-areas">✨ Weighted voting for areas<a href="#-weighted-voting-for-areas" class="hash-link" aria-label="Direct link to ✨ Weighted voting for areas" title="Direct link to ✨ Weighted voting for areas">​</a></h2>
-<p>Added a new election event policy at EVENT &gt; DATA &gt; Advanced configurations: <code>Weighted voting policy</code>.
-When the policy is set to <code>Weighted Voting for Areas</code>, it allows assigning a weight
-to each area. Tally results will then be calculated based on these weights,
-which are taken from the ballot style of each area defined at publication.</p>
-<ul>
-<li>Issue: <a href="https://github.com/sequentech/meta/issues/7682" target="_blank" rel="noopener noreferrer">#7682</a></li>
-</ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-electoral-results-chartsvisualization">✨ Electoral results charts/visualization<a href="#-electoral-results-chartsvisualization" class="hash-link" aria-label="Direct link to ✨ Electoral results charts/visualization" title="Direct link to ✨ Electoral results charts/visualization">​</a></h2>
-<p>Added Charts in the Admin Portal&#x27;s Tally Results below the data tables to display
-the General Information, Participation Results and Candidate Results.</p>
-<ul>
-<li>Issue: <a href="https://github.com/sequentech/meta/issues/7531" target="_blank" rel="noopener noreferrer">#7531</a></li>
-</ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-voting-portal--logs-show-message-column-to-ensure-signature-shown">✨ Voting Portal &gt; Logs: Show Message column, to ensure signature shown<a href="#-voting-portal--logs-show-message-column-to-ensure-signature-shown" class="hash-link" aria-label="Direct link to ✨ Voting Portal &gt; Logs: Show Message column, to ensure signature shown" title="Direct link to ✨ Voting Portal &gt; Logs: Show Message column, to ensure signature shown">​</a></h2>
-<p>Added the message column on the log´s table of the Voting portal´s ballot-locator screen.</p>
-<ul>
-<li>Issue: <a href="https://github.com/sequentech/meta/issues/8213" target="_blank" rel="noopener noreferrer">#8213</a></li>
-</ul>
-<h2 class="anchor anchorWithStickyNavbar_LWe7" id="-admin-portal--something-went-wrong-error-when-switching-between-diferent-electionsquestions">🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions<a href="#-admin-portal--something-went-wrong-error-when-switching-between-diferent-electionsquestions" class="hash-link" aria-label="Direct link to 🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions" title="Direct link to 🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions">​</a></h2>
-<p>Prevent error when switching between elections on the &quot;Data&quot; tab by safely
-handling an undefined record.</p>
-<ul>
-<li>Issue: <a href="https://github.com/sequentech/meta/issues/8725" target="_blank" rel="noopener noreferrer">#8725</a></li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/docs/docusaurus/docs/releases/01-Release Next/release-next.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#-cant-see-election-lists" class="table-of-contents__link toc-highlight">🐞 Can&#39;t see Election Lists</a></li><li><a href="#-failed-scheduled-event" class="table-of-contents__link toc-highlight">🐞 Failed scheduled event</a></li><li><a href="#-videoconference-links-from-admin-portal" class="table-of-contents__link toc-highlight">✨ Videoconference links from Admin Portal</a></li><li><a href="#-investigate-rabbitmq-issues" class="table-of-contents__link toc-highlight">🐞 Investigate rabbitmq issues</a></li><li><a href="#-cant-export-voters-list" class="table-of-contents__link toc-highlight">🐞 Can&#39;t export voters list</a></li><li><a href="#-admin-portal--tally--actions-popup-menu-doesnt-close-after-click" class="table-of-contents__link toc-highlight">🐞 Admin Portal &gt; Tally &gt; Actions Popup Menu doesn&#39;t close after click</a></li><li><a href="#-admin-portal--import-election-event-password-dialog-doesnt-auto-focus" class="table-of-contents__link toc-highlight">🐞 Admin Portal &gt; Import Election Event: Password Dialog doesn&#39;t auto focus</a></li><li><a href="#-keycloak-election-ids-are-not-filtered-by-area" class="table-of-contents__link toc-highlight">🐞 Keycloak Election ids are not filtered by area</a></li><li><a href="#-keycloak-redirect-to-registration-authenticator-doesnt-work-when-http-relative-path-is-set" class="table-of-contents__link toc-highlight">🐞 Keycloak: Redirect To Registration Authenticator doesn&#39;t work when <code>http-relative-path</code> is set</a></li><li><a href="#-keycloak-deferred-authenticator-in-login-mode-ask-for-password-confirmation" class="table-of-contents__link toc-highlight">🐞 Keycloak: Deferred authenticator in Login mode ask for password confirmation</a><ul><li><a href="#-invalid-vote-position-was-not-configurable-in-admin-portal--candidate" class="table-of-contents__link toc-highlight">🐞 Invalid Vote Position was not configurable in Admin Portal &gt; Candidate</a></li></ul></li><li><a href="#-automatically-generate-tally-documents-after-tally-finishes" class="table-of-contents__link toc-highlight">✨ Automatically generate tally documents after tally finishes</a></li><li><a href="#-inconsistencies-in-voting-portal" class="table-of-contents__link toc-highlight">🐞 Inconsistencies in Voting Portal</a></li><li><a href="#-standarize-overseas-voters-turnout" class="table-of-contents__link toc-highlight">✨ Standarize &quot;Overseas voters turnout&quot;</a></li><li><a href="#-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections" class="table-of-contents__link toc-highlight">🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections</a></li><li><a href="#-move-release-notes-to-docusaurus" class="table-of-contents__link toc-highlight">✨ Move release notes to Docusaurus</a></li><li><a href="#-velvet-test-errors" class="table-of-contents__link toc-highlight">🐞 Velvet test errors</a></li><li><a href="#-early-voting-for-child-areas" class="table-of-contents__link toc-highlight">✨ Early voting for child areas</a></li><li><a href="#-improve-dashboard-print-look" class="table-of-contents__link toc-highlight">✨ Improve Dashboard print look</a></li><li><a href="#-weighted-voting-for-areas" class="table-of-contents__link toc-highlight">✨ Weighted voting for areas</a></li><li><a href="#-electoral-results-chartsvisualization" class="table-of-contents__link toc-highlight">✨ Electoral results charts/visualization</a></li><li><a href="#-voting-portal--logs-show-message-column-to-ensure-signature-shown" class="table-of-contents__link toc-highlight">✨ Voting Portal &gt; Logs: Show Message column, to ensure signature shown</a></li><li><a href="#-admin-portal--something-went-wrong-error-when-switching-between-diferent-electionsquestions" class="table-of-contents__link toc-highlight">🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/docs/docusaurus/docs/releases/01-Release Next/release-next.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#-cant-see-election-lists" class="table-of-contents__link toc-highlight">🐞 Can&#39;t see Election Lists</a></li><li><a href="#-admin-portal--something-went-wrong-error-when-switching-between-diferent-electionsquestions" class="table-of-contents__link toc-highlight">🐞 Admin Portal &gt; &quot;Something went wrong&quot; error when switching between diferent elections/questions</a></li><li><a href="#-failed-scheduled-event" class="table-of-contents__link toc-highlight">🐞 Failed scheduled event</a></li><li><a href="#-investigate-rabbitmq-issues" class="table-of-contents__link toc-highlight">🐞 Investigate rabbitmq issues</a></li><li><a href="#-cant-export-voters-list" class="table-of-contents__link toc-highlight">🐞 Can&#39;t export voters list</a></li><li><a href="#-admin-portal--tally--actions-popup-menu-doesnt-close-after-click" class="table-of-contents__link toc-highlight">🐞 Admin Portal &gt; Tally &gt; Actions Popup Menu doesn&#39;t close after click</a></li><li><a href="#-admin-portal--import-election-event-password-dialog-doesnt-auto-focus" class="table-of-contents__link toc-highlight">🐞 Admin Portal &gt; Import Election Event: Password Dialog doesn&#39;t auto focus</a></li><li><a href="#-velvet-test-errors" class="table-of-contents__link toc-highlight">🐞 Velvet test errors</a></li><li><a href="#-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections" class="table-of-contents__link toc-highlight">🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections</a></li><li><a href="#-duplicate-votes-is-slow" class="table-of-contents__link toc-highlight">🐞 Duplicate Votes is slow</a></li><li><a href="#-inconsistencies-in-voting-portal" class="table-of-contents__link toc-highlight">🐞 Inconsistencies in Voting Portal</a></li><li><a href="#-voting-portal-avoid-uneeded-google-chrome-automatic-translations" class="table-of-contents__link toc-highlight">🐞 Voting Portal: Avoid uneeded google chrome automatic translations</a></li><li><a href="#-keycloak-election-ids-are-not-filtered-by-area" class="table-of-contents__link toc-highlight">🐞 Keycloak Election ids are not filtered by area</a></li><li><a href="#-keycloak-redirect-to-registration-authenticator-doesnt-work-when-http-relative-path-is-set" class="table-of-contents__link toc-highlight">🐞 Keycloak: Redirect To Registration Authenticator doesn&#39;t work when <code>http-relative-path</code> is set</a></li><li><a href="#-keycloak-deferred-authenticator-in-login-mode-ask-for-password-confirmation" class="table-of-contents__link toc-highlight">🐞 Keycloak: Deferred authenticator in Login mode ask for password confirmation</a></li><li><a href="#-voting-portal-invalidblankvote-candidates-do-not-follow-sort-order" class="table-of-contents__link toc-highlight">🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order</a><ul><li><a href="#-invalid-vote-position-was-not-configurable-in-admin-portal--candidate" class="table-of-contents__link toc-highlight">🐞 Invalid Vote Position was not configurable in Admin Portal &gt; Candidate</a></li></ul></li><li><a href="#-admin-portal--sidebar-fix-left-and-right-margins-in-tenant--election-event-actions" class="table-of-contents__link toc-highlight">🐞 Admin Portal &gt; Sidebar: Fix left and right margins in tenant &amp; election event actions</a></li><li><a href="#-automatically-generate-tally-documents-after-tally-finishes" class="table-of-contents__link toc-highlight">✨ Automatically generate tally documents after tally finishes</a></li><li><a href="#-inconsistencies-in-voting-portal-1" class="table-of-contents__link toc-highlight">🐞 Inconsistencies in Voting Portal</a></li><li><a href="#-standarize-overseas-voters-turnout" class="table-of-contents__link toc-highlight">✨ Standarize &quot;Overseas voters turnout&quot;</a></li><li><a href="#-tally-shows-as-an-admin-1-election-but-as-a-trustee-it-shows-2-elections-1" class="table-of-contents__link toc-highlight">🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections</a></li><li><a href="#-move-release-notes-to-docusaurus" class="table-of-contents__link toc-highlight">✨ Move release notes to Docusaurus</a></li><li><a href="#-improve-dashboard-print-look" class="table-of-contents__link toc-highlight">✨ Improve Dashboard print look</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
 </body>
 </html>
