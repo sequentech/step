@@ -216,7 +216,7 @@ Prevent error when switching between elections on the "Data" tab by safely
  
 ## 🐞 Tally > Contests are not in order when using multi-contest encoding
 
-Sort contest shows on tally results tabs based on whether the contest-order 
- field in the election presentation is custom.
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation
 
 - Issue: [#8678](https://github.com/sequentech/meta/issues/8678)

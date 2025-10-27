@@ -64,7 +64,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         [tallyData?.sequent_backend_contest, electionData]
     )
 
-    let contestOrderType = useMemo(() => {
+    let contestOrder = useMemo(() => {
         let election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionData
         )
@@ -79,9 +79,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             return []
         }
         let electionContest = convertContestsArray(contests)
-        let sortedContests = sortContestList(electionContest, contestOrderType)
+        let sortedContests = sortContestList(electionContest, contestOrder)
         return sortedContests
-    }, [contests, contestOrderType])
+    }, [contests, contestOrder])
 
     useEffect(() => {
         if (electionId) {
