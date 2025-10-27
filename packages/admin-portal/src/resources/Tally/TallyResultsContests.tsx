@@ -14,7 +14,8 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
+import {IContest, IElectionPresentation, sortContestList} from "@sequentech/ui-core"
+import {convertContestsArray} from "./utils"
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
     electionId: string | null
@@ -27,7 +28,7 @@ interface TallyResultsContestProps {
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
     const {areas, electionId, electionEventId, tenantId, resultsEventId, tallySessionId} = props
     const [value, setValue] = React.useState<number | null>(0)
-    const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
+    const [contestsData, setContestsData] = useState<Array<IContest>>([])
     const [contestId, setContestId] = useState<string | null>()
     const {globalSettings} = useContext(SettingsContext)
 
@@ -63,7 +64,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         [tallyData?.sequent_backend_contest, electionData]
     )
 
-    let electionContestOrder = useMemo(() => {
+    let contestOrderType = useMemo(() => {
         let election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionData
         )
@@ -74,24 +75,13 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     }, [tallyData?.sequent_backend_election, electionData])
 
     const sortedContests = useMemo(() => {
-        if (contests && electionContestOrder && electionContestOrder === ContestsOrder.CUSTOM) {
-            let contestsWithPresentation = contests.map((contest) => {
-                let presentation: IContestPresentation | undefined = contest.presentation
-                    ? JSON.parse(contest.presentation)
-                    : undefined
-                return {
-                    ...contest,
-                    presentation: presentation,
-                }
-            })
-            return contestsWithPresentation.sort(
-                (a, b) =>
-                    (a.presentation?.sort_order ?? Infinity) -
-                    (b.presentation?.sort_order ?? Infinity)
-            )
+        if (!contests) {
+            return []
         }
-        return contests
-    }, [contests, electionContestOrder])
+        let electionContest = convertContestsArray(contests)
+        let sortedContests = sortContestList(electionContest, contestOrderType)
+        return sortedContests
+    }, [contests, contestOrderType])
 
     useEffect(() => {
         if (electionId) {
