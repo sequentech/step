@@ -10,6 +10,7 @@ use sequent_core::ballot::*;
 use sequent_core::ballot_codec::multi_ballot::{BallotChoices, ContestChoices};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality,
     get_decoded_contest_plurality,
@@ -402,6 +403,7 @@ mod tests {
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
+    use sequent_core::types::ceremonies::CountingAlgType;
     use sequent_core::util::init_log;
     use std::fs;
     use std::io::Read;
