@@ -63,9 +63,10 @@ input Boolean_comparison_exp {
 
 type CastVoteEntry {
   ballot_id: String!
+  message: String
   statement_kind: String!
   statement_timestamp: Int!
-  username: String!
+  username: String
 }
 
 type CastVotesByIp {
