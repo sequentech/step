@@ -275,7 +275,7 @@ pub fn get_irv_fixture() -> BallotCodecFixture {
         },
         encoded_ballot_bigint: "402".to_string(),
         encoded_ballot: vec_to_30_array(&vec![2, 146, 1]).unwrap(),
-        expected_errors: None
+        expected_errors: None,
     }
 }
 

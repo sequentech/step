@@ -140,6 +140,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         invalid_votes: count_invalid_votes,
         candidate_result: candidate_results,
         extended_metrics: None,
+        process_results: None,
     };
     Ok(contest_result.calculate_percentages())
 }

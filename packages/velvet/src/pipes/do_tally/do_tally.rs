@@ -27,6 +27,7 @@ use sequent_core::{
 };
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::cmp;
 use std::sync::Arc;
 use std::{
@@ -34,7 +35,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, Level, Value as TracingValue};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -531,6 +532,7 @@ pub struct ContestResult {
     pub percentage_invalid_votes_implicit: f64,
     pub candidate_result: Vec<CandidateResult>,
     pub extended_metrics: Option<ExtendedMetricsContest>,
+    pub process_results: Option<Value>, // The results from the counting algorithm process
 }
 
 impl ContestResult {

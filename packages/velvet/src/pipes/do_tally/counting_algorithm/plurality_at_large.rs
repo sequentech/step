@@ -223,6 +223,7 @@ impl CountingAlgorithm for PluralityAtLarge {
                     invalid_votes: count_invalid_votes,
                     candidate_result: result,
                     extended_metrics: Some(extended_metrics),
+                    process_results: None,
                 };
                 contest_result
             }

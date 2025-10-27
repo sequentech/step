@@ -10,12 +10,14 @@ use crate::pipes::do_tally::{
 };
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use tracing::{info, instrument};
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone, Deserialize, Serialize)]
 pub enum ECandidateStatus {
     Active,
     Eliminated,
@@ -98,7 +100,7 @@ impl BallotsStatus<'_> {
 /// Number of first choices for each candidate id
 type CandidatesWins = HashMap<String, u64>;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CandidatesStatus(pub HashMap<String, ECandidateStatus>);
 
 impl Deref for CandidatesStatus {
@@ -132,7 +134,7 @@ impl CandidatesStatus {
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Round {
     pub winner: Option<String>,
     pub candidates_wins: CandidatesWins,
@@ -141,7 +143,7 @@ pub struct Round {
     pub active_ballots_count: u64,    // Number of active ballots when starting this round
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct RunoffStatus {
     pub candidates_status: CandidatesStatus,
     pub round_count: u64,
@@ -378,6 +380,9 @@ impl CountingAlgorithm for InstantRunoff {
             vote_count = results.candidates_wins;
         }
 
+        // Create a json vaue from runoff object.
+        let runoff_value =
+            serde_json::to_value(runoff).map_err(|e| Error::UnexpectedError(e.to_string()))?;
         // Set percentage votes for each candidate
         // TODO: recicle code from plurality to common
         let candidate_results_map: HashMap<String, CandidateResult> = vote_count
@@ -508,6 +513,7 @@ impl CountingAlgorithm for InstantRunoff {
             invalid_votes: count_invalid_votes,
             candidate_result: result,
             extended_metrics: Some(extended_metrics),
+            process_results: Some(runoff_value),
         };
 
         let aggregate = self
