@@ -7,6 +7,29 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Voting Portal > Nightwatch voting with no revotes
+
+The Nightwatch-based vote-casting load tests now include an anti-double-voting
+mechanism to prevent voter reuse across parallel test instances and sequential
+iterations. When enabled (the default), each voter is used only once per test
+run by tracking used voters in a shared file (`used_voters.txt`).
+
+New parameters:
+- `--disable-voter-tracking`: Disables the anti-double-voting mechanism to allow
+  voter reuse (only use if the election allows revoting).
+- `--previous-voters-file <path>`: Imports a list of previously used voters to
+  exclude them from the current run, enabling chained test runs or distributed
+  load testing across multiple machines.
+- `--keep-parallel-files`: Updated to also preserve the `used_voters.txt`
+  tracking file for inspection.
+
+This prevents test failures when the election does not allow revoting, as the
+system will automatically retry with a different voter when a collision is
+detected.
+
+- Issue: [#8624](https://github.com/sequentech/meta/issues/8624)
+
+
 ## 🐞 Can't see Election Lists
 
 Due to a recent change, a bug was introduced that hid Candidate Lists in the
