@@ -48,6 +48,8 @@ SAVE_SCREENSHOTS="false"
 BASE_TEST_REL="nightwatch/src/voting.js"  # base test to duplicate
 KEEP_PARALLEL_FILES="false"               # set true to keep generated tests
 NW_ENV="default"                          # Nightwatch env (default=headless, chrome=non-headless)
+ENABLE_VOTER_TRACKING="true"              # enable anti-double-voting (default: true)
+PREVIOUS_VOTERS_FILE=""                   # path to previous run's used_voters.txt to exclude
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -72,14 +74,14 @@ while [[ $# -gt 0 ]]; do
       KEEP_PARALLEL_FILES="true"; shift 1 ;;
     --env)
       NW_ENV="$2"; shift 2 ;;
+    --disable-voter-tracking)
+      ENABLE_VOTER_TRACKING="false"; shift 1 ;;
+    --previous-voters-file)
+      PREVIOUS_VOTERS_FILE="$2"; shift 2 ;;
     *)
       echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
-
-# Resolve paths relative to this script so it works from anywhere
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NIGHTWATCH_DIR="$SCRIPT_DIR/nightwatch"
 TESTS_DIR="$NIGHTWATCH_DIR/src"
 BASE_TEST_PATH="$SCRIPT_DIR/$BASE_TEST_REL"
 CONFIG_PATH="$NIGHTWATCH_DIR/nightwatch.conf.js"
@@ -133,6 +135,31 @@ export USERNAME_PATTERN="$USERNAME_PATTERN"
 export PASSWORD_PATTERN="$PASSWORD_PATTERN"
 export SAVE_SCREENSHOTS="$SAVE_SCREENSHOTS"
 
+# Export PARALLEL_DIR so Node.js can access the shared voter tracking file
+export PARALLEL_DIR="$PARALLEL_DIR"
+
+# Export voter tracking configuration
+export ENABLE_VOTER_TRACKING="$ENABLE_VOTER_TRACKING"
+
+if [[ "$ENABLE_VOTER_TRACKING" == "true" ]]; then
+  # Initialize the shared used_voters file (defensive, though JS handles ENOENT)
+  : > "$PARALLEL_DIR/used_voters.txt" || true
+  
+  # If previous voters file provided, import it to exclude those voters
+  if [[ -n "$PREVIOUS_VOTERS_FILE" ]]; then
+    if [[ -f "$PREVIOUS_VOTERS_FILE" ]]; then
+      echo "Importing previously used voters from: $PREVIOUS_VOTERS_FILE"
+      cat "$PREVIOUS_VOTERS_FILE" >> "$PARALLEL_DIR/used_voters.txt" || true
+      IMPORTED_COUNT=$(wc -l < "$PREVIOUS_VOTERS_FILE" 2>/dev/null || echo "0")
+      echo "Imported $IMPORTED_COUNT previously used voters"
+    else
+      echo "Warning: --previous-voters-file specified but file not found: $PREVIOUS_VOTERS_FILE" >&2
+      echo "Continuing without importing previous voters..." >&2
+    fi
+  fi
+else
+  echo "Voter tracking disabled (--disable-voter-tracking)"
+fi
 # Log summary
 LOG_FILE="$LOG_DIR/nightwatch_$RUN_ID.log"
 echo "=== Nightwatch run $RUN_ID ===" | tee "$LOG_FILE"
