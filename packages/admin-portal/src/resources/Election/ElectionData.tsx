@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {EditBase, Identifier, RaRecord, useUpdate} from "react-admin"
+import {EditBase, Identifier, RaRecord, useRecordContext, useUpdate} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
 import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 import {ITemplateMethod, IRECEIPTS} from "@/types/templates"
-import {Sequent_Backend_Contest} from "@/gql/graphql"
+import {Sequent_Backend_Contest, Sequent_Backend_Election} from "@/gql/graphql"
 import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 
 export const EditElectionData: React.FC = () => {
     const [update] = useUpdate()
+    const record = useRecordContext<Sequent_Backend_Election>()
 
     function updateContestsOrder(data: Sequent_Backend_Election_Extended) {
         data.contestsOrder?.map((contest: Sequent_Backend_Contest, index: number) => {
@@ -102,7 +103,7 @@ export const EditElectionData: React.FC = () => {
 
     return (
         <EditBase redirect={"."} transform={transform}>
-            <ElectionDataForm />
+            {record ? <ElectionDataForm /> : null}
         </EditBase>
     )
 }
