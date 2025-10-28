@@ -7,24 +7,22 @@
 <?php
 // saml20-sp-remote.php
 
-$keycloakSpAcsUrl = 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f/broker/simplesamlphp/endpoint/clients/vp-sso';
-$keycloakSpCertData = 'MIIDOzCCAiMCBgGZ3f8D1TANBgkqhkiG9w0BAQsFADBhMV8wXQYDVQQDDFZ0ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1LWV2ZW50LTM3ZWI1MWE3LWM2YjktNDU2Zi05M2I0LTViZDA1MDgxYjE4ZjAeFw0yNTEwMTMxNDMzMjFaFw0zNTEwMTMxNDM1MDFaMGExXzBdBgNVBAMMVnRlbmFudC05MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUtZXZlbnQtMzdlYjUxYTctYzZiOS00NTZmLTkzYjQtNWJkMDUwODFiMThmMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1vdrir39ABcm6tIVuy9Y+G4sPtrz3Rg2KtCFYPlf+7cBBb8L75SCheZVEtPVZ7djv6g7GjksNeeUjMQiNfPNlI9PGCd1Eeei0WnZ7FGOvQoFWv7SWqeCzu8tZJtBRqeWnuK8zLeka/amgdoygZ0gR3bqA/hI3EpNlPExZQNGITsWDsYZ/SKEIIkq37kXV/yTsW8h6jnJMydqgkN0MESErFiVIjGwrAvC7kA+7HLj0sOCNOaHu2U6LhZznfJuJBipCLfMbtjConOsXZC5GmMsJD7txPpejXfb82kmSHJcvsq3GFqF616mrW3rh2iM/gso3ClLeHpzwUG0weaKFbWyhwIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQDUbmfepXwr3aWHs/8UpIANLZqGN95+BSfuYi82gI+x0fKaxT+a7Sy2Om0juh77E+01B5lzdR2R72/39r/+1PGTpLdoQwVP9kFaDMuMNdYCZ4XS0HAeETuMPTAZVAqxiUc09ey0uKOJbpdWA8X0SDN8igwpIJGW2PSMo9A7rbkmOPFEF71je793TguCMqNbVGdDHWiI0ySXZh3Pw/UPdYyRhoUgINNELMjBmS4Yv1+S4Lpqz9ZL39eCULN1VkD2GK7Fnh3rosrWNP6TTIWNkvUY2Fw6Ptc3sikouSJRAvBA4H2JFAT3LA5nD5kh2EQfbgxMlWNzan/KJIESqNyo5XxL';
+$keycloakSpAcsUrl = 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13/broker/simplesamlphp/endpoint/clients/vp-sso';
+$keycloakSpCertData = 'MIIDOzCCAiMCBgGaFdFcAzANBgkqhkiG9w0BAQsFADBhMV8wXQYDVQQDDFZ0ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1LWV2ZW50LWNkMTM5N2QzLWQyMzYtNDJiNC1hMDE5LTQ5MTQzYjYxNmUxMzAeFw0yNTEwMjQxMDQyMTNaFw0zNTEwMjQxMDQzNTNaMGExXzBdBgNVBAMMVnRlbmFudC05MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUtZXZlbnQtY2QxMzk3ZDMtZDIzNi00MmI0LWEwMTktNDkxNDNiNjE2ZTEzMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkOwN1Qyksmq2qlGm0d1R3/ZPnUzZAeyyz5JnfQSfK+36fv5LEiH7IsfqKL1WFSJym/MucpjY1EgbxIqIVcmoE7Q08xasCYxGeoztnFW8Bt5BjBpJuIXCZ/e2UDWkAX9Sj5TGfZc4o3NEQVGJkun2njZFhK4Br7AThhPONzFrshcjAFIEEDzwdYRdorl50RFpeG1wfKeuDO894vEelPVxSGjuz4imxqIzzgzDXEx8Em/SHEKVkGhpFPc8aagFnnnXvMgn8QWpouXRcB5t1rKHrJU/ibPlW4x20lu8ddmsU45pEcsKutV9RewHRfLALTl51NHXAOMwLHE0+eRaY9j4JQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCB0GmlZY9/yHbawD1cATbPu0IFvCBDL+dNoxWpwAtxKjUiNpG7khqZOOTJ3lyYT5hwBV3Rv1XjUut6PYEaqTiAkyvpLIs5EbwrkWjBTsh3hHgeVtlRJVlaglmoM/nB1ocE3YtmnsmIetmcfgIlmHEghy2mugtA5g6x6KsGPbr4V0CaAzdCJ2t4vnE6O0qxqVv5AvQAhFMdp/r51xv8gGuhgzoHwtAKjdE0r4S2ZVajW9BXsqcCPCOIZYGUFWuQ4G39AUo1Lt6gGXUjZKveuJb0Nt7kSIxeHklLtkyH5c2A0wg5am7cfzBSrI8ANBt6ZgdIOYxh23qUHiqK8vj6OktL';
 
-$metadata['http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f'] = [
+$metadata['tenant-e8062b49-532b-4f60-8548-0d3c14a25894-event-cd1397d3-d236-42b4-a019-49143b616e13'] = [
     'AssertionConsumerService' => [
         [
             'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
-            'Location' => 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f/broker/simplesamlphp/endpoint/clients/vp-sso',
+            'Location' => 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13/broker/simplesamlphp/endpoint/clients/vp-sso',
         ],
     ],
     'SingleLogoutService' => [
         [
             'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
-            'Location' => 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f/broker/simplesamlphp/endpoint/clients/vp-sso',
+            'Location' => 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13/broker/simplesamlphp/endpoint',
         ],
     ],
-    // 'saml:idp:url' => 'https://your-keycloak-domain/realms/{realm}/protocol/saml/clients/{idp-sso-url-name}',
-    // 'signing.certificate' => 'MIIDOzCCAiMCBgGZ3f8D1TANBgkqhkiG9w0BAQsFADBhMV8wXQYDVQQDDFZ0ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1LWV2ZW50LTM3ZWI1MWE3LWM2YjktNDU2Zi05M2I0LTViZDA1MDgxYjE4ZjAeFw0yNTEwMTMxNDMzMjFaFw0zNTEwMTMxNDM1MDFaMGExXzBdBgNVBAMMVnRlbmFudC05MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUtZXZlbnQtMzdlYjUxYTctYzZiOS00NTZmLTkzYjQtNWJkMDUwODFiMThmMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1vdrir39ABcm6tIVuy9Y+G4sPtrz3Rg2KtCFYPlf+7cBBb8L75SCheZVEtPVZ7djv6g7GjksNeeUjMQiNfPNlI9PGCd1Eeei0WnZ7FGOvQoFWv7SWqeCzu8tZJtBRqeWnuK8zLeka/amgdoygZ0gR3bqA/hI3EpNlPExZQNGITsWDsYZ/SKEIIkq37kXV/yTsW8h6jnJMydqgkN0MESErFiVIjGwrAvC7kA+7HLj0sOCNOaHu2U6LhZznfJuJBipCLfMbtjConOsXZC5GmMsJD7txPpejXfb82kmSHJcvsq3GFqF616mrW3rh2iM/gso3ClLeHpzwUG0weaKFbWyhwIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQDUbmfepXwr3aWHs/8UpIANLZqGN95+BSfuYi82gI+x0fKaxT+a7Sy2Om0juh77E+01B5lzdR2R72/39r/+1PGTpLdoQwVP9kFaDMuMNdYCZ4XS0HAeETuMPTAZVAqxiUc09ey0uKOJbpdWA8X0SDN8igwpIJGW2PSMo9A7rbkmOPFEF71je793TguCMqNbVGdDHWiI0ySXZh3Pw/UPdYyRhoUgINNELMjBmS4Yv1+S4Lpqz9ZL39eCULN1VkD2GK7Fnh3rosrWNP6TTIWNkvUY2Fw6Ptc3sikouSJRAvBA4H2JFAT3LA5nD5kh2EQfbgxMlWNzan/KJIESqNyo5XxL',
 
     'certData' => $keycloakSpCertData,
 

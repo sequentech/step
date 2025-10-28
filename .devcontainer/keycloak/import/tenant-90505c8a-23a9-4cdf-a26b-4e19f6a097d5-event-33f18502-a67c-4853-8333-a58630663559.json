@@ -992,6 +992,69 @@
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "roles", "profile", "email" ],
     "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+  },
+  {
+    "adminUrl": "",
+    "alwaysDisplayInConsole": false,
+    "attributes": {
+      "saml.useMetadataDescriptorUrl": "false",
+      "realm_client": "false",
+      "saml.signing.private.key": "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",
+      "dpop.bound.access.tokens": "false",
+      "standard.token.exchange.enabled": "false",
+      "saml_assertion_consumer_url_post": "http://localhost:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559/redirect-provider/redirect",
+      "saml.force.post.binding": "true",
+      "saml.server.signature.keyinfo.xmlSigKeyInfoKeyNameTransformer": "NONE",
+      "saml_force_name_id_format": "false",
+      "saml.authnstatement": "true",
+      "saml.server.signature.keyinfo.ext": "false",
+      "oauth2.device.authorization.grant.enabled": "false",
+      "display.on.consent.screen": "false",
+      "saml.signing.certificate": "MIIEmzCCAoMCBgGaJQNFJzANBgkqhkiG9w0BAQsFADARMQ8wDQYDVQQDDAZ2cC1zc28wHhcNMjUxMDI3MDkzMTAyWhcNMjgxMDI3MDkzMjQxWjARMQ8wDQYDVQQDDAZ2cC1zc28wggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQCmzHfWuiBuf9KU/4+tuxmlo5ehuyxpz1V499vv1ksJNBAQvqQjXkQ6Zbtm8URGd4dwtaQLWb8nsEjG8FwmfYcsARKqQW74GfBdV3EsGzLruGU/jBmcjGEqPy65XlWo3K/INC4cAEXxRCvYx+bUaEGy3oAjBv8PJwXqmYGnCPyRymvBFd3j9J2n1nBLD//8Z4a8K7OMp8TxJGul2YUaSlqdtvhs83uNNZfBWvUil2RUnpVeA5mwKnSv++MWWSQnT4JjKTezWv6uc17ynM6SBFlUZ83dEto7yBNbbZP2Pfi4RwZDDhyJ8knSQPBpxbu5+AaRzu4OuKIXqDLOWlFVqbHZlky72HRQ3p0lE+6WQzoqMakK5hUIgxk30X9aMbT172006CY4kJJzr+B+oMvTUWwTilAGWcOXW0k5L5KiI4S1k2cp8nRhOQy9g5bpIINP1g6Wx0/2MdPKu640l1w+cf/pWu+RVYSSqEABVqeAjSO1nLmu5nuHYJuH30W09VcQIbMyXQ6sRIJKtndOW0qgYc0cEzgeZM737hLvOWXCdz6e1L/yYI/TIkSrHShyQGCUxJrB7xg1Z3xM5SvNF6leU/EebPCWt/5d0jeaxtSlmWotZlGAf712LDYPMTqXjILvUUTDXmIIu9a1e6emh6Mmsli/Y1PgMSOF+ecxIQhRR13/HQIDAQABMA0GCSqGSIb3DQEBCwUAA4ICAQBG+bZ7YQmMbHOrF6gkD9/AyNg8OkBjdj/WPjTSZBetFRL7GHIrSbEGmr32F+6so0WanRavIWJ9Gn7TYqy7USCWLLFl2r2ona59ibgJEQ85MCis/uWiSSy4u1NOGXUbSjnafQNCHj6iaixL0It9IBdSjBU7nDNp7nhwzPk+Qu3+kGNFA7wREAqJ4yFIX5oRLRu6FOhfY+Kd8XIEfzOT2gOn7yIK+S2tCMC8kSwK65scnbJO9VklKwIqn2EfMpw3F9sIaSF+xBhB88g9lc59MTu8HSGowYpxzCTVeOdGn7YEm9/w420BaHwmysx6DVqj0yG7zOSJcBTlIv1RUTasNuVWfZXJljIaFNEUwGwa4Q/l4yGTOa/tQsuZNC36SE1WSJoBifdqKtAG7ScsjBTMXE4iXKsyEHRPtqDHDvgRtJ9RbAZod4nK57dsWoggpKe7+JkwYvvgIv5tIbCW+uXBiRJmwapnyTQNewsneh7oILeAEQWnTEbHOUL8vGDYdsl6jNTLWQkxz96EZx4MxW6y3uFmRrvvyZmQP4R/E9HlIZWA0GTZSXRC1+n5f4wA5e7B6s4/Wkq84IV78DxIBhp7y43QaJHTGbWnIq9j5vxuA1cxqSWosIg7I32Euguzh08AD6q5przm4iJ4WWi7zt+cO8SmbM9nMrkrmZKh2uG5k8AqLg==",
+      "saml_signature_canonicalization_method": "http://www.w3.org/2001/10/xml-exc-c14n#",
+      "saml.server.signature": "true",
+      "saml.assertion.signature": "false",
+      "saml.allow.ecp.flow": "false",
+      "oidc.ciba.grant.enabled": "false",
+      "saml.artifact.binding": "false",
+      "saml_idp_initiated_sso_url_name": "vp-sso",
+      "saml_name_id_format": "email",
+      "saml.onetimeuse.condition": "false",
+      "saml_idp_initiated_sso_relay_state": "http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/33f18502-a67c-4853-8333-a58630663559/login",
+      "saml.client.signature": "true",
+      "saml.signature.algorithm": "RSA_SHA256",
+      "saml.artifact.binding.identifier": "HA7ASWL3hYgz83kJVO5JbNPtH4I="
+    },
+    "authenticationFlowBindingOverrides": {},
+    "baseUrl": "",
+    "bearerOnly": false,
+    "clientAuthenticatorType": "client-secret",
+    "clientId": "vp-sso",
+    "consentRequired": false,
+    "defaultClientScopes": [
+        "role_list"
+    ],
+    "description": "",
+    "directAccessGrantsEnabled": false,
+    "enabled": true,
+    "frontchannelLogout": true,
+    "fullScopeAllowed": true,
+    "id": "4aa4c11d-d55f-4f84-9c8b-66616537fcd0",
+    "implicitFlowEnabled": false,
+    "name": "",
+    "nodeReRegistrationTimeout": -1,
+    "notBefore": 0,
+    "optionalClientScopes": [],
+    "protocol": "saml",
+    "publicClient": true,
+    "redirectUris": [
+        "/*"
+    ],
+    "rootUrl": "http://localhost:3000",
+    "serviceAccountsEnabled": false,
+    "standardFlowEnabled": true,
+    "surrogateAuthRequired": false,
+    "webOrigins": []
   } ],
   "clientScopes" : [ {
     "id" : "711a6404-1cce-4da4-826c-1f88725901e4",
@@ -1490,10 +1553,11 @@
     "addReadTokenRoleOnCreate" : false,
     "authenticateByDefault" : false,
     "linkOnly" : false,
+    "firstBrokerLoginFlowAlias": "saml-first-broker-flow",
     "config" : {
-      "postBindingLogout" : "false",
+      "postBindingLogout" : "true",
       "singleLogoutServiceUrl" : "http://127.0.0.1:8083/simplesaml/saml2/idp/SingleLogoutService.php",
-      "postBindingResponse" : "false",
+      "postBindingResponse" : "true",
       "backchannelSupported" : "false",
       "idpEntityId" : "http://127.0.0.1:8083/simplesaml/saml2/idp/metadata.php",
       "loginHint" : "false",
@@ -1502,12 +1566,12 @@
       "authnContextComparisonType" : "exact",
       "syncMode" : "IMPORT",
       "singleSignOnServiceUrl" : "http://127.0.0.1:8083/simplesaml/saml2/idp/SSOService.php",
-      "wantAuthnRequestsSigned" : "false",
+      "wantAuthnRequestsSigned" : "true",
       "allowedClockSkew" : "0",
       "encryptionPublicKey" : "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
       "guiOrder" : "0",
       "hideOnLoginPage" : "false",
-      "validateSignature" : "false",
+      "validateSignature" : "true",
       "signingCertificate" : "MIICmjCCAYICCQDX5sKPsYV3+jANBgkqhkiG9w0BAQsFADAPMQ0wCwYDVQQDDAR0ZXN0MB4XDTE5MTIyMzA5MDI1MVoXDTIwMDEyMjA5MDI1MVowDzENMAsGA1UEAwwEdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMdtDJ278DQTp84O5Nq5F8s5YOR34GFOGI2Swb/3pU7X7918lVljiKv7WVM65S59nJSyXV+fa15qoXLfsdRnq3yw0hTSTs2YDX+jl98kK3ksk3rROfYh1LIgByj4/4NeNpExgeB6rQk5Ay7YS+ARmMzEjXa0favHxu5BOdB2y6WvRQyjPS2lirT/PKWBZc04QZepsZ56+W7bd557tdedcYdY/nKI1qmSQClG2qgslzgqFOv1KCOw43a3mcK/TiiD8IXyLMJNC6OFW3xTL/BG6SOZ3dQ9rjQOBga+6GIaQsDjC4Xp7Kx+FkSvgaw0sJV8gt1mlZy+27Sza6d+hHD2pWECAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAm2fk1+gd08FQxK7TL04O8EK1f0bzaGGUxWzlh98a3Dm8+OPhVQRi/KLsFHliLC86lsZQKunYdDB+qd0KUk2oqDG6tstG/htmRYD/S/jNmt8gyPAVi11dHUqW3IvQgJLwxZtoAv6PNs188hvT1WK3VWJ4YgFKYi5XQYnR5sv69Vsr91lYAxyrIlMKahjSW1jTD3ByRfAQghsSLk6fV0OyJHyhuF1TxOVBVf8XOdaqfmvD90JGIPGtfMLPUX4m35qaGAU48PwCL7L3cRHYs9wZWc0ifXZcBENLtHYCLi5txR8c5lyHB9d3AQHzKHMFNjLswn5HsckKg83RH7+eVqHqGw==",
       "principalAttribute" : "email",
       "nameIDPolicyFormat" : "urn:oasis:names:tc:SAML:2.0:nameid-format:transient",
@@ -1518,7 +1582,7 @@
       "wantAssertionsSigned" : "false",
       "metadataDescriptorUrl" : "https://simplesamlphp:8080/simplesaml/saml2/idp/metadata.php",
       "sendIdTokenOnLogout" : "true",
-      "postBindingAuthnRequest" : "false",
+      "postBindingAuthnRequest" : "true",
       "forceAuthn" : "false",
       "attributeConsumingServiceIndex" : "0",
       "addExtensionsElementWithKeyInfo" : "false",
@@ -2283,6 +2347,40 @@
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
+  },
+  {
+    "alias": "saml-first-broker-flow",
+    "authenticationExecutions": [
+      {
+        "authenticator": "idp-detect-existing-broker-user",
+        "authenticatorFlow": false,
+        "autheticatorFlow": false,
+        "priority": 0,
+        "requirement": "REQUIRED",
+        "userSetupAllowed": false
+      },
+      {
+        "authenticator": "idp-auto-link",
+        "authenticatorFlow": false,
+        "autheticatorFlow": false,
+        "priority": 1,
+        "requirement": "REQUIRED",
+        "userSetupAllowed": false
+      },
+      {
+        "authenticator": "allow-access-authenticator",
+        "authenticatorFlow": false,
+        "autheticatorFlow": false,
+        "priority": 2,
+        "requirement": "DISABLED",
+        "userSetupAllowed": false
+      }
+    ],
+    "builtIn": false,
+    "description": "",
+    "id": "7a6aa873-a7e9-46a7-8621-ac91f4bb3bbf",
+    "providerId": "basic-flow",
+    "topLevel": true
   } ],
   "authenticatorConfig" : [ {
     "id" : "372a26e6-91b8-4738-959b-2402eee8d8ec",

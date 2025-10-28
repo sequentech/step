@@ -6,7 +6,7 @@ $config['timezone'] = 'UTC';
 $config['auth.adminpassword'] = getenv('SSP_ADMIN_PASSWORD');
 $config['logging.level'] = (int) getenv('SSP_LOG_LEVEL');
 $config['logging.handler'] = getenv('SSP_LOG_HANDLER');
-$config['session.cookie.secure'] = true;
+// $config['session.cookie.secure'] = true;
 $config['usenewui'] = getenv('SSP_NEW_UI') === 'true';
 $config['secretsalt'] =  getenv('SSP_SECRET_SALT') ?: 'defaultsecretsalt';
 $config['enable.saml20-idp'] =  getenv('SSP_ENABLE_IDP') === 'true';

@@ -23,21 +23,31 @@ $metadata['http://localhost:8083/simplesaml/saml2/idp/metadata.php'] = [
      * 'config/authsources.php'.
      */
     'auth' => 'example-userpass',
-    // 'saml20.sendartifact' => true,
+    'saml20.sendartifact' => true,
     'ArtifactResolutionService' => [
         [
-            'index' => 0,
-            'Location' => 'https://your-idp-domain/simplesaml/saml2/idp/ArtifactResolutionService.php',
-            'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:SOAP',
+            'Location' => 'http://localhost:8083/simplesaml/saml2/idp/ArtifactResolutionService.php',
+            'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Artifact',
+            'isDefault' => true,
         ],
     ],
 
-    'SingleSignOnServiceBinding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+    'SingleSignOnServiceBinding' => [
+        'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Artifact',
+        'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+        'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+    ],
 
+    'SingleLogoutServiceBinding' => [
+        'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Artifact',
+        'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
+        'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+    ],
+    
     'sign.logout' => true,
     'saml20.sign.response' => true,
     'saml20.sign.assertion' => true,
-    // 'https.certificate' => '/etc/ssl/certs/ssl-cert-snakeoil.pem',
+    'https.certificate' => '/etc/ssl/certs/ssl-cert-snakeoil.pem',
 
     /* Uncomment the following to use the uri NameFormat on attributes. */
     /*

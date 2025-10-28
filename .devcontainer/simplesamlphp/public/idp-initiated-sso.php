@@ -4,10 +4,10 @@
 $simpleSamlBaseUrl = '/simplesaml';
 
 // This MUST match the key of our metadata entry in saml20-sp-remote.php
-$keycloakSpEntityId = 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f';
+$keycloakSpEntityId = 'tenant-e8062b49-532b-4f60-8548-0d3c14a25894-event-cd1397d3-d236-42b4-a019-49143b616e13';
 
 // This is the final destination where the user should land after a successful login.
-$finalRedirectUrl = 'http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/37eb51a7-c6b9-456f-93b4-5bd05081b18f/login';
+$finalRedirectUrl = 'http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/cd1397d3-d236-42b4-a019-49143b616e13/login';
 // $finalRedirectUrl = 'aHR0cDovL2xvY2FsaG9zdDozMDAwL3RlbmFudC85MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUvZXZlbnQvMzdlYjUxYTctYzZiOS00NTZmLTkzYjQtNWJkMDUwODFiMThmL3ZvdGU';
 
 // --- Logic ---
