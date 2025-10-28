@@ -1,21 +1,23 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package sequent.keycloak.authenticator.idp_initiated_sso;
 
+import com.google.auto.service.AutoService;
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
-import org.keycloak.Config.Scope;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.services.resource.RealmResourceProvider;
 import org.keycloak.services.resource.RealmResourceProviderFactory;
 
-import com.google.auto.service.AutoService;
-import lombok.extern.jbosslog.JBossLog;
-
 @JBossLog
 @AutoService(RealmResourceProviderFactory.class)
 public class SamlRedirectProviderFactory implements RealmResourceProviderFactory {
 
-    // This is the "provider-id" used in the URL
-    public static final String PROVIDER_ID = "redirect-provider";
+  // This is the "provider-id" used in the URL
+  public static final String PROVIDER_ID = "redirect-provider";
 
   @Override
   public RealmResourceProvider create(KeycloakSession session) {
@@ -45,5 +47,5 @@ public class SamlRedirectProviderFactory implements RealmResourceProviderFactory
   }
 
   // No-arg constructor is implicit
-    
+
 }

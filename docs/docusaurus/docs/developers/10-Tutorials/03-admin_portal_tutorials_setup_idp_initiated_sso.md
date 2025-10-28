@@ -1,6 +1,6 @@
 ---
 id: admin_portal_tutorials_setup_idp_initiated_sso
-title: Setup idp initiated sso in Keycloak
+title: Setup IDP Initiated SSO with SimpleSAMLphp as IDP and Keycloak as SP
 ---
 
 <!--
@@ -30,7 +30,7 @@ This tutorial explains how to set up IdP-initiated Single Sign-On (SSO). In this
 
 ---
 
-## Part 1: Configure SimpleSAMLphp (IdP)
+## 1: Configure SimpleSAMLphp (IdP)
 
 Configure SimpleSAMLphp to act as the central IdP.
 
@@ -165,7 +165,7 @@ $metadata['tenant-e8062b49-532b-4f60-8548-0d3c14a25894-event-cd1397d3-d236-42b4-
 
 ---
 
-## **Part 2: Configure Keycloak (SP/Broker & IdP for vp-sso)**
+## **2: Configure Keycloak (SP/Broker & IdP for vp-sso)**
 
 ### **2.1. Configure Keycloak to Trust SimpleSAMLphp (Identity Provider)**
 
@@ -174,7 +174,7 @@ This configures Keycloak to act as an SP/Broker, using SimpleSAMLphp as an exter
 1. **Navigate:** Go to Identity Providers in your Keycloak realm (tenant-...-event-...).  
 2. **Select/Verify simplesamlphp:** Create a provider with alias simplesamlphp (Provider ID saml)  
    * **Import Config:** Alternatively, you could import SimpleSAMLphp's metadata (http://localhost:8083/simplesaml/saml2/idp/metadata.php).  
-   * **Key Settings (verify against your export):**  
+   * **Key Settings:**  
      * Single Sign-On Service URL: http://localhost:8083/simplesaml/saml2/idp/SSOService.php  
      * Single Logout Service URL: http://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php  
      * NameID Policy Format: Transient (matches SimpleSAMLphp config)  
@@ -198,9 +198,9 @@ This configures Keycloak to act as an SP/Broker, using SimpleSAMLphp as an exter
      * Name Format: Attribute_FORMAT_BASIC
      * User Attribute Name: email
 
-### **2.2. Configure the vp-sso Client (Keycloak as IdP)**
+### **2.2. Configure the vp-sso Client**
 
-This configures Keycloak to act as an IdP for the specific vp-sso SAML client application.
+This configures the specific vp-sso SAML client application.
 
 1. **Navigate:** Go to Clients.  
 2. **Create Client:** Click Create client.  
