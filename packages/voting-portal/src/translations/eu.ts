@@ -7,6 +7,8 @@ const basqueTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Itzuli",
+            showMore: "Erakutsi Gehiago",
+            showLess: "Erakutsi Gutxiago",
         },
         breadcrumbSteps: {
             electionList: "Bozketa Zerrenda",
@@ -369,6 +371,7 @@ const basqueTranslation: TranslationType = {
                 statement_timestamp: "Adierazpen denbora-marka",
                 username: "Erabiltzaile izena",
                 ballot_id: "Bozketa IDa",
+                message: "Mezua",
             },
         },
     },

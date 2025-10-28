@@ -1,7 +1,6 @@
-
 ---
-id: release-9.0.0
-title: Release Notes v9.0.0
+id: release-9.0.1
+title: Release Notes v9.0.1
 ---
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>

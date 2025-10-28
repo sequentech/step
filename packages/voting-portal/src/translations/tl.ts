@@ -7,6 +7,8 @@ const tagalogTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Bumalik",
+            showMore: "Lakihan ang nakikita",
+            showLess: "Bawasan ang nakikita",
         },
         breadcrumbSteps: {
             electionList: "Listahan ng mga Balota",
@@ -365,10 +367,11 @@ const tagalogTranslation: TranslationType = {
                 ballotLocator: "Lokaliseer uw Stembiljet",
             },
             column: {
-                statement_kind: "Type",
-                statement_timestamp: "Tijdstip",
-                username: "Gebruikersnaam",
-                ballot_id: "Stembiljet ID",
+                statement_kind: "Uri",
+                statement_timestamp: "Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
+                message: "Mensahe",
             },
         },
     },
