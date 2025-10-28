@@ -57,7 +57,7 @@ session.cookie.secure = true; // Enable if using HTTPS
 
 ```
 
-### **1.2. Define Authentication Source**
+### 1.2. Define Authentication Source
 
 Configure how SimpleSAMLphp authenticates users. We'll use the example static user/password source.
 
@@ -95,7 +95,7 @@ $config = [
 
 **Note:** Ensure attributes required by Keycloak (like email for the Principal Attribute) are defined for your test users.
 
-### **1.3. Configure IdP Metadata (Hosted)**
+### 1.3. Configure IdP Metadata (Hosted)
 
 Define SimpleSAMLphp's own metadata as an IdP.
 
@@ -129,7 +129,7 @@ $metadata['http://localhost:8083/simplesaml/saml2/idp/metadata.php'] = [
 * The array key (http://localhost:8083/...) is the **Entity ID** of your SimpleSAMLphp IdP. Keycloak will need this.  
 * Make sure privatekey and certificate point to valid files in your cert/ directory.
 
-### **1.4. Configure SP Metadata (Remote)**
+### 1.4. Configure SP Metadata (Remote)
 
 Tell SimpleSAMLphp about the Keycloak instance (acting as SP/Broker) it trusts.
 
@@ -165,9 +165,9 @@ $metadata['tenant-e8062b49-532b-4f60-8548-0d3c14a25894-event-cd1397d3-d236-42b4-
 
 ---
 
-## **2: Configure Keycloak (SP/Broker & IdP for vp-sso)**
+## 2: Configure Keycloak (SP/Broker & IdP for vp-sso)
 
-### **2.1. Configure Keycloak to Trust SimpleSAMLphp (Identity Provider)**
+### 2.1. Configure Keycloak to Trust SimpleSAMLphp (Identity Provider)
 
 This configures Keycloak to act as an SP/Broker, using SimpleSAMLphp as an external IdP. Your initial realm export largely defines this.
 
@@ -198,7 +198,7 @@ This configures Keycloak to act as an SP/Broker, using SimpleSAMLphp as an exter
      * Name Format: Attribute_FORMAT_BASIC
      * User Attribute Name: email
 
-### **2.2. Configure the vp-sso Client**
+### 2.2. Configure the vp-sso Client
 
 This configures the specific vp-sso SAML client application.
 
@@ -232,7 +232,7 @@ This configures the specific vp-sso SAML client application.
 
 ---
 
-## **Part 3: Create the IdP-Initiated SSO Trigger Page**
+## Part 3: Create the IdP-Initiated SSO Trigger Page
 
 Create a PHP page within SimpleSAMLphp's web-accessible directory to start the flow.
 
@@ -297,7 +297,7 @@ $loginUrl = $idpSsoUrl . '?' . http_build_query($queryParams);
 
 ---
 
-## **Part 4: Test the Flow**
+## Part 4: Test the Flow
 
 1. **Open Browser:** Navigate to the trigger page: http://localhost:8083/simplesaml/idp-initiated-sso.php.  
 2. **Click Login Button:** Click the "Login via SimpleSAMLphp IdP" link.  
@@ -310,7 +310,7 @@ You should now be logged into your target application, having authenticated only
 
 ---
 
-## **Part 5: Troubleshooting**
+## Part 5: Troubleshooting
 
 * **Check Logs:** Examine both SimpleSAMLphp logs (location depends on logging.handler) and Keycloak logs (server log) for detailed error messages. Increase log levels if necessary.  
 * **SAML Tracer:** Use browser extensions (like SAML-tracer for Firefox, SAML Chrome Panel) to inspect the SAML messages being exchanged. Check for signature errors, incorrect destinations, missing attributes, or status code errors.  

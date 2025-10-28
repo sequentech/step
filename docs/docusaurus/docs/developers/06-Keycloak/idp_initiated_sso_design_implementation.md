@@ -87,7 +87,7 @@ sequenceDiagram
     TargetApp-->>UserBrowser: Application Interface (logged in)
 ```
 
-## **5. Flow Description (IdP-Initiated)**
+## 5. Flow Description (IdP-Initiated)
 
 1. **Initiation:** The user accesses a specific URL provided by the **external IdP** designed for IdP-initiated SSO. This URL typically includes parameters identifying the target SP (Keycloak's Entity ID) and the desired final RelayState (target application URL).  
 2. **Authentication at IdP:** The external IdP checks if the user has an active session.  
@@ -107,9 +107,9 @@ sequenceDiagram
    * **Scenario B (Custom Endpoint):** If Keycloak is configured (e.g., via the vp-sso client's ACS URL pointing internally, or post-login flows) to use the custom /redirect-provider/redirect endpoint, that endpoint handles validating the RelayState against the vp-sso client's allowed redirects and issues the final browser redirect.  
 7. **Target Application Access:** The browser is redirected to the final RelayState URL. The user now has a Keycloak session cookie. If the target application (vp-sso) relies on Keycloak for authentication (either via SAML where Keycloak is IdP, or OIDC), it will recognize the session and grant access.
 
-## **6. Key Configuration Details**
+## 6. Key Configuration Details
 
-### **6.1. External SAML 2.0 IdP**
+### 6.1. External SAML 2.0 IdP
 
 * **User Authentication:** Configured according to organizational requirements.  
 * **SAML 2.0 Support:** Must support SAML 2.0 protocol.  
@@ -121,7 +121,7 @@ sequenceDiagram
   * Required NameID format and attributes.  
 * **Signing:** Must sign SAML Responses and/or Assertions using its private key.
 
-### **6.2. Keycloak - Identity Provider (Broker Config)**
+### 6.2. Keycloak - Identity Provider (Broker Config)
 
 * **Provider:** Add a new SAML v2.0 Identity Provider.  
 * **Alias:** A unique name for this IdP configuration (e.g., external-idp).  
@@ -132,7 +132,7 @@ sequenceDiagram
 * **Mappers:** Create mappers (e.g., Attribute Importer, Username Template Importer) to map attributes from the IdP's assertion (SAML Attribute Name) to Keycloak user attributes (User Attribute Name).  
 * **Flows:** Configure First Broker Login Flow.
 
-### **6.3. Keycloak - Client (vp-sso)**
+### 6.3. Keycloak - Client (vp-sso)
 
 * **Client ID:** vp-sso (Type: SAML).  
 * **Role:** Acts as an SP *relative to Keycloak*.  
@@ -142,13 +142,13 @@ sequenceDiagram
 * **Keys:** Can use realm keys or import client-specific signing keys.  
 * **Client Scopes / Mappers:** Configured to include necessary information (like roles via role_list) in the SAML assertion Keycloak generates *for* the vp-sso application.
 
-### **6.4. Custom Redirect Provider (SamlRedirectProvider)**
+### 6.4. Custom Redirect Provider (SamlRedirectProvider)
 
 * **Purpose:** Provides an explicit endpoint within Keycloak to handle the RelayState redirection, potentially adding validation logic tied to specific client configurations.  
 * **Deployment:** Requires building a JAR and deploying to Keycloak.  
 * **Integration:** Needs to be correctly invoked after the broker login flow, possibly by setting it as the ACS URL in the external IdP's configuration for Keycloak, or through custom authentication flows in Keycloak.
 
-## **7. Security Considerations**
+## 7. Security Considerations
 
 * **Transport Security:** Use HTTPS for all endpoints (IdP, Keycloak, Target Application).  
 * **Message Signing & Validation:** Ensure SAML messages (Assertions, Responses, Requests) are appropriately signed and validated by both the IdP and Keycloak broker using exchanged public certificates.  
@@ -157,7 +157,7 @@ sequenceDiagram
 * **Certificate Management:** Securely manage private keys and monitor certificate validity periods.  
 * **Audience Restriction:** Ensure the IdP correctly sets the Audience element in the SAML assertion to Keycloak's Entity ID, and Keycloak validates it.
 
-## **8. Assumptions and Dependencies**
+## 8. Assumptions and Dependencies
 
 * The external IdP is SAML 2.0 compliant and supports IdP-initiated SSO.  
 * Metadata (or configuration parameters) can be exchanged between the external IdP and Keycloak administrators.  
