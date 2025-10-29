@@ -10,7 +10,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 ## ✨ Automatic Launch of E2E tests for environments and during release process
 
 Modified e2e github action to enable triggering it manually, including the
-arguments for the load test.
+arguments for the load test. This also adds a script to generate voters for
+load testing purposes, including the hash of the password.
 
 - Issue: [#7004](https://github.com/sequentech/meta/issues/7004)
 
