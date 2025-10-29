@@ -7,6 +7,13 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Automatic Launch of E2E tests for environments and during release process
+
+Modified e2e github action to enable triggering it manually, including the
+arguments for the load test.
+
+- Issue: [#7004](https://github.com/sequentech/meta/issues/7004)
+
 ## ✨ Voting Portal > Nightwatch voting with no revotes
 
 The Nightwatch-based vote-casting load tests now include an anti-double-voting
