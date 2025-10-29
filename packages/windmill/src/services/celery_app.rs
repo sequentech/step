@@ -279,8 +279,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             render_document_pdf,
             prepare_publication_preview,
             export_tally_results_to_xlsx_task,
-            post_tally_task,,
-            import_voters_delegation_task
+            post_tally_task,
+            import_voters_delegation_task,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
