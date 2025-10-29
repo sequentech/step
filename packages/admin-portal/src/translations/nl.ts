@@ -108,6 +108,18 @@ const dutchTranslation: TranslationType = {
                 header: "Nog geen gebieden.",
                 action: "Gebied aanmaken",
             },
+            formImputs: {
+                allowEarlyVoting: "Vroeg Stemmen Toestaan",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Sleutel",
+                gapiEmail: "Google Calendar Authenticatie E-mail",
+            },
+            errors: {
+                invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -146,6 +158,7 @@ const dutchTranslation: TranslationType = {
                 templates: "SJABLONEN",
                 languages: "TALEN",
                 localization: "LOCALISATIE",
+                integrations: "INTEGRATIES",
                 lookAndFeel: "LOOK & FEEL",
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",
@@ -342,6 +355,13 @@ const dutchTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Automatische ceremonies toestaan",
                         "manual-ceremonies": "Handmatige ceremonies",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Beleid voor Gewogen Stemmen",
+                    options: {
+                        "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
                 },
                 delegationsPolicy: {
@@ -959,6 +979,7 @@ const dutchTranslation: TranslationType = {
                 "voter-email-tlf-edit": "E-mail/telefoonvelden kiezers bewerken",
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
+                "google-meet-link": "Google Meet Link Genereren",
             },
         },
         generalSettingsScreen: {
@@ -1085,6 +1106,25 @@ const dutchTranslation: TranslationType = {
                 preview: "Voorbeeldweergave",
             },
         },
+        googleMeet: {
+            title: "Google Meet Link Genereren",
+            generateButton: "Meet Genereren",
+            meetingTitle: "Vergadertitel",
+            description: "Beschrijving (Optioneel)",
+            startDate: "Startdatum",
+            startTime: "Starttijd",
+            duration: "Duur (minuten)",
+            attendeeEmails: "Emails Deelnemers",
+            attendeeEmailHelp: "Komma-gescheiden emails voor vergaderdeelnemers",
+            note: "Opmerking: Dit zal een agenda-evenement aanmaken in uw Google Calendar met een Google Meet link. U moet inloggen op uw Google account.",
+            success: "Google Meet Link Succesvol Gegenereerd!",
+            copy: "Kopiëren naar klembord",
+            copied: "Link gekopieerd naar klembord!",
+            instructions:
+                "Deel deze link met deelnemers om deel te nemen aan de vergadering. Het agenda-evenement is toegevoegd aan uw Google Calendar.",
+            generating: "Genereren...",
+            generate: "Meet Link Genereren",
+        },
         common: {
             export: "Exporteren kan lang duren. Weet u zeker dat u records wilt exporteren?",
             resources: {
@@ -1142,6 +1182,7 @@ const dutchTranslation: TranslationType = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Vroeg stemmen",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
@@ -1244,6 +1285,12 @@ const dutchTranslation: TranslationType = {
                 "semi-open-list": "Semi-open Lijst",
                 "invalid-vote": "Ongeldige Stem",
                 "blank-vote": "Blanco Stem",
+            },
+            invalidVotePosition: {
+                label: "Positie van Ongeldige Stem",
+                null: "Geen (Standaard)",
+                top: "Boven",
+                bottom: "Onder",
             },
             error: {},
             createCandidateSuccess: "Kandidaat aangemaakt",
@@ -1615,6 +1662,14 @@ const dutchTranslation: TranslationType = {
                 blank_votes_percent: "Percentage Blanco Stemmen",
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
+                weight: "Gewicht",
+            },
+            chart: {
+                votesForCandidates: "Stemmen voor Kandidaten",
+                blankVotes: "Blanco Stemmen",
+                invalidVotes: "Ongeldige Stemmen",
+                totalVoters: "Totaal Kiezers",
+                nonVoters: "Niet-kiezers",
             },
         },
         publish: {
@@ -1634,9 +1689,17 @@ const dutchTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Initialisatierapport Genereren",
                 startVotingPeriod: "Stemperiode Starten",
+                startKioskVoting: "Kioskstemmen Starten",
+                startOnlineVoting: "Online Stemmen Starten",
+                startEarlyVoting: "Vroeg Stemmen Starten",
                 stopVotingPeriod: "Stemperiode Stoppen",
+                stopOnlineVoting: "Online Stemmen Stoppen",
+                stopEarlyVoting: "Vroeg Stemmen Stoppen",
                 stopKioskVotingPeriod: "Kiosk Stemmen Stoppen",
                 pauseVotingPeriod: "Stemperiode Pauzeren",
+                pauseKioskVoting: "Kioskstemmen Pauzeren",
+                pauseOnlineVoting: "Online Stemmen Pauzeren",
+                pauseEarlyVoting: "Vroeg Stemmen Pauzeren",
                 generate: "Regenereren",
                 publish: "Wijzigingen Publiceren",
                 back: "Terug",

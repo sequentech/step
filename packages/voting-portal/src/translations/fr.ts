@@ -7,6 +7,8 @@ const frenchTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Revenir",
+            showMore: "Afficher plus",
+            showLess: "Afficher moins",
         },
         breadcrumbSteps: {
             electionList: "Liste des Élections",
@@ -33,6 +35,14 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs questions.",
                 ok: "Revenir et réviser",
+                continue: "Continuer",
+                cancel: "Annuler",
+            },
+            warningDialog: {
+                title: "Vérifiez votre bulletin",
+                content:
+                    "Votre bulletin contient des sélections qui peuvent nécessiter votre attention (comme sélectionner moins d'options que permis). Votre bulletin est valide et sera compté tel que soumis.",
+                ok: "Retour et vérification",
                 continue: "Continuer",
                 cancel: "Annuler",
             },
@@ -362,6 +372,7 @@ const frenchTranslation: TranslationType = {
                 statement_timestamp: "Marque de temps",
                 username: "Nom d'utilisateur",
                 ballot_id: "ID de Bulletin",
+                message: "Message",
             },
         },
     },

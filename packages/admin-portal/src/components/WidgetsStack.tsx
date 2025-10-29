@@ -25,6 +25,7 @@ export const WidgetsStack: React.FC<WidgetsStackProps> = ({widgetsMap}) => {
                     onClose={() => widget.onClose(widget.identifier)}
                     taskId={widget.taskId}
                     onSuccess={widget.onSuccess}
+                    automaticallyDownload={widget.automaticallyDownload}
                 />
             ))}
         </StackContainer>

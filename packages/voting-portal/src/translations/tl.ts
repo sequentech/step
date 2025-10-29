@@ -7,6 +7,8 @@ const tagalogTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Bumalik",
+            showMore: "Lakihan ang nakikita",
+            showLess: "Bawasan ang nakikita",
         },
         breadcrumbSteps: {
             electionList: "Listahan ng mga Balota",
@@ -34,6 +36,14 @@ const tagalogTranslation: TranslationType = {
                     "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga tanong.",
                 ok: "Bumalik at suriin",
                 continue: "Ipagpatuloy",
+                cancel: "Kanselahin",
+            },
+            warningDialog: {
+                title: "Suriin ang iyong balota",
+                content:
+                    "Ang iyong balota ay naglalaman ng mga pagpili na maaaring mangailangan ng iyong pansin (tulad ng pagpili ng mas kaunting opsyon kaysa sa pinapayagan). Ang iyong balota ay wasto at biblangin ayon sa iyong isinumite.",
+                ok: "Bumalik at suriin",
+                continue: "Magpatuloy",
                 cancel: "Kanselahin",
             },
         },
@@ -357,10 +367,11 @@ const tagalogTranslation: TranslationType = {
                 ballotLocator: "Lokaliseer uw Stembiljet",
             },
             column: {
-                statement_kind: "Type",
-                statement_timestamp: "Tijdstip",
-                username: "Gebruikersnaam",
-                ballot_id: "Stembiljet ID",
+                statement_kind: "Uri",
+                statement_timestamp: "Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
+                message: "Mensahe",
             },
         },
     },

@@ -7,6 +7,8 @@ const basqueTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Itzuli",
+            showMore: "Erakutsi Gehiago",
+            showLess: "Erakutsi Gutxiago",
         },
         breadcrumbSteps: {
             electionList: "Bozketa Zerrenda",
@@ -35,6 +37,14 @@ const basqueTranslation: TranslationType = {
                 ok: "Itzuli eta berrikusi",
                 continue: "Jarraitu",
                 cancel: "Ezeztatu",
+            },
+            warningDialog: {
+                title: "Berrikusi zure boto-txartela",
+                content:
+                    "Zure boto-txartelak arreta behar dezaketen hautaketak ditu (adibidez, baimendutakoak baino aukera gutxiago hautatzea). Zure boto-txartela baliozkoa da eta bidali bezala zenbatuko da.",
+                ok: "Atzera eta berrikusi",
+                continue: "Jarraitu",
+                cancel: "Utzi",
             },
         },
         startScreen: {
@@ -361,6 +371,7 @@ const basqueTranslation: TranslationType = {
                 statement_timestamp: "Adierazpen denbora-marka",
                 username: "Erabiltzaile izena",
                 ballot_id: "Bozketa IDa",
+                message: "Mezua",
             },
         },
     },

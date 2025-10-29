@@ -109,6 +109,18 @@ const galegoTranslation: TranslationType = {
                 header: "Aínda non hai áreas.",
                 action: "Crear Área",
             },
+            formImputs: {
+                allowEarlyVoting: "Permitir Votación Anticipada",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clave de Conta de Servizo de Google Calendar",
+                gapiEmail: "Correo de Autenticación de Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Formato de Clave de Conta de Servizo de Google Calendar inválido",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -147,6 +159,7 @@ const galegoTranslation: TranslationType = {
                 templates: "MODELOS",
                 languages: "IDIOMAS",
                 localization: "LOCALIZACIÓN",
+                integrations: "Integracións",
                 lookAndFeel: "Aspecto",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "FIDUCIARIOS",
@@ -344,6 +357,13 @@ const galegoTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Permitir cerimonias automáticas",
                         "manual-ceremonies": "Cerimonias manuais",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votación Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
                 },
                 delegationsPolicy: {
@@ -963,6 +983,7 @@ const galegoTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmisión",
+                "google-meet-link": "Xerar Ligazón de Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1090,6 +1111,25 @@ const galegoTranslation: TranslationType = {
                 preview: "Vista Previa",
             },
         },
+        googleMeet: {
+            title: "Xerar Ligazón de Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Título da Reunión",
+            description: "Descrición (Opcional)",
+            startDate: "Data de Inicio",
+            startTime: "Hora de Inicio",
+            duration: "Duración (minutos)",
+            attendeeEmails: "Emails dos Participantes",
+            attendeeEmailHelp: "Emails separados por comas para os participantes da reunión",
+            note: "Nota: Isto creará un evento de calendario no teu Google Calendar cun enlace de Google Meet. Necesitarás iniciar sesión na túa conta de Google.",
+            success: "Ligazón de Google Meet Xerada con Éxito!",
+            copy: "Copiar ao portapapeis",
+            copied: "Ligazón copiada ao portapapeis!",
+            instructions:
+                "Comparte esta ligazón cos participantes para unirse á reunión. O evento de calendario foi engadido ao teu Google Calendar.",
+            generating: "Xerando...",
+            generate: "Xerar Ligazón de Meet",
+        },
         common: {
             export: "A exportación pode ser unha operación longa. ¿Estás seguro de que queres exportar os rexistros?",
             resources: {
@@ -1147,6 +1187,7 @@ const galegoTranslation: TranslationType = {
             channel: {
                 online: "En Liña",
                 kiosk: "Quiosco",
+                early_voting: "Votación anticipada",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
@@ -1248,6 +1289,12 @@ const galegoTranslation: TranslationType = {
                 "semi-open-list": "Lista Semi Aberta",
                 "invalid-vote": "Voto Nulo",
                 "blank-vote": "Voto en Branco",
+            },
+            invalidVotePosition: {
+                label: "Posición do Voto Nulo",
+                null: "Ningunha (Por defecto)",
+                top: "Arriba",
+                bottom: "Abaixo",
             },
             error: {},
             createCandidateSuccess: "Candidato creado",
@@ -1620,6 +1667,14 @@ const galegoTranslation: TranslationType = {
                 blank_votes_percent: "Porcentaxe de Votos en Branco",
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",
+                weight: "Peso",
+            },
+            chart: {
+                votesForCandidates: "Votos polos Candidatos",
+                blankVotes: "Votos en Branco",
+                invalidVotes: "Votos Inválidos",
+                totalVoters: "Total de Votantes",
+                nonVoters: "Non Votantes",
             },
         },
         publish: {
@@ -1639,9 +1694,17 @@ const galegoTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Xerar Informe de Inicialización",
                 startVotingPeriod: "Iniciar Votación",
+                startKioskVoting: "Iniciar Votación en Quiosco",
+                startOnlineVoting: "Iniciar Votación en Liña",
+                startEarlyVoting: "Iniciar Votación Anticipada",
                 stopVotingPeriod: "Detener Votación",
+                stopOnlineVoting: "Detener Votación en Liña",
+                stopEarlyVoting: "Detener Votación Anticipada",
                 stopKioskVotingPeriod: "Detener Votación en Quiosco",
                 pauseVotingPeriod: "Pausar Votación",
+                pauseKioskVoting: "Pausar Votación en Quiosco",
+                pauseOnlineVoting: "Pausar Votación en Liña",
+                pauseEarlyVoting: "Pausar Votación Anticipada",
                 generate: "Rexenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",

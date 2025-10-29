@@ -74,7 +74,18 @@ export const TallyCeremonyTrustees: React.FC = () => {
     // TODO: fix the "perPage 9999"
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: record?.id, tenant_id: tenantId},
+        filter: {
+            election_event_id: record?.id,
+            tenant_id: tenantId,
+            id: tallyId
+                ? {
+                      format: "hasura-raw-query",
+                      value: {
+                          _in: tally?.election_ids ?? [],
+                      },
+                  }
+                : undefined,
+        },
     })
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(

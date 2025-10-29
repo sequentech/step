@@ -7,6 +7,8 @@ const dutchTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Ga terug",
+            showMore: "Toon meer",
+            showLess: "Toon minder",
         },
         breadcrumbSteps: {
             electionList: "Kieslijst",
@@ -32,6 +34,14 @@ const dutchTranslation: TranslationType = {
                 title: "Ongeldige of blanco stem",
                 content:
                     "Sommige van uw antwoorden maken het stembiljet voor een of meer vragen ongeldig of blanco.",
+                ok: "Terug en controleren",
+                continue: "Doorgaan",
+                cancel: "Annuleren",
+            },
+            warningDialog: {
+                title: "Controleer uw stembiljet",
+                content:
+                    "Uw stembiljet bevat keuzes die mogelijk uw aandacht nodig hebben (zoals het selecteren van minder opties dan toegestaan). Uw stembiljet is geldig en zal worden geteld zoals ingediend.",
                 ok: "Terug en controleren",
                 continue: "Doorgaan",
                 cancel: "Annuleren",
@@ -362,6 +372,7 @@ const dutchTranslation: TranslationType = {
                 statement_timestamp: "Tijdstip",
                 username: "Gebruikersnaam",
                 ballot_id: "Stembiljet ID",
+                message: "Bericht",
             },
         },
     },

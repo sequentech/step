@@ -150,6 +150,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const openImportDrawer = () => {
+        setErrors(null)
         toggleImportDrawer(true)
     }
 
@@ -193,7 +194,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const handleSubmit = async (values: any): Promise<void> => {
-        const currWidget = addWidget(ETasksExecution.CREATE_ELECTION_EVENT)
+        const currWidget = addWidget(ETasksExecution.CREATE_ELECTION_EVENT, undefined)
         let electionSubmit = values as IElectionEventSubmit
         let i18n = addDefaultTranslationsToElement(electionSubmit)
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
@@ -276,7 +277,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
         setIsLoading(false)
         setErrors(null)
 
-        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT)
+        const currWidget = addWidget(ETasksExecution.IMPORT_ELECTION_EVENT, undefined)
 
         try {
             let {data, errors} = await importElectionEvent({

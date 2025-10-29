@@ -11,6 +11,7 @@ module.exports = {
 
   test_settings: {
     default: {
+      filter: "**/*.{js,ts}",
       desiredCapabilities: {
         browserName: "chrome",
         'goog:chromeOptions': {

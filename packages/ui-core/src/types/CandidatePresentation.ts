@@ -8,6 +8,11 @@ export interface ICandidateUrl {
     is_image: boolean
 }
 
+export enum IInvalidVotePosition {
+    TOP = "top",
+    BOTTOM = "bottom",
+}
+
 export interface ICandidatePresentation {
     i18n?: Record<string, Record<string, string>>
     is_explicit_invalid?: boolean

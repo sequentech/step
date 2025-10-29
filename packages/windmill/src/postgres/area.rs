@@ -33,6 +33,7 @@ impl TryFrom<Row> for AreaWrapper {
             parent_id: item
                 .try_get::<_, Option<Uuid>>("parent_id")?
                 .map(|val| val.to_string()),
+            presentation: item.try_get("presentation")?,
         }))
     }
 }
@@ -40,7 +41,7 @@ impl TryFrom<Row> for AreaWrapper {
  * Returns a vector of areas per election event, with the posibility of
  * filtering by area_id
  */
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, area_ids), err)]
 pub async fn get_areas(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -283,7 +284,8 @@ pub async fn get_area_by_id(
                 name,
                 description,
                 type,
-                parent_id
+                parent_id,
+                presentation
             FROM
                 sequent_backend.area
             WHERE
@@ -372,9 +374,9 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
         .prepare(
             r#"
                 INSERT INTO sequent_backend.area
-                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id)
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id, presentation)
                 VALUES
-                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9);
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10);
             "#,
         )
         .await?;
@@ -398,6 +400,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
                     &area.description,
                     &area.r#type,
                     &parent_id,
+                    &area.presentation,
                 ],
             )
             .await
@@ -615,7 +618,8 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
                     name = $3,
                     description = $4,
                     type = $5,
-                    parent_id = $6
+                    parent_id = $6,
+                    presentation = $10
                 WHERE id = $7 AND tenant_id = $8 AND election_event_id = $9;
                 "#,
         )
@@ -640,6 +644,7 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
                 &Uuid::parse_str(&area.id)?,
                 &Uuid::parse_str(&area.tenant_id)?,
                 &Uuid::parse_str(&area.election_event_id)?,
+                &area.presentation,
             ],
         )
         .await
@@ -654,9 +659,9 @@ pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
         .prepare(
             r#"
                 INSERT INTO sequent_backend.area
-                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id)
+                (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id, presentation)
                 VALUES
-                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9);
+                ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10);
             "#,
         )
         .await?;
@@ -680,6 +685,7 @@ pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
                 &area.description,
                 &area.r#type,
                 &parent_id,
+                &area.presentation,
             ],
         )
         .await

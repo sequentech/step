@@ -1317,8 +1317,30 @@ actions:
           - role: area-create
           - role: area-write
       comment: upsert_areas
+    - name: generate_google_meet
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/generate-google-meeting
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: google-meet-link
+      comment: generate Google Meet link for election events
 custom_types:
     enums:
+        - name: EarlyVotingPolicy
+          values:
+              - description: null
+                is_deprecated: null
+                value: allow_early_voting
+              - description: null
+                is_deprecated: null
+                value: no_early_voting
         - name: ReportEncryptionPolicy
           values:
               - description: null
@@ -1365,6 +1387,9 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: KIOSK
+              - description: null
+                is_deprecated: null
+                value: EARLY_VOTING
     input_objects:
         - name: TemplateInput
         - name: PgAuditFilter

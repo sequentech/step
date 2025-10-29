@@ -109,6 +109,18 @@ const basqueTranslation: TranslationType = {
                 header: "Ez dago Eremurik oraindik.",
                 action: "Sortu Eremua",
             },
+            formImputs: {
+                allowEarlyVoting: "Onartu Goiztiarra Bozketa",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
+                gapiEmail: "Google Calendar Autentifikazio Helbide Elektronikoa",
+            },
+            errors: {
+                invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -147,6 +159,7 @@ const basqueTranslation: TranslationType = {
                 templates: "TXANTILOIAK",
                 languages: "HIZKUNTZAK",
                 localization: "LOKALIZAZIOA",
+                integrations: "Integrazioak",
                 lookAndFeel: "Itxura eta Sentimendua",
                 schedules: "PROGRAMATUTAKO GERTAERAK",
                 trustees: "FIDEIKOMISARIOAK",
@@ -344,6 +357,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Zeremonia automatikoak baimendu",
                         "manual-ceremonies": "Eskuzko zeremoniak",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Bozketa Ponderatuaren Politika",
+                    options: {
+                        "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
                 },
                 delegationsPolicy: {
@@ -959,6 +979,7 @@ const basqueTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editatu bozkatzaileen email/telefono eremuak",
                 "cloudflare-write": "Editatu Herrialde Blokeo Arauak Cloudflare-n",
                 "transmission-report-generate": "Sortu Transmisio Txostena",
+                "google-meet-link": "Google Meet Esteka Sortu",
             },
         },
         generalSettingsScreen: {
@@ -1085,6 +1106,25 @@ const basqueTranslation: TranslationType = {
                 preview: "Aurreikusi",
             },
         },
+        googleMeet: {
+            title: "Google Meet Esteka Sortu",
+            generateButton: "Google Meet",
+            meetingTitle: "Bileraren Izenburua",
+            description: "Deskribapena (Aukerakoa)",
+            startDate: "Hasiera Data",
+            startTime: "Hasiera Ordua",
+            duration: "Iraupena (minutuak)",
+            attendeeEmails: "Partaideen Emailak",
+            attendeeEmailHelp: "Komaz banandutako emailak bilerako partaideentzat",
+            note: "Oharra: Honek zure Google Calendar-en gertaera bat sortuko du Google Meet esteka batekin. Zure Google kontuan saioa hasi beharko duzu.",
+            success: "Google Meet Esteka Arrakastaz Sortua!",
+            copy: "Arbelera kopiatu",
+            copied: "Esteka arbelera kopiatua!",
+            instructions:
+                "Partekatu esteka hau partaideekin bileran parte hartzeko. Egutegi gertaera zure Google Calendar-era gehitu da.",
+            generating: "Sortzen...",
+            generate: "Meet Esteka Sortu",
+        },
         common: {
             export: "Esportazioa eragiketa luzea izan daiteke. Ziur zaude erregistroak esportatu nahi dituzula?",
             resources: {
@@ -1142,6 +1182,7 @@ const basqueTranslation: TranslationType = {
             channel: {
                 online: "Linea",
                 kiosk: "Kiosko",
+                early_voting: "Aurre-botoa",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
@@ -1243,6 +1284,12 @@ const basqueTranslation: TranslationType = {
                 "semi-open-list": "Zerrenda Erdi Irekia",
                 "invalid-vote": "Baliogabeko Botoa",
                 "blank-vote": "Boto Zuria",
+            },
+            invalidVotePosition: {
+                label: "Baliogabeko Botoaren Posizioa",
+                null: "Ezer ez (Lehenetsia)",
+                top: "Goian",
+                bottom: "Behean",
             },
             error: {},
             createCandidateSuccess: "Hautagaia sortua",
@@ -1615,6 +1662,14 @@ const basqueTranslation: TranslationType = {
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
+                weight: "Pisua",
+            },
+            chart: {
+                votesForCandidates: "Hautagaientzako Botoak",
+                blankVotes: "Boto Zuriak",
+                invalidVotes: "Boto Baliogabeak",
+                totalVoters: "Bozkatzaile Guztiak",
+                nonVoters: "Ez-bozkatzaileak",
             },
         },
         publish: {
@@ -1634,9 +1689,17 @@ const basqueTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Sortu Hasierako Txostena",
                 startVotingPeriod: "Hasi Bozketa",
+                startKioskVoting: "Hasi Kiosko Bozketa",
+                startOnlineVoting: "Hasi Online Bozketa",
+                startEarlyVoting: "Hasi Aurre-botoa",
                 stopVotingPeriod: "Gelditu Bozketa",
+                stopOnlineVoting: "Gelditu Online Bozketa",
+                stopEarlyVoting: "Gelditu Aurre-botoa",
                 stopKioskVotingPeriod: "Gelditu Kiosko Bozketa",
                 pauseVotingPeriod: "Pausatu Bozketa",
+                pauseKioskVoting: "Pausatu Kiosko Bozketa",
+                pauseOnlineVoting: "Pausatu Online Bozketa",
+                pauseEarlyVoting: "Pausatu Aurre-botoa",
                 generate: "Bersortu",
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",

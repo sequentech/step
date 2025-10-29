@@ -9,6 +9,7 @@ use crate::ballot::{
     ElectionStatistics, ElectionStatus,
 };
 use anyhow::{anyhow, Result};
+use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::default::Default;

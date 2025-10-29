@@ -109,6 +109,18 @@ const catalanTranslation: TranslationType = {
                 header: "No hi ha Àrees encara.",
                 action: "Crear una Àrea",
             },
+            formImputs: {
+                allowEarlyVoting: "Permetre Votació Anticipada",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clau de Compte de Servei de Google Calendar",
+                gapiEmail: "Correu d'Autenticació de Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clau de Compte de Servei de Google Calendar invàlid",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -147,6 +159,7 @@ const catalanTranslation: TranslationType = {
                 templates: "PLANTILLES",
                 localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
+                integrations: "INTEGRACIONS",
                 lookAndFeel: "PERSONALITZACIÓ D'APARENÇA",
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
@@ -344,6 +357,13 @@ const catalanTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Permetre cerimònies automàtiques",
                         "manual-ceremonies": "Cerimònies manuals",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votació Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votació Ponderada per Àrees",
+                        "disabled-weighted-voting": "Votació Ponderada Desactivada",
                     },
                 },
                 delegationsPolicy: {
@@ -973,6 +993,7 @@ const catalanTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Edita els camps de correu electrònic/telèfon dels votants",
                 "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmissió",
+                "google-meet-link": "Generar Enllaç de Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1099,6 +1120,25 @@ const catalanTranslation: TranslationType = {
                 preview: "Previsualitzar",
             },
         },
+        googleMeet: {
+            title: "Generar Enllaç de Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Títol de la Reunió",
+            description: "Descripció (Opcional)",
+            startDate: "Data d'Inici",
+            startTime: "Hora d'Inici",
+            duration: "Durada (minuts)",
+            attendeeEmails: "Emails dels Participants",
+            attendeeEmailHelp: "Emails separats per comes per als participants de la reunió",
+            note: "Nota: Això crearà un esdeveniment de calendari al teu Google Calendar amb un enllaç de Google Meet. Necessitaràs iniciar sessió al teu compte de Google.",
+            success: "Enllaç de Google Meet Generat Correctament!",
+            copy: "Copiar al porta-retalls",
+            copied: "Enllaç copiat al porta-retalls!",
+            instructions:
+                "Comparteix aquest enllaç amb els participants per unir-se a la reunió. L'esdeveniment de calendari s'ha afegit al teu Google Calendar.",
+            generating: "Generant...",
+            generate: "Generar Enllaç de Meet",
+        },
         common: {
             export: "L'exportació pot ser un procés llarg. Estàs segur que vols exportar?",
             resources: {
@@ -1156,6 +1196,7 @@ const catalanTranslation: TranslationType = {
             channel: {
                 online: "En línia",
                 kiosk: "Quiosc",
+                early_voting: "Votació anticipada",
             },
             message: {
                 delete: "Estàs segur que vols esborrar aquest element?",
@@ -1257,6 +1298,12 @@ const catalanTranslation: TranslationType = {
                 "semi-open-list": "Llista semioberta",
                 "invalid-vote": "Vot Invàlid",
                 "blank-vote": "Vot en blanc",
+            },
+            invalidVotePosition: {
+                label: "Posició del Vot Invàlid",
+                null: "Cap (Per defecte)",
+                top: "Superior",
+                bottom: "Inferior",
             },
             error: {},
             createCandidateSuccess: "Candidat creat",
@@ -1629,6 +1676,14 @@ const catalanTranslation: TranslationType = {
                 blank_votes_percent: "Percentatge de vots en blanc",
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
+                weight: "Pes",
+            },
+            chart: {
+                votesForCandidates: "Vots per Candidats",
+                blankVotes: "Vots en Blanc",
+                invalidVotes: "Vots Invàlids",
+                totalVoters: "Total de Votants",
+                nonVoters: "No Votants",
             },
         },
         publish: {
@@ -1648,9 +1703,17 @@ const catalanTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Genera l'Informe d'Inicialització",
                 startVotingPeriod: "Començar el període de votació",
+                startKioskVoting: "Començar Votació al Quiosc",
+                startOnlineVoting: "Començar Votació en Línia",
+                startEarlyVoting: "Començar Votació Anticipada",
                 stopVotingPeriod: "Detenir el període de votació",
+                stopOnlineVoting: "Detenir la Votació en Línia",
+                stopEarlyVoting: "Detenir la Votació Anticipada",
                 stopKioskVotingPeriod: "Aturar la Votació al Quiosc",
                 pauseVotingPeriod: "Pausar el període de votació",
+                pauseKioskVoting: "Pausar la Votació al Quiosc",
+                pauseOnlineVoting: "Pausar la Votació en Línia",
+                pauseEarlyVoting: "Pausar la Votació Anticipada",
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",

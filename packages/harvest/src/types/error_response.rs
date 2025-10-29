@@ -27,6 +27,7 @@ pub enum ErrorCode {
     GetAreaIdFailed,
     GetTransactionFailed,
     DeserializeBallotFailed,
+    DeserializeAreaPresentationFailed,
     DeserializeContestsFailed,
     PokValidationFailed,
     UuidParseFailed,

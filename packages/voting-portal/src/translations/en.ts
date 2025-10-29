@@ -8,6 +8,8 @@ const englishTranslation = {
     translations: {
         common: {
             goBack: "Go back",
+            showMore: "Show More",
+            showLess: "Show Less",
         },
         breadcrumbSteps: {
             electionList: "Ballot List",
@@ -33,6 +35,14 @@ const englishTranslation = {
                 title: "Invalid or blank vote",
                 content:
                     "Some of your answers will render the ballot in one or more questions invalid or blank.",
+                ok: "Back and review",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
+            warningDialog: {
+                title: "Review your ballot",
+                content:
+                    "Your ballot contains selections that may need your attention (such as selecting fewer options than allowed). Your ballot is valid and will be counted as submitted.",
                 ok: "Back and review",
                 continue: "Continue",
                 cancel: "Cancel",
@@ -358,6 +368,7 @@ const englishTranslation = {
                 statement_timestamp: "Statement Timestamp",
                 username: "Username",
                 ballot_id: "Ballot ID",
+                message: "Message",
             },
         },
     },

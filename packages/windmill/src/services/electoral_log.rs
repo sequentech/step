@@ -57,6 +57,18 @@ pub struct ElectoralLog {
     pub(crate) elog_database: String,
 }
 
+pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
+    election_ids
+        .map(|ids| {
+            if ids.len() == 1 {
+                Some(ids[0].clone())
+            } else {
+                None
+            }
+        })
+        .flatten()
+}
+
 impl ElectoralLog {
     #[instrument(err, name = "ElectoralLog::new")]
     pub async fn new(
@@ -151,7 +163,7 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
-    #[instrument(err)]
+    #[instrument(err, skip(hasura_transaction))]
     pub async fn for_admin_user(
         hasura_transaction: &Transaction<'_>,
         elog_database: &str,
@@ -159,9 +171,10 @@ impl ElectoralLog {
         election_event_id: &str,
         user_id: &str,
         username: Option<String>,
-        elections_ids: Option<String>,
+        election_ids_vec: Option<Vec<String>>,
         user_area_id: Option<String>,
     ) -> Result<Self> {
+        let election_ids = flatten_election_ids(election_ids_vec);
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(
             hasura_transaction,
             tenant_id,
@@ -177,7 +190,7 @@ impl ElectoralLog {
             tenant_id,
             user_id,
             username,
-            elections_ids,
+            election_ids,
             user_area_id,
         )
         .await?;
@@ -403,13 +416,14 @@ impl ElectoralLog {
     pub async fn post_election_published(
         &self,
         event_id: String,
-        election_id: Option<String>,
+        election_ids_vec: Option<Vec<String>>,
         ballot_pub_id: String,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id.clone());
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids.clone());
         let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
 
         let message = Message::election_published_message(
@@ -544,12 +558,13 @@ impl ElectoralLog {
         event_id: String,
         user_id: Option<String>,
         username: Option<String>,
-        elections_ids: Option<String>,
+        election_ids_vec: Option<Vec<String>>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
 
         let message =
-            Message::key_insertion_start(event, &self.sd, user_id, username, elections_ids)?;
+            Message::key_insertion_start(event, &self.sd, user_id, username, election_ids)?;
 
         self.post(&message).await
     }
@@ -561,10 +576,11 @@ impl ElectoralLog {
         trustee_name: String,
         user_id: Option<String>,
         username: Option<String>,
-        elections_ids: String,
+        election_ids_vec: Option<Vec<String>>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
         let trustee_name = TrusteeNameString(trustee_name);
+        let election_ids = flatten_election_ids(election_ids_vec);
 
         let message = Message::key_insertion_message(
             event,
@@ -572,7 +588,7 @@ impl ElectoralLog {
             &self.sd,
             user_id,
             username,
-            Some(elections_ids),
+            election_ids,
         )?;
 
         self.post(&message).await
@@ -582,12 +598,13 @@ impl ElectoralLog {
     pub async fn post_tally_open(
         &self,
         event_id: String,
-        election_id: Option<String>,
+        election_ids_vec: Option<Vec<String>>,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
 
         let message = Message::tally_open_message(event, election, &self.sd, user_id, username)?;
 
@@ -598,12 +615,13 @@ impl ElectoralLog {
     pub(crate) async fn post_tally_close(
         &self,
         event_id: String,
-        election_id: Option<String>,
+        election_ids_vec: Option<Vec<String>>,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
         let event = EventIdString(event_id);
-        let election = ElectionIdString(election_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
 
         let message = Message::tally_close_message(event, election, &self.sd, user_id, username)?;
 
@@ -631,6 +649,7 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
@@ -1092,6 +1111,7 @@ pub struct CastVoteEntry {
     pub statement_kind: String,
     pub ballot_id: String,
     pub username: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -1101,17 +1121,19 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(
-        entry: &ElectoralLogMessage,
-        input_username: &str,
-    ) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
-        let username = entry.username.clone().filter(|s| s.eq(input_username)); // Keep other usernames anonymous on the table
+        let username = entry.username.clone();
+        let message: &Message = &Message::strand_deserialize(&entry.message)
+            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+        let message = Some(message.to_string());
+
         Ok(Some(CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,
             statement_kind: StatementType::CastVote.to_string(),
             ballot_id,
             username,
+            message,
         }))
     }
 }
@@ -1284,7 +1306,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message, username)? {
+            match CastVoteEntry::from_elog_message(&message)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;

@@ -80,6 +80,10 @@ export enum EElectionEventDelegationsPolicy {
     DISABLED = "disabled",
 }
 
+export enum EElectionEventWeightedVotingPolicy {
+    AREAS_WEIGHTED_VOTING = "areas-weighted-voting",
+    DISABLED_WEIGHTED_VOTING = "disabled-weighted-voting",
+}
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -99,5 +103,6 @@ export interface IElectionEventPresentation {
     enrollment: EElectionEventEnrollment
     otp: EElectionEventOTP
     ceremonies_policy: EElectionEventCeremoniesPolicy
+    weighted_voting_policy: EElectionEventWeightedVotingPolicy
     delegations_policy: EElectionEventDelegationsPolicy
 }
