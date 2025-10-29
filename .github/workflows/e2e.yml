@@ -5,7 +5,7 @@
 name: E2E Tests
 on:
   workflow_dispatch:
-    input:
+    inputs:
       tag:
         description: 'The Tag of the Load Test Image'
         required: true
