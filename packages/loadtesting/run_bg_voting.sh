@@ -50,7 +50,7 @@ KEEP_PARALLEL_FILES="false"               # set true to keep generated tests
 NW_ENV="default"                          # Nightwatch env (default=headless, chrome=non-headless)
 ENABLE_VOTER_TRACKING="true"              # enable anti-double-voting (default: true)
 PREVIOUS_VOTERS_FILE=""                   # path to previous run's used_voters.txt to exclude
-VOTER_MIN_INDEX=1
+VOTER_MIN_INDEX=1                         # voter indexes will range from [VOTER_MIN_INDEX, VOTER_MIN_INDEX + NUMBER_OF_VOTERS)
 
 
 # Parse arguments
