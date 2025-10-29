@@ -22,6 +22,8 @@ New parameters:
   load testing across multiple machines.
 - `--keep-parallel-files`: Updated to also preserve the `used_voters.txt`
   tracking file for inspection.
+- `voter-min-index`: The ids for the voters will be selected between 
+- `voter-min-index` and `voter-min-index + number-of-voters - 1`.
 
 This prevents test failures when the election does not allow revoting, as the
 system will automatically retry with a different voter when a collision is
