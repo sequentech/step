@@ -15,4 +15,3 @@ $config['store.type'] = 'memcache';
 // $config['store.sql.username'] = null;
 // $config['store.sql.password'] = null;
 // $config['session.cookie.secure'] = false;
-
