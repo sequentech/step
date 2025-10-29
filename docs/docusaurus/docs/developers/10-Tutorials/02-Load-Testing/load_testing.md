@@ -217,6 +217,8 @@ Key flags and environment variables:
     - Allows running another test file, e.g., `nightwatch/src/voting2.js`.
   - `--keep-parallel-files`
     - Keeps the generated duplicate test files and the `used_voters.txt` tracking file under `/nightwatch/src/_parallel_<RUN_ID>` for inspection. By default, these are cleaned up after the test completes.
+  - `--voter-min-index` (default: `1`)
+    - The ids for the voters will be selected between `voter-min-index` and `voter-min-index + number-of-voters - 1`. 
 
 Outputs and logs:
 - Aggregated Nightwatch log: `/logs/nightwatch_<timestamp>.log` (inside the container).

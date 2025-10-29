@@ -91,6 +91,7 @@ module.exports = {
     const url = process.env.VOTING_URL;
     const passwordPattern = process.env.PASSWORD_PATTERN || 'user{n}';
     const numberOfVoters = parseInt(process.env.NUMBER_OF_VOTERS, 10) || 4096;
+    const voterMinIndex = parseInt(process.env.VOTER_MIN_INDEX, 10) || 1;
     const usernamePattern = process.env.USERNAME_PATTERN || 'user{n}';
     const saveScreenshots = (process.env.SAVE_SCREENSHOTS || 'false').toLowerCase() !== 'false';
     const numberOfIterations = process.env.NUMBER_OF_ITERATIONS
@@ -99,7 +100,7 @@ module.exports = {
 
     // ---- helpers ----------------------------------------------------------
     const getRandomIndex = () => {
-      const rnd = Math.floor(Math.random() * numberOfVoters) + 1;
+      const rnd = Math.floor(Math.random() * numberOfVoters) + voterMinIndex;
       return `${rnd}`;
     };
 
