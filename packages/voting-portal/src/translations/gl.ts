@@ -8,6 +8,8 @@ const galegoTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Volver",
+            showMore: "Mostrar Máis",
+            showLess: "Mostrar Menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Papeletas",
@@ -370,6 +372,7 @@ const galegoTranslation: TranslationType = {
                 statement_timestamp: "Marca de tempo",
                 username: "Nome de usuario",
                 ballot_id: "ID da papeleta",
+                message: "Mensaxe",
             },
         },
     },

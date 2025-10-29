@@ -39,11 +39,11 @@
     "flake-compat": {
       "flake": false,
       "locked": {
-        "lastModified": 1747046372,
+        "lastModified": 1761588595,
         "owner": "edolstra",
         "repo": "flake-compat",
-        "rev": "9100a0f413b0c601e0533d1d94ffd501ce2e7885",
-        "treeHash": "f6756136d708454994fcf44486c707d455fb7bfb",
+        "rev": "f387cd2afec9419c8ee37694406ca490c3f34ee5",
+        "treeHash": "39896b0f8854c066ba1a6284eaffd74a748ebf59",
         "type": "github"
       },
       "original": {
@@ -97,11 +97,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1759523803,
+        "lastModified": 1760663237,
         "owner": "cachix",
         "repo": "pre-commit-hooks.nix",
-        "rev": "cfc9f7bb163ad8542029d303e599c0f7eee09835",
-        "treeHash": "d135c99f467e3d170f872ebbe26a2a48974393ae",
+        "rev": "ca5b894d3e3e151ffc1db040b6ce4dcc75d31c37",
+        "treeHash": "3870404d1ea012b6a847acf5df2b9ee4b1b39f6d",
         "type": "github"
       },
       "original": {

@@ -12,6 +12,7 @@ import {
     InfoDataBox,
     IconButton,
     Dialog,
+    ExpandableText,
 } from "@sequentech/ui-essentials"
 import {stringToHtml, EShowCastVoteLogsPolicy} from "@sequentech/ui-core"
 import {Box, TextField, Typography, Button, Stack} from "@mui/material"
@@ -27,7 +28,7 @@ import {
     GetElectionEventQuery,
     ListCastVoteMessagesQuery,
 } from "../gql/graphql"
-import {faAngleLeft, faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
+import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
@@ -311,7 +312,13 @@ const BallotLocator: React.FC = () => {
                     somethingWentWrongErr={somethingWentWrongErr}
                 />
             </CustomTabPanel>
-            <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
+            <Box
+                sx={{
+                    order: {xs: 1, md: 2},
+                    marginTop: "20px",
+                    marginLeft: {xs: "16px", md: "16px"},
+                }}
+            >
                 <StyledLink
                     to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
                 >
@@ -336,6 +343,67 @@ interface LogsTableProps {
     somethingWentWrongErr: boolean
 }
 
+interface MessageCellProps {
+    message: string | null
+    initialLength: number
+}
+
+const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
+    const {t} = useTranslation()
+    const formatJson = (json: string) => {
+        try {
+            return JSON.stringify(JSON.parse(json), null, 2)
+        } catch {
+            return json
+        }
+    }
+
+    if (!message) {
+        return <div>-</div>
+    }
+
+    const formattedMessage = formatJson(message)
+
+    return (
+        <Box sx={{position: "relative", width: "100%"}}>
+            <IconButton
+                icon={faCopy}
+                size="xs"
+                onClick={() => navigator.clipboard.writeText(formattedMessage)}
+                sx={{
+                    "position": "absolute",
+                    "top": "4px",
+                    "left": "4px",
+                    "zIndex": 1,
+                    "backgroundColor": "rgba(255, 255, 255, 0.8)",
+                    "&:hover": {
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                    },
+                    "minWidth": "20px",
+                    "minHeight": "20px",
+                    "padding": "2px",
+                }}
+            />
+            <Box
+                sx={{
+                    "paddingLeft": "28px",
+                    "& > div > div:last-child": {
+                        justifyContent: "flex-start !important",
+                    },
+                }}
+            >
+                <ExpandableText
+                    text={formattedMessage}
+                    initialLength={initialLength}
+                    showMoreLabel={t("common.showMore")}
+                    showLessLabel={t("common.showLess")}
+                    preformatted={true}
+                />
+            </Box>
+        </Box>
+    )
+}
+
 const LogsTable: React.FC<LogsTableProps> = ({
     rows,
     total,
@@ -349,6 +417,18 @@ const LogsTable: React.FC<LogsTableProps> = ({
     const {t} = useTranslation()
     const [orderBy, setOrderBy] = useState<string>("")
     const [order, setOrder] = useState<"desc" | "asc" | undefined>("desc")
+    const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth)
+
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth)
+        window.addEventListener("resize", handleResize)
+        return () => window.removeEventListener("resize", handleResize)
+    }, [])
+
+    // Calculate initialLength: 20 at 1200px+, scale down faster (quadratic) below 1200px
+    const ratio = windowWidth / 1200
+    const initialLength =
+        windowWidth >= 1200 ? 20 : Math.max(3, Math.floor(ratio * ratio * ratio * 20))
 
     const onClickHeader = (headerName: string) => {
         setOrderBy(headerName)
@@ -360,56 +440,162 @@ const LogsTable: React.FC<LogsTableProps> = ({
     return (
         <>
             <StyledTitle variant="h5">{t("ballotLocator.totalBallots", {total})}</StyledTitle>
-            <TableContainer component={Paper}>
-                <Table sx={{minWidth: 650}} aria-label="simple table">
+            <TableContainer component={Paper} sx={{overflowX: "auto", width: "100%"}}>
+                <Table
+                    sx={{
+                        "tableLayout": "auto",
+                        "& .MuiTableCell-root": {
+                            border: "1px solid #e0e0e0",
+                        },
+                    }}
+                    aria-label="simple table"
+                >
                     <TableHead>
                         <TableRow>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "username"}
                                     direction={orderBy === "username" ? order : "asc"}
                                     onClick={() => onClickHeader("username")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "ballot_id"}
                                     direction={orderBy === "ballot_id" ? order : "asc"}
                                     onClick={() => onClickHeader("ballot_id")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.ballot_id")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_kind"}
                                     direction={orderBy === "statement_kind" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_kind")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.statement_kind")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="justify" sx={{fontWeight: "bold"}}>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
                                 <TableSortLabel
                                     active={orderBy === "statement_timestamp"}
                                     direction={orderBy === "statement_timestamp" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_timestamp")}
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
                                 >
                                     {t("ballotLocator.column.statement_timestamp")}
                                 </TableSortLabel>
+                            </TableCell>
+                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        textAlign: "center",
+                                    }}
+                                >
+                                    {t("ballotLocator.column.message")}
+                                </Box>
                             </TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {rows.map((row, index) => (
                             <TableRow key={index}>
-                                <TableCell align="justify">{row.username ?? "****"}</TableCell>
-                                <TableCell align="justify">{row.ballot_id}</TableCell>
-                                <TableCell align="justify">{row.statement_kind}</TableCell>
-                                <TableCell align="justify">
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
+                                    {row.username ?? "-"}
+                                </TableCell>
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
+                                    {initialLength < 10 ? (
+                                        <ExpandableText
+                                            text={row.ballot_id}
+                                            initialLength={initialLength}
+                                            showMoreLabel={t("common.showMore")}
+                                            showLessLabel={t("common.showLess")}
+                                            preformatted={true}
+                                        />
+                                    ) : (
+                                        row.ballot_id
+                                    )}
+                                </TableCell>
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
+                                    {row.statement_kind}
+                                </TableCell>
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
                                     {new Date(row.statement_timestamp * 1000).toUTCString()}
+                                </TableCell>
+                                <TableCell
+                                    align="justify"
+                                    sx={{
+                                        wordBreak: "break-all",
+                                        whiteSpace: "normal",
+                                        padding: "2px 4px",
+                                    }}
+                                >
+                                    <MessageCell
+                                        message={row.message}
+                                        initialLength={initialLength}
+                                    />
                                 </TableCell>
                             </TableRow>
                         ))}

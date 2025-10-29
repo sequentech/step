@@ -31,6 +31,9 @@
  *                          Username pattern, {n} will be replaced with a random
  *                          number
  *   SAVE_SCREENSHOTS     - (default: 'false') Whether to save screenshots
+ *   PARALLEL_DIR         - Directory containing shared used_voters.txt file
+ *   VOTER_CLAIM_MAX_RETRIES - (default: 100) Max attempts to claim unique voter
+ *   VOTER_LOCK_TIMEOUT_MS - (default: 10000) Lock acquisition timeout
  *
  * The script will run in an infinite loop, simulating a new cast vote each
  * iteration.
@@ -38,6 +41,119 @@
  * Screenshots are saved for each major step for debugging and audit purposes, 
  * in case it is enabled.
  */
+
+// ============================================================================
+// Shared Voter Tracking (Anti-Double-Voting for Parallel Instances)
+// ============================================================================
+// When running parallel Nightwatch instances, we need to ensure each voter
+// is used only once across all instances. We use a shared file in $PARALLEL_DIR
+// to track which voters have been claimed.
+//
+// Files:
+//   - $PARALLEL_DIR/used_voters.txt: One username per line for claimed voters
+//   - $PARALLEL_DIR/used_voters.lock: Lock file to serialize check-and-claim
+//
+// Environment variables for tuning:
+//   - VOTER_CLAIM_MAX_RETRIES (default: 100): Max attempts to claim a voter
+//   - VOTER_LOCK_TIMEOUT_MS (default: 10000): Max time to wait for lock
+// ============================================================================
+
+const fs = require('fs');
+const path = require('path');
+
+const PARALLEL_DIR = process.env.PARALLEL_DIR || '.';
+const ENABLE_VOTER_TRACKING = (process.env.ENABLE_VOTER_TRACKING || 'true').toLowerCase() === 'true';
+const USED_VOTERS_FILE = path.join(PARALLEL_DIR, 'used_voters.txt');
+const USED_VOTERS_LOCK = path.join(PARALLEL_DIR, 'used_voters.lock');
+const MAX_VOTER_CLAIM_ATTEMPTS = parseInt(process.env.VOTER_CLAIM_MAX_RETRIES || '100', 10);
+const LOCK_TIMEOUT_MS = parseInt(process.env.VOTER_LOCK_TIMEOUT_MS || '10000', 10);
+
+// Ensure directory exists (defensive, script should already create it)
+try { fs.mkdirSync(PARALLEL_DIR, { recursive: true }); } catch (_) {}
+
+// Helper to read existing used voters; empty on first run
+function readUsedVotersSet() {
+  try {
+    const data = fs.readFileSync(USED_VOTERS_FILE, 'utf8');
+    return new Set(data.split('\n').map(s => s.trim()).filter(Boolean));
+  } catch (err) {
+    if (err.code === 'ENOENT') return new Set();
+    throw err;
+  }
+}
+
+// Append a claimed voter atomically (append is atomic on POSIX)
+function appendUsedVoter(username) {
+  fs.appendFileSync(USED_VOTERS_FILE, username + '\n', { encoding: 'utf8', flag: 'a', mode: 0o644 });
+}
+
+// Sleep helper for async backoff
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// Acquire exclusive lock by atomically creating a lock file
+async function acquireLock(lockPath, { timeoutMs = 10000 } = {}) {
+  const start = Date.now();
+  let attempts = 0;
+  while (true) {
+    try {
+      const fd = fs.openSync(lockPath, 'wx'); // exclusive create
+      fs.closeSync(fd);
+      return;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      attempts++;
+      if (Date.now() - start > timeoutMs) {
+        throw new Error(`Timeout acquiring lock ${lockPath} after ${attempts} attempts`);
+      }
+      // Small randomized backoff to reduce contention
+      const delay = 10 + Math.floor(Math.random() * 40);
+      await sleep(delay);
+    }
+  }
+}
+
+// Release lock by deleting the lock file
+function releaseLock(lockPath) {
+  try {
+    fs.unlinkSync(lockPath);
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
+}
+
+// Claim a random voter atomically with retry logic
+async function claimRandomVoter(getRandomCandidate, {
+  maxAttempts = MAX_VOTER_CLAIM_ATTEMPTS,
+  lockTimeoutMs = LOCK_TIMEOUT_MS
+} = {}) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const candidate = getRandomCandidate();
+
+    await acquireLock(USED_VOTERS_LOCK, { timeoutMs: lockTimeoutMs });
+    try {
+      const used = readUsedVotersSet();
+      if (!used.has(candidate)) {
+        appendUsedVoter(candidate);
+        if (attempt > 1) {
+          console.warn(`[voting] Claimed voter after ${attempt} attempts due to collisions: ${candidate}`);
+        }
+        return candidate;
+      }
+    } finally {
+      releaseLock(USED_VOTERS_LOCK);
+    }
+
+    if (attempt % 5 === 0) {
+      console.warn(`[voting] Voter collision for ${candidate} (attempt ${attempt}/${maxAttempts}). Retrying...`);
+    }
+    // Small jitter to reduce herd behavior
+    await sleep(5 + Math.floor(Math.random() * 25));
+  }
+
+  throw new Error(`[voting] Unable to claim a unique voter after ${maxAttempts} attempts. Voter pool likely exhausted.`);
+}
 
 module.exports = {
     'Automated Voting Test': function (browser) {
@@ -126,9 +242,16 @@ module.exports = {
         }
 
         // Recursively call vote() to simulate continuous load; this is
+        // Recursively call vote() to simulate continuous load; this is
         // intentional to generate a high load on the voting system
-        function vote(iteration) {
-            const idx = getRandomIndex(numberOfVoters)
+        async function vote(iteration) {
+            // Claim a unique voter (if tracking enabled) or use random selection
+            let idx;
+            if (ENABLE_VOTER_TRACKING) {
+                idx = await claimRandomVoter(() => getRandomIndex(numberOfVoters));
+            } else {
+                idx = getRandomIndex(numberOfVoters);
+            }
             const username = getPattern(idx, usernamePattern);
             const password = getPattern(idx, passwordPattern);
             console.log(`Starting iteration ${iteration} for: ${username}`);
