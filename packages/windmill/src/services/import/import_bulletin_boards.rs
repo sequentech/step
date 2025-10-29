@@ -199,7 +199,7 @@ pub async fn import_protocol_manager_keys(
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(err, skip(replacement_map))]
 pub async fn import_bulletin_boards(
     tenant_id: &str,
     election_event_id: &str,

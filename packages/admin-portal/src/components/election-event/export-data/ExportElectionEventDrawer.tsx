@@ -152,10 +152,17 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleTallyCheckBox = (newValue: boolean) => {
+    const toggleTallyCheckbox = (newValue: boolean) => {
         setTally(newValue)
         if (newValue) {
             toggleCheckBoxWithPassword(setBulletinBoard, newValue)
+            setS3Files(newValue)
+        }
+    }
+    const toggleS3FilesCheckbox = (newValue: boolean) => {
+        setS3Files(newValue)
+        if (!newValue && tally) {
+            setTally(false)
         }
     }
 
@@ -227,8 +234,17 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <StyledCheckbox
+                                checked={tally}
+                                onChange={() => toggleTallyCheckbox(!tally)}
+                            />
+                        }
+                        label={t("electionEventScreen.export.tally")}
+                    />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
                                 checked={s3Files}
-                                onChange={() => setS3Files(!s3Files)}
+                                onChange={() => toggleS3FilesCheckbox(!s3Files)}
                             />
                         }
                         label={t("electionEventScreen.export.s3Files")}
@@ -261,15 +277,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             />
                         }
                         label={t("electionEventScreen.export.applications")}
-                    />
-                    <FormControlLabel
-                        control={
-                            <StyledCheckbox
-                                checked={tally}
-                                onChange={() => toggleTallyCheckBox(!tally)}
-                            />
-                        }
-                        label={"Tally"}
                     />
                 </FormGroup>
             </Dialog>

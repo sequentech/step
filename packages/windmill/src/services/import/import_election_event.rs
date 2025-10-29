@@ -84,10 +84,10 @@ use crate::services::protocol_manager::{
 };
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
     pub tenant_id: Uuid,
@@ -799,13 +799,41 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
-#[instrument(err, skip(hasura_transaction, temp_file_path))]
+async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
+    // Regex to match the UUID after "document_"
+    let re = Regex::new(
+        r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
+    )
+    .ok()
+    .ok_or_else(|| anyhow!("Invalid regex"))?;
+
+    let uuid = re
+        .captures(filename)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str()));
+    Ok(uuid)
+}
+
+async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
+    let re = Regex::new(
+        r"document_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)"
+    )
+    .ok()
+    .ok_or_else(|| anyhow!("Invalid regex"))?;
+
+    let name = re
+        .captures(filename)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str()));
+    Ok(name)
+}
+
+#[instrument(err, skip(hasura_transaction, temp_file_path, replacement_map))]
 pub async fn process_s3_files(
     hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
     file_name: &str,
     election_event_id: String,
     tenant_id: String,
+    replacement_map: HashMap<String, String>,
 ) -> Result<()> {
     let file_path_string = temp_file_path.path().to_string_lossy().to_string();
 
@@ -819,6 +847,20 @@ pub async fn process_s3_files(
         .ok_or(anyhow!("Empty file suffix"))?;
     let document_type = get_mime_types(file_suffix)[0];
 
+    let document_uuid = extract_document_uuid(file_name)
+        .await
+        .map_err(|e| anyhow!("Error extracting document UUID from filename: {e}"))?
+        .ok_or_else(|| anyhow!("Error extracting document UUID as str"))?;
+
+    let new_document_id = replacement_map
+        .get(document_uuid)
+        .ok_or_else(|| anyhow!("Error finding document UUID in replacement map"))?;
+
+    let file_name = extract_document_name(file_name)
+        .await
+        .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
+        .ok_or_else(|| anyhow!("Error getting document name as str"))?;
+
     // Upload the file and return the document
     let _document = upload_and_return_document(
         hasura_transaction,
@@ -828,7 +870,7 @@ pub async fn process_s3_files(
         &tenant_id,
         Some(election_event_id.to_string()),
         file_name,
-        None,
+        Some(new_document_id.to_string()),
         false,
     )
     .await?;
@@ -853,7 +895,9 @@ pub async fn get_zip_entries(
                 for i in 0..zip.len() {
                     let mut file = zip.by_index(i)?;
                     let file_name = file.name().to_string();
-                    if file_name.ends_with(".json") {
+                    if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name())
+                        && file_name.ends_with(".json")
+                    {
                         // Regular JSON document processing
                         let mut file_str = String::new();
                         file.read_to_string(&mut file_str)?;
@@ -939,6 +983,10 @@ pub async fn process_document(
     let results_event_file = zip_entries
         .iter()
         .find(|(name, _)| name.contains(ETallyDocuments::RESULTS_EVENT.to_file_name()));
+    let s3_documents_ids_file = zip_entries
+        .iter()
+        .find(|(name, _)| name.contains(EDocuments::S3_DOCUMENTS_IDS.to_file_name()));
+
     let mut tally_files_content: Option<String> = None;
     if let (Some(tally_session_file), Some(results_event_file)) =
         (tally_session_file, results_event_file)
@@ -953,6 +1001,16 @@ pub async fn process_document(
     let file_election_event_schema = match tally_files_content {
         Some(tally_files_content) => {
             format!("{}\n{}", file_election_event_schema, tally_files_content)
+        }
+        None => file_election_event_schema,
+    };
+    let file_election_event_schema = match s3_documents_ids_file {
+        Some(s3_documents_ids_file) => {
+            let s3_documents_ids_file_content = String::from_utf8(s3_documents_ids_file.1.clone())?;
+            format!(
+                "{}\n{}",
+                file_election_event_schema, s3_documents_ids_file_content
+            )
         }
         None => file_election_event_schema,
     };
@@ -1031,10 +1089,12 @@ pub async fn process_document(
                 .context("Failed to import reports")?;
             }
 
-            if file_name.contains(&format!("/{}/", EDocuments::S3_FILES.to_file_name())) {
+            if file_name.contains(&format!("{}/", EDocuments::S3_FILES.to_file_name())) {
                 let folder_path: Vec<_> = file_name.split("/").collect();
-                // Skips the OS created files
-                if (folder_path[1] == EDocuments::VOTERS.to_file_name()) {
+                // Skips the OS created files and the documents_ids.txt
+                if folder_path[1] == EDocuments::VOTERS.to_file_name()
+                    || file_name.contains(EDocuments::S3_DOCUMENTS_IDS.to_file_name())
+                {
                     continue;
                 }
 
@@ -1054,6 +1114,7 @@ pub async fn process_document(
                     &file_name,
                     election_event_schema.election_event.id.clone(),
                     election_event_schema.tenant_id.to_string(),
+                    replacement_map.clone(),
                 )
                 .await
                 .context("Failed to import S3 files")?;
@@ -1153,7 +1214,7 @@ pub async fn process_document(
                     .split(".")
                     .next()
                     .ok_or(anyhow!("Unexpected tally without extension"))?;
-                println!("tally_file_name:: {:?}", &tally_file_name);
+
                 process_tally_file(
                     hasura_transaction,
                     &temp_file,

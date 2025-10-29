@@ -26,7 +26,7 @@ use sequent_core::{
     types::{
         hasura::core::{TallySession, TallySessionContest, TallySessionExecution},
         results::{
-            ResultsAreaContest, ResultsAreaContestCandidate, ResultsContest,
+            ResultDocuments, ResultsAreaContest, ResultsAreaContestCandidate, ResultsContest,
             ResultsContestCandidate, ResultsElection, ResultsElectionArea, ResultsEvent,
         },
     },
@@ -61,6 +61,45 @@ async fn process_uuids(
             Ok(Some(new_ids))
         }
     }
+}
+
+#[instrument(skip_all)]
+fn remap_result_documents(
+    original: Option<ResultDocuments>,
+    replacement_map: &HashMap<String, String>,
+) -> Option<ResultDocuments> {
+    original.map(|doc| ResultDocuments {
+        json: doc
+            .json
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+        pdf: doc
+            .pdf
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+        html: doc
+            .html
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+        tar_gz: doc
+            .tar_gz
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+        tar_gz_original: doc
+            .tar_gz_original
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+        vote_receipts_pdf: doc
+            .vote_receipts_pdf
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+    })
 }
 
 #[instrument(err, skip_all)]
@@ -185,6 +224,7 @@ async fn process_event_results_file(
             .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
 
         let results_event = ResultsEvent {
             id: results_event_id,
@@ -195,7 +235,7 @@ async fn process_event_results_file(
             annotations,
             created_at,
             last_updated_at,
-            documents,
+            documents: documents_with_new_ids,
         };
         results_events.push(results_event);
     }
@@ -246,6 +286,7 @@ async fn process_results_election_file(
             .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
 
         let results_election = ResultsElection {
             id: Uuid::new_v4().to_string(),
@@ -261,7 +302,7 @@ async fn process_results_election_file(
             created_at,
             last_updated_at,
             total_voters_percent,
-            documents,
+            documents: documents_with_new_ids,
         };
 
         results_elections.push(results_election);
@@ -557,6 +598,7 @@ async fn process_results_election_area_file(
             .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
 
         let name: Option<String> = get_string_or_null_item(&record, 9).await?;
 
@@ -569,7 +611,7 @@ async fn process_results_election_area_file(
             area_id,
             created_at,
             last_updated_at,
-            documents,
+            documents: documents_with_new_ids,
             name,
         };
 
@@ -650,6 +692,7 @@ async fn process_results_contest_candidate_file(
             .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
 
         let results_contest_candidate = ResultsContestCandidate {
             id: Uuid::new_v4().to_string(),
@@ -667,7 +710,7 @@ async fn process_results_contest_candidate_file(
             labels,
             annotations,
             cast_votes_percent,
-            documents,
+            documents: documents_with_new_ids,
         };
         results_contests_candidates.push(results_contest_candidate);
     }
@@ -730,6 +773,7 @@ pub async fn process_results_contest_record(
         .map(|s| deserialize_str(s))
         .transpose()
         .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+    let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
 
     let total_auditable_votes = get_opt_i64_item(record, 27).await?;
     let total_auditable_votes_percent = get_opt_f64_item(record, 28).await?;
@@ -761,7 +805,7 @@ pub async fn process_results_contest_record(
         blank_votes_percent,
         total_votes,
         total_votes_percent,
-        documents,
+        documents: documents_with_new_ids,
         total_auditable_votes,
         total_auditable_votes_percent,
     };
@@ -813,6 +857,7 @@ async fn process_results_area_contest_file(
             .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
 
         let total_auditable_votes = get_opt_i64_item(&record, 25).await?;
         let total_auditable_votes_percent = get_opt_f64_item(&record, 26).await?;
@@ -842,7 +887,7 @@ async fn process_results_area_contest_file(
             implicit_invalid_votes_percent,
             total_votes,
             total_votes_percent,
-            documents,
+            documents: documents_with_new_ids,
             total_auditable_votes,
             total_auditable_votes_percent,
         };
@@ -891,6 +936,7 @@ async fn process_results_area_contest_candidate_file(
             .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
 
         let results_area_contest_candidate = ResultsAreaContestCandidate {
             id: Uuid::new_v4().to_string(),
@@ -909,7 +955,7 @@ async fn process_results_area_contest_candidate_file(
             labels,
             annotations,
             cast_votes_percent,
-            documents,
+            documents: documents_with_new_ids,
         };
         results_area_contests_candidates.push(results_area_contest_candidate);
     }
