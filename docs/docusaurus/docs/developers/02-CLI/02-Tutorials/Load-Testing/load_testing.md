@@ -205,6 +205,8 @@ Key flags and environment variables:
   - Used by the test to randomize test users.
 - `--voter-min-index <N>` (default: `1`)
   - The ids for the voters will be selected between `voter-min-index` and `voter-min-index + number-of-voters - 1`.
+- `--candidates-pattern <regex>` (default: empty)
+  - Regular expression to filter candidates by name. Supports JavaScript regex format like `/^(?!.*text).*$/` to exclude candidates containing specific text.
 - `--username-pattern <pattern>` (default: `user{n}`)
 - `--password-pattern <pattern>` (default: `user{n}`)
   - `{n}` is replaced by the randomized user index.
