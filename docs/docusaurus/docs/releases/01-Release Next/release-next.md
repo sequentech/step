@@ -22,8 +22,11 @@ New parameters:
   load testing across multiple machines.
 - `--keep-parallel-files`: Updated to also preserve the `used_voters.txt`
   tracking file for inspection.
-- `voter-min-index`: The ids for the voters will be selected between 
-- `voter-min-index` and `voter-min-index + number-of-voters - 1`.
+- `--voter-min-index <N>` (default: `1`): The ids for the voters will be selected between 
+  `voter-min-index` and `voter-min-index + number-of-voters - 1`.
+- `--candidates-pattern <regex>`: Filters candidates during voting by name using a regular
+  expression. Supports JavaScript regex format like `/^(?!.*text).*$/` to exclude
+  candidates containing specific text.
 
 This prevents test failures when the election does not allow revoting, as the
 system will automatically retry with a different voter when a collision is
