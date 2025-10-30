@@ -51,6 +51,7 @@ NW_ENV="default"                          # Nightwatch env (default=headless, ch
 ENABLE_VOTER_TRACKING="true"              # enable anti-double-voting (default: true)
 PREVIOUS_VOTERS_FILE=""                   # path to previous run's used_voters.txt to exclude
 VOTER_MIN_INDEX=1                         # voter indexes will range from [VOTER_MIN_INDEX, VOTER_MIN_INDEX + NUMBER_OF_VOTERS)
+CANDIDATES_PATTERN=""                     # regex to filter out candidates which name doesn't match the expression (for example "/^(?!.*Ungültig wählen).*$/" to match any candidate that doesn't include the text "Ungültig wählen")
 
 
 # Parse arguments
@@ -66,6 +67,8 @@ while [[ $# -gt 0 ]]; do
       PASSWORD_PATTERN="$2"; shift 2 ;;
     --username-pattern)
       USERNAME_PATTERN="$2"; shift 2 ;;
+    --candidates-pattern)
+      CANDIDATES_PATTERN="$2"; shift 2 ;;
     --number-of-voters)
       NUMBER_OF_VOTERS="$2"; shift 2 ;;
     --voter-min-index)
@@ -149,6 +152,7 @@ export PARALLEL_DIR="$PARALLEL_DIR"
 
 # Export voter tracking configuration
 export ENABLE_VOTER_TRACKING="$ENABLE_VOTER_TRACKING"
+export CANDIDATES_PATTERN="$CANDIDATES_PATTERN"
 
 if [[ "$ENABLE_VOTER_TRACKING" == "true" ]]; then
   # Initialize the shared used_voters file (defensive, though JS handles ENOENT)
