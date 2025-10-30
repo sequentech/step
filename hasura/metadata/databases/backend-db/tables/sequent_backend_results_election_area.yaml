@@ -37,7 +37,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - area_id
               - created_at
@@ -52,10 +51,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - area_id
               - created_at
@@ -68,10 +67,10 @@ select_permissions:
               - results_event_id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - area_id
               - created_at
@@ -86,13 +85,11 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: tally-results-read
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - area_id
               - created_at
@@ -107,10 +104,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check: {}
           columns:
               - documents
               - name
@@ -123,4 +122,5 @@ update_permissions:
               - results_event_id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account

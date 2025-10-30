@@ -63,7 +63,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - created_by
               - event_processor
@@ -81,10 +80,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - created_by
               - event_processor
@@ -102,10 +101,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: scheduled-event-create
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - created_by
               - event_processor
@@ -123,10 +122,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: scheduled-event-delete
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - created_by
               - event_processor
@@ -144,10 +143,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: scheduled-event-write
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - created_by
               - event_processor
@@ -163,13 +162,11 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - created_by
               - event_processor
@@ -185,12 +182,14 @@ update_permissions:
               - id
               - tenant_id
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check: null
           columns:
               - created_by
               - event_processor
@@ -208,10 +207,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check: null
       role: scheduled-event-write
     - comment: ""
       permission:
-          check: {}
           columns:
               - created_by
               - event_processor
@@ -227,6 +226,7 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

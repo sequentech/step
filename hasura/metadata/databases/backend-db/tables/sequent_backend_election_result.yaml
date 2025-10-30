@@ -22,7 +22,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - result_eml_signature
               - annotations
@@ -37,10 +36,10 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - result_eml_signature
               - annotations
@@ -55,6 +54,7 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
@@ -81,7 +81,6 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check: {}
           columns:
               - result_eml_signature
               - annotations
@@ -96,6 +95,7 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

@@ -18,7 +18,11 @@ import {useTranslation} from "react-i18next"
 import styled from "@emotion/styled"
 import {divContainer} from "@/components/styles/Menu"
 import {useMutation} from "@apollo/client"
-import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
+import {
+    ArchiveElectionEventMutation,
+    DeleteElectionEvent,
+    DeleteElectionEventMutation,
+} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
@@ -26,6 +30,7 @@ import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContex
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
+import {ARCHIVE_ELECTION_EVENT} from "@/queries/ArchiveElectionEvent"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -88,6 +93,16 @@ export default function MenuAction({
             },
         }
     )
+    const [archive_election_event] = useMutation<ArchiveElectionEventMutation>(
+        ARCHIVE_ELECTION_EVENT,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.ELECTION_EVENT_ARCHIVE,
+                },
+            },
+        }
+    )
 
     const notify = useNotify()
 
@@ -137,51 +152,27 @@ export default function MenuAction({
 
         const {action, payload} = selectedActionModal
 
-        if (action === Action.Archive) {
-            update(
-                payload.type,
-                {
-                    id: payload.id,
-                    data: {is_archived: true},
-                    previousData: {is_archived: false},
+        try {
+            const {data, errors} = await archive_election_event({
+                variables: {
+                    election_event_id: payload.id,
                 },
-                {
-                    onSuccess() {
-                        refetch()
-                        notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
-                            type: "success",
-                        })
-                    },
-                    onError() {
-                        notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
-                            type: "error",
-                        })
-                    },
-                }
-            )
-        } else if (action === Action.Unarchive) {
-            await update(
-                payload.type,
-                {
-                    id: payload.id,
-                    data: {is_archived: false},
-                    previousData: {is_archived: true},
-                },
+            })
 
-                {
-                    onSuccess() {
-                        refetch()
-                        notify(t("sideMenu.menuActions.messages.notification.success.unarchive"), {
-                            type: "success",
-                        })
-                    },
-                    onError() {
-                        notify(t("sideMenu.menuActions.messages.notification.error.unarchive"), {
-                            type: "error",
-                        })
-                    },
-                }
-            )
+            if (data?.archive_election_event?.error_msg || errors) {
+                notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
+                    type: "error",
+                })
+            } else {
+                refetch()
+                notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
+                    type: "success",
+                })
+            }
+        } catch (error) {
+            notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
+                type: "error",
+            })
         }
     }
 

@@ -37,6 +37,8 @@ insert_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
+          set:
+              voter_id_string: x-hasura-User-Id
           columns:
               - annotations
               - area_id
@@ -51,13 +53,10 @@ insert_permissions:
               - last_updated_at
               - tenant_id
               - voter_id_string
-          set:
-              voter_id_string: x-hasura-User-Id
       role: user
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -75,10 +74,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -96,10 +95,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: cast-vote-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -115,10 +114,10 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - area_id
@@ -143,11 +142,11 @@ select_permissions:
                         _eq: X-Hasura-User-Id
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
+          allow_aggregations: true
       role: user
 update_permissions:
     - comment: ""
       permission:
-          check: {}
           columns:
               - cast_ballot_signature
               - voter_id_string
@@ -163,6 +162,7 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

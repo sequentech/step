@@ -57,7 +57,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_hidden
               - annotations
@@ -73,10 +72,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_hidden
               - annotations
@@ -90,10 +89,10 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_hidden
               - annotations
@@ -109,10 +108,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: support-material-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_hidden
               - annotations
@@ -128,10 +127,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: support-material-write
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_hidden
               - annotations
@@ -148,13 +147,11 @@ select_permissions:
               _and:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: user
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_hidden
               - annotations
@@ -170,10 +167,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check: {}
           columns:
               - is_hidden
               - annotations
@@ -187,12 +186,10 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_hidden
               - annotations
@@ -206,6 +203,9 @@ update_permissions:
               - id
               - tenant_id
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: support-material-write

@@ -66,7 +66,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - ballot_signature
               - status
@@ -85,10 +84,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - ballot_signature
               - status
@@ -107,10 +106,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: publish-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - ballot_signature
               - status
@@ -129,10 +128,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: publish-write
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - ballot_signature
               - status
@@ -149,10 +148,10 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - ballot_signature
               - status
@@ -176,13 +175,11 @@ select_permissions:
                         _eq: X-Hasura-Area-Id
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
+          allow_aggregations: true
       role: user
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - ballot_signature
               - status
@@ -199,14 +196,14 @@ update_permissions:
               - id
               - tenant_id
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - ballot_signature
               - status
@@ -225,10 +222,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: publish-write
     - comment: ""
       permission:
-          check: {}
           columns:
               - ballot_signature
               - status
@@ -245,6 +244,7 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

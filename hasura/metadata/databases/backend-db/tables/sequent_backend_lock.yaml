@@ -15,7 +15,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - key
               - value
@@ -23,11 +22,11 @@ select_permissions:
               - expiry_date
               - last_updated_at
           filter: {}
+          allow_aggregations: true
       role: service-account
 update_permissions:
     - comment: ""
       permission:
-          check: {}
           columns:
               - key
               - value
@@ -35,6 +34,7 @@ update_permissions:
               - expiry_date
               - last_updated_at
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

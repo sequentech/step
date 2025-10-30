@@ -35,7 +35,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -49,10 +48,10 @@ select_permissions:
           filter:
               id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - is_active
               - annotations
@@ -64,6 +63,7 @@ select_permissions:
               - updated_at
               - id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
@@ -93,9 +93,6 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check:
-              id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_active
               - annotations
@@ -109,10 +106,12 @@ update_permissions:
           filter:
               id:
                   _eq: X-Hasura-Tenant-Id
+          check:
+              id:
+                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check: {}
           columns:
               - is_active
               - annotations
@@ -124,6 +123,7 @@ update_permissions:
               - updated_at
               - id
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

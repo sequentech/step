@@ -54,7 +54,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - area_ids
@@ -81,10 +80,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
+          allow_aggregations: true
       role: admin-ceremony
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - area_ids
@@ -111,10 +110,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - area_ids
@@ -133,10 +132,10 @@ select_permissions:
               - tenant_id
               - threshold
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - area_ids
@@ -163,19 +162,11 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
+          allow_aggregations: true
       role: trustee-ceremony
 update_permissions:
     - comment: ""
       permission:
-          check:
-              _and:
-                  - tenant_id:
-                        _eq: X-Hasura-Tenant-Id
-                  - _or:
-                        - permission_label:
-                              _is_null: true
-                        - permission_label:
-                              _contained_in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - area_ids
@@ -195,10 +186,18 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
-          check: {}
           columns:
               - area_ids
               - election_ids
@@ -217,4 +216,5 @@ update_permissions:
               - permission_label
               - tally_type
           filter: {}
+          check: {}
       role: service-account

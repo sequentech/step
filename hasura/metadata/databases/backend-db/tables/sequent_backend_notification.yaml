@@ -63,9 +63,6 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - alias
               - name
@@ -80,6 +77,9 @@ update_permissions:
               - template_id
               - tenant_id
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
