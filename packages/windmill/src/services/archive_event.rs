@@ -34,6 +34,7 @@ pub async fn archive_election_event(
     };
 
     if election_event.is_archived {
+        info!("Unarchiving");
         if !database_info.loaded {
             client
                 .load_database(&board_name)
@@ -43,6 +44,7 @@ pub async fn archive_election_event(
             info!("database already loaded");
         }
     } else {
+        info!("Archiving");
         if database_info.loaded {
             client
                 .unload_database(&board_name)
