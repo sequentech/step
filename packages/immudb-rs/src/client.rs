@@ -291,7 +291,7 @@ impl Client {
             .client
             .delete_database(delete_db_request)
             .await
-            .map_err(|err| anyhow!("Error unloading the database, status = {err:?}"));
+            .map_err(|err| anyhow!("Error deleting the database, status = {err:?}"));
 
         info!("grpc-delete-database-response={delete_db_response:?}");
         Ok(())
