@@ -1,6 +1,6 @@
 ---
 id: admin_portal_tutorials_setup_idp_initiated_sso
-title: Setup IDP Initiated SSO with SimpleSAMLphp as IDP and Keycloak as SP
+title: Setup IdP-Initiated SSO
 ---
 
 <!--
