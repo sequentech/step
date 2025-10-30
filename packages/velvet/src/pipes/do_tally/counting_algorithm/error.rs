@@ -6,6 +6,8 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
 pub enum Error {
+    EmptyTallyResults,
+    InvalidTallyOperation(String),
     CandidateNotFound(String),
     UnexpectedError(String),
 }

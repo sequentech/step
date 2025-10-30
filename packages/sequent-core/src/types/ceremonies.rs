@@ -204,11 +204,19 @@ pub enum CeremoniesPolicy {
 pub enum TallyOperation {
     #[strum(serialize = "process-ballots")]
     #[default]
-    ProcessBallots,
+    ProcessBallots, // Process ballots in every area or in an specific area
     #[strum(serialize = "aggregate-results")]
-    AggregateResults,
+    AggregateResults, /* Aggregate results that have been processed in
+                       * every area */
     #[strum(serialize = "participation-summary")]
-    ParticipationSummary,
+    ParticipationSummary, /* Needs the ballots to calculate participation
+                           * statistics but without counting the winners */
+}
+
+#[derive(Debug, Display)]
+pub enum ScopeOperation {
+    Area(TallyOperation),
+    Contest(TallyOperation),
 }
 
 #[derive(

@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::Result;
 use crate::pipes::do_tally::{ExtendedMetricsContest, InvalidVotes};
 use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
-
-use super::Result;
 use sequent_core::{
     ballot::{BallotStyle, Candidate, Contest, Weight},
-    types::ceremonies::TallyOperation,
+    types::ceremonies::{CountingAlgType, TallyOperation},
 };
+use std::str::FromStr;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -107,7 +107,29 @@ pub fn update_extended_metrics(
 }
 
 #[instrument]
-pub fn get_area_tally_operation(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> TallyOperation {
+pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
+    let default_tally_op = match contest.get_counting_algorithm() {
+        CountingAlgType::InstantRunoff => TallyOperation::ProcessBallots,
+        _ => TallyOperation::AggregateResults,
+    };
+    let annotations = contest.annotations.clone().unwrap_or_default();
+    let operation = annotations
+        .get("tally_operation")
+        .map(|val| val.clone())
+        .unwrap_or_default();
+    TallyOperation::from_str(&operation).unwrap_or(default_tally_op)
+}
+
+#[instrument]
+pub fn get_area_tally_operation(
+    ballot_styles: &Vec<BallotStyle>,
+    counting_alg: CountingAlgType,
+    area_id: Uuid,
+) -> TallyOperation {
+    let default_tally_op = match counting_alg {
+        CountingAlgType::InstantRunoff => TallyOperation::ParticipationSummary,
+        _ => TallyOperation::ProcessBallots,
+    };
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
         .find(|bs| bs.area_id == area_id.to_string());
@@ -123,7 +145,7 @@ pub fn get_area_tally_operation(ballot_styles: Vec<BallotStyle>, area_id: Uuid) 
 }
 
 #[instrument]
-pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> Weight {
+pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: Uuid) -> Weight {
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
         .find(|bs| bs.area_id == area_id.to_string());

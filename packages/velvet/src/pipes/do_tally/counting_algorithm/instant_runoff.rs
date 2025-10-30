@@ -10,6 +10,7 @@ use crate::pipes::do_tally::{
 };
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::cmp;

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::counting_algorithm::Error as CntAlgError;
 use super::counting_algorithm::{
     instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge, CountingAlgorithm,
 };
@@ -12,7 +13,7 @@ use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
 use sequent_core::ballot::{ContestPresentation, Weight};
 use sequent_core::types::{
-    ceremonies::{CountingAlgType, TallyOperation},
+    ceremonies::{CountingAlgType, ScopeOperation, TallyOperation},
     hasura::core::TallySheet,
 };
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
@@ -20,12 +21,6 @@ use std::cmp;
 use std::{fs, path::PathBuf};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
-
-#[derive(Debug, Display)]
-pub enum ScopeOperation {
-    Area(TallyOperation),
-    Global(TallyOperation),
-}
 
 pub struct Tally {
     pub id: CountingAlgType,
@@ -89,6 +84,20 @@ impl Tally {
             .into_iter()
             .flatten()
             .collect::<Vec<(DecodedVoteContest, Weight)>>())
+    }
+
+    #[instrument(skip_all)]
+    pub fn aggregate_results(&self) -> Result<ContestResult, CntAlgError> {
+        if self.tally_results.is_empty() {
+            return Err(CntAlgError::EmptyTallyResults);
+        }
+        let mut contest_result = ContestResult::default();
+        contest_result.contest = self.contest.clone();
+        let aggregated = self
+            .tally_results
+            .iter()
+            .fold(contest_result, |acc, x| acc.aggregate(x, true));
+        Ok(aggregated)
     }
 }
 

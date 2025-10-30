@@ -5,8 +5,9 @@
 use super::tally;
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
-    do_tally::counting_algorithm::utils::{get_area_tally_operation, get_area_weight},
-    do_tally::tally::ScopeOperation,
+    do_tally::counting_algorithm::utils::{
+        get_area_tally_operation, get_area_weight, get_contest_tally_operation,
+    },
     error::{Error, Result},
     pipe_inputs::{PipeInputs, PREFIX_TALLY_SHEET},
     pipe_name::PipeNameOutputDir,
@@ -20,7 +21,7 @@ use sequent_core::{
     ballot_style,
     services::area_tree::TreeNodeArea,
     sqlite::election_event,
-    types::ceremonies::TallyOperation,
+    types::ceremonies::{ScopeOperation, TallyOperation},
     types::hasura::core::TallySheet,
     types::tally_sheets::VotingChannel,
     util::path::{get_folder_name, list_subfolders},
@@ -245,7 +246,7 @@ impl Pipe for DoTally {
                                             })?;
 
                                         let child_area_weight = get_area_weight(
-                                            election_input.ballot_styles.clone(),
+                                            &election_input.ballot_styles,
                                             child_area_id,
                                         );
 
@@ -285,13 +286,12 @@ impl Pipe for DoTally {
                                 serde_json::to_writer_pretty(file, &res)?; // Using pretty for readability
                             }
 
-                            let area_weight = get_area_weight(
-                                election_input.ballot_styles.clone(),
-                                area_input.id,
-                            );
+                            let area_weight =
+                                get_area_weight(&election_input.ballot_styles, area_input.id);
 
                             let op = get_area_tally_operation(
-                                election_input.ballot_styles.clone(),
+                                &election_input.ballot_styles,
+                                contest_object.get_counting_algorithm(),
                                 area_input.id,
                             );
 
@@ -428,10 +428,11 @@ impl Pipe for DoTally {
                             .map(|(res, _)| res.clone())
                             .collect();
 
+                    let op = get_contest_tally_operation(&contest_object_for_contest);
                     // Create final contest tally
                     let final_counting_algorithm = tally::create_tally(
                         &contest_object_for_contest,
-                        ScopeOperation::Global(TallyOperation::AggregateResults), // TODO: Fix this
+                        ScopeOperation::Contest(op),
                         vec![],
                         sum_census,
                         sum_auditable_votes,
