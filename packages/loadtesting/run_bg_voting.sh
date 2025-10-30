@@ -50,6 +50,8 @@ KEEP_PARALLEL_FILES="false"               # set true to keep generated tests
 NW_ENV="default"                          # Nightwatch env (default=headless, chrome=non-headless)
 ENABLE_VOTER_TRACKING="true"              # enable anti-double-voting (default: true)
 PREVIOUS_VOTERS_FILE=""                   # path to previous run's used_voters.txt to exclude
+VOTER_MIN_INDEX=1                         # voter indexes will range from [VOTER_MIN_INDEX, VOTER_MIN_INDEX + NUMBER_OF_VOTERS)
+
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -66,6 +68,8 @@ while [[ $# -gt 0 ]]; do
       USERNAME_PATTERN="$2"; shift 2 ;;
     --number-of-voters)
       NUMBER_OF_VOTERS="$2"; shift 2 ;;
+    --voter-min-index)
+      VOTER_MIN_INDEX="$2"; shift 2 ;;
     --save-screenshots)
       SAVE_SCREENSHOTS="$2"; shift 2 ;;
     --base-test)
@@ -138,6 +142,7 @@ export NUMBER_OF_VOTERS="$NUMBER_OF_VOTERS"
 export USERNAME_PATTERN="$USERNAME_PATTERN"
 export PASSWORD_PATTERN="$PASSWORD_PATTERN"
 export SAVE_SCREENSHOTS="$SAVE_SCREENSHOTS"
+export VOTER_MIN_INDEX="$VOTER_MIN_INDEX"
 
 # Export PARALLEL_DIR so Node.js can access the shared voter tracking file
 export PARALLEL_DIR="$PARALLEL_DIR"
