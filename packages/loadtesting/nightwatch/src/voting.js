@@ -94,21 +94,6 @@ module.exports = {
     const voterMinIndex = parseInt(process.env.VOTER_MIN_INDEX, 10) || 1;
     const usernamePattern = process.env.USERNAME_PATTERN || 'user{n}';
     const candidatesPatternStr = process.env.CANDIDATES_PATTERN || '';
-    let candidatesPattern = null;
-    if (candidatesPatternStr) {
-      try {
-        // Remove leading and trailing slashes if present, extract pattern and flags
-        const match = candidatesPatternStr.match(/^\/(.*)\/([gimuy]*)$/);
-        if (match) {
-          candidatesPattern = new RegExp(match[1], match[2]);
-        } else {
-          // If not in /pattern/flags format, use as-is
-          candidatesPattern = new RegExp(candidatesPatternStr);
-        }
-      } catch (e) {
-        console.error('Invalid regex pattern:', candidatesPatternStr, e.message);
-      }
-    }
     const saveScreenshots = (process.env.SAVE_SCREENSHOTS || 'false').toLowerCase() !== 'false';
     const numberOfIterations = process.env.NUMBER_OF_ITERATIONS
       ? parseInt(process.env.NUMBER_OF_ITERATIONS, 10)
@@ -243,7 +228,24 @@ module.exports = {
 
         // ---- dynamic candidate selection ----------------------------------
         .execute(
-          () => {
+          (candidatesPatternStr) => {
+            let candidatesPattern = null;
+            if (candidatesPatternStr) {
+              try {
+                // Remove leading and trailing slashes if present, extract pattern and flags
+                const match = candidatesPatternStr.match(/^\/(.*)\/([gimuy]*)$/);
+                if (match) {
+                  candidatesPattern = new RegExp(match[1], match[2]);
+                } else {
+                  // Assume it's just the pattern without slashes
+                  candidatesPattern = new RegExp(candidatesPatternStr);
+                }
+              } catch (e) {
+                console.error('Invalid regex pattern in browser:', candidatesPatternStr, e.message);
+              }
+            }
+            console.log("candidatesPattern = " + candidatesPattern);
+            
             const contests = document.querySelectorAll('div[class^="contest-"]');
             return Array.from(contests).map((c, i) => {
               const title = c.querySelector('h5[data-max]');
@@ -255,7 +257,10 @@ module.exports = {
                 }));
               if (candidatesPattern) {
                 candidates = candidates
-                  .filter(candidate => candidatesPattern.test(candidate.name))
+                  .filter(candidate => {
+                    console.log("name = " + candidate.name + ", test = " + candidatesPattern.test(candidate.name));
+                    return candidatesPattern.test(candidate.name);
+                  });
               }
 
               return {
@@ -265,7 +270,7 @@ module.exports = {
               };
             });
           },
-          [],
+          [candidatesPatternStr],
           result => {
             if (result.status !== 0 || !Array.isArray(result.value)) {
               return browser.assert.fail('Failed to read contests');
