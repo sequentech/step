@@ -5,13 +5,13 @@
 use crate::pipes::do_tally::{ExtendedMetricsContest, InvalidVotes};
 use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
 
+use super::Result;
 use sequent_core::{
     ballot::{BallotStyle, Candidate, Contest, Weight},
     types::ceremonies::TallyOperation,
 };
 use tracing::{info, instrument};
 use uuid::Uuid;
-use super::Result;
 
 fn calculate_undervotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
     // Count actual votes (selected > -1)
@@ -119,6 +119,7 @@ pub fn get_area_tally_operation(ballot_styles: Vec<BallotStyle>, area_id: Uuid) 
                 .map(|area_annotations| area_annotations.get_tally_operation())
         })
         .flatten()
+        .unwrap_or(TallyOperation::ProcessBallots)
 }
 
 #[instrument]

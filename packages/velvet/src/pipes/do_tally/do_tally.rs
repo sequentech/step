@@ -5,13 +5,15 @@
 use super::tally;
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
+    do_tally::counting_algorithm::utils::{get_area_tally_operation, get_area_weight},
+    do_tally::tally::ScopeOperation,
     error::{Error, Result},
     pipe_inputs::{PipeInputs, PREFIX_TALLY_SHEET},
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
+
 use crate::utils::HasId;
-use crate::utils::{get_area_tally_operation, get_area_weight};
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{BallotStyle, Candidate},
@@ -263,7 +265,7 @@ impl Pipe for DoTally {
                                 //     election_input.ballot_styles.clone(),
                                 //     area_input.id,
                                 // );
-                                
+
                                 let counting_algorithm = tally::create_tally(
                                     &contest_object,
                                     ScopeOperation::Area(TallyOperation::ProcessBallots), // TODO: Fix this

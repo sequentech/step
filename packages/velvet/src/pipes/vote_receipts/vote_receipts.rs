@@ -4,16 +4,17 @@
 
 use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
+use crate::pipes::do_tally::tally::ScopeOperation;
 use crate::pipes::do_tally::tally::Tally;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-
 use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates, Weight};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::ceremonies::TallyOperation;
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};

@@ -2197,7 +2197,9 @@ impl AreaAnnotations {
         self.weight.clone().unwrap_or_default()
     }
     pub fn get_tally_operation(&self) -> TallyOperation {
-        self.tally_operation.clone().unwrap_or(TallyOperation::ProcessBallots)
+        self.tally_operation
+            .clone()
+            .unwrap_or(TallyOperation::ProcessBallots)
     }
 }
 

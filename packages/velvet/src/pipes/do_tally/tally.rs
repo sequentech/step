@@ -160,6 +160,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
 #[instrument(err, skip_all)]
 pub fn create_tally(
     contest: &Contest,
+    scope_operation: ScopeOperation,
     ballots_files: Vec<(PathBuf, Weight)>, // (path, weight)
     census: u64,
     auditable_votes: u64,
@@ -184,6 +185,7 @@ pub fn create_tally(
 
     let tally = Tally::new(
         contest,
+        scope_operation,
         ballots_files,
         census,
         auditable_votes,
