@@ -95,17 +95,10 @@ pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &s
 
     event!(Level::INFO, "database name = {board_name}");
 
-    let has_database = client
-        .has_database(&board_name)
+    client
+        .delete_database(&board_name)
         .await
-        .map_err(|err| anyhow!("error reading immudb database: {err:?}"))?;
-
-    if has_database {
-        client
-            .delete_database(&board_name)
-            .await
-            .map_err(|err| anyhow!("error delete immudb database: {err:?}"))?;
-    }
+        .map_err(|err| anyhow!("error delete immudb database: {err:?}"))?;
     Ok(())
 }
 

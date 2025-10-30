@@ -13,12 +13,13 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::tenant;
+use windmill::services::archive_event::archive_election_event;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
 use windmill::types::tasks::ETasksExecution;
-use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteElectionEventOutput {
@@ -112,12 +113,10 @@ pub async fn delete_election_event_f(
     }))
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ArchiveElectionEventOutput {
     id: String,
     error_msg: Option<String>,
-    is_archived: bool
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -140,25 +139,28 @@ pub async fn archive_election_event_f(
     )?;
     let input = body.into_inner();
 
-
     provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = input.election_event_id.clone();
         Box::pin(async move {
-            Ok(())
+            archive_election_event(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+            )
+            .await
         })
     })
     .await
     .map_err(|error| {
-        Err((
+        (
             Status::InternalServerError,
-            &format!("Failed to archive/unarchive election event {error:?}"),
-        ))
+            format!("Failed to archive/unarchive election event {error:?}"),
+        )
     })?;
 
     Ok(Json(ArchiveElectionEventOutput {
         id: input.election_event_id,
         error_msg: None,
-        is_archived: true,
     }))
 }
