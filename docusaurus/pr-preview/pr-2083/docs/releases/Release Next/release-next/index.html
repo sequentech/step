@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Release Notes next | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/releases/Release Next/release-next"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Release Notes next | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2083/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/releases/Release Next/release-next"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/releases/Release Next/release-next" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/releases/Release Next/release-next" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Release Notes next","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/releases/Release Next/release-next"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2083/assets/css/styles.fe236151.css">
-<script src="/docusaurus/pr-preview/pr-2083/assets/js/runtime~main.0a2737c5.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2083/assets/js/runtime~main.7f2fbbf3.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2083/assets/js/main.85b2d000.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -32,6 +32,8 @@ exclude them from the current run, enabling chained test runs or distributed
 load testing across multiple machines.</li>
 <li><code>--keep-parallel-files</code>: Updated to also preserve the <code>used_voters.txt</code>
 tracking file for inspection.</li>
+<li><code>voter-min-index</code>: The ids for the voters will be selected between</li>
+<li><code>voter-min-index</code> and <code>voter-min-index + number-of-voters - 1</code>.</li>
 </ul>
 <p>This prevents test failures when the election does not allow revoting, as the
 system will automatically retry with a different voter when a collision is
