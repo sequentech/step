@@ -5,7 +5,7 @@
 use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::common::*, tally::Tally, CandidateResult, ContestResult,
+    counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
 use sequent_core::ballot::{Candidate, Contest, Weight};

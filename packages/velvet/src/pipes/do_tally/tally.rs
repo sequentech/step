@@ -11,15 +11,25 @@ use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
 use sequent_core::ballot::{ContestPresentation, Weight};
-use sequent_core::types::{ceremonies::CountingAlgType, hasura::core::TallySheet};
+use sequent_core::types::{
+    ceremonies::{CountingAlgType, TallyOperation},
+    hasura::core::TallySheet,
+};
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::cmp;
 use std::{fs, path::PathBuf};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 
+#[derive(Debug, Display)]
+pub enum ScopeOperation {
+    Area(TallyOperation),
+    Global(TallyOperation),
+}
+
 pub struct Tally {
     pub id: CountingAlgType,
+    pub scope_operation: ScopeOperation,
     pub contest: Contest,
     pub ballots: Vec<(DecodedVoteContest, Weight)>,
     pub census: u64,
@@ -32,6 +42,7 @@ impl Tally {
     #[instrument(err, skip(contest, tally_results), name = "Tally::new")]
     pub fn new(
         contest: &Contest,
+        scope_operation: ScopeOperation,
         ballots_files: Vec<(PathBuf, Weight)>,
         census: u64,
         auditable_votes: u64,
@@ -45,6 +56,7 @@ impl Tally {
 
         Ok(Self {
             id,
+            scope_operation,
             contest,
             ballots: ballots_with_weights,
             census,

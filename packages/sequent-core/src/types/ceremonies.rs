@@ -188,6 +188,30 @@ pub enum CeremoniesPolicy {
 }
 
 #[derive(
+    Debug,
+    Display,
+    EnumString,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub enum TallyOperation {
+    #[strum(serialize = "process-ballots")]
+    #[default]
+    ProcessBallots,
+    #[strum(serialize = "aggregate-results")]
+    AggregateResults,
+    #[strum(serialize = "participation-summary")]
+    ParticipationSummary,
+}
+
+#[derive(
     Eq,
     PartialEq,
     Debug,

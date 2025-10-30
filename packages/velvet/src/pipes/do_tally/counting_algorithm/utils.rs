@@ -3,11 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::pipes::do_tally::{ExtendedMetricsContest, InvalidVotes};
-use sequent_core::ballot::Contest;
 use sequent_core::plaintext::{DecodedVoteContest, InvalidPlaintextErrorType};
 
+use sequent_core::{
+    ballot::{BallotStyle, Candidate, Contest, Weight},
+    types::ceremonies::TallyOperation,
+};
 use tracing::{info, instrument};
-
+use uuid::Uuid;
 use super::Result;
 
 fn calculate_undervotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
@@ -101,4 +104,35 @@ pub fn update_extended_metrics(
     metrics.expected_votes += contest.max_votes as u64;
 
     metrics
+}
+
+#[instrument]
+pub fn get_area_tally_operation(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> TallyOperation {
+    let area_ballot_style: Option<&BallotStyle> = ballot_styles
+        .iter()
+        .find(|bs| bs.area_id == area_id.to_string());
+
+    area_ballot_style
+        .map(|bs| {
+            bs.area_annotations
+                .as_ref()
+                .map(|area_annotations| area_annotations.get_tally_operation())
+        })
+        .flatten()
+}
+
+#[instrument]
+pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> Weight {
+    let area_ballot_style: Option<&BallotStyle> = ballot_styles
+        .iter()
+        .find(|bs| bs.area_id == area_id.to_string());
+
+    area_ballot_style
+        .map(|bs| {
+            bs.area_annotations
+                .as_ref()
+                .map(|area_annotations| area_annotations.get_weight())
+        })
+        .flatten()
+        .unwrap_or_default()
 }
