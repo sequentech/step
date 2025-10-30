@@ -9,10 +9,11 @@ use tracing::{debug, info, instrument};
 
 use crate::schema::immu_service_client::ImmuServiceClient;
 use crate::schema::{
-    CommittedSqlTx, Database, DatabaseListRequestV2, DatabaseListResponseV2, DeleteDatabaseRequest,
-    LoginRequest, NamedParam, NewTxRequest, OpenSessionRequest, SqlExecRequest, SqlQueryRequest,
-    SqlQueryResult, TxMode, UnloadDatabaseRequest,
+    CommittedSqlTx, Database, DatabaseInfo, DatabaseListRequestV2, DatabaseListResponseV2,
+    DeleteDatabaseRequest, LoginRequest, NamedParam, NewTxRequest, OpenSessionRequest,
+    SqlExecRequest, SqlQueryRequest, SqlQueryResult, TxMode, UnloadDatabaseRequest,
 };
+use crate::LoadDatabaseRequest;
 
 #[derive(Debug)]
 pub struct Client {
@@ -92,17 +93,22 @@ impl Client {
     }
 
     #[instrument(level = "trace")]
-    pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
+    pub async fn get_database(&mut self, database_name: &str) -> Result<Option<DatabaseInfo>> {
         let database_list_request = self.get_request(DatabaseListRequestV2 {})?;
         let database_list_response = self.client.database_list_v2(database_list_request).await?;
         debug!("grpc-database-list-response={:?}", database_list_response);
-        let has_database = database_list_response
+        let database_info = database_list_response
             .get_ref()
             .databases
             .iter()
             .find(|database| database.name == database_name && database.loaded)
-            .is_some();
-        Ok(has_database)
+            .cloned();
+        Ok(database_info)
+    }
+
+    #[instrument(level = "trace")]
+    pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
+        Ok(self.get_database(database_name).await?.is_some())
     }
 
     #[instrument]
@@ -261,7 +267,7 @@ impl Client {
     }
 
     #[instrument]
-    pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
+    pub async fn unload_database(&mut self, database_name: &str) -> Result<()> {
         let unload_db_request = self
             .get_request(UnloadDatabaseRequest {
                 database: database_name.to_string(),
@@ -281,19 +287,55 @@ impl Client {
                 }
             }
         };
+        Ok(())
+    }
 
-        let delete_db_request = self
-            .get_request(DeleteDatabaseRequest {
+    #[instrument]
+    pub async fn load_database(&mut self, database_name: &str) -> Result<()> {
+        let load_db_request = self
+            .get_request(LoadDatabaseRequest {
                 database: database_name.to_string(),
             })
-            .map_err(|err| anyhow!("Error generating the delete db request: {err:?}"))?;
-        let delete_db_response = self
-            .client
-            .delete_database(delete_db_request)
-            .await
-            .map_err(|err| anyhow!("Error unloading the database, status = {err:?}"));
+            .map_err(|err| anyhow!("Error generating the load db request: {err:?}"))?;
 
-        info!("grpc-delete-database-response={delete_db_response:?}");
+        match self.client.load_database(load_db_request).await {
+            Ok(load_db_response) => {
+                info!("grpc-load-database-response={load_db_response:?}");
+            }
+            Err(err) => {
+                return Err(anyhow!("Error unloading the database, status = {err:?}"));
+            }
+        };
+        Ok(())
+    }
+
+    #[instrument]
+    pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
+        let database_info = self
+            .get_database(&database_name)
+            .await
+            .map_err(|err| anyhow!("error reading immudb database: {err:?}"))?;
+
+        if let Some(database_info) = database_info {
+            if database_info.loaded {
+                self.unload_database(&database_name)
+                    .await
+                    .map_err(|err| anyhow!("error unloading immudb database: {err:?}"))?;
+            }
+            let delete_db_request = self
+                .get_request(DeleteDatabaseRequest {
+                    database: database_name.to_string(),
+                })
+                .map_err(|err| anyhow!("Error generating the delete db request: {err:?}"))?;
+            let delete_db_response = self
+                .client
+                .delete_database(delete_db_request)
+                .await
+                .map_err(|err| anyhow!("Error deleting the database, status = {err:?}"));
+
+            info!("grpc-delete-database-response={delete_db_response:?}");
+        }
+
         Ok(())
     }
 

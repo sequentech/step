@@ -7,6 +7,8 @@ insert_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          set:
+              created_by_user_id: x-hasura-User-Id
           columns:
               - annotations
               - content
@@ -24,8 +26,6 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-          set:
-              created_by_user_id: x-hasura-User-Id
       role: admin-user
     - comment: ""
       permission:
@@ -53,6 +53,8 @@ insert_permissions:
           check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          set:
+              created_by_user_id: x-hasura-User-Id
           columns:
               - annotations
               - content
@@ -70,13 +72,10 @@ insert_permissions:
               - election_id
               - id
               - tenant_id
-          set:
-              created_by_user_id: x-hasura-User-Id
       role: tally-sheet-create
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - content
@@ -97,10 +96,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - content
@@ -119,10 +118,10 @@ select_permissions:
               - id
               - tenant_id
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - content
@@ -143,10 +142,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: tally-sheet-create
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - content
@@ -167,13 +166,11 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: tally-sheet-view
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - content
@@ -194,10 +191,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check: {}
           columns:
               - annotations
               - content
@@ -216,12 +215,10 @@ update_permissions:
               - id
               - tenant_id
           filter: {}
+          check: {}
       role: service-account
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - content
@@ -240,6 +237,9 @@ update_permissions:
               - id
               - tenant_id
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: tally-sheet-create

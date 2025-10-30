@@ -35,7 +35,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - trustee_ids
               - is_default
@@ -61,10 +60,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
+          allow_aggregations: true
       role: admin-ceremony
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - trustee_ids
               - is_default
@@ -90,10 +89,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - trustee_ids
               - is_default
@@ -111,10 +110,10 @@ select_permissions:
               - tenant_id
               - permission_label
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - trustee_ids
               - is_default
@@ -140,11 +139,11 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
+          allow_aggregations: true
       role: trustee-ceremony
 update_permissions:
     - comment: ""
       permission:
-          check: {}
           columns:
               - trustee_ids
               - is_default
@@ -162,6 +161,7 @@ update_permissions:
               - tenant_id
               - permission_label
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

@@ -13,7 +13,9 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::tenant;
+use windmill::services::archive_event::archive_election_event;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
@@ -37,6 +39,12 @@ pub async fn delete_election_event_f(
     body: Json<DeleteElectionEventInput>,
     claims: JwtClaims,
 ) -> Result<Json<DeleteElectionEventOutput>, (Status, String)> {
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_DELETE],
+    )?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
@@ -102,5 +110,57 @@ pub async fn delete_election_event_f(
         id: input.election_event_id,
         error_msg: None,
         task_execution,
+    }))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ArchiveElectionEventOutput {
+    id: String,
+    error_msg: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ArchiveElectionEventInput {
+    election_event_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/archive-election-event", format = "json", data = "<body>")]
+pub async fn archive_election_event_f(
+    body: Json<ArchiveElectionEventInput>,
+    claims: JwtClaims,
+) -> Result<Json<ArchiveElectionEventOutput>, (Status, String)> {
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    authorize(
+        &claims,
+        true,
+        Some(tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_ARCHIVE],
+    )?;
+    let input = body.into_inner();
+
+    provide_hasura_transaction(|hasura_transaction| {
+        let tenant_id = tenant_id.clone();
+        let election_event_id = input.election_event_id.clone();
+        Box::pin(async move {
+            archive_election_event(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+            )
+            .await
+        })
+    })
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to archive/unarchive election event {error:?}"),
+        )
+    })?;
+
+    Ok(Json(ArchiveElectionEventOutput {
+        id: input.election_event_id,
+        error_msg: None,
     }))
 }

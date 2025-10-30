@@ -218,6 +218,44 @@ pub async fn get_all_tenant_election_events(
     Ok(election_events)
 }
 
+#[instrument(err, skip(hasura_transaction))]
+pub async fn update_election_event_archived(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    is_archived: bool,
+) -> Result<()> {
+    let tenant_uuid: uuid::Uuid =
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".election_event
+            SET
+                is_archived = $3
+            WHERE
+                tenant_id = $1
+                AND id = $2;
+            "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &is_archived],
+        )
+        .await
+        .with_context(|| anyhow!("Error running the update_election_event_archived query"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip(hasura_transaction, annotations))]
 pub async fn update_election_event_annotations(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -254,6 +292,7 @@ pub async fn update_election_event_annotations(
     Ok(())
 }
 
+#[instrument(err, skip(hasura_transaction, presentation))]
 pub async fn update_election_event_presentation(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

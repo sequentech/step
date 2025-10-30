@@ -70,7 +70,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -94,10 +93,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -115,10 +114,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: application-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -136,10 +135,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: application-write
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - applicant_id
               - status
@@ -156,11 +155,11 @@ select_permissions:
               - tenant_id
               - permission_label
           filter: {}
+          allow_aggregations: true
       role: service-account
 update_permissions:
     - comment: ""
       permission:
-          check: null
           columns:
               - applicant_id
               - status
@@ -178,10 +177,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check: null
       role: admin-user
     - comment: ""
       permission:
-          check: null
           columns:
               - applicant_id
               - status
@@ -199,10 +198,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check: null
       role: application-write
     - comment: ""
       permission:
-          check: {}
           columns:
               - applicant_id
               - status
@@ -219,6 +218,7 @@ update_permissions:
               - tenant_id
               - permission_label
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

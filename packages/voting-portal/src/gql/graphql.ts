@@ -55,6 +55,12 @@ export type ApplicationVerifyBody = {
   tenant_id?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type ArchiveElectionEventOutput = {
+  __typename?: 'ArchiveElectionEventOutput';
+  error_msg?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+};
+
 export type BallotPublicationStyles = {
   __typename?: 'BallotPublicationStyles';
   ballot_publication_id: Scalars['String']['output'];
@@ -1113,6 +1119,8 @@ export type Mutation_Root = {
   ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
+  /** archive election event */
+  archive_election_event?: Maybe<ArchiveElectionEventOutput>;
   /** check private key */
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
@@ -1711,6 +1719,12 @@ export type Mutation_RootApplicationChangeStatusArgs = {
 /** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
   body: ApplicationVerifyBody;
+};
+
+
+/** mutation root */
+export type Mutation_RootArchive_Election_EventArgs = {
+  election_event_id: Scalars['String']['input'];
 };
 
 

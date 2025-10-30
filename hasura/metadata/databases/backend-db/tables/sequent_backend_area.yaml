@@ -98,7 +98,6 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -115,10 +114,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -135,10 +134,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: area-create
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -155,10 +154,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: area-delete
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -175,10 +174,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: area-export
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -195,10 +194,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: area-import
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -215,10 +214,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: area-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -235,10 +234,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: area-upsert
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -255,10 +254,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
       role: area-write
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -273,6 +272,7 @@ select_permissions:
               - tenant_id
               - type
           filter: {}
+          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
@@ -299,9 +299,6 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - created_at
@@ -316,12 +313,14 @@ update_permissions:
               - tenant_id
               - type
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
-          check: {}
           columns:
               - annotations
               - created_at
@@ -338,12 +337,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
+          check: {}
       role: area-upsert
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - created_at
@@ -358,12 +355,14 @@ update_permissions:
               - tenant_id
               - type
           filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: area-write
     - comment: ""
       permission:
-          check: {}
           columns:
               - annotations
               - created_at
@@ -378,6 +377,7 @@ update_permissions:
               - tenant_id
               - type
           filter: {}
+          check: {}
       role: service-account
 delete_permissions:
     - comment: ""
