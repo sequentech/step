@@ -53,7 +53,7 @@ pub fn create_ballot_style(
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
-        .map(|presentation| serde_json::from_value(presentation))
+        .map(|presentation| deserialize_value(presentation))
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election Event presentation {:?}", err)
@@ -63,7 +63,7 @@ pub fn create_ballot_style(
     let election_event_annotations: HashMap<String, String> = election_event
         .annotations
         .clone()
-        .map(|annotations| serde_json::from_value(annotations))
+        .map(|annotations| deserialize_value(annotations))
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election Event annotations {:?}", err)
@@ -73,7 +73,7 @@ pub fn create_ballot_style(
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
-        .map(|presentation| serde_json::from_value(presentation))
+        .map(|presentation| deserialize_value(presentation))
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election presentation {:?}", err)
@@ -83,7 +83,7 @@ pub fn create_ballot_style(
     let election_annotations: HashMap<String, String> = election
         .annotations
         .clone()
-        .map(|annotations| serde_json::from_value(annotations))
+        .map(|annotations| deserialize_value(annotations))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
         .unwrap_or_default();
@@ -139,7 +139,7 @@ fn create_contest(
     let contest_presentation = contest
         .presentation
         .clone()
-        .map(|presentation_value| serde_json::from_value(presentation_value))
+        .map(|presentation_value| deserialize_value(presentation_value))
         .unwrap_or(Ok(ContestPresentation::new()))?;
     let name_i18n = parse_i18n_field(&contest_presentation.i18n, "name");
     let description_i18n =
@@ -153,9 +153,7 @@ fn create_contest(
             let candidate_presentation = candidate
                 .presentation
                 .clone()
-                .map(|presentation_value| {
-                    serde_json::from_value(presentation_value)
-                })
+                .map(|presentation_value| deserialize_value(presentation_value))
                 .unwrap_or(Ok(CandidatePresentation::new()))?;
 
             let name_i18n =
