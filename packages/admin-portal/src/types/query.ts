@@ -170,6 +170,7 @@ const sequent_backend_area: Sequent_Backend_Area = {
     name: undefined,
     tenant_id: "",
     type: undefined,
+    presentation: undefined,
 }
 
 export const sequent_backend_area_contest: Sequent_Backend_Area_Contest = {

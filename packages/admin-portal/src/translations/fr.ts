@@ -109,6 +109,18 @@ const frenchTranslation: TranslationType = {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",
             },
+            formImputs: {
+                allowEarlyVoting: "Autoriser le Vote Anticipé",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clé de Compte de Service Google Calendar",
+                gapiEmail: "Email d'Authentification Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -147,6 +159,7 @@ const frenchTranslation: TranslationType = {
                 templates: "MODÈLES",
                 languages: "LANGUES",
                 localization: "LOCALISATION",
+                integrations: "INTÉGRATIONS",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
@@ -344,6 +357,13 @@ const frenchTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Autoriser les cérémonies automatiques",
                         "manual-ceremonies": "Cérémonies manuelles",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Politique de Vote Pondéré",
+                    options: {
+                        "areas-weighted-voting": "Vote Pondéré par Zones",
+                        "disabled-weighted-voting": "Vote Pondéré Désactivé",
                     },
                 },
             },
@@ -962,6 +982,7 @@ const frenchTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
+                "google-meet-link": "Générer un Lien Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1089,6 +1110,26 @@ const frenchTranslation: TranslationType = {
                 preview: "Aperçu",
             },
         },
+        googleMeet: {
+            title: "Générer un Lien Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Titre de la Réunion",
+            description: "Description (Optionnel)",
+            startDate: "Date de Début",
+            startTime: "Heure de Début",
+            duration: "Durée (minutes)",
+            attendeeEmails: "Emails des Participants",
+            attendeeEmailHelp:
+                "Emails séparés par des virgules pour les participants de la réunion",
+            note: "Note : Cela créera un événement de calendrier dans votre Google Calendar avec un lien Google Meet. Vous devrez vous connecter à votre compte Google.",
+            success: "Lien Google Meet Généré avec Succès !",
+            copy: "Copier dans le presse-papiers",
+            copied: "Lien copié dans le presse-papiers !",
+            instructions:
+                "Partagez ce lien avec les participants pour rejoindre la réunion. L'événement de calendrier a été ajouté à votre Google Calendar.",
+            generating: "Génération...",
+            generate: "Générer le Lien Meet",
+        },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",
             resources: {
@@ -1146,6 +1187,7 @@ const frenchTranslation: TranslationType = {
             channel: {
                 online: "En ligne",
                 kiosk: "Kiosque",
+                early_voting: "Vote anticipé",
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
@@ -1248,6 +1290,12 @@ const frenchTranslation: TranslationType = {
                 "semi-open-list": "Liste Semi-ouverte",
                 "invalid-vote": "Vote Inválido",
                 "blank-vote": "Vote Blanc",
+            },
+            invalidVotePosition: {
+                label: "Position du Vote Invalide",
+                null: "Aucune (Par défaut)",
+                top: "Haut",
+                bottom: "Bas",
             },
             error: {},
             createCandidateSuccess: "Candidat créé",
@@ -1624,6 +1672,14 @@ const frenchTranslation: TranslationType = {
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
+                weight: "Poids",
+            },
+            chart: {
+                votesForCandidates: "Votes pour les Candidats",
+                blankVotes: "Votes Blancs",
+                invalidVotes: "Votes Invalides",
+                totalVoters: "Total des Électeurs",
+                nonVoters: "Non-Électeurs",
             },
         },
         publish: {
@@ -1643,9 +1699,17 @@ const frenchTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
+                startKioskVoting: "Commencer Vote au Kiosque",
+                startOnlineVoting: "Commencer Vote en Ligne",
+                startEarlyVoting: "Commencer Vote Anticipé",
                 stopVotingPeriod: "Arrêter la période de vote",
+                stopOnlineVoting: "Arrêter le Vote en Ligne",
+                stopEarlyVoting: "Arrêter le Vote Anticipé",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
                 pauseVotingPeriod: "Mettre en pause la période de vote",
+                pauseKioskVoting: "Mettre en pause le Vote au Kiosque",
+                pauseOnlineVoting: "Mettre en pause le Vote en Ligne",
+                pauseEarlyVoting: "Mettre en pause le Vote Anticipé",
                 generate: "régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",

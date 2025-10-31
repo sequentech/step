@@ -108,6 +108,18 @@ const englishTranslation = {
                 header: "No Areas yet.",
                 action: "Create Area",
             },
+            formImputs: {
+                allowEarlyVoting: "Allow Early Voting",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Key",
+                gapiEmail: "Google Calendar Authentication Email",
+            },
+            errors: {
+                invalidGapiKey: "Invalid Google Calendar Service Account Key format",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -146,6 +158,7 @@ const englishTranslation = {
                 templates: "TEMPLATES",
                 languages: "LANGUAGES",
                 localization: "LOCALIZATION",
+                integrations: "Integrations",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
@@ -343,6 +356,13 @@ const englishTranslation = {
                     options: {
                         "automated-ceremonies": "Allow Automatic Ceremonies",
                         "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Weighted Voting Policy",
+                    options: {
+                        "areas-weighted-voting": "Weighted Voting for Areas",
+                        "disabled-weighted-voting": "Disabled Weighted Voting",
                     },
                 },
             },
@@ -946,6 +966,7 @@ const englishTranslation = {
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
                 "transmission-report-generate": "Generate Transmission Report",
+                "google-meet-link": "Generate google meet link",
             },
         },
         generalSettingsScreen: {
@@ -1071,6 +1092,25 @@ const englishTranslation = {
                 preview: "Preview",
             },
         },
+        googleMeet: {
+            title: "Generate Google Meet Link",
+            generateButton: "Google Meet",
+            meetingTitle: "Meeting Title",
+            description: "Description (Optional)",
+            startDate: "Start Date",
+            startTime: "Start Time",
+            duration: "Duration (minutes)",
+            attendeeEmails: "Attendee Emails",
+            attendeeEmailHelp: "Comma-separated emails for meeting participants",
+            note: "Note: This will create a calendar event in your Google Calendar with a Google Meet link. You'll need to sign in to your Google account.",
+            success: "Google Meet Link Generated Successfully!",
+            copy: "Copy to clipboard",
+            copied: "Link copied to clipboard!",
+            instructions:
+                "Share this link with participants to join the meeting. The calendar event has been added to your Google Calendar.",
+            generating: "Generating...",
+            generate: "Generate Meet Link",
+        },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
@@ -1128,6 +1168,7 @@ const englishTranslation = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Early voting",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
@@ -1229,6 +1270,12 @@ const englishTranslation = {
                 "semi-open-list": "Semi Open List",
                 "invalid-vote": "Invalid Vote",
                 "blank-vote": "Blank Vote",
+            },
+            invalidVotePosition: {
+                label: "Invalid Vote Position",
+                null: "None (Default)",
+                top: "Top",
+                bottom: "Bottom",
             },
             error: {},
             createCandidateSuccess: "Candidate created",
@@ -1599,6 +1646,14 @@ const englishTranslation = {
                 blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
+                weight: "Weight",
+            },
+            chart: {
+                votesForCandidates: "Votes For Candidates",
+                blankVotes: "Blank Votes",
+                invalidVotes: "Invalid Votes",
+                totalVoters: "Total Voters",
+                nonVoters: "Non Voters",
             },
         },
         publish: {
@@ -1618,9 +1673,17 @@ const englishTranslation = {
             action: {
                 generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
+                startKioskVoting: "Start Kiosk Voting",
+                startOnlineVoting: "Start Online Voting",
+                startEarlyVoting: "Start Early Voting",
                 stopVotingPeriod: "Stop Voting",
+                stopOnlineVoting: "Stop Online Voting",
+                stopEarlyVoting: "Stop Early Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
+                pauseKioskVoting: "Pause Kiosk Voting",
+                pauseOnlineVoting: "Pause Online Voting",
+                pauseEarlyVoting: "Pause Early Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",

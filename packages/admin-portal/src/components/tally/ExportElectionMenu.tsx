@@ -126,11 +126,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(event.currentTarget)
     }
 
-    // const handleClose = () => {
-    //     setAnchorEl(null)
-    // }
-
     const handleClose = useCallback(() => {
+        console.log("closing menu")
         setAnchorEl(null)
     }, [])
 
@@ -139,6 +136,12 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         if (!documentId) {
             console.log("handleExport ERROR missing document id")
             return
+        }
+
+        // If the requested format is tar_gz, check if a tar_gz_pdfs version exists.
+        // If it does, use it as the primary download source.
+        if (format === EExportFormat.TAR_GZ && documents?.tar_gz_pdfs) {
+            documentId = documents.tar_gz_pdfs
         }
 
         console.log("handleExport setPerformDownload")
@@ -275,6 +278,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                 name={documents.name}
                                                 electionEventId={electionEventId}
                                                 tallySessionId={tallySessionId}
+                                                handleClose={handleClose}
                                             />
                                         ) : null}
                                     </React.Fragment>

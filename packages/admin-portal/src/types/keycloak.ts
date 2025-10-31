@@ -195,4 +195,5 @@ export enum IPermissions {
     USER_IMPORT = "user-import",
     VOTER_VOTED_EDIT = "voter-voted-edit", // permission to edit a voter that has already cast a vote
     VOTER_EMAIL_TLF_EDIT = "voter-email-tlf-edit", // permission to edit voter fields: email and mobile number
+    GOOGLE_MEET_LINK = "google-meet-link",
 }
