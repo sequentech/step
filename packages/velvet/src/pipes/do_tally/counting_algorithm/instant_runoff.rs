@@ -40,7 +40,7 @@ enum BallotStatus {
 
 #[derive(Debug)]
 pub struct BallotsStatus<'a> {
-    ballots: Vec<(BallotStatus, &'a DecodedVoteContest)>,
+    ballots: Vec<(BallotStatus, &'a DecodedVoteContest, Weight)>,
     count_valid: u64,
     count_invalid_votes: InvalidVotes,
     count_blank: u64,
@@ -63,7 +63,7 @@ impl BallotsStatus<'_> {
         let mut extended_metrics = ExtendedMetricsContest::default();
         let mut ballots = Vec::with_capacity(votes.len());
 
-        for (vote, _) in votes {
+        for (vote, weight) in votes {
             let status = match (vote.is_invalid(), vote.is_blank()) {
                 (true, _) => {
                     if vote.is_explicit_invalid {
@@ -80,7 +80,7 @@ impl BallotsStatus<'_> {
                 (false, false) => BallotStatus::Valid,
             };
             extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
-            ballots.push((status, vote));
+            ballots.push((status, vote, weight.clone()));
         }
         let total_ballots = votes.len() as u64;
         extended_metrics.total_ballots = total_ballots;
@@ -301,17 +301,18 @@ impl RunoffStatus {
         let act_candidates = self.candidates_status.get_active_candidates();
         let act_candidates_count = act_candidates.len() as u64;
         let mut act_ballots = 0;
-        for (ballot_st, ballot) in ballots_status.ballots.iter_mut() {
+        for (ballot_st, ballot, weight) in ballots_status.ballots.iter_mut() {
             if *ballot_st != BallotStatus::Valid {
                 continue;
             }
             act_ballots += 1;
             let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidates);
+            let w = weight.unwrap_or_default();
             if let Some(candidate_id) = candidate_id {
                 candidates_wins
                     .entry(candidate_id.clone())
-                    .and_modify(|e| *e += 1)
-                    .or_insert(1);
+                    .and_modify(|e| *e += w)
+                    .or_insert(w);
             } else {
                 *ballot_st = BallotStatus::Exhausted;
             }
