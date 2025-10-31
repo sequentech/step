@@ -13,3 +13,11 @@ If all existing Election Events are archived and you click on the "Active" tab
 of the Admin Portal sidebar, it goes back to the Archived tab automatically.
 
 - Issue: [#8876](https://github.com/sequentech/meta/issues/8876)
+
+## 🐞 Default Invalid vote policy mismatch
+
+The default Invalid Vote Policy was different in the backend and the front-end.
+As a result, the UI displayed the policy as `warn-explicit-and-implicit`, even
+though the actual default (when not predefined) was `allowed`.
+
+- Issue: [#8855](https://github.com/sequentech/meta/issues/8855)
