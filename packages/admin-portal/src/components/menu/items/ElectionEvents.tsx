@@ -446,13 +446,6 @@ export default function ElectionEvents() {
         }
     }, [getCandidateIdFlag, candidate_id])
 
-    useEffect(() => {
-        if (!electionEventData || !electionEventId) return
-        if (electionEventData?.id === electionEventId && electionEventData?.is_archived) {
-            setArchivedElectionEvents(electionEventData?.is_archived ?? false)
-        }
-    }, [electionEventId, electionEventData, setArchivedElectionEvents])
-
     let resultData = {...data}
 
     function changeArchiveSelection(val: number) {
