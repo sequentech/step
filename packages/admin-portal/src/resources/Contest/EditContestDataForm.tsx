@@ -458,7 +458,7 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.invalid_vote_policy =
                 newContest.presentation.invalid_vote_policy ||
-                EInvalidVotePolicy.WARN_INVALID_IMPLICIT_AND_EXPLICIT
+                EInvalidVotePolicy.ALLOWED
 
             newContest.presentation.enable_checkable_lists =
                 newContest.presentation.enable_checkable_lists ||
