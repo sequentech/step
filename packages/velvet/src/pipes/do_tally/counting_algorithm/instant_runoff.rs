@@ -416,7 +416,7 @@ impl CountingAlgorithm for InstantRunoff {
                         "TallyOperation {op} is not supported for InstantRunoff at Contest level"
                     )));
                 }
-                self.process_ballots()? // TODO: Prepare ballots from all the areas in this case
+                self.process_ballots()?
             }
             ScopeOperation::Area(op) => {
                 if op != TallyOperation::ParticipationSummary {

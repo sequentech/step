@@ -137,7 +137,8 @@ impl Pipe for DoTally {
                     // These are specific to the contest and need to be cloned for use in area processing.
                     let election_id_for_contest = contest_input.election_id.clone();
                     let contest_id_for_contest = contest_input.id.clone();
-                    let contest_object_for_contest = contest_input.contest.clone();
+                    let contest_object = contest_input.contest.clone();
+                    let contest_op = get_contest_tally_operation(&contest_object);
 
                     // --- Start of logic for a single contest ---
                     let _areas_info: Vec<TreeNodeArea> = contest_input // Renamed, original `areas` was unused after info
@@ -183,7 +184,6 @@ impl Pipe for DoTally {
                             let area_id = area_input.id.clone();
                             let election_id = election_id_for_contest.clone();
                             let contest_id = contest_id_for_contest.clone();
-                            let contest_object = contest_object_for_contest.clone();
 
                             let base_input_path = PipeInputs::build_path(
                                 &input_dir,
@@ -217,6 +217,12 @@ impl Pipe for DoTally {
                                 .filter(|child| child.id != area_input.id.to_string())
                                 .count();
 
+                            let area_op = get_area_tally_operation(
+                                &election_input.ballot_styles,
+                                contest_object.get_counting_algorithm(),
+                                &area_input.id,
+                            );
+
                             if num_children_areas > 0usize {
                                 let base_aggregate_path = base_output_path
                                     .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -247,7 +253,7 @@ impl Pipe for DoTally {
 
                                         let child_area_weight = get_area_weight(
                                             &election_input.ballot_styles,
-                                            child_area_id,
+                                            &child_area_id,
                                         );
 
                                         Ok((
@@ -262,14 +268,10 @@ impl Pipe for DoTally {
                                         ))
                                     })
                                     .collect::<Result<Vec<(PathBuf, Weight)>, Error>>()?;
-                                // let op = get_area_tally_operation(
-                                //     election_input.ballot_styles.clone(),
-                                //     area_input.id,
-                                // );
 
                                 let counting_algorithm = tally::create_tally(
                                     &contest_object,
-                                    ScopeOperation::Area(TallyOperation::ProcessBallots), // TODO: Fix this
+                                    ScopeOperation::Area(area_op), // The operation of the parent area is used in the aggregate of its children, this makes sense so that each child has the same data available
                                     children_area_paths,
                                     census_size,
                                     auditable_votes_size,
@@ -287,18 +289,12 @@ impl Pipe for DoTally {
                             }
 
                             let area_weight =
-                                get_area_weight(&election_input.ballot_styles, area_input.id);
-
-                            let op = get_area_tally_operation(
-                                &election_input.ballot_styles,
-                                contest_object.get_counting_algorithm(),
-                                area_input.id,
-                            );
+                                get_area_weight(&election_input.ballot_styles, &area_input.id);
 
                             // Create area tally
                             let counting_algorithm_area = tally::create_tally(
                                 &contest_object,
-                                ScopeOperation::Area(op),
+                                ScopeOperation::Area(area_op),
                                 vec![(decoded_ballots_file.clone(), area_weight)],
                                 area_input.census,
                                 area_input.auditable_votes,
@@ -374,7 +370,7 @@ impl Pipe for DoTally {
                             }
                             // Return data needed for final aggregation for the contest
                             Ok((
-                                decoded_ballots_file,
+                                (decoded_ballots_file, area_weight),
                                 area_input.census,
                                 area_input.auditable_votes,
                                 area_specific_tally_sheet_results,
@@ -386,7 +382,7 @@ impl Pipe for DoTally {
                     let collected_area_outputs = area_processing_results?; // Propagate error if any area failed
 
                     // Aggregate results from parallel area processing
-                    let mut contest_ballot_files: Vec<PathBuf> = vec![];
+                    let mut contest_ballot_files: Vec<(PathBuf, Weight)> = vec![];
                     let mut sum_census: u64 = 0;
                     let mut sum_auditable_votes: u64 = 0;
                     let mut tally_sheet_results_for_contest: Vec<(ContestResult, TallySheet)> =
@@ -428,12 +424,11 @@ impl Pipe for DoTally {
                             .map(|(res, _)| res.clone())
                             .collect();
 
-                    let op = get_contest_tally_operation(&contest_object_for_contest);
                     // Create final contest tally
                     let final_counting_algorithm = tally::create_tally(
-                        &contest_object_for_contest,
-                        ScopeOperation::Contest(op),
-                        vec![],
+                        &contest_object,
+                        ScopeOperation::Contest(contest_op),
+                        contest_ballot_files,
                         sum_census,
                         sum_auditable_votes,
                         final_only_sheet_results,

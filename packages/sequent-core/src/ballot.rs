@@ -2194,11 +2194,10 @@ pub struct AreaAnnotations {
 
 impl AreaAnnotations {
     pub fn get_weight(&self) -> Weight {
-        self.weight.clone().unwrap_or_default()
+        self.weight.unwrap_or_default()
     }
     pub fn get_tally_operation(&self) -> TallyOperation {
         self.tally_operation
-            .clone()
             .unwrap_or(TallyOperation::ProcessBallots)
     }
 }

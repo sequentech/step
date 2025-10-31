@@ -124,7 +124,7 @@ pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
 pub fn get_area_tally_operation(
     ballot_styles: &Vec<BallotStyle>,
     counting_alg: CountingAlgType,
-    area_id: Uuid,
+    area_id: &Uuid,
 ) -> TallyOperation {
     let default_tally_op = match counting_alg {
         CountingAlgType::InstantRunoff => TallyOperation::ParticipationSummary,
@@ -145,7 +145,7 @@ pub fn get_area_tally_operation(
 }
 
 #[instrument]
-pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: Uuid) -> Weight {
+pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: &Uuid) -> Weight {
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
         .find(|bs| bs.area_id == area_id.to_string());
