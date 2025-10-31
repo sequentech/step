@@ -178,9 +178,7 @@ fn create_contest(
             let candidate_presentation = candidate
                 .presentation
                 .clone()
-                .map(|presentation_value| {
-                    deserialize_value(presentation_value)
-                })
+                .map(|presentation_value| deserialize_value(presentation_value))
                 .unwrap_or(Ok(CandidatePresentation::new()))?;
 
             let name_i18n =
