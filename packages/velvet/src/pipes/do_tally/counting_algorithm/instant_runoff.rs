@@ -388,142 +388,21 @@ impl InstantRunoff {
             vote_count = results.candidates_wins;
         }
 
-        // Create a json vaue from runoff object.
+        // Create a json value from runoff object.
         let runoff_value =
             serde_json::to_value(runoff).map_err(|e| Error::UnexpectedError(e.to_string()))?;
-        // Set percentage votes for each candidate
-        // TODO: recicle code from plurality to common
-        let candidate_results_map: HashMap<String, CandidateResult> = vote_count
-            .into_iter()
-            .map(|(id, total_count)| {
-                let candidate = self
-                    .tally
-                    .contest
-                    .candidates
-                    .iter()
-                    .find(|c| c.id == id)
-                    .cloned()
-                    .ok_or(Error::CandidateNotFound(id))?;
+        let percentage_votes_denominator = count_valid - count_blank;
 
-                let is_explicit_blank = candidate.is_explicit_blank();
-                let is_explicit_invalid = candidate.is_explicit_invalid();
-
-                if is_explicit_blank {
-                    let percentage_votes = (count_blank as f64
-                        / cmp::max(1, extended_metrics.total_ballots) as f64)
-                        * 100.0;
-
-                    Ok(CandidateResult {
-                        candidate,
-                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                        total_count: count_blank,
-                    })
-                } else if is_explicit_invalid {
-                    let percentage_votes = (count_invalid_votes.explicit as f64
-                        / cmp::max(1, extended_metrics.total_ballots) as f64)
-                        * 100.0;
-
-                    Ok(CandidateResult {
-                        candidate,
-                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                        total_count: count_invalid_votes.explicit,
-                    })
-                } else {
-                    let percentage_votes = (total_count as f64
-                        / cmp::max(1, count_valid - count_blank) as f64)
-                        * 100.0;
-
-                    Ok(CandidateResult {
-                        candidate,
-                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                        total_count,
-                    })
-                }
-            })
-            .collect::<Result<Vec<CandidateResult>>>()?
-            .into_iter()
-            .map(|cand| (cand.candidate.id.clone(), cand))
-            .collect();
-
-        let result: Vec<CandidateResult> = contest
-            .candidates
-            .iter()
-            .map(|candidate| {
-                let candidate_result = candidate_results_map.get(&candidate.id).cloned();
-
-                if let Some(candidate_result) = candidate_result {
-                    Ok(candidate_result)
-                } else {
-                    let is_explicit_blank = candidate.is_explicit_blank();
-                    let is_explicit_invalid = candidate.is_explicit_invalid();
-
-                    if is_explicit_blank {
-                        let percentage_votes = (count_blank as f64
-                            / cmp::max(1, extended_metrics.total_ballots) as f64)
-                            * 100.0;
-
-                        Ok(CandidateResult {
-                            candidate: candidate.clone(),
-                            percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                            total_count: count_blank,
-                        })
-                    } else if is_explicit_invalid {
-                        let percentage_votes = (count_invalid_votes.explicit as f64
-                            / cmp::max(1, extended_metrics.total_ballots) as f64)
-                            * 100.0;
-
-                        Ok(CandidateResult {
-                            candidate: candidate.clone(),
-                            percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                            total_count: count_invalid_votes.explicit,
-                        })
-                    } else {
-                        Ok(CandidateResult {
-                            candidate: candidate.clone(),
-                            percentage_votes: 0.0,
-                            total_count: 0,
-                        })
-                    }
-                }
-            })
-            .collect::<Result<Vec<CandidateResult>>>()?;
-
-        let total_votes = count_valid + count_invalid;
-        let total_votes_base = cmp::max(1, total_votes) as f64;
-
-        let census_base = cmp::max(1, self.tally.census) as f64;
-        let percentage_auditable_votes = (self.tally.auditable_votes as f64) * 100.0 / census_base;
-        let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
-        let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
-        let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
-        let percentage_total_blank_votes = (count_blank as f64 * 100.0) / total_votes_base;
-        let percentage_invalid_votes_explicit =
-            (count_invalid_votes.explicit as f64 * 100.0) / total_votes_base;
-        let percentage_invalid_votes_implicit =
-            (count_invalid_votes.implicit as f64 * 100.0) / total_votes_base;
-
-        let contest_result = ContestResult {
-            contest: self.tally.contest.clone(),
-            census: self.tally.census,
-            percentage_census: 100.0,
-            auditable_votes: self.tally.auditable_votes,
-            percentage_auditable_votes: percentage_auditable_votes.clamp(0.0, 100.0),
-            total_votes: total_votes,
-            percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
-            total_valid_votes: count_valid,
-            percentage_total_valid_votes: percentage_total_valid_votes.clamp(0.0, 100.0),
-            total_invalid_votes: count_invalid,
-            percentage_total_invalid_votes: percentage_total_invalid_votes.clamp(0.0, 100.0),
-            total_blank_votes: count_blank,
-            percentage_total_blank_votes: percentage_total_blank_votes.clamp(0.0, 100.0),
-            percentage_invalid_votes_explicit: percentage_invalid_votes_explicit.clamp(0.0, 100.0),
-            percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
-            invalid_votes: count_invalid_votes,
-            candidate_result: result,
-            extended_metrics: Some(extended_metrics),
-            process_results: Some(runoff_value),
-        };
-        Ok(contest_result)
+        self.tally.create_contest_result(
+            Some(runoff_value),
+            vote_count,
+            count_blank,
+            count_invalid_votes,
+            extended_metrics,
+            count_valid,
+            count_invalid,
+            percentage_votes_denominator,
+        )
     }
 }
 
@@ -551,6 +430,7 @@ impl CountingAlgorithm for InstantRunoff {
             }
         };
 
+        // Maybe IRV should not support tally sheets.
         let aggregate = self
             .tally
             .tally_sheet_results

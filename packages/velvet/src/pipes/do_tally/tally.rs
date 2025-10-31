@@ -7,17 +7,19 @@ use super::counting_algorithm::{
     instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge, CountingAlgorithm,
 };
 use super::error::{Error, Result};
-use super::{CandidateResult, ContestResult, InvalidVotes};
+use super::{CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
-use sequent_core::ballot::{ContestPresentation, Weight};
+use sequent_core::ballot::{Contest, ContestPresentation, Weight};
+use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::types::{
     ceremonies::{CountingAlgType, ScopeOperation, TallyOperation},
     hasura::core::TallySheet,
 };
-use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
+use serde_json::Value;
 use std::cmp;
+use std::collections::HashMap;
 use std::{fs, path::PathBuf};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
@@ -98,6 +100,156 @@ impl Tally {
             .iter()
             .fold(contest_result, |acc, x| acc.aggregate(x, true));
         Ok(aggregated)
+    }
+
+    #[instrument(err, skip_all)]
+    pub fn create_contest_result(
+        &self,
+        process_results: Option<Value>,
+        vote_count: HashMap<String, u64>,
+        count_blank: u64,
+        count_invalid_votes: InvalidVotes,
+        extended_metrics: ExtendedMetricsContest,
+        count_valid: u64,
+        count_invalid: u64,
+        percentage_votes_denominator: u64,
+    ) -> Result<ContestResult, CntAlgError> {
+        let contest = &self.contest;
+
+        // Create candidate results map from vote_count
+        let candidate_results_map: HashMap<String, CandidateResult> = vote_count
+            .into_iter()
+            .map(|(id, total_count)| {
+                let candidate = self
+                    .contest
+                    .candidates
+                    .iter()
+                    .find(|c| c.id == id)
+                    .cloned()
+                    .ok_or(CntAlgError::CandidateNotFound(id))?;
+
+                let is_explicit_blank = candidate.is_explicit_blank();
+                let is_explicit_invalid = candidate.is_explicit_invalid();
+
+                if is_explicit_blank {
+                    let percentage_votes = (count_blank as f64
+                        / cmp::max(1, extended_metrics.total_ballots) as f64)
+                        * 100.0;
+
+                    Ok(CandidateResult {
+                        candidate,
+                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                        total_count: count_blank,
+                    })
+                } else if is_explicit_invalid {
+                    let percentage_votes = (count_invalid_votes.explicit as f64
+                        / cmp::max(1, extended_metrics.total_ballots) as f64)
+                        * 100.0;
+
+                    Ok(CandidateResult {
+                        candidate,
+                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                        total_count: count_invalid_votes.explicit,
+                    })
+                } else {
+                    let percentage_votes = (total_count as f64
+                        / cmp::max(1, percentage_votes_denominator) as f64)
+                        * 100.0;
+
+                    Ok(CandidateResult {
+                        candidate,
+                        percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                        total_count,
+                    })
+                }
+            })
+            .collect::<Result<Vec<CandidateResult>, CntAlgError>>()?
+            .into_iter()
+            .map(|cand| (cand.candidate.id.clone(), cand))
+            .collect();
+
+        // Create result vector from all candidates in contest
+        let result: Vec<CandidateResult> = contest
+            .candidates
+            .iter()
+            .map(|candidate| {
+                let candidate_result = candidate_results_map.get(&candidate.id).cloned();
+
+                if let Some(candidate_result) = candidate_result {
+                    Ok(candidate_result)
+                } else {
+                    let is_explicit_blank = candidate.is_explicit_blank();
+                    let is_explicit_invalid = candidate.is_explicit_invalid();
+
+                    if is_explicit_blank {
+                        let percentage_votes = (count_blank as f64
+                            / cmp::max(1, extended_metrics.total_ballots) as f64)
+                            * 100.0;
+
+                        Ok(CandidateResult {
+                            candidate: candidate.clone(),
+                            percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                            total_count: count_blank,
+                        })
+                    } else if is_explicit_invalid {
+                        let percentage_votes = (count_invalid_votes.explicit as f64
+                            / cmp::max(1, extended_metrics.total_ballots) as f64)
+                            * 100.0;
+
+                        Ok(CandidateResult {
+                            candidate: candidate.clone(),
+                            percentage_votes: percentage_votes.clamp(0.0, 100.0),
+                            total_count: count_invalid_votes.explicit,
+                        })
+                    } else {
+                        Ok(CandidateResult {
+                            candidate: candidate.clone(),
+                            percentage_votes: 0.0,
+                            total_count: 0,
+                        })
+                    }
+                }
+            })
+            .collect::<Result<Vec<CandidateResult>, CntAlgError>>()?;
+
+        // Calculate percentages
+        let total_votes = count_valid + count_invalid;
+        let total_votes_base = cmp::max(1, total_votes) as f64;
+
+        let census_base = cmp::max(1, self.census) as f64;
+        let percentage_auditable_votes = (self.auditable_votes as f64) * 100.0 / census_base;
+        let percentage_total_votes = (total_votes as f64) * 100.0 / census_base;
+        let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
+        let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
+        let percentage_total_blank_votes = (count_blank as f64 * 100.0) / total_votes_base;
+        let percentage_invalid_votes_explicit =
+            (count_invalid_votes.explicit as f64 * 100.0) / total_votes_base;
+        let percentage_invalid_votes_implicit =
+            (count_invalid_votes.implicit as f64 * 100.0) / total_votes_base;
+
+        // Create ContestResult
+        let contest_result = ContestResult {
+            contest: self.contest.clone(),
+            census: self.census,
+            percentage_census: 100.0,
+            auditable_votes: self.auditable_votes,
+            percentage_auditable_votes: percentage_auditable_votes.clamp(0.0, 100.0),
+            total_votes: total_votes,
+            percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
+            total_valid_votes: count_valid,
+            percentage_total_valid_votes: percentage_total_valid_votes.clamp(0.0, 100.0),
+            total_invalid_votes: count_invalid,
+            percentage_total_invalid_votes: percentage_total_invalid_votes.clamp(0.0, 100.0),
+            total_blank_votes: count_blank,
+            percentage_total_blank_votes: percentage_total_blank_votes.clamp(0.0, 100.0),
+            percentage_invalid_votes_explicit: percentage_invalid_votes_explicit.clamp(0.0, 100.0),
+            percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
+            invalid_votes: count_invalid_votes,
+            candidate_result: result,
+            extended_metrics: Some(extended_metrics),
+            process_results,
+        };
+        Ok(contest_result)
     }
 }
 
