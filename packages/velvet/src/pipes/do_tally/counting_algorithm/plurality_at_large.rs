@@ -24,7 +24,7 @@ impl PluralityAtLarge {
         Self { tally }
     }
     #[instrument(err, skip_all)]
-    pub fn process_ballots(&self) -> Result<ContestResult> {
+    pub fn process_ballots(&self, op: TallyOperation) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;
 
@@ -78,9 +78,22 @@ impl PluralityAtLarge {
         extended_metrics.total_weight = total_weight;
         let percentage_votes_denominator = total_weight;
 
+        let candidate_result = match op {
+            TallyOperation::SkipCandidateResults => Vec::new(),
+            _ => self.tally.create_candidate_results(
+                vote_count,
+                count_blank,
+                count_invalid_votes.clone(),
+                extended_metrics.clone(),
+                count_valid,
+                count_invalid,
+                percentage_votes_denominator,
+            )?,
+        };
+
         self.tally.create_contest_result(
             None,
-            vote_count,
+            candidate_result,
             count_blank,
             count_invalid_votes,
             extended_metrics,
@@ -95,21 +108,17 @@ impl CountingAlgorithm for PluralityAtLarge {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest_result = match self.tally.scope_operation {
-            ScopeOperation::Contest(op) => {
-                if op != TallyOperation::AggregateResults {
-                    return Err(Error::InvalidTallyOperation(format!(
-                        "TallyOperation {op} is not supported for PluralityAtLarge at Contest level"
-                    )));
-                }
+            ScopeOperation::Contest(op) if op == TallyOperation::AggregateResults => {
                 self.tally.aggregate_results()?
             }
+            ScopeOperation::Contest(op) => self.process_ballots(op)?,
             ScopeOperation::Area(op) => {
-                if op != TallyOperation::ProcessBallots {
+                if op == TallyOperation::AggregateResults {
                     return Err(Error::InvalidTallyOperation(format!(
                         "TallyOperation {op} is not supported for PluralityAtLarge at Area level"
                     )));
                 }
-                self.process_ballots()?
+                self.process_ballots(op)?
             }
         };
 

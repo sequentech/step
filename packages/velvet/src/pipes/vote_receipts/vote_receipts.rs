@@ -59,7 +59,7 @@ impl VoteReceipts {
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(
             contest,
-            ScopeOperation::Area(TallyOperation::ProcessBallots), // TODO: Fix this
+            ScopeOperation::Area(TallyOperation::ProcessBallotsAll), // TODO: Fix this
             vec![(path.to_path_buf(), Weight::default())],
             0,
             0,

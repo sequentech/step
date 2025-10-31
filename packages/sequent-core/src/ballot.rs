@@ -2198,7 +2198,7 @@ impl AreaAnnotations {
     }
     pub fn get_tally_operation(&self) -> TallyOperation {
         self.tally_operation
-            .unwrap_or(TallyOperation::ProcessBallots)
+            .unwrap_or(TallyOperation::ProcessBallotsAll)
     }
 }
 

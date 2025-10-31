@@ -103,9 +103,8 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
-    pub fn create_contest_result(
+    pub fn create_candidate_results(
         &self,
-        process_results: Option<Value>,
         vote_count: HashMap<String, u64>,
         count_blank: u64,
         count_invalid_votes: InvalidVotes,
@@ -113,7 +112,7 @@ impl Tally {
         count_valid: u64,
         count_invalid: u64,
         percentage_votes_denominator: u64,
-    ) -> Result<ContestResult, CntAlgError> {
+    ) -> Result<Vec<CandidateResult>, CntAlgError> {
         let contest = &self.contest;
 
         // Create candidate results map from vote_count
@@ -169,7 +168,7 @@ impl Tally {
             .collect();
 
         // Create result vector from all candidates in contest
-        let result: Vec<CandidateResult> = contest
+        let candidate_result: Vec<CandidateResult> = contest
             .candidates
             .iter()
             .map(|candidate| {
@@ -211,6 +210,22 @@ impl Tally {
                 }
             })
             .collect::<Result<Vec<CandidateResult>, CntAlgError>>()?;
+        Ok(candidate_result)
+    }
+
+    #[instrument(err, skip_all)]
+    pub fn create_contest_result(
+        &self,
+        process_results: Option<Value>,
+        candidate_result: Vec<CandidateResult>,
+        count_blank: u64,
+        count_invalid_votes: InvalidVotes,
+        extended_metrics: ExtendedMetricsContest,
+        count_valid: u64,
+        count_invalid: u64,
+        percentage_votes_denominator: u64,
+    ) -> Result<ContestResult, CntAlgError> {
+        let contest = &self.contest;
 
         // Calculate percentages
         let total_votes = count_valid + count_invalid;
@@ -245,7 +260,7 @@ impl Tally {
             percentage_invalid_votes_explicit: percentage_invalid_votes_explicit.clamp(0.0, 100.0),
             percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
             invalid_votes: count_invalid_votes,
-            candidate_result: result,
+            candidate_result,
             extended_metrics: Some(extended_metrics),
             process_results,
         };

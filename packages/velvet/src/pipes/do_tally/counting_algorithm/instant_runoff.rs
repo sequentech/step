@@ -371,7 +371,7 @@ impl InstantRunoff {
     }
 
     #[instrument(err, skip_all)]
-    pub fn process_ballots(&self) -> Result<ContestResult> {
+    pub fn process_ballots(&self, op: TallyOperation) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
 
@@ -381,22 +381,39 @@ impl InstantRunoff {
         let count_invalid_votes = ballots_status.count_invalid_votes;
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
         let extended_metrics = ballots_status.extended_metrics;
-        let mut runoff = RunoffStatus::initialize_statuses(&contest.candidates);
-        runoff.run(&mut ballots_status);
-
-        let mut vote_count: HashMap<String, u64> = HashMap::new(); // TODO: Adapt the output results to have every round information.
-        if let Some(results) = runoff.get_last_round() {
-            vote_count = results.candidates_wins;
-        }
-
-        // Create a json value from runoff object.
-        let runoff_value =
-            serde_json::to_value(runoff).map_err(|e| Error::UnexpectedError(e.to_string()))?;
         let percentage_votes_denominator = count_valid - count_blank;
 
+        let (candidate_result, process_results) = match op {
+            TallyOperation::SkipCandidateResults => (vec![], None),
+            _ => {
+                let mut runoff = RunoffStatus::initialize_statuses(&contest.candidates);
+                runoff.run(&mut ballots_status);
+
+                let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value
+                if let Some(results) = runoff.get_last_round() {
+                    vote_count = results.candidates_wins;
+                }
+
+                // Create a json value from runoff object.
+                let runoff_value = serde_json::to_value(runoff)
+                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+                let candidate_result = self.tally.create_candidate_results(
+                    vote_count,
+                    count_blank,
+                    count_invalid_votes.clone(),
+                    extended_metrics.clone(),
+                    count_valid,
+                    count_invalid,
+                    percentage_votes_denominator,
+                )?;
+                (candidate_result, Some(runoff_value))
+            }
+        };
+
         self.tally.create_contest_result(
-            Some(runoff_value),
-            vote_count,
+            process_results,
+            candidate_result,
             count_blank,
             count_invalid_votes,
             extended_metrics,
@@ -411,33 +428,19 @@ impl CountingAlgorithm for InstantRunoff {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest_result = match self.tally.scope_operation {
-            ScopeOperation::Contest(op) => {
-                if op != TallyOperation::ProcessBallots {
-                    return Err(Error::InvalidTallyOperation(format!(
-                        "TallyOperation {op} is not supported for InstantRunoff at Contest level"
-                    )));
-                }
-                self.process_ballots()?
+            ScopeOperation::Contest(op) if op == TallyOperation::AggregateResults => {
+                self.tally.aggregate_results()?
             }
+            ScopeOperation::Contest(op) => self.process_ballots(op)?,
             ScopeOperation::Area(op) => {
-                if op != TallyOperation::ParticipationSummary {
+                if op == TallyOperation::AggregateResults {
                     return Err(Error::InvalidTallyOperation(format!(
                         "TallyOperation {op} is not supported for InstantRunoff at Area level"
                     )));
                 }
-                // TODO
-                //self.participation_summary()?
-                ContestResult::default()
+                self.process_ballots(op)?
             }
         };
-
-        // Maybe IRV should not support tally sheets.
-        let aggregate = self
-            .tally
-            .tally_sheet_results
-            .iter()
-            .fold(contest_result, |acc, x| acc.aggregate(x, false));
-
-        Ok(aggregate)
+        Ok(contest_result)
     }
 }

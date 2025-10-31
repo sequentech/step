@@ -109,7 +109,7 @@ pub fn update_extended_metrics(
 #[instrument]
 pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     let default_tally_op = match contest.get_counting_algorithm() {
-        CountingAlgType::InstantRunoff => TallyOperation::ProcessBallots,
+        CountingAlgType::InstantRunoff => TallyOperation::ProcessBallotsAll,
         _ => TallyOperation::AggregateResults,
     };
     let annotations = contest.annotations.clone().unwrap_or_default();
@@ -127,8 +127,8 @@ pub fn get_area_tally_operation(
     area_id: &Uuid,
 ) -> TallyOperation {
     let default_tally_op = match counting_alg {
-        CountingAlgType::InstantRunoff => TallyOperation::ParticipationSummary,
-        _ => TallyOperation::ProcessBallots,
+        CountingAlgType::InstantRunoff => TallyOperation::SkipCandidateResults,
+        _ => TallyOperation::ProcessBallotsAll,
     };
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
@@ -141,7 +141,7 @@ pub fn get_area_tally_operation(
                 .map(|area_annotations| area_annotations.get_tally_operation())
         })
         .flatten()
-        .unwrap_or(TallyOperation::ProcessBallots)
+        .unwrap_or(TallyOperation::ProcessBallotsAll)
 }
 
 #[instrument]

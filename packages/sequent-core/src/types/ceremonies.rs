@@ -195,23 +195,22 @@ pub enum CeremoniesPolicy {
     Copy,
     PartialEq,
     Eq,
-    Default,
     Serialize,
     Deserialize,
     BorshSerialize,
     BorshDeserialize,
 )]
 pub enum TallyOperation {
-    #[strum(serialize = "process-ballots")]
-    #[default]
-    ProcessBallots, /* Process ballots to calculate winners and
-                     * participation statistics */
+    #[strum(serialize = "process-ballots-all")]
+    ProcessBallotsAll, /* Process ballots to calculate Candidate Results
+                        * and participation
+                        * statistics */
     #[strum(serialize = "aggregate-results")]
     AggregateResults, /* Aggregate results that have been processed in
                        * every area */
-    #[strum(serialize = "participation-summary")]
-    ParticipationSummary, /* Needs the ballots to calculate participation
-                           * statistics but without counting the winners */
+    #[strum(serialize = "skip-candidate-results")]
+    SkipCandidateResults, /* Needs the ballots to calculate participation
+                           * statistics but without the Candidate Results */
 }
 
 #[derive(Debug, Display)]
