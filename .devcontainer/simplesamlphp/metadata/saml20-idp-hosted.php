@@ -1,12 +1,24 @@
 <?php
-
 /**
- * SAML 2.0 IdP configuration for SimpleSAMLphp.
+ * SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * SAML 2.0 IdP Hosted Metadata Configuration
+ *
+ * This file defines the metadata for this SimpleSAMLphp instance acting as
+ * an Identity Provider (IdP). It uses the centralized configuration to build
+ * the entity ID dynamically.
  *
  * See: https://simplesamlphp.org/docs/stable/simplesamlphp-reference-idp-hosted
  */
 
-$metadata['http://localhost:8083/simplesaml/saml2/idp/metadata.php'] = [
+// Load centralized configuration
+$config = require __DIR__ . '/../config.php';
+
+// Build entity ID dynamically from configuration
+$entityId = rtrim($config['idp_base_url'], '/') . '/saml2/idp/metadata.php';
+
+$metadata[$entityId] = [
     /*
      * The hostname of the server (VHOST) that will use this SAML entity.
      *

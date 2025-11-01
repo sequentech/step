@@ -1,14 +1,30 @@
 <?php
-// idp-initiated-sso.php
+/**
+ * SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * IdP-Initiated SSO Trigger Page
+ *
+ * This page initiates the IdP-initiated SAML SSO flow to authenticate users
+ * and redirect them to the Sequent voting portal through Keycloak.
+ */
 
+// Load centralized configuration
+$config = require __DIR__ . '/../config.php';
+
+// Extract configuration values
 $simpleSamlBaseUrl = '/simplesaml';
 
-// This MUST match the key of our metadata entry in saml20-sp-remote.php
-$keycloakSpEntityId = 'tenant-e8062b49-532b-4f60-8548-0d3c14a25894-event-cd1397d3-d236-42b4-a019-49143b616e13';
+// Build the Keycloak SP Entity ID from realm
+$keycloakSpEntityId = $config['sp_realm'];
 
-// This is the final destination where the user should land after a successful login.
-$finalRedirectUrl = 'http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/cd1397d3-d236-42b4-a019-49143b616e13/login';
-// $finalRedirectUrl = 'aHR0cDovL2xvY2FsaG9zdDozMDAwL3RlbmFudC85MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUvZXZlbnQvMzdlYjUxYTctYzZiOS00NTZmLTkzYjQtNWJkMDUwODFiMThmL3ZvdGU';
+// Build the final redirect URL (voting portal login page)
+$finalRedirectUrl = sprintf(
+    '%s/tenant/%s/event/%s/login',
+    $config['voting_portal_url'],
+    $config['tenant_id'],
+    $config['event_id']
+);
 
 // --- Logic ---
 $idpSsoUrl = "{$simpleSamlBaseUrl}/saml2/idp/SSOService.php";

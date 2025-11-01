@@ -1,6 +1,6 @@
 ---
 id: idp_initiated_sso_design_implementation
-title: IDP Initiated SSO design implementation
+title: IdP-Initiated SSO - Design & Implementation Documentation
 ---
 
 <!--
@@ -8,13 +8,44 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Generic IdP-Initiated SAML SSO with Keycloak as SP/Broker
+# IdP-Initiated SAML SSO - Complete Design & Implementation
+
+## Document Purpose
+
+This document provides comprehensive technical documentation for Sequent developers working on the IdP-initiated SSO feature. It covers:
+- Architecture and design decisions
+- Component responsibilities
+- Implementation details
+- Reference implementation patterns
+- Development workflow
+
+**Audience:** Sequent internal developers
+
+**For delivery/operations:** See [Delivery Team Configuration Guide](/docs/developers/10-Tutorials/03-admin_portal_tutorials_setup_idp_initiated_sso)
+
+**For third-parties:** See [Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide)
+
+---
 
 ## 1. Overview
 
-This document outlines the design for implementing IdP-initiated Single Sign-On (SSO) where **Keycloak** acts as the Service Provider (SP) / Identity Broker, integrating with **any** external SAML 2.0 compliant **Identity Provider (IdP)**. The flow allows users to initiate login from the external IdP and be seamlessly logged into a target application configured within Keycloak (represented by the `vp-sso` client).
+This implementation enables IdP-initiated Single Sign-On (SSO) where **Keycloak** acts as the Service Provider (SP) / Identity Broker, integrating with **any** external SAML 2.0 compliant **Identity Provider (IdP)**. The flow allows users to initiate login from the external IdP and be seamlessly logged into the Sequent voting platform.
 
-This design leverages Keycloak's robust identity brokering capabilities to establish trust with the external IdP based on SAML 2.0 standards. It also utilizes Keycloak's SAML client configuration to define the target application's parameters. A custom Keycloak provider (`SamlRedirectProvider`) is included to handle post-authentication redirection based on the `RelayState`.
+**Key Design Principle:** Clear separation between internal (Sequent-controlled) and external (third-party) components.
+
+### Architecture Separation
+
+**Internal Components (Sequent Maintains):**
+- Keycloak (Service Provider/Broker) - `packages/keycloak-extensions/`
+- Custom redirect provider - `SamlRedirectProvider`
+- Voting portal application
+- Realm configuration and management
+
+**External Components (Third-Party Implements):**
+- Identity Provider (IdP)
+- User authentication mechanisms
+- SAML assertion generation
+- Reference: `.devcontainer/simplesamlphp/` (for testing/demonstration)
 
 ## 2. Goals
 
@@ -157,9 +188,254 @@ sequenceDiagram
 * **Certificate Management:** Securely manage private keys and monitor certificate validity periods.  
 * **Audience Restriction:** Ensure the IdP correctly sets the Audience element in the SAML assertion to Keycloak's Entity ID, and Keycloak validates it.
 
-## 8. Assumptions and Dependencies
+## 8. Reference Implementation (SimpleSAMLphp)
 
-* The external IdP is SAML 2.0 compliant and supports IdP-initiated SSO.  
-* Metadata (or configuration parameters) can be exchanged between the external IdP and Keycloak administrators.  
-* Network connectivity allows communication between all involved components.  
-* If the custom redirect provider is used, it is correctly built and deployed.
+### Purpose
+
+The SimpleSAMLphp setup in `.devcontainer/simplesamlphp/` serves as:
+1. **Development/Testing Tool** - Allows Sequent developers to test Keycloak SP without external IdP
+2. **Reference Pattern** - Demonstrates best practices for third-party integrators
+
+### Key Design Principles
+
+#### Centralized Configuration
+
+**File:** `.devcontainer/simplesamlphp/config.php`
+
+All deployment-specific values centralized in one location:
+
+```php
+return [
+    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'http://localhost:8083/simplesaml',
+    'sp_base_url' => getenv('SP_BASE_URL') ?: 'http://127.0.0.1:8090',
+    'sp_realm' => 'tenant-' . (getenv('TENANT_ID') ?: '...') . '-event-' . (getenv('EVENT_ID') ?: '...'),
+    'tenant_id' => getenv('TENANT_ID') ?: '...',
+    'event_id' => getenv('EVENT_ID') ?: '...',
+    // ... etc
+];
+```
+
+**Benefits:**
+- Single source of truth
+- Environment variable support (dev, staging, production)
+- No hardcoded tenant/event IDs
+- Easy to adapt to third-party IdP platforms
+
+#### Dynamic Metadata Generation
+
+**Files:**
+- `.devcontainer/simplesamlphp/metadata/saml20-idp-hosted.php` - IdP metadata
+- `.devcontainer/simplesamlphp/metadata/saml20-sp-remote.php` - SP (Keycloak) metadata
+
+Example from SP remote metadata:
+
+```php
+$config = require __DIR__ . '/../config.php';
+
+$keycloakSpAcsUrl = sprintf(
+    '%s/realms/%s/broker/%s/endpoint/clients/%s',
+    $config['sp_base_url'],
+    $config['sp_realm'],
+    $config['sp_idp_alias'],
+    $config['sp_client_id']
+);
+
+$metadata[$config['sp_realm']] = [
+    'AssertionConsumerService' => [
+        ['Location' => $keycloakSpAcsUrl],
+    ],
+    // ...
+];
+```
+
+**Benefits:**
+- Eliminates copy-paste errors
+- Consistency across all metadata
+- Easy environment switching
+- Shows third-parties correct URL construction
+
+#### Environment-Based Configuration
+
+**File:** `.devcontainer/.env.development`
+
+Development environment variables:
+
+```bash
+# IdP Configuration (SimpleSAMLphp)
+IDP_BASE_URL=http://localhost:8083/simplesaml
+IDP_HOSTNAME=localhost:8083
+
+# SP Configuration (Keycloak)
+SP_BASE_URL=http://127.0.0.1:8090
+SP_REALM=tenant-...-event-...
+SP_IDP_ALIAS=simplesamlphp
+SP_CLIENT_ID=vp-sso
+SP_CERT_DATA=MII...
+
+# Target Application
+TENANT_ID=...
+EVENT_ID=...
+VOTING_PORTAL_URL=http://localhost:3000
+```
+
+**Third-party template:** `.devcontainer/simplesamlphp/.env.example`
+
+### Development Workflow
+
+**Local Development:**
+```
+IdP: http://localhost:8083 (SimpleSAMLphp)
+SP: http://127.0.0.1:8090 (Keycloak)
+Voting Portal: http://localhost:3000
+```
+
+**Third-Party Development (against Sequent staging):**
+```
+IdP: http://localhost:8083 (third-party's local IdP)
+SP: https://auth-staging.sequentech.io (Sequent's staging Keycloak)
+Voting Portal: https://voting-staging.sequentech.io
+```
+
+**Production:**
+```
+IdP: https://idp.thirdparty.com (third-party's production IdP)
+SP: https://auth.sequentech.io (Sequent's production Keycloak)
+Voting Portal: https://voting.sequentech.io
+```
+
+### Testing with Reference Implementation
+
+1. Start dev container (SimpleSAMLphp runs automatically)
+2. Access trigger page: `http://localhost:8083/simplesaml/idp-initiated-sso.php`
+3. Login with test credentials:
+   - `student`/`studentpass` (email: student@example.com)
+   - `employee`/`employeepass` (email: employee@example.com)
+4. Verify redirect to voting portal
+
+---
+
+## 9. Configuration Flow & Third-Party Integration
+
+### For Third-Party Integration
+
+**Sequent provides to third-party:**
+- Keycloak SP base URL
+- Realm identifier (tenant-event combination)
+- IdP alias (what Sequent names their IdP in Keycloak)
+- Keycloak public certificate
+- Tenant ID and Event ID
+- Voting portal URL
+
+**Third-party provides to Sequent:**
+- IdP Entity ID
+- IdP SSO service URL
+- IdP public certificate
+- IdP metadata URL (if available)
+
+**Configuration occurs:**
+1. Third-party configures their IdP to trust Sequent Keycloak as SP
+2. Sequent configures Keycloak to trust third-party IdP
+3. Both parties test integration in staging environments
+4. Go-live coordination
+
+### Example URLs
+
+**Keycloak Metadata URL:**
+```
+{SP_BASE_URL}/realms/tenant-{TENANT_ID}-event-{EVENT_ID}/broker/{IDP_ALIAS}/endpoint/descriptor
+```
+
+**ACS URL:**
+```
+{SP_BASE_URL}/realms/{REALM}/broker/{IDP_ALIAS}/endpoint/clients/{CLIENT_ID}
+```
+
+**Voting Portal Login:**
+```
+{VOTING_PORTAL_URL}/tenant/{TENANT_ID}/event/{EVENT_ID}/login
+```
+
+---
+
+## 10. Security Considerations
+
+### For Sequent Developers
+
+- **Certificate validation:** Always validate SAML signatures from external IdPs
+- **Audience restriction:** Ensure SAML assertions specify correct realm as audience
+- **RelayState validation:** Validate RelayState URLs against allowlist (prevent open redirects)
+- **HTTPS enforcement:** All production endpoints must use HTTPS
+- **Certificate rotation:** Monitor certificate expiration for all third-party IdPs
+- **Logging:** Log all authentication attempts for security audit
+
+### For Third-Party Integrators (documented in integration guide)
+
+- **SAML signing:** Always sign SAML responses and/or assertions
+- **Certificate management:** Protect private keys, rotate regularly
+- **HTTPS requirement:** Mandatory for production
+- **Attribute validation:** Ensure required attributes (email) are included
+- **Clock synchronization:** Use NTP to prevent timing issues
+
+---
+
+## 11. Troubleshooting for Developers
+
+### Common Development Issues
+
+**Issue:** SimpleSAMLphp metadata shows wrong Entity ID
+
+**Cause:** `IDP_BASE_URL` environment variable not set or incorrect
+
+**Solution:** Check `.devcontainer/.env.development` and restart container
+
+---
+
+**Issue:** Keycloak can't find SP remote metadata
+
+**Cause:** `SP_REALM` value mismatch between config and metadata array key
+
+**Solution:** Ensure `$metadata[$config['sp_realm']]` uses exact realm identifier
+
+---
+
+**Issue:** RelayState not preserved through flow
+
+**Cause:** Third-party IdP not passing RelayState in SAML Response POST
+
+**Solution:** Verify IdP includes RelayState parameter in POST to Keycloak ACS
+
+---
+
+## 12. Related Documentation
+
+- **Delivery Team Guide:** [Setup IdP-Initiated SSO](/docs/developers/10-Tutorials/03-admin_portal_tutorials_setup_idp_initiated_sso)
+- **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide)
+- **Reference Implementation README:** `.devcontainer/simplesamlphp/README.md`
+
+---
+
+## 13. Future Considerations
+
+### Potential Enhancements
+
+- **Multiple IdP support:** Allow multiple external IdPs per realm
+- **Dynamic IdP discovery:** Auto-detect IdP based on user email domain
+- **Enhanced attribute mapping:** Support more complex attribute transformations
+- **Metadata refresh:** Automatic periodic metadata refresh from external IdPs
+- **Monitoring/metrics:** Track authentication success rates, errors by IdP
+
+### Known Limitations
+
+- **Single tenant-event per integration:** Current design assumes one IdP per tenant-event
+- **Manual configuration:** Third-party IdP setup requires manual coordination
+- **Certificate rotation:** Requires coordinated updates on both sides
+
+---
+
+## 14. Assumptions and Dependencies
+
+* The external IdP is SAML 2.0 compliant and supports IdP-initiated SSO
+* Metadata (or configuration parameters) can be exchanged between the external IdP and Keycloak administrators
+* Network connectivity allows communication between all involved components
+* If the custom redirect provider is used, it is correctly built and deployed
+* SimpleSAMLphp reference implementation available for testing

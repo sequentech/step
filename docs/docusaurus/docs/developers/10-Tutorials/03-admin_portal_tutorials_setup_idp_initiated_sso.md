@@ -1,6 +1,6 @@
 ---
 id: admin_portal_tutorials_setup_idp_initiated_sso
-title: Setup IdP-Initiated SSO
+title: Sequent Delivery Team - IdP-Initiated SSO Configuration & Handoff Guide
 ---
 
 <!--
@@ -10,206 +10,107 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Overview
 
-This tutorial explains how to set up IdP-initiated Single Sign-On (SSO). In this scenario:
+This guide is for **Sequent delivery team members** responsible for:
+1. Configuring the Keycloak Service Provider (SP) for IdP-initiated SSO integrations
+2. Testing the integration before client handoff
+3. Handing off the integration to third-party clients
 
-* **Identity Provider (IdP):** SimpleSAMLphp handles user authentication.
-* **Service Provider (SP) / Broker:** Keycloak acts as an SP, trusting SimpleSAMLphp for authentication. It also acts as an Identity Broker.
-* **Target Client (`vp-sso`):** A specific SAML client *within* Keycloak that itself acts as an SP, potentially relying on Keycloak (now acting as an IdP for it) after brokering the authentication from SimpleSAMLphp.
-* **Flow:** The user starts at a special page hosted by SimpleSAMLphp, authenticates there, and is then redirected through Keycloak to a final target application (defined by the `vp-sso` client's configuration or RelayState).
+**Audience:** Sequent operations, delivery, and support teams
+
+**For third-party integrators:** See the [IdP-Initiated SSO Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide) instead.
+
+**For internal developers:** See the [IdP-Initiated SSO Design & Implementation](/docs/developers/06-Keycloak/idp_initiated_sso_design_implementation) for technical details.
+
+### What This Guide Covers
+
+1. **Keycloak SP configuration** for a new tenant/event
+2. **Testing with the SimpleSAMLphp reference implementation** before client handoff
+3. **Information package** to provide to third-party integrators
+4. **Handoff checklist** to ensure smooth client integration
+5. **Troubleshooting** common issues during integration
+
+### Architecture Overview
+
+* **Third-Party IdP:** Client's identity provider (they control this)
+* **Keycloak (SP/Broker):** Sequent-controlled authentication service that receives SAML assertions
+* **Voting Portal:** Target application where users access voting functionality
+* **SimpleSAMLphp Reference:** Testing tool to verify Keycloak configuration before client integration
 
 ## Prerequisites
 
-1.  **SimpleSAMLphp Instance:** Running and accessible (e.g., via Docker at `http://localhost:8083/simplesaml/`). Ensure PHP dependencies are installed and required modules (`saml`, `exampleauth`, etc.) are enabled.
-2.  **Keycloak Instance:** Running and accessible (e.g., at `http://127.0.0.1:8090/`). The realm should be configured as per your initial export.
-3.  **Certificates:**
-    * SimpleSAMLphp needs a private key (`server.pem`) and public certificate (`server.crt`) for signing SAML messages. Place these in the `cert/` directory configured in SimpleSAMLphp.
-    * Keycloak needs its own realm keys (usually auto-generated).
-    * You'll need the public certificates of each system to configure trust in the other.
-4.  **Networking:** Ensure Keycloak and SimpleSAMLphp can reach each other's endpoints via HTTP/HTTPS as needed. We'll primarily use HTTP POST binding.
-5.  **Keycloak Custom Provider (Optional but in your config):** The `SamlRedirectProvider` Java code needs to be compiled and deployed to Keycloak's `providers/` directory if you intend to use the custom `/redirect-provider/redirect` endpoint.
+Before starting a new IdP-initiated SSO integration:
+
+1. **Tenant and Event Information:**
+   - Tenant ID (UUID)
+   - Event ID (UUID)
+   - Client organization name (for IdP alias)
+
+2. **Access to Keycloak Admin Console:**
+   - Admin credentials for the Keycloak instance
+   - Ability to create/modify realms, identity providers, and clients
+
+3. **For Testing (Optional but Recommended):**
+   - Local SimpleSAMLphp instance for pre-handoff testing
+   - Access to the Step repository (`.devcontainer/simplesamlphp/`)
+
+4. **Client Information (to be received from third-party):**
+   - IdP Entity ID
+   - IdP SSO Service URL
+   - IdP public signing certificate (X.509 format)
+   - IdP metadata URL (if available)
 
 ---
 
-## Step 1: Configure SimpleSAMLphp (IdP)
+## Phase 1: Initial Keycloak Configuration
 
-Configure SimpleSAMLphp to act as the central IdP.
+### Step 1.1: Create or Verify the Realm
 
-### 1.1. Enable IdP & Unsolicited SSO
-
-Edit your SimpleSAMLphp configuration:
-
-```php title="/var/simplesamlphp/config/config.php"
-<?php
-
-// *** Crucial SAML IdP Settings ***
-enable.saml20-idp = true;       // Enable the SAML 2.0 IdP functionality
-saml20.idp.allowunsolicited = true; // IMPORTANT: Allow IdP-initiated flow
-
-// Session/State Storage (Memcache recommended for Docker, ensure memcached is running)
-store.type = 'memcache';
-
-// Enable required modules (for the example)
-module.enable['exampleauth'] = true;
-
-// Security: Use HTTPS in production
-session.cookie.secure = true; // Enable if using HTTPS
+The realm identifier follows the pattern:
+```
+tenant-{TENANT_ID}-event-{EVENT_ID}
 ```
 
-### 1.2. Define Authentication Source
-
-Configure how SimpleSAMLphp authenticates users. We'll use the example static user/password source:
-
-```php title="/var/simplesamlphp/config/authsources.php"
-<?php
-
-$config = [
-    'admin' => [
-        'core:AdminPassword',
-    ],
-
-    'example-userpass' => [
-        'exampleauth:UserPass',
-
-        // Define test users and their attributes
-        'student:studentpass' => [
-            'uid' => ['student'],
-            'eduPersonAffiliation' => ['member', 'student'],
-            'email' => 'student@example.com', // **Keycloak will use this**
-            'givenName' => 'Student',
-            'sn' => 'User',
-        ],
-        'employee:employeepass' => [
-            'uid' => ['employee'],
-            'eduPersonAffiliation' => ['member', 'employee'],
-            'email' => 'employee@example.com', // **Keycloak will use this**
-            'givenName' => 'Employee',
-            'sn' => 'User',
-        ],
-    ],
-];
+**Example:**
+```
+tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13
 ```
 
-**Note:** Ensure attributes required by Keycloak (like email for the Principal Attribute) are defined for your test users.
+1. Log into Keycloak Admin Console
+2. Check if the realm exists
+3. If not, create a new realm with the correct identifier
+4. Note the realm's public certificate (needed for client configuration)
 
-### 1.3. Configure IdP Metadata (Hosted)
+**To export the realm certificate:**
+1. Go to **Realm Settings** → **Keys** tab
+2. Find the RSA key
+3. Click **Certificate** button
+4. Copy the certificate (this will be provided to the client as `SP_CERT_DATA`)
 
-Define SimpleSAMLphp's own metadata as an IdP:
+### Step 1.2: Configure the vp-sso SAML Client
 
-```php title="/var/simplesamlphp/metadata/saml20-idp-hosted.php"
-<?php
+This client represents the voting portal application.
 
-$metadata['http://localhost:8083/simplesaml/saml2/idp/metadata.php'] = [
-    // The 'host' identifies the virtual host for this IdP configuration.
-    'host' => '__DEFAULT__', // Use for the default virtual host
-
-    // Signing key and certificate (relative to the 'cert' directory)
-    'privatekey' => 'server.pem',  // Your IdP's private signing key
-    'certificate' => 'server.crt', // Your IdP's public certificate
-
-    // The authentication source SimpleSAMLphp will use for users logging in via this IdP
-    'auth' => 'example-userpass', // Must match an ID in authsources.php
-
-    // --- Recommended Security Settings ---
-    'sign.logout' => true,             // Sign logout requests/responses initiated by this IdP
-    'saml20.sign.response' => true,    // Sign the entire SAML Response message
-    'saml20.sign.assertion' => true,   // Sign the SAML Assertion within the Response
-
-    // --- Optional Settings ---
-    // 'SingleSignOnServiceBinding' => ['urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect', 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST'], // Specify supported bindings
-    // 'SingleLogoutServiceBinding' => ['urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect', 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST'],
-];
-```
-
-* The array key (`http://localhost:8083/...`) is the **Entity ID** of your SimpleSAMLphp IdP. Keycloak will need this.
-* Make sure `privatekey` and `certificate` point to valid files in your `cert/` directory.
-
-### 1.4. Configure SP Metadata (Remote)
-
-Tell SimpleSAMLphp about the Keycloak instance (acting as SP/Broker) it trusts:
-
-```php title="/var/simplesamlphp/metadata/saml20-sp-remote.php"
-<?php
-
-// Use the Keycloak Realm's SAML Entity ID as the key.
-// Find this in Keycloak: Realm Settings -> General -> Endpoints -> SAML 2.0 Identity Provider Metadata -> entityID attribute
-$metadata['tenant-e8062b49-532b-4f60-8548-0d3c14a25894-event-cd1397d3-d236-42b4-a019-49143b616e13'] = [
-    'AssertionConsumerService' => [
-        [
-            'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
-            'Location' => 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13/broker/simplesamlphp/endpoint/clients/vp-sso',
-        ],
-    ],
-    'SingleLogoutService' => [
-        [
-            'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
-            'Location' => 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13/broker/simplesamlphp/endpoint',
-        ],
-    ],
-
-    // Keycloak's Public Certificate (for validating signatures FROM Keycloak, e.g., signed AuthnRequests)
-    // Get this from Keycloak: Realm Settings -> Keys -> RS256 -> Public key -> Certificate (copy the content)
-    'certData' => 'MIIDOzCCAiMCBgGZ3f8D1TANBgkqhkiG9w0BAQsFADBhMV8wXQYDVQQDDFZ0ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1LWV2ZW50LTM3ZWI1MWE3LWM2YjktNDU2Zi05M2I0LTViZDA1MDgxYjE4ZjAeFw0yNTEwMTMxNDMzMjFaFw0zNTEwMTMxNDM1MDFaMGExXzBdBgNVBAMMVnRlbmFudC05MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUtZXZlbnQtMzdlYjUxYTctYzZiOS00NTZmLTkzYjQtNWJkMDUwODFiMThmMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1vdrir39ABcm6tIVuy9Y+G4sPtrz3Rg2KtCFYPlf+7cBBb8L75SCheZVEtPVZ7djv6g7GjksNeeUjMQiNfPNlI9PGCd1Eeei0WnZ7FGOvQoFWv7SWqeCzu8tZJtBRqeWnuK8zLeka/amgdoygZ0gR3bqA/hI3EpNlPExZQNGITsWDsYZ/SKEIIkq37kXV/yTsW8h6jnJMydqgkN0MESErFiVIjGwrAvC7kA+7HLj0sOCNOaHu2U6LhZznfJuJBipCLfMbtjConOsXZC5GmMsJD7txPpejXfb82kmSHJcvsq3GFqF616mrW3rh2iM/gso3ClLeHpzwUG0weaKFbWyhwIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQDUbmfepXwr3aWHs/8UpIANLZqGN95+BSfuYi82gI+x0fKaxT+a7Sy2Om0juh77E+01B5lzdR2R72/39r/+1PGTpLdoQwVP9kFaDMuMNdYCZ4XS0HAeETuMPTAZVAqxiUc09ey0uKOJbpdWA8X0SDN8igwpIJGW2PSMo9A7rbkmOPFEF71je793TguCMqNbVGdDHWiI0ySXZh3Pw/UPdYyRhoUgINNELMjBmS4Yv1+S4Lpqz9ZL39eCULN1VkD2GK7Fnh3rosrWNP6TTIWNkvUY2Fw6Ptc3sikouSJRAvBA4H2JFAT3LA5nD5kh2EQfbgxMlWNzan/KJIESqNyo5XxL',
-
-    'validate.authnrequest' => true, // SimpleSAMLphp should validate signed AuthnRequests from Keycloak
-    'validate.logoutrequest' => true, // SimpleSAMLphp should validate signed LogoutRequests from Keycloak
-];
-```
-
----
-
-## Step 2: Configure Keycloak (SP/Broker & IdP for vp-sso)
-
-### 2.1. Configure Keycloak to Trust SimpleSAMLphp (Identity Provider)
-
-This configures Keycloak to act as an SP/Broker, using SimpleSAMLphp as an external IdP. Your initial realm export largely defines this.
-
-1. **Navigate:** Go to **Identity Providers** in your Keycloak realm (tenant-...-event-...).
-2. **Select/Verify simplesamlphp:** Create a provider with alias `simplesamlphp` (Provider ID `saml`)
-   * **Import Config:** Alternatively, you could import SimpleSAMLphp's metadata (`http://localhost:8083/simplesaml/saml2/idp/metadata.php`).
-   * **Key Settings:**
-     * **Single Sign-On Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SSOService.php`
-     * **Single Logout Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php`
-     * **NameID Policy Format:** Transient (matches SimpleSAMLphp config)
-     * **Principal Type:** Attribute Name
-     * **Principal Attribute:** email
-     * **HTTP-POST Binding Response:** **ON**
-     * **HTTP-POST Binding AuthnRequest:** **ON**
-     * **Want AuthnRequests Signed:** **ON** (Keycloak will sign requests *to* SimpleSAMLphp)
-     * **Signature Algorithm:** RSA_SHA256
-     * **SAML Signature Key Name:** KEY_ID
-     * **Want Assertions Signed:** **ON** (SimpleSAMLphp signs assertions)
-     * **Validate Signatures:** **ON**
-     * **Validating X509 Certificates:** Paste the content of SimpleSAMLphp's `server.crt` (public certificate), *without* the `-----BEGIN...` and `-----END...` lines.
-3. **Mapper:**
-   * Go to the **Mappers** tab for `simplesamlphp`.
-   * Create a mapper that maps a SAML attribute to a Keycloak user attribute. For this example, we will create a mapper that maps the email:
-     * **Name:** email-mapper
-     * **Mapper type:** Attribute Importer
-     * **Attribute Name:** email
-     * **Friendly Name:** Email
-     * **Name Format:** ATTRIBUTE_FORMAT_BASIC
-     * **User Attribute Name:** email
-
-### 2.2. Configure the vp-sso Client
-
-This configures the specific `vp-sso` SAML client application.
-
-1. **Navigate:** Go to **Clients**.
-2. **Create Client:** Click **Create client**.
+1. **Navigate:** Go to **Clients** in the realm
+2. **Create Client:** Click **Create client**
 3. **General Settings:**
    * **Client type:** SAML
-   * **Client ID:** vp-sso
-   * Click **Next**.
-4. **Capability config:** Keep defaults, click **Next**.
+   * **Client ID:** `vp-sso`
+   * Click **Next**
+
+4. **Capability config:** Keep defaults, click **Next**
+
 5. **Login settings:**
-   * **Root URL:** `http://localhost:3000`
-   * **Valid redirect URIs:** Add `http://localhost:3000/*` (or be more specific if possible). The redirect-provider URL goes into the fine-grain settings.
-   * **IdP-initiated SSO URL Name:** vp-sso
-   * **IdP-initiated SSO RelayState:** `http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/cd1397d3-d236-42b4-a019-49143b616e13/login`
-6. **Save.**
+   * **Root URL:** `{VOTING_PORTAL_URL}` (e.g., `https://voting-{subdomain}.sequentech.io`)
+   * **Valid redirect URIs:** `{VOTING_PORTAL_URL}/*`
+   * **IdP-initiated SSO URL Name:** `vp-sso`
+   * **IdP-initiated SSO RelayState:** `{VOTING_PORTAL_URL}/tenant/{TENANT_ID}/event/{EVENT_ID}/login`
+
+6. **Save**
+
 7. **Advanced Tab (Client Details):**
    * **Fine grain SAML endpoint configuration:**
-     * **Assertion Consumer Service POST Binding URL:** `http://localhost:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13/redirect-provider/redirect`
+     * **Assertion Consumer Service POST Binding URL:** `{KEYCLOAK_BASE_URL}/realms/{REALM_ID}/redirect-provider/redirect`
+
 8. **SAML Capabilities:**
    * **Name ID format:** email
    * **Force POST binding:** **ON**
@@ -218,97 +119,335 @@ This configures the specific `vp-sso` SAML client application.
    * **Sign Documents:** **ON**
    * **Sign Assertions:** **ON**
    * **Signature Algorithm:** RSA_SHA256
+
 9. **Signature and Encryption:**
-   * **Client signature required:** **ON**
-   * **Signing Certificate:** Click **Import certificate**, Format: X.509 Certificate PEM, paste the external SP's public signing certificate.  
+   * **Client signature required:** **OFF** (the voting portal doesn't sign requests)
+
+10. **Save all changes**
+
+### Step 1.3: Prepare Configuration for Client
+
+At this point, you have the Keycloak configuration complete. Now prepare the information package for the client.
+
+**Configuration values to provide to client:**
+
+| Parameter | Value | Example |
+|-----------|-------|---------|
+| `TENANT_ID` | The tenant UUID | `abc12345-6789-...` |
+| `EVENT_ID` | The event UUID | `def67890-1234-...` |
+| `SP_BASE_URL` | Keycloak base URL | `https://auth-example.sequentech.io` |
+| `SP_IDP_ALIAS` | IdP alias (decided with client) | `clientname-idp` |
+| `SP_CLIENT_ID` | SAML client ID | `vp-sso` |
+| `SP_CERT_DATA` | Keycloak realm certificate | `MIIDOzCCAi...` |
+| `VOTING_PORTAL_URL` | Voting portal URL | `https://voting-example.sequentech.io` |
+
+**Derived values (client computes automatically):**
+- `SP_REALM`: `tenant-{TENANT_ID}-event-{EVENT_ID}`
 
 ---
 
-## Step 3: Create the IdP-Initiated SSO Trigger Page
+## Phase 2: Test with SimpleSAMLphp Reference Implementation
 
-Create a PHP page within SimpleSAMLphp's web-accessible directory to start the flow:
+Before handing off to the client, test the Keycloak configuration using the SimpleSAMLphp reference implementation.
 
-```php title="/var/simplesamlphp/public/idp-initiated-sso.php"
-<?php
+### Step 2.1: Set Up SimpleSAMLphp Locally
 
-$simpleSamlBaseUrl = '/simplesaml'; // Path to simplesamlphp web root
+1. **Navigate to SimpleSAMLphp directory:**
+   ```bash
+   cd .devcontainer/simplesamlphp/
+   ```
 
-// Keycloak's Entity ID (as configured in saml20-sp-remote.php)
-$keycloakSpEntityId = 'http://127.0.0.1:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-37eb51a7-c6b9-456f-93b4-5bd05081b18f';
+2. **Create environment configuration:**
+   ```bash
+   cp .env.example .env
+   ```
 
-// Final destination URL after successful authentication via Keycloak
-$finalRedirectUrl = 'http://127.0.0.1:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/37eb51a7-c6b9-456f-93b4-5bd05081b18f/login'; // Your target application URL
+3. **Edit `.env` with your test configuration:**
+   ```bash
+   # IdP URLs (local SimpleSAMLphp)
+   IDP_BASE_URL=http://localhost:8083/simplesaml
+   IDP_HOSTNAME=localhost:8083
 
-// --- Construct the IdP-initiated SSO URL ---
-$idpSsoUrl = "{$simpleSamlBaseUrl}/saml2/idp/SSOService.php";
+   # Keycloak SP configuration
+   TENANT_ID=your-tenant-id
+   EVENT_ID=your-event-id
+   SP_BASE_URL=http://127.0.0.1:8090
+   SP_IDP_ALIAS=simplesamlphp-test
+   SP_CLIENT_ID=vp-sso
+   SP_CERT_DATA=<paste-certificate-from-step-1.1>
 
-$queryParams = [
-    'spentityid' => $keycloakSpEntityId, // Tell IdP which SP to send assertion to
-    'RelayState' => $finalRedirectUrl, // Tell SP where to redirect user finally
-];
+   # Voting portal
+   VOTING_PORTAL_URL=http://localhost:3000
+   ```
 
-$loginUrl = $idpSsoUrl . '?' . http_build_query($queryParams);
-?>
+4. **Start SimpleSAMLphp** (using Docker or your preferred method)
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IdP Login Trigger</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style> body { font-family: 'Inter', sans-serif; } </style>
-</head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
-    <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-        <div class="mb-6">
-            <!-- Icon/Logo -->
-            <div class="mx-auto flex items-center justify-center h-16 w-16 bg-blue-100 rounded-full">
-                <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-            </div>
-            <h1 class="text-2xl font-bold text-gray-800 mt-4">IdP Login Page</h1>
-            <p class="text-gray-600 mt-2">Start your Single Sign-On journey here.</p>
-        </div>
-        <div class="bg-gray-50 p-6 rounded-lg">
-            <p class="text-gray-700 mb-4">Click below to log in via the central IdP.</p>
-            <a href="<?php echo htmlspecialchars($loginUrl); ?>" class="w-full inline-block bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300 ease-in-out">
-                Login via SimpleSAMLphp IdP
-            </a>
-        </div>
-        <p class="text-xs text-gray-400 mt-6">You will be redirected to authenticate.</p>
-    </div>
-</body>
-</html>
+### Step 2.2: Configure Keycloak to Trust SimpleSAMLphp
+
+Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp instance.
+
+1. **Navigate to Identity Providers** in your Keycloak realm
+2. **Add provider:** Click **Add provider** → **SAML v2.0**
+3. **Configure Identity Provider:**
+   * **Alias:** `simplesamlphp-test` (matches `SP_IDP_ALIAS` from `.env`)
+   * **Display Name:** `SimpleSAMLphp Test IdP`
+   * **Enabled:** **ON**
+
+4. **Import SimpleSAMLphp metadata (recommended):**
+   * **Import from URL:** `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
+   * Click **Import**
+
+   **OR manually configure:**
+   * **Single Sign-On Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SSOService.php`
+   * **Single Logout Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php`
+   * **NameID Policy Format:** Transient
+   * **Principal Type:** Attribute Name
+   * **Principal Attribute:** email
+   * **HTTP-POST Binding Response:** **ON**
+   * **HTTP-POST Binding AuthnRequest:** **ON**
+   * **Want AuthnRequests Signed:** **OFF** (for testing; ON in production)
+   * **Signature Algorithm:** RSA_SHA256
+   * **Want Assertions Signed:** **ON**
+   * **Validate Signatures:** **ON**
+   * **Validating X509 Certificates:** Paste SimpleSAMLphp's public certificate (`server.crt` content, without BEGIN/END lines)
+
+5. **Configure Attribute Mapper:**
+   * Go to **Mappers** tab
+   * Click **Create**
+   * **Name:** `email-mapper`
+   * **Mapper type:** Attribute Importer
+   * **Attribute Name:** `email`
+   * **Friendly Name:** Email
+   * **Name Format:** ATTRIBUTE_FORMAT_BASIC
+   * **User Attribute Name:** `email`
+   * **Save**
+
+### Step 2.3: Run End-to-End Test
+
+1. **Access the SimpleSAMLphp trigger page:**
+   ```
+   http://localhost:8083/simplesaml/idp-initiated-sso.php
+   ```
+
+2. **Click "Login to Voting Portal"**
+
+3. **Authenticate** with test credentials:
+   - Username: `student`
+   - Password: `studentpass`
+
+   (Or use `employee`/`employeepass`)
+
+4. **Verify the flow:**
+   - ✅ SimpleSAMLphp authenticates the user
+   - ✅ SAML assertion is generated and POSTed to Keycloak
+   - ✅ Keycloak validates the signature
+   - ✅ Keycloak creates/updates user based on email attribute
+   - ✅ Browser redirects to voting portal login URL
+   - ✅ User session established
+
+### Step 2.4: Troubleshooting Test Issues
+
+**Issue: "Identity Provider not found"**
+- Verify `SP_IDP_ALIAS` in `.env` matches the Keycloak Identity Provider alias
+
+**Issue: "Signature validation failed"**
+- Ensure SimpleSAMLphp's `server.crt` certificate is correctly pasted in Keycloak
+- Remove `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` lines
+- Check that SimpleSAMLphp is signing assertions (check `saml20-idp-hosted.php`)
+
+**Issue: "User not created"**
+- Verify the `email` attribute mapper is configured in Keycloak
+- Check SimpleSAMLphp's `authsources.php` includes `email` in user attributes
+
+**Issue: "Wrong redirect URL"**
+- Verify the `RelayState` in SimpleSAMLphp's `idp-initiated-sso.php`
+- Check it matches the expected voting portal login URL pattern
+
+---
+
+## Phase 3: Client Handoff
+
+Once testing is successful, prepare the handoff package for the client.
+
+### Step 3.1: Information Package for Client
+
+Provide the client with:
+
+1. **Configuration Values (from Step 1.3)**
+2. **Integration Guide:** Link to `/docs/integrations/idp_initiated_sso_integration_guide`
+3. **Reference Implementation:** Access to `.devcontainer/simplesamlphp/` in the Step repository
+4. **Keycloak Metadata URL:**
+   ```
+   {SP_BASE_URL}/realms/tenant-{TENANT_ID}-event-{EVENT_ID}/broker/{SP_IDP_ALIAS}/endpoint/descriptor
+   ```
+
+### Step 3.2: Request from Client
+
+Request the following from the client:
+
+1. **IdP Metadata URL** (preferred) or:
+2. **Manual configuration values:**
+   - IdP Entity ID
+   - IdP SSO Service URL
+   - IdP Single Logout Service URL (optional)
+   - IdP public signing certificate (X.509 PEM format)
+3. **Test user credentials** for staging verification
+4. **Expected production go-live date**
+
+### Step 3.3: Configure Keycloak with Client IdP
+
+Once you receive the client's IdP information:
+
+1. **Delete or disable the SimpleSAMLphp test Identity Provider**
+2. **Create new Identity Provider** for the client:
+   * **Alias:** `{client-name}-idp` (use client organization name)
+   * **Import client's IdP metadata** (preferred) or manually configure
+   * **Configure same attribute mappers** as in testing
+   * **Enable signature validation** (`Validate Signatures: ON`)
+   * **Paste client's public certificate**
+
+3. **Test with client:**
+   * Client initiates SSO from their IdP
+   * Verify user attributes are correctly mapped
+   * Verify redirect to voting portal works
+
+### Step 3.4: Production Handoff Checklist
+
+Before going live, verify:
+
+- [ ] Keycloak realm configuration complete
+- [ ] Client's production IdP configured and trusted
+- [ ] Production certificates exchanged
+- [ ] Attribute mapping tested (email required)
+- [ ] End-to-end test successful in staging environment
+- [ ] Production URLs configured (no localhost references)
+- [ ] HTTPS enabled on all endpoints
+- [ ] Backup of Keycloak realm configuration taken
+- [ ] Monitoring and logging enabled
+- [ ] Client has integration guide documentation
+- [ ] Go-live date coordinated with client
+
+---
+
+## Phase 4: Post-Handoff Support
+
+### Common Client Issues
+
+#### Issue 1: "SAML Response Signature Invalid"
+
+**Client Side:**
+- Their IdP isn't signing the response/assertion
+- Wrong signing algorithm
+- Certificate mismatch
+
+**Sequent Side:**
+- Verify we have their correct public certificate in Keycloak
+- Check `Validate Signatures` is enabled
+- Verify signing algorithm matches (RSA-SHA256 or stronger)
+
+**Resolution:**
+- Request updated certificate from client
+- Have client verify their IdP signing configuration
+- Use SAML tracer to inspect signature in assertion
+
+#### Issue 2: "Invalid Audience Restriction"
+
+**Cause:** Client's IdP is sending wrong audience value
+
+**Resolution:**
+- Client must set audience to: `tenant-{TENANT_ID}-event-{EVENT_ID}`
+- Verify client has correct `SP_REALM` value
+- Reference the SimpleSAMLphp SP remote metadata configuration
+
+#### Issue 3: "User Not Created / Email Missing"
+
+**Cause:** Email attribute not included in SAML assertion
+
+**Resolution:**
+- Verify Keycloak attribute mapper configuration
+- Have client check their IdP includes `email` attribute
+- Compare assertion structure with SimpleSAMLphp example
+
+#### Issue 4: "RelayState Not Working"
+
+**Cause:** RelayState not preserved through flow
+
+**Resolution:**
+- Verify client's IdP includes RelayState in SAML Response POST
+- Check client is using correct RelayState URL format
+- Test with SimpleSAMLphp to verify Keycloak side works
+
+### Debugging Tools
+
+1. **SAML Tracer Browser Extension:**
+   - Firefox: SAML-tracer
+   - Chrome: SAML Chrome Panel
+   - Captures all SAML messages in flight
+
+2. **Keycloak Logs:**
+   - Enable DEBUG level logging for SAML broker
+   - Check for signature validation errors
+   - Look for attribute mapping issues
+
+3. **Client Comparison:**
+   - Compare client's SAML assertion with SimpleSAMLphp reference
+   - Verify structure matches expected format
+
+### Escalation Path
+
+If issues persist:
+1. **Review with internal dev team** (reference design documentation)
+2. **Request SAML tracer logs** from client
+3. **Compare assertions** side-by-side with working SimpleSAMLphp example
+4. **Schedule debug session** with client technical team
+5. **Check Keycloak version compatibility** if using newer SAML features
+
+---
+
+## Reference: Key URLs and Patterns
+
+### Keycloak URLs
+
+**Realm identifier:**
+```
+tenant-{TENANT_ID}-event-{EVENT_ID}
 ```
 
-* Save this file in `/var/simplesamlphp/public/` (or your equivalent public web directory for SimpleSAMLphp).
-* Access it via your browser, e.g., `http://localhost:8083/simplesaml/idp-initiated-sso.php`.
+**IdP metadata endpoint:**
+```
+{SP_BASE_URL}/realms/{REALM_ID}/broker/{IDP_ALIAS}/endpoint/descriptor
+```
+
+**ACS URL:**
+```
+{SP_BASE_URL}/realms/{REALM_ID}/broker/{IDP_ALIAS}/endpoint/clients/{CLIENT_ID}
+```
+
+**Redirect provider endpoint:**
+```
+{SP_BASE_URL}/realms/{REALM_ID}/redirect-provider/redirect
+```
+
+### Voting Portal URLs
+
+**Login page:**
+```
+{VOTING_PORTAL_URL}/tenant/{TENANT_ID}/event/{EVENT_ID}/login
+```
+
+### SimpleSAMLphp Reference Files
+
+- **Configuration:** `.devcontainer/simplesamlphp/config.php`
+- **Environment:** `.devcontainer/simplesamlphp/.env.example`
+- **IdP Metadata:** `.devcontainer/simplesamlphp/metadata/saml20-idp-hosted.php`
+- **SP Metadata:** `.devcontainer/simplesamlphp/metadata/saml20-sp-remote.php`
+- **Trigger Page:** `.devcontainer/simplesamlphp/public/idp-initiated-sso.php`
 
 ---
 
-## Step 4: Test the Flow
+## Additional Resources
 
-1. **Open Browser:** Navigate to the trigger page: `http://localhost:8083/simplesaml/idp-initiated-sso.php`.
-2. **Click Login Button:** Click the "Login via SimpleSAMLphp IdP" link.
-3. **SimpleSAMLphp Authentication:** You should be redirected to the SimpleSAMLphp login page (e.g., `example-userpass` form). Enter valid credentials (e.g., `student`/`studentpass`).
-4. **Redirection to Keycloak:** Upon successful authentication, SimpleSAMLphp generates a SAML assertion and POSTs it to Keycloak's broker endpoint (`.../broker/simplesamlphp/endpoint`), including the `RelayState`.
-5. **Keycloak Processing:** Keycloak validates the assertion, finds or creates the user based on the email attribute, and establishes a Keycloak session.
-6. **Final Redirection:** Keycloak should then redirect your browser to the URL specified in the `RelayState` (`http://127.0.0.1:3000/.../login`). If your custom `redirect-provider` is involved, Keycloak might redirect to that endpoint first, which then performs the final redirect based on the `RelayState` it receives.
-
-You should now be logged into your target application, having authenticated only at SimpleSAMLphp.
-
----
-
-## Step 5: Troubleshooting
-
-* **Check Logs:** Examine both SimpleSAMLphp logs (location depends on `logging.handler`) and Keycloak logs (server log) for detailed error messages. Increase log levels if necessary.
-* **SAML Tracer:** Use browser extensions (like SAML-tracer for Firefox, SAML Chrome Panel) to inspect the SAML messages being exchanged. Check for signature errors, incorrect destinations, missing attributes, or status code errors.
-* **Metadata:** Ensure Entity IDs, ACS URLs, SLO URLs, and certificates match *exactly* between SimpleSAMLphp's SP metadata (`saml20-sp-remote.php`) and Keycloak's IdP configuration.
-* **Certificates:** Verify that the correct public certificates are used for signature validation in both systems. Ensure private keys are correctly configured and accessible. Check for expiration.
-* **Clock Skew:** Make sure the servers running SimpleSAMLphp and Keycloak have synchronized clocks (using NTP is recommended).
-* **RelayState Issues:** If the final redirection fails:
-  * Verify the `RelayState` parameter is correctly included in the initial URL and subsequent SAML responses (use a tracer).
-  * Check Keycloak's broker settings and logs to see how it handles `RelayState`.
-  * If using the custom `SamlRedirectProvider`, ensure it's deployed, check its specific logs, and verify the ACS URL in SimpleSAMLphp is pointing correctly if needed.
-* **Session Storage:** If you see "state not found" errors, ensure SimpleSAMLphp's `store.type` is configured correctly (e.g., memcache is running and accessible if configured).
-* **Attribute Mapping:** If login succeeds but user details are missing in the target app, verify that SimpleSAMLphp includes the necessary attributes in the assertion (`authsources.php`) and that Keycloak's IdP mapper (`email-mapper`) and potentially client mappers (`vp-sso` client) are correctly configured.
+- **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide)
+- **Internal Design Documentation:** [IdP-Initiated SSO Design & Implementation](/docs/developers/06-Keycloak/idp_initiated_sso_design_implementation)
+- **SimpleSAMLphp Reference:** `.devcontainer/simplesamlphp/README.md`
+- **Keycloak Documentation:** https://www.keycloak.org/docs/latest/server_admin/#_identity_broker
