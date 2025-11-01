@@ -214,7 +214,7 @@ This guide includes:
 ## Support
 
 **For Sequent developers:**
-- Internal documentation: [Delivery Team Configuration Guide](../../docs/docusaurus/docs/developers/10-Tutorials/03-admin_portal_tutorials_setup_idp_initiated_sso.md)
+- Internal documentation: [Delivery Team Configuration Guide](../../docs/docusaurus/docs/developers/10-Tutorials/03-setup_idp_initiated_sso.md)
 - Design documentation: [IdP-Initiated SSO Design & Implementation](../../docs/docusaurus/docs/developers/06-Keycloak/idp_initiated_sso_design_implementation.md)
 
 **For third-party integrators:**

@@ -1,6 +1,6 @@
 ---
 id: idp_initiated_sso_design_implementation
-title: IdP-Initiated SSO - Design & Implementation Documentation
+title: IdP SSO Design & Implementation
 ---
 
 <!--
@@ -21,9 +21,9 @@ This document provides comprehensive technical documentation for Sequent develop
 
 **Audience:** Sequent internal developers
 
-**For delivery/operations:** See [Delivery Team Configuration Guide](/docs/developers/10-Tutorials/03-admin_portal_tutorials_setup_idp_initiated_sso)
+**For delivery/operations:** See [Delivery Team Configuration Guide](../10-Tutorials/03-setup_idp_initiated_sso)
 
-**For third-parties:** See [Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide)
+**For third-parties:** See [Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
 
 ---
 
@@ -408,8 +408,8 @@ Voting Portal: https://voting.sequentech.io
 
 ## 12. Related Documentation
 
-- **Delivery Team Guide:** [Setup IdP-Initiated SSO](/docs/developers/10-Tutorials/03-admin_portal_tutorials_setup_idp_initiated_sso)
-- **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide)
+- **Delivery Team Guide:** [Setup IdP-Initiated SSO](../10-Tutorials/03-setup_idp_initiated_sso)
+- **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
 - **Reference Implementation README:** `.devcontainer/simplesamlphp/README.md`
 
 ---

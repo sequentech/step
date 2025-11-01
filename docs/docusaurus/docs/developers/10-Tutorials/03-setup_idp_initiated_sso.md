@@ -1,6 +1,6 @@
 ---
-id: admin_portal_tutorials_setup_idp_initiated_sso
-title: Sequent Delivery Team - IdP-Initiated SSO Configuration & Handoff Guide
+id: setup_idp_initiated_sso
+title: IdP SSO Configuration & Handoff
 ---
 
 <!--
@@ -17,9 +17,9 @@ This guide is for **Sequent delivery team members** responsible for:
 
 **Audience:** Sequent operations, delivery, and support teams
 
-**For third-party integrators:** See the [IdP-Initiated SSO Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide) instead.
+**For third-party integrators:** See the [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide) instead.
 
-**For internal developers:** See the [IdP-Initiated SSO Design & Implementation](/docs/developers/06-Keycloak/idp_initiated_sso_design_implementation) for technical details.
+**For internal developers:** See the [IdP-Initiated SSO Design & Implementation](../06-Keycloak/idp_initiated_sso_design_implementation) for technical details.
 
 ### What This Guide Covers
 
@@ -135,11 +135,11 @@ At this point, you have the Keycloak configuration complete. Now prepare the inf
 |-----------|-------|---------|
 | `TENANT_ID` | The tenant UUID | `abc12345-6789-...` |
 | `EVENT_ID` | The event UUID | `def67890-1234-...` |
-| `SP_BASE_URL` | Keycloak base URL | `https://auth-example.sequentech.io` |
+| `SP_BASE_URL` | Keycloak base URL | `https://login-example.sequent.vote` |
 | `SP_IDP_ALIAS` | IdP alias (decided with client) | `clientname-idp` |
 | `SP_CLIENT_ID` | SAML client ID | `vp-sso` |
 | `SP_CERT_DATA` | Keycloak realm certificate | `MIIDOzCCAi...` |
-| `VOTING_PORTAL_URL` | Voting portal URL | `https://voting-example.sequentech.io` |
+| `VOTING_PORTAL_URL` | Voting portal URL | `https://voting-example.sequent.vote` |
 
 **Derived values (client computes automatically):**
 - `SP_REALM`: `tenant-{TENANT_ID}-event-{EVENT_ID}`
@@ -447,7 +447,7 @@ tenant-{TENANT_ID}-event-{EVENT_ID}
 
 ## Additional Resources
 
-- **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](/docs/integrations/idp_initiated_sso_integration_guide)
-- **Internal Design Documentation:** [IdP-Initiated SSO Design & Implementation](/docs/developers/06-Keycloak/idp_initiated_sso_design_implementation)
+- **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
+- **Internal Design Documentation:** [IdP-Initiated SSO Design & Implementation](../06-Keycloak/idp_initiated_sso_design_implementation)
 - **SimpleSAMLphp Reference:** `.devcontainer/simplesamlphp/README.md`
 - **Keycloak Documentation:** https://www.keycloak.org/docs/latest/server_admin/#_identity_broker
