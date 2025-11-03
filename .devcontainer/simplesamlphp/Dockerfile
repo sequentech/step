@@ -71,7 +71,8 @@ RUN echo $SSP_VERSION > $SSP_DIR/ssp_release_version
 
 # Copy the config
 ADD config/* $SSP_DIR/config/
-RUN mv $SSP_DIR/config/config.php.dist $SSP_DIR/config/config.php
+RUN mv $SSP_DIR/config/config.php.dist $SSP_DIR/config/config.php \
+    && echo 'require "config-override-base.php";' >> $SSP_DIR/config/config.php
 ADD metadata/* $SSP_DIR/metadata/
 ADD cert/* $SSP_DIR/cert/
 
