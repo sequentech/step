@@ -19,7 +19,7 @@ This guide is for **Sequent delivery team members** responsible for:
 
 **For third-party integrators:** See the [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide) instead.
 
-**For internal developers:** See the [IdP-Initiated SSO Design & Implementation](../06-Keycloak/idp_initiated_sso_design_implementation) for technical details.
+**For internal developers:** See the [IdP-Initiated SSO Design & Implementation](../keycloak/idp_initiated_sso_design_implementation) for technical details.
 
 ### What This Guide Covers
 
@@ -75,20 +75,40 @@ tenant-{TENANT_ID}-event-{EVENT_ID}
 tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-cd1397d3-d236-42b4-a019-49143b616e13
 ```
 
+Typically, this is created automatically for every Election Event. For example,
+when you import or create an election event, the url of the election event
+contains the election event id, something like:
+
+```
+http://localhost:3002/sequent_backend_election_event/e3329c90-a238-4e45-b480-18a8b5ad64cf
+```
+
+And also the realm identifier appear in the login link for the election event,
+that you can obtain at the bottom of the Admin Portal Dashboard under the Link
+`Voter Login URL`, something like:
+
+```
+http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/e3329c90-a238-4e45-b480-18a8b5ad64cf/login
+```
+
+Once you have obtained the realm identifier:
+
 1. Log into Keycloak Admin Console
-2. Check if the realm exists
-3. If not, create a new realm with the correct identifier
-4. Note the realm's public certificate (needed for client configuration)
+2. Find the realm in the sidebar under `Manage Realms` action
 
 **To export the realm certificate:**
 1. Go to **Realm Settings** → **Keys** tab
-2. Find the RSA key
+2. Find the `RSA` key
 3. Click **Certificate** button
 4. Copy the certificate (this will be provided to the client as `SP_CERT_DATA`)
 
 ### Step 1.2: Configure the vp-sso SAML Client
 
-This client represents the voting portal application.
+This client represents the voting portal application. The configuration below is
+typically already automatically set up by the default keycloak realm
+configuration in Sequent Voting Plataform. However, you can also use the
+instructions below to verify everything is correctly configured, or in case the
+realm template is misconfigured or old, to configure these settings manually.
 
 1. **Navigate:** Go to **Clients** in the realm
 2. **Create Client:** Click **Create client**
@@ -105,25 +125,25 @@ This client represents the voting portal application.
    * **IdP-initiated SSO URL Name:** `vp-sso`
    * **IdP-initiated SSO RelayState:** `{VOTING_PORTAL_URL}/tenant/{TENANT_ID}/event/{EVENT_ID}/login`
 
-6. **Save**
+6. **SAML Capabilities:**
+   * **Name ID format:** `email`
+   * **Force Name ID format:** **OFF**
+   * **Force POST binding:** **ON**
+   * **Include AuthnStatement:** **ON**
 
-7. **Advanced Tab (Client Details):**
+7. **Signature and Encryption:**
+   * **Sign Documents:** **ON**
+   * **Sign Assertions:** **ON**
+   * **Signature Algorithm:** `RSA_SHA256`
+   * **Client signature required:** **OFF** (the voting portal doesn't sign requests)
+  
+8. Click **`Save`**
+
+9. **`Advanced` Tab:**
    * **Fine grain SAML endpoint configuration:**
      * **Assertion Consumer Service POST Binding URL:** `{KEYCLOAK_BASE_URL}/realms/{REALM_ID}/redirect-provider/redirect`
 
-8. **SAML Capabilities:**
-   * **Name ID format:** email
-   * **Force POST binding:** **ON**
-   * **Force Name ID format:** **OFF**
-   * **Include AuthnStatement:** **ON**
-   * **Sign Documents:** **ON**
-   * **Sign Assertions:** **ON**
-   * **Signature Algorithm:** RSA_SHA256
-
-9. **Signature and Encryption:**
-   * **Client signature required:** **OFF** (the voting portal doesn't sign requests)
-
-10. **Save all changes**
+10. Click **`Save`**
 
 ### Step 1.3: Prepare Configuration for Client
 
@@ -141,28 +161,32 @@ At this point, you have the Keycloak configuration complete. Now prepare the inf
 | `SP_CERT_DATA` | Keycloak realm certificate | `MIIDOzCCAi...` |
 | `VOTING_PORTAL_URL` | Voting portal URL | `https://voting-example.sequent.vote` |
 
-**Derived values (client computes automatically):**
-- `SP_REALM`: `tenant-{TENANT_ID}-event-{EVENT_ID}`
-
 ---
 
 ## Phase 2: Test with SimpleSAMLphp Reference Implementation
 
-Before handing off to the client, test the Keycloak configuration using the SimpleSAMLphp reference implementation.
+Before handing off to the client, test the Keycloak configuration using the
+SimpleSAMLphp reference implementation.
 
 ### Step 2.1: Set Up SimpleSAMLphp Locally
 
 1. **Navigate to SimpleSAMLphp directory:**
+
    ```bash
    cd .devcontainer/simplesamlphp/
    ```
 
 2. **Create environment configuration:**
+
    ```bash
    cp .env.example .env
    ```
 
 3. **Edit `.env` with your test configuration:**
+
+   Please ensure you use the data relative to your specific environment. For
+   example, `SP_CERT_DATA` was obtained in point 1.1.
+
    ```bash
    # IdP URLs (local SimpleSAMLphp)
    IDP_BASE_URL=http://localhost:8083/simplesaml
@@ -180,7 +204,9 @@ Before handing off to the client, test the Keycloak configuration using the Simp
    VOTING_PORTAL_URL=http://localhost:3000
    ```
 
-4. **Start SimpleSAMLphp** (using Docker or your preferred method)
+4. **Start SimpleSAMLphp** (using Docker or your preferred method). If you are
+   testing this with devcontainers, you can run in VSCode the task
+   `logs.restart.simplesamlphp`.
 
 ### Step 2.2: Configure Keycloak to Trust SimpleSAMLphp
 
@@ -448,6 +474,6 @@ tenant-{TENANT_ID}-event-{EVENT_ID}
 ## Additional Resources
 
 - **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
-- **Internal Design Documentation:** [IdP-Initiated SSO Design & Implementation](../06-Keycloak/idp_initiated_sso_design_implementation)
+- **Internal Design Documentation:** [IdP-Initiated SSO Design & Implementation](../keycloak/idp_initiated_sso_design_implementation)
 - **SimpleSAMLphp Reference:** `.devcontainer/simplesamlphp/README.md`
 - **Keycloak Documentation:** https://www.keycloak.org/docs/latest/server_admin/#_identity_broker

@@ -21,7 +21,7 @@ This document provides comprehensive technical documentation for Sequent develop
 
 **Audience:** Sequent internal developers
 
-**For delivery/operations:** See [Delivery Team Configuration Guide](../10-Tutorials/03-setup_idp_initiated_sso)
+**For delivery/operations:** See [Delivery Team Configuration Guide](../tutorials/setup_idp_initiated_sso)
 
 **For third-parties:** See [Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
 
@@ -125,7 +125,7 @@ sequenceDiagram
    * If not, it prompts the user to authenticate using its configured methods (e.g., username/password, MFA).  
    * The user authenticates.  
 3. **Assertion Generation:** The external IdP generates a SAML 2.0 Response containing an Assertion with user identity attributes, audience restriction set to Keycloak's Entity ID, and signs it according to its configuration.  
-4. **POST to Keycloak:** The IdP sends an auto-submitting HTML form to the user's browser, instructing it to HTTP POST the SAML Response and the RelayState value to Keycloak's Assertion Consumer Service (ACS) URL specific to the configured broker entry (e.g., /realms/\{realm\}/broker/\{idp-alias\}/endpoint).  
+4. **POST to Keycloak:** The IdP sends an auto-submitting HTML form to the user's browser, instructing it to HTTP POST the SAML Response and the RelayState value to Keycloak's Assertion Consumer Service (ACS) URL specific to the configured broker entry (e.g., `/realms/{realm}/broker/{idp-alias}/` endpoint).  
 5. **Keycloak Processing (Broker Role):**  
    * Keycloak receives the POST request at its broker endpoint.  
    * It validates the SAML Response signature using the external IdP's public certificate (configured in Keycloak's Identity Provider settings).  
@@ -135,7 +135,7 @@ sequenceDiagram
 6. **Final Redirection:**  
    * Keycloak handles the RelayState.  
    * **Scenario A (Standard):** Keycloak redirects the user's browser directly to the URL provided in the RelayState.  
-   * **Scenario B (Custom Endpoint):** If Keycloak is configured (e.g., via the vp-sso client's ACS URL pointing internally, or post-login flows) to use the custom /redirect-provider/redirect endpoint, that endpoint handles validating the RelayState against the vp-sso client's allowed redirects and issues the final browser redirect.  
+   * **Scenario B (Custom Endpoint):** If Keycloak is configured (e.g., via the vp-sso client's ACS URL pointing internally, or post-login flows) to use the custom `/redirect-provider/redirect` endpoint, that endpoint handles validating the RelayState against the vp-sso client's allowed redirects and issues the final browser redirect.  
 7. **Target Application Access:** The browser is redirected to the final RelayState URL. The user now has a Keycloak session cookie. If the target application (vp-sso) relies on Keycloak for authentication (either via SAML where Keycloak is IdP, or OIDC), it will recognize the session and grant access.
 
 ## 6. Key Configuration Details
@@ -408,7 +408,7 @@ Voting Portal: https://voting.sequentech.io
 
 ## 12. Related Documentation
 
-- **Delivery Team Guide:** [Setup IdP-Initiated SSO](../10-Tutorials/03-setup_idp_initiated_sso)
+- **Delivery Team Guide:** [Setup IdP-Initiated SSO](../tutorials/setup_idp_initiated_sso)
 - **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
 - **Reference Implementation README:** `.devcontainer/simplesamlphp/README.md`
 
@@ -419,7 +419,6 @@ Voting Portal: https://voting.sequentech.io
 ### Potential Enhancements
 
 - **Multiple IdP support:** Allow multiple external IdPs per realm
-- **Dynamic IdP discovery:** Auto-detect IdP based on user email domain
 - **Enhanced attribute mapping:** Support more complex attribute transformations
 - **Metadata refresh:** Automatic periodic metadata refresh from external IdPs
 - **Monitoring/metrics:** Track authentication success rates, errors by IdP
