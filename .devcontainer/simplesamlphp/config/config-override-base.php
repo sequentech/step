@@ -115,13 +115,7 @@ $configOverride = [
 
     // =========================================================================
     // SIMPLESAMLPHP CONFIG OVERRIDES
-    // =========================================================================
-
-    /**
-     * baseurlpath - The base URL path for SimpleSAMLphp
-     * The base directory of the SimpleSAMLphp installation
-     */
-    'baseurlpath' => getenv('SSP_BASE_URL_PATH') ?: getenv('SSP_APACHE_ALIAS'),
+    // ========================================================
 
     /**
      * timezone - The timezone to use for SimpleSAMLphp

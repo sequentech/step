@@ -38,8 +38,6 @@ services:
     environment:
       # SimpleSAMLphp General Configuration
       - DEVELOPMENT_MODE=${DEVELOPMENT_MODE}
-      - SSP_BASE_URL_PATH=${SSP_BASE_URL_PATH}
-      - SSP_APACHE_ALIAS=${SSP_APACHE_ALIAS}
       - SSP_ADMIN_PASSWORD=${SSP_ADMIN_PASSWORD}
       - SSP_LOG_LEVEL=${SSP_LOG_LEVEL}
       - SSP_LOG_HANDLER=${SSP_LOG_HANDLER}
