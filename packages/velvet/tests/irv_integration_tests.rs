@@ -507,8 +507,8 @@ fn test_run_with_random_ballots() {
     println!("Votes: {:#?}", votes);
 
     // Initialize statuses
-    let mut ballots_status = BallotsStatus::initialize_statuses(&votes, &contest);
-    let mut runoff = RunoffStatus::initialize_statuses(&candidates);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut runoff = RunoffStatus::initialize_runoff(&candidates);
     runoff.run(&mut ballots_status);
 
     println!("RunoffStatus: {:#?}", runoff);
@@ -618,8 +618,8 @@ fn test_all_invalid_ballots() {
     println!("Votes (all invalid): {:#?}", votes);
 
     // Initialize statuses and run
-    let mut ballots_status = BallotsStatus::initialize_statuses(&votes, &contest);
-    let mut runoff = RunoffStatus::initialize_statuses(&candidates);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut runoff = RunoffStatus::initialize_runoff(&candidates);
     runoff.run(&mut ballots_status);
 
     println!("RunoffStatus (all invalid): {:#?}", runoff);
@@ -802,8 +802,8 @@ fn test_tie_in_final_round() {
     println!("Votes (tie scenario): {:#?}", votes);
 
     // Initialize statuses and run
-    let mut ballots_status = BallotsStatus::initialize_statuses(&votes, &contest);
-    let mut runoff = RunoffStatus::initialize_statuses(&candidates);
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+    let mut runoff = RunoffStatus::initialize_runoff(&candidates);
     runoff.run(&mut ballots_status);
 
     println!("RunoffStatus (tie scenario): {:#?}", runoff);

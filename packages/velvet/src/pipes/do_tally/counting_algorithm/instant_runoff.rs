@@ -51,7 +51,7 @@ impl BallotsStatus<'_> {
     /// Set initial statuses for all the ballots depending on if they are valid, invalid or blank.
     /// Set the metrics and counts.
     #[instrument(skip_all)]
-    pub fn initialize_statuses<'a>(
+    pub fn initialize_ballots_status<'a>(
         votes: &'a Vec<(DecodedVoteContest, Weight)>,
         contest: &Contest,
     ) -> BallotsStatus<'a> {
@@ -178,19 +178,18 @@ pub struct RunoffStatus {
 
 impl RunoffStatus {
     #[instrument(skip_all)]
-    pub fn initialize_statuses(candidates: &Vec<Candidate>) -> RunoffStatus {
+    pub fn initialize_runoff(contest: &Contest) -> RunoffStatus {
+        let candidates = &contest.candidates;
         let max_rounds = candidates.len() as u64 + 1; // At least 1 candidate is eliminated per round
-        let mut status: RunoffStatus = RunoffStatus {
-            candidates_status: CandidatesStatus(HashMap::new()),
+        let mut candidates_status = CandidatesStatus(HashMap::new());
+        for candidate in candidates {
+            candidates_status.insert(candidate.id.clone(), ECandidateStatus::Active);
+        }
+        RunoffStatus {
+            candidates_status,
             max_rounds,
             ..Default::default()
-        };
-        for candidate in candidates {
-            status
-                .candidates_status
-                .insert(candidate.id.clone(), ECandidateStatus::Active);
         }
-        status
     }
 
     #[instrument(skip_all)]
@@ -427,7 +426,7 @@ impl InstantRunoff {
         let contest = &self.tally.contest;
         let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
 
-        let mut ballots_status = BallotsStatus::initialize_statuses(votes, contest);
+        let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest);
         let count_blank = ballots_status.count_blank;
         let count_valid = ballots_status.count_valid;
         let count_invalid_votes = ballots_status.count_invalid_votes;
@@ -438,7 +437,7 @@ impl InstantRunoff {
         let (candidate_result, process_results) = match op {
             TallyOperation::SkipCandidateResults => (vec![], None),
             _ => {
-                let mut runoff = RunoffStatus::initialize_statuses(&contest.candidates);
+                let mut runoff = RunoffStatus::initialize_runoff(&contest);
                 runoff.run(&mut ballots_status);
 
                 let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value

@@ -42,7 +42,7 @@ Configure fundamental details and multilingual names for this contest.
 Voting System configuration will affect the tally and the Voting portal interface (e.g. whether the system is preferential or not).
 
 ### Counting Algorithm
-- **Plurality at Large**  
+- **Plurality at Large**
   - Voters select up to a specified number of candidates. Candidates with the most votes win.
   - Best suited for non-preferential elections where voters choose their top choices without ranking.
 - **Instant Runoff or IRV**
