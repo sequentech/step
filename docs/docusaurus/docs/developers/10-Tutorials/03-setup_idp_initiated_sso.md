@@ -268,10 +268,10 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
 2. **Click "Login to Voting Portal"**
 
 3. **Authenticate** with test credentials:
-   - Username: `student`
+   - Username: `user1`
    - Password: `studentpass`
 
-   (Or use `employee`/`employeepass`)
+   (This is configured in `simplesamlphp/config/authsources.php`)
 
 4. **Verify the flow:**
    - SimpleSAMLphp authenticates the user
