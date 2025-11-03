@@ -38,9 +38,18 @@ Configure fundamental details and multilingual names for this contest.
 
 ---
 
-## Ballot Voting System (WIP)
-Placeholder for selecting or configuring the voting system/mechanism used by this contest.  
-(Currently under development; details to be added once multiple voting systems support is available.)
+## Ballot Voting System
+Voting System configuration will affect the tally and the Voting portal interface (e.g. whether the system is preferential or not).
+
+### Counting Algorithm
+- **Plurality at Large**  
+  - Voters select up to a specified number of candidates. Candidates with the most votes win.
+  - Best suited for non-preferential elections where voters choose their top choices without ranking.
+- **Instant Runoff or IRV**
+  - Preferential voting system where voters rank candidates in order of preference.
+  - Candidates with the fewest first-choice votes are eliminated and their votes redistributed until winners are determined.
+  - When selecting IRV, set Max votes parameter (in Ballot Design) to at least the number of candidates available to rank.
+
 
 ---
 
