@@ -218,3 +218,10 @@ Improve the election event/election dashboard so that all necessary data (statis
 are displayed correctly in print mode.
 
 - Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
+
+## 🐞 Windmill > Can't create Ballot Images on ARM
+
+The correct version of java jvm for the container architecture is installed instead 
+of just defaulting to installing x86-x64 version.
+
+- Issue: [#8621](https://github.com/sequentech/meta/issues/8621)
