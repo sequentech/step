@@ -182,23 +182,18 @@ We will asume you are using the step repository devcontainer environment.
 
    Please ensure you use the data relative to your specific environment. For
    example, `SP_CERT_DATA` was obtained in point 1.1. You will be editing the
-   section titled `SimpleSAMLphp IdP Configuration`:
+   section titled `SimpleSAMLphp IdP Configuration` that starts as it is shown
+   below:
 
    ```bash
-   # IdP URLs (local SimpleSAMLphp)
-   IDP_BASE_URL=http://localhost:8083/simplesaml
-   IDP_HOSTNAME=localhost:8083
+   ################################################################################
+   # SimpleSAMLphp IdP Configuration
+   # These variables configure the SimpleSAMLphp instance as a reference IdP
+   # implementation for third-party integrators.
 
-   # Keycloak SP configuration
-   TENANT_ID=your-tenant-id
-   EVENT_ID=your-event-id
-   SP_BASE_URL=http://127.0.0.1:8090
-   SP_IDP_ALIAS=simplesamlphp-test
-   SP_CLIENT_ID=vp-sso
-   SP_CERT_DATA=<paste-certificate-from-step-1.1>
-
-   # Voting portal
-   VOTING_PORTAL_URL=http://localhost:3000
+   # =============================================================================
+   # Simple SAML PHP General Configuration
+   # =============================================================================
    ```
 
 2. **Start SimpleSAMLphp** (using Docker or your preferred method). If you are
@@ -209,7 +204,17 @@ We will asume you are using the step repository devcontainer environment.
    `http://localhost:8083/simplesaml/module.php/admin`, in general something
    like `{IDP_BASE_URL}/module.php/admin`. You should get a login page as below:
 
+:::tip
+The `admin` password is setup in the `.env` file mentioned earlier with the
+variable `SSP_ADMIN_PASSWORD` and it's `admin` by default, but please remember
+this is just a sample implementation, use secure passwords in production.
+:::
+
 ![Admin Login](./assets/simplesamlphp_admin_login.png)
+
+After login in the SimpleSAMLphp Admin Portal, you should see something like:
+
+![Admin Portal](./assets/simplesamlphp_admin_portal.png)
 
 ### Step 2.2: Configure Keycloak to Trust SimpleSAMLphp
 
@@ -218,15 +223,17 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
 1. **Navigate to Identity Providers** in your Keycloak realm
 2. **Add provider:** Click **Add provider** → **SAML v2.0**
 3. **Configure Identity Provider:**
-   * **Alias:** `simplesamlphp-test` (matches `SP_IDP_ALIAS` from `.env`)
-   * **Display Name:** `SimpleSAMLphp Test IdP`
+   * **Alias:** `yourcompany-idp` (matches `SP_IDP_ALIAS` from `.env`)
+   * **Display Name:** `SimpleSAMLphp IdP`
    * **Enabled:** **ON**
 
 4. **Import SimpleSAMLphp metadata (recommended):**
-   * **Import from URL:** `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
-   * Click **Import**
+   * **Use Entity Descriptor**: **ON**
+   * **SAML entity descriptor:** `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
+   * Click **Add**
 
    **OR manually configure:**
+   * **Use Entity Descriptor**: **OFF**
    * **Single Sign-On Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SSOService.php`
    * **Single Logout Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php`
    * **NameID Policy Format:** Transient
@@ -267,12 +274,12 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    (Or use `employee`/`employeepass`)
 
 4. **Verify the flow:**
-   - ✅ SimpleSAMLphp authenticates the user
-   - ✅ SAML assertion is generated and POSTed to Keycloak
-   - ✅ Keycloak validates the signature
-   - ✅ Keycloak creates/updates user based on email attribute
-   - ✅ Browser redirects to voting portal login URL
-   - ✅ User session established
+   - SimpleSAMLphp authenticates the user
+   - SAML assertion is generated and POSTed to Keycloak
+   - Keycloak validates the signature
+   - Keycloak creates/updates user based on email attribute
+   - Browser redirects to voting portal login URL
+   - User session established
 
 ### Step 2.4: Troubleshooting Test Issues
 

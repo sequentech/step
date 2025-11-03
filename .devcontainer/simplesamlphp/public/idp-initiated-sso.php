@@ -9,21 +9,24 @@
  * and redirect them to the Sequent voting portal through Keycloak.
  */
 
-// Load centralized configuration
-$config = require __DIR__ . '/../config/config.php';
+namespace SimpleSAML;
+
+require_once('_include.php');
+
+$config = Configuration::getInstance();
 
 // Extract configuration values
 $simpleSamlBaseUrl = '/simplesaml';
 
 // Build the Keycloak SP Entity ID from realm
-$keycloakSpEntityId = $config['sp_realm'];
+$keycloakSpEntityId = $config->getString('sp_realm');
 
 // Build the final redirect URL (voting portal login page)
 $finalRedirectUrl = sprintf(
     '%s/tenant/%s/event/%s/login',
-    $config['voting_portal_url'],
-    $config['tenant_id'],
-    $config['event_id']
+    $config->getString('voting_portal_url'),
+    $config->getString('tenant_id'),
+    $config->getString('event_id')
 );
 
 // --- Logic ---
@@ -35,6 +38,7 @@ $queryParams = [
 ];
 
 $loginUrl = $idpSsoUrl . '?' . http_build_query($queryParams);
+
 ?>
 
 <!DOCTYPE html>

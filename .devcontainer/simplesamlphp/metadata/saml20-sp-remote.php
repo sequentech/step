@@ -18,7 +18,7 @@
  */
 
 // Load centralized configuration
-$config = require __DIR__ . '/../config/config.php';
+require __DIR__ . '/../config/config.php';
 
 // Build URLs dynamically from configuration
 $keycloakSpAcsUrl = sprintf(
