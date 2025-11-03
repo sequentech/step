@@ -105,11 +105,6 @@ export const CreateContest: React.FC = () => {
                     <NumberInput source="max_votes" defaultValue="1" />
                     <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput
-                        source="voting_type"
-                        defaultValue={IVotingType.NON_PREFERENTIAL}
-                        choices={votingTypesChoices()}
-                    />
-                    <SelectInput
                         source="counting_algorithm"
                         defaultValue={ICountingAlgorithm.PLURALITY_AT_LARGE}
                         choices={countingAlgorithmChoices()} // TODO: Add the translations

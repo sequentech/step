@@ -106,7 +106,7 @@ pub fn update_extended_metrics(
     metrics
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     let default_tally_op = match contest.get_counting_algorithm() {
         CountingAlgType::InstantRunoff => TallyOperation::ProcessBallotsAll,
@@ -120,7 +120,7 @@ pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     TallyOperation::from_str(&operation).unwrap_or(default_tally_op)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_area_tally_operation(
     ballot_styles: &Vec<BallotStyle>,
     counting_alg: CountingAlgType,
@@ -144,7 +144,7 @@ pub fn get_area_tally_operation(
         .unwrap_or(TallyOperation::ProcessBallotsAll)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: &Uuid) -> Weight {
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
