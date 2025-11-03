@@ -14,4 +14,3 @@ $config['store.type'] = 'memcache';
 // $config['store.sql.dsn'] = 'sqlite:/var/simplesamlphp/data/sqlitedatabase.sq3';
 // $config['store.sql.username'] = null;
 // $config['store.sql.password'] = null;
-// $config['session.cookie.secure'] = false;

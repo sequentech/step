@@ -11,6 +11,14 @@ $config['usenewui'] = getenv('SSP_NEW_UI') === 'true';
 $config['secretsalt'] =  getenv('SSP_SECRET_SALT') ?: 'defaultsecretsalt';
 $config['enable.saml20-idp'] =  getenv('SSP_ENABLE_IDP') === 'true';
 
+// Fix for NOSTATE error - disable secure cookies for local development
+$config['session.cookie.secure'] = getenv('DEVELOPMENT_MODE') !== 'true';
+
+// Fix SameSite cookie issues for local development
+if (getenv('DEVELOPMENT_MODE') === 'true') {
+    $config['session.cookie.samesite'] = 'Lax';
+}
+
 // exampleauth must be enable via config changes since the default config file has disabled it.
 // Enable modules here as well as on filesystem so that images based on this can use either approach.
 $modules = getenv('SSP_ENABLED_MODULES');
