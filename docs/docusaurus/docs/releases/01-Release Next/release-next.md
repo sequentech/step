@@ -28,3 +28,10 @@ As a result, the UI displayed the policy as `warn-explicit-and-implicit`, even
 though the actual default (when not predefined) was `allowed`.
 
 - Issue: [#8855](https://github.com/sequentech/meta/issues/8855)
+
+## 🐞 Windmill > Can't create Ballot Images on ARM
+
+The correct version of java jvm for the container architecture is installed instead 
+of just defaulting to installing x86-x64 version.
+
+- Issue: [#8621](https://github.com/sequentech/meta/issues/8621)
