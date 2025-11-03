@@ -218,13 +218,11 @@ impl RunoffStatus {
 
     /// Calculate vote transferences for each candidate by comparing with previous round
     #[instrument(skip_all)]
-    pub fn calculate_transferences(
-        &self,
-        current_wins: &mut CandidatesOutcomes,
-        previous_round: Option<&Round>,
-    ) {
+    pub fn calculate_transferences(&self, current_wins: &CandidatesOutcomes) -> CandidatesOutcomes {
+        let previous_round = self.rounds.last();
+        let mut new_current_wins = current_wins.clone();
         if let Some(prev_round) = previous_round {
-            for (candidate_id, outcome) in current_wins.iter_mut() {
+            for (candidate_id, outcome) in new_current_wins.iter_mut() {
                 let prev_wins = prev_round
                     .candidates_wins
                     .get(candidate_id)
@@ -234,6 +232,7 @@ impl RunoffStatus {
             }
         }
         // If no previous round, transference stays at 0 (initial values)
+        new_current_wins
     }
 
     /// Tries to reduce the candidates to eliminate by the look back rule.
@@ -346,12 +345,9 @@ impl RunoffStatus {
             .exhausted_ballots_count;
 
         for (ballot_st, ballot, weight) in ballots_status.ballots.iter_mut() {
-            match *ballot_st {
-                BallotStatus::Valid => (),
-                _ => {
-                    continue;
-                }
-            };
+            if *ballot_st != BallotStatus::Valid {
+                continue;
+            }
             let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidates);
             let w = weight.unwrap_or_default();
             if let Some(candidate_id) = candidate_id {
@@ -365,18 +361,15 @@ impl RunoffStatus {
             }
         }
 
-        info!("act_ballots in round {}: {act_ballots}", self.round_count);
-
-        // Calculate transferences by comparing with previous round
-        let previous_round = self.rounds.last();
-        self.calculate_transferences(&mut candidates_wins, previous_round);
+        candidates_wins = self.calculate_transferences(&candidates_wins);
 
         // Calculate percentages using act_ballots as denominator
         let act_ballots_f64 = cmp::max(1, act_ballots) as f64;
         for outcome in candidates_wins.values_mut() {
-            outcome.percentage = (outcome.wins as f64) / act_ballots_f64;
+            outcome.percentage = ((outcome.wins as f64) / act_ballots_f64).clamp(0.0, 1.0);
         }
 
+        // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
         if max_wins > act_ballots / 2 {
             let candidate_id_opt = self
@@ -386,6 +379,7 @@ impl RunoffStatus {
             round.winner = candidate_id_opt;
         }
 
+        // Eliminate candidates for the next round
         let continue_next_round = match round.winner.is_some() {
             true => false,
             false => {
