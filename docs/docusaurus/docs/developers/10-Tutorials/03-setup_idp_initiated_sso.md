@@ -220,14 +220,25 @@ After login in the SimpleSAMLphp Admin Portal, you should see something like:
 
 Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp instance.
 
-1. **Navigate to Identity Providers** in your Keycloak realm
-2. **Add provider:** Click **Add provider** → **SAML v2.0**
-3. **Configure Identity Provider:**
+1. **Navigate to Authentication** in your Keycloak realm
+2. **In the flows tab** Click **Create flow**
+   * **Name:** `saml first broker flow`
+   * **Flow type:** Basic flow
+3. Click **Create**
+4. Click **Add execution**
+5. Search for `Detect existing broker user` execution and then click **Add**
+6. Set the execution to **Required**
+7. Click **Add execution**
+8. Search for `Automatically set existing user` execution and then click **Add**
+9. Set the execution to **Required**
+10. **Navigate to Identity Providers** in your Keycloak realm
+8. **Add provider:** Click **Add provider** → **SAML v2.0**
+9.  **Configure Identity Provider:**
    * **Alias:** `yourcompany-idp` (matches `SP_IDP_ALIAS` from `.env`)
    * **Display Name:** `SimpleSAMLphp IdP`
-   * **Enabled:** **ON**
+   * **Service provider entity ID:** `tenant-{TENANT_ID}-event-{EVENT_ID}`
 
-4. **Import SimpleSAMLphp metadata (recommended):**
+10. **Import SimpleSAMLphp metadata (recommended):**
    * **Use Entity Descriptor**: **ON**
    * **SAML entity descriptor:** `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
    * Click **Add**
@@ -246,8 +257,9 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    * **Want Assertions Signed:** **ON**
    * **Validate Signatures:** **ON**
    * **Validating X509 Certificates:** Paste SimpleSAMLphp's public certificate (`server.crt` content, without BEGIN/END lines)
+   * **First login flow override:** saml first broker flow
 
-5. **Configure Attribute Mapper:**
+11. **Configure Attribute Mapper:**
    * Go to **Mappers** tab
    * Click **Create**
    * **Name:** `email-mapper`
@@ -269,7 +281,7 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
 
 3. **Authenticate** with test credentials:
    - Username: `user1`
-   - Password: `studentpass`
+   - Password: `password`
 
    (This is configured in `simplesamlphp/config/authsources.php`)
 
