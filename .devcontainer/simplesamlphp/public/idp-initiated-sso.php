@@ -10,7 +10,7 @@
  */
 
 // Load centralized configuration
-$config = require __DIR__ . '/../config.php';
+$config = require __DIR__ . '/../config/config.php';
 
 // Extract configuration values
 $simpleSamlBaseUrl = '/simplesaml';

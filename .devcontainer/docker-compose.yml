@@ -36,9 +36,29 @@ services:
     ports:
       - "8083:8083"
     environment:
+      # SimpleSAMLphp General Configuration
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE}
+      - SSP_BASE_URL_PATH=${SSP_BASE_URL_PATH}
+      - SSP_APACHE_ALIAS=${SSP_APACHE_ALIAS}
       - SSP_ADMIN_PASSWORD=${SSP_ADMIN_PASSWORD}
+      - SSP_LOG_LEVEL=${SSP_LOG_LEVEL}
+      - SSP_LOG_HANDLER=${SSP_LOG_HANDLER}
+      - SSP_SECRET_SALT=${SSP_SECRET_SALT}
       - SSP_ENABLED_MODULES=${SSP_ENABLED_MODULES}
-      - SSP_ENABLE_IDP=${SSP_ENABLE_IDP}
+      # IdP Deployment Configuration
+      - IDP_BASE_URL=${IDP_BASE_URL}
+      - IDP_HOSTNAME=${IDP_HOSTNAME}
+      # Target Application (Voting Event) Configuration
+      - TENANT_ID=${TENANT_ID}
+      - EVENT_ID=${EVENT_ID}
+      # Service Provider (Keycloak) Configuration
+      - SP_BASE_URL=${SP_BASE_URL}
+      - SP_IDP_ALIAS=${SP_IDP_ALIAS}
+      - SP_CLIENT_ID=${SP_CLIENT_ID}
+      - SP_CERT_DATA=${SP_CERT_DATA}
+      # Voting Portal Configuration
+      - VOTING_PORTAL_URL=${VOTING_PORTAL_URL}
+      # Apache Configuration
       - APACHE_CERT_NAME=ssl-cert-snakeoil
 
   # Needed to set up proper permissions for non root user in postgres

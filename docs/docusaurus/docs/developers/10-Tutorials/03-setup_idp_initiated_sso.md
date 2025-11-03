@@ -170,22 +170,19 @@ SimpleSAMLphp reference implementation.
 
 ### Step 2.1: Set Up SimpleSAMLphp Locally
 
-1. **Navigate to SimpleSAMLphp directory:**
+If you are testing this in step repository devcontainer environment, then you
+need to edit the environment configuration variables in the `.devcontainer/.env`
+file. Otherwise, you will have to replicate these variables used by the
+`simplesamlphp` sample app, which you can find in
+`.devcontainer/simplesamlphp/.env.example`.
 
-   ```bash
-   cd .devcontainer/simplesamlphp/
-   ```
+We will asume you are using the step repository devcontainer environment.
 
-2. **Create environment configuration:**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Edit `.env` with your test configuration:**
+1. **Edit `.devcontainer/.env` with your test configuration:**
 
    Please ensure you use the data relative to your specific environment. For
-   example, `SP_CERT_DATA` was obtained in point 1.1.
+   example, `SP_CERT_DATA` was obtained in point 1.1. You will be editing the
+   section titled `SimpleSAMLphp IdP Configuration`:
 
    ```bash
    # IdP URLs (local SimpleSAMLphp)
@@ -204,9 +201,15 @@ SimpleSAMLphp reference implementation.
    VOTING_PORTAL_URL=http://localhost:3000
    ```
 
-4. **Start SimpleSAMLphp** (using Docker or your preferred method). If you are
+2. **Start SimpleSAMLphp** (using Docker or your preferred method). If you are
    testing this with devcontainers, you can run in VSCode the task
    `logs.restart.simplesamlphp`.
+
+3. **Login into SimpleSAMLphp application**, it should be an URL like
+   `http://localhost:8083/simplesaml/module.php/admin`, in general something
+   like `{IDP_BASE_URL}/module.php/admin`. You should get a login page as below:
+
+![Admin Login](./assets/simplesamlphp_admin_login.png)
 
 ### Step 2.2: Configure Keycloak to Trust SimpleSAMLphp
 

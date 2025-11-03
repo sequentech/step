@@ -82,7 +82,7 @@ The metadata files (`metadata/saml20-idp-hosted.php`, `metadata/saml20-sp-remote
 ```php
 <?php
 // Load centralized configuration
-$config = require __DIR__ . '/../config.php';
+$config = require __DIR__ . '/../config/config.php';
 
 // Build URLs dynamically
 $keycloakSpAcsUrl = sprintf(
