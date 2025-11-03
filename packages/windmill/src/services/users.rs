@@ -36,6 +36,7 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
+pub const DELEGATE_TO_ATTR_NAME: &str = "delegate_vote_to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
 #[instrument(skip(hasura_transaction), err)]
@@ -124,6 +125,78 @@ async fn get_area_ids(
     );
 
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
+}
+
+#[instrument(skip(keycloak_transaction), err)]
+pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections_with_delegates(
+    keycloak_transaction: &Transaction<'_>,
+    realm: &str,
+    area_id: &str,
+    election_alias: &str,
+    output_file: &PathBuf,
+) -> Result<()> {
+    // COPY does not support parameters so we have to add them using format
+    let statement = format!(
+        r#"
+        SELECT
+            u.id,
+            (
+                SELECT
+                    COUNT(delegator.id)
+                FROM
+                    user_entity AS delegator
+                JOIN
+                    user_attribute AS ua_delegate ON delegator.id = ua_delegate.user_id
+                WHERE
+                    ua_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
+                    ua_delegate.value = u.username
+            ) AS delegate_count
+        FROM
+            user_entity AS u
+        JOIN
+            realm ra ON u.realm_id = ra.id
+        LEFT JOIN
+            user_attribute ua_area ON u.id = ua_area.user_id AND ua_area.name = '{AREA_ID_ATTR_NAME}'
+        LEFT JOIN
+            user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
+        WHERE
+            ra.name = '{realm}' AND
+            u.enabled IS TRUE AND
+            ua_area.value = '{area_id}' AND
+            (ua_elections.value = '{election_alias}' OR ua_elections.value IS NULL)
+        GROUP BY
+            u.id, u.username -- Added u.username here
+        ORDER BY
+            u.id
+    "#
+    );
+
+    let tokio_temp_file = File::create(output_file)
+        .await
+        .expect("Could not create/open temporary file for tokio");
+
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", statement);
+    let mut writer = BufWriter::new(tokio_temp_file);
+
+    debug!("copy_out_query: {copy_out_query}");
+
+    let reader = keycloak_transaction.copy_out(&copy_out_query).await?;
+
+    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+    };
+    let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
+
+    let async_reader = StreamReader::new(io_error_stream);
+    tokio::pin!(async_reader);
+
+    let bytes_copied = copy(&mut async_reader, &mut writer).await?;
+
+    info!("voters bytes_copied: {bytes_copied}");
+
+    writer.flush().await?;
+
+    Ok(())
 }
 
 // Paginate users

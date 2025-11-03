@@ -3,15 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::election::get_elections;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
-use crate::services::join::merge_join_csv;
+use crate::services::join::{merge_join_csv, merge_join_csv_with_delegates};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
+use crate::services::users::{
+    list_keycloak_enabled_users_by_area_id_and_authorized_elections,
+    list_keycloak_enabled_users_by_area_id_and_authorized_elections_with_delegates,
+};
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
@@ -24,7 +28,9 @@ use base64::{
 use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, HashableBallot};
+use sequent_core::ballot::{
+    ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation, HashableBallot,
+};
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
@@ -54,6 +60,7 @@ pub async fn insert_ballots_messages(
     trustee_names: Vec<String>,
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
+    delegated_voting_policy: DelegatedVotingPolicy,
 ) -> Result<Vec<TallySessionContest>> {
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
@@ -123,6 +130,7 @@ pub async fn insert_ballots_messages(
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
+            let is_delegated = delegated_voting_policy == DelegatedVotingPolicy::ENABLED;
 
             let task = tokio::task::spawn_blocking(move || {
                 tokio::runtime::Handle::current().block_on(async move {
@@ -191,14 +199,25 @@ pub async fn insert_ballots_messages(
                         }
                         .to_string();
 
-                    list_keycloak_enabled_users_by_area_id_and_authorized_elections(
-                        &keycloak_transaction_clone,
-                        &realm_clone,
-                        &tally_session_contest.area_id,
-                        &election_alias,
-                        &users_temp_file.path().to_path_buf(),
-                    )
-                    .await?;
+                    if is_delegated {
+                        list_keycloak_enabled_users_by_area_id_and_authorized_elections_with_delegates(
+                            &keycloak_transaction_clone,
+                            &realm_clone,
+                            &tally_session_contest.area_id,
+                            &election_alias,
+                            &users_temp_file.path().to_path_buf(),
+                        )
+                        .await?;
+                    } else {
+                        list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+                            &keycloak_transaction_clone,
+                            &realm_clone,
+                            &tally_session_contest.area_id,
+                            &election_alias,
+                            &users_temp_file.path().to_path_buf(),
+                        )
+                        .await?;
+                    }
 
                     let users_temp_file = users_temp_file.reopen()?;
 
@@ -209,13 +228,26 @@ pub async fn insert_ballots_messages(
                     let contest_id = tally_session_contest.contest_id.clone();
 
                     let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-                        merge_join_csv(
-                            &ballots_temp_file,
-                            &users_temp_file,
-                            ballots_join_indexes,
-                            users_join_idexes,
-                            ballots_output_index,
-                        )?;
+                        if is_delegated {
+                            let delegate_count_index = 1;
+
+                            merge_join_csv_with_delegates(
+                                &ballots_temp_file,
+                                &users_temp_file,
+                                ballots_join_indexes,
+                                users_join_idexes,
+                                ballots_output_index,
+                                delegate_count_index,
+                            )?
+                        } else {
+                            merge_join_csv(
+                                &ballots_temp_file,
+                                &users_temp_file,
+                                ballots_join_indexes,
+                                users_join_idexes,
+                                ballots_output_index,
+                            )?
+                        };
 
                     let ciphertexts = ballot_contents
                         .into_iter()

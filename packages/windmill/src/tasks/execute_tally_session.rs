@@ -499,6 +499,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+    let delegated_voting_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_delegated_voting_policy();
     let expected_batch_ids: Vec<i64> = tally_session_contests
         .clone()
         .into_iter()
@@ -541,6 +546,7 @@ pub async fn upsert_ballots_messages(
             trustee_names,
             missing_ballots_batches.clone(),
             contest_encryption_policy,
+            delegated_voting_policy,
         )
         .await?
     } else {

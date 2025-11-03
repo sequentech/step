@@ -366,6 +366,13 @@ const catalanTranslation: TranslationType = {
                         "disabled-weighted-voting": "Votació Ponderada Desactivada",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Votació Delegada",
+                    options: {
+                        enabled: "Activada",
+                        disabled: "Desactivada",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",

@@ -366,6 +366,13 @@ const basqueTranslation: TranslationType = {
                         "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Botoa Eskualdatzeko Politika",
+                    options: {
+                        enabled: "Gaituta",
+                        disabled: "Desgaituta",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",

@@ -364,6 +364,13 @@ const dutchTranslation: TranslationType = {
                         "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Gedelegeerd stembeleid",
+                    options: {
+                        enabled: "Ingeschakeld",
+                        disabled: "Uitgeschakeld",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",

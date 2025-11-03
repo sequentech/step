@@ -119,3 +119,6 @@ Configure advanced system behaviors for this Election Event.
 - **Weighted Voting Policy**:
   - **Weighted Voting for Areas**: Enable weighted voting for areas.
   - **Disabled Weighted Voting**: Disable weighted voting.
+- **Delegate Voting Policy**:
+  - **Enabled**: Enable delegated voting.
+  - **Disabled**: Disable delegated voting.

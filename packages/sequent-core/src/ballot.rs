@@ -793,6 +793,7 @@ pub struct ElectionEventPresentation {
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
 }
 
 impl ElectionEvent {
@@ -2193,4 +2194,26 @@ pub enum WeightedVotingPolicy {
     DISABLED_WEIGHTED_VOTING,
     #[serde(rename = "areas-weighted-voting")]
     AREAS_WEIGHTED_VOTING,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum DelegatedVotingPolicy {
+    #[default]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[serde(rename = "enabled")]
+    ENABLED,
 }

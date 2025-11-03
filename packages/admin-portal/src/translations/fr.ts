@@ -366,6 +366,13 @@ const frenchTranslation: TranslationType = {
                         "disabled-weighted-voting": "Vote Pondéré Désactivé",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Politique de vote délégué",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",

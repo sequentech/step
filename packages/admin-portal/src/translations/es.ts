@@ -367,6 +367,13 @@ const spanishTranslation: TranslationType = {
                         "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Votación Delegada",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
