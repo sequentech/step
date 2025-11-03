@@ -220,3 +220,10 @@ Added Charts in the Admin Portal's Tally Results below the data tables to displa
  the General Information, Participation Results and Candidate Results.
 
 - Issue: [#7531](https://github.com/sequentech/meta/issues/7531)
+
+## 🐞 Windmill > Can't create Ballot Images on ARM
+
+The correct version of java jvm for the container architecture is installed instead 
+of just defaulting to installing x86-x64 version.
+
+- Issue: [#8621](https://github.com/sequentech/meta/issues/8621)
