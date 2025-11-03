@@ -20,8 +20,6 @@ RUN rustup toolchain install nightly-2024-09-01 \
     && rustup default nightly-2024-09-01
 
 # Use Docker build arguments to determine the architecture
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 ARG TARGETARCH
 
 # Set Java version
@@ -50,9 +48,8 @@ RUN case "${TARGETARCH}" in \
     esac; \
     echo "Downloading OpenJDK for ${JAVA_OS_ARCH}"; \
     echo "Download url https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME}"; \
-    echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh
-
-RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev wget software-properties-common \
+    echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
+    apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev wget software-properties-common \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \

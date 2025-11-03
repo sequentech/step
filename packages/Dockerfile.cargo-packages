@@ -15,8 +15,6 @@ COPY ./windmill/external-bin/ecies-tool.jar /usr/local/bin/
 COPY /windmill/external-bin/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Use Docker build arguments to determine the architecture
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 ARG TARGETARCH
 
 # Set Java version
