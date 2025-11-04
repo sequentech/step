@@ -105,21 +105,26 @@
         {{/eq}}
         
         {{#eq report.contest.counting_algorithm "instant-runoff"}}
+          <p>DEBUG: Algorithm matches instant-runoff</p>
           {{#if report.contest_result.process_results}}
-            {{#let allRounds=report.contest_result.process_results.rounds nameRefs=report.contest_result.process_results.name_references}}
-              {{#each allRounds as |round1 round1Index|}}
+            <p>DEBUG: Process results exist</p>
+            <p>DEBUG: rounds={{report.contest_result.process_results.rounds}}</p>
+            <p>DEBUG: name_references={{report.contest_result.process_results.name_references}}</p>
+            {{#with report.contest_result.process_results}}
+              <p>DEBUG: Inside with - rounds={{rounds}}, name_references={{name_references}}</p>
+              <p>DEBUG: Starting each over rounds</p>
+              {{#each rounds as |round1 round1Index|}}
+                <p>DEBUG: Round index={{round1Index}}, modulo={{modulo round1Index 2}}</p>
                 {{!-- Only create table for even indices (0, 2, 4...) using modulo --}}
                 {{#eq (modulo round1Index 2) 0}}
-                  {{#let round1Num=(inc round1Index)}}
-                    {{#let round2Index=(inc round1Index) round2Num=(inc (inc round1Index))}}
-                      <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{round1Num}}-{{round2Num}}</h3>
+                  <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{inc round1Index}}-{{inc (inc round1Index)}}</h3>
                       
                       <table class="candidates">
                         <thead>
                           <tr>
                             <td rowspan="2" style="text-align: center; vertical-align: middle;">Candidate</td>
-                            <td colspan="2" style="text-align: center;">Round{{round1Num}}</td>
-                            <td colspan="2" style="text-align: center;">Round{{round2Num}}</td>
+                            <td colspan="2" style="text-align: center;">Round{{inc round1Index}}</td>
+                            <td colspan="2" style="text-align: center;">Round{{inc (inc round1Index)}}</td>
                           </tr>
                           <tr>
                             <td style="text-align: center;">Votes</td>
@@ -129,21 +134,21 @@
                           </tr>
                         </thead>
                         <tbody>
-                          {{#each ../nameRefs as |nameRef candidateKey|}}
+                          {{#each ../name_references as |nameRef candidateKey|}}
                             <tr>
                               <td>{{nameRef}}</td>
                               {{!-- Round 1 data --}}
-                              {{#with (lookup ../../round1.candidates_wins candidateKey)}}
-                                <td class="votes">{{format_u64 wins}}</td>
+                              {{#with (lookup ../round1.candidates_wins candidateKey)}}
+                                <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
                                 <td class="votes">{{transference}}</td>
                               {{else}}
                                 <td class="votes">0</td>
                                 <td class="votes">0</td>
                               {{/with}}
                               {{!-- Round 2 data - access via index --}}
-                              {{#with (lookup ../../allRounds round2Index)}}
+                              {{#with (lookup ../rounds (inc ../round1Index))}}
                                 {{#with (lookup candidates_wins candidateKey)}}
-                                  <td class="votes">{{format_u64 wins}}</td>
+                                  <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
                                   <td class="votes">{{transference}}</td>
                                 {{else}}
                                   <td class="votes">0</td>
@@ -157,11 +162,9 @@
                           {{/each}}
                         </tbody>
                       </table>
-                    {{/let}}
-                  {{/let}}
                 {{/eq}}
               {{/each}}
-            {{/let}}
+            {{/with}}
           {{/if}}
         {{/eq}}
   {{/each}}
