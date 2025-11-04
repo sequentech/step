@@ -71,6 +71,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "sum",
         helper_wrapper_or(Box::new(sum), String::from("-")),
     );
+    reg.register_helper("eq", Box::new(eq));
     reg
 }
 
@@ -587,4 +588,55 @@ pub fn to_json(
         out.write(&json)?;
     }
     Ok(())
+}
+
+#[allow(non_camel_case_types)]
+pub struct eq;
+
+impl HelperDef for eq {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let param0 = h
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("eq", 0))?
+            .value();
+
+        let param1 = h
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("eq", 1))?
+            .value();
+
+        let is_equal = match (param0, param1) {
+            // Compare strings
+            (Value::String(a), Value::String(b)) => a == b,
+            // Compare numbers
+            (Value::Number(a), Value::Number(b)) => a == b,
+            // Compare booleans
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            // Compare null
+            (Value::Null, Value::Null) => true,
+            // For mixed types or other cases, compare as JSON values
+            _ => param0 == param1,
+        };
+
+        if is_equal {
+            // Render the block if the values are equal
+            if let Some(template) = h.template() {
+                template.render(r, ctx, rc, out)?;
+            }
+        } else {
+            // Render the else block if the values are not equal
+            if let Some(template) = h.inverse() {
+                template.render(r, ctx, rc, out)?;
+            }
+        }
+
+        Ok(())
+    }
 }

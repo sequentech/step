@@ -1257,7 +1257,7 @@ impl Contest {
     }
 
     pub fn get_counting_algorithm(&self) -> CountingAlgType {
-        self.counting_algorithm.clone().unwrap_or_default()
+        self.counting_algorithm.unwrap_or_default()
     }
 
     pub fn base32_writeins(&self) -> bool {
