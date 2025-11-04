@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use tracing::{info, instrument};
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CandidateReference {
     pub id: String,
     pub name: String,
@@ -106,19 +106,20 @@ impl BallotsStatus<'_> {
 
 /// Outcome for each candidate in a round
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CandidatesOutcome {
+pub struct CandidateOutcome {
+    pub name: String,
     pub wins: u64,
     pub transference: i64,
     pub percentage: f64,
 }
 
-type CandidatesOutcomes = HashMap<CandidateReference, CandidatesOutcome>;
+type CandidatesOutcomes = HashMap<String, CandidateOutcome>;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct CandidatesStatus(pub HashMap<CandidateReference, ECandidateStatus>);
+pub struct CandidatesStatus(pub HashMap<String, ECandidateStatus>);
 
 impl Deref for CandidatesStatus {
-    type Target = HashMap<CandidateReference, ECandidateStatus>;
+    type Target = HashMap<String, ECandidateStatus>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -134,11 +135,12 @@ impl CandidatesStatus {
     #[instrument(skip_all)]
     fn initialize_candidates_wins(&self) -> CandidatesOutcomes {
         let mut candidates_wins: CandidatesOutcomes = HashMap::new();
-        for (candidate_ref, status) in self.0.iter() {
+        for (candidate_id, status) in self.0.iter() {
             if status.is_active() {
                 candidates_wins.insert(
-                    candidate_ref.clone(),
-                    CandidatesOutcome {
+                    candidate_id.clone(),
+                    CandidateOutcome {
+                        name: "".to_string(),
                         wins: 0,
                         transference: 0,
                         percentage: 0.0,
@@ -150,12 +152,12 @@ impl CandidatesStatus {
     }
 
     #[instrument(skip_all)]
-    fn get_active_candidates(&self) -> Vec<CandidateReference> {
+    fn get_active_candidate_ids(&self) -> Vec<String> {
         self.0
             .iter()
-            .filter_map(|(candidate_ref, status)| {
+            .filter_map(|(candidate_id, status)| {
                 if status.is_active() {
-                    Some(candidate_ref.clone())
+                    Some(candidate_id.clone())
                 } else {
                     None
                 }
@@ -164,13 +166,8 @@ impl CandidatesStatus {
     }
 
     #[instrument(skip_all)]
-    fn set_candidate_to_eliminated(&mut self, candidate_ref: &CandidateReference) {
-        self.insert(candidate_ref.clone(), ECandidateStatus::Eliminated);
-    }
-
-    #[instrument(skip_all)]
-    fn find_by_id(&self, id: &str) -> Option<CandidateReference> {
-        self.0.keys().find(|c| c.id == id).cloned()
+    fn set_candidate_to_eliminated(&mut self, candidate_id: &str) {
+        self.insert(candidate_id.to_string(), ECandidateStatus::Eliminated);
     }
 }
 
@@ -187,6 +184,7 @@ pub struct Round {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct RunoffStatus {
     pub candidates_status: CandidatesStatus,
+    pub name_references: HashMap<String, String>, // Maps candidate ID to name
     pub round_count: u64,
     pub rounds: Vec<Round>,
     pub max_rounds: u64,
@@ -195,22 +193,51 @@ pub struct RunoffStatus {
 impl RunoffStatus {
     #[instrument(skip_all)]
     pub fn initialize_runoff(contest: &Contest) -> RunoffStatus {
-        let candidates = &contest.candidates;
-        let max_rounds = candidates.len() as u64 + 1; // At least 1 candidate is eliminated per round
+        let max_rounds = contest.candidates.len() as u64 + 1; // At least 1 candidate is eliminated per round
         let mut candidates_status = CandidatesStatus(HashMap::new());
-        for candidate in candidates {
-            candidates_status.insert(
-                CandidateReference {
-                    id: candidate.id.clone(),
-                    name: candidate.name.clone().unwrap_or_default(),
-                },
-                ECandidateStatus::Active,
+        let mut name_references = HashMap::new();
+        for candidate in &contest.candidates {
+            candidates_status.insert(candidate.id.clone(), ECandidateStatus::Active);
+            name_references.insert(
+                candidate.id.clone(),
+                candidate.name.clone().unwrap_or_default(),
             );
         }
         RunoffStatus {
             candidates_status,
+            name_references,
             max_rounds,
             ..Default::default()
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub fn get_candidate_name(&self, candidate_id: &str) -> String {
+        self.name_references
+            .get(candidate_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    #[instrument(skip_all)]
+    pub fn fill_candidate_wins_names(&self, round: &Round) -> Round {
+        let candidates_wins = round
+            .candidates_wins
+            .iter()
+            .map(|(candidate_id, outcome)| {
+                (
+                    candidate_id.clone(),
+                    CandidateOutcome {
+                        name: self.get_candidate_name(candidate_id),
+                        ..outcome.clone()
+                    },
+                )
+            })
+            .collect();
+
+        Round {
+            candidates_wins,
+            ..round.clone()
         }
     }
 
@@ -224,12 +251,12 @@ impl RunoffStatus {
         &self,
         candidates_wins: &CandidatesOutcomes,
         n: u64,
-    ) -> Vec<CandidateReference> {
+    ) -> Vec<String> {
         candidates_wins
             .iter()
-            .filter_map(|(candidate_ref, outcome)| {
+            .filter_map(|(candidate_id, outcome)| {
                 if outcome.wins == n {
-                    Some(candidate_ref.clone())
+                    Some(candidate_id.clone())
                 } else {
                     None
                 }
@@ -240,13 +267,13 @@ impl RunoffStatus {
     /// Calculate vote transferences for each candidate by comparing with previous round
     #[instrument(skip_all)]
     pub fn calculate_transferences(&self, current_wins: &CandidatesOutcomes) -> CandidatesOutcomes {
-        let previous_round = self.rounds.last();
+        let previous_round = self.get_last_round();
         let mut new_current_wins = current_wins.clone();
         if let Some(prev_round) = previous_round {
-            for (candidate_ref, outcome) in new_current_wins.iter_mut() {
+            for (candidate_id, outcome) in new_current_wins.iter_mut() {
                 let prev_wins = prev_round
                     .candidates_wins
-                    .get(candidate_ref)
+                    .get(candidate_id)
                     .map(|o| o.wins)
                     .unwrap_or(0);
                 outcome.transference = outcome.wins as i64 - prev_wins as i64;
@@ -262,15 +289,15 @@ impl RunoffStatus {
     #[instrument(skip_all)]
     pub fn find_single_candidate_to_eliminate(
         &self,
-        candidates_to_eliminate: &Vec<CandidateReference>,
-    ) -> Vec<CandidateReference> {
+        candidates_to_eliminate: &Vec<String>,
+    ) -> Vec<String> {
         let mut round_possible_losers = candidates_to_eliminate.clone();
         for round in self.rounds.iter().rev() {
             // Get the relevant results
             let candidates_to_untie: CandidatesOutcomes = round
                 .candidates_wins
                 .iter()
-                .filter(|(candidate_ref, _)| round_possible_losers.contains(candidate_ref))
+                .filter(|(candidate_id, _)| round_possible_losers.contains(candidate_id))
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
             let min_wins = candidates_to_untie
@@ -295,7 +322,7 @@ impl RunoffStatus {
     pub fn do_round_eliminations(
         &mut self,
         candidates_wins: &CandidatesOutcomes,
-        candidates_to_eliminate: &Vec<CandidateReference>,
+        candidates_to_eliminate: &Vec<String>,
     ) -> Option<Vec<CandidateReference>> {
         let active_count = candidates_wins.len();
         let reduced_list = match candidates_to_eliminate.len() {
@@ -308,21 +335,21 @@ impl RunoffStatus {
         if active_count == reduced_list.len() {
             // if all active candidates have the same wins (all to be eliminated) then there is a winner tie, so end the election and the winner will be decided by lot.
             return None;
-        } else if reduced_list.len() == 1 {
-            // If there is only one candidate left, eliminate it.
-            self.candidates_status
-                .set_candidate_to_eliminated(&reduced_list[0]);
-            return Some(reduced_list);
         } else {
             // Simultaneous Elimination can create corner cases where a winner is decided unfairly.
             // So many electoral systems pick a random candidate from the reduced list instead.
             // Note: Some systems can do simultaneous elimination when it is mathematically safe,
             // this is if the distance to the next more voted candidate is big enough.
-            for candidate_ref in &reduced_list {
+            let mut eliminated = vec![];
+            for candidate_id in &reduced_list {
                 self.candidates_status
-                    .set_candidate_to_eliminated(candidate_ref);
+                    .set_candidate_to_eliminated(candidate_id);
+                eliminated.push(CandidateReference {
+                    id: candidate_id.clone(),
+                    name: self.get_candidate_name(candidate_id),
+                });
             }
-            return Some(reduced_list);
+            return Some(eliminated);
         }
     }
 
@@ -334,8 +361,8 @@ impl RunoffStatus {
     pub fn find_first_active_choice(
         &self,
         choices: &Vec<DecodedVoteChoice>,
-        active_candidates: &Vec<CandidateReference>,
-    ) -> Option<CandidateReference> {
+        active_candidate_ids: &Vec<String>,
+    ) -> Option<String> {
         let mut choices: Vec<DecodedVoteChoice> = choices
             .iter()
             .filter(|choice| choice.selected >= 0)
@@ -344,8 +371,8 @@ impl RunoffStatus {
 
         choices.sort_by(|a, b| a.selected.cmp(&b.selected));
         for choice in choices {
-            if let Some(candidate_ref) = active_candidates.iter().find(|c| c.id == choice.id) {
-                return Some(candidate_ref.clone());
+            if active_candidate_ids.contains(&choice.id) {
+                return Some(choice.id.clone());
             }
         }
         None
@@ -357,8 +384,8 @@ impl RunoffStatus {
     pub fn run_next_round(&mut self, ballots_status: &mut BallotsStatus) -> bool {
         let mut round = Round::default();
         let mut candidates_wins = self.candidates_status.initialize_candidates_wins();
-        let act_candidates = self.candidates_status.get_active_candidates();
-        let act_candidates_count = act_candidates.len() as u64;
+        let act_candidate_ids = self.candidates_status.get_active_candidate_ids();
+        let act_candidates_count = act_candidate_ids.len() as u64;
         let mut act_ballots = 0;
         let mut exhausted_ballots = self
             .get_last_round()
@@ -369,10 +396,10 @@ impl RunoffStatus {
             if *ballot_st != BallotStatus::Valid {
                 continue;
             }
-            let candidate_ref = self.find_first_active_choice(&ballot.choices, &act_candidates);
+            let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidate_ids);
             let w = weight.unwrap_or_default();
-            if let Some(candidate_ref) = candidate_ref {
-                if let Some(outcome) = candidates_wins.get_mut(&candidate_ref) {
+            if let Some(candidate_id) = candidate_id {
+                if let Some(outcome) = candidates_wins.get_mut(&candidate_id) {
                     outcome.wins += w;
                 }
                 act_ballots += 1;
@@ -393,10 +420,16 @@ impl RunoffStatus {
         // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
         if max_wins > act_ballots / 2 {
-            round.winner = self
+            let winner_id = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
                 .cloned();
+            round.winner = winner_id.and_then(|id| {
+                Some(CandidateReference {
+                    id: id.clone(),
+                    name: self.get_candidate_name(&id),
+                })
+            });
         }
 
         // Eliminate candidates for the next round
@@ -405,7 +438,7 @@ impl RunoffStatus {
             false => {
                 // Find the Active candidate(s) with the fewest votes
                 let least_wins = candidates_wins.values().map(|o| o.wins).min().unwrap_or(0);
-                let candidates_to_eliminate: Vec<CandidateReference> =
+                let candidates_to_eliminate: Vec<String> =
                     self.filter_candidates_by_number_of_wins(&candidates_wins, least_wins);
                 let eliminated_candidates =
                     self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate);
@@ -418,6 +451,7 @@ impl RunoffStatus {
         round.active_candidates_count = act_candidates_count;
         round.exhausted_ballots_count = exhausted_ballots;
         round.candidates_wins = candidates_wins;
+        round = self.fill_candidate_wins_names(&round);
         self.rounds.push(round);
         self.round_count += 1;
         return continue_next_round;
@@ -466,7 +500,7 @@ impl InstantRunoff {
                     vote_count = results
                         .candidates_wins
                         .into_iter()
-                        .map(|(candidate_ref, outcome)| (candidate_ref.id, outcome.wins))
+                        .map(|(candidate_id, outcome)| (candidate_id, outcome.wins))
                         .collect();
                 }
 

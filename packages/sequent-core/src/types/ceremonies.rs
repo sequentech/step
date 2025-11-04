@@ -236,25 +236,35 @@ pub enum ScopeOperation {
 )]
 pub enum CountingAlgType {
     #[strum(serialize = "plurality-at-large")]
+    #[serde(rename = "plurality-at-large")]
     #[default]
     PluralityAtLarge,
     #[strum(serialize = "instant-runoff")]
+    #[serde(rename = "instant-runoff")]
     InstantRunoff,
     #[strum(serialize = "borda-nauru")]
+    #[serde(rename = "borda-nauru")]
     BordaNauru,
     #[strum(serialize = "borda")]
+    #[serde(rename = "borda")]
     Borda,
     #[strum(serialize = "borda-mas-madrid")]
+    #[serde(rename = "borda-mas-madrid")]
     BordaMasMadrid,
     #[strum(serialize = "pairwise-beta")]
+    #[serde(rename = "pairwise-beta")]
     PairwiseBeta,
     #[strum(serialize = "desborda3")]
+    #[serde(rename = "desborda3")]
     Desborda3,
     #[strum(serialize = "desborda2")]
+    #[serde(rename = "desborda2")]
     Desborda2,
     #[strum(serialize = "desborda")]
+    #[serde(rename = "desborda")]
     Desborda,
     #[strum(serialize = "cumulative")]
+    #[serde(rename = "cumulative")]
     Cumulative,
 }
 

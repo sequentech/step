@@ -22,7 +22,6 @@
       <tr>
         <td style="width: 55%;">Tally System</td>
         <td style="width: 45%;">
-          {{ report.contest.voting_type }},
           {{ report.contest.counting_algorithm }}
         </td>
       </tr>
@@ -82,25 +81,74 @@
       </tr>
     </table>
 
-    <table>
-      <tr>
-        <th colspan="4">Candidate result</th>
-      </tr>
-      <tr class="">
-        <td style="width: 55%;">Name</td>
-        <td style="width: 15%;">Votes</td>
-        <td style="width: 15%;">Percent of votes</td>
-        <td style="width: 15%;">Winning Position</td>
-      </tr>
-      {{#each report.candidate_result as |candidate|}}
-        <tr class="">
-          <td style="width: 55%;">{{{ candidate.candidate.name }}}</td>
-          <td style="width: 15%;">{{ format_u64 candidate.total_count }}</td>
-          <td style="width: 15%;">{{ format_percentage candidate.percentage_votes }}%</td>
-          <td style="width: 15%;">{{ candidate.winning_position }}</td>
-        </tr>
-      {{/each}}
-    </table>
+
+        {{#eq report.contest.counting_algorithm "plurality-at-large"}}
+          <table>
+            <tr>
+              <th colspan="4">Candidate result</th>
+            </tr>
+            <tr class="">
+              <td style="width: 55%;">Name</td>
+              <td style="width: 15%;">Votes</td>
+              <td style="width: 15%;">Percent of votes</td>
+              <td style="width: 15%;">Winning Position</td>
+            </tr>
+              {{#each report.candidate_result as |candidate|}}
+              <tr class="">
+                <td style="width: 55%;">{{{ candidate.candidate.name }}}</td>
+                <td style="width: 15%;">{{ format_u64 candidate.total_count }}</td>
+                <td style="width: 15%;">{{ format_percentage candidate.percentage_votes }}%</td>
+                <td style="width: 15%;">{{ candidate.winning_position }}</td>
+              </tr>
+              {{/each}}
+          </table>
+        {{/eq}}
+        
+        {{#eq report.contest.counting_algorithm "instant-runoff"}}
+          {{#if report.contest_result.process_results}}
+            <h3>Instant Runoff Details</h3>
+            <p>Total Rounds: {{ report.contest_result.process_results.round_count }}</p>
+            <p>Max Rounds: {{ report.contest_result.process_results.max_rounds }}</p>
+            
+            {{#each report.contest_result.process_results.rounds as |round|}}
+              <div class="round">
+                <h4>Round {{ inc @index }}</h4>
+                <p>Active Candidates: {{ round.active_candidates_count }}</p>
+                <p>Active Ballots: {{ format_u64 round.active_ballots_count }}</p>
+                <p>Exhausted Ballots: {{ format_u64 round.exhausted_ballots_count }}</p>
+                
+                {{#if round.winner}}
+                  <p><strong>Winner: {{ round.winner.name }}</strong></p>
+                {{/if}}
+                
+                <table>
+                  <tr>
+                    <th>Candidate ID</th>
+                    <th>Wins</th>
+                    <th>Transference</th>
+                    <th>Percentage</th>
+                  </tr>
+                  {{#each round.candidates_wins}}
+                    <tr>
+                      <td>{{ this.name }}</td>
+                      <td>{{ format_u64 this.wins }}</td>
+                      <td>{{ this.transference }}</td>
+                      <td>{{ format_percentage this.percentage }}%</td>
+                    </tr>
+                  {{/each}}
+                </table>
+                
+                {{#if round.eliminated_candidates}}
+
+                  {{#each round.eliminated_candidates as |el_candidate|}}
+                     <p>Eliminated: {{ el_candidate.name }}</p>
+                  {{/each}}
+
+                {{/if}}
+              </div>
+            {{/each}}
+          {{/if}}
+        {{/eq}}
   {{/each}}
 
 </div>
