@@ -12,11 +12,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ## Overview
 
-This guide is for **third-party organizations** integrating their Identity Provider (IdP) with Sequent's voting platform using IdP-initiated SAML 2.0 Single Sign-On (SSO).
+This guide is for **third-party organizations** integrating their Identity
+Provider (IdP) with Sequent's voting platform using IdP-initiated SAML 2.0
+Single Sign-On (SSO).
 
 ### What is IdP-Initiated SSO?
 
-In IdP-initiated SSO, users begin their authentication journey at **your identity provider** and are then redirected to Sequent's voting platform with an established authentication session. This allows your users to:
+In IdP-initiated SSO, users begin their authentication journey at 
+**your identity provider** and are then redirected to Sequent's voting platform
+with an established authentication session. This allows your users to:
 
 1. Start at your organization's portal or login page
 2. Authenticate using your existing authentication system
@@ -94,10 +98,12 @@ cd step/.devcontainer/
 Copy the environment template and fill in your values:
 
 ```bash
-cp simplesamlphp/.env.example simplesamlphp/.env
+cp .env.development .env
 ```
 
-Edit `simplesamlphp/.env` with the configuration from Step 1:
+Edit `.devcontainer/.env` with the configuration from Step 1. Note that there
+are more environment variables that can be edited, but the most important one
+to make this work are the following:
 
 ```bash
 # Your local IdP URLs (for development)
@@ -114,17 +120,37 @@ SP_CERT_DATA=<certificate-from-sequent>
 VOTING_PORTAL_URL=https://voting-example.sequent.vote
 ```
 
+:::note
+The variables above appear in the `.devcontainer/.env` file under the section
+titled `SimpleSAMLphp Id Configuration` that starts as it is shown below:
+
+   ```bash
+   ################################################################################
+   # SimpleSAMLphp IdP Configuration
+   # These variables configure the SimpleSAMLphp instance as a reference IdP
+   # implementation for third-party integrators.
+
+   # =============================================================================
+   # Simple SAML PHP General Configuration
+   # =============================================================================
+   ```
+:::
+
 ### 2.3 Start SimpleSAMLphp
 
 Using Docker (recommended):
 
 ```bash
+cd .devcontainer/
 docker-compose up simplesamlphp
 ```
 
 ### 2.4 Set Up ngrok Tunnel (Required for Staging Testing)
 
-**Why ngrok is needed:** Your SimpleSAMLphp runs locally on `localhost:8083`, but Sequent's staging environment needs to reach your IdP to fetch metadata and validate signatures. ngrok creates a public URL that tunnels to your local instance.
+**Why ngrok is needed:** Your SimpleSAMLphp runs locally on `localhost:8083`,
+but Sequent's staging environment needs to reach your IdP to fetch metadata and
+validate signatures. ngrok creates a public URL that tunnels to your local
+instance.
 
 **Install ngrok:**
 ```bash
