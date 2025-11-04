@@ -41,11 +41,11 @@ pub fn get_event_realm(tenant_id: &str, election_event_id: &str) -> String {
 }
 pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     let parts: Vec<&str> = realm.split('-').collect();
-    
+
     // Expected formats:
     // - Tenant realm: "tenant-{tenant_id}"
     // - Event realm: "tenant-{tenant_id}-event-{election_event_id}"
-    
+
     if parts.len() >= 2 && parts[0] == "tenant" {
         // Check if this is an event realm
         if let Some(event_idx) = parts.iter().position(|&p| p == "event") {
@@ -60,7 +60,7 @@ pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
             return Some((tenant_id, None));
         }
     }
-    
+
     None
 }
 
@@ -70,9 +70,9 @@ pub fn get_tenant_realm(tenant_id: &str) -> String {
 
 /// Extracts tenant_id and election_event_id replacements from a realm config.
 ///
-/// This function parses the realm name to extract the old tenant_id and 
-/// election_event_id, and compares them with the new values to determine if replacements
-/// are needed.
+/// This function parses the realm name to extract the old tenant_id and
+/// election_event_id, and compares them with the new values to determine if
+/// replacements are needed.
 ///
 /// # Arguments
 /// * `realm_config` -  Realm config
@@ -88,47 +88,51 @@ pub fn extract_realm_replacements(
     new_tenant_id: &str,
     new_election_event_id: &Option<String>,
 ) -> (Option<(String, String)>, Option<(String, String)>) {
-    info!("edulix6");
-
     // Get the realm name
     let Some(realm_name) = realm_config.realm.as_ref() else {
         return (None, None);
     };
-    info!(?realm_name, "edulix7");
 
     // Parse the realm name to extract tenant_id and election_event_id
-    let Some((old_tenant_id, old_election_event_id)) = parse_realm(realm_name) else {
-        info!("edulix8");
+    let Some((old_tenant_id, old_election_event_id)) = parse_realm(realm_name)
+    else {
         return (None, None);
     };
-    info!(?old_tenant_id, ?old_election_event_id, "edulix9");
 
     // Determine tenant_id replacement if different
-    let tenant_id_replacement = Some((old_tenant_id.clone(), new_tenant_id.to_string()));
+    let tenant_id_replacement =
+        Some((old_tenant_id.clone(), new_tenant_id.to_string()));
 
     // Determine election_event_id replacement if applicable
-    let election_event_id_replacement = match (old_election_event_id, new_election_event_id) {
-        (Some(old_event_id), Some(new_event_id)) if old_event_id != *new_event_id => {
-            Some((old_event_id, new_event_id.clone()))
-        }
-        _ => None,
-    };
+    let election_event_id_replacement =
+        match (old_election_event_id, new_election_event_id) {
+            (Some(old_event_id), Some(new_event_id))
+                if old_event_id != *new_event_id =>
+            {
+                Some((old_event_id, new_event_id.clone()))
+            }
+            _ => None,
+        };
 
     (tenant_id_replacement, election_event_id_replacement)
 }
 
-/// Replaces UUIDs in a Keycloak realm JSON configuration while preserving specific IDs.
+/// Replaces UUIDs in a Keycloak realm JSON configuration while preserving
+/// specific IDs.
 ///
-/// This function processes the realm configuration and replaces most UUIDs with new ones,
-/// while keeping certain IDs unchanged based on the provided `keep` list.
-/// It also automatically preserves UUIDs referenced in Keycloak authenticator configurations
-/// to maintain consistency of internal references.
+/// This function processes the realm configuration and replaces most UUIDs with
+/// new ones, while keeping certain IDs unchanged based on the provided `keep`
+/// list. It also automatically preserves UUIDs referenced in Keycloak
+/// authenticator configurations to maintain consistency of internal references.
 ///
 /// # Arguments
-/// * `json_realm_config` - The original JSON string representation of the realm configuration
+/// * `json_realm_config` - The original JSON string representation of the realm
+///   configuration
 /// * `keep` - A list of UUID strings that should NOT be replaced with new ones
-/// * `tenant_id_replacement` - Optional tuple of (old_tenant_id, new_tenant_id) for explicit replacement
-/// * `election_event_id_replacement` - Optional tuple of (old_event_id, new_event_id) for explicit replacement
+/// * `tenant_id_replacement` - Optional tuple of (old_tenant_id, new_tenant_id)
+///   for explicit replacement
+/// * `election_event_id_replacement` - Optional tuple of (old_event_id,
+///   new_event_id) for explicit replacement
 ///
 /// # Returns
 /// A tuple containing:
@@ -143,19 +147,19 @@ pub fn replace_realm_ids(
 ) -> Result<(String, HashMap<String, String>)> {
     // Parse the realm to find UUIDs that should be preserved
     let realm: RealmRepresentation = deserialize_str(json_realm_config)?;
-    
+
     // Add tenant_id to keep list if we're doing an explicit replacement
     if let Some((old_tenant_id, _)) = &tenant_id_replacement {
         keep.push(old_tenant_id.clone());
     }
-    
+
     // Add election_event_id to keep list if we're doing an explicit replacement
     if let Some((old_event_id, _)) = &election_event_id_replacement {
         keep.push(old_event_id.clone());
     }
-    
-    // Find and preserve UUIDs referenced in Keycloak authenticator configurations
-    // These UUIDs are references that must remain consistent
+
+    // Find and preserve UUIDs referenced in Keycloak authenticator
+    // configurations These UUIDs are references that must remain consistent
     if let Some(authenticator_configs) = realm.authenticator_config.clone() {
         for authenticator_config in authenticator_configs {
             let Some(config) = authenticator_config.config.clone() else {
@@ -172,7 +176,8 @@ pub fn replace_realm_ids(
 
     // Replace all UUIDs in the JSON string except those in the 'keep' list
     // Returns the modified JSON string and a map of old UUID -> new UUID
-    let (mut new_data, replacement_map) = replace_uuids(json_realm_config, keep);
+    let (mut new_data, replacement_map) =
+        replace_uuids(json_realm_config, keep);
 
     // Apply explicit tenant_id replacement if provided
     if let Some((old_tenant_id, new_tenant_id)) = tenant_id_replacement {
@@ -571,15 +576,18 @@ impl KeycloakAdminClient {
         let replaced_ids_config = if replace_ids {
             let realm_config: RealmRepresentation =
                 deserialize_str(&json_realm_config)?;
-            let (tenant_id_replacement, election_event_id_replacement) = 
-                extract_realm_replacements(&realm_config, tenant_id, &election_event_id);
-            info!(?tenant_id_replacement, ?election_event_id_replacement, ?tenant_id, ?election_event_id, "edulix5");
+            let (tenant_id_replacement, election_event_id_replacement) =
+                extract_realm_replacements(
+                    &realm_config,
+                    tenant_id,
+                    &election_event_id,
+                );
 
             let (result, _) = replace_realm_ids(
                 json_realm_config,
                 vec![],
                 tenant_id_replacement,
-                election_event_id_replacement
+                election_event_id_replacement,
             )?;
             result
         } else {
