@@ -12,7 +12,7 @@ To generate a report, you need to select the Election Event in the Admin Portal 
 1. Go to the **REPORTS** tab and click the **Create Report** or **ADD** button.
 2. Select the type (see special notes for specific types below).
 3. **Optional:** Select Election for reporting only a specific election.
-4. **Optional:** Choose a template. You must have created one earlier (see [more about creating templates](../02-Reference/Tenant-Configuration/Templates/admin_portal_reference_Tenant-Configuration_templates.md)). If none is selected, the system's default will be used.
+4. **Optional:** Choose a template. You must have created one earlier (see [more about creating templates](../02-Reference/User-Manual/Templates/admin_portal_reference_user-manual_templates.md)). If none is selected, the system's default will be used.
 5. Click **Save**.
 
 ## Generating Reports
