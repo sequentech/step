@@ -71,6 +71,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "sum",
         helper_wrapper_or(Box::new(sum), String::from("-")),
     );
+    reg.register_helper(
+        "modulo",
+        helper_wrapper_or(Box::new(modulo), String::from("-")),
+    );
     reg.register_helper("eq", Box::new(eq));
     reg
 }
@@ -412,6 +416,40 @@ impl HelperDef for multiply {
         let second_num = parse_f64_value(second_value)?;
 
         let result = first_num * second_num;
+        Ok(ScopedJson::Derived(JsonValue::from(result)))
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct modulo;
+
+impl HelperDef for modulo {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Get the first parameter (dividend)
+        let dividend_value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("modulo", 0))?
+            .value();
+        let dividend = parse_u64_value(dividend_value)?;
+
+        // Get the second parameter (divisor)
+        let divisor_value = helper
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("modulo", 1))?
+            .value();
+        let divisor = parse_u64_value(divisor_value)?;
+
+        if divisor == 0 {
+            return Err(RenderError::new("Modulo by zero"));
+        }
+
+        let result = dividend % divisor;
         Ok(ScopedJson::Derived(JsonValue::from(result)))
     }
 }

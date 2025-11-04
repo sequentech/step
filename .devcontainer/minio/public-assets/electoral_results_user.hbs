@@ -106,47 +106,62 @@
         
         {{#eq report.contest.counting_algorithm "instant-runoff"}}
           {{#if report.contest_result.process_results}}
-            <h3>Instant Runoff Details</h3>
-            <p>Total Rounds: {{ report.contest_result.process_results.round_count }}</p>
-            <p>Max Rounds: {{ report.contest_result.process_results.max_rounds }}</p>
-            
-            {{#each report.contest_result.process_results.rounds as |round|}}
-              <div class="round">
-                <h4>Round {{ inc @index }}</h4>
-                <p>Active Candidates: {{ round.active_candidates_count }}</p>
-                <p>Active Ballots: {{ format_u64 round.active_ballots_count }}</p>
-                <p>Exhausted Ballots: {{ format_u64 round.exhausted_ballots_count }}</p>
-                
-                {{#if round.winner}}
-                  <p><strong>Winner: {{ round.winner.name }}</strong></p>
-                {{/if}}
-                
-                <table>
-                  <tr>
-                    <th>Candidate ID</th>
-                    <th>Wins</th>
-                    <th>Transference</th>
-                    <th>Percentage</th>
-                  </tr>
-                  {{#each round.candidates_wins}}
-                    <tr>
-                      <td>{{ this.name }}</td>
-                      <td>{{ format_u64 this.wins }}</td>
-                      <td>{{ this.transference }}</td>
-                      <td>{{ format_percentage this.percentage }}%</td>
-                    </tr>
-                  {{/each}}
-                </table>
-                
-                {{#if round.eliminated_candidates}}
-
-                  {{#each round.eliminated_candidates as |el_candidate|}}
-                     <p>Eliminated: {{ el_candidate.name }}</p>
-                  {{/each}}
-
-                {{/if}}
-              </div>
-            {{/each}}
+            {{#let allRounds=report.contest_result.process_results.rounds nameRefs=report.contest_result.process_results.name_references}}
+              {{#each allRounds as |round1 round1Index|}}
+                {{!-- Only create table for even indices (0, 2, 4...) using modulo --}}
+                {{#eq (modulo round1Index 2) 0}}
+                  {{#let round1Num=(inc round1Index)}}
+                    {{#let round2Index=(inc round1Index) round2Num=(inc (inc round1Index))}}
+                      <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{round1Num}}-{{round2Num}}</h3>
+                      
+                      <table class="candidates">
+                        <thead>
+                          <tr>
+                            <td rowspan="2" style="text-align: center; vertical-align: middle;">Candidate</td>
+                            <td colspan="2" style="text-align: center;">Round{{round1Num}}</td>
+                            <td colspan="2" style="text-align: center;">Round{{round2Num}}</td>
+                          </tr>
+                          <tr>
+                            <td style="text-align: center;">Votes</td>
+                            <td style="text-align: center;">Transfer</td>
+                            <td style="text-align: center;">Votes</td>
+                            <td style="text-align: center;">Transfer</td>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {{#each ../nameRefs as |nameRef candidateKey|}}
+                            <tr>
+                              <td>{{nameRef}}</td>
+                              {{!-- Round 1 data --}}
+                              {{#with (lookup ../../round1.candidates_wins candidateKey)}}
+                                <td class="votes">{{format_u64 wins}}</td>
+                                <td class="votes">{{transference}}</td>
+                              {{else}}
+                                <td class="votes">0</td>
+                                <td class="votes">0</td>
+                              {{/with}}
+                              {{!-- Round 2 data - access via index --}}
+                              {{#with (lookup ../../allRounds round2Index)}}
+                                {{#with (lookup candidates_wins candidateKey)}}
+                                  <td class="votes">{{format_u64 wins}}</td>
+                                  <td class="votes">{{transference}}</td>
+                                {{else}}
+                                  <td class="votes">0</td>
+                                  <td class="votes">0</td>
+                                {{/with}}
+                              {{else}}
+                                <td class="votes">0</td>
+                                <td class="votes">0</td>
+                              {{/with}}
+                            </tr>
+                          {{/each}}
+                        </tbody>
+                      </table>
+                    {{/let}}
+                  {{/let}}
+                {{/eq}}
+              {{/each}}
+            {{/let}}
           {{/if}}
         {{/eq}}
   {{/each}}
