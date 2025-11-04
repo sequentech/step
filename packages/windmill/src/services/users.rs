@@ -36,7 +36,7 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
-pub const DELEGATE_TO_ATTR_NAME: &str = "delegate_vote_to";
+pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
 #[instrument(skip(hasura_transaction), err)]

@@ -120,5 +120,4 @@ Configure advanced system behaviors for this Election Event.
   - **Weighted Voting for Areas**: Enable weighted voting for areas.
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:
-  - **Enabled**: Enable delegated voting.
-  - **Disabled**: Disable delegated voting.
+  - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.
