@@ -192,7 +192,45 @@ SPDX-License-Identifier: AGPL-3.0-only
         {{/eq}}
         
         {{#eq report.contest.counting_algorithm "instant-runoff"}}
-          <!-- Specific display for instant-runoff -->
+          {{#if report.contest_result.process_results}}
+            <h3>Instant Runoff Details</h3>
+            <p>Total Rounds: {{ report.contest_result.process_results.round_count }}</p>
+            <p>Max Rounds: {{ report.contest_result.process_results.max_rounds }}</p>
+            
+            {{#each report.contest_result.process_results.rounds as |round|}}
+              <div class="round">
+                <h4>Round {{ inc @index }}</h4>
+                <p>Active Candidates: {{ round.active_candidates_count }}</p>
+                <p>Active Ballots: {{ format_u64 round.active_ballots_count }}</p>
+                <p>Exhausted Ballots: {{ format_u64 round.exhausted_ballots_count }}</p>
+                
+                {{#if round.winner}}
+                  <p><strong>Winner: {{ round.winner }}</strong></p>
+                {{/if}}
+                
+                <table>
+                  <tr>
+                    <th>Candidate ID</th>
+                    <th>Wins</th>
+                    <th>Transference</th>
+                    <th>Percentage</th>
+                  </tr>
+                  {{#each round.candidates_wins}}
+                    <tr>
+                      <td>{{ @key.name }}</td>
+                      <td>{{ format_u64 this.wins }}</td>
+                      <td>{{ this.transference }}</td>
+                      <td>{{ format_percentage this.percentage }}%</td>
+                    </tr>
+                  {{/each}}
+                </table>
+                
+                {{#if round.eliminated_candidates}}
+                  <p>Eliminated: {{ round.eliminated_candidates }}</p>
+                {{/if}}
+              </div>
+            {{/each}}
+          {{/if}}
         {{/eq}}
 
       </table>
