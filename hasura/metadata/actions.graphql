@@ -1078,7 +1078,8 @@ type CastVoteEntry {
     statement_timestamp: Int!
     statement_kind: String!
     ballot_id: String!
-    username: String!
+    username: String
+    message: String
 }
 
 type ListCastVoteMessagesOutput {

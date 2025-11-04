@@ -7,6 +7,8 @@ const catalanTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Tornar",
+            showMore: "Mostra'n més",
+            showLess: "Mostra'n menys",
         },
         breadcrumbSteps: {
             electionList: "Llista de Votacions",
@@ -371,6 +373,7 @@ const catalanTranslation: TranslationType = {
                 statement_timestamp: "Marca de temps",
                 username: "Usuari",
                 ballot_id: "ID de la Papereta",
+                message: "Missatge",
             },
         },
     },

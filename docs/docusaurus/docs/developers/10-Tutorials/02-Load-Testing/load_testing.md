@@ -208,11 +208,19 @@ Key flags and environment variables:
   - `{n}` is replaced by the randomized user index.
 - `--env <default|chrome>` (default: `default`)
   - Nightwatch environment. `default` runs Chrome headless; `chrome` is non-headless (not recommended in pods).
+- `--disable-voter-tracking`
+  - Disables the anti-double-voting mechanism. When disabled, the same voter can be randomly selected multiple times across iterations. **Note**: If the election does not allow revoting, tests will fail when a voter is reused. By default, voter tracking is **enabled** to ensure each voter is used only once per test run.
+- `--previous-voters-file <path>`
+  - Path to a `used_voters.txt` file from a previous test run. Voters listed in this file will be excluded from the current run. Useful for chaining multiple test runs or coordinating distributed load testing across multiple machines without voter overlap.
 - Advanced:
   - `--base-test <relative_path>` (default: `nightwatch/src/voting.js`)
     - Allows running another test file, e.g., `nightwatch/src/voting2.js`.
   - `--keep-parallel-files`
-    - Keeps the generated duplicate test files under `/nightwatch/src/_parallel_<RUN_ID>`.
+    - Keeps the generated duplicate test files and the `used_voters.txt` tracking file under `/nightwatch/src/_parallel_<RUN_ID>` for inspection. By default, these are cleaned up after the test completes.
+  - `--voter-min-index` (default: `1`)
+    - The ids for the voters will be selected between `voter-min-index` and `voter-min-index + number-of-voters - 1`. 
+  - `--candidates-pattern <regex>` (default: empty)
+    - Regular expression to filter candidates by name. Supports JavaScript regex format like `/^(?!.*text).*$/` to exclude candidates containing specific text.
 
 Outputs and logs:
 - Aggregated Nightwatch log: `/logs/nightwatch_<timestamp>.log` (inside the container).

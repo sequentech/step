@@ -7,6 +7,8 @@ const spanishTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Regresar",
+            showMore: "Mostrar más",
+            showLess: "Mostrar menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -372,6 +374,7 @@ const spanishTranslation: TranslationType = {
                 statement_timestamp: "Marca de tiempo",
                 username: "Usuario",
                 ballot_id: "ID de Papeleta",
+                message: "Mensaje",
             },
         },
     },
