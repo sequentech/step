@@ -261,16 +261,32 @@ pub enum CountingAlgType {
 impl CountingAlgType {
     /// Returns true if the counting algorithm is preferential (ranked-choice).
     pub fn is_preferential(&self) -> bool {
-        match self {
+        matches!(
+            self,
             CountingAlgType::InstantRunoff
-            | CountingAlgType::Borda
-            | CountingAlgType::BordaNauru
-            | CountingAlgType::BordaMasMadrid
-            | CountingAlgType::PairwiseBeta
-            | CountingAlgType::Desborda
-            | CountingAlgType::Desborda2
-            | CountingAlgType::Desborda3 => true,
-            _ => false,
+                | CountingAlgType::Borda
+                | CountingAlgType::BordaNauru
+                | CountingAlgType::BordaMasMadrid
+                | CountingAlgType::PairwiseBeta
+                | CountingAlgType::Desborda
+                | CountingAlgType::Desborda2
+                | CountingAlgType::Desborda3
+        )
+    }
+
+    pub fn get_default_tally_operation_for_contest(&self) -> TallyOperation {
+        if self.is_preferential() {
+            TallyOperation::ProcessBallotsAll
+        } else {
+            TallyOperation::AggregateResults
+        }
+    }
+
+    pub fn get_default_tally_operation_for_area(&self) -> TallyOperation {
+        if self.is_preferential() {
+            TallyOperation::SkipCandidateResults
+        } else {
+            TallyOperation::ProcessBallotsAll
         }
     }
 }
