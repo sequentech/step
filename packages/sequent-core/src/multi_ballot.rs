@@ -118,6 +118,22 @@ impl HashableMultiBallot {
     }
 }
 
+impl SignedHashableMultiBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        &self,
+    ) -> Result<HashableMultiBallotContests<C>, BallotError> {
+        let hashable_ballot = HashableMultiBallot::try_from(self)?;
+
+        hashable_ballot.deserialize_contests()
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contest: &HashableMultiBallotContests<C>,
+    ) -> Result<String, BallotError> {
+        HashableMultiBallot::serialize_contests(contest)
+    }
+}
+
 impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
     type Error = BallotError;
 
@@ -282,7 +298,7 @@ pub fn verify_multi_ballot_signature(
     ballot_id: &str,
     election_id: &str,
     signed_hashable_multi_ballot: &SignedHashableMultiBallot,
-) -> Result<bool, String> {
+) -> Result<Option<(StrandSignaturePk, StrandSignature)>, String> {
     let (signature, public_key) =
         if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
             signed_hashable_multi_ballot.voter_ballot_signature.clone(),
@@ -290,7 +306,7 @@ pub fn verify_multi_ballot_signature(
         ) {
             (voter_ballot_signature, voter_signing_pk)
         } else {
-            return Ok(false);
+            return Ok(None);
         };
 
     let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&public_key)
@@ -328,5 +344,5 @@ pub fn verify_multi_ballot_signature(
         .verify(&ballot_signature, &ballot_bytes)
         .map_err(|err| format!("Failed to verify signature: {err}"))?;
 
-    Ok(true)
+    Ok(Some((voter_signing_pk, ballot_signature)))
 }

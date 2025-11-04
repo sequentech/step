@@ -17,6 +17,7 @@ import {
     IAuditableMultiBallot,
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
+    EVoterSigningPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -353,8 +354,10 @@ const VotingScreen: React.FC = () => {
 
         try {
             const isMultiContest =
-                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ===
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+            const doSignBallot = ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy === EVoterSigningPolicy.WITH_SIGNATURE
 
             const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
@@ -364,19 +367,21 @@ const VotingScreen: React.FC = () => {
                 ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
                 : hashBallot(auditableBallot as IAuditableSingleBallot)
 
-            let signedContent = isMultiContest
-                ? signHashableMultiBallot(
-                      ballotId,
-                      ballotStyle.election_id,
-                      auditableBallot as IAuditableMultiBallot
-                  )
-                : signHashableBallot(
-                      ballotId,
-                      ballotStyle.election_id,
-                      auditableBallot as IAuditableSingleBallot
-                  )
-            auditableBallot.voter_signing_pk = signedContent?.public_key
-            auditableBallot.voter_ballot_signature = signedContent?.signature
+            if (doSignBallot) {
+                let signedContent = isMultiContest
+                    ? signHashableMultiBallot(
+                        ballotId,
+                        ballotStyle.election_id,
+                        auditableBallot as IAuditableMultiBallot
+                    )
+                    : signHashableBallot(
+                        ballotId,
+                        ballotStyle.election_id,
+                        auditableBallot as IAuditableSingleBallot
+                    )
+                auditableBallot.voter_signing_pk = signedContent?.public_key
+                auditableBallot.voter_ballot_signature = signedContent?.signature
+            }
 
             dispatch(
                 setAuditableBallot({

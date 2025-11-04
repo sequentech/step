@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -167,6 +168,8 @@ pub struct TallySessionDocuments {
 }
 
 #[derive(
+    BorshSerialize,
+    BorshDeserialize,
     Display,
     Serialize,
     Deserialize,

@@ -3,16 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
-use crate::ballot_codec::PlaintextCodec;
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::ceremonies::CeremoniesPolicy;
 use crate::types::hasura::core::{self, Area, ElectionEvent};
-use crate::types::scheduled_event::EventProcessors;
 use ::core::convert::TryInto;
-use base64::engine::general_purpose;
-use base64::Engine;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
@@ -185,6 +182,22 @@ impl HashableBallot {
     }
 }
 
+impl SignedHashableBallot {
+    pub fn deserialize_contests<C: Ctx>(
+        &self,
+    ) -> Result<Vec<HashableBallotContest<C>>, BallotError> {
+        let hashable_ballot = HashableBallot::try_from(self)?;
+
+        hashable_ballot.deserialize_contests()
+    }
+
+    pub fn serialize_contests<C: Ctx>(
+        contests: &Vec<HashableBallotContest<C>>,
+    ) -> Result<Vec<String>, BallotError> {
+        HashableBallot::serialize_contests(contests)
+    }
+}
+
 impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
     type Error = BallotError;
 
@@ -205,49 +218,6 @@ impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
             ciphertext: value.choice.ciphertext.clone(),
             proof: value.proof.clone(),
         }
-    }
-}
-
-impl TryFrom<&AuditableBallot> for HashableBallot {
-    type Error = BallotError;
-
-    fn try_from(value: &AuditableBallot) -> Result<Self, Self::Error> {
-        if TYPES_VERSION != value.version {
-            return Err(BallotError::Serialization(format!(
-                "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
-            )));
-        }
-
-        let contests = value.deserialize_contests::<RistrettoCtx>()?;
-        let hashable_ballot_contest: Vec<HashableBallotContest<RistrettoCtx>> =
-            contests
-                .iter()
-                .map(|auditable_ballot_contest| {
-                    let hashable_ballot_contest =
-                        HashableBallotContest::<RistrettoCtx>::from(
-                            auditable_ballot_contest,
-                        );
-                    hashable_ballot_contest
-                })
-                .collect();
-        let ballot_style_hash =
-            hash_ballot_style(&value.config).map_err(|error| {
-                BallotError::Serialization(format!(
-                    "Failed to hash ballot style: {}",
-                    error
-                ))
-            })?;
-        Ok(HashableBallot {
-            version: TYPES_VERSION,
-            issue_date: value.issue_date.clone(),
-            contests: HashableBallot::serialize_contests::<RistrettoCtx>(
-                &hashable_ballot_contest,
-            )?,
-            config: value.config.id.clone(),
-            ballot_style_hash: ballot_style_hash,
-        })
     }
 }
 
@@ -359,11 +329,13 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     })
 }
 
+// Returns Some(StrandSignature) if the signature was verified or None if there
+// was no signature to verify.
 pub fn verify_ballot_signature(
     ballot_id: &str,
     election_id: &str,
     signed_hashable_ballot: &SignedHashableBallot,
-) -> Result<bool, String> {
+) -> Result<Option<(StrandSignaturePk, StrandSignature)>, String> {
     let (voter_ballot_signature, voter_signing_pk) =
         if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
             signed_hashable_ballot.voter_ballot_signature.clone(),
@@ -371,7 +343,7 @@ pub fn verify_ballot_signature(
         ) {
             (voter_ballot_signature, voter_signing_pk)
         } else {
-            return Ok(false);
+            return Ok(None);
         };
 
     let voter_signing_pk = StrandSignaturePk::from_der_b64_string(
@@ -413,7 +385,7 @@ pub fn verify_ballot_signature(
         .verify(&ballot_signature, &ballot_bytes)
         .map_err(|err| format!("Failed to verify signature: {err}"))?;
 
-    Ok(true)
+    Ok(Some((voter_signing_pk, ballot_signature)))
 }
 
 pub fn get_ballot_bytes_for_signing(
@@ -1005,6 +977,7 @@ pub struct ElectionEventPresentation {
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    pub ceremonies_policy: Option<CeremoniesPolicy>,
 }
 
 impl ElectionEvent {

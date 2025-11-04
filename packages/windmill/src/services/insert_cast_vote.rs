@@ -8,7 +8,6 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
-use crate::services::cast_votes::get_voter_signing_key;
 use crate::services::cast_votes::CastVote;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::datafix;
@@ -26,7 +25,6 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use futures::try_join;
-use sequent_core::ballot::get_ballot_bytes_for_signing;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
@@ -265,7 +263,7 @@ pub async fn try_insert_cast_vote(
         deserialize_and_check_ballot(&input, voter_id)
     };
 
-    let (pseudonym_h, vote_h) = match hash_result {
+    let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {
         Ok(hash) => hash,
         Err(cv_err) => {
             return Ok(InsertCastVoteResult::SkipRetryFailure(cv_err));
@@ -296,28 +294,6 @@ pub async fn try_insert_cast_vote(
 
     info!("voter signing policy {voter_signing_policy}");
 
-    let voter_signing_key: Option<StrandSignatureSk> = if VoterSigningPolicy::WITH_SIGNATURE
-        == voter_signing_policy
-    {
-        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .with_context(|| "missing bulletin board")
-            .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-
-        let voter_signing_key = get_voter_signing_key(
-            &hasura_transaction,
-            &board_name,
-            ids.tenant_id,
-            ids.election_event_id,
-            ids.voter_id,
-            area_id,
-        )
-        .await
-        .map_err(|e| CastVoteError::BallotVoterSignatureFailed(e.to_string()))?;
-        Some(voter_signing_key)
-    } else {
-        None
-    };
-
     let area_presentation: AreaPresentation = match area.presentation {
         Some(presentation) => deserialize_value(presentation)
             .map_err(|e| CastVoteError::DeserializeAreaPresentationFailed(e.to_string()))?,
@@ -335,7 +311,7 @@ pub async fn try_insert_cast_vote(
         auth_time,
         voter_ip,
         voter_country,
-        &voter_signing_key,
+        &voter_signature_data,
         is_early_voting_area,
     )
     .await;
@@ -427,6 +403,8 @@ pub async fn try_insert_cast_vote(
                         });
                 }
             }
+
+            let voter_signing_key = voter_signature_data.clone().map(|val| val.0);
             let electoral_log_res = ElectoralLog::for_voter(
                 &after_result_hasura_transaction,
                 &electoral_log.elog_database,
@@ -500,7 +478,14 @@ pub async fn try_insert_cast_vote(
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
-) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
+) -> Result<
+    (
+        PseudonymHash,
+        CastVoteHash,
+        Option<(StrandSignaturePk, StrandSignature)>,
+    ),
+    CastVoteError,
+> {
     let signed_hashable_ballot: SignedHashableBallot = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
@@ -544,22 +529,31 @@ pub fn deserialize_and_check_ballot(
 
     // Check ballot signature
     let election_id = input.election_id.to_string();
-    verify_ballot_signature(&input.ballot_id, &election_id, &signed_hashable_ballot).map_err(
-        |err| {
-            CastVoteError::BallotVoterSignatureFailed(format!(
-                "Ballot signature check failed: {err}"
-            ))
-        },
-    )?;
+    let signature_opt = verify_ballot_signature(
+        &input.ballot_id,
+        &election_id,
+        &signed_hashable_ballot,
+    )
+    .map_err(|err| {
+        CastVoteError::BallotVoterSignatureFailed(format!("Ballot signature check failed: {err}"))
+    })?;
+    info!("is_signature_verified =  {}", signature_opt.is_some());
 
-    Ok((pseudonym_h, vote_h))
+    Ok((pseudonym_h, vote_h, signature_opt))
 }
 
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
-) -> Result<(PseudonymHash, CastVoteHash), CastVoteError> {
+) -> Result<
+    (
+        PseudonymHash,
+        CastVoteHash,
+        Option<(StrandSignaturePk, StrandSignature)>,
+    ),
+    CastVoteError,
+> {
     let signed_hashable_multi_ballot: SignedHashableMultiBallot =
         deserialize_str(&input.content)
             .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
@@ -601,7 +595,7 @@ pub fn deserialize_and_check_multi_ballot(
 
     // Check ballot signature
     let election_id = input.election_id.to_string();
-    verify_multi_ballot_signature(
+    let voter_signature_opt = verify_multi_ballot_signature(
         &input.ballot_id,
         &election_id,
         &signed_hashable_multi_ballot,
@@ -609,24 +603,9 @@ pub fn deserialize_and_check_multi_ballot(
     .map_err(|err| {
         CastVoteError::BallotVoterSignatureFailed(format!("Ballot signature check failed: {err}"))
     })?;
+    info!("is_signature_verified =  {}", voter_signature_opt.is_some());
 
-    Ok((pseudonym_h, vote_h))
-}
-
-#[instrument(skip(input, signing_key, voter_signing_key), err)]
-pub async fn get_ballot_signature(
-    input: &InsertCastVoteInput,
-    voter_signing_key: &Option<StrandSignatureSk>,
-    signing_key: StrandSignatureSk,
-) -> Result<Vec<u8>, CastVoteError> {
-    // These are unhashed bytes, the signing code will hash it first.
-    let ballot_bytes = input.get_bytes_for_signing();
-
-    let ballot_signature = signing_key
-        .sign(&ballot_bytes)
-        .map_err(|e| CastVoteError::BallotSignFailed(e.to_string()))?;
-
-    Ok(ballot_signature.to_bytes().to_vec())
+    Ok((pseudonym_h, vote_h, voter_signature_opt))
 }
 
 #[instrument(
@@ -635,7 +614,7 @@ pub async fn get_ballot_signature(
         hasura_transaction,
         election_event,
         signing_key,
-        voter_signing_key
+        voter_signature_data
     ),
     err
 )]
@@ -649,7 +628,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
-    voter_signing_key: &Option<StrandSignatureSk>,
+    voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
     is_early_voting_area: bool,
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
@@ -663,7 +642,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "election_id".to_string()))?;
     let area_uuid = Uuid::parse_str(ids.area_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
-    let (check_status, check_previous_votes, ballot_signature) = try_join!(
+    let (check_status, check_previous_votes) = try_join!(
         // Check status is the most expensive call here, it takes around 2/3 of the time of the whole insert_cast_vote
         check_status(
             ids.tenant_id,
@@ -688,8 +667,13 @@ pub async fn insert_cast_vote_and_commit<'a>(
             &election_event_uuid,
             &election_uuid,
         ),
-        get_ballot_signature(&input, voter_signing_key, signing_key)
     )?;
+
+    let voter_signature = voter_signature_data.clone().map(|val| val.1);
+
+    let ballot_signature: [u8; 64] = voter_signature
+        .map(|signature| signature.to_bytes())
+        .unwrap_or([0u8; 64]);
 
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,

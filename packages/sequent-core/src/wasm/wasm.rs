@@ -125,9 +125,9 @@ pub fn to_hashable_ballot_js(
             })
         })?;
 
-    // Convert auditable ballot to hashable ballot
-    let deserialized_ballot: HashableBallot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+    // Convert auditable ballot to signed hashable ballot
+    let deserialized_ballot: SignedHashableBallot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::CONVERT_ERROR,
                 error_msg: format!(
@@ -193,8 +193,8 @@ pub fn to_hashable_multi_ballot_js(
         })?;
 
     // Convert auditable ballot to hashable ballot
-    let deserialized_ballot: HashableMultiBallot =
-        HashableMultiBallot::try_from(&auditable_multi_ballot).map_err(
+    let deserialized_ballot: SignedHashableMultiBallot =
+        SignedHashableMultiBallot::try_from(&auditable_multi_ballot).map_err(
             |err| {
                 JsValue::from(ErrorStatus {
                     error_type: BallotError::CONVERT_ERROR,
@@ -250,8 +250,14 @@ pub fn hash_auditable_ballot_js(
                 format!("Error deserializing auditable ballot: {err}",)
             })
             .into_json()?;
-    let hashable_ballot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable ballot: {err}",
+            )
+        })?;
+    let hashable_ballot = HashableBallot::try_from(&signed_hashable_ballot)
+        .map_err(|err| {
             format!(
                 "Error converting auditable ballot into hashable ballot: {err}",
             )
@@ -1006,8 +1012,15 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
             })
             .into_json()?;
 
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable multi ballot: {err}",
+            )
+        })?;
+
     let hashable_ballot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+        HashableBallot::try_from(&signed_hashable_ballot).map_err(|err| {
             format!(
                 "Error converting auditable ballot into hashable multi ballot: {err}",
             )
