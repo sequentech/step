@@ -285,13 +285,15 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
 
    (This is configured in `simplesamlphp/config/authsources.php`)
 
-4. **Verify the flow:**
-   - SimpleSAMLphp authenticates the user
-   - SAML assertion is generated and POSTed to Keycloak
-   - Keycloak validates the signature
-   - Keycloak creates/updates user based on email attribute
-   - Browser redirects to voting portal login URL
-   - User session established
+4. **Authenticated:** You should get authenticated succesfully and redirected
+   to the voting portal. The intermiate steps that happens quickly one after
+   the other are:
+   1. SimpleSAMLphp authenticates the user
+   2. SAML assertion is generated and POSTed to Keycloak
+   3. Keycloak validates the signature
+   4. Keycloak creates/updates user based on email attribute
+   5. Browser redirects to Voting Portal
+   6. Voting Portal detects user is authenticated and it lists available ballots
 
 ### Step 2.4: Troubleshooting Test Issues
 
