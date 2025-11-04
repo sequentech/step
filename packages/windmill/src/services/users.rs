@@ -36,6 +36,7 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
+pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
 #[instrument(skip(hasura_transaction), err)]
@@ -126,7 +127,6 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
-// Paginate users
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     keycloak_transaction: &Transaction<'_>,
@@ -134,12 +134,34 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     area_id: &str,
     election_alias: &str,
     output_file: &PathBuf,
+    delegated_voting_enabled: bool,
 ) -> Result<()> {
+    let delegated_statement = if delegated_voting_enabled {
+        format!(
+            r#"
+            ,(
+                SELECT
+                    COUNT(delegator.id)
+                FROM
+                    user_entity AS delegator
+                JOIN
+                    user_attribute AS ua_delegate ON delegator.id = ua_delegate.user_id
+                WHERE
+                    ua_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
+                    ua_delegate.value = u.username
+            ) AS delegate_count
+        "#
+        )
+    } else {
+        "".to_string()
+    };
+
     // COPY does not support parameters so we have to add them using format
     let statement = format!(
         r#"
         SELECT
             u.id
+            {delegated_statement}
         FROM
             user_entity AS u
         JOIN

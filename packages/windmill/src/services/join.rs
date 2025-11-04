@@ -5,7 +5,7 @@
 use anyhow::{anyhow, Result};
 use csv::ReaderBuilder;
 use std::{cmp::Ordering, fs::File};
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 
 #[instrument(skip_all, err)]
 pub fn merge_join_csv(
@@ -14,14 +14,15 @@ pub fn merge_join_csv(
     ballots_voter_id_index: usize,
     voters_id_index: usize,
     ballots_content_index: usize,
+    delegate_count_index: Option<usize>,
 ) -> Result<(Vec<String>, u64, u64, u64)> {
     info!("START merge_join_csv");
 
-    // Initialize the result vector
+    // Initialize the result vector and counters
     let mut result = Vec::new();
-    let mut ballots_without_voter = 0;
-    let mut elegible_voters = 0;
-    let mut casted_ballots = 0;
+    let mut ballots_without_voter: u64 = 0;
+    let mut elegible_voters: u64 = 0;
+    let mut casted_ballots: u64 = 0;
 
     // Assume the CSV files do not have headers.
     let mut ballots_reader = ReaderBuilder::new()
@@ -51,9 +52,9 @@ pub fn merge_join_csv(
             continue;
         };
 
-        // Extract the join keys.
+        // Extract the ballot join key.
         let Some(ballot_voter_id) = ballot.get(ballots_voter_id_index) else {
-            // Advance file1.
+            // Advance ballots file.
             ballots_record = ballots_iterator.next();
             continue;
         };
@@ -63,34 +64,60 @@ pub fn merge_join_csv(
             continue;
         }
 
-        // Extract the join keys.
+        // Extract the voter join key.
         let Some(voter_id) = voter.get(voters_id_index) else {
-            // Advance file1.
+            // Advance voters file.
             voters_record = voters_iterator.next();
             continue;
         };
-
         // Ignore users with an empty key.
         if voter_id.is_empty() {
             voters_record = voters_iterator.next();
             continue;
         }
 
+        // --- Delegate Count Logic ---
+        // This block runs only if the delegate feature is enabled.
+        // If parsing fails, we skip the voter record and continue the loop.
+        let delegate_count: usize = if let Some(index) = delegate_count_index {
+            let Some(delegate_count_str) = voter.get(index) else {
+                // Failed to get field, advance voter and continue loop
+                voters_record = voters_iterator.next();
+                continue;
+            };
+            if delegate_count_str.is_empty() {
+                // Empty field, advance voter and continue loop
+                voters_record = voters_iterator.next();
+                continue;
+            }
+            let Ok(count) = delegate_count_str.parse() else {
+                // Invalid number, advance voter and continue loop
+                voters_record = voters_iterator.next();
+                continue;
+            };
+            count
+        } else {
+            // Delegate feature is disabled, default to 0.
+            0
+        };
+        // --- End Delegate Count Logic ---
+
         // Compare the join keys lexicographically.
-        match ballot_voter_id.cmp(&voter_id) {
+        match ballot_voter_id.cmp(voter_id) {
             Ordering::Less => {
                 // If the ballot has no voter.
                 ballots_without_voter += 1;
-                // Advance file1.
+                // Advance ballots file.
                 ballots_record = ballots_iterator.next();
                 casted_ballots += 1;
             }
             Ordering::Greater => {
-                // Advance file2.
+                // Advance voters file.
                 voters_record = voters_iterator.next();
                 elegible_voters += 1;
             }
             Ordering::Equal => {
+                // Match found.
                 let ballot_content = ballot.get(ballots_content_index).ok_or_else(|| {
                     anyhow!(
                         "Output column index {} out of bounds in file1",
@@ -98,12 +125,18 @@ pub fn merge_join_csv(
                     )
                 })?;
 
+                // Add the voter's own ballot.
                 result.push(ballot_content.to_string());
+
+                // Add delegates if any (if delegate_count was 0, this does nothing).
+                result.extend(std::iter::repeat(ballot_content.to_string()).take(delegate_count));
 
                 // Advance both iterators.
                 ballots_record = ballots_iterator.next();
-                casted_ballots += 1;
                 voters_record = voters_iterator.next();
+
+                // Count the voter's ballot (1) + all their delegated ballots.
+                casted_ballots += 1 + (delegate_count as u64);
                 elegible_voters += 1;
             }
         }
@@ -138,7 +171,7 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
-    /// Helper function to run tests for `merge_join_csv`.
+    /// Helper function to run tests for `merge_join_csv` (non-delegate mode).
     fn run_merge_join_test(
         ballots_csv: &str,
         users_csv: &str,
@@ -155,9 +188,17 @@ mod tests {
         let users_ro = users_file.reopen()?;
 
         // Assumes standard test indexes:
-        // join_index=0, output_index=2_index=1
+        // ballots_voter_id_index=0, voters_id_index=0, ballots_content_index=1
+        // Pass `None` for delegate_count_index to run in standard mode.
         let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-            merge_join_csv(&ballots_ro, &users_ro, 0, 0, 1)?;
+            merge_join_csv(
+                &ballots_ro,
+                &users_ro,
+                0,    // ballots_voter_id_index
+                0,    // voters_id_index
+                1,    // ballots_content_index
+                None, // delegate_count_index
+            )?;
         Ok((
             ballot_contents,
             elegible_voters,
@@ -395,6 +436,190 @@ mod tests {
         // Spot check the first and last expected content.
         assert_eq!(result.first().unwrap(), "content_0");
         assert_eq!(result.last().unwrap(), "content_498");
+
+        Ok(())
+    }
+
+    /// Helper that writes the two CSV strings to temporary files,
+    /// reopens them for reading and then calls `merge_join_csv` in delegate mode.
+    ///
+    /// The index arguments are the *standard* test indexes used by the
+    /// original function:
+    ///   ballots_voter_id_index = 0
+    ///   voters_id_index        = 0
+    ///   ballots_content_index  = 1
+    ///   delegate_count_index   = 1
+    fn run_merge_join_delegates_test(
+        ballots_csv: &str,
+        voters_csv: &str,
+    ) -> Result<(Vec<String>, u64, u64, u64)> {
+        // Write the CSV strings to temporary files
+        let mut ballots_file = NamedTempFile::new()?;
+        write!(ballots_file, "{}", ballots_csv)?;
+        ballots_file.flush()?;
+
+        let mut voters_file = NamedTempFile::new()?;
+        write!(voters_file, "{}", voters_csv)?;
+        voters_file.flush()?;
+
+        // Reopen the files read‑only – the original function expects `&File`
+        let ballots_ro = ballots_file.reopen()?;
+        let voters_ro = voters_file.reopen()?;
+
+        // Call the function under test
+        // Pass `Some(1)` for delegate_count_index to run in delegate mode.
+        let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
+            merge_join_csv(
+                &ballots_ro,
+                &voters_ro,
+                /* ballots_voter_id_index   */ 0,
+                /* voters_id_index        */ 0,
+                /* ballots_content_index  */ 1,
+                /* delegate_count_index   */ Some(1),
+            )?;
+
+        Ok((
+            ballot_contents,
+            elegible_voters,
+            ballots_without_voter,
+            casted_ballots,
+        ))
+    }
+
+    /// ------------------------------------------------------------------
+    /// 1. Basic delegate counting
+    /// ------------------------------------------------------------------
+    #[test]
+    fn test_basic_delegate_counts() -> Result<()> {
+        // ballots: voter_id, content
+        let ballots = "\
+            user_A,content_A
+            user_B,content_B
+            user_C,content_C
+            user_D,content_D
+            user_E,content_E";
+
+        // voters: voter_id, delegate_count
+        let voters = "\
+            user_A,1
+            user_B,0
+            user_D,3
+            user_E,2
+            user_F,1"; // user_F has no ballot -> eligible voter
+
+        let (result, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_delegates_test(ballots, voters)?;
+
+        // 10 entries in the result vector:
+        //   user_A → 1 (own) + 1 (delegate) = 2 copies
+        //   user_B → 1 (own) + 0 (delegate) = 1 copy
+        //   user_D → 1 (own) + 3 (delegate) = 4 copies
+        //   user_E → 1 (own) + 2 (delegate) = 3 copies
+        assert_eq!(result.len(), 10);
+        assert_eq!(
+            result,
+            vec![
+                "content_A",
+                "content_A",
+                "content_B",
+                "content_D",
+                "content_D",
+                "content_D",
+                "content_D",
+                "content_E",
+                "content_E",
+                "content_E"
+            ]
+        );
+
+        // User_C has no matching voter: counted as “without voter”
+        assert_eq!(ballots_without_voter, 1);
+
+        // Total ballots cast = 2 (A) + 1 (B) + 1 (C) + 4 (D) + 3 (E) = 11
+        assert_eq!(casted_ballots, 11);
+
+        // 5 eligible voters (A, B, D, E, F)
+        assert_eq!(elegible_voters, 5);
+
+        Ok(())
+    }
+
+    /// ------------------------------------------------------------------
+    /// 2. Empty / missing keys
+    /// ------------------------------------------------------------------
+    #[test]
+    fn test_missing_and_empty_keys() -> Result<()> {
+        let ballots = "\
+        user_A,content_A
+        ,content_B     # empty voter id
+        user_C,content_C
+        user_D,content_D";
+
+        let voters = "\
+        user_A,1
+        user_B,0
+        # missing user_C
+        user_D,2";
+
+        let (result, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_delegates_test(ballots, voters)?;
+
+        // Only user_A and user_D should be matched
+        // user_A -> 1 + 1 = 2 copies
+        // user_D -> 1 + 2 = 3 copies
+        assert_eq!(result.len(), 5);
+        assert_eq!(
+            result,
+            vec![
+                "content_A",
+                "content_A",
+                "content_D",
+                "content_D",
+                "content_D"
+            ]
+        );
+
+        // Ballot 2 (empty voter id) and 3 (user_C) are "without voter"
+        assert_eq!(ballots_without_voter, 2);
+
+        // 3 eligible voters (A, B, D)
+        assert_eq!(elegible_voters, 3);
+
+        // Total ballots cast = 2 (A) + 1 (B) + 1 (C) + 3 (D) = 7
+        assert_eq!(casted_ballots, 7);
+
+        Ok(())
+    }
+
+    /// ------------------------------------------------------------------
+    /// 3. Invalid delegate count
+    /// ------------------------------------------------------------------
+    #[test]
+    fn test_invalid_delegate_count() -> Result<()> {
+        let ballots = "\
+            user_A,content_A
+            user_G,content_G";
+
+        let voters = "\
+            user_A,1
+            user_G,not_a_number"; // invalid count
+
+        let (result, elegible_voters, ballots_without_voter, casted_ballots) =
+            run_merge_join_delegates_test(ballots, voters)?;
+
+        // user_A → matched, 1 + 1 = 2 copies
+        assert_eq!(result.len(), 2);
+        assert_eq!(result, vec!["content_A", "content_A"]);
+
+        // user_G's voter record is skipped due to invalid parse.
+        // This means user_G's *ballot* is not matched.
+        assert_eq!(ballots_without_voter, 1);
+
+        // Total casted ballots = 2 (A) + 1 (G) = 3
+        assert_eq!(casted_ballots, 3);
+
+        // Only user_A is counted as an eligible voter. user_G was skipped.
+        assert_eq!(elegible_voters, 1);
 
         Ok(())
     }

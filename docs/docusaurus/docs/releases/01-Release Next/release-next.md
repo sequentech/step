@@ -284,3 +284,12 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+
+## ✨ Delegate voting with imports
+
+Implemented a simple version of delegate voting. Voters can delegate their vote 
+on other voters, and initially the state of delegation will be imported. 
+Then at the tally level if a voter is a delegate with N weight, we'll insert the 
+ballot N times.
+
+- Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
