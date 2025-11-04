@@ -8,7 +8,6 @@ use crate::pipes::do_tally::{
     counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
-use handlebars::Renderable;
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
@@ -203,7 +202,7 @@ impl RunoffStatus {
             candidates_status.insert(
                 CandidateReference {
                     id: candidate.id.clone(),
-                    name: candidate.name.clone(),
+                    name: candidate.name.clone().unwrap_or_default(),
                 },
                 ECandidateStatus::Active,
             );

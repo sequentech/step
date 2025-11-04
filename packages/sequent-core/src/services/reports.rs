@@ -7,7 +7,7 @@ use chrono::{DateTime, Local, Utc};
 use handlebars::{
     handlebars_helper, BlockParamHolder, Context, Handlebars, Helper,
     HelperDef, HelperResult, JsonValue, Output, RenderContext, RenderError,
-    RenderErrorReason, ScopedJson,
+    RenderErrorReason, Renderable, ScopedJson,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
