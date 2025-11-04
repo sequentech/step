@@ -9,13 +9,10 @@ use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
-use crate::services::join::{merge_join_csv, merge_join_csv_with_delegates};
+use crate::services::join::merge_join_csv;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
-use crate::services::users::{
-    list_keycloak_enabled_users_by_area_id_and_authorized_elections,
-    list_keycloak_enabled_users_by_area_id_and_authorized_elections_with_delegates,
-};
+use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
@@ -199,25 +196,15 @@ pub async fn insert_ballots_messages(
                         }
                         .to_string();
 
-                    if is_delegated {
-                        list_keycloak_enabled_users_by_area_id_and_authorized_elections_with_delegates(
-                            &keycloak_transaction_clone,
-                            &realm_clone,
-                            &tally_session_contest.area_id,
-                            &election_alias,
-                            &users_temp_file.path().to_path_buf(),
-                        )
-                        .await?;
-                    } else {
-                        list_keycloak_enabled_users_by_area_id_and_authorized_elections(
-                            &keycloak_transaction_clone,
-                            &realm_clone,
-                            &tally_session_contest.area_id,
-                            &election_alias,
-                            &users_temp_file.path().to_path_buf(),
-                        )
-                        .await?;
-                    }
+                    list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+                        &keycloak_transaction_clone,
+                        &realm_clone,
+                        &tally_session_contest.area_id,
+                        &election_alias,
+                        &users_temp_file.path().to_path_buf(),
+                        is_delegated,
+                    )
+                    .await?;
 
                     let users_temp_file = users_temp_file.reopen()?;
 
@@ -227,27 +214,17 @@ pub async fn insert_ballots_messages(
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
 
-                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-                        if is_delegated {
-                            let delegate_count_index = 1;
+                    let delegate_count_index = if is_delegated { Some(1) } else { None };
 
-                            merge_join_csv_with_delegates(
-                                &ballots_temp_file,
-                                &users_temp_file,
-                                ballots_join_indexes,
-                                users_join_idexes,
-                                ballots_output_index,
-                                delegate_count_index,
-                            )?
-                        } else {
-                            merge_join_csv(
-                                &ballots_temp_file,
-                                &users_temp_file,
-                                ballots_join_indexes,
-                                users_join_idexes,
-                                ballots_output_index,
-                            )?
-                        };
+                    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
+                        merge_join_csv(
+                            &ballots_temp_file,
+                            &users_temp_file,
+                            ballots_join_indexes,
+                            users_join_idexes,
+                            ballots_output_index,
+                            delegate_count_index,
+                        )?;
 
                     let ciphertexts = ballot_contents
                         .into_iter()
