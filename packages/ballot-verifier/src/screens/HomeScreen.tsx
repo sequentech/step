@@ -193,7 +193,7 @@ export const HomeScreen: React.FC<IProps> = ({
             auditableBallot?.voter_ballot_signature !== undefined &&
             auditableBallot?.voter_signing_pk !== undefined
         ) {
-            let signature_verification_result = isMultiContest
+            let signatureVerificationResult = isMultiContest
                 ? ballotService.verifyMultiBallotSignature(
                       ballotHash,
                       ballotStyle.election_id,
@@ -205,7 +205,7 @@ export const HomeScreen: React.FC<IProps> = ({
                       auditableBallot as IAuditableSingleBallot
                   )
 
-            if (null === signature_verification_result || false === signature_verification_result) {
+            if (!signatureVerificationResult) {
                 setShowError(true)
                 setConfirmationBallot(null)
                 return
