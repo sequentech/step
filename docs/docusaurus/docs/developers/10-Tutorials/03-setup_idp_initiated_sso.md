@@ -275,7 +275,25 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    * **User Attribute Name:** `email`
    * Click **Save**
 
-### Step 2.3: Run End-to-End Test
+### Step 2.3: (Optional) Enable Auto-Redirect to IdP
+
+To skip the Keycloak login page and automatically redirect users to the external IdP:
+
+1. **Navigate to Authentication** → **Flows** in your Keycloak realm
+2. Select **Browser** flow (or your custom browser flow if you have one)
+3. Find the **Identity Provider Redirector** execution
+4. Click **Actions** → **Config**
+5. Set **Alias:** `auto-redirect-idp`
+6. Set **Default Identity Provider:** `yourcompany-idp` (must match your IdP alias exactly)
+7. Click **Save**
+
+**What this does:** Users accessing the voting portal will be immediately redirected to the external IdP without seeing the Keycloak login page.
+
+**When to use:** Enable this when all voters must authenticate through the external IdP and you don't need local Keycloak accounts.
+
+**Admin access:** You can still access Keycloak admin console directly at `{KEYCLOAK_URL}/admin/{realm}/console`
+
+### Step 2.4: Run End-to-End Test
 
 1. **Access the SimpleSAMLphp trigger page:**
    ```
@@ -301,7 +319,7 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    5. Browser redirects to Voting Portal
    6. Voting Portal detects user is authenticated and it lists available ballots
 
-### Step 2.4: Troubleshooting Test Issues
+### Step 2.5: Troubleshooting Test Issues
 
 **Issue: Login timeout. Please sign in again**
 - Verify `EVENT_ID` and `TENANT_ID` in `.env` are correct and that the Keycloak

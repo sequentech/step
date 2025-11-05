@@ -154,14 +154,15 @@ sequenceDiagram
 
 ### 6.2. Keycloak - Identity Provider (Broker Config)
 
-* **Provider:** Add a new SAML v2.0 Identity Provider.  
-* **Alias:** A unique name for this IdP configuration (e.g., external-idp).  
-* **Endpoints:** Single Sign-On Service URL, Single Logout Service URL obtained from the external IdP's metadata.  
-* **Entity ID:** The external IdP's SAML Entity ID.  
-* **Signatures:** Want AuthnRequests Signed (optional, depends on IdP requirement), Validate Signatures=ON, external IdP's public signing certificate added to Validating X509 Certificates.  
-* **Principal Identification:** Configure NameID Policy Format, Principal Type, and Principal Attribute based on what the IdP sends and how users should be identified in Keycloak.  
-* **Mappers:** Create mappers (e.g., Attribute Importer, Username Template Importer) to map attributes from the IdP's assertion (SAML Attribute Name) to Keycloak user attributes (User Attribute Name).  
+* **Provider:** Add a new SAML v2.0 Identity Provider.
+* **Alias:** A unique name for this IdP configuration (e.g., external-idp).
+* **Endpoints:** Single Sign-On Service URL, Single Logout Service URL obtained from the external IdP's metadata.
+* **Entity ID:** The external IdP's SAML Entity ID.
+* **Signatures:** Want AuthnRequests Signed (optional, depends on IdP requirement), Validate Signatures=ON, external IdP's public signing certificate added to Validating X509 Certificates.
+* **Principal Identification:** Configure NameID Policy Format, Principal Type, and Principal Attribute based on what the IdP sends and how users should be identified in Keycloak.
+* **Mappers:** Create mappers (e.g., Attribute Importer, Username Template Importer) to map attributes from the IdP's assertion (SAML Attribute Name) to Keycloak user attributes (User Attribute Name).
 * **Flows:** Configure First Broker Login Flow.
+* **Auto-Redirect (Optional):** Configure the Identity Provider Redirector in the browser authentication flow with the IdP alias as default provider to automatically redirect users to the external IdP, bypassing the Keycloak login page.
 
 ### 6.3. Keycloak - Client (vp-sso)
 
