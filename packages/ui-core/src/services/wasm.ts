@@ -317,11 +317,11 @@ export const verifyBallotSignature = (
     content: IAuditableSingleBallot
 ): boolean | null => {
     try {
-        let is_verified: boolean = verify_ballot_signature_js(ballot_id, election_id, content)
-        return is_verified
+        let isVerified: boolean = verify_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
     } catch (error) {
         console.log(error)
-        return null
+        throw error
     }
 }
 
@@ -331,11 +331,11 @@ export const verifyMultiBallotSignature = (
     content: IAuditableMultiBallot
 ): boolean | null => {
     try {
-        let is_verified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
-        return is_verified
+        let isVerified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
     } catch (error) {
         console.log(error)
-        return null
+        throw error
     }
 }
 

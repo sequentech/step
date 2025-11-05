@@ -1089,6 +1089,8 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()
 }
 
+// returns true/false if verified/no-signature, error if the signature can't be
+// verified
 #[wasm_bindgen]
 pub fn verify_ballot_signature_js(
     ballot_id: JsValue,
@@ -1129,7 +1131,7 @@ pub fn verify_ballot_signature_js(
     )
     .map_err(|err| format!("Error verifying the ballot: {err}"))?;
 
-    serde_wasm_bindgen::to_value(&result)
+    serde_wasm_bindgen::to_value(&result.is_some())
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }
@@ -1180,7 +1182,7 @@ pub fn verify_multi_ballot_signature_js(
     .map_err(|err| format!("Error verifying the ballot signature: {err}"))
     .into_json()?;
 
-    serde_wasm_bindgen::to_value(&result)
+    serde_wasm_bindgen::to_value(&result.is_some())
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

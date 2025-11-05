@@ -357,7 +357,9 @@ const VotingScreen: React.FC = () => {
                 ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ===
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-            const doSignBallot = ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy === EVoterSigningPolicy.WITH_SIGNATURE
+            const doSignBallot =
+                ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy ===
+                EVoterSigningPolicy.WITH_SIGNATURE
 
             const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
@@ -370,15 +372,15 @@ const VotingScreen: React.FC = () => {
             if (doSignBallot) {
                 let signedContent = isMultiContest
                     ? signHashableMultiBallot(
-                        ballotId,
-                        ballotStyle.election_id,
-                        auditableBallot as IAuditableMultiBallot
-                    )
+                          ballotId,
+                          ballotStyle.election_id,
+                          auditableBallot as IAuditableMultiBallot
+                      )
                     : signHashableBallot(
-                        ballotId,
-                        ballotStyle.election_id,
-                        auditableBallot as IAuditableSingleBallot
-                    )
+                          ballotId,
+                          ballotStyle.election_id,
+                          auditableBallot as IAuditableSingleBallot
+                      )
                 auditableBallot.voter_signing_pk = signedContent?.public_key
                 auditableBallot.voter_ballot_signature = signedContent?.signature
             }
