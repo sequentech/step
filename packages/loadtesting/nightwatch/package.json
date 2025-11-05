@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "concurrently": "^9.2.0",	
-    "chromedriver": "^139.0.2",
+    "chromedriver": "^141.0.1",
     "ts-node": "^10.9.2"
   },
   "devDependencies": {

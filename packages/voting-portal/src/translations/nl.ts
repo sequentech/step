@@ -7,6 +7,8 @@ const dutchTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Ga terug",
+            showMore: "Toon meer",
+            showLess: "Toon minder",
         },
         breadcrumbSteps: {
             electionList: "Kieslijst",
@@ -370,6 +372,7 @@ const dutchTranslation: TranslationType = {
                 statement_timestamp: "Tijdstip",
                 username: "Gebruikersnaam",
                 ballot_id: "Stembiljet ID",
+                message: "Bericht",
             },
         },
     },
