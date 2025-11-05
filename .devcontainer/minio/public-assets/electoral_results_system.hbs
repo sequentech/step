@@ -21,7 +21,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       @media print {
         @page {
           size: auto;
-          margin: 0 0.6in;
+          margin: 0.6in;  /* or margin: 0.6in 0.6in; for all sides */
         }
 
         body {
@@ -62,7 +62,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
       .header {
         position: fixed;
-        top: 0;
+        top: 0.3in;
         width: 100%;
         text-align: center;
       }
@@ -80,6 +80,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
       .content {
         break-after: page;
+        padding-top: 120px;
       }
 
       .content .title {
@@ -217,7 +218,7 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
       .candidates {
         border-spacing: 1px;
-        background-color: black;
+        background-color: white;
         margin-top: 16px;
         margin-bottom: 16px;
       }

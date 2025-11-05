@@ -137,6 +137,9 @@
                                     {{#eq this.id candidate.id}}
                                       <br><span style="color: red; font-weight: bold;">Eliminated</span>
                                     {{/eq}}
+                                    {{#eq round1.winner.id candidate.id}}
+                                      <br><span style="color: green; font-weight: bold;">WINNER</span>
+                                    {{/eq}}
                                   {{/each}}
                                 </td>
                                 <td class="votes">{{transference}}</td>
@@ -151,6 +154,9 @@
                                     {{#each ../eliminated_candidates}}
                                       {{#eq this.id candidate.id}}
                                         <br><span style="color: red; font-weight: bold;">Eliminated</span>
+                                      {{/eq}}
+                                      {{#eq ../winner.id candidate.id}}
+                                        <br><span style="color: green; font-weight: bold;">WINNER</span>
                                       {{/eq}}
                                     {{/each}}
                                   </td>
