@@ -58,6 +58,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "inc",
         helper_wrapper_or(Box::new(inc), String::from("-")),
     );
+    reg.register_helper(
+        "inc2",
+        helper_wrapper_or(Box::new(inc2), String::from("-")),
+    );
     reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
     reg.register_helper(
         "parse_i64",
@@ -634,6 +638,27 @@ pub fn inc(
         .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
 
     let inc_index = index + 1;
+
+    out.write(&inc_index.to_string())?;
+
+    Ok(())
+}
+
+pub fn inc2(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let index: u64 = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("inc2", 0))?
+        .value()
+        .as_u64()
+        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
+
+    let inc_index = index + 2;
 
     out.write(&inc_index.to_string())?;
 

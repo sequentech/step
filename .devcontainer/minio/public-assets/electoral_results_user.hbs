@@ -110,14 +110,14 @@
               {{#each rounds as |round1 round1Index|}}
                 {{!-- Only create table for even indices (0, 2, 4...) using modulo --}}
                 {{#eq (modulo round1Index 2) "0"}}
-                  <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{inc round1Index}}-{{inc {{inc round1Index}} }}</h3>
+                  <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{inc round1Index}}-{{inc2 round1Index}}</h3>
                       
                       <table class="candidates">
                         <thead>
                           <tr>
                             <td rowspan="2" style="text-align: center; vertical-align: middle;">Candidate</td>
-                            <td colspan="2" style="text-align: center;">Round{{inc round1Index}}</td>
-                            <td colspan="2" style="text-align: center;">Round{{inc {{inc round1Index}} }}</td>
+                            <td colspan="2" style="text-align: center;">Round {{inc round1Index}}</td>
+                            <td colspan="2" style="text-align: center;">Round {{inc2 round1Index}}</td>
                           </tr>
                           <tr>
                             <td style="text-align: center;">Votes</td>
@@ -127,11 +127,11 @@
                           </tr>
                         </thead>
                         <tbody>
-                          {{#each ../name_references as |nameRef candidateKey|}}
+                          {{#each ../name_references as |candidate|}}
                             <tr>
-                              <td>{{nameRef}}</td>
+                              <td>{{candidate.name}}</td>
                               {{!-- Round 1 data --}}
-                              {{#with (lookup ../round1.candidates_wins candidateKey)}}
+                              {{#with (lookup ../round1.candidates_wins candidate.id)}}
                                 <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
                                 <td class="votes">{{transference}}</td>
                               {{else}}
@@ -140,7 +140,7 @@
                               {{/with}}
                               {{!-- Round 2 data - access via index --}}
                               {{#with (lookup ../rounds (inc ../round1Index))}}
-                                {{#with (lookup candidates_wins candidateKey)}}
+                                {{#with (lookup candidates_wins candidate.id)}}
                                   <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
                                   <td class="votes">{{transference}}</td>
                                 {{else}}
