@@ -132,7 +132,13 @@
                               <td>{{candidate.name}}</td>
                               {{!-- Round 1 data --}}
                               {{#with (lookup round1.candidates_wins candidate.id)}}
-                                <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
+                                <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)
+                                  {{#each round1.eliminated_candidates}}
+                                    {{#eq this.id candidate.id}}
+                                      <br><span style="color: red; font-weight: bold;">Eliminated</span>
+                                    {{/eq}}
+                                  {{/each}}
+                                </td>
                                 <td class="votes">{{transference}}</td>
                               {{else}}
                                 <td class="votes">0</td>
@@ -141,7 +147,13 @@
                               {{!-- Round 2 data - access via index --}}
                               {{#with (next processResults.rounds round1Index)}}
                                 {{#with (lookup candidates_wins candidate.id)}}
-                                  <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
+                                  <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)
+                                    {{#each ../eliminated_candidates}}
+                                      {{#eq this.id candidate.id}}
+                                        <br><span style="color: red; font-weight: bold;">Eliminated</span>
+                                      {{/eq}}
+                                    {{/each}}
+                                  </td>
                                   <td class="votes">{{transference}}</td>
                                 {{else}}
                                   <td class="votes">0</td>
