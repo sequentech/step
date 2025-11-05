@@ -116,6 +116,7 @@ async fn create_config(
                         pipe: match contest_encryption_policy {
                             ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::MCBallotImages,
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotImages,
+                            ContestEncryptionPolicy::PLAINTEXT => todo!()
                         },
                         config: Some(pipe_config),
                     }
@@ -127,6 +128,7 @@ async fn create_config(
                                 PipeName::MCBallotReceipts
                             }
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
+                            ContestEncryptionPolicy::PLAINTEXT => todo!()
                         },
                         config: Some(pipe_config),
                     }

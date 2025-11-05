@@ -357,6 +357,7 @@ const VotingScreen: React.FC = () => {
                 ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ===
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
+            // TODO Create an Auditable plaintext ballot
             const doSignBallot =
                 ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy ===
                 EVoterSigningPolicy.WITH_SIGNATURE

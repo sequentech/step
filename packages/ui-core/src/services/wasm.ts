@@ -18,10 +18,13 @@ import {
     decode_auditable_multi_ballot_js,
     to_hashable_ballot_js,
     to_hashable_multi_ballot_js,
+    to_hashable_plaintext_ballot_js,
     hash_auditable_ballot_js,
     hash_auditable_multi_ballot_js,
+    hash_auditable_plaintext_ballot_js,
     encrypt_decoded_contest_js,
     encrypt_decoded_multi_contest_js,
+    encode_plaintext_contest_js,
     test_contest_reencoding_js,
     test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
@@ -40,12 +43,14 @@ import {
     ElectionsOrder,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     IBallotStyle,
     ICandidate,
     IContest,
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IHashablePlaintextBallot,
     ISignedContent,
 } from ".."
 
@@ -151,6 +156,17 @@ export const toHashableMultiBallot = (
     }
 }
 
+export const toHashablePlaintextBallot = (
+    auditablePlaintextBallot: IAuditablePlaintextBallot
+): IHashablePlaintextBallot => {
+    try {
+        return to_hashable_plaintext_ballot_js(auditablePlaintextBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 export const hashBallot = (auditableBallot: IAuditableSingleBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
@@ -163,6 +179,17 @@ export const hashBallot = (auditableBallot: IAuditableSingleBallot): string => {
 export const hashMultiBallot = (auditableMultiBallot: IAuditableMultiBallot): string => {
     try {
         return hash_auditable_multi_ballot_js(auditableMultiBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const hashPlaintextBallot = (
+    auditablePlaintextBallot: IAuditablePlaintextBallot
+): string => {
+    try {
+        return hash_auditable_plaintext_ballot_js(auditablePlaintextBallot)
     } catch (error) {
         console.log(error)
         throw error
@@ -187,6 +214,18 @@ export const encryptMultiBallotSelection = (
 ): IAuditableMultiBallot => {
     try {
         return encrypt_decoded_multi_contest_js(ballotSelection, election)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const encodePlaintextBallotSelection = (
+    ballotSelection: BallotSelection,
+    election: IBallotStyle
+): IAuditablePlaintextBallot => {
+    try {
+        return encode_plaintext_contest_js(ballotSelection, election)
     } catch (error) {
         console.log(error)
         throw error

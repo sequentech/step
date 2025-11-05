@@ -162,6 +162,9 @@ export interface IAuditableSingleBallot extends IAuditableBallot {
 export interface IAuditableMultiBallot extends IAuditableBallot {
     contests: string
 }
+export interface IAuditablePlaintextBallot extends IAuditableBallot {
+    contests: string
+}
 
 export interface IHashableBallot {
     version: number
@@ -175,6 +178,10 @@ export interface IHashableSingleBallot extends IHashableBallot {
 }
 
 export interface IHashableMultiBallot extends IHashableBallot {
+    contests: string
+}
+
+export interface IHashablePlaintextBallot {
     contests: string
 }
 

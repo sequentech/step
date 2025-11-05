@@ -367,6 +367,7 @@ async fn process_plaintexts(
             &tally_session_contest,
             areas,
         )?,
+        ContestEncryptionPolicy::PLAINTEXT => todo!()
     };
     event!(Level::WARN, "Num almost_vec = {}", almost_vec.len());
     let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();

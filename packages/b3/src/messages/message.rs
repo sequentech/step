@@ -237,6 +237,7 @@ impl Message {
         trustee.sign(statement, Some(dfactors_bytes))
     }
 
+    // TODO Add those messages to board
     pub fn plaintexts_msg<C: Ctx, S: Signer>(
         cfg: &Configuration<C>,
         batch: BatchNumber,

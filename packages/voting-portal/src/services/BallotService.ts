@@ -4,8 +4,10 @@
 import {
     toHashableBallot,
     toHashableMultiBallot,
+    toHashablePlaintextBallot,
     hashBallot,
     hashMultiBallot,
+    hashPlaintextBallot,
     encryptBallotSelection,
     encryptMultiBallotSelection,
     interpretContestSelection,
@@ -21,9 +23,11 @@ import {
     IAuditableBallot,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     IHashableBallot,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IHashablePlaintextBallot,
     ISignedContent,
     IContest,
     BallotSelection,
@@ -32,8 +36,12 @@ import {
 export interface IBallotService {
     toHashableBallot: (auditableBallot: IAuditableSingleBallot) => IHashableSingleBallot
     toHashableMultiBallot: (auditableBallot: IAuditableMultiBallot) => IHashableMultiBallot
+    toHashablePlaintextBallot: (
+        auditableBallot: IAuditablePlaintextBallot
+    ) => IHashablePlaintextBallot
     hashBallot: (auditableBallot: IAuditableSingleBallot) => string
     hashMultiBallot: (auditableBallot: IAuditableMultiBallot) => string
+    hashPlaintextBallot: (auditableBallot: IAuditablePlaintextBallot) => string
     encryptBallotSelection: (
         ballotSelection: BallotSelection,
         election: IBallotStyle
@@ -50,6 +58,7 @@ export interface IBallotService {
         contestSelections: Array<IDecodedVoteContest>,
         election: IBallotStyle
     ) => Array<IDecodedVoteContest>
+    // TODO interpretPlaintextContestSelection
     getWriteInAvailableCharacters: (
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
@@ -60,6 +69,7 @@ export interface IBallotService {
     decodeAuditableMultiBallot: (
         auditableBallot: IAuditableMultiBallot
     ) => Array<IDecodedVoteContest> | null
+    // TODO decodeAuditablePlaintextBallot
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
     signHashableBallot: (
         ballotId: string,
@@ -76,8 +86,10 @@ export interface IBallotService {
 export const provideBallotService = (): IBallotService => ({
     toHashableBallot,
     toHashableMultiBallot,
+    toHashablePlaintextBallot,
     hashBallot,
     hashMultiBallot,
+    hashPlaintextBallot,
     encryptBallotSelection,
     encryptMultiBallotSelection,
     interpretContestSelection,

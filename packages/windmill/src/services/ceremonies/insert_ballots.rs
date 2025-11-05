@@ -217,6 +217,7 @@ pub async fn insert_ballots_messages(
                             ballots_output_index,
                         )?;
 
+                    // TODO extract plaintexts if Encryption Policy is plaintext
                     let ciphertexts = ballot_contents
                         .into_iter()
                         .map(|ballot_str| {
@@ -280,6 +281,7 @@ pub async fn insert_ballots_messages(
                         ciphertexts.len()
                     );
 
+                    // TODO Add plaintexts to board like the trustees would do
                     let mut board = get_b3_pgsql_client().await?;
                     let batch = tally_session_contest.session_id.clone() as BatchNumber;
                     add_ballots_to_board(
