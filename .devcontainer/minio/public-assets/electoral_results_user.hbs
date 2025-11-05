@@ -137,15 +137,15 @@
                                     {{#eq this.id candidate.id}}
                                       <br><span style="color: red; font-weight: bold;">Eliminated</span>
                                     {{/eq}}
-                                    {{#eq round1.winner.id candidate.id}}
-                                      <br><span style="color: green; font-weight: bold;">WINNER</span>
-                                    {{/eq}}
                                   {{/each}}
+                                  {{#eq round1.winner.id candidate.id}}
+                                    <br><span style="color: green; font-weight: bold;">WINNER</span>
+                                  {{/eq}}
                                 </td>
                                 <td class="votes">{{transference}}</td>
                               {{else}}
-                                <td class="votes">0</td>
-                                <td class="votes">0</td>
+                                <td class="votes">n/a</td>
+                                <td class="votes">n/a</td>
                               {{/with}}
                               {{!-- Round 2 data - access via index --}}
                               {{#with (next processResults.rounds round1Index)}}
@@ -155,19 +155,19 @@
                                       {{#eq this.id candidate.id}}
                                         <br><span style="color: red; font-weight: bold;">Eliminated</span>
                                       {{/eq}}
-                                      {{#eq ../winner.id candidate.id}}
-                                        <br><span style="color: green; font-weight: bold;">WINNER</span>
-                                      {{/eq}}
                                     {{/each}}
+                                    {{#eq ../winner.id candidate.id}}
+                                      <br><span style="color: green; font-weight: bold;">WINNER</span>
+                                    {{/eq}}
                                   </td>
                                   <td class="votes">{{transference}}</td>
                                 {{else}}
-                                  <td class="votes">0</td>
-                                  <td class="votes">0</td>
+                                  <td class="votes">n/a</td>
+                                  <td class="votes">n/a</td>
                                 {{/with}}
                               {{else}}
-                                <td class="votes">0</td>
-                                <td class="votes">0</td>
+                                <td class="votes">n/a</td>
+                                <td class="votes">n/a</td>
                               {{/with}}
                             </tr>
                           {{/each}}
