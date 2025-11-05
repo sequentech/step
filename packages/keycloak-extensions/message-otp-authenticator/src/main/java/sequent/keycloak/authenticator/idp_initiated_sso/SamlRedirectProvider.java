@@ -10,13 +10,10 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.jboss.logging.Logger;
-import org.keycloak.http.HttpRequest;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc.utils.RedirectUtils;
-import org.keycloak.services.managers.AuthenticationManager;
 
 public class SamlRedirectProvider implements org.keycloak.services.resource.RealmResourceProvider {
 
@@ -60,9 +57,7 @@ public class SamlRedirectProvider implements org.keycloak.services.resource.Real
     logger.infof("Has vp-sso client? %b", vpssoClient != null);
 
     if (vpssoClient == null) {
-      logger.errorf(
-          "SECURITY: vp-sso client not found - Realm: %s",
-          realm.getName());
+      logger.errorf("SECURITY: vp-sso client not found - Realm: %s", realm.getName());
       String jsonError = "{\"error\": \"Service configuration error.\"}";
       return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(jsonError).build();
     }
@@ -83,9 +78,7 @@ public class SamlRedirectProvider implements org.keycloak.services.resource.Real
     // If it exists redirect to it
     try {
       URI location = new URI(verifiedUrl);
-      logger.infof(
-          "SECURITY: Successful redirect - Target: %s",
-          verifiedUrl);
+      logger.infof("SECURITY: Successful redirect - Target: %s", verifiedUrl);
       return Response.status(Response.Status.FOUND) // 302 Redirect
           .location(location)
           .build();
@@ -93,7 +86,8 @@ public class SamlRedirectProvider implements org.keycloak.services.resource.Real
       logger.errorf(
           e,
           "SECURITY: Invalid URI syntax - RelayState: %s, RemoteAddr: %s",
-          relayState, remoteAddr);
+          relayState,
+          remoteAddr);
       String jsonError = "{\"error\": \"Invalid RelayState URL format.\"}";
       return Response.status(Response.Status.BAD_REQUEST).entity(jsonError).build();
     }
