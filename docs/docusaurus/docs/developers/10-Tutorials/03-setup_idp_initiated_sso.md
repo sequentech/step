@@ -239,8 +239,13 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    * **Service provider entity ID:** `tenant-{TENANT_ID}-event-{EVENT_ID}`
 
 10. **Import SimpleSAMLphp metadata (recommended):**
-   * **Use Entity Descriptor**: **ON**
-   * **SAML entity descriptor:** `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
+   * **Use Entity Descriptor**: **OFF**
+   * Download `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
+   * Drag and drop the downloaded xml into **Import config from file**
+   * **Principal Type:** Attribute Name
+   * **Principal Attribute:** email
+   * **Validate Signatures:** **ON**
+   * **First login flow override:** saml first broker flow
    * Click **Add**
 
    **OR manually configure:**
@@ -268,7 +273,7 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    * **Friendly Name:** Email
    * **Name Format:** ATTRIBUTE_FORMAT_BASIC
    * **User Attribute Name:** `email`
-   * **Save**
+   * Click **Save**
 
 ### Step 2.3: Run End-to-End Test
 
@@ -296,6 +301,11 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    6. Voting Portal detects user is authenticated and it lists available ballots
 
 ### Step 2.4: Troubleshooting Test Issues
+
+**Issue: Login timeout. Please sign in again**
+- Verify `EVENT_ID` and `TENANT_ID` in `.env` are correct and that the Keycloak
+  Service provider entity ID is equal to the realm's name, something like
+  `tenant-{TENANT_ID}-event-{EVENT_ID}`
 
 **Issue: "Identity Provider not found"**
 - Verify `SP_IDP_ALIAS` in `.env` matches the Keycloak Identity Provider alias

@@ -1542,8 +1542,8 @@
   "adminEventsEnabled" : false,
   "adminEventsDetailsEnabled" : false,
   "identityProviders" : [ {
-    "alias" : "simplesamlphp",
-    "displayName" : "",
+    "alias" : "yourcompany-idp",
+    "displayName" : "SimpleSAMLphp IdP",
     "internalId" : "2d2219ca-33ff-426c-9869-8ce720d60350",
     "providerId" : "saml",
     "enabled" : true,
