@@ -38,7 +38,7 @@ use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::HashWrapper;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
-use strand::signature::StrandSignatureSk;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
@@ -136,7 +136,7 @@ impl ElectoralLog {
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
-        voter_signing_key: &Option<StrandSignatureSk>,
+        voter_signing_key: &Option<StrandSignaturePk>,
     ) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(
             hasura_transaction,
@@ -147,10 +147,8 @@ impl ElectoralLog {
         .await?;
         let system_sk = protocol_manager.get_signing_key().clone();
 
-        let sk = voter_signing_key.clone().unwrap_or(system_sk.clone());
-
         Ok(ElectoralLog {
-            sd: SigningData::new(sk, user_id, system_sk),
+            sd: SigningData::new(system_sk.clone(), user_id, system_sk),
             elog_database: elog_database.to_string(),
         })
     }

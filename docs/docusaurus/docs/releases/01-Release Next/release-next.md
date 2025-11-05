@@ -7,6 +7,15 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Move voter signature to the voting portal
+
+The voting portal will sign the ballot using an ephemeral key. The ballot will 
+now include this voter signature and the voter public key for verification. This 
+signature is verified while the ballot is cast and it's checked as well in the 
+ballot verifier.
+
+- Issue: [#5518](https://github.com/sequentech/meta/issues/5518)
+
 ## 🐞 Windmill > Can't create Ballot Images on ARM
 
 The correct version of java jvm for the container architecture is installed instead 

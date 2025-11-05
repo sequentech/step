@@ -78,6 +78,15 @@ pub async fn generate_ballot_publication(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     if let Some(election_event_presentation) = election_event.presentation {
+        info!(
+            "election_event_presentation {:?}",
+            election_event_presentation
+        );
+        let maybe_err = deserialize_value::<ElectionEventPresentation>(
+            election_event_presentation.clone(),
+        );
+        info!("presentation err {:?}", maybe_err);
+
         if deserialize_value::<ElectionEventPresentation>(
             election_event_presentation,
         )
