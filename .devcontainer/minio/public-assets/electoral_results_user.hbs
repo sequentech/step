@@ -106,8 +106,8 @@
         
         {{#eq report.contest.counting_algorithm "instant-runoff"}}
           {{#if report.contest_result.process_results}}
-            {{#with report.contest_result.process_results}}
-              {{#each rounds as |round1 round1Index|}}
+            {{#with report.contest_result.process_results as |processResults|}}
+              {{#each processResults.rounds as |round1 round1Index|}}
                 {{!-- Only create table for even indices (0, 2, 4...) using modulo --}}
                 {{#eq (modulo round1Index 2) "0"}}
                   <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{inc round1Index}}-{{inc2 round1Index}}</h3>
@@ -127,11 +127,11 @@
                           </tr>
                         </thead>
                         <tbody>
-                          {{#each ../name_references as |candidate|}}
+                          {{#each processResults.name_references as |candidate|}}
                             <tr>
                               <td>{{candidate.name}}</td>
                               {{!-- Round 1 data --}}
-                              {{#with (lookup ../round1.candidates_wins candidate.id)}}
+                              {{#with (lookup round1.candidates_wins candidate.id)}}
                                 <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
                                 <td class="votes">{{transference}}</td>
                               {{else}}
@@ -139,7 +139,7 @@
                                 <td class="votes">0</td>
                               {{/with}}
                               {{!-- Round 2 data - access via index --}}
-                              {{#with (lookup ../rounds (inc ../round1Index))}}
+                              {{#with (next processResults.rounds round1Index)}}
                                 {{#with (lookup candidates_wins candidate.id)}}
                                   <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)</td>
                                   <td class="votes">{{transference}}</td>

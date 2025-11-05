@@ -83,6 +83,7 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "modulo",
         helper_wrapper_or(Box::new(modulo), String::from("-")),
     );
+    reg.register_helper("next", Box::new(next));
     reg.register_helper("eq", Box::new(eq));
     reg
 }
@@ -459,6 +460,48 @@ impl HelperDef for modulo {
 
         let result = dividend % divisor;
         Ok(ScopedJson::Derived(JsonValue::from(result)))
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct next;
+
+impl HelperDef for next {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Get the first parameter (array)
+        let array_value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("next", 0))?
+            .value();
+
+        // Get the second parameter (index)
+        let index_value = helper
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("next", 1))?
+            .value();
+        let index = parse_u64_value(index_value)?;
+
+        // Check if the first parameter is an array
+        let array = array_value
+            .as_array()
+            .ok_or_else(|| RenderError::new("First parameter must be an array"))?;
+
+        // Calculate next index
+        let next_index = (index + 1) as usize;
+
+        // Return the next element or null if it doesn't exist
+        let result = array
+            .get(next_index)
+            .cloned()
+            .unwrap_or(JsonValue::Null);
+
+        Ok(ScopedJson::Derived(result))
     }
 }
 
