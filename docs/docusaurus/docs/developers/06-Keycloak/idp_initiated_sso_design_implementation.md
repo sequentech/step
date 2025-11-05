@@ -21,7 +21,7 @@ This document provides comprehensive technical documentation for Sequent develop
 
 **Audience:** Sequent internal developers
 
-**For delivery/operations:** See [Delivery Team Configuration Guide](../tutorials/setup_idp_initiated_sso)
+**For delivery/operations:** See [Delivery Team Configuration Guide](../Tutorials/setup_idp_initiated_sso)
 
 **For third-parties:** See [Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
 
@@ -408,7 +408,7 @@ Voting Portal: https://voting.sequentech.io
 
 ## 12. Related Documentation
 
-- **Delivery Team Guide:** [Setup IdP-Initiated SSO](../tutorials/setup_idp_initiated_sso)
+- **Delivery Team Guide:** [Setup IdP-Initiated SSO](../Tutorials/setup_idp_initiated_sso)
 - **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
 - **Reference Implementation README:** `.devcontainer/simplesamlphp/README.md`
 

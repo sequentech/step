@@ -19,7 +19,7 @@ This guide is for **Sequent delivery team members** responsible for:
 
 **For third-party integrators:** See the [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide) instead.
 
-**For internal developers:** See the [IdP-Initiated SSO Design & Implementation](../keycloak/idp_initiated_sso_design_implementation) for technical details.
+**For internal developers:** See the [IdP-Initiated SSO Design & Implementation](../Keycloak/idp_initiated_sso_design_implementation) for technical details.
 
 ### What This Guide Covers
 
@@ -508,6 +508,6 @@ tenant-{TENANT_ID}-event-{EVENT_ID}
 ## Additional Resources
 
 - **Third-Party Integration Guide:** [IdP-Initiated SSO Integration Guide](../../integrations/idp_initiated_sso_integration_guide)
-- **Internal Design Documentation:** [IdP-Initiated SSO Design & Implementation](../keycloak/idp_initiated_sso_design_implementation)
+- **Internal Design Documentation:** [IdP-Initiated SSO Design & Implementation](../Keycloak/idp_initiated_sso_design_implementation)
 - **SimpleSAMLphp Reference:** `.devcontainer/simplesamlphp/README.md`
 - **Keycloak Documentation:** https://www.keycloak.org/docs/latest/server_admin/#_identity_broker
