@@ -8,6 +8,7 @@ use crate::pipes::do_tally::{
     counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
+use rayon::vec;
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
@@ -184,7 +185,7 @@ pub struct Round {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct RunoffStatus {
     pub candidates_status: CandidatesStatus,
-    pub name_references: HashMap<String, String>, // Maps candidate ID to name
+    pub name_references: Vec<CandidateReference>, // Maps candidate ID to name and serves as an ordered by results list in the end.
     pub round_count: u64,
     pub rounds: Vec<Round>,
     pub max_rounds: u64,
@@ -195,13 +196,13 @@ impl RunoffStatus {
     pub fn initialize_runoff(contest: &Contest) -> RunoffStatus {
         let max_rounds = contest.candidates.len() as u64 + 1; // At least 1 candidate is eliminated per round
         let mut candidates_status = CandidatesStatus(HashMap::new());
-        let mut name_references = HashMap::new();
+        let mut name_references = vec![];
         for candidate in &contest.candidates {
             candidates_status.insert(candidate.id.clone(), ECandidateStatus::Active);
-            name_references.insert(
-                candidate.id.clone(),
-                candidate.name.clone().unwrap_or_default(),
-            );
+            name_references.push(CandidateReference {
+                id: candidate.id.clone(),
+                name: candidate.name.clone().unwrap_or_default(),
+            });
         }
         RunoffStatus {
             candidates_status,
@@ -212,11 +213,11 @@ impl RunoffStatus {
     }
 
     #[instrument(skip_all)]
-    pub fn get_candidate_name(&self, candidate_id: &str) -> String {
+    pub fn get_candidate_name(&self, candidate_id: &str) -> Option<String> {
         self.name_references
-            .get(candidate_id)
-            .cloned()
-            .unwrap_or_default()
+            .iter()
+            .find(|c| c.id == candidate_id)
+            .map(|c| c.name.clone())
     }
 
     #[instrument(skip_all)]
@@ -228,7 +229,7 @@ impl RunoffStatus {
                 (
                     candidate_id.clone(),
                     CandidateOutcome {
-                        name: self.get_candidate_name(candidate_id),
+                        name: self.get_candidate_name(candidate_id).unwrap_or_default(),
                         ..outcome.clone()
                     },
                 )
@@ -346,7 +347,7 @@ impl RunoffStatus {
                     .set_candidate_to_eliminated(candidate_id);
                 eliminated.push(CandidateReference {
                     id: candidate_id.clone(),
-                    name: self.get_candidate_name(candidate_id),
+                    name: self.get_candidate_name(candidate_id).unwrap_or_default(),
                 });
             }
             return Some(eliminated);
@@ -427,7 +428,7 @@ impl RunoffStatus {
             round.winner = winner_id.and_then(|id| {
                 Some(CandidateReference {
                     id: id.clone(),
-                    name: self.get_candidate_name(&id),
+                    name: self.get_candidate_name(&id).unwrap_or_default(),
                 })
             });
         }
@@ -457,12 +458,37 @@ impl RunoffStatus {
         return continue_next_round;
     }
 
+    /// Order name_references to have the best results at the beginning
+    #[instrument(skip_all)]
+    pub fn order_name_references_by_result(&self) -> Vec<CandidateReference> {
+        let mut new_name_references: Vec<CandidateReference> = vec![];
+        if let Some(winner) = self.get_last_round().and_then(|r| r.winner.clone()) {
+            new_name_references.push(winner);
+        }
+        for round in self.rounds.iter().rev() {
+            for (candidate_id, candidate_outcome) in &round.candidates_wins {
+                if new_name_references
+                    .iter()
+                    .find(|c| &c.id == candidate_id)
+                    .is_none()
+                {
+                    new_name_references.push(CandidateReference {
+                        id: candidate_id.clone(),
+                        name: candidate_outcome.name.clone(),
+                    })
+                }
+            }
+        }
+        new_name_references
+    }
+
     #[instrument(skip_all)]
     pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
         let mut iterations = 0;
         while self.run_next_round(ballots_status) && iterations < self.max_rounds {
             iterations += 1;
         }
+        self.name_references = self.order_name_references_by_result();
     }
 }
 
