@@ -105,26 +105,19 @@
         {{/eq}}
         
         {{#eq report.contest.counting_algorithm "instant-runoff"}}
-          <p>DEBUG: Algorithm matches instant-runoff</p>
           {{#if report.contest_result.process_results}}
-            <p>DEBUG: Process results exist</p>
-            <p>DEBUG: rounds={{report.contest_result.process_results.rounds}}</p>
-            <p>DEBUG: name_references={{report.contest_result.process_results.name_references}}</p>
             {{#with report.contest_result.process_results}}
-              <p>DEBUG: Inside with - rounds={{rounds}}, name_references={{name_references}}</p>
-              <p>DEBUG: Starting each over rounds</p>
               {{#each rounds as |round1 round1Index|}}
-                <p>DEBUG: Round index={{round1Index}}, modulo={{modulo round1Index 2}}</p>
                 {{!-- Only create table for even indices (0, 2, 4...) using modulo --}}
-                {{#eq (modulo round1Index 2) 0}}
-                  <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{inc round1Index}}-{{inc (inc round1Index)}}</h3>
+                {{#eq (modulo round1Index 2) "0"}}
+                  <h3 style="text-align: center; margin-top: 20px;">Candidate Results - Rounds {{inc round1Index}}-{{inc {{inc round1Index}} }}</h3>
                       
                       <table class="candidates">
                         <thead>
                           <tr>
                             <td rowspan="2" style="text-align: center; vertical-align: middle;">Candidate</td>
                             <td colspan="2" style="text-align: center;">Round{{inc round1Index}}</td>
-                            <td colspan="2" style="text-align: center;">Round{{inc (inc round1Index)}}</td>
+                            <td colspan="2" style="text-align: center;">Round{{inc {{inc round1Index}} }}</td>
                           </tr>
                           <tr>
                             <td style="text-align: center;">Votes</td>
