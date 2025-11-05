@@ -284,11 +284,12 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
 
 2. **Click "Login to Voting Portal"**
 
-3. **Authenticate** with test credentials:
-   - Username: `user1`
-   - Password: `password`
+3. **Authenticate** with test credentials (as configured in `SSP_EXAMPLE_USERS` env var):
+   - Default: Username: `user1` / Password: `password`
+   - Or: Username: `user2` / Password: `password`
 
-   (This is configured in `simplesamlphp/config/authsources.php`)
+   You can customize test users by editing the `SSP_EXAMPLE_USERS` environment
+   variable in `.devcontainer/.env`. Format: `username1:password1:email1,username2:password2:email2,...`
 
 4. **Authenticated:** You should get authenticated succesfully and redirected
    to the voting portal. The intermiate steps that happens quickly one after
@@ -318,6 +319,7 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
 **Issue: "User not created"**
 - Verify the `email` attribute mapper is configured in Keycloak
 - Check SimpleSAMLphp's `authsources.php` includes `email` in user attributes
+- Verify the `SSP_EXAMPLE_USERS` environment variable is correctly formatted with emails
 
 **Issue: "Wrong redirect URL"**
 - Verify the `RelayState` in SimpleSAMLphp's `idp-initiated-sso.php`

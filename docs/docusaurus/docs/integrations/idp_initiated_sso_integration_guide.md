@@ -110,6 +110,11 @@ to make this work are the following:
 IDP_BASE_URL=http://localhost:8083/simplesaml
 IDP_HOSTNAME=localhost:8083
 
+# Example users for testing SimpleSAMLphp authentication
+# Format: "username1:password1:email1,username2:password2:email2,..."
+# You can customize these for your testing needs
+SSP_EXAMPLE_USERS=user1:password:user1@example.com,user2:password:user2@example.com
+
 # Sequent configuration (from Step 1)
 TENANT_ID=<your-tenant-id>
 EVENT_ID=<your-event-id>
@@ -220,9 +225,10 @@ Sequent needs your IdP metadata to configure trust. Provide:
 
 1. Open browser to: `http://localhost:8083/simplesaml/idp-initiated-sso.php`
 2. Click **"Login to Voting Portal"**
-3. Authenticate with test credentials:
-   - Username: `student` / Password: `studentpass`
-   - Or: `employee` / `employeepass`
+3. Authenticate with test credentials (as configured in `SSP_EXAMPLE_USERS`):
+   - Default: Username: `user1` / Password: `password`
+   - Or: Username: `user2` / Password: `password`
+   - You can customize these users by editing the `SSP_EXAMPLE_USERS` environment variable
 4. You should be redirected to Sequent's staging voting portal
 5. Verify you're logged in
 
@@ -374,7 +380,34 @@ $ssoUrl = "/simplesaml/saml2/idp/SSOService.php?" . http_build_query([
 
 **Key takeaway:** You need two parameters: `spentityid` (the realm) and `RelayState` (voting portal URL).
 
-### 5.5 SAML Assertion Requirements
+### 5.5 User Authentication Configuration
+
+**File:** `.devcontainer/simplesamlphp/config/authsources.php`
+
+Shows how to configure test users (for the reference implementation only):
+
+```php
+// Parse SSP_EXAMPLE_USERS environment variable
+// Format: "username1:password1:email1,username2:password2:email2,..."
+$exampleUsersEnv = getenv('SSP_EXAMPLE_USERS') ?: 'user1:password:user1@example.com,user2:password:user2@example.com';
+$exampleUsers = [];
+
+foreach (explode(',', $exampleUsersEnv) as $userSpec) {
+    $parts = explode(':', trim($userSpec), 3);
+    if (count($parts) === 3) {
+        $username = $parts[0];
+        $password = $parts[1];
+        $email = $parts[2];
+        $exampleUsers["$username:$password"] = [
+            'email' => $email,
+        ];
+    }
+}
+```
+
+**Key takeaway:** Test users are configured via the `SSP_EXAMPLE_USERS` environment variable. In production, your IdP will use its own authentication mechanism.
+
+### 5.6 SAML Assertion Requirements
 
 Your IdP must generate assertions with:
 

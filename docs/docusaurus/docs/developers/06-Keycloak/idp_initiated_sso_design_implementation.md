@@ -276,9 +276,18 @@ SP_CERT_DATA=MII...
 TENANT_ID=...
 EVENT_ID=...
 VOTING_PORTAL_URL=http://localhost:3000
+
+# Example users for testing (SimpleSAMLphp only)
+SSP_EXAMPLE_USERS=user1:password:user1@example.com,user2:password:user2@example.com
 ```
 
 **Third-party template:** `.devcontainer/simplesamlphp/.env.example`
+
+**Benefits of environment-based user configuration:**
+- Easy customization for different testing scenarios
+- No need to modify PHP code for different test users
+- Clear separation between code and configuration
+- Third-parties can easily understand how to configure their own IdP users
 
 ### Development Workflow
 
@@ -307,9 +316,10 @@ Voting Portal: https://voting.sequentech.io
 
 1. Start dev container (SimpleSAMLphp runs automatically)
 2. Access trigger page: `http://localhost:8083/simplesaml/idp-initiated-sso.php`
-3. Login with test credentials:
-   - `student`/`studentpass` (email: student@example.com)
-   - `employee`/`employeepass` (email: employee@example.com)
+3. Login with test credentials (configured via `SSP_EXAMPLE_USERS` env var):
+   - Default: `user1`/`password` (email: user1@example.com)
+   - Or: `user2`/`password` (email: user2@example.com)
+   - Customize by editing `SSP_EXAMPLE_USERS` in `.devcontainer/.env`
 4. Verify redirect to voting portal
 
 ---
