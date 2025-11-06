@@ -488,18 +488,15 @@ impl HelperDef for next {
         let index = parse_u64_value(index_value)?;
 
         // Check if the first parameter is an array
-        let array = array_value
-            .as_array()
-            .ok_or_else(|| RenderError::new("First parameter must be an array"))?;
+        let array = array_value.as_array().ok_or_else(|| {
+            RenderError::new("First parameter must be an array")
+        })?;
 
         // Calculate next index
         let next_index = (index + 1) as usize;
 
         // Return the next element or null if it doesn't exist
-        let result = array
-            .get(next_index)
-            .cloned()
-            .unwrap_or(JsonValue::Null);
+        let result = array.get(next_index).cloned().unwrap_or(JsonValue::Null);
 
         Ok(ScopedJson::Derived(result))
     }

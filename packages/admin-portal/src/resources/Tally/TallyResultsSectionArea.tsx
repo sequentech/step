@@ -33,7 +33,15 @@ interface TallyResultsCandidatesProps {
 }
 
 export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId, counting_algorithm} = props
+    const {
+        areaId,
+        contestId,
+        electionId,
+        electionEventId,
+        tenantId,
+        resultsEventId,
+        counting_algorithm,
+    } = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const orderedResultsData = useMemo(() => {
         return (resultsData as Sequent_Backend_Candidate_Extended[]).sort(sortCandidates)
@@ -84,7 +92,11 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     }, [general?.[0]])
 
     const processResults = useMemo(
-        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm) as RunoffStatus | null,
+        () =>
+            parseProcessResults(
+                general?.[0]?.annotations,
+                counting_algorithm
+            ) as RunoffStatus | null,
         [general?.[0]?.annotations, counting_algorithm]
     )
 

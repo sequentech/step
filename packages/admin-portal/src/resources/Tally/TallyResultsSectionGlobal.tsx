@@ -18,7 +18,7 @@ import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality
 import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "../Contest/constants"
 import {winningPositionComparator, parseProcessResults} from "./utils"
-import { RunoffStatus } from "./types"
+import {RunoffStatus} from "./types"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -29,10 +29,9 @@ interface TallyResultsGlobalCandidatesProps {
     counting_algorithm: ICountingAlgorithm
 }
 
-export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesProps> = (
-    props
-) => {
-    const {contestId, electionId, electionEventId, tenantId, resultsEventId, counting_algorithm} = props
+export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesProps> = (props) => {
+    const {contestId, electionId, electionEventId, tenantId, resultsEventId, counting_algorithm} =
+        props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
@@ -78,10 +77,14 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
     )
 
     const processResults = useMemo(
-        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm) as RunoffStatus | null,
+        () =>
+            parseProcessResults(
+                general?.[0]?.annotations,
+                counting_algorithm
+            ) as RunoffStatus | null,
         [general?.[0]?.annotations, counting_algorithm]
     )
-    
+
     const getChartName = (contestName: string | undefined) => {
         if (electionName && contestName) {
             return `${electionName} - ${contestName} - ` + t("tally.common.global")

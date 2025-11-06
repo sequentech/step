@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useRef, useState, useEffect } from "react"
+import React, {useRef, useState, useEffect} from "react"
 import {
     Box,
     Table,
@@ -14,8 +14,8 @@ import {
     Chip,
     Paper,
 } from "@mui/material"
-import { ChevronLeft, ChevronRight } from "@mui/icons-material"
-import { RunoffStatus, ECandidateStatus } from "./types"
+import {ChevronLeft, ChevronRight} from "@mui/icons-material"
+import {RunoffStatus, ECandidateStatus} from "./types"
 
 interface TallyResultsCandidatesIRVProps {
     processResults: RunoffStatus
@@ -39,7 +39,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     const updateArrowVisibility = () => {
         if (!scrollContainerRef.current) return
 
-        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+        const {scrollLeft, scrollWidth, clientWidth} = scrollContainerRef.current
         setShowLeftArrow(scrollLeft > 0)
         setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 1)
     }
@@ -67,7 +67,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
         } else if (e.key === "ArrowRight" && showRightArrow) {
             handleScroll("right")
         } else if (e.key === "Home" && scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({ left: 0, behavior: "smooth" })
+            scrollContainerRef.current.scrollTo({left: 0, behavior: "smooth"})
             setTimeout(updateArrowVisibility, 300)
         } else if (e.key === "End" && scrollContainerRef.current) {
             scrollContainerRef.current.scrollTo({
@@ -82,7 +82,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
         return null
     }
 
-    const { rounds, name_references, candidates_status } = processResults
+    const {rounds, name_references, candidates_status} = processResults
 
     // Format number with commas
     const formatNumber = (num: number): string => {
@@ -92,7 +92,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     // Get candidate status for a specific round
     const getCandidateStatusInRound = (candidateId: string, roundIndex: number) => {
         const round = rounds[roundIndex]
-        
+
         // Check if candidate is winner
         if (round.winner?.id === candidateId) {
             return "winner"
@@ -130,15 +130,15 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                     onClick={() => handleScroll("left")}
                     aria-label="Scroll left to previous rounds"
                     sx={{
-                        position: "absolute",
-                        left: 140,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        zIndex: 10,
-                        backgroundColor: "#1e3a5f",
-                        color: "white",
-                        width: 40,
-                        height: 40,
+                        "position": "absolute",
+                        "left": 140,
+                        "top": "50%",
+                        "transform": "translateY(-50%)",
+                        "zIndex": 10,
+                        "backgroundColor": "#1e3a5f",
+                        "color": "white",
+                        "width": 40,
+                        "height": 40,
                         "&:hover": {
                             backgroundColor: "#2c4f7c",
                         },
@@ -154,15 +154,15 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                     onClick={() => handleScroll("right")}
                     aria-label="Scroll right to next rounds"
                     sx={{
-                        position: "absolute",
-                        right: 16,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        zIndex: 10,
-                        backgroundColor: "#1e3a5f",
-                        color: "white",
-                        width: 40,
-                        height: 40,
+                        "position": "absolute",
+                        "right": 16,
+                        "top": "50%",
+                        "transform": "translateY(-50%)",
+                        "zIndex": 10,
+                        "backgroundColor": "#1e3a5f",
+                        "color": "white",
+                        "width": 40,
+                        "height": 40,
                         "&:hover": {
                             backgroundColor: "#2c4f7c",
                         },
@@ -177,10 +177,10 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                 ref={scrollContainerRef}
                 onScroll={updateArrowVisibility}
                 sx={{
-                    maxWidth: "100%",
-                    overflowX: "auto",
-                    boxShadow: "none",
-                    border: "1px solid #e0e0e0",
+                    "maxWidth": "100%",
+                    "overflowX": "auto",
+                    "boxShadow": "none",
+                    "border": "1px solid #e0e0e0",
                     "&::-webkit-scrollbar": {
                         height: 8,
                     },
@@ -190,7 +190,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                     },
                 }}
             >
-                <Table sx={{ minWidth: 650 }}>
+                <Table sx={{minWidth: 650}}>
                     <TableHead>
                         <TableRow>
                             <TableCell
@@ -225,23 +225,21 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                     </TableHead>
                     <TableBody>
                         {name_references.map((candidate, candidateIndex) => (
-                            <TableRow
-                                key={candidate.id}
-                            >
+                            <TableRow key={candidate.id}>
                                 <TableCell
                                     component="th"
                                     scope="row"
                                     sx={{
-                                        position: "sticky",
-                                        left: 0,
-                                        backgroundColor: "#fff",
-                                        zIndex: 2,
-                                        border: "1px solid #fff",
-                                        fontWeight: 500,
-                                        maxWidth: 180,
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
+                                        "position": "sticky",
+                                        "left": 0,
+                                        "backgroundColor": "#fff",
+                                        "zIndex": 2,
+                                        "border": "1px solid #fff",
+                                        "fontWeight": 500,
+                                        "maxWidth": 180,
+                                        "overflow": "hidden",
+                                        "textOverflow": "ellipsis",
+                                        "whiteSpace": "nowrap",
                                         "&:hover": {
                                             backgroundColor: "#f5f5f5",
                                         },
@@ -274,7 +272,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                         flexDirection: "row",
                                                         alignItems: "center",
                                                         justifyContent: "center",
-                                                        gap: 1,
+                                                        gap: 2,
                                                     }}
                                                 >
                                                     <Box

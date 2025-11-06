@@ -23,7 +23,9 @@ import {
 } from "../../gql/graphql"
 
 interface TallyResultsSummaryProps {
-    general: Array<Sequent_Backend_Results_Contest | Sequent_Backend_Results_Area_Contest> | undefined
+    general:
+        | Array<Sequent_Backend_Results_Contest | Sequent_Backend_Results_Area_Contest>
+        | undefined
     chartName: string
     showWeight?: boolean
     weight?: number | null
@@ -64,10 +66,7 @@ export const TallyResultsSummary: React.FC<TallyResultsSummaryProps> = ({
                         }}
                     >
                         <TableContainer component={Paper}>
-                            <Table
-                                sx={{minWidth: {xs: 300, sm: 650}}}
-                                aria-label="simple table"
-                            >
+                            <Table sx={{minWidth: {xs: 300, sm: 650}}} aria-label="simple table">
                                 <TableHead>
                                     <TableRow>
                                         <TableCell></TableCell>

@@ -9,8 +9,8 @@ import {DataGrid, GridColDef} from "@mui/x-data-grid"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {CandidatesResultsCharts} from "./TallyResultsCharts"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
-import { GridRenderCellParams } from "@mui/x-data-grid"
-import { winningPositionComparator } from "./utils"
+import {GridRenderCellParams} from "@mui/x-data-grid"
+import {winningPositionComparator} from "./utils"
 
 interface TallyResultsCandidatesProps {
     resultsData: Sequent_Backend_Candidate_Extended[]
@@ -25,7 +25,6 @@ export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesPro
 }) => {
     const {t} = useTranslation()
 
-    
     const columns: GridColDef[] = [
         {
             field: "name",

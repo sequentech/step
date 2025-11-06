@@ -23,7 +23,7 @@ export const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 /**
  * Parses and processes contest results based on counting algorithm.
  * Handles IRV/Runoff voting and other algorithms.
- * 
+ *
  * @param annotations - Raw annotations string from general results
  * @param counting_algorithm - The counting algorithm used for this contest
  * @returns Parsed process results or null if parsing fails or no results available
