@@ -211,7 +211,12 @@ def detect_comment_style(line: str) -> Optional[str]:
     return None
 
 
-def update_license_header(file_path: str, dry_run: bool = False, header_template: str = "{comment_prefix} SPDX-FileCopyrightText: {year} Sequent Tech Inc <legal@sequentech.io>\n") -> bool:
+def update_license_header(
+    file_path: str,
+    dry_run: bool = False,
+    header_template: str = "{comment_prefix} SPDX-FileCopyrightText: {year} Sequent Tech Inc <legal@sequentech.io>\n",
+    header_pattern: str = r"SPDX.*sequentech\.io"
+) -> bool:
     """
     Update the license header in a file.
 
@@ -220,6 +225,7 @@ def update_license_header(file_path: str, dry_run: bool = False, header_template
         dry_run: If True, only report changes without modifying the file
         header_template: Template for the new header line. Available placeholders:
                         {comment_prefix}, {year}
+        header_pattern: Regex pattern to match the line to replace
 
     Returns:
         True if the file was modified (or would be modified in dry-run mode)
@@ -244,12 +250,13 @@ def update_license_header(file_path: str, dry_run: bool = False, header_template
     header_lines = lines[:min(10, len(lines))]
     body_lines = lines[min(10, len(lines)):]
 
-    # Find the line with "SPDX" and "sequentech.io>"
+    # Find the line matching the header pattern
     target_line_idx = None
     comment_prefix = None
+    pattern = re.compile(header_pattern, re.IGNORECASE)
 
     for idx, line in enumerate(header_lines):
-        if 'SPDX' in line and 'sequentech.io>' in line:
+        if pattern.search(line):
             target_line_idx = idx
             comment_prefix = detect_comment_style(line)
             break
@@ -316,7 +323,7 @@ def walk_files(root_dir: str, patterns: list[str], excluded_patterns: Set[str]) 
 
     Args:
         root_dir: Root directory to search
-        patterns: List of glob patterns to match
+        patterns: List of glob patterns to match. If None or empty, matches all text files.
         excluded_patterns: Set of patterns to exclude
 
     Yields:
@@ -343,22 +350,30 @@ def walk_files(root_dir: str, patterns: list[str], excluded_patterns: Set[str]) 
             if should_exclude_path(file_path_str, str(root_path), excluded_patterns):
                 continue
 
-            # Check if file matches any pattern
-            matches_pattern = False
-            for pattern in patterns:
-                # Simple pattern matching
-                if pattern.startswith('**/*.'):
-                    # Match by extension
-                    ext = pattern[4:]  # Remove '**/.'
-                    if filename.endswith(ext):
-                        matches_pattern = True
-                        break
-                elif pattern.startswith('*.'):
-                    # Match by extension
-                    ext = pattern[1:]  # Remove '*'
-                    if filename.endswith(ext):
-                        matches_pattern = True
-                        break
+            # Check if file matches any pattern (if patterns provided)
+            matches_pattern = not patterns  # If no patterns, match all text files
+            if patterns:
+                for pattern in patterns:
+                    # Simple pattern matching
+                    if pattern.startswith('**/*.'):
+                        # Match by extension
+                        ext = pattern[4:]  # Remove '**/.'
+                        if filename.endswith(ext):
+                            matches_pattern = True
+                            break
+                    elif pattern.startswith('*.'):
+                        # Match by extension
+                        ext = pattern[1:]  # Remove '*'
+                        if filename.endswith(ext):
+                            matches_pattern = True
+                            break
+                    elif pattern.startswith('**/'):
+                        # Match filename pattern after **/
+                        import fnmatch
+                        pattern_suffix = pattern[3:]  # Remove '**/'
+                        if fnmatch.fnmatch(filename, pattern_suffix):
+                            matches_pattern = True
+                            break
 
             if matches_pattern:
                 # Check if it's a text file
@@ -395,27 +410,18 @@ def main():
         help='Template for the header line. Available placeholders: {comment_prefix}, {year}. '
              'Default: "{comment_prefix} SPDX-FileCopyrightText: {year} Sequent Tech Inc <legal@sequentech.io>"'
     )
+    parser.add_argument(
+        '--header-pattern',
+        default=r'SPDX.*sequentech\.io',
+        help='Regex pattern to match the line to replace. '
+             'Default: "SPDX.*sequentech\\.io"'
+    )
 
     args = parser.parse_args()
 
-    # Default patterns if none specified
-    default_patterns = [
-        '**/*.ts',
-        '**/*.tsx',
-        '**/*.js',
-        '**/*.jsx',
-        '**/*.py',
-        '**/*.sh',
-        '**/*.rs',
-        '**/*.go',
-        '**/*.java',
-        '**/*.c',
-        '**/*.cpp',
-        '**/*.h',
-        '**/*.hpp',
-    ]
-
-    patterns = args.pattern if args.pattern else default_patterns
+    # If no patterns specified, process all text files
+    # Otherwise use the patterns provided by the user
+    patterns = args.pattern if args.pattern else []
 
     # Process each path argument
     modified_count = 0
@@ -443,7 +449,7 @@ def main():
             if is_text_file(str(path)):
                 if not should_exclude_path(str(path), str(root_dir), excluded_patterns):
                     try:
-                        if update_license_header(str(path), dry_run=args.dry_run, header_template=args.header_template):
+                        if update_license_header(str(path), dry_run=args.dry_run, header_template=args.header_template, header_pattern=args.header_pattern):
                             modified_count += 1
                     except Exception as e:
                         print(f"Error processing {path}: {e}", file=sys.stderr)
@@ -452,7 +458,7 @@ def main():
             # Process directory in streaming mode
             for file_path in walk_files(str(path), patterns, excluded_patterns):
                 try:
-                    if update_license_header(file_path, dry_run=args.dry_run, header_template=args.header_template):
+                    if update_license_header(file_path, dry_run=args.dry_run, header_template=args.header_template, header_pattern=args.header_pattern):
                         modified_count += 1
                 except Exception as e:
                     print(f"Error processing {file_path}: {e}", file=sys.stderr)
