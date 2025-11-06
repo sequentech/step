@@ -18,6 +18,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {TallyResultsSummary} from "./TallyResultsSummary"
 import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
 import {ICountingAlgorithm} from "../Contest/constants"
+import {winningPositionComparator, parseProcessResults} from "./utils"
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
     electionId: string
@@ -25,17 +26,6 @@ interface TallyResultsGlobalCandidatesProps {
     tenantId: string
     resultsEventId: string | null
     counting_algorithm: ICountingAlgorithm
-}
-
-// Define the comparator function
-const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
-    const maxInt = Number.MAX_SAFE_INTEGER
-
-    // Convert stringified numbers to integers, non-numeric strings to maxInt
-    const pos1 = isNaN(parseInt(v1)) ? maxInt : parseInt(v1)
-    const pos2 = isNaN(parseInt(v2)) ? maxInt : parseInt(v2)
-
-    return pos1 - pos2
 }
 
 export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesProps> = (
@@ -86,6 +76,11 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         [tallyData?.sequent_backend_election, electionId]
     )
 
+    const processResults = useMemo(
+        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm),
+        [general?.[0]?.annotations, counting_algorithm]
+    )
+    
     const getChartName = (contestName: string | undefined) => {
         if (electionName && contestName) {
             return `${electionName} - ${contestName} - ` + t("tally.common.global")

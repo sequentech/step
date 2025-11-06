@@ -12,7 +12,7 @@ import {
 import {useTranslation} from "react-i18next"
 import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {Sequent_Backend_Candidate_Extended} from "./types"
+import {Sequent_Backend_Candidate_Extended, ParsedAnnotations} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
@@ -21,6 +21,7 @@ import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {TallyResultsSummary} from "./TallyResultsSummary"
 import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
 import {ICountingAlgorithm} from "../Contest/constants"
+import {winningPositionComparator, parseProcessResults} from "./utils"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -32,56 +33,6 @@ interface TallyResultsCandidatesProps {
     counting_algorithm: ICountingAlgorithm
 }
 
-interface ExtendedMetricsContest {
-    over_votes: number
-    under_votes: number
-    votes_actually: number
-    expected_votes: number
-    total_ballots: number
-    weight: number
-}
-
-enum ECandidateStatus {
-    Active = "Active",
-    Eliminated = "Eliminated",
-}
-
-interface CandidatesStatus {
-    [candidateId: string]: ECandidateStatus
-}
-
-type CandidatesWins = Record<string, number>
-
-interface Round {
-    winner: string | null
-    candidates_wins: CandidatesWins
-    eliminated_candidates: string[] | null
-    active_candidates_count: number
-    active_ballots_count: number
-}
-
-interface RunoffStatus {
-    candidates_status: CandidatesStatus
-    round_count: number
-    rounds: Round[]
-    max_rounds: number
-}
-
-interface ParsedAnnotations {
-    extended_metrics: ExtendedMetricsContest
-    process_results?: RunoffStatus | unknown
-}
-
-// Define the comparator function
-const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
-    const maxInt = Number.MAX_SAFE_INTEGER
-
-    // Convert stringified numbers to integers, non-numeric strings to maxInt
-    const pos1 = isNaN(parseInt(v1)) ? maxInt : parseInt(v1)
-    const pos2 = isNaN(parseInt(v2)) ? maxInt : parseInt(v2)
-
-    return pos1 - pos2
-}
 export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (props) => {
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId, counting_algorithm} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
@@ -133,33 +84,10 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         }
     }, [general?.[0]])
 
-    const processResults = useMemo(() => {
-        try {
-            const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
-                ? (JSON.parse(general[0].annotations as string) as ParsedAnnotations)
-                : null
-
-            const results = parsedAnnotations?.process_results ?? null
-
-            if (results && counting_algorithm) {
-                switch (counting_algorithm) {
-                    case ICountingAlgorithm.INSTANT_RUNOFF: {
-                        const runoffResults = results as RunoffStatus
-                        console.log("InstantRunoff process_results:", runoffResults)
-                        return runoffResults
-                    }
-                    default:
-                        console.log("Unknown counting algorithm process_results:", results)
-                        return results
-                }
-            }
-
-            return null
-        } catch (error) {
-            console.error("Error parsing process_results:", error)
-            return null
-        }
-    }, [general?.[0], counting_algorithm])
+    const processResults = useMemo(
+        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm),
+        [general?.[0]?.annotations, counting_algorithm]
+    )
 
     const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const weightedVotingForAreas = useMemo((): boolean => {
