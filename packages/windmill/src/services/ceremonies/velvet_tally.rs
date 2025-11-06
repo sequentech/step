@@ -2,7 +2,7 @@ use crate::postgres::area::{get_areas_by_ids, get_event_areas};
 use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
 use crate::postgres::candidate::export_candidate_csv;
 use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{export_elections, get_elections, get_elections_by_ids};
