@@ -35,9 +35,13 @@ use sequent_core::ballot::{
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
+use sequent_core::encrypt::hash_plaintext_ballot_sha512;
+use sequent_core::encrypt::hash_plaintext_ballot;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::error::BallotError;
 use sequent_core::multi_ballot::verify_multi_ballot_signature;
+use sequent_core::plaintext_ballot::verify_plaintext_ballot_signature;
+use sequent_core::plaintext_ballot::{HashablePlaintextBallot, SignedHashablePlaintextBallot};
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::multi_ballot::SignedHashableMultiBallot;
@@ -251,16 +255,23 @@ pub async fn try_insert_cast_vote(
         .get_presentation()
         .map_err(|e| CastVoteError::ElectionEventNotFound(e.to_string()))?;
 
-    let is_multi_contest = if let Some(presentation) = presentation_opt.clone() {
-        presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+    let contest_encryption_policy = if let Some(presentation) = presentation_opt.clone() {
+        presentation.contest_encryption_policy
     } else {
-        false
+        None
     };
 
-    let hash_result = if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input, voter_id)
-    } else {
-        deserialize_and_check_ballot(&input, voter_id)
+    let hash_result = match contest_encryption_policy {
+        Some(ContestEncryptionPolicy::PLAINTEXT) => {
+            deserialize_and_check_plaintext_ballot(&input, voter_id)
+        },
+        Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS) => {
+            deserialize_and_check_multi_ballot(&input, voter_id)
+        },
+        Some(ContestEncryptionPolicy::SINGLE_CONTEST) => {
+            deserialize_and_check_ballot(&input, voter_id)
+        },
+        None => Err(CastVoteError::DeserializeBallotFailed("Contest encryption policy not set.".to_string())),
     };
 
     let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {
@@ -608,6 +619,69 @@ pub fn deserialize_and_check_multi_ballot(
     Ok((pseudonym_h, vote_h, voter_signature_opt))
 }
 
+#[instrument(skip(input), err)]
+pub fn deserialize_and_check_plaintext_ballot(
+    input: &InsertCastVoteInput,
+    voter_id: &str,
+) -> Result<
+    (
+        PseudonymHash,
+        CastVoteHash,
+        Option<(StrandSignaturePk, StrandSignature)>,
+    ),
+    CastVoteError,
+> {
+    let signed_hashable_plaintext_ballot: SignedHashablePlaintextBallot =
+        deserialize_str(&input.content)
+            .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let hashable_plaintext_ballot: HashablePlaintextBallot = (&signed_hashable_plaintext_ballot)
+        .try_into()
+        .map_err(|e: BallotError| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
+
+    let computed_hash = hash_plaintext_ballot(&hashable_plaintext_ballot)
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
+
+    /// Verifies that the ballot_id corresponds to the hash of the ballot content
+    /// The function serves as a security check to ensure that
+    /// a ballot's content matches its claimed ID.
+    /// This is crucial for maintaining the integrity of the voting system
+    /// by preventing ballot tampering or substitution.
+    if computed_hash != input.ballot_id {
+        return Err(CastVoteError::BallotIdMismatch(format!(
+            "Expected {} but got {}",
+            computed_hash, input.ballot_id
+        )));
+    }
+
+    let pseudonym_hash_bytes = hash_voter_id(voter_id)
+        .map_err(|e| CastVoteError::SerializeVoterIdFailed(e.to_string()))?;
+
+    let vote_hash_bytes = hash_plaintext_ballot_sha512(&hashable_plaintext_ballot)
+        .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
+
+    let pseudonym_h = PseudonymHash(HashWrapper::new(pseudonym_hash_bytes));
+    let vote_h = CastVoteHash(HashWrapper::new(vote_hash_bytes));
+
+    let hashable_plaintext_ballot_contests = hashable_plaintext_ballot
+        .deserialize_contests::<RistrettoCtx>()
+        .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
+
+    // Check ballot signature
+    let election_id = input.election_id.to_string();
+    let voter_signature_opt = verify_plaintext_ballot_signature(
+        &input.ballot_id,
+        &election_id,
+        &signed_hashable_plaintext_ballot,
+    )
+    .map_err(|err| {
+        CastVoteError::BallotVoterSignatureFailed(format!("Ballot signature check failed: {err}"))
+    })?;
+    info!("is_signature_verified =  {}", voter_signature_opt.is_some());
+
+    Ok((pseudonym_h, vote_h, voter_signature_opt))
+}
+
 #[instrument(
     skip(
         input,
@@ -669,6 +743,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         ),
     )?;
 
+    // TODO Check ballot signature is ok
     let voter_signature = voter_signature_data.clone().map(|val| val.1);
 
     let ballot_signature: [u8; 64] = voter_signature
