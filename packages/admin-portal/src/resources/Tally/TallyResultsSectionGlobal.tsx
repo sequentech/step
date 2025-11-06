@@ -52,7 +52,7 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     return pos1 - pos2
 }
 
-export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidatesProps> = (
+export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesProps> = (
     props
 ) => {
     const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props

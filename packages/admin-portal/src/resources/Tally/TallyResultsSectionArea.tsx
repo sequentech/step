@@ -93,7 +93,7 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 
     return pos1 - pos2
 }
-export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
+export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (props) => {
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const orderedResultsData = useMemo(() => {
