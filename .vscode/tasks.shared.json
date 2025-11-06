@@ -1051,5 +1051,29 @@
             },
             "problemMatcher": []
         },
+        {
+            "label": "update.license.headers",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "python3",
+                "--",
+                "./scripts/update_license_headers.py",
+                "."
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
     ]
 }
