@@ -271,8 +271,8 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                         display: "flex",
                                                         flexDirection: "row",
                                                         alignItems: "center",
-                                                        justifyContent: "center",
-                                                        gap: 2,
+                                                        justifyContent: "left",
+                                                        gap: 5,
                                                     }}
                                                 >
                                                     <Box
@@ -290,7 +290,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                             sx={{
                                                                 backgroundColor: "#4caf50",
                                                                 color: "white",
-                                                                fontWeight: 500,
+                                                                fontWeight: 400,
                                                                 fontSize: "0.875rem",
                                                             }}
                                                         />
@@ -302,7 +302,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                             sx={{
                                                                 borderColor: "#f44336",
                                                                 color: "#f44336",
-                                                                fontWeight: 500,
+                                                                fontWeight: 400,
                                                                 fontSize: "0.875rem",
                                                             }}
                                                         />
