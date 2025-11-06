@@ -3,7 +3,7 @@ id: release-8.7.5
 title: Release Notes v8.7.5
 ---
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 

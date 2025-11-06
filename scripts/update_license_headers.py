@@ -259,14 +259,25 @@ def update_license_header(
         if pattern.search(line):
             target_line_idx = idx
             comment_prefix = detect_comment_style(line)
+            
+            # If no comment prefix detected on the matching line, try to find it from previous lines
+            if comment_prefix is None and idx > 0:
+                # Look backwards for a comment opening (for multi-line comments like {{!-- or /*)
+                for prev_idx in range(idx - 1, -1, -1):
+                    prev_prefix = detect_comment_style(header_lines[prev_idx])
+                    if prev_prefix is not None:
+                        comment_prefix = prev_prefix
+                        break
+            
+            # If still no comment prefix, the file might not use comments (like .license files)
+            # In this case, use empty string as prefix
+            if comment_prefix is None:
+                comment_prefix = ''
+            
             break
 
     # If no matching line found, return early
     if target_line_idx is None:
-        return False
-
-    if comment_prefix is None:
-        print(f"Warning: Could not detect comment style in {file_path}", file=sys.stderr)
         return False
 
     # Create the new header line
@@ -317,7 +328,7 @@ def update_license_header(
         return False
 
 
-def walk_files(root_dir: str, patterns: list[str], excluded_patterns: Set[str]) -> Iterator[str]:
+def walk_files(root_dir: str, patterns: list[str], excluded_patterns: Set[str], skip_dirs: Set[str] = None, include_excluded: bool = False) -> Iterator[str]:
     """
     Walk directory tree and yield matching files in streaming mode.
 
@@ -325,6 +336,8 @@ def walk_files(root_dir: str, patterns: list[str], excluded_patterns: Set[str]) 
         root_dir: Root directory to search
         patterns: List of glob patterns to match. If None or empty, matches all text files.
         excluded_patterns: Set of patterns to exclude
+        skip_dirs: Set of directory names to skip. If None, uses default set.
+        include_excluded: If True, process files even if excluded by REUSE.toml
 
     Yields:
         File paths that match the patterns
@@ -332,11 +345,12 @@ def walk_files(root_dir: str, patterns: list[str], excluded_patterns: Set[str]) 
     root_path = Path(root_dir).resolve()
 
     # Common directories to skip
-    skip_dirs = {
-        'node_modules', '.git', 'dist', 'build', 'target',
-        '.vscode', '.idea', '__pycache__', '.cache',
-        'coverage', '.pytest_cache', '.mypy_cache'
-    }
+    if skip_dirs is None:
+        skip_dirs = {
+            'node_modules', '.git', 'dist', 'build', 'target',
+            '.vscode', '.idea', '__pycache__', '.cache',
+            'coverage', '.pytest_cache', '.mypy_cache'
+        }
 
     for dirpath, dirnames, filenames in os.walk(root_path):
         # Remove skip_dirs from dirnames to prevent walking into them
@@ -346,8 +360,8 @@ def walk_files(root_dir: str, patterns: list[str], excluded_patterns: Set[str]) 
             file_path = Path(dirpath) / filename
             file_path_str = str(file_path)
 
-            # Check exclusion patterns
-            if should_exclude_path(file_path_str, str(root_path), excluded_patterns):
+            # Check exclusion patterns (unless include_excluded is True)
+            if not include_excluded and should_exclude_path(file_path_str, str(root_path), excluded_patterns):
                 continue
 
             # Check if file matches any pattern (if patterns provided)
@@ -416,12 +430,33 @@ def main():
         help='Regex pattern to match the line to replace. '
              'Default: "SPDX.*sequentech\\.io"'
     )
+    parser.add_argument(
+        '--include-excluded',
+        action='store_true',
+        help='Process files even if they are excluded by REUSE.toml'
+    )
+    parser.add_argument(
+        '--skip-dir',
+        action='append',
+        help='Additional directories to skip (can be specified multiple times). '
+             'Default skip dirs: node_modules, .git, dist, build, target, .vscode, .idea, __pycache__, .cache, coverage, .pytest_cache, .mypy_cache'
+    )
 
     args = parser.parse_args()
 
     # If no patterns specified, process all text files
     # Otherwise use the patterns provided by the user
     patterns = args.pattern if args.pattern else []
+
+    # Build skip_dirs set
+    default_skip_dirs = {
+        'node_modules', '.git', 'dist', 'build', 'target',
+        '.vscode', '.idea', '__pycache__', '.cache',
+        'coverage', '.pytest_cache', '.mypy_cache'
+    }
+    skip_dirs = default_skip_dirs
+    if args.skip_dir:
+        skip_dirs = skip_dirs.union(set(args.skip_dir))
 
     # Process each path argument
     modified_count = 0
@@ -447,7 +482,7 @@ def main():
         if path.is_file():
             # Process single file
             if is_text_file(str(path)):
-                if not should_exclude_path(str(path), str(root_dir), excluded_patterns):
+                if args.include_excluded or not should_exclude_path(str(path), str(root_dir), excluded_patterns):
                     try:
                         if update_license_header(str(path), dry_run=args.dry_run, header_template=args.header_template, header_pattern=args.header_pattern):
                             modified_count += 1
@@ -456,7 +491,7 @@ def main():
                         error_count += 1
         elif path.is_dir():
             # Process directory in streaming mode
-            for file_path in walk_files(str(path), patterns, excluded_patterns):
+            for file_path in walk_files(str(path), patterns, excluded_patterns, skip_dirs, args.include_excluded):
                 try:
                     if update_license_header(file_path, dry_run=args.dry_run, header_template=args.header_template, header_pattern=args.header_pattern):
                         modified_count += 1

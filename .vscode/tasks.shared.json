@@ -1059,7 +1059,8 @@
                 "python3",
                 "--",
                 "./scripts/update_license_headers.py",
-                "."
+                ".",
+                "--include-excluded"
             ],
             "presentation": {
                 "echo": true,
