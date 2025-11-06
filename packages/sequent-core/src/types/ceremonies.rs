@@ -168,6 +168,8 @@ pub struct TallySessionDocuments {
 }
 
 #[derive(
+    BorshSerialize,
+    BorshDeserialize,
     Display,
     Serialize,
     Deserialize,
@@ -182,8 +184,10 @@ pub struct TallySessionDocuments {
 pub enum CeremoniesPolicy {
     #[default]
     #[strum(serialize = "manual-ceremonies")]
+    #[serde(rename = "manual-ceremonies")]
     MANUAL_CEREMONIES,
     #[strum(serialize = "automated-ceremonies")]
+    #[serde(rename = "automated-ceremonies")]
     AUTOMATED_CEREMONIES,
 }
 

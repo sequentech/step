@@ -219,6 +219,8 @@ Key flags and environment variables:
     - Keeps the generated duplicate test files and the `used_voters.txt` tracking file under `/nightwatch/src/_parallel_<RUN_ID>` for inspection. By default, these are cleaned up after the test completes.
   - `--voter-min-index` (default: `1`)
     - The ids for the voters will be selected between `voter-min-index` and `voter-min-index + number-of-voters - 1`. 
+  - `--candidates-pattern <regex>` (default: empty)
+    - Regular expression to filter candidates by name. Supports JavaScript regex format like `/^(?!.*text).*$/` to exclude candidates containing specific text.
 
 Outputs and logs:
 - Aggregated Nightwatch log: `/logs/nightwatch_<timestamp>.log` (inside the container).

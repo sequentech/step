@@ -177,21 +177,17 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     String username =
         Optional.ofNullable(event.getDetails())
             .map(details -> details.get("username"))
-            .orElseGet(
-                () -> {
-                  if (event.getUserId() != null) {
-                    var user =
-                        session
-                            .users()
-                            .getUserById(
-                                session.realms().getRealm(event.getRealmId()), event.getUserId());
-                    if (user != null) {
-                      return user.getEmail();
-                    }
-                  }
-                  return "unknown";
-                });
+            .orElse("unknown");
 
+    String userId = event.getUserId();
+
+    if (userId != null) {
+      var user = session.users().getUserById(session.realms().getRealm(event.getRealmId()), userId);
+      if (user != null && user.getUsername() != null) {
+        // Override with the actual username from session if available
+        username = user.getUsername();
+      }
+    }
     // Prepare message body based on event type.
     String body;
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(
@@ -199,7 +195,8 @@ public class CustomEventListenerProvider implements EventListenerProvider {
       String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
       body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody);
     } else {
-      // Use the event error (or another appropriate field) as body for non-communications events.
+      // Use the event error (or another appropriate field) as body for
+      // non-communications events.
       body = event.getError();
     }
 
@@ -229,7 +226,8 @@ public class CustomEventListenerProvider implements EventListenerProvider {
         "logEvent: details electionEventId: {0} messageType: {1} body: {2} userId: {3} tenantId: {4} username: {5}",
         electionEventId, messageType, body, userId, tenantId, username);
 
-    // We make sure variables are not null otherwise log reporting will give an error when
+    // We make sure variables are not null otherwise log reporting will give an
+    // error when
     // deserializing
     electionEventId = Optional.ofNullable(electionEventId).orElse("null");
     messageType = Optional.ofNullable(messageType).orElse("null");

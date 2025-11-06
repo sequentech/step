@@ -73,7 +73,7 @@ rand_core = { version = "0.6.4", optional = true }
 
 # WASM
 wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = true}
-wasm-bindgen = {version = "0.2.92", optional = true}
+wasm-bindgen = {version = "=0.2.92", optional = true}
 serde-wasm-bindgen = {version = "0.4", optional = true}
 web-sys = { version = "0.3", features = ['Performance'], optional = true }
 

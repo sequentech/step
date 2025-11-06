@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::ballot::{
+    sign_hashable_ballot_with_ephemeral_voter_signing_key,
+    verify_ballot_signature,
+};
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
@@ -122,9 +126,9 @@ pub fn to_hashable_ballot_js(
             })
         })?;
 
-    // Convert auditable ballot to hashable ballot
-    let deserialized_ballot: HashableBallot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+    // Convert auditable ballot to signed hashable ballot
+    let deserialized_ballot: SignedHashableBallot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
             JsValue::from(ErrorStatus {
                 error_type: BallotError::CONVERT_ERROR,
                 error_msg: format!(
@@ -190,8 +194,8 @@ pub fn to_hashable_multi_ballot_js(
         })?;
 
     // Convert auditable ballot to hashable ballot
-    let deserialized_ballot: HashableMultiBallot =
-        HashableMultiBallot::try_from(&auditable_multi_ballot).map_err(
+    let deserialized_ballot: SignedHashableMultiBallot =
+        SignedHashableMultiBallot::try_from(&auditable_multi_ballot).map_err(
             |err| {
                 JsValue::from(ErrorStatus {
                     error_type: BallotError::CONVERT_ERROR,
@@ -247,8 +251,14 @@ pub fn hash_auditable_ballot_js(
                 format!("Error deserializing auditable ballot: {err}",)
             })
             .into_json()?;
-    let hashable_ballot =
-        HashableBallot::try_from(&auditable_ballot).map_err(|err| {
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable ballot: {err}",
+            )
+        })?;
+    let hashable_ballot = HashableBallot::try_from(&signed_hashable_ballot)
+        .map_err(|err| {
             format!(
                 "Error converting auditable ballot into hashable ballot: {err}",
             )
@@ -974,6 +984,206 @@ pub fn get_auth_url_js(
     let auth_url: String =
         get_auth_url(&base_url, &tenant_id, &event_id, auth_action);
     serde_wasm_bindgen::to_value(&auth_url)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    content: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let auditable_ballot_js: Value = serde_wasm_bindgen::from_value(content)
+        .map_err(|err| {
+            format!("Failed to parse auditable multi ballot: {}", err)
+        })
+        .into_json()?;
+    let auditable_ballot: AuditableBallot =
+        deserialize_value(auditable_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot: {err}",)
+            })
+            .into_json()?;
+
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable multi ballot: {err}",
+            )
+        })?;
+
+    let hashable_ballot =
+        HashableBallot::try_from(&signed_hashable_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable multi ballot: {err}",
+            )
+        })?;
+
+    // Generates ephemeral voter signing key and signs the ballot
+    let signed_content = sign_hashable_ballot_with_ephemeral_voter_signing_key(
+        &ballot_id,
+        &election_id,
+        &hashable_ballot,
+    )
+    .map_err(|err| format!("Error signing the ballot signature: {err}"))?;
+    serde_wasm_bindgen::to_value(&signed_content)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    auditable_multi_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let auditable_multi_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_multi_ballot_json)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })
+            .into_json()?;
+    let auditable_multi_ballot: AuditableMultiBallot =
+        deserialize_value(auditable_multi_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot: {err}",)
+            })
+            .into_json()?;
+
+    let hashable_multi_ballot =
+        HashableMultiBallot::try_from(&auditable_multi_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable multi ballot: {err}",
+            )
+        })
+        .into_json()?;
+
+    // Generates ephemeral voter signing key and signs the ballot
+    let signed_content =
+        sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
+            &ballot_id,
+            &election_id,
+            &hashable_multi_ballot,
+        )
+        .map_err(|err| format!("Error signing the ballot: {err}"))
+        .into_json()?;
+    serde_wasm_bindgen::to_value(&signed_content)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns true/false if verified/no-signature, error if the signature can't be
+// verified
+#[wasm_bindgen]
+pub fn verify_ballot_signature_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    content: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let auditable_ballot_js: Value = serde_wasm_bindgen::from_value(content)
+        .map_err(|err| {
+            format!("Failed to parse auditable multi ballot: {}", err)
+        })
+        .into_json()?;
+    let auditable_ballot: AuditableBallot =
+        deserialize_value(auditable_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot: {err}",)
+            })
+            .into_json()?;
+
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable multi ballot: {err}",
+            )
+        })?;
+
+    // Verifies the ballot signature
+    let result = verify_ballot_signature(
+        &ballot_id,
+        &election_id,
+        &signed_hashable_ballot,
+    )
+    .map_err(|err| format!("Error verifying the ballot: {err}"))?;
+
+    serde_wasm_bindgen::to_value(&result.is_some())
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn verify_multi_ballot_signature_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    auditable_multi_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let auditable_multi_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_multi_ballot_json)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })
+            .into_json()?;
+    let auditable_multi_ballot: AuditableMultiBallot =
+        deserialize_value(auditable_multi_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot: {err}",)
+            })
+            .into_json()?;
+
+    let signed_hashable_multi_ballot =
+        SignedHashableMultiBallot::try_from(&auditable_multi_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable multi ballot: {err}",
+            )
+        })
+        .into_json()?;
+
+    // Verifies the ballot signature
+    let result = verify_multi_ballot_signature(
+        &ballot_id,
+        &election_id,
+        &signed_hashable_multi_ballot,
+    )
+    .map_err(|err| format!("Error verifying the ballot signature: {err}"))
+    .into_json()?;
+
+    serde_wasm_bindgen::to_value(&result.is_some())
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }
