@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useGetList, useGetOne, useRecordContext} from "react-admin"
-
+import {useRecordContext} from "react-admin"
 import {
     Sequent_Backend_Candidate,
     Sequent_Backend_Results_Area_Contest,
@@ -12,18 +11,6 @@ import {
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
 import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
-import {NoItem} from "@/components/NoItem"
-import {
-    TableContainer,
-    Box,
-    Paper,
-    Table,
-    TableHead,
-    TableRow,
-    TableCell,
-    TableBody,
-    Typography,
-} from "@mui/material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
@@ -31,7 +18,8 @@ import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
-import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsCharts"
+import {TallyResultsSummary} from "./TallyResultsSummary"
+import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
 import {ICountingAlgorithm} from "../Contest/constants"
 
 interface TallyResultsCandidatesProps {
@@ -41,6 +29,7 @@ interface TallyResultsCandidatesProps {
     electionEventId: string
     tenantId: string
     resultsEventId: string | null
+    counting_algorithm: ICountingAlgorithm
 }
 
 interface ExtendedMetricsContest {
@@ -94,7 +83,7 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
     return pos1 - pos2
 }
 export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
+    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId, counting_algorithm} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const orderedResultsData = useMemo(() => {
         return (resultsData as Sequent_Backend_Candidate_Extended[]).sort(sortCandidates)
@@ -133,11 +122,6 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 
-    const contest = useMemo(
-        () => tallyData?.sequent_backend_contest?.find((contest) => contest.id === contestId),
-        [tallyData?.sequent_backend_contest, contestId]
-    )
-
     const weight = useMemo((): number | null => {
         try {
             const parsedAnnotations: ParsedAnnotations | null = general?.[0]?.annotations
@@ -157,8 +141,8 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
 
             const results = parsedAnnotations?.process_results ?? null
 
-            if (results && contest?.counting_algorithm) {
-                switch (contest.counting_algorithm) {
+            if (results && counting_algorithm) {
+                switch (counting_algorithm) {
                     case ICountingAlgorithm.INSTANT_RUNOFF: {
                         const runoffResults = results as RunoffStatus
                         console.log("InstantRunoff process_results:", runoffResults)
@@ -175,7 +159,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             console.error("Error parsing process_results:", error)
             return null
         }
-    }, [general?.[0], contest?.counting_algorithm])
+    }, [general?.[0], counting_algorithm])
 
     const eventRecord = useRecordContext<Sequent_Backend_Election_Event>()
     const weightedVotingForAreas = useMemo((): boolean => {
@@ -274,250 +258,18 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
 
     return (
         <>
-            <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
-                <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
-                    {t("tally.table.global")}
-                </Typography>
-
-                {general && general.length ? (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: {xs: "column", lg: "row"},
-                            gap: 4,
-                            alignItems: "flex-start",
-                        }}
-                    >
-                        {/* Chart on the left */}
-                        <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
-                            <ParticipationSummaryChart
-                                result={general?.[0]}
-                                chartName={getChartName()}
-                            />
-                        </Box>
-                        {/* Table on the right */}
-                        <Box sx={{flex: "1 1 auto", mt: 2, minWidth: 0}}>
-                            <TableContainer component={Paper}>
-                                <Table
-                                    sx={{minWidth: {xs: 300, sm: 650}}}
-                                    aria-label="simple table"
-                                >
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell></TableCell>
-                                            <TableCell sx={{width: "25%"}} align="right">
-                                                {t("tally.table.total")}
-                                            </TableCell>
-                                            <TableCell
-                                                sx={{width: "25%"}}
-                                                align="right"
-                                                width="300px"
-                                            >
-                                                {t("tally.table.turnout")}
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.elegible_census")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].elegible_census ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right"></TableCell>
-                                        </TableRow>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.total_auditable_votes")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].total_auditable_votes ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {isNumber(
-                                                    general?.[0].total_auditable_votes_percent
-                                                )
-                                                    ? formatPercentOne(
-                                                          general[0].total_auditable_votes_percent
-                                                      )
-                                                    : "-"}
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.total_votes_counted")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].total_votes ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {isNumber(general?.[0].total_votes_percent)
-                                                    ? formatPercentOne(
-                                                          general[0].total_votes_percent
-                                                      )
-                                                    : "-"}
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.total_valid_votes")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].total_valid_votes ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {isNumber(general?.[0].total_valid_votes_percent)
-                                                    ? formatPercentOne(
-                                                          general[0].total_valid_votes_percent
-                                                      )
-                                                    : "-"}
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.total_invalid_votes")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].total_invalid_votes ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {isNumber(general?.[0].total_invalid_votes_percent)
-                                                    ? formatPercentOne(
-                                                          general[0].total_invalid_votes_percent
-                                                      )
-                                                    : "-"}
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.explicit_invalid_votes")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].explicit_invalid_votes ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {isNumber(
-                                                    general?.[0].explicit_invalid_votes_percent
-                                                )
-                                                    ? formatPercentOne(
-                                                          general[0].explicit_invalid_votes_percent
-                                                      )
-                                                    : "-"}
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.implicit_invalid_votes")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].implicit_invalid_votes ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {isNumber(
-                                                    general?.[0].implicit_invalid_votes_percent
-                                                )
-                                                    ? formatPercentOne(
-                                                          general[0].implicit_invalid_votes_percent
-                                                      )
-                                                    : "-"}
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow
-                                            sx={{"&:last-child td, &:last-child th": {border: 0}}}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {t("tally.table.blank_votes")}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {general?.[0].blank_votes ?? "-"}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {isNumber(general?.[0].blank_votes_percent)
-                                                    ? formatPercentOne(
-                                                          general[0].blank_votes_percent
-                                                      )
-                                                    : "-"}
-                                            </TableCell>
-                                        </TableRow>
-                                        {weightedVotingForAreas && (
-                                            <TableRow
-                                                sx={{
-                                                    "&:last-child td, &:last-child th": {border: 0},
-                                                }}
-                                            >
-                                                <TableCell component="th" scope="row">
-                                                    {t("tally.table.weight")}
-                                                </TableCell>
-                                                <TableCell align="right">{weight ?? "-"}</TableCell>
-                                                <TableCell align="right"></TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        </Box>
-                    </Box>
-                ) : (
-                    <NoItem />
-                )}
-            </Box>
-
-            <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
-                <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
-                    {t("tally.table.candidates")}
-                </Typography>
-
-                {resultsData.length ? (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: {xs: "column", lg: "row"},
-                            gap: 4,
-                            alignItems: "flex-start",
-                        }}
-                    >
-                        <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
-                            <CandidatesResultsCharts
-                                results={orderedResultsData as Sequent_Backend_Candidate_Extended[]}
-                                chartName={getChartName()}
-                            />
-                        </Box>
-                        <Box sx={{flex: "1 1 auto", mt: 2, minWidth: 0}}>
-                            <DataGrid
-                                sx={{mt: 0}}
-                                rows={orderedResultsData}
-                                columns={columns}
-                                initialState={{
-                                    pagination: {
-                                        paginationModel: {
-                                            pageSize: 10,
-                                        },
-                                    },
-                                }}
-                                pageSizeOptions={[10, 20, 50, 100]}
-                                disableRowSelectionOnClick
-                            />
-                        </Box>
-                    </Box>
-                ) : (
-                    <NoItem />
-                )}
-            </Box>
+            <TallyResultsSummary
+                general={general}
+                chartName={getChartName()}
+                showWeight={weightedVotingForAreas}
+                weight={weight}
+            />
+            <TallyResultsCandidatesPlurality
+                resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
+                orderedResultsData={orderedResultsData}
+                columns={columns}
+                chartName={getChartName()}
+            />
         </>
     )
 }

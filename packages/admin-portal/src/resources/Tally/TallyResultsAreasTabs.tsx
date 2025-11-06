@@ -20,6 +20,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {ICountingAlgorithm} from "../Contest/constants"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -208,6 +209,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
                     electionId={contest?.election_id}
                     contestId={contest?.id}
                     resultsEventId={resultsEventId}
+                    counting_algorithm={contest?.counting_algorithm as ICountingAlgorithm}
                 />
             </CustomTabPanel>
             {areasData?.map((area, index) => (
@@ -219,6 +221,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
                         contestId={contest?.id}
                         areaId={selectedArea}
                         resultsEventId={resultsEventId}
+                        counting_algorithm={contest?.counting_algorithm as ICountingAlgorithm}
                     />
                 </CustomTabPanel>
             ))}
