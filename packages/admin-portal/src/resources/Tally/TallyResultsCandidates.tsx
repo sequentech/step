@@ -31,7 +31,7 @@ import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
-import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
+import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsCharts"
 import {ICountingAlgorithm} from "../Contest/constants"
 
 interface TallyResultsCandidatesProps {
