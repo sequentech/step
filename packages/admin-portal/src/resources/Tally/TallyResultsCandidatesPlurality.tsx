@@ -8,21 +8,62 @@ import {Typography, Box} from "@mui/material"
 import {DataGrid, GridColDef} from "@mui/x-data-grid"
 import {Sequent_Backend_Candidate_Extended} from "./types"
 import {CandidatesResultsCharts} from "./TallyResultsCharts"
+import {formatPercentOne, isNumber} from "@sequentech/ui-core"
+import { GridRenderCellParams } from "@mui/x-data-grid"
+import { winningPositionComparator } from "./utils"
 
 interface TallyResultsCandidatesProps {
     resultsData: Sequent_Backend_Candidate_Extended[]
     orderedResultsData: Sequent_Backend_Candidate_Extended[]
-    columns: GridColDef[]
     chartName: string
 }
 
 export const TallyResultsCandidatesPlurality: React.FC<TallyResultsCandidatesProps> = ({
     resultsData,
     orderedResultsData,
-    columns,
     chartName,
 }) => {
     const {t} = useTranslation()
+
+    
+    const columns: GridColDef[] = [
+        {
+            field: "name",
+            headerName: t("tally.table.options"),
+            flex: 1,
+            editable: false,
+            align: "left",
+        },
+        {
+            field: "cast_votes",
+            headerName: t("tally.table.cast_votes"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
+            align: "right",
+            headerAlign: "right",
+        },
+        {
+            field: "cast_votes_percent",
+            headerName: t("tally.table.cast_votes_percent"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) =>
+                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
+            align: "right",
+            headerAlign: "right",
+        },
+        {
+            field: "winning_position",
+            headerName: t("tally.table.winning_position"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
+            sortComparator: winningPositionComparator,
+            align: "right",
+            headerAlign: "right",
+        },
+    ]
 
     return (
         <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>

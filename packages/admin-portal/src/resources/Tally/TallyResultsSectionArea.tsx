@@ -10,16 +10,15 @@ import {
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {useTranslation} from "react-i18next"
-import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {Sequent_Backend_Candidate_Extended, ParsedAnnotations} from "./types"
-import {formatPercentOne, isNumber} from "@sequentech/ui-core"
+import {Sequent_Backend_Candidate_Extended, ParsedAnnotations, RunoffStatus} from "./types"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {TallyResultsSummary} from "./TallyResultsSummary"
 import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
+import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "../Contest/constants"
 import {winningPositionComparator, parseProcessResults} from "./utils"
 
@@ -85,7 +84,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     }, [general?.[0]])
 
     const processResults = useMemo(
-        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm),
+        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm) as RunoffStatus | null,
         [general?.[0]?.annotations, counting_algorithm]
     )
 
@@ -145,45 +144,6 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         }
     }, [results, candidates])
 
-    const columns: GridColDef[] = [
-        {
-            field: "name",
-            headerName: t("tally.table.options"),
-            flex: 1,
-            editable: false,
-            align: "left",
-        },
-        {
-            field: "cast_votes",
-            headerName: t("tally.table.cast_votes"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
-            align: "right",
-            headerAlign: "right",
-        },
-        {
-            field: "cast_votes_percent",
-            headerName: t("tally.table.cast_votes_percent"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) =>
-                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
-            align: "right",
-            headerAlign: "right",
-        },
-        {
-            field: "winning_position",
-            headerName: t("tally.table.winning_position"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
-            sortComparator: winningPositionComparator,
-            align: "right",
-            headerAlign: "right",
-        },
-    ]
-
     return (
         <>
             <TallyResultsSummary
@@ -192,12 +152,16 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
                 showWeight={weightedVotingForAreas}
                 weight={weight}
             />
-            <TallyResultsCandidatesPlurality
-                resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
-                orderedResultsData={orderedResultsData}
-                columns={columns}
-                chartName={getChartName()}
-            />
+            {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
+                <TallyResultsCandidatesPlurality
+                    resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
+                    orderedResultsData={orderedResultsData}
+                    chartName={getChartName()}
+                />
+            )}
+            {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
+                <TallyResultsCandidatesIRV processResults={processResults} />
+            )}
         </>
     )
 }

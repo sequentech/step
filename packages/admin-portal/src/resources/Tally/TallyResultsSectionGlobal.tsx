@@ -7,18 +7,19 @@ import {
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Contest_Candidate,
 } from "../../gql/graphql"
-import {DataGrid, GridColDef, GridRenderCellParams, GridComparatorFn} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {Sequent_Backend_Candidate_Extended} from "./types"
-import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {TallyResultsSummary} from "./TallyResultsSummary"
 import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
+import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "../Contest/constants"
 import {winningPositionComparator, parseProcessResults} from "./utils"
+import { RunoffStatus } from "./types"
+
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
     electionId: string
@@ -77,7 +78,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
     )
 
     const processResults = useMemo(
-        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm),
+        () => parseProcessResults(general?.[0]?.annotations, counting_algorithm) as RunoffStatus | null,
         [general?.[0]?.annotations, counting_algorithm]
     )
     
@@ -112,57 +113,22 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         }
     }, [results, candidates])
 
-    const columns: GridColDef[] = [
-        {
-            field: "name",
-            headerName: t("tally.table.options"),
-            flex: 1,
-            editable: false,
-            align: "left",
-        },
-        {
-            field: "cast_votes",
-            headerName: t("tally.table.cast_votes"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] ?? "-",
-            align: "right",
-            headerAlign: "right",
-        },
-        {
-            field: "cast_votes_percent",
-            headerName: t("tally.table.cast_votes_percent"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) =>
-                isNumber(props["value"]) ? formatPercentOne(props["value"]) : "-",
-            align: "right",
-            headerAlign: "right",
-        },
-        {
-            field: "winning_position",
-            headerName: t("tally.table.winning_position"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] ?? "-",
-            sortComparator: winningPositionComparator,
-            align: "right",
-            headerAlign: "right",
-        },
-    ]
-
     return (
         <>
             <TallyResultsSummary
                 general={general}
                 chartName={getChartName(general?.[0].name ?? undefined)}
             />
-            <TallyResultsCandidatesPlurality
-                resultsData={resultsData}
-                orderedResultsData={orderedResultsData}
-                columns={columns}
-                chartName={getChartName(general?.[0].name ?? undefined)}
-            />
+            {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
+                <TallyResultsCandidatesPlurality
+                    resultsData={resultsData}
+                    orderedResultsData={orderedResultsData}
+                    chartName={getChartName(general?.[0].name ?? undefined)}
+                />
+            )}
+            {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
+                <TallyResultsCandidatesIRV processResults={processResults} />
+            )}
         </>
     )
 }

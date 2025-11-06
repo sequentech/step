@@ -43,7 +43,6 @@ export const parseProcessResults = (
             switch (counting_algorithm) {
                 case ICountingAlgorithm.INSTANT_RUNOFF: {
                     const runoffResults = results as RunoffStatus
-                    console.log("InstantRunoff process_results:", runoffResults)
                     return runoffResults
                 }
                 default:
