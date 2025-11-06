@@ -319,6 +319,7 @@ const frenchTranslation: TranslationType = {
                     options: {
                         "single-contest": "Concours unique",
                         "multiple-contests": "Plusieurs concours",
+                        "plaintext": "Concours unique non chiffré",
                     },
                     policyLabel: "Politique de chiffrement de concours",
                 },

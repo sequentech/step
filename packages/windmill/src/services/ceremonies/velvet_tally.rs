@@ -726,7 +726,7 @@ pub async fn create_config_file(
                         pipe: match contest_encryption_policy {
                             ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::DecodeMCBallots,
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::DecodeBallots,
-                            ContestEncryptionPolicy::PLAINTEXT => todo!(),
+                            ContestEncryptionPolicy::PLAINTEXT => PipeName::DecodeBallots,
                         },
                         config: Some(serde_json::Value::Null),
                     },

@@ -320,6 +320,7 @@ const englishTranslation = {
                     options: {
                         "single-contest": "Single Contest",
                         "multiple-contests": "Multiple Contests",
+                        "plaintext": "Unencrypted Single Contest",
                     },
                     policyLabel: "Contest encryption policy",
                 },

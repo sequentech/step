@@ -19,7 +19,13 @@ import {
     theme,
     Dialog,
 } from "@sequentech/ui-essentials"
-import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
+import {
+    IAuditableBallot,
+    IAuditableMultiBallot,
+    IAuditableSingleBallot,
+    IAuditablePlaintextBallot,
+    EElectionEventContestEncryptionPolicy,
+} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
@@ -159,6 +165,8 @@ export const HomeScreen: React.FC<IProps> = ({
     }, [dataBallotStyles])
 
     const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
+        const encryptionPolicy =
+            auditableBallot?.config.election_event_presentation?.contest_encryption_policy
         let isMultiContest = false
         let decodedBallot = null
         try {
@@ -185,9 +193,21 @@ export const HomeScreen: React.FC<IProps> = ({
             setConfirmationBallot(null)
             return
         }
-        let ballotHash = isMultiContest
-            ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
+        let ballotHash = (function () {
+            switch (encryptionPolicy) {
+                case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
+                    return ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
+                case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
+                    return ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+                case EElectionEventContestEncryptionPolicy.PLAINTEXT:
+                    return ballotService.hashPlaintextBallot(
+                        auditableBallot as IAuditablePlaintextBallot
+                    )
+                default:
+                    // TODO Show error and fix it
+                    throw new Error("Failed to hash ballot")
+            }
+        })()
 
         if (
             auditableBallot?.voter_ballot_signature !== undefined &&

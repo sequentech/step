@@ -10,14 +10,17 @@ import {
     hashPlaintextBallot,
     encryptBallotSelection,
     encryptMultiBallotSelection,
+    encodePlaintextBallotSelection,
     interpretContestSelection,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
+    decodeAuditablePlaintextBallot,
     checkIsBlank,
     signHashableBallot,
     signHashableMultiBallot,
+    signHashablePlaintextBallot,
     IDecodedVoteContest,
     IBallotStyle,
     IAuditableBallot,
@@ -50,6 +53,10 @@ export interface IBallotService {
         ballotSelection: BallotSelection,
         election: IBallotStyle
     ) => IAuditableMultiBallot
+    encodePlaintextBallotSelection: (
+        ballotSelection: BallotSelection,
+        election: IBallotStyle
+    ) => IAuditableMultiBallot
     interpretContestSelection: (
         contestSelection: Array<IDecodedVoteContest>,
         election: IBallotStyle
@@ -69,6 +76,9 @@ export interface IBallotService {
     decodeAuditableMultiBallot: (
         auditableBallot: IAuditableMultiBallot
     ) => Array<IDecodedVoteContest> | null
+    decodeAuditablePlaintextBallot: (
+        auditableBallot: IAuditableMultiBallot
+    ) => Array<IDecodedVoteContest> | null
     // TODO decodeAuditablePlaintextBallot
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
     signHashableBallot: (
@@ -81,6 +91,11 @@ export interface IBallotService {
         electionId: string,
         hashableBallot: IAuditableMultiBallot
     ) => ISignedContent | null
+    signHashablePlaintextBallot: (
+        ballotId: string,
+        electionId: string,
+        hashableBallot: IAuditablePlaintextBallot
+    ) => ISignedContent | null
 }
 
 export const provideBallotService = (): IBallotService => ({
@@ -92,12 +107,15 @@ export const provideBallotService = (): IBallotService => ({
     hashPlaintextBallot,
     encryptBallotSelection,
     encryptMultiBallotSelection,
+    encodePlaintextBallotSelection,
     interpretContestSelection,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
+    decodeAuditablePlaintextBallot,
     checkIsBlank,
     signHashableBallot,
     signHashableMultiBallot,
+    signHashablePlaintextBallot,
 })

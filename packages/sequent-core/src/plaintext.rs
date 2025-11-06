@@ -7,7 +7,11 @@ use crate::ballot_codec::multi_ballot::{
 };
 use crate::ballot_codec::PlaintextCodec;
 use crate::multi_ballot::AuditableMultiBallotContests;
-use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
+use crate::plaintext_ballot::AuditablePlaintextBallotContest;
+use crate::{
+    ballot::*, multi_ballot::AuditableMultiBallot,
+    plaintext_ballot::AuditablePlaintextBallot,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -94,6 +98,44 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
         let replication_choice: &ReplicationChoice<C> = &contest.choice;
         let decoded_plaintext = found_contest
             .decode_plaintext_contest(&replication_choice.plaintext)?;
+        decoded_contests.push(decoded_plaintext);
+    }
+    Ok(decoded_contests)
+}
+
+pub fn map_to_decoded_plaintext_contest<C: Ctx<P = [u8; 30]>>(
+    ballot: &AuditablePlaintextBallot,
+) -> Result<Vec<DecodedVoteContest>, String> {
+    let mut decoded_contests = vec![];
+    if ballot.config.contests.len() != ballot.contests.len() {
+        return Err(format!(
+            "Invalid number of contests {} != {}",
+            ballot.config.contests.len(),
+            ballot.contests.len()
+        ));
+    }
+
+    let ballot_contests: Vec<AuditablePlaintextBallotContest<C>> =
+        ballot.deserialize_contests().map_err(|err| {
+            format!(
+                "Error deserializing auditable plaintext ballot contest {:?}",
+                err
+            )
+        })?;
+    for contest in &ballot_contests {
+        let found_contest = ballot
+            .config
+            .contests
+            .iter()
+            .find(|contest_el| contest_el.id == contest.contest_id)
+            .ok_or_else(|| {
+                format!(
+                    "Can't find contest with id {} on ballot style",
+                    contest.contest_id
+                )
+            })?;
+        let decoded_plaintext =
+            found_contest.decode_plaintext_contest(&contest.plaintext)?;
         decoded_contests.push(decoded_plaintext);
     }
     Ok(decoded_contests)

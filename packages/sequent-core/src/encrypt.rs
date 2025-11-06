@@ -23,8 +23,9 @@ use crate::multi_ballot::{
 use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
 use crate::plaintext_ballot::{
-    AuditablePlaintextBallot, AuditablePlaintextBallotContests,
+    AuditablePlaintextBallot, AuditablePlaintextBallotContest,
     HashablePlaintextBallot, RawHashablePlaintextBallot,
+    SignedHashablePlaintextBallot,
 };
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
@@ -406,38 +407,51 @@ pub fn hash_multi_ballot_sha512(
 
 pub fn encode_plaintext_ballot<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
-    ballot_choices: &BallotChoices,
+    decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
 ) -> Result<AuditablePlaintextBallot, BallotError> {
-    if config.contests.len() != ballot_choices.choices.len() {
+    if config.contests.len() != decoded_contests.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded contests {} != {}",
             config.contests.len(),
-            ballot_choices.choices.len()
+            decoded_contests.len()
         )));
     }
 
     // let public_key: C::E = parse_public_key::<C>(&config)?;
-    let plaintext =
-        ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
-            BallotError::Serialization(format!(
-                "Error encrypting plaintext: {}",
-                err
-            ))
-        })?;
-    let contest_ids = ballot_choices.get_contest_ids();
 
-    // let (choice, proof) = encrypt_plaintext_candidate(
-    //     ctx,
-    //     public_key.clone(),
-    //     plaintext,
-    //     &DEFAULT_PLAINTEXT_LABEL,
-    // )?;
+    let mut contests: Vec<AuditablePlaintextBallotContest<C>> = vec![];
 
-    let contests = AuditablePlaintextBallotContests {
-        contest_ids,
-        plaintext,
-    };
+    for decoded_contest in decoded_contests {
+        let contest = config
+            .contests
+            .iter()
+            .find(|contest| contest.id == decoded_contest.contest_id)
+            .ok_or_else(|| {
+                BallotError::Serialization(format!(
+                    "Can't find contest with id {} on ballot style",
+                    decoded_contest.contest_id
+                ))
+            })?;
+        let plaintext = contest
+            .encode_plaintext_contest(&decoded_contest)
+            .map_err(|err| {
+                BallotError::Serialization(format!(
+                    "Error encoding plaintext: {}",
+                    err
+                ))
+            })?;
+        // let (choice, proof) = encrypt_plaintext_candidate(
+        //     ctx,
+        //     public_key.clone(),
+        //     plaintext,
+        //     &DEFAULT_PLAINTEXT_LABEL,
+        // )?;
+        contests.push(AuditablePlaintextBallotContest::<C> {
+            contest_id: contest.id.clone(),
+            plaintext: plaintext,
+        });
+    }
 
     let mut auditable_ballot = AuditablePlaintextBallot {
         version: TYPES_VERSION,
@@ -445,9 +459,14 @@ pub fn encode_plaintext_ballot<C: Ctx<P = [u8; 30]>>(
         contests: AuditablePlaintextBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
-    let hashable_ballot = HashablePlaintextBallot::try_from(&auditable_ballot)?;
+    let signed_hashable_ballot =
+        SignedHashablePlaintextBallot::try_from(&auditable_ballot)?;
+    let hashable_ballot: HashablePlaintextBallot =
+        HashablePlaintextBallot::try_from(&signed_hashable_ballot)?;
     auditable_ballot.ballot_hash = hash_plaintext_ballot(&hashable_ballot)?;
 
     Ok(auditable_ballot)

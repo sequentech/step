@@ -32,6 +32,7 @@ import {
     EGraphQLErrorCode,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
     IHashableBallot,
@@ -68,8 +69,10 @@ import {
     sortContestList,
     hashBallot,
     hashMultiBallot,
+    hashPlaintextBallot,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IHashablePlaintextBallot,
 } from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -544,11 +547,20 @@ export const ReviewScreen: React.FC = () => {
     const isMultiContest =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashableBallot = auditableBallot
-        ? isMultiContest
-            ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : hashBallot(auditableBallot as IAuditableSingleBallot)
-        : undefined
+    const encryptionPolicy =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+    const hashableBallot = (function () {
+        switch (encryptionPolicy) {
+            case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
+                return hashBallot(auditableBallot as IAuditableSingleBallot)
+            case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
+                return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+            case EElectionEventContestEncryptionPolicy.PLAINTEXT:
+                return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
+            default:
+            // TODO Error?
+        }
+    })()
 
     const ballotId = useMemo(() => {
         return auditableBallot && hashableBallot ? hashableBallot : undefined

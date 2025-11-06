@@ -319,6 +319,7 @@ const catalanTranslation: TranslationType = {
                     options: {
                         "single-contest": "Concurs únic",
                         "multiple-contests": "Diversos concursos",
+                        "plaintext": "Concurs únic sense encriptar",
                     },
                     policyLabel: "Política de xifrat de concurs",
                 },

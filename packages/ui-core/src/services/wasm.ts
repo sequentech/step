@@ -16,6 +16,7 @@ import {
     sort_candidates_list_js,
     decode_auditable_ballot_js,
     decode_auditable_multi_ballot_js,
+    decode_auditable_plaintext_ballot_js,
     to_hashable_ballot_js,
     to_hashable_multi_ballot_js,
     to_hashable_plaintext_ballot_js,
@@ -31,11 +32,13 @@ import {
     check_is_blank_js,
     sign_hashable_ballot_with_ephemeral_voter_signing_key_js,
     sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js,
+    sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js,
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_plaintext_ballot_signature_js,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -266,6 +269,23 @@ export const signHashableMultiBallot = (
     }
 }
 
+export const signHashablePlaintextBallot = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditablePlaintextBallot
+): ISignedContent => {
+    try {
+        return sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 /*
  * Encodes and decodes the contest selection.
  * The result is getting the ballot selection back from sequent-core,
@@ -340,6 +360,18 @@ export const decodeAuditableMultiBallot = (
     }
 }
 
+export const decodeAuditablePlaintextBallot = (
+    auditableBallot: IAuditablePlaintextBallot
+): Array<IDecodedVoteContest> | null => {
+    try {
+        let decodedBallot = decode_auditable_plaintext_ballot_js(auditableBallot)
+        return decodedBallot as Array<IDecodedVoteContest>
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
     try {
         let is_blank: boolean = check_is_blank_js(contest)
@@ -371,6 +403,24 @@ export const verifyMultiBallotSignature = (
 ): boolean | null => {
     try {
         let isVerified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyPlaintextBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditablePlaintextBallot
+): boolean | null => {
+    try {
+        let isVerified: boolean = verify_plaintext_ballot_signature_js(
+            ballot_id,
+            election_id,
+            content
+        )
         return isVerified
     } catch (error) {
         console.log(error)

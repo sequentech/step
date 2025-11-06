@@ -7,6 +7,8 @@ use b3::messages::artifact::Shares;
 use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
+use b3::messages::newtypes::CiphertextsHash;
+use b3::messages::newtypes::DecryptionFactorsHashes;
 use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
@@ -15,6 +17,7 @@ use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
+use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::util::StrandError;
@@ -24,11 +27,15 @@ use std::env;
 use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
 
+use crate::services::ceremonies::insert_ballots::BallotContent;
 use crate::services::vault;
 use b3::client::pgsql::B3MessageRow;
 use electoral_log::BoardClient;
 use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+
+use b3::messages::artifact::Plaintexts;
+use strand::serialization::StrandVector;
 
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
@@ -403,6 +410,63 @@ pub async fn add_ballots_to_board<C: Ctx>(
         batch,
         &Ballots::<C>::new(ballots),
         selected_trustees,
+        public_key_hash,
+        pm,
+    )?;
+    info!(
+        "Adding configuration to the board for batch {} and number of ballots {}",
+        batch, ballots_len
+    );
+    b3_client.insert_ballots::<C>(board_name, message).await
+}
+
+#[instrument(
+    skip(
+        messages,
+        configuration,
+        public_key_hash,
+        selected_trustees,
+        ballots,
+        b3_client
+    ),
+    err
+)]
+pub async fn add_plaintext_ballots_to_board<C: Ctx>(
+    pm: &ProtocolManager<C>,
+    b3_client: &mut PgsqlB3Client,
+    board_name: &str,
+    messages: &Vec<Message>,
+    configuration: &Configuration<C>,
+    public_key_hash: PublicKeyHash,
+    selected_trustees: TrusteeSet,
+    ballots: Vec<C::P>,
+    batch: BatchNumber,
+) -> Result<()> {
+    let existing_message = messages.iter().find(|message| {
+        let batch_number = message.statement.get_batch_number();
+        let kind = message.statement.get_kind();
+        batch_number == batch && StatementType::Ballots == kind
+    });
+    if let Some(_message) = existing_message {
+        event!(
+            Level::INFO,
+            "Not adding Ballot to board {} as it already exists for batch {}",
+            board_name,
+            batch
+        );
+        return Ok(());
+    }
+
+    let ballots_len = ballots.len();
+    let dfactor_hs = DecryptionFactorsHashes([[0u8; STRAND_HASH_LENGTH_BYTES]; MAX_TRUSTEES]);
+    let cipher_h = CiphertextsHash([0u8; STRAND_HASH_LENGTH_BYTES]);
+
+    let message = Message::plaintexts_msg::<C, ProtocolManager<C>>(
+        configuration,
+        batch,
+        Plaintexts(StrandVector(ballots)),
+        dfactor_hs,
+        cipher_h,
         public_key_hash,
         pm,
     )?;

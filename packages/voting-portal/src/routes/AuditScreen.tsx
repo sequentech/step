@@ -124,14 +124,11 @@ const AuditScreen: React.FC = () => {
     const hashedBallot = (function () {
         switch (encryptionPolicy) {
             case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                hashBallot(auditableBallot as IAuditableSingleBallot)
-                break
+                return hashBallot(auditableBallot as IAuditableSingleBallot)
             case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-                break
+                return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
-                break
+                return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
             default:
                 // TODO New VotingPortalError?
                 throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)

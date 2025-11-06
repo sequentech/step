@@ -319,6 +319,7 @@ const basqueTranslation: TranslationType = {
                     options: {
                         "single-contest": "Lehiaketa Bakarra",
                         "multiple-contests": "Lehiaketa Anitzak",
+                        "plaintext": "Zifratu gabeko lehiaketa bakarra",
                     },
                     policyLabel: "Lehiaketa zifratze politika",
                 },
