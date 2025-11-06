@@ -22,6 +22,11 @@ export interface ExtendedMetricsContest {
     weight: number
 }
 
+export interface CandidateReference {
+    id: string
+    name: string
+}
+
 export enum ECandidateStatus {
     Active = "Active",
     Eliminated = "Eliminated",
@@ -31,18 +36,27 @@ export interface CandidatesStatus {
     [candidateId: string]: ECandidateStatus
 }
 
-export type CandidatesWins = Record<string, number>
+export interface CandidateOutcome {
+    name: string
+    wins: number
+    transference: number
+    percentage: number
+}
+
+export type CandidatesOutcomes = Record<string, CandidateOutcome>
 
 export interface Round {
-    winner: string | null
-    candidates_wins: CandidatesWins
-    eliminated_candidates: string[] | null
+    winner: CandidateReference | null
+    candidates_wins: CandidatesOutcomes
+    eliminated_candidates: CandidateReference[] | null
     active_candidates_count: number
     active_ballots_count: number
+    exhausted_ballots_count: number
 }
 
 export interface RunoffStatus {
     candidates_status: CandidatesStatus
+    name_references: CandidateReference[]
     round_count: number
     rounds: Round[]
     max_rounds: number
