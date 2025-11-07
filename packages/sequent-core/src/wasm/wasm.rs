@@ -241,19 +241,15 @@ pub fn to_hashable_plaintext_ballot_js(
     // Parse input
     let auditable_plaintext_ballot_js: Value =
         serde_wasm_bindgen::from_value(auditable_plaintext_ballot_json)
-            .map_err(|err| {
-                format!("Failed to parse auditable plaintext ballot: {}", err)
-            })
+            .map_err(|err| format!("Failed to parse auditable plaintext ballot: {}", err))
             .into_json()?;
-    let auditable_multi_ballot: AuditablePlaintextBallot =
+    let auditable_plaintext_ballot: AuditablePlaintextBallot =
         deserialize_value(auditable_plaintext_ballot_js)
-            .map_err(|err| {
-                format!("Failed to parse auditable plaintext ballot: {}", err)
-            })
+            .map_err(|err| format!("Failed to parse auditable plaintext ballot: {}", err))
             .into_json()?;
 
     // Test deserializing auditable ballot contests
-    let _auditable_ballot_contests = auditable_multi_ballot
+    let _auditable_ballot_contests = auditable_plaintext_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
             JsValue::from(ErrorStatus {
@@ -265,22 +261,20 @@ pub fn to_hashable_plaintext_ballot_js(
             })
         })?;
 
-    // Convert auditable ballot to hashable ballot
-    let deserialized_ballot: HashablePlaintextBallot =
-        HashablePlaintextBallot::try_from(&auditable_multi_ballot).map_err(
-            |err| {
-                JsValue::from(ErrorStatus {
-                    error_type: BallotError::CONVERT_ERROR,
-                    error_msg: format!(
+    // Convert auditable ballot to signed hashable ballot
+    let deserialized_plaintext_ballot: SignedHashablePlaintextBallot =
+        SignedHashablePlaintextBallot::try_from(&auditable_plaintext_ballot).map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::CONVERT_ERROR,
+                error_msg: format!(
                     "Failed to convert auditable plaintext ballot to hashable plaintext ballot: {}",
                     err
                 ),
-                })
-            },
-        )?;
+            })
+        })?;
 
     // Test deserializing hashable ballot contests
-    let _hashable_ballot_contests = deserialized_ballot
+    let _hashable_ballot_contests = deserialized_plaintext_ballot
         .deserialize_contests::<RistrettoCtx>()
         .map_err(|err| {
             JsValue::from(ErrorStatus {
@@ -294,13 +288,10 @@ pub fn to_hashable_plaintext_ballot_js(
 
     // Serialize the hashable ballot
     let serializer = Serializer::json_compatible();
-    deserialized_ballot.serialize(&serializer).map_err(|err| {
+    deserialized_plaintext_ballot.serialize(&serializer).map_err(|err| {
         JsValue::from(ErrorStatus {
             error_type: BallotError::SERIALIZE_ERROR,
-            error_msg: format!(
-                "Failed to serialize hashable plaintext ballot: {}",
-                err
-            ),
+            error_msg: format!("Failed to serialize hashable plaintext ballot: {}", err),
         })
     })
 }

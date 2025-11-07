@@ -56,7 +56,7 @@ export interface IBallotService {
     encodePlaintextBallotSelection: (
         ballotSelection: BallotSelection,
         election: IBallotStyle
-    ) => IAuditableMultiBallot
+    ) => IAuditablePlaintextBallot
     interpretContestSelection: (
         contestSelection: Array<IDecodedVoteContest>,
         election: IBallotStyle
@@ -77,9 +77,8 @@ export interface IBallotService {
         auditableBallot: IAuditableMultiBallot
     ) => Array<IDecodedVoteContest> | null
     decodeAuditablePlaintextBallot: (
-        auditableBallot: IAuditableMultiBallot
+        auditableBallot: IAuditablePlaintextBallot
     ) => Array<IDecodedVoteContest> | null
-    // TODO decodeAuditablePlaintextBallot
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
     signHashableBallot: (
         ballotId: string,

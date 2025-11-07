@@ -163,7 +163,7 @@ export interface IAuditableMultiBallot extends IAuditableBallot {
     contests: string
 }
 export interface IAuditablePlaintextBallot extends IAuditableBallot {
-    contests: string
+    contests: Array<string>
 }
 
 export interface IHashableBallot {
@@ -181,8 +181,8 @@ export interface IHashableMultiBallot extends IHashableBallot {
     contests: string
 }
 
-export interface IHashablePlaintextBallot {
-    contests: string
+export interface IHashablePlaintextBallot extends IHashableBallot {
+    contests: Array<string>
 }
 
 export interface ISignedContent {
