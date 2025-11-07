@@ -9,10 +9,15 @@
     {{#if report.channel_type}}
       <h2>Channel: {{ sanitize_html report.channel_type }}</h2>
     {{/if}}
-    <h2>Question: {{ sanitize_html report.contest.name }}</h2>
-    {{#if report.area}}
-      <h2>Area: {{ report.area.name}}</h2>
-    {{/if}}
+    <div style="margin: 12px 0;">
+      <h2 style="margin: 0;">Question: {{ sanitize_html report.contest.name }}</h2>
+      {{#if report.area}}
+        <h2 style="margin: 0;">Area: {{ report.area.name}}</h2>
+      {{/if}}
+      {{#if report.contest.max_votes}}
+        <p class="vote-for">Vote for {{format_u64 report.contest.max_votes}}</p>
+      {{/if}}
+    </div>
     <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
 
     <table>
@@ -135,11 +140,11 @@
                                 <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)
                                   {{#each round1.eliminated_candidates}}
                                     {{#eq this.id candidate.id}}
-                                      <br><span style="color: red; font-weight: bold;">Eliminated</span>
+                                      <br><span class="eliminated-text">Eliminated</span>
                                     {{/eq}}
                                   {{/each}}
                                   {{#eq round1.winner.id candidate.id}}
-                                    <br><span style="color: green; font-weight: bold;">WINNER</span>
+                                    <br><span class="winner-text">WINNER</span>
                                   {{/eq}}
                                 </td>
                                 <td class="votes">{{transference}}</td>
@@ -153,11 +158,11 @@
                                   <td class="votes">{{format_u64 wins}} ({{format_dec_percentage percentage}}%)
                                     {{#each ../eliminated_candidates}}
                                       {{#eq this.id candidate.id}}
-                                        <br><span style="color: red; font-weight: bold;">Eliminated</span>
+                                        <br><span class="eliminated-text">Eliminated</span>
                                       {{/eq}}
                                     {{/each}}
                                     {{#eq ../winner.id candidate.id}}
-                                      <br><span style="color: green; font-weight: bold;">WINNER</span>
+                                      <br><span class="winner-text">WINNER</span>
                                     {{/eq}}
                                   </td>
                                   <td class="votes">{{transference}}</td>

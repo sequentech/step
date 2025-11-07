@@ -11,8 +11,10 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
     <title>Election Returns for National Positions</title>
     <script src="{{file_qrcode_lib}}"></script>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&display=swap');
+
       body {
-        font-family: Arial, sans-serif;
+        font-family: 'Manrope', Arial, sans-serif;
         margin: auto;
         max-width: 1024px;
         padding: 0 30px;
@@ -85,27 +87,61 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 
       .content .title {
         text-align: center;
+        font-weight: 700;
+        font-size: 20px;
+        line-height: 28px;
+        padding: 20px 50px;
+      }
+
+      .content h2 {
+        font-weight: 700;
+        font-size: 16px;
+        line-height: 24px;
+        letter-spacing: -0.01em;
+        margin: 12px 0;
+      }
+
+      .content h3 {
+        font-weight: 700;
+        font-size: 14px;
+        line-height: 20px;
+        text-align: center;
+        margin: 20px 0 10px 0;
       }
 
       .content table {
         border-collapse: collapse;
         margin: 20px 0;
+        width: 100%;
       }
 
       .content th,
       .content td {
-        border: 1px solid #dddddd;
-        padding: 8px;
+        border: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+        padding: 16px;
+        font-weight: 500;
+        font-size: 10px;
+        line-height: 14px;
+        letter-spacing: 0.02em;
+        color: rgba(0, 0, 0, 0.87);
       }
 
       .content th {
         text-align: center;
-        font-size: 10pt;
-        font-weight: bold;
+        font-weight: 700;
+        font-size: 12px;
+        line-height: 17px;
+        padding: 6px 16px 16px;
       }
 
       .content td {
-        font-size: 9pt;
+        background: rgba(0, 0, 0, 0.001);
+      }
+
+      .content table tr:first-child th,
+      .content table tr:first-child td {
+        border-top: 1px solid rgba(0, 0, 0, 0.12);
       }
 
       .top-header {
@@ -223,44 +259,103 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
       }
 
       .candidates {
-        border-spacing: 1px;
+        border-collapse: collapse;
         background-color: white;
         margin-top: 16px;
-        margin-bottom: 16px;
-      }
-
-      .candidates .first-col {
-        width: 70%;
-      }
-
-      .candidates .second-col {
-        width: 30%;
-      }
-
-      .candidates td {
-        background-color: white;
+        margin-bottom: 24px;
+        width: 100%;
       }
 
       .candidates thead td {
-        background-color: white;
+        background: rgba(0, 0, 0, 0.001);
+        font-weight: 700;
+        font-size: 10px;
+        line-height: 14px;
+        letter-spacing: 0.02em;
+        color: rgba(0, 0, 0, 0.87);
+        text-align: center;
+        padding: 16px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
       }
 
-      .candidates thead td {
-        text-transform: uppercase;
-        font-weight: bold;
+      .candidates thead tr:first-child td {
+        padding: 6px 16px 16px;
+        font-size: 12px;
+        line-height: 17px;
+        font-weight: 700;
       }
 
-      .candidates tbody tr.contest-title {
-        font-weight: bold;
+      .candidates thead tr:first-child td:first-child {
+        text-align: left;
+        vertical-align: middle;
+        padding: 16px 10px;
+      }
+
+      .candidates thead tr:nth-child(2) td {
+        padding: 16px 10px;
+        font-size: 10px;
+        line-height: 14px;
+        font-weight: 700;
+        text-align: left;
+      }
+
+      .candidates tbody tr {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.12);
       }
 
       .candidates tbody td {
         text-align: left;
         vertical-align: top;
+        background: rgba(0, 0, 0, 0.001);
+        padding: 16px 10px;
+        font-weight: 500;
+        font-size: 10px;
+        line-height: 14px;
+        letter-spacing: 0.02em;
+        color: rgba(0, 0, 0, 0.87);
+      }
+
+      .candidates tbody td:first-child {
+        width: auto;
+        min-width: 150px;
+      }
+
+      .candidates tbody td {
+        width: 100px;
       }
 
       .candidates .votes {
-        text-align: right;
+        text-align: left;
+        width: 100px;
+      }
+
+      .eliminated-text {
+        color: #DC2626;
+        font-weight: 700;
+      }
+
+      .winner-text {
+        color: #16A34A;
+        font-weight: 700;
+      }
+
+      .vote-for {
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 24px;
+        letter-spacing: 0.02em;
+        text-align: left;
+        margin: 8px 0;
+        color: rgba(0, 0, 0, 0.87);
+      }
+
+      .contest-desc {
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 24px;
+        letter-spacing: 0.02em;
+        text-align: center;
+        margin: 12px 0;
       }
 
       .paragraph {
