@@ -13,6 +13,7 @@ fn create_runoff_status_simple() -> RunoffStatus {
         round_count: 0,
         rounds: Vec::new(),
         max_rounds: 1,
+        name_references: Vec::new(),
     }
 }
 
@@ -22,12 +23,26 @@ fn create_runoff_status(active_candidate_ids: Vec<&str>) -> RunoffStatus {
     for id in &active_candidate_ids {
         candidates_status.insert(id.to_string(), ECandidateStatus::Active);
     }
+
+    let name_references = active_candidate_ids
+        .iter()
+        .map(|id| CandidateReference {
+            id: id.to_string(),
+            name: id
+                .chars()
+                .next()
+                .unwrap_or_default()
+                .to_string()
+                .to_uppercase(),
+        })
+        .collect();
     let max_rounds = active_candidate_ids.len() as u64 + 1;
     RunoffStatus {
         candidates_status,
         round_count: 0,
         rounds: Vec::new(),
         max_rounds,
+        name_references,
     }
 }
 
@@ -49,12 +64,24 @@ fn test_filter_by_exact_number_of_wins() {
     let runoff = create_runoff_status_simple();
 
     // Create a map with various candidates and their win counts
-    let mut candidates_wins: HashMap<String, u64> = HashMap::new();
-    candidates_wins.insert("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string(), 10);
-    candidates_wins.insert("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e".to_string(), 25);
-    candidates_wins.insert("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f".to_string(), 10);
-    candidates_wins.insert("d4e5f6a7-b8c9-4d5e-8f9a-3b4c5d6e7f8a".to_string(), 50);
-    candidates_wins.insert("e5f6a7b8-c9d0-4e5f-8a9b-4c5d6e7f8a9b".to_string(), 25);
+    let mut candidates: HashMap<String, u64> = HashMap::new();
+    candidates.insert("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string(), 10);
+    candidates.insert("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e".to_string(), 25);
+    candidates.insert("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f".to_string(), 10);
+    candidates.insert("d4e5f6a7-b8c9-4d5e-8f9a-3b4c5d6e7f8a".to_string(), 50);
+    candidates.insert("e5f6a7b8-c9d0-4e5f-8a9b-4c5d6e7f8a9b".to_string(), 25);
+    let candidates_wins = candidates
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                CandidateOutcome {
+                    wins: *v,
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
 
     // Filter candidates with exactly 25 wins
     let result = runoff.filter_candidates_by_number_of_wins(&candidates_wins, 25);

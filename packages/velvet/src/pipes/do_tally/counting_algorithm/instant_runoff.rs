@@ -106,7 +106,7 @@ impl BallotsStatus<'_> {
 }
 
 /// Outcome for each candidate in a round
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CandidateOutcome {
     pub name: String,
     pub wins: u64,

@@ -8,7 +8,9 @@ use crate::error::BallotError;
 use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::ceremonies::{CountingAlgType, CeremoniesPolicy, TallyOperation};
+use crate::types::ceremonies::{
+    CeremoniesPolicy, CountingAlgType, TallyOperation,
+};
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use ::core::convert::TryInto;
 use borsh::{BorshDeserialize, BorshSerialize};
