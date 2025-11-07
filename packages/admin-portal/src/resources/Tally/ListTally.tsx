@@ -45,8 +45,7 @@ import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import styled from "@emotion/styled"
-import {
-    EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
+import {EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
 import {
     ETallyType,
     IExecutionStatus,
@@ -210,9 +209,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         [keysCeremonies?.list_keys_ceremony?.items]
     )
     const isUnencryptedPolicy = useMemo(
-        () => 
-            electionEventRecord.presentation?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.PLAINTEXT
-        , electionEventRecord.presentation?.contest_encryption_policy
+        () =>
+            electionEventRecord.presentation?.contest_encryption_policy ===
+            EElectionEventContestEncryptionPolicy.PLAINTEXT,
+        electionEventRecord.presentation?.contest_encryption_policy
     )
 
     console.log("isKeyCeremonyFinished: ", isKeyCeremonyFinished)
@@ -232,7 +232,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 setIsCreatingTally(true)
                 setCreatingFlag(ETallyType.ELECTORAL_RESULTS)
             }}
-            disabled={(!isKeyCeremonyFinished && !isUnencryptedPolicy) || !isPublished || isCreatingTally}
+            disabled={
+                (!isKeyCeremonyFinished && !isUnencryptedPolicy) || !isPublished || isCreatingTally
+            }
             style={{height: "10px"}}
             sx={{marginBottom: "10px"}}
         >
@@ -254,16 +256,18 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
-            {canCreateCeremony && (!isKeyCeremonyFinished && !isUnencryptedPolicy) && (
+            {canCreateCeremony && !isKeyCeremonyFinished && !isUnencryptedPolicy && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noKeysTally")}
                 </Alert>
             )}
-            {canCreateCeremony && (isKeyCeremonyFinished || isUnencryptedPolicy) && !isPublished && (
-                <Alert severity="warning">
-                    {t("electionEventScreen.tally.notify.noPublication")}
-                </Alert>
-            )}
+            {canCreateCeremony &&
+                (isKeyCeremonyFinished || isUnencryptedPolicy) &&
+                !isPublished && (
+                    <Alert severity="warning">
+                        {t("electionEventScreen.tally.notify.noPublication")}
+                    </Alert>
+                )}
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.tally.emptyHeader")}
             </Typography>

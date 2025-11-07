@@ -318,7 +318,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const isCastingBallot = useRef<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot, toHashableMultiBallot, toHashablePlaintextBallot} = provideBallotService()
+    const {toHashableBallot, toHashableMultiBallot, toHashablePlaintextBallot} =
+        provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -392,7 +393,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             }
         }
 
-        let hashableBallot: IHashableSingleBallot | IHashableMultiBallot | IHashablePlaintextBallot | undefined
+        let hashableBallot:
+            | IHashableSingleBallot
+            | IHashableMultiBallot
+            | IHashablePlaintextBallot
+            | undefined
         try {
             const encryptionPolicy =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy
@@ -404,7 +409,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
                         return toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
                     case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                        return toHashablePlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
+                        return toHashablePlaintextBallot(
+                            auditableBallot as IAuditablePlaintextBallot
+                        )
                     default:
                         // TODO New VotingPortalError?
                         throw new Error(VotingPortalErrorType.INCONSISTENT_HASH)

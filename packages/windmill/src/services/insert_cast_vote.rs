@@ -35,16 +35,16 @@ use sequent_core::ballot::{
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
-use sequent_core::encrypt::hash_plaintext_ballot_sha512;
 use sequent_core::encrypt::hash_plaintext_ballot;
+use sequent_core::encrypt::hash_plaintext_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;
 use sequent_core::error::BallotError;
 use sequent_core::multi_ballot::verify_multi_ballot_signature;
-use sequent_core::plaintext_ballot::verify_plaintext_ballot_signature;
-use sequent_core::plaintext_ballot::{HashablePlaintextBallot, SignedHashablePlaintextBallot};
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::multi_ballot::SignedHashableMultiBallot;
+use sequent_core::plaintext_ballot::verify_plaintext_ballot_signature;
+use sequent_core::plaintext_ballot::{HashablePlaintextBallot, SignedHashablePlaintextBallot};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
@@ -264,14 +264,16 @@ pub async fn try_insert_cast_vote(
     let hash_result = match contest_encryption_policy {
         Some(ContestEncryptionPolicy::PLAINTEXT) => {
             deserialize_and_check_plaintext_ballot(&input, voter_id)
-        },
+        }
         Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS) => {
             deserialize_and_check_multi_ballot(&input, voter_id)
-        },
+        }
         Some(ContestEncryptionPolicy::SINGLE_CONTEST) => {
             deserialize_and_check_ballot(&input, voter_id)
-        },
-        None => Err(CastVoteError::DeserializeBallotFailed("Contest encryption policy not set.".to_string())),
+        }
+        None => Err(CastVoteError::DeserializeBallotFailed(
+            "Contest encryption policy not set.".to_string(),
+        )),
     };
 
     let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {

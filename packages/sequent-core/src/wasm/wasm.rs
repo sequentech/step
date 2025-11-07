@@ -241,11 +241,15 @@ pub fn to_hashable_plaintext_ballot_js(
     // Parse input
     let auditable_plaintext_ballot_js: Value =
         serde_wasm_bindgen::from_value(auditable_plaintext_ballot_json)
-            .map_err(|err| format!("Failed to parse auditable plaintext ballot: {}", err))
+            .map_err(|err| {
+                format!("Failed to parse auditable plaintext ballot: {}", err)
+            })
             .into_json()?;
     let auditable_plaintext_ballot: AuditablePlaintextBallot =
         deserialize_value(auditable_plaintext_ballot_js)
-            .map_err(|err| format!("Failed to parse auditable plaintext ballot: {}", err))
+            .map_err(|err| {
+                format!("Failed to parse auditable plaintext ballot: {}", err)
+            })
             .into_json()?;
 
     // Test deserializing auditable ballot contests
@@ -288,12 +292,17 @@ pub fn to_hashable_plaintext_ballot_js(
 
     // Serialize the hashable ballot
     let serializer = Serializer::json_compatible();
-    deserialized_plaintext_ballot.serialize(&serializer).map_err(|err| {
-        JsValue::from(ErrorStatus {
-            error_type: BallotError::SERIALIZE_ERROR,
-            error_msg: format!("Failed to serialize hashable plaintext ballot: {}", err),
+    deserialized_plaintext_ballot
+        .serialize(&serializer)
+        .map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::SERIALIZE_ERROR,
+                error_msg: format!(
+                    "Failed to serialize hashable plaintext ballot: {}",
+                    err
+                ),
+            })
         })
-    })
 }
 
 #[allow(clippy::all)]

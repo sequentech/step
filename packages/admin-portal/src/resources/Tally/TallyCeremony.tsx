@@ -48,6 +48,7 @@ import {
     EAllowTally,
     EElectionEventCeremoniesPolicy,
     EInitializeReportPolicy,
+    EElectionEventContestEncryptionPolicy,
     EInitReport,
     EVotingStatus,
     isArray,
@@ -358,6 +359,12 @@ export const TallyCeremony: React.FC = () => {
         currentKeysCeremony?.settings?.policy ===
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
+    const isUnencryptedElection =
+        electionEvent.presentation?.contest_encryption_policy ===
+        EElectionEventContestEncryptionPolicy.PLAINTEXT
+
+    const shouldSkipCeremony = isAutomatedCeremony || isUnencryptedElection
+
     useEffect(() => {
         if (tallySession?.is_execution_completed && !isTallyCompleted) {
             // Only mark as completed if we have the resultsEventId
@@ -382,6 +389,22 @@ export const TallyCeremony: React.FC = () => {
     useEffect(() => {
         if (tallySession) {
             setTally(tallySession)
+
+            const localCurrentKeysCeremony = sortedKeysCeremonies.find(
+                (ceremony: any) => tallySession?.keys_ceremony_id === ceremony.id
+            )
+            const localIsAutomatedCeremony =
+                electionEvent.presentation?.ceremonies_policy ===
+                    EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+                localCurrentKeysCeremony?.settings?.policy ===
+                    EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
+            const localIsPlaintextElection =
+                electionEvent.presentation?.contest_encryption_policy ===
+                EElectionEventContestEncryptionPolicy.PLAINTEXT
+
+            const localShouldSkipCeremony = localIsAutomatedCeremony || localIsPlaintextElection
+
             if (!tallyId && tallySession.execution_status !== ITallyExecutionStatus.CANCELLED) {
                 setPage(WizardSteps.Start)
                 return
@@ -391,6 +414,30 @@ export const TallyCeremony: React.FC = () => {
                 tallySession.execution_status === ITallyExecutionStatus.CONNECTED ||
                 tallySession.execution_status === ITallyExecutionStatus.CANCELLED
             ) {
+                if (
+                    localShouldSkipCeremony &&
+                    tallySession.execution_status === ITallyExecutionStatus.CONNECTED &&
+                    !isConfirming // Prevent re-triggering if already in progress
+                ) {
+                    setIsConfirming(true) // Use loading state
+                    UpdateTallyCeremonyMutation({
+                        variables: {
+                            election_event_id: record?.id,
+                            tally_session_id: tallySession.id,
+                            status: ITallyExecutionStatus.IN_PROGRESS,
+                        },
+                    })
+                        .catch((error) => {
+                            // Handle error if mutation fails
+                            notify(t("tally.startTallyError"), {type: "error"})
+                            console.error("Auto-start tally failed", error)
+                        })
+                        .finally(() => {
+                            setIsConfirming(false) // Always reset loading state
+                        })
+                    return // Wait for mutation to cause refetch
+                }
+
                 setPage(WizardSteps.Ceremony)
                 return
             }
@@ -457,7 +504,7 @@ export const TallyCeremony: React.FC = () => {
                 )
             }) || false
         )
-    }, [elections, currentKeysCeremony, isAutomatedCeremony, selectedElections])
+    }, [elections, currentKeysCeremony, shouldSkipCeremony, selectedElections])
 
     useEffect(() => {
         if (page === WizardSteps.Start && creatingType !== ETallyType.INITIALIZATION_REPORT) {
@@ -468,7 +515,7 @@ export const TallyCeremony: React.FC = () => {
             let newIsButtonDisabled =
                 (page === WizardSteps.Start && selectedElections?.length === 0 ? true : false) ||
                 !is_published
-            let isAutomaticCeremonyTallyNotAllowed = isAutomatedCeremony && !isAutomaticTallyAllowed
+            let isAutomaticCeremonyTallyNotAllowed = shouldSkipCeremony && !isAutomaticTallyAllowed
 
             setIsButtonDisabled(newIsButtonDisabled || isAutomaticCeremonyTallyNotAllowed)
             if (isAutomaticCeremonyTallyNotAllowed) {
@@ -477,7 +524,7 @@ export const TallyCeremony: React.FC = () => {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
             }
         }
-    }, [selectedElections, isAutomatedCeremony, isAutomaticTallyAllowed])
+    }, [selectedElections, shouldSkipCeremony, isAutomaticTallyAllowed])
 
     const isInitAllowed = useMemo(() => {
         return (
@@ -790,7 +837,7 @@ export const TallyCeremony: React.FC = () => {
 
     const breadCrumbSteps = () => {
         let steps = ["tally.breadcrumbSteps.start"]
-        if (!isAutomatedCeremony) {
+        if (!shouldSkipCeremony) {
             steps.push("tally.breadcrumbSteps.ceremony")
         }
         steps.push("tally.breadcrumbSteps.tally")
@@ -805,7 +852,7 @@ export const TallyCeremony: React.FC = () => {
                     <TallyStyles.StyledHeader>
                         <BreadCrumbSteps
                             labels={breadCrumbSteps()}
-                            selected={isAutomatedCeremony && page > 0 ? page - 1 : page} // skipped ceremony page number
+                            selected={shouldSkipCeremony && page > 0 ? page - 1 : page}
                             variant={BreadCrumbStepsVariant.Circle}
                             colorPreviousSteps={true}
                         />
@@ -826,8 +873,7 @@ export const TallyCeremony: React.FC = () => {
                     ) : null}
                     {page === WizardSteps.Start && (
                         <>
-                            {/* 
-                            This code snippet determines whether the "Next" button should be
+                            {/* This code snippet determines whether the "Next" button should be
                             disabled on the Start page of the wizard. The button is disabled if:
                             1. The current page is the Start page and no elections are selected.
                             2. The elections are not published. 
@@ -883,10 +929,9 @@ export const TallyCeremony: React.FC = () => {
                         </>
                     )}
 
-                    {!isAutomatedCeremony && page === WizardSteps.Ceremony && (
+                    {!shouldSkipCeremony && page === WizardSteps.Ceremony && (
                         <>
-                            {/* 
-                            This code snippet determines whether the "Next" button should be
+                            {/* This code snippet determines whether the "Next" button should be
                             disabled on the Ceremony page of the wizard. The button is disabled if:
                             1. The tally object's execution_status is not equal to ITallyExecutionStatus.CONNECTED.
                             2. The isStartAllowed variable is false.
@@ -1178,7 +1223,7 @@ export const TallyCeremony: React.FC = () => {
                                 <>
                                     {page === WizardSteps.Start
                                         ? creatingType === ETallyType.ELECTORAL_RESULTS
-                                            ? isAutomatedCeremony
+                                            ? shouldSkipCeremony
                                                 ? t("tally.common.start")
                                                 : t("tally.common.ceremony")
                                             : t("tally.common.initialization")
@@ -1216,7 +1261,7 @@ export const TallyCeremony: React.FC = () => {
                 ok={t("tally.common.dialog.ok")}
                 cancel={t("tally.common.dialog.cancel")}
                 title={
-                    isAutomatedCeremony
+                    shouldSkipCeremony
                         ? t("tally.common.dialog.tallyTitle")
                         : t("tally.common.dialog.title")
                 }
@@ -1233,7 +1278,7 @@ export const TallyCeremony: React.FC = () => {
                     // Don't enable the button again because it is handled in the effect when the page changes
                 }}
             >
-                {isAutomatedCeremony
+                {shouldSkipCeremony
                     ? t("tally.common.dialog.startAutomatedTallyMessage")
                     : t("tally.common.dialog.message")}
             </Dialog>
