@@ -5,6 +5,23 @@
 import {Box, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {useTranslation, Trans} from "react-i18next"
+
+// React 19 compatibility wrapper for Trans component
+const TransFixed: React.FC<any> = (props) => {
+    const T = Trans as any;
+    return <T {...props} />;
+};
+
+// React 19 compatibility wrappers for MUI icons
+const AccountCircleFixed: React.FC<any> = (props) => {
+    const Icon = AccountCircle as any;
+    return <Icon {...props} />;
+};
+
+const LogoutIconFixed: React.FC<any> = (props) => {
+    const Icon = LogoutIcon as any;
+    return <Icon {...props} />;
+};
 import {
     IExpiryCountdown,
     StyledButton,
@@ -173,7 +190,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         aria-labelledby="welcome-text-name"
                         onClick={handleMenu}
                     >
-                        <AccountCircle sx={{fontSize: 40}} />
+                        <AccountCircleFixed sx={{fontSize: 40}} />
                         <Box
                             id="welcome-text-name"
                             className="user-first-name"
@@ -188,7 +205,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             }}
                             title={profileName}
                         >
-                            <Trans
+                            <TransFixed
                                 i18nKey="header.welcome"
                                 values={{
                                     name: profileName,
@@ -257,7 +274,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             userProfile?.openLink?.()
                         }}
                     >
-                        <AccountCircle sx={{marginRight: "14px"}} />
+                        <AccountCircleFixed sx={{marginRight: "14px"}} />
                         {t("header.profile")}
                     </MenuItem>
                 )}
@@ -269,7 +286,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             handleClose()
                         }}
                     >
-                        <LogoutIcon sx={{marginRight: "14px"}} />
+                        <LogoutIconFixed sx={{marginRight: "14px"}} />
                         {t("logout.buttonText")}
                     </MenuItem>
                 )}

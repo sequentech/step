@@ -14,6 +14,18 @@ import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
+
+// Type wrapper for MUI icons to work with React 19
+const RadioButtonUncheckedIconFixed: React.FC<any> = (props) => {
+    const Icon = RadioButtonUncheckedIcon as any;
+    return <Icon {...props} />;
+};
+
+const RadioButtonCheckedIconFixed: React.FC<any> = (props) => {
+    const Icon = RadioButtonCheckedIcon as any;
+    return <Icon {...props} />;
+};
+
 const UnselectableTypography = styled(Typography)`
     user-select: none;
 `
@@ -215,8 +227,8 @@ const Candidate: React.FC<CandidateProps> = ({
                             "className": "candidate-input",
                             "aria-label": isString(title) ? title : "",
                         }}
-                        icon={<RadioButtonUncheckedIcon />}
-                        checkedIcon={<RadioButtonCheckedIcon />}
+                        icon={<RadioButtonUncheckedIconFixed />}
+                        checkedIcon={<RadioButtonCheckedIconFixed />}
                         disabled={shouldDisable}
                         checked={checked}
                         onChange={handleChange}

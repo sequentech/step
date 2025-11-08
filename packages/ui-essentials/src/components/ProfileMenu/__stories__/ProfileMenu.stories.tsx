@@ -10,6 +10,8 @@ import theme from "../../../services/theme"
 import {Box} from "@mui/material"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
+
+
 const meta: Meta<typeof ProfileMenu> = {
     title: "components/ProfileMenu",
     component: ProfileMenu,
@@ -24,7 +26,7 @@ const meta: Meta<typeof ProfileMenu> = {
                     alignItems: "flex-end",
                 }}
             >
-                <Story />
+                <>{Story({} as any, {} as any)}</>
             </Box>
         ),
     ],

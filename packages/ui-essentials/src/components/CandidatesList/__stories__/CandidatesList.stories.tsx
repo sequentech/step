@@ -7,6 +7,13 @@ import CandidatesList, {CandidatesListProps} from "../CandidatesList"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import {Box} from "@mui/material"
 import Image from "mui-image"
+
+// React 19 compatibility wrapper for mui-image
+const ImageFixed: React.FC<any> = (props) => {
+    const Img = Image as any;
+    return <Img {...props} />;
+};
+
 import CandidateImg from "../../../../public/example_candidate.jpg"
 import Candidate from "../../Candidate/Candidate"
 
@@ -23,7 +30,7 @@ const SimpleCandidate: React.FC<SimpleCandidateProps> = ({isActive}) => (
         url="https://google.com"
         shouldDisable={false}
     >
-        <Image src={CandidateImg} duration={100} />
+        <ImageFixed src={CandidateImg} duration={100} />
     </Candidate>
 )
 
