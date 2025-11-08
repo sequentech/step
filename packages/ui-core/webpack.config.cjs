@@ -19,6 +19,12 @@ module.exports = function (env, argv) {
             },
             path: path.resolve(__dirname, "dist"),
         },
+        optimization: {
+            // Disable tree-shaking to ensure all exports are included
+            usedExports: false,
+            sideEffects: false,
+            providedExports: true,
+        },
         devtool: "source-map",
         module: {
             rules: [

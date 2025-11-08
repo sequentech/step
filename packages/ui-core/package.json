@@ -114,5 +114,6 @@
   },
   "readme": "ERROR: No README data found!",
   "homepage": "https://github.com/sequentech/ui-core#readme",
-  "_id": "ui-core@0.1.0"
+  "_id": "ui-core@0.1.0",
+  "sideEffects": false
 }

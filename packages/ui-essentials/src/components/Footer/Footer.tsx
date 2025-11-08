@@ -45,7 +45,7 @@ const Footer: React.FC<PaperProps> = (args) => {
     const {t} = useTranslation()
     const poweredByString = t("footer.poweredBy")
 
-    if (!poweredByString.includes("<span>Sequent</span>")) {
+    if (!poweredByString.includes("<0>") && !poweredByString.includes("<1>")) {
         return (
             <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
                 <Typography variant="subtitle2" fontStyle="italic" color="error">
@@ -61,25 +61,15 @@ const Footer: React.FC<PaperProps> = (args) => {
             <Typography variant="subtitle2" fontStyle="italic">
                 <TransFixed
                     i18nKey="footer.poweredBy"
-                    components={{
-                        link: <CustomLink />,
-                        sequent: <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
-                    }}
-                >
-                    <strong>Powered</strong> by&nbsp;
-                    <span>Sequent</span>
-                </TransFixed>
+                    components={[
+                        <strong />,
+                        <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />
+                    ]}
+                />
             </Typography>
         </StyledPaper>
     )
 }
 
-declare global {
-    namespace JSX {
-        interface IntrinsicElements {
-            sequent: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-        }
-    }
-}
 
 export default Footer

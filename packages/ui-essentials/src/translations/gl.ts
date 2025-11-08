@@ -63,7 +63,7 @@ const galegoTranslation = {
             },
         },
         footer: {
-            poweredBy: "Desenvolvido por <sequent />",
+            poweredBy: "Desenvolvido por <1></1>",
         },
         errors: {
             encoding: {

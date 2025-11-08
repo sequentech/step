@@ -19,13 +19,22 @@ module.exports = function (env, argv) {
             },
             path: path.resolve(__dirname, "dist"),
         },
+        optimization: {
+            // Disable tree-shaking to ensure all exports are included
+            usedExports: false,
+            sideEffects: false,
+            providedExports: true,
+        },
         devtool: "source-map",
         module: {
             rules: [
                 {
                     test: /\.(js|ts)x?$/,
                     exclude: /node_modules/,
-                    use: ["babel-loader", "ts-loader"],
+                    use: [
+                        "babel-loader",
+                        "ts-loader",
+                    ],
                 },
                 {
                     type: "asset",
@@ -48,7 +57,7 @@ module.exports = function (env, argv) {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
             },
-            extensions: [".js", ".jsx", ".ts", ".tsx"],
+            extensions: [".js", ".jsx", ".ts", ".tsx", ".d.ts"],
         },
         plugins: [new ProgressPlugin(), new ESLintPlugin(), new CleanWebpackPlugin()],
     }
