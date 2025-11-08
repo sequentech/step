@@ -101,7 +101,9 @@ module.exports = function (env, argv) {
                 ],
             }),
             new ProgressPlugin(),
-            new ESLintPlugin(),
+            new ESLintPlugin({
+                extensions: [".js", ".jsx", ".ts", ".tsx"],
+            }),
             new CleanWebpackPlugin(),
         ],
         devServer: {

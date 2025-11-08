@@ -2,7 +2,6 @@
   "name": "ballot-verifier",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "dependencies": {
     "@craco/craco": "^7.1.0",
     "@apollo/client": "3.8.0",

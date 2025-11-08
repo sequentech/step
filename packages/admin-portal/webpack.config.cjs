@@ -80,6 +80,8 @@ module.exports = function (env, argv) {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
                 "@": path.resolve(__dirname, "src"),
+                "@emotion/styled": path.resolve(__dirname, "../node_modules/@emotion/styled"),
+                "@emotion/react": path.resolve(__dirname, "../node_modules/@emotion/react"),
             },
             extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
