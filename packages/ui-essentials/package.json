@@ -26,13 +26,6 @@
     "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%"
   },
   "main": "dist/index.js",
-  "exports": {
-    ".": {
-      "require": "./dist/index.js",
-      "import": "./dist/index.js"
-    },
-    "./public/*": "./public/*"
-  },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.1",
     "@fortawesome/free-brands-svg-icons": "^7.0.1",
@@ -148,10 +141,5 @@
   },
   "readme": "ERROR: No README data found!",
   "homepage": "https://github.com/sequentech/ui-essentials#readme",
-  "_id": "ui-essentials@0.1.0",
-  "types": "dist/index.d.ts",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ]
+  "_id": "ui-essentials@0.1.0"
 }

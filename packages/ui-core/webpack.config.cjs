@@ -14,18 +14,9 @@ module.exports = function (env, argv) {
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
             filename: "index.js",
-            /*library: {
-                type: "commonjs2",
-            },*/
             library: "$",
             libraryTarget: "umd",
             path: path.resolve(__dirname, "dist"),
-        },
-        optimization: {
-            // Disable tree-shaking to ensure all exports are included
-            usedExports: false,
-            sideEffects: false,
-            providedExports: true,
         },
         devtool: "source-map",
         module: {
@@ -55,8 +46,6 @@ module.exports = function (env, argv) {
         resolve: {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
-                "@emotion/styled": path.resolve(__dirname, "../node_modules/@emotion/styled"),
-                "@emotion/react": path.resolve(__dirname, "../node_modules/@emotion/react"),
             },
             extensions: [".js", ".jsx", ".ts", ".tsx", ".wasm"],
         },
@@ -68,6 +57,7 @@ module.exports = function (env, argv) {
             new ESLintPlugin({
                 extensions: [".js", ".jsx", ".ts", ".tsx"],
             }),
-            new CleanWebpackPlugin()],
+            new CleanWebpackPlugin()
+        ],
     }
 }
