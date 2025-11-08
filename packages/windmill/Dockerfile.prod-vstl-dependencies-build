@@ -4,9 +4,15 @@
 
 FROM debian:bookworm
 
+# Install any necessary runtime dependencies for production
+
+RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+RUN update-ca-certificates
+
 # Use Docker build arguments to determine the architecture
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 ARG TARGETARCH
 
 # Set Java version
@@ -35,15 +41,8 @@ RUN case "${TARGETARCH}" in \
     esac; \
     echo "Downloading OpenJDK for ${JAVA_OS_ARCH}"; \
     echo "Download url https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME}"; \
-    echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh
-
-# Install any necessary runtime dependencies for production
-RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget \
-    && rm -rf /var/lib/apt/lists/*
-RUN update-ca-certificates
-RUN wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
+    echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
+    wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \

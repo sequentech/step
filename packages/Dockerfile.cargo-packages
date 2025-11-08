@@ -15,18 +15,11 @@ COPY ./windmill/external-bin/ecies-tool.jar /usr/local/bin/
 COPY /windmill/external-bin/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Use Docker build arguments to determine the architecture
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 ARG TARGETARCH
 
 # Set Java version
 ENV JAVA_VERSION=22.0.2
 ENV JAVA_BUILD=c9ecb94cd31b495da20a27d4581645e8/9
-
-# Default to linux-x64, which is the most common.
-# This will be overridden by the conditional logic below.
-ENV JAVA_OS_ARCH=linux-x64
-ENV JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-x64_bin.tar.gz
 
 # Conditional logic to set the correct download URL and filename based on architecture
 RUN case "${TARGETARCH}" in \
@@ -45,12 +38,10 @@ RUN case "${TARGETARCH}" in \
     esac; \
     echo "Downloading OpenJDK for ${JAVA_OS_ARCH}"; \
     echo "Download url https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME}"; \
-    echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh
-
-RUN apt-get update && \
+    echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
-    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget && \
-    # Use a single wget command with a variable URL
+    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget software-properties-common && \
     wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \

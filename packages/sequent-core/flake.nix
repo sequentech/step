@@ -102,7 +102,18 @@
             nativeBuildInputs =
               defaultPackage.nativeBuildInputs;
             buildInputs =
-              with pkgs; [ bash reuse cargo-deny ack wasm-pack ];
+              with pkgs; [
+                # Your existing tools
+                bash
+                reuse
+                cargo-deny
+                ack
+                wasm-pack
+
+                # Add these two lines for browser testing
+                firefox
+                geckodriver
+              ];
           };
         }
     );
