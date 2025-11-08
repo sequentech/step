@@ -54,7 +54,7 @@ const IconTooltip = ({icon, info, infoContainerWidth = "250px"}: IconTooltipProp
             }}
         >
             <Box sx={{width: "30px"}}>
-                <Icon icon={icon} />
+                <Icon icon={icon as any} />
             </Box>
         </Tooltip>
     )

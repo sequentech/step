@@ -211,7 +211,7 @@ export const CandidateDataForm: React.FC<{
         let tabNodes: Array<ReactNode> = []
 
         languageConf.forEach((lang) => {
-            tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
+            tabNodes.push(<Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>)
         })
 
         // reset actived tab to first tab if only one
@@ -339,19 +339,19 @@ export const CandidateDataForm: React.FC<{
                     <div style={{marginTop: "16px"}}>
                         <TextInput
                             source={`presentation.i18n[${lang}].name`}
-                            label={t("electionEventScreen.field.name")}
+                            label={String(t("electionEventScreen.field.name"))}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].alias`}
-                            label={t("electionEventScreen.field.alias")}
+                            label={String(t("electionEventScreen.field.alias"))}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].description`}
-                            label={t("electionEventScreen.field.description")}
+                            label={String(t("electionEventScreen.field.description"))}
                         />
                         <BooleanInput
                             source={`presentation.is_disabled`}
-                            label={t("candidateScreen.edit.isDisabled")}
+                            label={String(t("candidateScreen.edit.isDisabled"))}
                         />
                     </div>
                 </CustomTabPanel>
@@ -366,7 +366,7 @@ export const CandidateDataForm: React.FC<{
             {!enabledDeleteImage ? (
                 <CircularProgress size="18px" style={{marginRight: "6px"}} />
             ) : null}
-            <Icon variant="info" icon={faTrash} fontSize="18px" />
+            <Icon variant="info" icon={faTrash as any} fontSize="18px" />
         </StyledIconButton>
     )
 
@@ -432,24 +432,24 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput source="type" label={t("candidateScreen.edit.type")} />
+                                <TextInput source="type" label={String(t("candidateScreen.edit.type"))} />
                                 <TextInput source="presentation.subtype" label="Subtype" />
 
                                 <BooleanInput
                                     source={`presentation.is_explicit_invalid`}
-                                    label={t("candidateScreen.edit.isExplicitInvalid")}
+                                    label={String(t("candidateScreen.edit.isExplicitInvalid"))}
                                 />
                                 <BooleanInput
                                     source={`presentation.is_explicit_blank`}
-                                    label={t("candidateScreen.edit.isExplicitBlank")}
+                                    label={String(t("candidateScreen.edit.isExplicitBlank"))}
                                 />
                                 <BooleanInput
                                     source={`presentation.is_category_list`}
-                                    label={t("candidateScreen.edit.isCategoryList")}
+                                    label={String(t("candidateScreen.edit.isCategoryList"))}
                                 />
                                 <BooleanInput
                                     source={`presentation.is_write_in`}
-                                    label={t("candidateScreen.edit.isWriteIn")}
+                                    label={String(t("candidateScreen.edit.isWriteIn"))}
                                 />
 
                                 <SelectInput
@@ -457,7 +457,7 @@ export const CandidateDataForm: React.FC<{
                                     choices={invalidVotePositionChoices()}
                                     format={(value) => (typeof value == "string" ? value : "null")}
                                     parse={(value) => (value == "null" ? null : value)}
-                                    label={t(`candidateScreen.invalidVotePosition.label`)}
+                                    label={String(t(`candidateScreen.invalidVotePosition.label`))}
                                     emptyValue={t(`candidateScreen.invalidVotePosition.null`)}
                                     defaultValue={null}
                                     validate={required()}
@@ -490,7 +490,7 @@ export const CandidateDataForm: React.FC<{
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={1}>
-                                    <Grid item xs={2}>
+                                    <Grid size={2}>
                                         {parsedValue?.image_document_id &&
                                         parsedValue?.image_document_id !== "" ? (
                                             <img
@@ -501,7 +501,7 @@ export const CandidateDataForm: React.FC<{
                                             />
                                         ) : null}
                                     </Grid>
-                                    <Grid item xs={10}>
+                                    <Grid size={10}>
                                         <DropFile
                                             handleFiles={async (files) => handleFiles(files)}
                                         />

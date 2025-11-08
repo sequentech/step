@@ -156,7 +156,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             <Box sx={{padding: "0"}}>
                 <TextField
                     disabled={isWorking()}
-                    label={t("electionEventScreen.import.sha")}
+                    label={String(t("electionEventScreen.import.sha"))}
                     size="small"
                     value={shaField}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -196,9 +196,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 <Dialog
                     variant="warning"
                     open={showShaDialog}
-                    ok={t("electionEventScreen.import.shaDialog.ok")}
-                    cancel={t("electionEventScreen.import.shaDialog.cancel")}
-                    title={t("electionEventScreen.import.shaDialog.title")}
+                    ok={String(t("electionEventScreen.import.shaDialog.ok"))}
+                    cancel={String(t("electionEventScreen.import.shaDialog.cancel"))}
+                    title={String(t("electionEventScreen.import.shaDialog.title"))}
                     handleClose={(result: boolean) => {
                         if (result) {
                             doImport(documentId as string, shaField, password)
@@ -213,10 +213,11 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 <Dialog
                     open={passwordDialogOpen}
                     handleClose={handlePasswordSubmit}
-                    title={t("electionEventScreen.import.passwordDialog.title")}
+                    title={String(t("electionEventScreen.import.passwordDialog.title"))}
                     ok={"Ok"}
                     variant="info"
                 >
+                    <>
                     <SimpleForm toolbar={false} component={Box}>
                         <Box>
                             <InputLabel>
@@ -233,6 +234,8 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                             />
                         </Box>
                     </SimpleForm>
+                    </>
+
                 </Dialog>
             </Box>
         )

@@ -95,10 +95,10 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
+                ok={String(t("common.label.export"))}
                 okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.export"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()

@@ -141,7 +141,7 @@ const ElectionForm: React.FC = () => {
                     }}
                 >
                     <Button>
-                        <IconButton icon={faPlusCircle} fontSize="24px" />
+                        <IconButton icon={faPlusCircle as any} fontSize="24px" />
                         Add contest
                     </Button>
                 </Link>

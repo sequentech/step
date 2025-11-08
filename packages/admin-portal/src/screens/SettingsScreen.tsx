@@ -49,8 +49,8 @@ export const SettingsScreen: React.FC = () => {
             className="settings-box"
         >
             <HeaderTitle
-                title={t("electionTypeScreen.common.settingTitle")}
-                subtitle={t("electionTypeScreen.common.settingSubtitle")}
+                title={String(t("electionTypeScreen.common.settingTitle"))}
+                subtitle={String(t("electionTypeScreen.common.settingSubtitle"))}
             />
 
             <Tabs

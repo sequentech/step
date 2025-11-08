@@ -185,7 +185,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         required
                         name="event_type"
                         labelId="event-type-select-label"
-                        label={t("eventsScreen.eventType.label")}
+                        label={String(t("eventsScreen.eventType.label"))}
                         value={eventType}
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent || isLoading}
@@ -222,7 +222,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                 <FormControl fullWidth>
                     {isEditEvent ? (
                         <TextField
-                            label={t("eventsScreen.election.label")}
+                            label={String(t("eventsScreen.election.label"))}
                             disabled={true}
                             value={selectedEvent ? getElectionName(selectedEvent) : "-"}
                         />
@@ -232,7 +232,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                                 isRequired={isRequiredElection(eventType as EventProcessors)}
                                 tenantId={tenantId}
                                 electionEventId={electionEventId}
-                                label={t("eventsScreen.election.label")}
+                                label={String(t("eventsScreen.election.label"))}
                                 onSelectElection={(electionId) => setElectionId(electionId)}
                                 source="event_payload.election_id"
                                 disabled={isEditEvent || isLoading}

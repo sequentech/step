@@ -172,7 +172,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
                 {task.status === IApplicationsStatus.PENDING && (
                     <RejectApplicationButton
-                        label={t("approvalsScreen.reject.label")}
+                        label={String(t("approvalsScreen.reject.label"))}
                         onClick={setRejectDialogOpen}
                     />
                 )}
@@ -192,12 +192,15 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 open={true}
                 variant="info"
                 handleClose={goBack}
-                title={t("approvalsScreen.taskInformation")}
-                ok={t("approvalsScreen.ok")}
+                title={String(t("approvalsScreen.taskInformation"))}
+                ok={String(t("approvalsScreen.ok"))}
                 fullWidth={true}
                 maxWidth="md"
             >
+                <>
                 {Content}
+            </>
+
             </Dialog>
         )
     }

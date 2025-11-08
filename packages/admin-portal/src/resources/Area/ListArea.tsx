@@ -131,11 +131,11 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 <>
                     <ActionsBox>
                         <Button onClick={createAction} className="area-add-button">
-                            <IconButton icon={faPlus} fontSize="24px" />
+                            <IconButton icon={faPlus as any} fontSize="24px" />
                             {t("areas.empty.action")}
                         </Button>
                         <Button onClick={() => setOpenImportDrawer(true)}>
-                            <IconButton icon={faPlus} fontSize="24px" />
+                            <IconButton icon={faPlus as any} fontSize="24px" />
                             {t("common.label.import")}
                         </Button>
                     </ActionsBox>
@@ -299,7 +299,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                 <TextField source="description" className="area-description" />
 
                                 <FunctionField
-                                    label={t("areas.sequent_backend_area_contest")}
+                                    label={String(t("areas.sequent_backend_area_contest"))}
                                     render={(record: any) => <AreaContestItems record={record} />}
                                 />
                                 {weightedVotingForAreas && (
@@ -347,9 +347,9 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

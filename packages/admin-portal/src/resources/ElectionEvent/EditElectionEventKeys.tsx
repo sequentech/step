@@ -181,7 +181,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             disabled={!keysCeremonies}
             className="keys-add-button"
         >
-            <ResourceListStyles.CreateIcon icon={faPlus} />
+            <ResourceListStyles.CreateIcon icon={faPlus as any} />
             {t("electionEventScreen.keys.createNew")}
         </Button>
     )
@@ -323,17 +323,17 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                         <DateField
                             source="created_at"
                             showTime={true}
-                            label={t("electionEventScreen.keys.started")}
+                            label={String(t("electionEventScreen.keys.started"))}
                         />
 
                         <FunctionField
-                            label={t("electionEventScreen.keys.statusLabel")}
+                            label={String(t("electionEventScreen.keys.statusLabel"))}
                             render={(record: any) => <StatusChip record={record} />}
                         />
 
                         <FunctionField
                             key="permission_label"
-                            label={t("electionEventScreen.tally.permissionLabels")}
+                            label={String(t("electionEventScreen.tally.permissionLabels"))}
                             render={(record: RaRecord<Identifier>) => {
                                 return (
                                     <>
@@ -354,7 +354,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
                         <FunctionField
                             source="trustees"
-                            label={t("electionEventScreen.tally.trustees")}
+                            label={String(t("electionEventScreen.tally.trustees"))}
                             render={(record: RaRecord<Identifier>) => (
                                 <Box sx={{height: 36, overflowY: "scroll"}}>
                                     <TrusteeItems
@@ -364,7 +364,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                                 </Box>
                             )}
                         />
-                        <ActionsColumn actions={actions} label={t("common.label.actions")} />
+                        <ActionsColumn actions={actions} label={String(t("common.label.actions"))} />
                     </DatagridConfigurable>
                 </List>
             )}

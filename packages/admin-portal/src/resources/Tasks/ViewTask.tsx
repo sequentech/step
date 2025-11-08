@@ -93,9 +93,9 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             ),
                             color: theme.palette.background.default,
                         }}
-                        label={t("tasksScreen.status", {
+                        label={String(t("tasksScreen.status", {
                             status: task?.execution_status as ETaskExecutionStatus,
-                        })}
+                        }))}
                     />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails>
@@ -148,12 +148,15 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                 open={true}
                 variant="info"
                 handleClose={goBack}
-                title={t("tasksScreen.taskInformation")}
-                ok={t("tasksScreen.ok")}
+                title={String(t("tasksScreen.taskInformation"))}
+                ok={String(t("tasksScreen.ok"))}
                 fullWidth={true}
                 maxWidth="md"
             >
+                <>
                 {Content}
+            </>
+
             </Dialog>
         )
     }
@@ -182,7 +185,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                                 downloading ||
                                 task?.execution_status !== ETaskExecutionStatus.SUCCESS
                             }
-                            label={t("tasksScreen.widget.downloadDocument")}
+                            label={String(t("tasksScreen.widget.downloadDocument"))}
                         >
                             <DownloadIcon />
                         </DownloaButton>

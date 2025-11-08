@@ -59,7 +59,7 @@ export const EditElectionEventApprovals: React.FC<TApproval> = ({
 
     return (
         <>
-            {/* <ElectionHeader title={t("approvalsScreen.title")} subtitle="approvalsScreen.subtitle" /> */}
+            {/* <ElectionHeader title={String(t("approvalsScreen.title"))} subtitle="approvalsScreen.subtitle" /> */}
             {viewMode === ViewMode.List ? (
                 <ListApprovals
                     electionEventId={electionEventId}

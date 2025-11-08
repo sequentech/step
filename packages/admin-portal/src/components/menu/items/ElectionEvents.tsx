@@ -682,7 +682,7 @@ export default function ElectionEvents() {
                         <StyledIconButton
                             onClick={handleOpenCreateElectionEventMenu}
                             className="election-event-create-button"
-                            icon={faPlusCircle}
+                            icon={faPlusCircle as any}
                             size="xs"
                         />
                     ) : null}
@@ -693,7 +693,7 @@ export default function ElectionEvents() {
                         <SideBarContainer dir={i18n.dir(i18n.language)}>
                             <TextField
                                 dir={i18n.dir(i18n.language)}
-                                label={t("sideMenu.search")}
+                                label={String(t("sideMenu.search"))}
                                 size="small"
                                 value={instantSearchInput}
                                 onChange={(e) => debouncedSearchChange(e.target.value)}

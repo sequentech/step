@@ -301,16 +301,18 @@ const DiffViewMemo = React.memo(
                 <Dialog
                     variant="warning"
                     open={showDialog}
-                    ok={t("publish.dialog.ok")}
-                    cancel={t("publish.dialog.ko")}
-                    title={t("publish.dialog.title")}
+                    ok={String(t("publish.dialog.ok"))}
+                    cancel={String(t("publish.dialog.ko"))}
+                    title={String(t("publish.dialog.title"))}
                     handleClose={handleDialogClose}
                     okEnabled={() => !loading}
                 >
-                    <DiffViewStyled.Content>
-                        {t("publish.dialog.diff")}
-                        {loading && <CircularProgress />}
-                    </DiffViewStyled.Content>
+                    <>
+                        <DiffViewStyled.Content>
+                            {t("publish.dialog.diff")}
+                            {loading && <CircularProgress />}
+                        </DiffViewStyled.Content>
+                    </>
                 </Dialog>
             </>
         )

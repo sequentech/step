@@ -148,5 +148,10 @@
   },
   "readme": "ERROR: No README data found!",
   "homepage": "https://github.com/sequentech/ui-essentials#readme",
-  "_id": "ui-essentials@0.1.0"
+  "_id": "ui-essentials@0.1.0",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ]
 }

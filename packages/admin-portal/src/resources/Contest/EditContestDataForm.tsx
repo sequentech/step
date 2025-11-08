@@ -179,7 +179,7 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
         }
 
         return languageConf.map((lang) => (
-            <Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>
+            <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
         ))
     }
 
@@ -502,7 +502,7 @@ export const ContestDataForm: React.FC = () => {
         let tabNodes: Array<ReactNode> = []
 
         languageConf.forEach((lang) => {
-            tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
+            tabNodes.push(<Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>)
         })
 
         // reset actived tab to first tab if only one
@@ -522,15 +522,15 @@ export const ContestDataForm: React.FC = () => {
                     <div style={{marginTop: "16px"}}>
                         <TextInput
                             source={`presentation.i18n[${lang}].name`}
-                            label={t("electionEventScreen.field.name")}
+                            label={String(t("electionEventScreen.field.name"))}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].alias`}
-                            label={t("electionEventScreen.field.alias")}
+                            label={String(t("electionEventScreen.field.alias"))}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].description`}
-                            label={t("electionEventScreen.field.description")}
+                            label={String(t("electionEventScreen.field.description"))}
                         />
                     </div>
                 </CustomTabPanel>
@@ -753,21 +753,21 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source="presentation.under_vote_policy"
                                     choices={underVotePolicyChoices()}
-                                    label={t(`contestScreen.underVotePolicy.label`)}
+                                    label={String(t(`contestScreen.underVotePolicy.label`))}
                                     validate={required()}
                                 />
 
                                 <SelectInput
                                     source="presentation.invalid_vote_policy"
                                     choices={invalidVotePolicyChoices()}
-                                    label={t(`contestScreen.invalidVotePolicy.label`)}
+                                    label={String(t(`contestScreen.invalidVotePolicy.label`))}
                                     validate={required()}
                                 />
 
                                 <SelectInput
                                     source={`presentation.blank_vote_policy`}
                                     choices={blankVotePolicyChoices()}
-                                    label={t(`contestScreen.blankVotePolicy.label`)}
+                                    label={String(t(`contestScreen.blankVotePolicy.label`))}
                                     defaultValue={EBlankVotePolicy.ALLOWED}
                                     validate={required()}
                                 />
@@ -775,7 +775,7 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.over_vote_policy`}
                                     choices={overVotePolicyChoices()}
-                                    label={t(`contestScreen.overVotePolicy.label`)}
+                                    label={String(t(`contestScreen.overVotePolicy.label`))}
                                     defaultValue={EOverVotePolicy.ALLOWED}
                                     validate={required()}
                                 />
@@ -783,14 +783,14 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.candidates_icon_checkbox_policy`}
                                     choices={candidatesIconCheckboxPolicy()}
-                                    label={t(`contestScreen.candidatesIconCheckboxPolicy.label`)}
+                                    label={String(t(`contestScreen.candidatesIconCheckboxPolicy.label`))}
                                     defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
                                     validate={required()}
                                 />
 
                                 <TextInput
                                     source={`presentation.pagination_policy`}
-                                    label={t(`contestScreen.paginationPolicy.label`)}
+                                    label={String(t(`contestScreen.paginationPolicy.label`))}
                                 />
                             </AccordionDetails>
                         </Accordion>
@@ -815,7 +815,7 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={1}>
-                                    <Grid item xs={2}>
+                                    <Grid size={2}>
                                         {parsedValue?.image_document_id &&
                                         parsedValue?.image_document_id !== "" ? (
                                             <img
@@ -826,7 +826,7 @@ export const ContestDataForm: React.FC = () => {
                                             />
                                         ) : null}
                                     </Grid>
-                                    <Grid item xs={10}>
+                                    <Grid size={10}>
                                         <DropFile
                                             handleFiles={async (files) => handleFiles(files)}
                                         />

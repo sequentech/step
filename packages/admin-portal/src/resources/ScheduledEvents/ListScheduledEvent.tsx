@@ -251,7 +251,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     </Typography>
                     <ResourceListStyles.EmptyButtonList className="voter-add-button">
                         <Button onClick={() => setOpenCreateEvent(true)}>
-                            <ResourceListStyles.CreateIcon icon={faPlus} />
+                            <ResourceListStyles.CreateIcon icon={faPlus as any} />
                             {t(`eventsScreen.empty.button`)}
                         </Button>
                     </ResourceListStyles.EmptyButtonList>
@@ -265,7 +265,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         <SelectInput
             source="event_processor"
             key="event_processor_filter"
-            label={t("eventsScreen.fields.eventProcessor")}
+            label={String(t("eventsScreen.fields.eventProcessor"))}
             choices={Object.values(EventProcessors).map((eventType) => ({
                 id: eventType,
                 name: t(`eventsScreen.eventType.${eventType}`),
@@ -274,7 +274,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         <SelectInput
             source="event_payload.election_id"
             key="election_id_filter"
-            label={t("eventsScreen.fields.electionId")}
+            label={String(t("eventsScreen.fields.electionId"))}
             choices={elections?.map((election) => ({
                 id: election.id,
                 name: election.alias || election.name || "-",
@@ -288,7 +288,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
 
     return (
         <>
-            <ElectionHeader title={t("eventsScreen.title")} subtitle="eventsScreen.subtitle" />
+            <ElectionHeader title={String(t("eventsScreen.title"))} subtitle="eventsScreen.subtitle" />
             <List
                 resource="sequent_backend_scheduled_event"
                 filter={{
@@ -336,19 +336,19 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     />
                     <TextField source="id" />
                     <FunctionField
-                        label={t("eventsScreen.fields.electionId")}
+                        label={String(t("eventsScreen.fields.electionId"))}
                         source="event_payload.election_id"
                         render={getElectionName}
                     />
                     <FunctionField
-                        label={t("eventsScreen.fields.eventProcessor")}
+                        label={String(t("eventsScreen.fields.eventProcessor"))}
                         source="event_processor"
                         render={(record: {event_processor: keyof typeof EventProcessors}) =>
                             t("eventsScreen.eventType." + record.event_processor)
                         }
                     />
                     <FunctionField
-                        label={t("eventsScreen.fields.stoppedAt")}
+                        label={String(t("eventsScreen.fields.stoppedAt"))}
                         source="stopped_at"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             (record.stopped_at &&
@@ -359,7 +359,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                     <FunctionField
-                        label={t("eventsScreen.fields.scheduledDate")}
+                        label={String(t("eventsScreen.fields.scheduledDate"))}
                         source="cron_config.scheduled_date"
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             ((record.cron_config as ICronConfig | undefined)?.scheduled_date &&
@@ -369,7 +369,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                             "-"
                         }
                     />
-                    <WrapperField label={t("common.label.actions")}>
+                    <WrapperField label={String(t("common.label.actions"))}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>
@@ -386,9 +386,9 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
             <Dialog
                 variant="warning"
                 open={isDeleteModalOpen}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={async (result: boolean) => {
                     if (result) {
                         await confirmDeleteAction()

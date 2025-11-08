@@ -174,7 +174,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                         <TextInput source="description" />
 
                         <ReferenceArrayInput
-                            label={t("areas.sequent_backend_area_contest")}
+                            label={String(t("areas.sequent_backend_area_contest"))}
                             reference="sequent_backend_contest"
                             source="area_contest_ids"
                             filter={{
@@ -225,7 +225,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                         <BooleanInput
                             source="allow_early_voting_boolean"
                             defaultValue={getAllowEarlyVotingDefaultValue()}
-                            label={t("areas.formImputs.allowEarlyVoting")}
+                            label={String(t("areas.formImputs.allowEarlyVoting"))}
                             disabled={!isEarlyVotingChannelEnabled()}
                         />
                     </SimpleForm>

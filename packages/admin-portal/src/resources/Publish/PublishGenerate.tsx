@@ -166,7 +166,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         {showPublishButtonBack ? (
                             <Button
                                 onClick={onBack}
-                                label={t("publish.action.back")}
+                                label={String(t("publish.action.back"))}
                                 className="publish-back-button"
                                 style={{
                                     backgroundColor: "#eee",
@@ -183,7 +183,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         {showPublishPreview && showPublishView ? (
                             <Button
                                 onClick={onPreviewClick}
-                                label={t("publish.preview.action")}
+                                label={String(t("publish.preview.action"))}
                                 className="publish-preview-button"
                             >
                                 <Preview />
@@ -193,7 +193,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         {!readOnly && canWritePublish && (
                             <Button
                                 onClick={onPublish}
-                                label={t("publish.action.publish")}
+                                label={String(t("publish.action.publish"))}
                                 className="publish-publish-button"
                                 style={{
                                     color: "#fff",

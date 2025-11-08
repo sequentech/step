@@ -26,6 +26,9 @@
     }
   },
   "include": [
-    "src"
-, "../../constants"  ]
+    "src/types",
+    "src/**/*.d.ts",
+    "src",
+    "../../constants"
+  ]
 }

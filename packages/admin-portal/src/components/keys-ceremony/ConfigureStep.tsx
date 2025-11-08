@@ -362,7 +362,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             <WizardStyles.CreateButton
                                 className="keys-create-button"
                                 icon={<ArrowForwardIosIcon />}
-                                label={t("keysGeneration.configureStep.create")}
+                                label={String(t("keysGeneration.configureStep.create"))}
                             />
                         </WizardStyles.Toolbar>
                     }
@@ -378,7 +378,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <TextInput
                             dir={i18n.dir(i18n.language)}
                             source="threshold"
-                            label={t("keysGeneration.configureStep.threshold")}
+                            label={String(t("keysGeneration.configureStep.threshold"))}
                             value={threshold}
                             validate={validateThreshold}
                             type="number"
@@ -391,7 +391,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             <BooleanInput
                                 disabled={!isElectionEventAutomatedCeremonyPolicy}
                                 source="isAutomatic"
-                                label={t("keysGeneration.configureStep.automaticCeremonyToggle")}
+                                label={String(t("keysGeneration.configureStep.automaticCeremonyToggle"))}
                             />
                         )}
                         {trusteeList ? (
@@ -406,7 +406,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                     <OutlinedInput
                                         id="trustees-filter"
                                         dir={i18n.dir(i18n.language)}
-                                        label={t("keysGeneration.configureStep.filterTrustees")}
+                                        label={String(t("keysGeneration.configureStep.filterTrustees"))}
                                         value={filterTrustees}
                                         type="text"
                                         onChange={(e) => setFilterTrustees(e.target.value)}
@@ -443,7 +443,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
                         <ReferenceInput
                             fullWidth
-                            label={t("electionScreen.common.title")}
+                            label={String(t("electionScreen.common.title"))}
                             source="electionId"
                             id="searchable-elections"
                             reference="sequent_backend_election"
@@ -479,8 +479,8 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                 <Dialog
                     variant="warning"
                     open={openConfirmationModal}
-                    ok={t("keysGeneration.configureStep.confirmdDialog.ok")}
-                    cancel={t("keysGeneration.configureStep.confirmdDialog.cancel")}
+                    ok={String(t("keysGeneration.configureStep.confirmdDialog.ok"))}
+                    cancel={String(t("keysGeneration.configureStep.confirmdDialog.cancel"))}
                     title={
                         isAutomaticCeremony
                             ? t(

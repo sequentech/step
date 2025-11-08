@@ -177,7 +177,7 @@ const PasswordComponent: React.FC<PasswordComponentProps> = ({
     return (
         <>
             <SelectInput
-                label={t("reportsScreen.reportEncryptionPolicy.title")}
+                label={String(t("reportsScreen.reportEncryptionPolicy.title"))}
                 source={"encryption_policy"}
                 defaultValue={EReportEncryption.UNENCRYPTED}
                 choices={reportEncryptionPolicyChoices}
@@ -195,9 +195,10 @@ const PasswordComponent: React.FC<PasswordComponentProps> = ({
                 handleClose={handleCloseDialog}
                 okEnabled={checkIsValidPassword}
                 aria-labelledby="password-dialog-title"
-                title={t("electionEventScreen.export.passwordTitle")}
-                ok={t("usersAndRolesScreen.users.fields.savePassword")}
+                title={String(t("electionEventScreen.export.passwordTitle"))}
+                ok={String(t("usersAndRolesScreen.users.fields.savePassword"))}
             >
+               <>
                 <InputContainerStyle>
                     <InputLabelStyle>
                         {t("usersAndRolesScreen.users.fields.password")}:
@@ -221,6 +222,8 @@ const PasswordComponent: React.FC<PasswordComponentProps> = ({
                         value={filePassword.confirmPassword}
                     />
                 </InputContainerStyle>
+            </>
+
             </Dialog>
         </>
     )
@@ -682,7 +685,7 @@ const FormContent: React.FC<CreateReportProps> = ({
             </Typography>
             <ReportTypeInput
                 source="report_type"
-                label={t("template.form.type")}
+                label={String(t("template.form.type"))}
                 choices={reportTypeChoices}
                 isRequired={true}
                 onChange={handleReportTypeChange}
@@ -690,7 +693,7 @@ const FormContent: React.FC<CreateReportProps> = ({
             <SelectElection
                 tenantId={tenantId}
                 electionEventId={electionEventId}
-                label={t("reportsScreen.fields.electionId")}
+                label={String(t("reportsScreen.fields.electionId"))}
                 onSelectElection={(electionId) => setElectionId(electionId)}
                 source="election_id"
                 value={electionId}
@@ -703,7 +706,7 @@ const FormContent: React.FC<CreateReportProps> = ({
                     reportType ? reportTypeConfig[reportType]?.associatedTemplateType : undefined
                 }
                 source={"template_alias"}
-                label={t("reportsScreen.fields.template")}
+                label={String(t("reportsScreen.fields.template"))}
                 onSelectTemplate={(template) => {
                     console.log("Selected templateId:", template.alias)
                     setTemplateAlias(template.alias)
@@ -713,7 +716,7 @@ const FormContent: React.FC<CreateReportProps> = ({
             />
 
             <PermissionLabelsInput
-                label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                label={String(t("usersAndRolesScreen.users.fields.permissionLabel"))}
                 choices={permissionLabelChoices}
                 setChoices={setPermissionLabelChoices}
                 source="permission_label"
@@ -722,7 +725,7 @@ const FormContent: React.FC<CreateReportProps> = ({
             {canGenerateReportScheduled && (
                 <BooleanInput
                     source="cron_config.is_active"
-                    label={t("reportsScreen.fields.repeatable")}
+                    label={String(t("reportsScreen.fields.repeatable"))}
                     onChange={handleCronToggle}
                 />
             )}
@@ -744,7 +747,7 @@ const FormContent: React.FC<CreateReportProps> = ({
                     />
                     <EmailRecipientsInput
                         source="cron_config.email_recipients"
-                        label={t("reportsScreen.fields.emailRecipients")}
+                        label={String(t("reportsScreen.fields.emailRecipients"))}
                         placeholder={t("reportsScreen.fields.emailRecipientsPlaceholder")}
                         isRequired={false}
                     />

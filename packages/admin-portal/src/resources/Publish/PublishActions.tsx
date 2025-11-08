@@ -159,7 +159,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         <Button
             onClick={onClick}
             className={className}
-            label={t(label)}
+            label={String(t(label))}
             style={
                 changingStatus || disabledStatus?.includes(status)
                     ? {
@@ -467,7 +467,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             setStartAnchorEl(e.currentTarget)
                                         }
                                         className={"startVotingMenu"}
-                                        label={t("publish.action.startVotingPeriod")}
+                                        label={String(t("publish.action.startVotingPeriod"))}
                                         disabled={isStartButtonDisabled()}
                                     >
                                         <IconOrProgress
@@ -535,7 +535,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             setPauseAnchorEl(e.currentTarget)
                                         }
                                         className={"pauseVotingMenu"}
-                                        label={t("publish.action.pauseVotingPeriod")}
+                                        label={String(t("publish.action.pauseVotingPeriod"))}
                                         disabled={isPauseButtonDisabled()}
                                     >
                                         <IconOrProgress
@@ -600,7 +600,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             setStopAnchorEl(e.currentTarget)
                                         }
                                         className={"stopVotingMenu"}
-                                        label={t("publish.action.stopVotingPeriod")}
+                                        label={String(t("publish.action.stopVotingPeriod"))}
                                         disabled={isStopButtonDisabled()}
                                     >
                                         <IconOrProgress
@@ -666,7 +666,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     Icon={Publish}
                                     onClick={() => handlePublish(false)}
                                     st={PublishStatus.Generated}
-                                    label={t("publish.action.publish")}
+                                    label={String(t("publish.action.publish"))}
                                     disabledStatus={[PublishStatus.Stopped]}
                                 />
                             )}
@@ -679,7 +679,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         Icon={RotateLeft}
                                         disabledStatus={[]}
                                         st={PublishStatus.Generated}
-                                        label={t("publish.action.generate")}
+                                        label={String(t("publish.action.generate"))}
                                         onClick={() => handlePublish(true)}
                                     />
                                 </div>
@@ -702,9 +702,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     setCurrentCallback(null) // Reset the callback
                 }}
                 open={showDialog}
-                title={t("publish.dialog.title")}
-                ok={t("publish.dialog.ok")}
-                cancel={t("publish.dialog.ko")}
+                title={String(t("publish.dialog.title"))}
+                ok={String(t("publish.dialog.ok"))}
+                cancel={String(t("publish.dialog.ko"))}
                 variant="info"
             >
                 <Typography variant="body1">{dialogText}</Typography>

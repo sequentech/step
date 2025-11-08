@@ -55,12 +55,12 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
     const OMIT_FIELDS: string[] = []
 
     const filters: Array<ReactElement> = [
-        <TextInput source="id" key="id_filter" label={t("tasksScreen.column.id")} />,
-        <TextInput source="type" key="type_filter" label={t("tasksScreen.column.type")} />,
+        <TextInput source="id" key="id_filter" label={String(t("tasksScreen.column.id"))} />,
+        <TextInput source="type" key="type_filter" label={String(t("tasksScreen.column.type"))} />,
         <TextInput
             source="execution_status"
             key="status_filter"
-            label={t("tasksScreen.column.execution_status")}
+            label={String(t("tasksScreen.column.execution_status"))}
         />,
     ]
 
@@ -136,23 +136,23 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                     <DateField
                         source="start_at"
                         showTime={true}
-                        label={t("tasksScreen.column.start_at")}
+                        label={String(t("tasksScreen.column.start_at"))}
                     />
                     <FunctionField
-                        label={t("tasksScreen.column.execution_status")}
+                        label={String(t("tasksScreen.column.execution_status"))}
                         render={(record: any) => <StatusChip status={record.execution_status} />}
                     />
-                    <ActionsColumn actions={actions} label={t("common.label.actions")} />
+                    <ActionsColumn actions={actions} label={String(t("common.label.actions"))} />
                 </DatagridConfigurable>
             </List>
 
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
+                ok={String(t("common.label.export"))}
                 okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.export"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()

@@ -864,8 +864,7 @@ export const TallyCeremony: React.FC = () => {
                                 <Select
                                     id="keys-ceremony-for-tally"
                                     value={keysCeremonyId ?? ""}
-                                    label={t("tally.keysCeremonyTitle")}
-                                    placeholder={t("tally.keysCeremonyTitle")}
+                                    label={String(t("tally.keysCeremonyTitle"))}
                                     onChange={(props) => {
                                         if (!props?.target?.value) {
                                             return
@@ -942,9 +941,9 @@ export const TallyCeremony: React.FC = () => {
                                             ),
                                             color: theme.palette.background.default,
                                         }}
-                                        label={t("keysGeneration.ceremonyStep.executionStatus", {
+                                        label={String(t("keysGeneration.ceremonyStep.executionStatus", {
                                             status: tally?.execution_status,
-                                        })}
+                                        }))}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
@@ -1042,9 +1041,9 @@ export const TallyCeremony: React.FC = () => {
                                             ),
                                             color: theme.palette.background.default,
                                         }}
-                                        label={t("keysGeneration.ceremonyStep.executionStatus", {
+                                        label={String(t("keysGeneration.ceremonyStep.executionStatus", {
                                             status: tally?.execution_status,
-                                        })}
+                                        }))}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
@@ -1214,8 +1213,8 @@ export const TallyCeremony: React.FC = () => {
                 key="tally-create-dialog"
                 variant="info"
                 open={openModal}
-                ok={t("tally.common.dialog.ok")}
-                cancel={t("tally.common.dialog.cancel")}
+                ok={String(t("tally.common.dialog.ok"))}
+                cancel={String(t("tally.common.dialog.cancel"))}
                 title={
                     isAutomatedCeremony
                         ? t("tally.common.dialog.tallyTitle")
@@ -1243,9 +1242,9 @@ export const TallyCeremony: React.FC = () => {
                 key="tally-start-dialog"
                 variant="info"
                 open={openCeremonyModal}
-                ok={t("tally.common.dialog.okTally")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.tallyTitle")}
+                ok={String(t("tally.common.dialog.okTally"))}
+                cancel={String(t("tally.common.dialog.cancel"))}
+                title={String(t("tally.common.dialog.tallyTitle"))}
                 handleClose={(result: boolean) => {
                     setOpenCeremonyModal(false)
                     // isButtonDisabled should be true at this point, set in handleNext

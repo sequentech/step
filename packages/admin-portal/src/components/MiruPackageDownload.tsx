@@ -165,7 +165,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                 onClick={handleMenu}
             >
                 <DownloadIcon />
-                <span title={t("tally.transmissionPackage.actions.download.title")}>
+                <span title={String(t("tally.transmissionPackage.actions.download.title"))}>
                     {t("tally.transmissionPackage.actions.download.title")}
                 </span>
                 {performDownload && documentToDownload ? (
@@ -217,7 +217,7 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                                 overflow: "hidden",
                             }}
                         >
-                            <span title={t("tally.transmissionPackage.actions.download.emlTitle")}>
+                            <span title={String(t("tally.transmissionPackage.actions.download.emlTitle"))}>
                                 {t("tally.transmissionPackage.actions.download.emlTitle", {
                                     date: lastDocumentDate,
                                 })}
@@ -245,12 +245,12 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             }}
                         >
                             <span
-                                title={t(
+                                title={String(t(
                                     "tally.transmissionPackage.actions.download.transmissionPackageTitle",
                                     {
                                         date: lastDocumentDate,
                                     }
-                                )}
+                                ))}
                             >
                                 {t(
                                     "tally.transmissionPackage.actions.download.transmissionPackageTitle",
@@ -271,9 +271,9 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                         }}
                     >
                         <span
-                            title={t(
+                            title={String(t(
                                 "tally.transmissionPackage.actions.download.transmissionReportTitle"
-                            )}
+                            ))}
                         >
                             {t(
                                 "tally.transmissionPackage.actions.download.transmissionReportTitle"
@@ -285,9 +285,9 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
             <Dialog
                 variant="info"
                 open={openModal}
-                ok={t("tally.transmissionPackage.actions.download.dialog.confirm")}
-                cancel={t("tally.transmissionPackage.actions.download.dialog.cancel")}
-                title={t("tally.transmissionPackage.actions.download.dialog.title")}
+                ok={String(t("tally.transmissionPackage.actions.download.dialog.confirm"))}
+                cancel={String(t("tally.transmissionPackage.actions.download.dialog.cancel"))}
+                title={String(t("tally.transmissionPackage.actions.download.dialog.title"))}
                 handleClose={(result: boolean) => {
                     if (!documentToDownload) {
                         console.log("error, documentToDownload is null")

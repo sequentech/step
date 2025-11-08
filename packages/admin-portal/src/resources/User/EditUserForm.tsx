@@ -581,7 +581,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 if (attr.annotations?.inputType === "select") {
                     return (
                         <Grid key={index} container spacing={2}>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <FormControl fullWidth>
                                     <Autocomplete
                                         defaultValue={value || null}
@@ -728,7 +728,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <FormControl key={index} fullWidth>
                             <SelectActedTrustee
-                                label={t("usersAndRolesScreen.users.fields.trustee")}
+                                label={String(t("usersAndRolesScreen.users.fields.trustee"))}
                                 source={createMode ? "attributes.trustee" : "trustee"}
                                 defaultValue={value?.[0] ?? ""}
                                 tenantId={tenantId}
@@ -766,7 +766,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     return (
                         <CustomAutocompleteArrayInput
                             key={index}
-                            label={t("usersAndRolesScreen.users.fields.permissionLabel")}
+                            label={String(t("usersAndRolesScreen.users.fields.permissionLabel"))}
                             defaultValue={permissionLabels}
                             onChange={handlePermissionLabelChanged}
                             choices={choices}
@@ -982,8 +982,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 <Box sx={{display: "flex", gap: "8px"}}>
                                     {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
                                     <IconTooltip
-                                        icon={faInfoCircle}
-                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                        icon={faInfoCircle as any}
+                                        info={String(t(`usersAndRolesScreen.editPassword.temporatyInfo`))}
                                     />
                                 </Box>
                             </InputLabelStyle>

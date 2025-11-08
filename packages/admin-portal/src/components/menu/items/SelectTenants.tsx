@@ -52,7 +52,7 @@ const SelectTenants: React.FC = () => {
                         {data.slug}
                     </SingleDataContainer>
                     {showAddTenant ? (
-                        <StyledIcon icon={faPlusCircle} onClick={() => setIsNewTenantOpen(true)} />
+                        <StyledIcon icon={faPlusCircle as any} onClick={() => setIsNewTenantOpen(true)} />
                     ) : null}
                 </>
             )}

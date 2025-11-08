@@ -10,20 +10,25 @@ const {ProgressPlugin} = require("webpack")
 
 module.exports = function (env, argv) {
     return {
-        mode: argv.mode,
+        mode: "development", // Force development mode to prevent tree-shaking
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
             filename: "index.js",
-            library: {
-                type: "commonjs2",
-            },
             path: path.resolve(__dirname, "dist"),
+            library: {
+                type: "commonjs2"
+            },
+            globalObject: "this"
         },
         optimization: {
-            // Disable tree-shaking to ensure all exports are included
+            // Completely disable all optimizations to ensure exports work
+            minimize: false,
             usedExports: false,
             sideEffects: false,
-            providedExports: true,
+            providedExports: false,
+            concatenateModules: false,
+            innerGraph: false,
+            mangleExports: false
         },
         devtool: "source-map",
         module: {

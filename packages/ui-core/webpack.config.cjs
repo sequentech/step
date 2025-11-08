@@ -10,7 +10,7 @@ const {ProgressPlugin} = require("webpack")
 
 module.exports = function (env, argv) {
     return {
-        mode: argv.mode,
+        mode: "development", // Force development mode
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
             filename: "index.js",

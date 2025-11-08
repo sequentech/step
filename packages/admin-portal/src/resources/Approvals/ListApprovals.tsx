@@ -21,7 +21,7 @@ import {
     useRemoveFromStore,
 } from "react-admin"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import {TFunction, useTranslation} from "react-i18next"
+import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ListActions} from "@/components/ListActions"
@@ -78,7 +78,7 @@ export interface ListApprovalsProps {
 interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children"> {
     omit: string[]
     actions: Action[]
-    t: TFunction
+    t: ReturnType<typeof useTranslation>["t"]
     userAttributes: GetUserProfileAttributesQuery | undefined
     defaultFilters: string | null
 }
@@ -244,23 +244,23 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             />
             <TextField source="verification_type" />
             <FunctionField
-                label={props.t("approvalsScreen.column.status")}
+                label={String(props.t("approvalsScreen.column.status"))}
                 render={(record: any) => (
                     <StatusApplicationChip status={record.status.toUpperCase()} />
                 )}
             />
             <TextField
                 source="annotations.verified_by"
-                label={props.t("approvalsScreen.column.verified_by")}
+                label={String(props.t("approvalsScreen.column.verified_by"))}
                 emptyText="-"
             />
             {restFields}
-            <ActionsColumn actions={props.actions} label={props.t("common.label.actions")} />
+            <ActionsColumn actions={props.actions} label={String(props.t("common.label.actions"))} />
         </DatagridConfigurable>
     )
 }
 
-const generateFilters = (fields: UserProfileAttribute[], t: TFunction) => {
+const generateFilters = (fields: UserProfileAttribute[], t: ReturnType<typeof useTranslation>["t"]) => {
     return fields.map((attr) => {
         // const source = `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
         const source = `applicant_data.${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}`
@@ -280,7 +280,7 @@ const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[
         <SelectInput
             source="status"
             key="status_filter"
-            label={t("approvalsScreen.column.status")}
+            label={String(t("approvalsScreen.column.status"))}
             choices={[
                 {id: "pending", name: "Pending"},
                 {id: "accepted", name: "Accepted"},
@@ -297,7 +297,7 @@ const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[
         <SelectInput
             source="verification_type"
             key="verification_type_filter"
-            label={t("approvalsScreen.column.verificationType")}
+            label={String(t("approvalsScreen.column.verificationType"))}
             choices={[
                 {id: "MANUAL", name: "Manual"},
                 {id: "AUTOMATIC", name: "Automatic"},
@@ -306,9 +306,9 @@ const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[
         <TextInput
             key={"applicant_id_filter"}
             source="applicant_id"
-            label={t("approvalsScreen.column.applicantId")}
+            label={String(t("approvalsScreen.column.applicantId"))}
         />,
-        <TextInput key={"id_filter"} source="id" label={t("approvalsScreen.column.id")} />,
+        <TextInput key={"id_filter"} source="id" label={String(t("approvalsScreen.column.id"))} />,
         ...generateFilters(fields, t),
     ]
 }
@@ -515,10 +515,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("application.export.button")}
+                ok={String(t("application.export.button"))}
                 okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("application.export.title")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("application.export.title"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()

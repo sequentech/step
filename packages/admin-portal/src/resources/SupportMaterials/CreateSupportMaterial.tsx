@@ -92,7 +92,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     component: () => (
                         <>
                             <TextField
-                                label={t("electionEventScreen.field.materialTitle")}
+                                label={String(t("electionEventScreen.field.materialTitle"))}
                                 size="small"
                                 value={valueMaterials.title_i18n[lang] || ""}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -103,7 +103,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                                 }
                             />
                             <TextField
-                                label={t("electionEventScreen.field.materialSubTitle")}
+                                label={String(t("electionEventScreen.field.materialSubTitle"))}
                                 size="small"
                                 value={valueMaterials.subtitle_i18n[lang] || ""}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -202,7 +202,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                         {t("materials.common.subtitle")}
                     </PageHeaderStyles.SubTitle>
                     <Tabs elements={renderTabs(record)} />
-                    <BooleanInput source={"is_hidden"} label={t("materials.fields.isHidden")} />
+                    <BooleanInput source={"is_hidden"} label={String(t("materials.fields.isHidden"))} />
                     <DropFile handleFiles={handleFiles} />
                     {imageType ? (
                         <Box

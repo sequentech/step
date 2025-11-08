@@ -113,7 +113,7 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
     return (
         <FormDialog
             open={rejectDialogOpen && task.status === IApplicationsStatus.PENDING}
-            title={t("approvalsScreen.reject.label")}
+            title={String(t("approvalsScreen.reject.label"))}
             onClose={() => handleReject()}
         >
             <SimpleForm
@@ -136,7 +136,7 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                         <SaveButton
                             className="election-event-save-button"
                             icon={<CancelOutlined />}
-                            label={t("approvalsScreen.reject.label")}
+                            label={String(t("approvalsScreen.reject.label"))}
                             color="error"
                             style={{backgroundColor: theme.palette.errorColor}}
                         />
@@ -147,13 +147,13 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                     {t("approvalsScreen.reject.confirm")}
                     <SelectInput
                         source="rejection_reason"
-                        label={t("approvalsScreen.reject.rejectReason")}
+                        label={String(t("approvalsScreen.reject.rejectReason"))}
                         choices={rejectionChoices()}
                         validate={required()}
                     />
                     <TextInput
                         source="rejection_message"
-                        label={t("approvalsScreen.reject.message")}
+                        label={String(t("approvalsScreen.reject.message"))}
                         fullWidth
                         validate={[
                             (value, allValues) => {

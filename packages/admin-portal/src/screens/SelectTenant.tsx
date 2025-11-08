@@ -365,7 +365,7 @@ export const SelectTenant = () => {
                                     <Box component="form" onSubmit={handleSubmit} sx={{mt: 2}}>
                                         <TextField
                                             fullWidth
-                                            label={t("common.label.tenantName")}
+                                            label={String(t("common.label.tenantName"))}
                                             variant="outlined"
                                             margin="normal"
                                             value={tenant}

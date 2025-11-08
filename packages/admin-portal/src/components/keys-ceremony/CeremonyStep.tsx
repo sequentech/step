@@ -120,9 +120,9 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 color: theme.palette.background.default,
                             }}
                             className="keys-ceremony-status"
-                            label={t("keysGeneration.ceremonyStep.executionStatus", {
+                            label={String(t("keysGeneration.ceremonyStep.executionStatus", {
                                 status: ceremony?.execution_status ?? EStatus.IN_PROGRESS,
-                            })}
+                            }))}
                         />
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails>
@@ -231,9 +231,9 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             <Dialog
                 variant="warning"
                 open={openConfirmationModal}
-                ok={t("keysGeneration.ceremonyStep.confirmdDialog.ok")}
-                cancel={t("keysGeneration.ceremonyStep.confirmdDialog.cancel")}
-                title={t("keysGeneration.ceremonyStep.confirmdDialog.title")}
+                ok={String(t("keysGeneration.ceremonyStep.confirmdDialog.ok"))}
+                cancel={String(t("keysGeneration.ceremonyStep.confirmdDialog.cancel"))}
+                title={String(t("keysGeneration.ceremonyStep.confirmdDialog.title"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmCancelCeremony()

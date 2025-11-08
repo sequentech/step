@@ -44,28 +44,28 @@ export const Stats: React.FC<StatsProps> = ({metrics}) => {
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
                 count={formatNumber(metrics.eligibleVotersCount)}
-                label={t("electionEventScreen.stats.elegibleVoters")}
+                label={String(t("electionEventScreen.stats.elegibleVoters"))}
             ></StatItem>
 
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
                 count={formatNumber(metrics.electionsCount)}
-                label={t("electionEventScreen.stats.elections")}
+                label={String(t("electionEventScreen.stats.elections"))}
             ></StatItem>
             <StatItem
                 icon={<FenceIcon sx={{fontSize: iconSize}} />}
                 count={formatNumber(metrics.areasCount)}
-                label={t("electionEventScreen.stats.areas")}
+                label={String(t("electionEventScreen.stats.areas"))}
             ></StatItem>
             <StatItem
                 icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
                 count={formatNumber(metrics.emailsSentCount)}
-                label={t("electionEventScreen.stats.sentEmails")}
+                label={String(t("electionEventScreen.stats.sentEmails"))}
             ></StatItem>
             <StatItem
                 icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
                 count={formatNumber(metrics.smsSentCount)}
-                label={t("electionEventScreen.stats.sentSMS")}
+                label={String(t("electionEventScreen.stats.sentSMS"))}
             ></StatItem>
         </CardList>
     )

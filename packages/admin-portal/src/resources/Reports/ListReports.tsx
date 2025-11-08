@@ -304,7 +304,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         <SelectInput
             source="report_type"
             key="event_processor_filter"
-            label={t("reportsScreen.fields.reportType")}
+            label={String(t("reportsScreen.fields.reportType"))}
             choices={Object.values(EReportType).map((eventType) => ({
                 id: eventType,
                 name: t(`template.type.${eventType}`),
@@ -313,7 +313,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
         <SelectInput
             source="election_id"
             key="election_id_filter"
-            label={t("reportsScreen.fields.electionId")}
+            label={String(t("reportsScreen.fields.electionId"))}
             choices={elections?.map((election) => ({
                 id: election.id,
                 name: election.alias || election.name || "-",
@@ -329,7 +329,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const CreateButton = () => (
         <Button onClick={handleCreateDrawer}>
-            <IconButtonSequent icon={faPlus} fontSize="24px" />
+            <IconButtonSequent icon={faPlus as any} fontSize="24px" />
             {t("reportsScreen.empty.button")}
         </Button>
     )
@@ -364,9 +364,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
@@ -459,8 +459,8 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     return (
         <>
             <ElectionHeader
-                title={t("reportsScreen.title")}
-                subtitle={t("reportsScreen.subtitle")}
+                title={String(t("reportsScreen.title"))}
+                subtitle={String(t("reportsScreen.subtitle"))}
             />
             <List
                 resource="sequent_backend_report"
@@ -495,20 +495,20 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 <DataGridContainerStyle isOpenSideBar={isOpenSidebar} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <FunctionField
-                        label={t("reportsScreen.fields.reportType")}
+                        label={String(t("reportsScreen.fields.reportType"))}
                         source="report_type"
                         render={(record: {report_type: keyof typeof EReportType}) =>
                             t("template.type." + record.report_type)
                         }
                     />
                     <FunctionField
-                        label={t("reportsScreen.fields.template")}
+                        label={String(t("reportsScreen.fields.template"))}
                         source="template_alias"
                         render={getTemplateName}
                     />
 
                     <FunctionField
-                        label={t("reportsScreen.fields.electionId")}
+                        label={String(t("reportsScreen.fields.electionId"))}
                         source="election_id"
                         render={getElectionName}
                     />
@@ -567,7 +567,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     setIsDecryptModalOpen(false)
                 }}
                 aria-labelledby="password-dialog-title"
-                title={t("reportsScreen.messages.decryptFileTitle")}
+                title={String(t("reportsScreen.messages.decryptFileTitle"))}
                 ok={"Ok"}
             >
                 <DecryptHelp decryptionCommand={decryptionCommand} />

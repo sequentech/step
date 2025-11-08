@@ -148,7 +148,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                         tenantId={tenantId}
                         electionEventId={electionEventId}
                         source="attributes.area-id"
-                        label={t("usersAndRolesScreen.users.fields.area")}
+                        label={String(t("usersAndRolesScreen.users.fields.area"))}
                     />
                 )
             }
@@ -157,7 +157,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                     <BooleanInput
                         key="has_voted"
                         source={"has_voted"}
-                        label={t("usersAndRolesScreen.users.fields.has_voted")}
+                        label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
                     />
                 )
             }
@@ -203,7 +203,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
     const actions: Action[] = [
         {
             icon: (
-                <Tooltip title={t(`common.label.approve`)} placement="right">
+                <Tooltip title={String(t(`common.label.approve`))} placement="right">
                     <CheckCircleOutlineIcon
                         color="success"
                         className="approve-voter-icon"
@@ -364,7 +364,7 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                             <TextField source="id" sx={{display: "block", width: "280px"}} />
                             {renderFields(listFields?.basicInfoFields)}
                             {renderFields(listFields?.attributesFields)}
-                            <ActionsColumn actions={actions} label={t("common.label.actions")} />
+                            <ActionsColumn actions={actions} label={String(t("common.label.actions"))} />
                         </DatagridConfigurable>
                     )}
                 </PreloadedList>
@@ -373,9 +373,9 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
             <Dialog
                 variant="info"
                 open={openApproveModal}
-                ok={t("common.label.approve")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.approve"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmApproveAction()
