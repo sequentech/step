@@ -10,13 +10,15 @@ const {ProgressPlugin} = require("webpack")
 
 module.exports = function (env, argv) {
     return {
-        mode: "development", // Force development mode
+        mode: argv.mode,
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
             filename: "index.js",
-            library: {
+            /*library: {
                 type: "commonjs2",
-            },
+            },*/
+            library: "$",
+            libraryTarget: "umd",
             path: path.resolve(__dirname, "dist"),
         },
         optimization: {
@@ -61,6 +63,11 @@ module.exports = function (env, argv) {
         experiments: {
             asyncWebAssembly: true,
         },
-        plugins: [new ProgressPlugin(), new ESLintPlugin(), new CleanWebpackPlugin()],
+        plugins: [
+            new ProgressPlugin(),
+            new ESLintPlugin({
+                extensions: [".js", ".jsx", ".ts", ".tsx"],
+            }),
+            new CleanWebpackPlugin()],
     }
 }

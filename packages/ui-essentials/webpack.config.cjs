@@ -10,14 +10,16 @@ const {ProgressPlugin} = require("webpack")
 
 module.exports = function (env, argv) {
     return {
-        mode: "development", // Force development mode to prevent tree-shaking
+        mode: argv.mode,
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
             filename: "index.js",
             path: path.resolve(__dirname, "dist"),
-            library: {
+            /*library: {
                 type: "commonjs2"
-            },
+            },*/
+            library: "$",
+            libraryTarget: "umd",
             globalObject: "this"
         },
         optimization: {
