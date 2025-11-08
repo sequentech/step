@@ -672,6 +672,9 @@ export default function ElectionEvents() {
                         to="/sequent_backend_election_event"
                         primaryText={isOpenSidebar && t("sideMenu.electionEvents")}
                         leftIcon={<WebIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        placeholder={undefined}
+                        onPointerEnterCapture={undefined}
+                        onPointerLeaveCapture={undefined}
                         sx={{
                             flexGrow: 2,
                             paddingLeft: i18n.dir(i18n.language) === "rtl" ? 0 : "16px",
