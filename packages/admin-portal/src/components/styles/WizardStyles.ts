@@ -24,7 +24,7 @@ export const WizardStyles = {
         width: 100%;
         margin: auto;
     `,
-    Toolbar: styled(Toolbar)`
+    Toolbar: styled(Toolbar as any)`
         bottom: 0;
         position: sticky;
         flex-direction: row;

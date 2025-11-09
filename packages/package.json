@@ -9,9 +9,11 @@
     "ui-essentials",
     "voting-portal",
     "admin-portal",
-    "ballot-verifier"
+    "ballot-verifier",
+    "basic"
   ],
   "scripts": {
+    "start:basic": "yarn --cwd ./basic start",
     "start:voting-portal": "yarn --cwd ./voting-portal start",
     "start:admin-portal": "yarn --cwd ./admin-portal start",
     "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",

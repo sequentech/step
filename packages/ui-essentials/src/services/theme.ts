@@ -6,12 +6,12 @@ import {
     Components,
     SimplePaletteColorOptions,
     ThemeOptions,
+    TypographyVariantsOptions,
     createTheme,
 } from "@mui/material"
 import {LinkProps} from "@mui/material/Link"
 import LinkBehavior from "../components/LinkBehavior/LinkBehavior"
 import {Theme as MUITheme} from "@mui/material"
-import {TypographyOptions} from "@mui/material/styles/createTypography"
 
 // Re-declare the emotion theme to have the properties of the MaterialUiTheme
 // See: https://github.com/emotion-js/emotion/discussions/2291#discussioncomment-491185
@@ -647,7 +647,7 @@ let MuiCheckbox: Components["MuiCheckbox"] = {
     },
 }
 
-let typography: TypographyOptions = {
+let typography: TypographyVariantsOptions = {
     body1: {
         textAlign: "left",
         marginBlockStart: "1em",

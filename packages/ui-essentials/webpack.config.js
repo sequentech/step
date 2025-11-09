@@ -47,7 +47,7 @@ module.exports = function (env, argv) {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
             },
-            extensions: [".js", ".jsx", ".ts", ".tsx"],
+            extensions: [".js", ".jsx", ".ts", ".tsx", ".d.ts"],
         },
         plugins: [
             new ProgressPlugin(),
