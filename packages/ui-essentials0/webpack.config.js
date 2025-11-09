@@ -34,7 +34,14 @@ module.exports = function (env, argv) {
         },
         externals: {
             "react": "react",
-            "react-dom": "react-dom"
+            "react-dom": "react-dom",
+            "react-router": "react-router",
+            "@mui/material": "@mui/material",
+            "@emotion/react": "@emotion/react",
+            "@emotion/styled": "@emotion/styled",
+            "mui-image": "mui-image",
+            "react-i18next": "react-i18next",
+            "@sequentech/ui-core": "@sequentech/ui-core",
         },
         resolve: {
             alias: {
