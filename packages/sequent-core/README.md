@@ -23,26 +23,15 @@ In the future this repo will also include the ballot encoder-decoder.
 
 ## Development environment
 
-Strand uses [Github dev containers] to facilitate development. To start developing strand,
-clone the github repo locally, and open the folder in Visual Studio Code in a container. This
-will configure the same environment that strand developers use, including installing required
-packages and VS Code plugins.
+sequent-core is part of the step monorepo. Use the step monorepo's Dev Container for development. The dev container configuration includes all required packages and VS Code plugins.
 
-We've tested this dev container for Linux x86_64 and Mac Os arch64 architectures. Unfortunately
-at the moment it doesn't work with Github Codespaces as nix doesn't work on Github Codespaces yet.
-Also the current dev container configuration for strand doesn't allow commiting to the git repo
-from the dev container, you should use git on a local terminal.
+## Building
 
-## Nix reproducible builds
-
-sequent-core uses [Nix Package Manager](https://nixos.org/) as its package builder. To build
-new-ballot-verifier, **first [install Nix](https://nixos.org/)** correctly in your system. If you're
-running the project on a dev container, you shouldn't need to install it.
-
-After you have installed Nix, enter the development environment with:
+Within the step monorepo dev container:
 
 ```bash
-nix develop
+cd packages/sequent-core
+cargo build
 ```
 
 ## Generate javascript package

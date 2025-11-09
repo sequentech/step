@@ -7,173 +7,105 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Sequent Voting Platform
 
-This is a mono-repo project encompasing the whole second generation of Sequent
-Voting Platform. 
+[![Chat][discord-badge]][discord-link]
+[![Build Status][build-badge]][build-link]
+[![License][license-badge]][license-link]
+[![REUSE][reuse-badge]][reuse-link]
+[![Documentation][docs-badge]][docs-link]
 
-Implemented using:
+**Sequent Voting Platform** is an end-to-end verifiable, secure, and transparent
+online voting system. This monorepo contains the second generation of the
+platform, designed for real-world elections with strong cryptographic
+guarantees.
 
-- **Hasura** for GraphQL backend services API.
-- **Rust** with **Rocket** for implementing custom backend services API logic.
-- **Keycloak** as the IAM service.
-- **PostgreSQL** for database storage for both Hasura and Keycloak.
-- **React** for the frontend UI.
-- Shared **Rust** libraries for logic shared by both frontend and
-  backend.
-- **Immudb** for tamper-evident logging.
+## Key Features
 
-## Development environment setup
+- **End-to-end verifiability**: Voters can verify their vote was recorded, tallied, and counted correctly
+- **Privacy-preserving**: Cryptographic mixnet ensures ballot secrecy while maintaining verifiability
+- **Multi-tenant**: Support for multiple organizations and simultaneous elections
+- **Accessible**: Web-based interfaces optimized for accessibility and usability
+- **Auditable**: Comprehensive tamper-evident logging of all system operations
 
-Open the repository with devcontainers/codespaces within vscode. This will
-launch all the services in development mode, so that you are ready to start
-using them and continue development:
+## Technology Stack
 
-- **Keycloak** at [http://127.0.0.1:8090]:
-  - `master` realm:
-    - Username: `admin`
-    - Password: `admin`
-    - Telephone `+34666000222` (ends in `0222`)
-    - Configure an OTP method the first time
-  - election event realm (used through the react frontend for voting portal):
-    - Username: `felix`
-    - Password: `felix`
-    - Telephone `+34666000111` (ends in `0111`)
-    - Configure an OTP method the first time
-- **Hasura console** at [http://127.0.0.1:8080].
-  - This docker service has the `hasura/migrations` and `hasura/metadata`
-    services mounted, so that you can work transparently on that and it's synced
-    to and from the development environment.
-- **React Frontend** at [http://127.0.0.1:3000].
-  - This has the `packages/test-app` directory mounted in the docker service,
-    and has been launched with the `yarn dev` command that will automatically
-    detect and rebuild changes in the code, and detect and install dependencies
-    when it detects changes in `package.json` and then relaunch the service.
-- **Immudb**:
-  - gRPC service available at [http://127.0.0.1:3322]
-  - Web console at [http://127.0.0.1:3325]
-  - Default admin
-    - Username: `immudb`
-    - Password: `immudb`
-  - To create the index db, run:
-    `/workspaces/step/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
+- **Hasura** - GraphQL API layer
+- **Rust** - Cryptographic core and backend services
+- **Keycloak** - Identity and access management
+- **PostgreSQL** - Data persistence
+- **React** - Frontend user interfaces
+- **ImmuDB** - Tamper-evident audit logging
 
-Additionally, this dev container comes with:
+## Getting Started
 
-- Relevant VS Code plugins installed
-- `cargo run` and `yarn install` pre-run so that you don't have to spend time
-  waiting for setting up the enviroment the first time.
+For comprehensive documentation, visit [docs.sequentech.io](https://docs.sequentech.io/docusaurus/main/).
 
-## Developing `admin-portal`
+### Quick Start with Dev Containers
 
-To launch the `admin-portal` in development mode, execute (the first time):
+The fastest way to start developing is using VS Code Dev Containers or GitHub Codespaces:
 
-```bash
-cd /workspaces/step/packages/
-yarn && yarn build:ui-core && yarn build:ui-essentials # only needed the first time
-yarn start:admin-portal
+1. Clone this repository
+2. Open in VS Code with Dev Containers extension
+3. All services will start automatically
+
+The development environment includes:
+- **Keycloak** at http://127.0.0.1:8090
+- **Hasura Console** at http://127.0.0.1:8080
+- **Voting Portal** at http://127.0.0.1:3000
+- **Admin Portal** at http://127.0.0.1:3002
+- **ImmuDB Console** at http://127.0.0.1:3325
+
+For detailed setup instructions, see the [Developer Documentation](https://docs.sequentech.io/docusaurus/main/docs/developers/graphql-api).
+
+### Manual Setup
+
+If you prefer not to use Dev Containers:
+
+1. Install prerequisites: Rust, Node.js/Yarn, Docker, PostgreSQL
+2. Set up environment variables (see `.env.example`)
+3. Start services: `docker compose up -d`
+4. Run migrations: `cd hasura && hasura migrate apply`
+5. Start frontend: `cd packages && yarn && yarn dev`
+
+See the [documentation](https://docs.sequentech.io/docusaurus/main/) for detailed instructions.
+
+## Repository Structure
+
 ```
-
-For subsequent runs, you only need:
-
-```bash
-cd /workspaces/step/packages/
-yarn start:admin-portal
-```
-
-Then it should open the admin-portal in the web browser, or else enter
-in [http://127.0.0.1:3002/]
-
-## Workspaces
-
-When you open a new terminal, typically the current working directory (CWD) is
-`/workspaces` if you are using Github Codespaces. However, all the commands
-below are assuming you start with the CWD `/workspaces/step`.
-
-This is important especially if you are for example relaunching a docker service
-(for example `docker compose up -d graphql-engine`). If you do it from within
-`/workspace/.devcontainer` it will fail, but if you do it within
-`/workspaces/step/.devcontainer` it should work, even if those two
-are typically a symlink to the other directory and are essentially the same.
-
-## Directory tree file organization
-
-The directory tree is structured as follows:
-
-```bash
 .
-├── hasura                      <--- Hasura metadata and migrations in YAML
-│   ├── metadata
-│   └── migrations
-├── packages                    <--- Main code of the application
-│   ├── admin-portal
-│   ├── braid
-│   ├── harvest
-│   ├── immu-board
-│   ├── immudb-rs
-│   ├── new-ballot-verifier
-│   ├── sequent-core
-│   ├── strand
-│   ├── target
-│   ├── test-app
-│   ├── ui-essentials
-│   └── voting-portal
+├── .devcontainer/          # Dev container configuration
+├── docs/docusaurus/        # Documentation site
+├── hasura/                 # GraphQL schema, migrations, and metadata
+├── packages/               # Monorepo packages (Cargo + Yarn workspace)
+│   ├── admin-portal/       # Admin interface (React)
+│   ├── voting-portal/      # Voter interface (React)
+│   ├── braid/              # Cryptographic mixnet (Rust)
+│   ├── sequent-core/       # Shared core libraries (Rust)
+│   ├── ui-essentials/      # Shared UI components
+│   └── ...                 # Other packages
+└── README.md
 ```
 
-The `packages/` directory contains both `Cargo` and `Yarn` managed packages:
-In that directory you can find both a `package.json` and a `Cargo.toml`. It's
-at the same time a [cargo workspace] and a [yarn workspace].
+The `packages/` directory is both a [Cargo workspace] and a [Yarn workspace], enabling code sharing between frontend (compiled to WebAssembly) and backend (native Rust).
 
-This superimposed workspaces structure allows us to build the same module both
-in yarn and cargo, depending on the use-case. For example, `sequent-core` is
-both used in:
-a. Frontend code, compiled to WASM with Yarn.
-b. Backend code, compiled to native code with Cargo.
+## Contributing
 
-## Launch the backend rust service
+We welcome contributions! Please see our [Contributing Guide](https://docs.sequentech.io/docusaurus/main/docs/developers/graphql-api) for details.
 
-Since we have not yet setup a docker container to automatically launch the
-rust&rocket based backend service, you can launch it manually by executing the
-following command in a dedicated terminal:
+## License
 
-```bash
-cd packages/harvest && cargo run
-```
+This project is licensed under the AGPL-3.0-only license. See [LICENSE](LICENSE) for details.
 
-This should output something like:
+## Support
 
-```bash
-@edulix ➜ /workspaces/step/packages/harvest (main ✗) $ cargo run
-    Updating crates.io index
-  Downloaded async-trait v0.1.68
-  ....
-  Downloaded 102 crates (7.9 MB) in 0.93s (largest was `encoding_rs` at 1.4 MB)
-   Compiling harvest v0.1.0 (/workspace)
-    Finished dev [unoptimized + debuginfo] target(s) in 28.50s
-     Running `target/debug/harvest`
-🔧 Configured for debug.
-   >> address: 127.0.0.1
-   >> port: 8000
-   >> workers: 2
-   >> max blocking threads: 512
-   >> ident: Rocket
-   >> IP header: X-Real-IP
-   >> limits: bytes = 8KiB, data-form = 2MiB, file = 1MiB, form = 32KiB, json = 1MiB, msgpack = 1MiB, string = 8KiB
-   >> temp dir: /tmp
-   >> http/2: true
-   >> keep-alive: 5s
-   >> tls: disabled
-   >> shutdown: ctrlc = true, force = true, signals = [SIGTERM], grace = 2s, mercy = 3s
-   >> log level: normal
-   >> cli colors: true
-📬 Routes:
-   >> (hello_world) GET /hello-world
-📡 Fairings:
-   >> Shield (liftoff, response, singleton)
-🛡️ Shield:
-   >> Permissions-Policy: interest-cohort=()
-   >> X-Frame-Options: SAMEORIGIN
-   >> X-Content-Type-Options: nosniff
-🚀 Rocket has launched from http://127.0.0.1:8000
-```
+- **Documentation**: https://docs.sequentech.io/docusaurus/main/
+- **Discord**: Join our [Discord community][discord-link]
+- **Issues**: Report bugs on [GitHub Issues](https://github.com/sequentech/step/issues)
+
+---
+
+## Developer Reference
+
+For detailed developer documentation including advanced setup, architecture details, and troubleshooting, see the sections below or visit the [complete documentation](https://docs.sequentech.io/docusaurus/main/).
 
 ## Docker services logs
 
@@ -452,127 +384,6 @@ To configure project to use AWS Secret Manager, setup the `VAULT_MANAGER` enviro
 VAULT_MANAGER=AWSSecretManager
 ```
 
-## Update `sequent-core`
-
-```bash
-cd /workspaces/step/packages/sequent-core
-wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
-wasm-pack -v pack .
-```
-
-This returns a hash that you need to put in 3 different places in the  yarn.lock 
-of packages/ directory:
-
-```bash
-"sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
-  version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
-
-"sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
-  version "0.1.0"
-  resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
-
-"sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
-  version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
-```
-
-Then you need to execute some further updates:
-
-```bash
-cd /workspaces/step/packages/
-rm ./ui-core/rust/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ui-core/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
-
-rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
-
-yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:voting-portal && yarn build:admin-portal && yarn build:ballot-verifier
-```
-
-And then everything should work and be updated. 
-
-### Troubleshooting
-
-If the typescript (TS, TSX) files suddently don't have correct autocompletion in
-VSCode after this, the recommendation is to run the `Developer: Reload Window`
-task in VSCode.
-
-After running these commands, you need to stop any ui and relaunch. For some
-reason craco is not going to be available, so you need run first
-`Tasks: Run Task` > `start.build.admin-portal` which install it and all its
-dependencies. Then you can launch also for example the `start.voting-portal`
-task.
-
-## Create election event
-
-In order to be able to create an election event, you need:
-
-1. Run harvest:
-
-```bash
-cd /workspaces/step/.devcontainer
-docker compose down harvest && \              # stops & remove the container
-docker compose up -d --no-deps harvest && \   # brings up the contaner
-docker compose logs -f --tail 100 harvest     # tails the logs of the container
-```
-
-2. Run the vault:
-
-```bash
-cd /workspaces/step/.devcontainer
-docker compose stop vault; docker compose up -d --no-deps vault
-```
-
-3. Go to `http://127.0.0.1:8201` and set 1 key (both fields), then note down the
-   `Initial root token` and `Key 1` or `Download keys` in JSON. Then click in
-   `Continue to Unseal`. Put `Key 1` (`keys[0]` in the downloaded keys) in
-   `Unseal Key Portion` and press `Unseal`. If it works, it will redirect to
-   `Sign in to Vault`. You can stop there.
-
-4. We'll generate an `.env` file for windmill. Start copying the example:
-
-```bash
-cd /workspaces/step/packages/windmill
-cp .env.example .env
-```
-
-5. Copy the `Initial root token` (`"root_token"` in the downloaded keys) to the
-   `VAULT_TOKEN` environment variable in the
-   `/workspaces/step/packages/windmill/.env` file.
-
-6. Without windmill the async background tasks - like the creation of an
-   election event - won't happen. For this reason, next we're going to run
-   windmill:
-
-```bash
-cd /workspaces/step/packages/windmill
-cargo run --bin main consume -q short_queue tally_queue beat reports_queue beat
-```
-
-7. Finally, we need to create the indexdb in immudb:
-
-```bash
-cd /workspaces/step/packages/immu-board
-cargo build && \
-../target/debug/bb_helper \
-  --server-url http://immudb:3322 \
-  --username immudb \
-  --password immudb \
-  --board-dbname 33f18502a67c48538333a58630663559 \
-  --cache-dir /tmp/immu-board upsert-board-db
-```
-
-Now you should be able to create election events. For debugging, you can watch the logs of `harvest` and `windmill` (it's already in one terminal):
-
-```bash
-# do this in one terminal
-cd /workspaces/step/.devcontainer
-docker compose logs -f harvest
-```
-
 ## Common issues
 
 ### Yarn build unexpectedly returns `exit code 143`
@@ -627,122 +438,6 @@ nix-collect-garbage
 cargo clean
 ```
 
-[cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html
-[yarn workspace]: https://yarnpkg.com/features/workspaces
-
-## Public assets
-
-### Ballot receipt
-
-The user can create a ballot receipt in PDF from the confirmation screen on the `voting-portal` after casting the vote. To generate that PDF, we store some public assets on `minio`/`s3` at `public/public-asssets/*`.
-Examples: 
-- logo
-- vendor to generate QR code
-- HTML / HBS template
- 
-These assets are located here: `step/.devcontainer/minio/public-assets` and are uploaded to `minio` using the `configure-minio` container.
-
-## Nightwatch e2e
-
-### Running nightwatch(Admin-Portal)
-
-Requires running both codespace instance as well as local instance at least for the client side.
- - run codespace
- - run local instance of client application to test
- - change directory to specific client application
- - npx nightwatch path/to/testfile.test.ts e.g `admin-portal% npx nightwatch test/e2e/voter.test.ts`
- 
- ### Running Nightwatch(Voting-Portal)
- refer to voting-portal/test/readme
- 
- ### Adding Galician language support
- Galician is now configurable in admin portal, voting portal and keycloak
-
- ## Use devcontainers in Google Cloud
-
-First, login to Google Cloud and create a Debian instance with at least 8 vcpus, 32GB memory (for example a
-n2-standard-8)and 256GB of hard disk.
-
-Then install the google cloud shell using:
-
-```bash
-  curl https://sdk.cloud.google.com | bash
-  gcloud auth login
-  gcloud compute config-ssh --project <gcloud-project-name>
-```
-
-After that, modify your `~/.ssh/config` to include `ForwardAgent yes` in the google cloud instance you
-want to use, leaving it as something like:
-
-```
-  Host instance-111111-22222.us-central1-f.gcloud-project-name
-      HostName 34.66.22.121
-      IdentityFile /Users/youruser/.ssh/google_compute_engine
-      UserKnownHostsFile=/Users/youruser/.ssh/google_compute_known_hosts
-      HostKeyAlias=compute.44470980835325324
-      IdentitiesOnly=yes
-      CheckHostIP=no
-      ForwardAgent yes
-```
-
-Then you need to have the VS Code extension "Remote - SSH" from Microsoft installed.  After that
-open a new VS Code instance, click on the bottom left blue corner, then select "Connect to Host..."
-and select the Google Cloud instance you created.
-
-After that you'll need to install git and docker engine. 
-
-For docker, following the [official Docker documentation](https://docs.docker.com/engine/install/debian/) for Debian:
-
-```bash
-sudo apt-get update
-sudo apt-get install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add the repository to Apt sources:
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-```
-
-And then:
-
-```bash
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-```
-
-Then you need to add the current user to the docker group:
-
-```bash
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-Finally check that the user can run docker without sudo with:
-
-
-```bash
-docker run hello-world
-```
-
-For git:
-
-```bash
-sudo apt update && sudo apt install -y git
-```
-
-Then clone the step repo with:
-
-```bash
-git clone git@github.com:sequentech/step.git
-```
-
-Finally in VS Code on the Welcome tab, click on "Open..." and select the `step` folder.
-After it opens, click on "Reopen in Container".
-
 ### Fix starting/restarting containers
 
 If you see an error when starting/restarting a container, remove the .docker folder:
@@ -765,3 +460,22 @@ If you're getting a permission error when building sequent-core, do:
 sudo mkdir /workspaces/step/packages/target
 sudo chown vscode:vscode /workspaces/step/packages/target -R
 ```
+
+
+[discord-badge]: https://img.shields.io/discord/1006401206782001273?style=plastic
+[discord-link]: https://discord.gg/WfvSTmcdY8
+
+[build-badge]: https://github.com/sequentech/step/actions/workflows/pr_build.yml/badge.svg
+[build-link]: https://github.com/sequentech/step/actions/workflows/pr_build.yml
+
+[license-badge]: https://img.shields.io/github/license/sequentech/step?label=license
+[license-link]: https://github.com/sequentech/step/blob/main/LICENSE
+
+[reuse-badge]: https://api.reuse.software/badge/github.com/sequentech/step
+[reuse-link]: https://api.reuse.software/info/github.com/sequentech/step
+
+[docs-badge]: https://img.shields.io/badge/docs-docusaurus-blue
+[docs-link]: https://docs.sequentech.io/docusaurus/main/
+
+[cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html
+[yarn workspace]: https://yarnpkg.com/features/workspaces

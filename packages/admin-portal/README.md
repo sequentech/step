@@ -2,70 +2,40 @@
  SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-# Admin-portal
+# admin-portal
 
-Admin portal for Sequent Voting Platform (2nd-gen).
+Administration interface for the Sequent Voting Platform. Provides election management, voter administration, and system configuration capabilities.
 
-## Launch development environment from `packages/` directory
+## Features
 
-Enter into the `packages/` directory and then launch the development environment
-with:
+- Election event and contest management
+- Voter registration and area assignment
+- Trustee configuration and key ceremony management
+- Tally management and results publication
+- Real-time monitoring and audit logs
+
+## Development
+
+From the monorepo root in a Dev Container:
 
 ```bash
 cd packages/
-yarn start:admin
+yarn && yarn build:ui-core && yarn build:ui-essentials  # first time only
+yarn start:admin-portal
 ```
 
-## Update graphql JSON schema
+The admin portal will be available at http://127.0.0.1:3002/
 
-The file `packages/admin-portal/graphql.schema.json` contains the GraphQL/Hasura
-schema. If the schema changes you might need to update this file. In order to do
-so,
-[follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/) 
-to export the json schema from Hasura, specifically you'll need to run something
-like:
+## Architecture
 
-```bash
-cd packages/admin-portal/
-gq http://graphql-engine:8080/v1/graphql \
-    -H "X-Hasura-Admin-Secret: admin" \
-    --introspect  \
-    --format json \
-    > graphql.schema.json
-```
+Built with React and TypeScript, integrating with:
+- **Hasura GraphQL API** for data operations
+- **Keycloak** for authentication and authorization
+- **ui-essentials** for shared UI components
+- **sequent-core** (compiled to WASM) for cryptographic operations
 
-Afterwards, you need to regenerate the typescript auto-generated types using
-`graphql-codegen` with:
+## Documentation
 
-```bash
-yarn generate
-```
-## Compile the Ui Core library
-
-This package uses the common UI librarry [ui-core] as a github submodule.
-You need to compile ui-essentials:
-
-```bash
-cd packages/ui-core
-yarn
-yarn build
-```
-
-## Compile the Ui library
-
-This package uses the common UI librarry [ui-essentials] as a github submodule.
-You need to compile ui-essentials:
-
-```bash
-cd packages/ui-essentials
-yarn
-yarn build
-```
-
-### Use sequent-core
-
-This package uses [sequent-core] as a npm package. You need to compile it in
-another place and then copy it to `rust/sequent-core-0.1.0.tgz`. Note that if
-its version is changed you may need to update its hash in
-`packages/admin-portal/yarn.lock` (use `sha1sum rust/sequent-core-0.1.0.tgz` to
-get the hash, or `shasum` instead of `sha1sum` if you're in Mac OS X.
+For detailed documentation, see:
+- [Admin Portal Guide](https://docs.sequentech.io/docusaurus/main/docs/admin_portal/)
+- [Developer Documentation](https://docs.sequentech.io/docusaurus/main/docs/developers/Admin-Portal/developers_admin-portal)
