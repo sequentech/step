@@ -4,3 +4,4 @@
 
 import React from "react"
 export {default as MyBox} from "./components/MyBox/MyBox"
+export {default as WarnBox} from "./components/WarnBox/WarnBox"

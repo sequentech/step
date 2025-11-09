@@ -1,6 +1,6 @@
 
 import { isString } from "@sequentech/ui-core"
-import { MyBox } from "@sequentech/ui-essentials"
+import { WarnBox } from "@sequentech/ui-essentials"
 import React from "react"
 
 export const App: React.FC = () => {
@@ -11,6 +11,6 @@ export const App: React.FC = () => {
                 isString(1)? " is a string": " is not a string"
             }
         </p>
-        <MyBox></MyBox>
+        <WarnBox>A warn box</WarnBox>
     </div>
 }

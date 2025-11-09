@@ -20,7 +20,8 @@
   },
   "peerDependencies": {
     "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "react-dom": "19.1.1",
+    "@mui/material": "7.3.2"
   },
   "devDependencies": {
     "@babel/cli": "7.12.8",
@@ -33,6 +34,7 @@
     "@babel/preset-typescript": "7.21.5",
     "react": "19.1.1",
     "react-dom": "19.1.1",
+    "@mui/material": "7.3.2",
     "@types/jest": "26.0.15",
     "@types/node": "^16.7.13",
     "@types/react": "19.1.1",

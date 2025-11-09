@@ -34,7 +34,8 @@ module.exports = function (env, argv) {
         },
         externals: {
             "react": "react",
-            "react-dom": "react-dom"
+            "react-dom": "react-dom",
+            "@mui/material": "@mui/material"
         },
         resolve: {
             alias: {
