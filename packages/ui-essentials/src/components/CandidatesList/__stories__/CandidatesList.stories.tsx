@@ -6,7 +6,6 @@ import {Meta, StoryObj} from "@storybook/react"
 import CandidatesList, {CandidatesListProps} from "../CandidatesList"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import {Box} from "@mui/material"
-import Image from "mui-image"
 import CandidateImg from "../../../../public/example_candidate.jpg"
 import Candidate from "../../Candidate/Candidate"
 
@@ -23,7 +22,18 @@ const SimpleCandidate: React.FC<SimpleCandidateProps> = ({isActive}) => (
         url="https://google.com"
         shouldDisable={false}
     >
-        <Image src={CandidateImg} duration={100} />
+        <Box sx={{width: "100%", height: "100%", overflow: "hidden"}}>
+            <img
+                src={CandidateImg}
+                alt=""
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transition: "opacity 100ms ease",
+                }}
+            />
+        </Box>
     </Candidate>
 )
 

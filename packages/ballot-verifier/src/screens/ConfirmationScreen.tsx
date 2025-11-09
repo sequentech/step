@@ -32,7 +32,6 @@ import {
 } from "@sequentech/ui-essentials"
 import {translate, ICandidate, IContest, EInvalidVotePolicy} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
-import Image from "mui-image"
 import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
 
 const StyledLink = styled(RouterLink)`

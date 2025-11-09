@@ -12,7 +12,7 @@ import {
     IContest,
 } from "@sequentech/ui-core"
 import {Candidate} from "@sequentech/ui-essentials"
-import Image from "mui-image"
+import {Box} from "@mui/material"
 import {
     resetBallotSelection,
     selectBallotSelectionQuestion,
@@ -224,7 +224,18 @@ export const Answer: React.FC<IAnswerProps> = ({
             iconCheckboxPolicy={iconCheckboxPolicy}
         >
             {imageUrl ? (
-                <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
+                <Box sx={{width: "100%", height: "100%", overflow: "hidden"}}>
+                    <img
+                        src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                        alt=""
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            transition: "opacity 100ms ease",
+                        }}
+                    />
+                </Box>
             ) : null}
         </Candidate>
     )

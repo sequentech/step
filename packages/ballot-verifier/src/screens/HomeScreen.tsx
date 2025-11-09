@@ -26,7 +26,6 @@ import {IBallotService, IConfirmationBallot} from "../services/BallotService"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
-import Image from "mui-image"
 import {TenantEventContext} from ".."
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery} from "../gql/graphql"
@@ -63,7 +62,7 @@ const StyledButton = styled(Button)`
     }
 `
 
-const StyledImage = styled(Image)`
+const StyledImageBox = styled(Box)`
     max-height: 64px;
     max-width: 64px;
 `
@@ -93,7 +92,18 @@ const JsonFile: React.FC<JsonFileProps> = ({name}) => {
                 {t("homeScreen.fileUploaded")}
             </Typography>
             <FileWrapper>
-                <StyledImage src={JsonImg} duration={100} width="unset" />
+                <StyledImageBox>
+                    <img
+                        src={JsonImg}
+                        alt=""
+                        style={{
+                            width: "auto",
+                            height: "100%",
+                            objectFit: "contain",
+                            transition: "opacity 100ms ease",
+                        }}
+                    />
+                </StyledImageBox>
                 <Typography variant="body2" sx={{color: theme.palette.black}}>
                     {name || SampleFileName}
                 </Typography>

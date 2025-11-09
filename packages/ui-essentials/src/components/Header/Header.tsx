@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import Image from "mui-image"
 import LanguageMenu from "../LanguageMenu/LanguageMenu"
 import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
@@ -15,8 +14,6 @@ import Dialog from "../Dialog/Dialog"
 import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
-
-const smBreakpoint = theme.breakpoints.values.sm
 
 const HeaderWrapper = styled(PageBanner)`
     background-color: ${theme.palette.lightBackground};
@@ -33,22 +30,18 @@ const StyledLink = styled.a`
     max-width: 50%;
 `
 
-const StyledImage = styled(Image)`
-    height: 47px !important;
-    width: unset !important;
-    @media (max-width: ${theme.breakpoints.values.md}px) {
-        height: 37px !important;
-    }
-    @media (max-width: ${smBreakpoint}px) {
-        height: 30px !important;
-    }
-    @media (max-width: ${smBreakpoint / 2}px) {
-        height: 20px !important;
-    }
-    @media (max-width: ${smBreakpoint / 3}px) {
-        height: 10px !important;
-    }
-`
+const StyledImageBox = styled(Box)(({theme}) => ({
+    height: "100px",
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    [theme.breakpoints.down("md")]: {
+        height: "50px",
+    },
+    [theme.breakpoints.down("sm")]: {
+        height: "40px",
+    },
+}))
 
 export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
     <Tooltip {...props} classes={{popper: className}} />
@@ -167,7 +160,18 @@ export default function Header({
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
                         <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={logoUrl || ""} duration={100} alt="Logo Image" />
+                            <StyledImageBox>
+                                <img
+                                    src={logoUrl || ""}
+                                    alt="Logo Image"
+                                    style={{
+                                        height: "100%",
+                                        width: "auto",
+                                        objectFit: "contain",
+                                        transition: "opacity 100ms ease",
+                                    }}
+                                />
+                            </StyledImageBox>
                         </StyledLink>
                         <Box
                             display="flex"
