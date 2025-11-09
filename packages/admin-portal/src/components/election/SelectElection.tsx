@@ -63,7 +63,7 @@ const SelectElection = ({
                 filterToQuery={electionFilterToQuery}
                 onChange={onSelectElection}
                 debounce={300}
-                sx={customStyle}
+                sx={customStyle as any}
                 disabled={disabled}
             />
         </ReferenceInput>

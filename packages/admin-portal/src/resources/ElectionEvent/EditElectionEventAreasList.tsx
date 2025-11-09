@@ -113,13 +113,13 @@ export const EditElectionEventAreasList: React.FC = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <DateTimeInput
                                 source="start_date"
                                 label={t("electionEventScreen.field.startDateTime")}
                             />
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <DateTimeInput
                                 source="end_date"
                                 label={t("electionEventScreen.field.endDateTime")}
@@ -139,7 +139,7 @@ export const EditElectionEventAreasList: React.FC = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <BooleanInput
                                 source="language.english"
                                 label={"English"}
@@ -166,7 +166,7 @@ export const EditElectionEventAreasList: React.FC = () => {
                 <AccordionDetails>
                     {" "}
                     <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
                             <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
                         </Grid>

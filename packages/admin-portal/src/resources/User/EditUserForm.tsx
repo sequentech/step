@@ -581,7 +581,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 if (attr.annotations?.inputType === "select") {
                     return (
                         <Grid key={index} container spacing={2}>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <FormControl fullWidth>
                                     <Autocomplete
                                         defaultValue={value || null}

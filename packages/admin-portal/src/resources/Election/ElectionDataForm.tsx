@@ -642,7 +642,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
+                                    <Grid size={{xs: 12, md: 6}}>
                                         {renderVotingChannels(parsedValue)}
                                     </Grid>
                                 </Grid>
@@ -729,7 +729,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={1}>
-                                    <Grid item xs={2}>
+                                    <Grid size={2}>
                                         {parsedValue?.image_document_id &&
                                         parsedValue?.image_document_id !== "" ? (
                                             <img
@@ -740,7 +740,7 @@ export const ElectionDataForm: React.FC = () => {
                                             />
                                         ) : null}
                                     </Grid>
-                                    <Grid item xs={10}>
+                                    <Grid size={10}>
                                         <DropFile
                                             handleFiles={async (files) => handleFiles(files)}
                                         />

@@ -490,7 +490,7 @@ export const CandidateDataForm: React.FC<{
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={1}>
-                                    <Grid item xs={2}>
+                                    <Grid size={2}>
                                         {parsedValue?.image_document_id &&
                                         parsedValue?.image_document_id !== "" ? (
                                             <img
@@ -501,7 +501,7 @@ export const CandidateDataForm: React.FC<{
                                             />
                                         ) : null}
                                     </Grid>
-                                    <Grid item xs={10}>
+                                    <Grid size={10}>
                                         <DropFile
                                             handleFiles={async (files) => handleFiles(files)}
                                         />

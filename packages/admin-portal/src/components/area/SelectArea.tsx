@@ -55,7 +55,7 @@ const SelectArea = ({
                 filterToQuery={areaFilterToQuery}
                 onChange={onSelectArea}
                 debounce={100}
-                sx={customStyle}
+                sx={customStyle as any}
                 isRequired={isRequired}
                 disabled={disabled}
             />

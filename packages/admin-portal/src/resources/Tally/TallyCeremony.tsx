@@ -864,7 +864,6 @@ export const TallyCeremony: React.FC = () => {
                                     id="keys-ceremony-for-tally"
                                     value={keysCeremonyId ?? ""}
                                     label={t("tally.keysCeremonyTitle")}
-                                    placeholder={t("tally.keysCeremonyTitle")}
                                     onChange={(props) => {
                                         if (!props?.target?.value) {
                                             return

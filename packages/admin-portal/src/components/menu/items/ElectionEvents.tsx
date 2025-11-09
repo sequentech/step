@@ -677,6 +677,9 @@ export default function ElectionEvents() {
                             paddingLeft: i18n.dir(i18n.language) === "rtl" ? 0 : "16px",
                             paddingRight: i18n.dir(i18n.language) === "rtl" ? "16px" : 0,
                         }}
+                        placeholder={undefined}
+                        onPointerEnterCapture={undefined}
+                        onPointerLeaveCapture={undefined}
                     />
                     {isOpenSidebar && showAddElectionEvent ? (
                         <StyledIconButton
