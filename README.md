@@ -54,7 +54,7 @@ The development environment includes:
 - **Admin Portal** at http://127.0.0.1:3002
 - **ImmuDB Console** at http://127.0.0.1:3325
 
-For detailed setup instructions, see the [Developer Documentation](https://docs.sequentech.io/docusaurus/main/docs/developers/graphql-api).
+For detailed setup instructions, see the [Documentation](https://docs.sequentech.io/docusaurus/main/).
 
 ### Manual Setup
 
@@ -66,7 +66,7 @@ If you prefer not to use Dev Containers:
 4. Run migrations: `cd hasura && hasura migrate apply`
 5. Start frontend: `cd packages && yarn && yarn dev`
 
-See the [documentation](https://docs.sequentech.io/docusaurus/main/) for detailed instructions.
+See the [Documentation](https://docs.sequentech.io/docusaurus/main/) for detailed instructions.
 
 ## Repository Structure
 
@@ -89,7 +89,7 @@ The `packages/` directory is both a [Cargo workspace] and a [Yarn workspace], en
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](https://docs.sequentech.io/docusaurus/main/docs/developers/graphql-api) for details.
+We welcome contributions! Please see our [Contributing Guide](https://docs.sequentech.io/docusaurus/main/docs/developers/contributing) for details.
 
 ## License
 

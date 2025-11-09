@@ -22,7 +22,7 @@ Sequent is an **end-to-end verifiable**, secure, and transparent online voting s
 ### System Architecture
 
 Learn about Sequent's technical architecture and components:
-- [Software Architecture Introduction](../reference/01-software-architecture/intro.md)
+- [Software Architecture Introduction](../reference/01-software-architecture/01-intro.md)
 
 ### Product Lifecycle
 
@@ -66,6 +66,7 @@ Verify election integrity:
 ### 💻 For Developers
 
 Start building and contributing:
+- [Contributing Guide](../developers/00-contributing.md)
 - [GraphQL API Documentation](../developers/01-graphql-api.md)
 - [CLI Tool](../developers/02-CLI/01-cli_cli.md)
 - [GitHub Repository](https://github.com/sequentech/step)
