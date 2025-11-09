@@ -116,8 +116,6 @@ The directory tree is structured as follows:
 │   ├── test-app
 │   ├── ui-essentials
 │   └── voting-portal
-└── vendor                      <--- External cloned dependencies
-    └── immudb-log-audit
 ```
 
 The `packages/` directory contains both `Cargo` and `Yarn` managed packages:
@@ -618,28 +616,6 @@ start happening after the codespace has been stopped and restarted a few times.
 Currently the only fix we have is.. committing and pushing all your changes to
 your branch and starting a new codespace.
 
-## Tamper-evident logging
-
-Here are some helpful random commands for development of the tamper-evident
-logging implemented using immudb:
-
-```bash
-cd /workspaces/step/.devcontainer && docker compose build immudb-log-audit immudb-log-audit-init && docker compose up -d immudb-log-audit immudb-log-audit-init && docker compose logs -f immudb-log-audit
-cd /workspaces/step/.devcontainer && docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
-
-docker compose exec postgres bash
-docker compose run  --entrypoint /bin/sh immudb-log-audit
-
-docker compose exec \
-  -e PGPASSWORD=postgrespassword \
-  postgres \
-  psql \
-  -h postgres \
-  -U postgres
-
-CREATE TABLE table1_with_pk (a SERIAL, b VARCHAR(30), c TIMESTAMP NOT NULL, PRIMARY KEY(a, c));
-INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now()); 
-```
 
 ### The disk/codespace runs out of space
 

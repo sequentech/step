@@ -20,12 +20,6 @@ SPDX-FileCopyrightText = "2025 Sequent Tech <legal@sequentech.io>"
 SPDX-License-Identifier = "AGPL-3.0-only"
 
 [[annotations]]
-path = "vendor/immudb-log-audit/**"
-precedence = "aggregate"
-SPDX-FileCopyrightText = ["", "2023 Codenotary Inc", "2025 Sequent Tech <legal@sequentech.io>"]
-SPDX-License-Identifier = "Apache-2.0"
-
-[[annotations]]
 path = "packages/admin-portal/public/roboto/**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "Copyright 2015 Google Inc"]
