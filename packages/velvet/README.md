@@ -8,10 +8,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 **Velvet** -- A type of woven tufted fabric, implying smoothness and luxury.
 
+Velvet is Sequent Voting Platform pipeline-based tally subsystem.
+
 You can call velvet from the command line like this:
 
-```
-$> velvet run {stage} {optional-pipe} \
+```bash
+velvet run {stage} {optional-pipe} \
   --config ./path/to/velvet-config.json \
   --input-dir ./path/to/input-dir \
   --output-dir ./path/to/output-dir

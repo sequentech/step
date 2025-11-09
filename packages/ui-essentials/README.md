@@ -6,7 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # ui-essentials
 
-Shared UI component library for Sequent Voting Platform portals. Provides a consistent design system and reusable components across admin-portal, voting-portal, and ballot-verifier.
+Shared UI component library for Sequent Voting Platform portals written in
+Typescript for React. Provides a consistent design system and reusable
+components across admin-portal, voting-portal, and ballot-verifier.
 
 ## Features
 
@@ -20,7 +22,7 @@ Shared UI component library for Sequent Voting Platform portals. Provides a cons
 
 ### Running Storybook
 
-From the monorepo root:
+From the step repository root:
 
 ```bash
 cd packages/

@@ -6,7 +6,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # voting-portal
 
-Voter-facing interface for the Sequent Voting Platform. Provides a secure, accessible, and user-friendly voting experience with end-to-end verifiability.
+Voter-facing interface for the Sequent Voting Platform. Provides a secure,
+accessible, and user-friendly voting experience with end-to-end verifiability.
 
 ## Features
 
