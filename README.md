@@ -225,8 +225,6 @@ Note that you can insert rows as a migration by clicking on the
 Note: if the browser doesn't load correctly at `http://localhost:9695`, try
 opening the port `9693` in VS Code.
 
-## admin-portal
-
 ## ui-essentials
 
 Contains all the components used across the various portals i.e admin, voting, ballot etc.
@@ -250,41 +248,7 @@ This is done to allow portals to fetch and use the latest versions of components
 ## Update graphql JSON schema
 
 The file `packages/admin-portal/graphql.schema.json` contains the GraphQL/Hasura
-schema. If the schema changes you might need to update this file. In order to do
-so,
-[follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/)
-to export the json schema from Hasura, specifically you'll need to run something
-like:
-
-```bash
-cd /workspaces/step/packages/admin-portal/
-gq http://graphql-engine:8080/v1/graphql \
-    -H "X-Hasura-Admin-Secret: admin" \
-    --introspect  \
-    --format json \
-    > graphql.schema.json
-```
-
-Afterwards, you need to regenerate the typescript auto-generated types using
-`graphql-codegen` with:
-
-```bash
-cd /workspaces/step/packages/
-yarn generate:admin-portal
-```
-
-Additionally, the same graphql schema file is needed in `windmill` to generate
-the base types for Rust. To update them, execute the following:
-
-```bash
-cd /workspaces/step/packages/windmill/
-gq http://graphql-engine:8080/v1/graphql \
-    -H "X-Hasura-Admin-Secret: admin" \
-    --introspect  \
-    --format json \
-    > src/graphql/schema.json
-cargo build
-```
+schema. If the schema changes you might need to update this file by running the VS Code task `update.graphql`.
 
 It might be the case that for example if you added some new field to an existing
 table, you will have to update some graphql query in
@@ -318,71 +282,9 @@ Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhB
 
 ## Running Trustees
 
-```bash
-# run windmill task generator
-cd /workspaces/step/.devcontainer/
-docker compose up -d beat && \
-docker compose logs -f --tail 50 beat
-```
+To run the windmill task generator (beat), use the VS Code task `logs.restart.beat`.
 
-```bash
-# run trustes
-cd /workspaces/step/.devcontainer/
-docker compose up -d trustee1 trustee2 && \
-docker compose logs -f --tail 50 trustee1 trustee2
-
-```
-
-## Vault
-
-### HashiCorp Vault
-
-We use HashiCorp Vault to store secrets. We run it in production mode as otherwise
-the data would only be stored in memory and it would be lost each time the container
-is restarted.
-
-Once the `vault` container is started, you can log in here:
-
-[http://127.0.0.1:8201/ui/vault/auth?with=token]
-
-The first time you enter you'll have to note down the `initial root token` and the
-`keys`. Then you need to enter that `key` (supposing you use only one key) to unseal
-the vault and finally login with the `initial root token`.
-
-Also in order for the `harvest` service to work, you'll first need to execute this:
-
-    docker exec -it vault vault login
-
-It will ask for the `initial root token`. This is required to authenticate for the
-next step:
-
-    docker exec -it vault vault secrets enable --version=1 --path=secrets kv
-
-That will enable the /secrets path for the v1 key value secrets store in the `vault``.
-
-You'll also need to configure the environment variables for `harvest` to connect
-with the `vault`. Specifically, set the `VAULT_TOKEN` to the `initial root token`
-and the `VAULT_UNSEAL_KEY` to the `keys`.
-
-Finally you'll need to rebuild/restart harvest:
-
-    docker compose stop harvest && docker compose build harvest && docker compose up -d --no-deps harvest
-
-To configure project to use HashiCorpVault, setup the `VAULT_MANAGER` environment variable:
-
-```
-# .env
-VAULT_MANAGER=HashiCorpVault
-```
-
-### AWS Secret Manager
-
-To configure project to use AWS Secret Manager, setup the `VAULT_MANAGER` environment variable:
-
-```bash
-# .env
-VAULT_MANAGER=AWSSecretManager
-```
+To run the trustees, use the VS Code task `logs.restart.trustees`.
 
 ## Common issues
 
