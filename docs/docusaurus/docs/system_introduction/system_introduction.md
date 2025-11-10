@@ -1,13 +1,13 @@
 ---
 id: system_introduction
-title: Welcome to Sequent Documentation
+title: Sequent Voting Platform Documentation
 ---
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Welcome to Sequent Voting Platform
+# Sequent Voting Platform Documentation
 
 Sequent is an **end-to-end verifiable**, secure, and transparent online voting system designed for real-world elections with strong cryptographic guarantees.
 

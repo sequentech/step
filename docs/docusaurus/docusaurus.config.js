@@ -53,10 +53,11 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: '    Home',
+        title: '',
         logo: {
           alt: 'Sequent Logo',
           src: '/img/logo_negative.svg',
+          href: '/docs/system_introduction/',
         },
         items: [
           {
