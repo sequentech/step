@@ -26,7 +26,7 @@ After creating a report entry, you will see it in the list. Click on the actions
 
 ### Voters Turnout
 
-**Note:** To display male and female percentages, the sex attribute must have been added. Check out [how to add the sex attribute](./06-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
+**Note:** To display male and female percentages, the sex attribute must have been added. Check out [how to add the sex attribute](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md).
 
 ### Other Report Types
 
