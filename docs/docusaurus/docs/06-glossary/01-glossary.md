@@ -1,6 +1,6 @@
 ---
-id: reference
-title: Reference Overview
+id: glossary
+title: Glossary
 ---
 
 <!--
