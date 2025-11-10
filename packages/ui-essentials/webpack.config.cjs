@@ -14,10 +14,12 @@ module.exports = function (env, argv) {
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
             filename: "index.js",
-            library: "$",
-            libraryTarget: "umd",
+            library: {
+              type: "module"          // <-- ES module, no UMD bootstrap
+            },
             path: path.resolve(__dirname, "dist"),
         },
+        experiments: { outputModule: true },
         devtool: "source-map",
         module: {
             rules: [
@@ -35,7 +37,9 @@ module.exports = function (env, argv) {
         externals: {
             "react": "react",
             "react-dom": "react-dom",
-            "@mui/material": "@mui/material"
+            "@mui/material": "@mui/material",
+            "@emotion/react": "@emotion/react",
+            "@emotion/styled": "@emotion/styled",
         },
         resolve: {
             alias: {

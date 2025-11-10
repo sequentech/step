@@ -2,6 +2,7 @@ import React, {PropsWithChildren} from "react"
 import {styled} from "@mui/material/styles"
 import Paper from "@mui/material/Paper"
 import Box from "@mui/material/Box"
+import styledEmotion from "@emotion/styled"
 
 const WarnContainer = styled(Paper)`
     padding: 17px;
@@ -13,12 +14,17 @@ const WarnContainer = styled(Paper)`
     align-items: center;
 `
 
+const SomeBox = styledEmotion(Box)`
+    opacity: 0.7 !important;
+`
+
 interface WarnBoxProps {
     onClose?: () => void
 }
 
 const WarnBox: React.FC<PropsWithChildren<WarnBoxProps>> = ({onClose, children}) => (
     <WarnContainer>
+        <SomeBox>Emotion</SomeBox>
         <Box flexGrow={2}>{children}</Box>
     </WarnContainer>
 )

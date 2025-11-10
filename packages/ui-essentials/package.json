@@ -12,16 +12,21 @@
     "url": "git+https://github.com/sequentech/ui-essentials.git"
   },
   "scripts": {
-    "build": "webpack --config webpack.config.js --mode production",
-    "build:dev": "webpack --config webpack.config.js  --mode development"
+    "build": "webpack --config webpack.config.cjs --mode production",
+    "build:dev": "webpack --config webpack.config.cjs  --mode development"
   },
   "main": "dist/index.js",
+  "type": "module",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "dependencies": {
   },
   "peerDependencies": {
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "@mui/material": "7.3.2"
+    "@mui/material": "7.3.2",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1"
   },
   "devDependencies": {
     "@babel/cli": "7.12.8",
@@ -35,6 +40,8 @@
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "@mui/material": "7.3.2",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
     "@types/jest": "26.0.15",
     "@types/node": "^16.7.13",
     "@types/react": "19.1.1",
