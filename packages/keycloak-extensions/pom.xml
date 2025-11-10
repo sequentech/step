@@ -20,7 +20,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>aws-ses-email-sender-provider</module>
         <module>conditional-authenticators</module>
         <module>dummy-email-sender-provider</module>
-        <module>inetum-authenticator</module>
         <module>message-otp-authenticator</module>
         <module>security-question-authenticator</module>
         <module>sequent-theme</module>
@@ -144,7 +143,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>aws-ses-email-sender-provider/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
 				<include>dummy-email-sender-provider/pom.xml</include>
-				<include>inetum-authenticator/pom.xml</include>
 				<include>message-otp-authenticator/pom.xml</include>
               </includes>
               <goals>
@@ -160,7 +158,6 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <include>aws-ses-email-sender-provider/pom.xml</include>
                 <include>conditional-authenticators/pom.xml</include>
 				<include>dummy-email-sender-provider/pom.xml</include>
-				<include>inetum-authenticator/pom.xml</include>
 				<include>message-otp-authenticator/pom.xml</include>
               </includes>
               <goals>
