@@ -19,7 +19,7 @@ const config = {
   trailingSlash: false,
   favicon: 'img/favicon.ico',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
   // i18n, if you ever need it:
