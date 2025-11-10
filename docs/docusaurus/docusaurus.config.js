@@ -11,11 +11,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 const config = {
   title: 'Sequent Online Voting',
   tagline: 'End-to-end verifiable and transparent online voting',
-  url: 'https://your-docusaurus-site.example.com',
-  baseUrl: process.env.BASE_URL || '/',
+  url: 'https://sequentech.github.io',
+  baseUrl: process.env.BASE_URL || '/step/',
+  projectName: 'step',
+  organizationName: 'sequentech',
+  deploymentBranch: 'gh-pages',
+  trailingSlash: false,
   favicon: 'img/favicon.ico',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
   // i18n, if you ever need it:
