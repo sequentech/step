@@ -12,8 +12,8 @@
     "url": "git+https://github.com/sequentech/ui-essentials.git"
   },
   "scripts": {
-    "build": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=production ",
-    "build:dev": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode=development",
+    "build": "webpack --config webpack.config.cjs --mode production",
+    "build:dev": "webpack --config webpack.config.cjs  --mode development",
     "prettify": "prettier --check . --ignore-path .prettierignore",
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
@@ -26,6 +26,9 @@
     "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%"
   },
   "main": "dist/index.js",
+  "type": "module",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.1",
     "@fortawesome/free-brands-svg-icons": "^7.0.1",
@@ -38,9 +41,8 @@
   "peerDependencies": {
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "mui-image": "1.0.9",
     "react-i18next": "15.7.3",
-    "react-router-dom": "7.9.1",
+    "react-router": "7.9.5",
     "@mui/material": "7.3.2",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
@@ -64,11 +66,10 @@
     "@babel/preset-env": "7.22.4",
     "@babel/preset-react": "7.22.3",
     "@babel/preset-typescript": "7.21.5",
-    "mui-image": "1.0.9",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "react-i18next": "15.7.3",
-    "react-router-dom": "7.9.1",
+    "react-router": "7.9.5",
     "@mui/material": "7.3.2",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
