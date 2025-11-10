@@ -3,13 +3,37 @@
   "name": "sequentech",
   "version": "0.0.1",
   "license": "AGPL-3.0-only",
-  "workspaces": [
-    "ui-core",
-    "ui-essentials",
-    "voting-portal",
-    "admin-portal",
-    "ballot-verifier"
-  ],
+  "workspaces": {
+    "packages": [
+      "ui-core",
+      "ui-essentials",
+      "voting-portal",
+      "admin-portal",
+      "ballot-verifier"
+    ],
+    "nohoist": ["**/node_modules/@storybook", "**/storybook"]
+  },
+  "devDependencies": {
+    "storybook": "8.6.14",
+    "@storybook/addon-docs": "8.6.14",
+    "@storybook/addon-essentials": "8.6.14",
+    "@storybook/addon-interactions": "8.6.14",
+    "@storybook/addon-links": "8.6.14",
+    "@storybook/addon-viewport": "8.6.14",
+    "@storybook/blocks": "8.6.14",
+    "@storybook/cli": "8.6.14",
+    "@storybook/react-vite": "8.6.14",
+    "@storybook/test": "8.6.14",
+    "@storybook/preview": "8.6.14",
+    "@storybook/preview-api": "8.6.14",
+    "@storybook/core-common": "8.6.14",
+    "@storybook/csf": "0.1.13",
+    "@storybook/core-events": "8.6.14",
+    "@storybook/channels": "8.6.14",
+    "@storybook/client-logger": "8.6.14",
+    "@storybook/docs-tools": "8.6.14",
+    "@storybook/instrumenter": "8.6.14"
+  },
   "resolutions": {
     "graphql": "^16.8.1",
     "dompurify": "^3.2.4",

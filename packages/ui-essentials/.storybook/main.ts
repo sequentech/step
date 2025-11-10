@@ -1,17 +1,17 @@
+// ui-essentials/.storybook/main.ts
 import type { StorybookConfig } from '@storybook/react-vite';
 import { mergeConfig } from 'vite';
 import path from 'path';
 
+const rootNodeModules = path.resolve(__dirname, '../../node_modules');
+
 const config: StorybookConfig = {
-  stories: [
-    '../src/**/*.mdx',
-    '../src/**/*.stories.@(js|jsx|ts|tsx)',
-  ],
+  stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|ts|tsx)'],
   addons: [
     '@storybook/addon-links',
     '@storybook/addon-essentials',
     '@storybook/addon-interactions',
-    '@storybook/addon-docs', // enables MDX
+    '@storybook/addon-docs',
     'storybook-addon-remix-react-router',
     'storybook-addon-pseudo-states',
     '@storybook/addon-viewport',
@@ -22,60 +22,49 @@ const config: StorybookConfig = {
   },
   docs: {
     autodocs: true,
-    // Enable MDX v2+ support
     defaultName: 'Docs',
   },
-  // Fix internal imports + alias
-  async viteFinal(config, { configType }) {
-    // CORRECT: Hoisted to /workspaces/node_modules/@storybook
-    const rootNodeModules = path.resolve(__dirname, '../../../node_modules/@storybook');
 
-    return mergeConfig(config, {
+  async viteFinal(viteConfig, { configType }) {
+    return mergeConfig(viteConfig, {
       resolve: {
         alias: [
-          // Top-level
-          { find: 'storybook/preview-api', replacement: '@storybook/preview-api' },
-          { find: 'storybook/test', replacement: '@storybook/test' },
-
-          // === ALL KNOWN INTERNAL SUBPATHS (from your logs) ===
-          { find: 'storybook/internal/core-events', replacement: path.resolve(rootNodeModules, 'core-events') },
-          { find: 'storybook/internal/client-logger', replacement: path.resolve(rootNodeModules, 'client-logger') },
-          { find: 'storybook/internal/preview-errors', replacement: path.resolve(rootNodeModules, 'preview/dist/preview-errors') },
-          { find: 'storybook/internal/docs-tools', replacement: path.resolve(rootNodeModules, 'docs-tools') },
-          { find: 'storybook/internal/channels', replacement: path.resolve(rootNodeModules, 'channels') },
-          { find: 'storybook/internal/preview/runtime', replacement: path.resolve(rootNodeModules, 'preview/dist/runtime') },
-          { find: 'storybook/internal/instrumenter', replacement: path.resolve(rootNodeModules, 'instrumenter') },
-          { find: 'storybook/internal/actions', replacement: path.resolve(rootNodeModules, 'addon-actions') },
-          { find: 'storybook/internal/backgrounds', replacement: path.resolve(rootNodeModules, 'addon-backgrounds') },
-          { find: 'storybook/internal/highlight', replacement: path.resolve(rootNodeModules, 'addon-highlight') },
-          { find: 'storybook/internal/links', replacement: path.resolve(rootNodeModules, 'addon-links') },
-          { find: 'storybook/internal/viewport', replacement: path.resolve(rootNodeModules, 'addon-viewport') },
-
-          // Your custom alias
           { find: '@root', replacement: path.resolve(__dirname, '../src') },
+          { find: 'storybook/preview-api', replacement: `${rootNodeModules}/@storybook/preview-api/dist/index.mjs` },
+          { find: 'storybook/test', replacement: `${rootNodeModules}/@storybook/test/dist/index.mjs` },
+          { find: 'storybook/internal/csf', replacement: `${rootNodeModules}/@storybook/csf/dist/index.mjs` },
+          { find: 'storybook/internal/core-events', replacement: `${rootNodeModules}/@storybook/core-events/dist/index.mjs` },
+          { find: 'storybook/internal/channels', replacement: `${rootNodeModules}/@storybook/channels/dist/index.mjs` },
+          { find: 'storybook/internal/client-logger', replacement: `${rootNodeModules}/@storybook/client-logger/dist/index.mjs` },
+          { find: 'storybook/internal/docs-tools', replacement: `${rootNodeModules}/@storybook/docs-tools/dist/index.mjs` },
+          { find: 'storybook/internal/instrumenter', replacement: `${rootNodeModules}/@storybook/instrumenter/dist/index.mjs` },
         ],
       },
+
       optimizeDeps: {
-        // BLOCK ALL STORYBOOK INTERNALS FROM PRE-BUNDLING
-        exclude: [
-          'storybook',
-          'storybook/internal',
-          'storybook/internal/*',
-          '@storybook/core-events',
-          '@storybook/client-logger',
-          '@storybook/preview-errors',
-          '@storybook/docs-tools',
-          '@storybook/channels',
+        // Force Vite to pre-bundle these from root node_modules
+        include: [
+          '@storybook/csf',
           '@storybook/preview-api',
-          '@storybook/test',
+          '@storybook/core-events',
+          '@storybook/channels',
+          '@storybook/client-logger',
+          '@storybook/docs-tools',
           '@storybook/instrumenter',
-          '@storybook/addon-actions',
-          '@storybook/addon-backgrounds',
-          '@storybook/addon-highlight',
-          '@storybook/addon-links',
-          '@storybook/addon-viewport',
+        ],
+        // Prevent Vite from trying to bundle virtual modules
+        exclude: [
+          'storybook/preview-api',
+          'storybook/test',
+          'storybook/internal/csf',
+          'storybook/internal/core-events',
+          'storybook/internal/channels',
+          'storybook/internal/client-logger',
+          'storybook/internal/docs-tools',
+          'storybook/internal/instrumenter',
         ],
       },
+
       build: {
         sourcemap: configType === 'DEVELOPMENT',
       },
