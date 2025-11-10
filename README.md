@@ -53,6 +53,7 @@ The development environment includes:
 - **Voting Portal** at http://127.0.0.1:3000
 - **Admin Portal** at http://127.0.0.1:3002
 - **ImmuDB Console** at http://127.0.0.1:3325
+- **MinIO** at http://127.0.0.1:9001
 
 For detailed setup instructions, see the [Documentation](https://docs.sequentech.io/docusaurus/main/).
 
@@ -167,38 +168,24 @@ docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/e
 docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
 ```
 
-Whenever a realm is updated, there's a chance that the assocated JWK used have
+Whenever a realm is updated, there's a chance that the associated JWK used have
 changed. This JWK is used to verify the JWT that is received from keycloak.
 These keys are configured in S3/minio in the `.devcontainer/minio/certs.json`
-file via the `configure-minio` helper docker service. If the keys changed and we
+file via the `logs.reset.minio` helper docker service. If the keys changed and we
 don't update the keys serviced by minio/s3, then the admin-portal or the
 voting-booth might show some errors because this JWT verification fails.
 
-To fix that issue by updating the JWK serviced by minio, perform the following
-2 steps:
+To fix this issue, run the VS Code task `logs.reset.minio` which will:
+1. Fetch JWK certificates from Keycloak realms configured in
+   `.devcontainer/keycloak/import/`
+2. Update the `.devcontainer/minio/certs.json` file with the combined
+   certificates
+3. Rebuild and restart the MinIO configuration service
+4. Display the logs for verification
 
-1. Update the `.devcontainer/minio/certs.json` file:
-
-```bash
-cd /workspaces/step/.devcontainer
-[ -f /tmp/combined.json ] && rm /tmp/combined.json
-export FILES=$(ls keycloak/import/)
-for FILE in $FILES; do
-  curl http://keycloak:8090/realms/${FILE%.json}/protocol/openid-connect/certs | python -m json.tool > /tmp/certs.json
-  [ -f /tmp/combined.json ] && jq -s '{keys: (.[0].keys + .[1].keys)}' /tmp/certs.json /tmp/combined.json > /tmp/combined.json
-  [ ! -f /tmp/combined.json ] && cp /tmp/certs.json /tmp/combined.json
-done
-ls -lah /tmp/certs.json /tmp/combined.json
-cp /tmp/combined.json minio/certs.json
-```
-
-2. Rerun the `configure-minio` docker service to update the certificate serviced
-   by `minio`:
-
-```bash
-cd /workspaces/step/.devcontainer/
-docker compose build configure-minio && docker compose up -d --no-deps configure-minio && docker compose logs -f configure-minio
-```
+**NOTE:** that this is a task that is useful only for developers: when you
+execute it, the certificates from other election events will be removed from
+`certs.json` so you will need to re-create the election events.
 
 ## Add Hasura migrations/changes
 
