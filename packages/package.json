@@ -31,7 +31,6 @@
     "form-data": "^3.0.4",
     "@babel/traverse": "^7.23.2",
     "fast-loops": "^1.1.4",
-    "rollup": "^2.79.2",
     "@babel/helpers": "^7.26.10",
     "@babel/runtime": "^7.26.10",
     "ejs": "^3.1.10",
@@ -39,7 +38,8 @@
     "brace-expansion": "^2.0.2",
     "on-headers": "^1.1.0",
     "@types/react": "^19.1.13",
-    "@types/react-dom": "^19.1.9"
+    "@types/react-dom": "^19.1.9",
+    "rollup": "^4.0.0"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",

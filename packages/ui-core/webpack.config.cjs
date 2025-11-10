@@ -4,7 +4,6 @@
 
 const path = require("path")
 
-const {CleanWebpackPlugin} = require("clean-webpack-plugin")
 const ESLintPlugin = require("eslint-webpack-plugin")
 const {ProgressPlugin} = require("webpack")
 
@@ -12,11 +11,17 @@ module.exports = function (env, argv) {
     return {
         mode: argv.mode,
         entry: path.resolve(__dirname, "src/index.tsx"),
+        experiments: {
+            outputModule: true,
+            asyncWebAssembly: true,
+        },
         output: {
             filename: "index.js",
-            library: "$",
-            libraryTarget: "umd",
+            library: {
+              type: "module"          // <-- ES module, no UMD bootstrap
+            },
             path: path.resolve(__dirname, "dist"),
+            clean: true,
         },
         devtool: "source-map",
         module: {
@@ -49,15 +54,11 @@ module.exports = function (env, argv) {
             },
             extensions: [".js", ".jsx", ".ts", ".tsx", ".wasm"],
         },
-        experiments: {
-            asyncWebAssembly: true,
-        },
         plugins: [
             new ProgressPlugin(),
             new ESLintPlugin({
                 extensions: [".js", ".jsx", ".ts", ".tsx"],
             }),
-            new CleanWebpackPlugin()
         ],
     }
 }

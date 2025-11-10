@@ -4,7 +4,6 @@
 
 const path = require("path")
 
-const {CleanWebpackPlugin} = require("clean-webpack-plugin")
 const ESLintPlugin = require("eslint-webpack-plugin")
 const {ProgressPlugin} = require("webpack")
 
@@ -17,7 +16,8 @@ module.exports = function (env, argv) {
             library: {
               type: "module"          // <-- ES module, no UMD bootstrap
             },
-            path: path.resolve(__dirname, "dist")
+            path: path.resolve(__dirname, "dist"),
+            clean: true,
         },
         experiments: { outputModule: true },
         devtool: "source-map",
@@ -58,7 +58,6 @@ module.exports = function (env, argv) {
             new ESLintPlugin({
                 extensions: [".js", ".jsx", ".ts", ".tsx"],
             }),
-            new CleanWebpackPlugin()
         ],
     }
 }
