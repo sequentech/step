@@ -39,8 +39,8 @@
     "path-to-regexp": "^0.1.12"
   },
   "scripts": {
-    "start": "webpack serve --config webpack.config.cjs  --mode development",
-    "build": "webpack --config webpack.config.cjs --mode production",
+    "start": "PORT=3000 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
+    "build": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack --config webpack.config.cjs --mode production",
     "prettify": "prettier --check . --ignore-path .prettierignore",
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
