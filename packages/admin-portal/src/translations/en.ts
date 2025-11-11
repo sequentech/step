@@ -912,9 +912,6 @@ const englishTranslation = {
                 "report-delete": "Delete Report",
                 "report-generate": "Generate Report",
                 "report-preview": "Preview Report",
-                "monitoring-dashboard-view-election-event":
-                    "Election Event Monitoring Dashboard View",
-                "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
                 "monitor-authenticated-voters": "Monitoring Authenticated Voters",
                 "monitor-all-approve-disapprove-voters":
                     "Read Monitoring Approve Disapprove Voters",

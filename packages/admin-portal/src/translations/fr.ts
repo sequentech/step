@@ -919,10 +919,6 @@ const frenchTranslation: TranslationType = {
                 "report-delete": "Supprimer un Rapport",
                 "report-generate": "Générer un Rapport",
                 "report-preview": "Aperçu du Rapport",
-                "monitoring-dashboard-view-election-event":
-                    "Vue du Tableau de Bord de Suivi des Élections",
-                "monitoring-dashboard-view-election":
-                    "Vue du Tableau de Bord de Suivi des Événements Électoraux",
                 "monitor-authenticated-voters": "Surveillance des Électeurs Authentifiés",
                 "monitor-all-approve-disapprove-voters":
                     "Lire la Surveillance des Électeurs Approuvés et Refusés",

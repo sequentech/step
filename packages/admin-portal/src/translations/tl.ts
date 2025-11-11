@@ -917,10 +917,6 @@ const tagalogTranslation: TranslationType = {
                 "report-delete": "Tanggalin ang Ulat",
                 "report-generate": "Lumikha ng Ulat",
                 "report-preview": "I-preview ang Ulat",
-                "monitoring-dashboard-view-election-event":
-                    "Pagtingin sa Dashboard ng Pagsubaybay sa Halalan",
-                "monitoring-dashboard-view-election":
-                    "Pagtingin sa Dashboard ng Pagsubaybay sa Kaganapan ng Halalan",
                 "monitor-authenticated-voters": "Pagmamatyag sa Mga Awtentikadong Botante",
                 "monitor-all-approve-disapprove-voters":
                     "Basahin ang Pagmamatyag sa Mga Aprubado at Hindi Aprubado",

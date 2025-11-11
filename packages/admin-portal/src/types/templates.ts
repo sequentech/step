@@ -56,7 +56,6 @@ export interface IMethods {
 export interface ISendTemplateBody {
     audience_selection?: IAudienceSelection
     audience_voter_ids?: Array<string>
-    type?: ETemplateType
     communication_method?: ITemplateMethod
     schedule_now?: boolean
     schedule_date?: string

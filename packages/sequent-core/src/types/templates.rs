@@ -141,7 +141,6 @@ pub struct SendTemplateBody {
     // TODO: Rename this struct
     pub audience_selection: Option<AudienceSelection>,
     pub audience_voter_ids: Option<Vec<String>>,
-    pub r#type: Option<TemplateType>,
     pub communication_method: Option<TemplateMethod>,
     pub schedule_now: Option<bool>,
     pub schedule_date: Option<String>,

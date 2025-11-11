@@ -1063,9 +1063,6 @@ pub async fn send_application_communication_response(
             let payload: SendTemplateBody = SendTemplateBody {
                 audience_selection: Some(SELECTED),
                 audience_voter_ids: Some(user_ids),
-                r#type: Some(
-                    sequent_core::types::templates::TemplateType::MANUALLY_VERIFY_APPROVAL,
-                ),
                 communication_method,
                 schedule_now: Some(true),
                 schedule_date: None,

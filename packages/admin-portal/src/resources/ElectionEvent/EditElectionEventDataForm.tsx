@@ -174,7 +174,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         },
     })
 
-
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
         kiosk: tenant?.voting_channels?.kiosk || false,

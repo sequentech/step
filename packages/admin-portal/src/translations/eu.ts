@@ -915,9 +915,6 @@ const basqueTranslation: TranslationType = {
                 "report-delete": "Ezabatu Txostena",
                 "report-generate": "Sortu Txostena",
                 "report-preview": "Aurreikusi Txostena",
-                "monitoring-dashboard-view-election-event":
-                    "Hauteskunde Gertaera Monitorizazio Panela Ikusi",
-                "monitoring-dashboard-view-election": "Hauteskunde Monitorizazio Panela Ikusi",
                 "monitor-authenticated-voters": "Monitorizatu Autentifikatutako Bozkatzaileak",
                 "monitor-all-approve-disapprove-voters":
                     "Irakurri Monitorizazio Onartu Ezarri Bozkatzaileak",

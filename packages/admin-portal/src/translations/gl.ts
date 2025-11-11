@@ -916,9 +916,6 @@ const galegoTranslation: TranslationType = {
                 "report-delete": "Eliminar Informe",
                 "report-generate": "Generar Informe",
                 "report-preview": "Vista Previa del Informe",
-                "monitoring-dashboard-view-election-event":
-                    "Vista del Panel de Monitoreo de Eventos Electorales",
-                "monitoring-dashboard-view-election": "Vista del Panel de Monitoreo de Elecciones",
                 "monitor-authenticated-voters": "Monitoreo de Votantes Autenticados",
                 "monitor-all-approve-disapprove-voters":
                     "Leer Monitoreo de Votantes Aprobados y Rechazados",

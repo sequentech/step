@@ -923,9 +923,6 @@ const catalanTranslation: TranslationType = {
                 "report-delete": "Eliminar Informe",
                 "report-generate": "Generar Informe",
                 "report-preview": "Vista Prèvia de l'Informe",
-                "monitoring-dashboard-view-election-event":
-                    "Vista del Panell de Monitoreig d'Esdeveniments Electorals",
-                "monitoring-dashboard-view-election": "Vista del Panell de Monitoreig d'Eleccions",
                 "monitor-authenticated-voters": "Monitoreig de Votants Autenticats",
                 "monitor-all-approve-disapprove-voters":
                     "Llegir Monitoreig de Votants Aprovat i Rebutjat",

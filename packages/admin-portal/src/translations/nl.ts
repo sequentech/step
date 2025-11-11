@@ -914,9 +914,6 @@ const dutchTranslation: TranslationType = {
                 "report-delete": "Rapport Verwijderen",
                 "report-generate": "Rapport Genereren",
                 "report-preview": "Rapport Voorbeeldweergave",
-                "monitoring-dashboard-view-election-event":
-                    "Monitoring Dashboard Verkiezingsevenement Bekijken",
-                "monitoring-dashboard-view-election": "Monitoring Dashboard Verkiezing Bekijken",
                 "monitor-authenticated-voters": "Monitoring Geauthenticeerde Kiezers",
                 "monitor-all-approve-disapprove-voters":
                     "Monitoring Goedgekeurde/Afgekeurde Kiezers Lezen",

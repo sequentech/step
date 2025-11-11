@@ -7,6 +7,35 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🔧 Removal of Monitoring Dashboard
+
+The monitoring dashboard functionality has been removed from the Admin Portal,
+including all associated GraphQL queries, backend routes, and permissions. This
+feature is being replaced by the existing dashboard functionality in future
+releases.
+
+### Migration Required
+
+The following Keycloak permissions must be manually removed from all tenant realms:
+
+- `monitoring-dashboard-view-election-event`
+- `monitoring-dashboard-view-election`
+
+To remove these permissions from Keycloak:
+
+1. Log in to the Keycloak Admin Console
+2. Select the tenant realm (e.g., `dev`)
+3. Navigate to `Realm Roles`
+4. Search for and delete the roles:
+   - `monitoring-dashboard-view-election-event`
+   - `monitoring-dashboard-view-election`
+5. If these roles were assigned to any groups or users, remove those assignments first
+
+Note: The dashboard functionality (`admin-dashboard-view` permission) remains
+available and provides comprehensive statistics for election events and elections.
+
+- Issue: [#9060](https://github.com/sequentech/meta/issues/9060)
+
 ## ✨ Move voter signature to the voting portal
 
 The voting portal will sign the ballot using an ephemeral key. The ballot will 

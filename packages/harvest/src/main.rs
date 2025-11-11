@@ -126,8 +126,6 @@ async fn rocket() -> _ {
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
-                routes::election_event_monitoring::get_election_event_monitoring_f,
-                routes::election_monitoring::get_election_monitoring_f,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
