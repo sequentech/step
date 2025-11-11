@@ -354,7 +354,7 @@ export const TallyCeremony: React.FC = () => {
     }, [tally, keysCeremonyId])
 
     const isAutomatedCeremony =
-        electionEvent.presentation?.ceremonies_policy ===
+        electionEvent?.presentation?.ceremonies_policy ===
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         currentKeysCeremony?.settings?.policy ===
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
