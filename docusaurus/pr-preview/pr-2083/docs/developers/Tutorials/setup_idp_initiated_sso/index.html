@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">IdP SSO Configuration &amp; Handoff | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/developers/Tutorials/setup_idp_initiated_sso"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="IdP SSO Configuration &amp; Handoff | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2083/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/developers/Tutorials/setup_idp_initiated_sso"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/developers/Tutorials/setup_idp_initiated_sso" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/developers/Tutorials/setup_idp_initiated_sso" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"IdP SSO Configuration & Handoff","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2083/docs/developers/Tutorials/setup_idp_initiated_sso"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2083/assets/css/styles.fe236151.css">
-<script src="/docusaurus/pr-preview/pr-2083/assets/js/runtime~main.82a0b4d4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2083/assets/js/runtime~main.13d87041.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2083/assets/js/main.4e53af37.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -94,7 +94,7 @@ that you can obtain at the bottom of the Admin Portal Dashboard under the Link
 <p><strong>To export the realm certificate:</strong></p>
 <ol>
 <li>Go to <strong>Realm Settings</strong> → <strong>Keys</strong> tab</li>
-<li>Find the <code>RSA</code> key</li>
+<li>Find the <code>RSA</code> key of use <code>SIG</code></li>
 <li>Click <strong>Certificate</strong> button</li>
 <li>Copy the certificate (this will be provided to the client as <code>SP_CERT_DATA</code>)</li>
 </ol>
@@ -103,7 +103,9 @@ that you can obtain at the bottom of the Admin Portal Dashboard under the Link
 typically already automatically set up by the default keycloak realm
 configuration in Sequent Voting Plataform. However, you can also use the
 instructions below to verify everything is correctly configured, or in case the
-realm template is misconfigured or old, to configure these settings manually.</p>
+realm template is misconfigured or old, to configure these settings manually.
+<em>Note: The vp-sso client configuration that comes by default at election event creation might be wrong or outdated.
+It is recommended to create a new configuration or follow this guide to review it.</em></p>
 <ol>
 <li>
 <p><strong>Navigate:</strong> Go to <strong>Clients</strong> in the realm</p>
@@ -146,7 +148,7 @@ realm template is misconfigured or old, to configure these settings manually.</p
 <li><strong>Sign Documents:</strong> <strong>ON</strong></li>
 <li><strong>Sign Assertions:</strong> <strong>ON</strong></li>
 <li><strong>Signature Algorithm:</strong> <code>RSA_SHA256</code></li>
-<li><strong>Client signature required:</strong> <strong>OFF</strong> (the voting portal doesn&#x27;t sign requests)</li>
+<li><strong>Client signature required:</strong> <strong>OFF</strong> (the voting portal doesn&#x27;t sign requests). Ignore it if this option does not appear.</li>
 </ul>
 </li>
 <li>
@@ -179,7 +181,8 @@ SimpleSAMLphp reference implementation.</p>
 need to edit the environment configuration variables in the <code>.devcontainer/.env</code>
 file. Otherwise, you will have to replicate these variables used by the
 <code>simplesamlphp</code> sample app, which you can find in
-<code>.devcontainer/simplesamlphp/.env.example</code>.</p>
+<code>.devcontainer/simplesamlphp/.env.example</code>.
+If you are in dev environment edit <code>.devcontainer/.env.development</code> and do not forget to run the vscode task <code>update.env</code> afterwards. Last but not least: do not commit the changes.</p>
 <p>We will asume you are using the step repository devcontainer environment.</p>
 <ol>
 <li>
@@ -256,11 +259,12 @@ this is just a sample implementation, use secure passwords in production.</p></d
 <li><strong>Principal Attribute:</strong> email</li>
 <li><strong>HTTP-POST Binding Response:</strong> <strong>ON</strong></li>
 <li><strong>HTTP-POST Binding AuthnRequest:</strong> <strong>ON</strong></li>
-<li><strong>Want AuthnRequests Signed:</strong> <strong>OFF</strong> (for testing; ON in production)</li>
+<li><strong>Want AuthnRequests Signed:</strong> <strong>ON</strong></li>
 <li><strong>Signature Algorithm:</strong> RSA_SHA256</li>
 <li><strong>Want Assertions Signed:</strong> <strong>ON</strong></li>
 <li><strong>Validate Signatures:</strong> <strong>ON</strong></li>
 <li><strong>Validating X509 Certificates:</strong> Paste SimpleSAMLphp&#x27;s public certificate (<code>server.crt</code> content, without BEGIN/END lines)</li>
+<li>Click <strong>Add</strong> and scroll to the bottom to find the <code>First login flow override</code> setting.</li>
 <li><strong>First login flow override:</strong> saml first broker flow</li>
 </ul>
 <ol start="11">
@@ -464,6 +468,13 @@ Service provider entity ID is equal to the realm&#x27;s name, something like
 <li>Verify client&#x27;s IdP includes RelayState in SAML Response POST</li>
 <li>Check client is using correct RelayState URL format</li>
 <li>Test with SimpleSAMLphp to verify Keycloak side works</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="issue-5-simplesamlphp-trigger-page-not-reachable-in-dev-env">Issue 5: &quot;SimpleSAMLphp trigger page not reachable in dev ENV&quot;<a href="#issue-5-simplesamlphp-trigger-page-not-reachable-in-dev-env" class="hash-link" aria-label="Direct link to Issue 5: &quot;SimpleSAMLphp trigger page not reachable in dev ENV&quot;" title="Direct link to Issue 5: &quot;SimpleSAMLphp trigger page not reachable in dev ENV&quot;">​</a></h4>
+<p><strong>Cause:</strong> Bad ports configuration</p>
+<p><strong>Resolution:</strong></p>
+<ul>
+<li>Check PORTS tab in vscode to verify whether simplesamlphp service port is being forwarded</li>
+<li>Add simplesamlphp:8083</li>
 </ul>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="debugging-tools">Debugging Tools<a href="#debugging-tools" class="hash-link" aria-label="Direct link to Debugging Tools" title="Direct link to Debugging Tools">​</a></h3>
 <ol>
