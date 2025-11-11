@@ -51,7 +51,7 @@ import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {styled} from "@mui/material/styles"
 import eStyled from "@emotion/styled"
-import {Chip} from "@mui/material"
+import {Chip, CircularProgress} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {useLocation} from "react-router"
@@ -72,7 +72,7 @@ export interface ListApprovalsProps {
     electionEventId: string
     electionId?: string
     onViewApproval: (id: Identifier) => void
-    electionEventRecord: Sequent_Backend_Election_Event
+    electionEventRecord?: Sequent_Backend_Election_Event
 }
 
 interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children"> {
@@ -388,8 +388,8 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
             currWidget = addWidget(ETasksExecution.IMPORT_APPLICATION, undefined)
             let {data, errors} = await importApplications({
                 variables: {
-                    tenantId: electionEventRecord.tenant_id,
-                    electionEventId: electionEventRecord.id,
+                    tenantId: electionEventRecord?.tenant_id,
+                    electionEventId: electionEventRecord?.id,
                     electionId: electionId,
                     documentId,
                     sha256,
@@ -482,6 +482,10 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     // add election level
     if (userAttributesLoading) {
         return null
+    }
+
+    if (!electionEventRecord) {
+        return <CircularProgress />
     }
 
     return (

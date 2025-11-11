@@ -26,10 +26,11 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useTasksPermissions} from "./useTasksPermissions"
+import {CircularProgress} from "@mui/material"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
-    electionEventRecord: Sequent_Backend_Election_Event
+    electionEventRecord?: Sequent_Backend_Election_Event
 }
 export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRecord}) => {
     const notify = useNotify()
@@ -107,6 +108,10 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
             notify(t("tasksScreen.exportTasksExecution.error"))
             console.log(err)
         }
+    }
+
+    if (!electionEventRecord) {
+        return <CircularProgress />
     }
 
     return (

@@ -13,7 +13,6 @@ import {TallyCeremonyTrustees} from "../Tally/TallyCeremonyTrustees"
 import {MiruExportWizard} from "@/components/MiruExportWizard"
 
 export const EditElectionEventTally: React.FC = () => {
-    const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
     const {
         tallyId,
         isTrustee,
@@ -29,7 +28,7 @@ export const EditElectionEventTally: React.FC = () => {
             ) : isCreatingType || isCreated || tallyId ? (
                 <>{!isTrustee ? <TallyCeremony /> : <TallyCeremonyTrustees />}</>
             ) : (
-                <ListTally recordTally={recordTally} />
+                <ListTally />
             )}
         </Box>
     )

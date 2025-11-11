@@ -1056,15 +1056,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         )}
                         {renderFields(listFields.attributesFields)}
                         {electionEventId && (
-                            <FunctionField
+                            <FunctionField<IUser>
                                 source="has_voted"
                                 label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
-                                render={(record: IUser, source: string | undefined) => {
+                                render={(record, source) => {
                                     let newRecord = {
                                         has_voted: checkIsVoted(record),
                                         ...record,
                                     }
-                                    return <BooleanField record={newRecord} source={source} />
+                                    return source ? (
+                                        <BooleanField
+                                            record={newRecord}
+                                            source={source as keyof IUser}
+                                        />
+                                    ) : null
                                 }}
                             />
                         )}

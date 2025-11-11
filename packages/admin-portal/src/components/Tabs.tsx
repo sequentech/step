@@ -6,6 +6,7 @@ import React, {SyntheticEvent} from "react"
 import styled from "@emotion/styled"
 
 import {Tabs as MuiTabs, Tab as MuiTab, Box} from "@mui/material"
+import {useTranslation} from "react-i18next"
 
 const TabStyles = {
     Wrapper: styled.div`
@@ -25,8 +26,13 @@ const TabStyles = {
 }
 
 export const Tabs: React.FC<{
-    elements: {label: string; component: React.FC; action?: (index: number) => void}[]
+    elements: Array<{
+        label: string
+        component: React.ComponentType<any>
+        action?: (index: number) => void
+    }>
 }> = ({elements, ...props}) => {
+    const {t} = useTranslation()
     const baseUrl = new URL(window.location.href)
     const [selectedTab, setSelectedTab] = React.useState(
         Number.parseInt(baseUrl?.searchParams?.get("tabIndex") ?? "0")
@@ -35,6 +41,8 @@ export const Tabs: React.FC<{
     const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
         setSelectedTab(newValue)
     }
+
+    const SelectedComponent = elements[selectedTab]?.component
 
     return (
         <TabStyles.Wrapper>
@@ -66,8 +74,11 @@ export const Tabs: React.FC<{
                     )}
                 </MuiTabs>
             </Box>
-
-            <TabStyles.Content>{elements[selectedTab]?.component(props)}</TabStyles.Content>
+            <TabStyles.Content>
+                <React.Suspense fallback={<div>{t("loading")}</div>}>
+                    {SelectedComponent ? <SelectedComponent {...props} /> : null}
+                </React.Suspense>
+            </TabStyles.Content>
         </TabStyles.Wrapper>
     )
 }

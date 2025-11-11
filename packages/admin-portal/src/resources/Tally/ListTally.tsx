@@ -94,11 +94,9 @@ const TrusteeKeyIcon = MUIStiled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
 
-export interface ListAreaProps {
-    recordTally: Sequent_Backend_Tally_Session
-}
+export interface ListAreaProps {}
 
-export const ListTally: React.FC<ListAreaProps> = (props) => {
+export const ListTally: React.FC<ListAreaProps> = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {

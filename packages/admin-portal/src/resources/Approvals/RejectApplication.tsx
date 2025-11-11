@@ -60,6 +60,11 @@ export const RejectApplicationButton: React.FC<RejectApplicationButtonProps> = (
     </RejectBox>
 )
 
+interface IRejectData {
+    rejection_reason?: string
+    rejection_message?: string
+}
+
 export interface RejectApplicationDialogProps {
     electionEventId: string
     task: Sequent_Backend_Applications
@@ -80,7 +85,7 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
     const [tenantId] = useTenantStore()
     const [rejectVoter] = useMutation<ApplicationChangeStatusBody>(CHANGE_APPLICATION_STATUS)
 
-    const handleReject = async (data?: any) => {
+    const handleReject = async (data?: IRejectData) => {
         if (data) {
             const {errors} = await rejectVoter({
                 variables: {
@@ -89,8 +94,8 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                     user_id: "", // user_id is not available!!
                     area_id: task?.area_id,
                     election_event_id: electionEventId,
-                    rejection_reason: data.rejection_reason,
-                    rejection_message: data.rejection_message,
+                    rejection_reason: data?.rejection_reason,
+                    rejection_message: data?.rejection_message,
                 },
             })
             if (errors) {
@@ -121,7 +126,7 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
                     rejection_reason: "",
                     rejection_message: "",
                 }}
-                onSubmit={(data) => {
+                onSubmit={(data: IRejectData) => {
                     handleReject(data)
                 }}
                 sanitizeEmptyValues
