@@ -53,6 +53,10 @@ Files:
 Copyright: 2024 Sequent Tech <legal@sequentech.io>
 License: AGPL-3.0-only
 
+Files:
+  .devcontainer/simplesamlphp/*
+Copyright: 2025 Sequent Tech <legal@sequentech.io>
+License: AGPL-3.0-only
 
 Files:
   vendor/immudb-log-audit/*
