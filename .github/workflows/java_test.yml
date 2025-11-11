@@ -11,11 +11,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: arc-runner-set
 
     steps:
     - uses: actions/checkout@v2
