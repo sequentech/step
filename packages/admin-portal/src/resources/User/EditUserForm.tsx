@@ -983,7 +983,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                     {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
                                     <IconTooltip
                                         icon={faInfoCircle as any}
-                                        info={String(t(`usersAndRolesScreen.editPassword.temporatyInfo`))}
+                                        info={String(
+                                            t(`usersAndRolesScreen.editPassword.temporatyInfo`)
+                                        )}
                                     />
                                 </Box>
                             </InputLabelStyle>

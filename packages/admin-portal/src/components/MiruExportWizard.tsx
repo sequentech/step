@@ -367,8 +367,8 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         return signed === 0
             ? theme.palette.warning.main
             : signed === minimum
-            ? theme.palette.info.main
-            : theme.palette.brandSuccess
+              ? theme.palette.info.main
+              : theme.palette.brandSuccess
     }
 
     const signedCount: () => number = () => {
@@ -610,9 +610,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                                             <CellTowerIcon />
                                         )}
                                         <span
-                                            title={String(t(
-                                                "tally.transmissionPackage.actions.send.title"
-                                            ))}
+                                            title={String(
+                                                t("tally.transmissionPackage.actions.send.title")
+                                            )}
                                         >
                                             {t("tally.transmissionPackage.actions.send.title")}
                                         </span>
@@ -645,7 +645,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                                     <RestartAltIcon />
                                 )}
                                 <span
-                                    title={String(t("tally.transmissionPackage.actions.regenerate.title"))}
+                                    title={String(
+                                        t("tally.transmissionPackage.actions.regenerate.title")
+                                    )}
                                 >
                                     {t("tally.transmissionPackage.actions.regenerate.title")}
                                 </span>
@@ -708,11 +710,13 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                             color: theme.palette.background.default,
                             textTransform: "uppercase",
                         }}
-                        label={String(t("tally.transmissionPackage.signatures.status", {
-                            signed: signedCount(),
-                            total: trusteeCount(),
-                            minimum: minimumSignatures(),
-                        }))}
+                        label={String(
+                            t("tally.transmissionPackage.signatures.status", {
+                                signed: signedCount(),
+                                total: trusteeCount(),
+                                minimum: minimumSignatures(),
+                            })
+                        )}
                     />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
@@ -749,10 +753,12 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                             color: theme.palette.background.default,
                             textTransform: "uppercase",
                         }}
-                        label={String(t("tally.transmissionPackage.destinationServers.status", {
-                            signed: serverSentToCount(),
-                            total: serversTotalCount(),
-                        }))}
+                        label={String(
+                            t("tally.transmissionPackage.destinationServers.status", {
+                                signed: serverSentToCount(),
+                                total: serversTotalCount(),
+                            })
+                        )}
                     />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
@@ -841,7 +847,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                 <Box>
                     <TextField
                         dir={i18n.dir(i18n.language)}
-                        label={String(t("tally.transmissionPackage.actions.sign.dialog.input.placeholder"))}
+                        label={String(
+                            t("tally.transmissionPackage.actions.sign.dialog.input.placeholder")
+                        )}
                         size="small"
                         value={passwordState}
                         onChange={(e) => setPasswordState(e.target.value)}

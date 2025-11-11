@@ -198,32 +198,31 @@ const PasswordComponent: React.FC<PasswordComponentProps> = ({
                 title={String(t("electionEventScreen.export.passwordTitle"))}
                 ok={String(t("usersAndRolesScreen.users.fields.savePassword"))}
             >
-               <>
-                <InputContainerStyle>
-                    <InputLabelStyle>
-                        {t("usersAndRolesScreen.users.fields.password")}:
-                    </InputLabelStyle>
-                    <PasswordInputStyle
-                        label={false}
-                        source="password"
-                        onChange={handleChangePassword}
-                        value={filePassword.password}
-                    />
-                </InputContainerStyle>
-                <InputContainerStyle>
-                    <InputLabelStyle>
-                        {t("usersAndRolesScreen.users.fields.repeatPassword")}:
-                    </InputLabelStyle>
-                    <PasswordInputStyle
-                        label={false}
-                        source="confirmPassword"
-                        validate={equalToPassword}
-                        onChange={handleChangeConfirmPassword}
-                        value={filePassword.confirmPassword}
-                    />
-                </InputContainerStyle>
-            </>
-
+                <>
+                    <InputContainerStyle>
+                        <InputLabelStyle>
+                            {t("usersAndRolesScreen.users.fields.password")}:
+                        </InputLabelStyle>
+                        <PasswordInputStyle
+                            label={false}
+                            source="password"
+                            onChange={handleChangePassword}
+                            value={filePassword.password}
+                        />
+                    </InputContainerStyle>
+                    <InputContainerStyle>
+                        <InputLabelStyle>
+                            {t("usersAndRolesScreen.users.fields.repeatPassword")}:
+                        </InputLabelStyle>
+                        <PasswordInputStyle
+                            label={false}
+                            source="confirmPassword"
+                            validate={equalToPassword}
+                            onChange={handleChangeConfirmPassword}
+                            value={filePassword.confirmPassword}
+                        />
+                    </InputContainerStyle>
+                </>
             </Dialog>
         </>
     )

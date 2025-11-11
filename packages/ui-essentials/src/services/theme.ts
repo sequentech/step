@@ -13,7 +13,7 @@ import LinkBehavior from "../components/LinkBehavior/LinkBehavior"
 import {Theme as MUITheme} from "@mui/material"
 
 // Typography options type for React 19 / MUI 5 compatibility
-type TypographyOptions = any; // Using any due to MUI type incompatibilities with React 19
+type TypographyOptions = any // Using any due to MUI type incompatibilities with React 19
 
 // Re-declare the emotion theme to have the properties of the MaterialUiTheme
 // See: https://github.com/emotion-js/emotion/discussions/2291#discussioncomment-491185

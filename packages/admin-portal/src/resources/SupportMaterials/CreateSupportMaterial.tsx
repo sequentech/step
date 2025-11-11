@@ -202,7 +202,10 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                         {t("materials.common.subtitle")}
                     </PageHeaderStyles.SubTitle>
                     <Tabs elements={renderTabs(record)} />
-                    <BooleanInput source={"is_hidden"} label={String(t("materials.fields.isHidden"))} />
+                    <BooleanInput
+                        source={"is_hidden"}
+                        label={String(t("materials.fields.isHidden"))}
+                    />
                     <DropFile handleFiles={handleFiles} />
                     {imageType ? (
                         <Box

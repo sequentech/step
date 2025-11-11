@@ -49,7 +49,7 @@ export const ElectionEventContextProvider = (props: ElectionEventContextProvider
 
 export const useElectionEventStore: () => [
     string | null,
-    (ElectionEventId: string | null) => void
+    (ElectionEventId: string | null) => void,
 ] = () => {
     const {ElectionEventId, setElectionEventId} = useContext(ElectionEventContext)
 

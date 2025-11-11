@@ -391,7 +391,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             <BooleanInput
                                 disabled={!isElectionEventAutomatedCeremonyPolicy}
                                 source="isAutomatic"
-                                label={String(t("keysGeneration.configureStep.automaticCeremonyToggle"))}
+                                label={String(
+                                    t("keysGeneration.configureStep.automaticCeremonyToggle")
+                                )}
                             />
                         )}
                         {trusteeList ? (
@@ -406,7 +408,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                     <OutlinedInput
                                         id="trustees-filter"
                                         dir={i18n.dir(i18n.language)}
-                                        label={String(t("keysGeneration.configureStep.filterTrustees"))}
+                                        label={String(
+                                            t("keysGeneration.configureStep.filterTrustees")
+                                        )}
                                         value={filterTrustees}
                                         type="text"
                                         onChange={(e) => setFilterTrustees(e.target.value)}

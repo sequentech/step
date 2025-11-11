@@ -51,7 +51,10 @@ export const EditElectionEventAreasList: React.FC = () => {
                     </Tabs>
                     <CustomTabPanel value={value} index={0}>
                         <div style={{marginTop: "16px"}}>
-                            <TextInput source="name" label={String(t("electionEventScreen.field.name"))} />
+                            <TextInput
+                                source="name"
+                                label={String(t("electionEventScreen.field.name"))}
+                            />
                             <TextInput
                                 source="alias"
                                 label={String(t("electionEventScreen.field.alias"))}
@@ -64,7 +67,10 @@ export const EditElectionEventAreasList: React.FC = () => {
                     </CustomTabPanel>
                     <CustomTabPanel value={value} index={1}>
                         <div style={{marginTop: "16px"}}>
-                            <TextInput source="name" label={String(t("electionEventScreen.field.name"))} />
+                            <TextInput
+                                source="name"
+                                label={String(t("electionEventScreen.field.name"))}
+                            />
                             <TextInput
                                 source="alias"
                                 label={String(t("electionEventScreen.field.alias"))}
@@ -113,13 +119,13 @@ export const EditElectionEventAreasList: React.FC = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <DateTimeInput
                                 source="start_date"
                                 label={String(t("electionEventScreen.field.startDateTime"))}
                             />
                         </Grid>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <DateTimeInput
                                 source="end_date"
                                 label={String(t("electionEventScreen.field.endDateTime"))}
@@ -139,7 +145,7 @@ export const EditElectionEventAreasList: React.FC = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <BooleanInput
                                 source="language.english"
                                 label={"English"}
@@ -166,7 +172,7 @@ export const EditElectionEventAreasList: React.FC = () => {
                 <AccordionDetails>
                     {" "}
                     <Grid container spacing={4}>
-                        <Grid size={{ xs: 12, md: 6 }}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
                             <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
                         </Grid>

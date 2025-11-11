@@ -161,7 +161,9 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                 />
 
                                 <TextField
-                                    label={String(t("googleMeet.description", "Description (Optional))"))}
+                                    label={String(
+                                        t("googleMeet.description", "Description (Optional))")
+                                    )}
                                     value={meetingDescription}
                                     onChange={(e) => setMeetingDescription(e.target.value)}
                                     fullWidth
@@ -200,7 +202,9 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                 />
 
                                 <TextField
-                                    label={String(t("googleMeet.attendeeEmails", "Attendee Emails"))}
+                                    label={String(
+                                        t("googleMeet.attendeeEmails", "Attendee Emails")
+                                    )}
                                     value={attendeeEmails}
                                     onChange={(e) => setAttendeeEmails(e.target.value)}
                                     fullWidth

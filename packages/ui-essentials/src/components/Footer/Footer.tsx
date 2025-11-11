@@ -44,8 +44,7 @@ const Footer: React.FC<PaperProps> = (args) => {
             <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
                 <Typography variant="subtitle2" fontStyle="italic" color="error">
                     Error: Invalid translation for footer.poweredBy. It must contain `&lt;1
-                    &gt;``&lt;1
-                    /&gt;`.
+                    &gt;``&lt;1 /&gt;`.
                 </Typography>
             </StyledPaper>
         )
@@ -58,13 +57,12 @@ const Footer: React.FC<PaperProps> = (args) => {
                     i18nKey="footer.poweredBy"
                     components={[
                         <CustomLink />,
-                        <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />
+                        <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
                     ]}
                 />
             </Typography>
         </StyledPaper>
     )
 }
-
 
 export default Footer

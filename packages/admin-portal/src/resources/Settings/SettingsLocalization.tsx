@@ -270,7 +270,10 @@ const SettingsLocalization = () => {
                         </Select>
                     </FormControl>
                     <div className="list-actions">
-                        <Button onClick={() => setOpenCreate(true)} label={String(t("common.label.add"))}>
+                        <Button
+                            onClick={() => setOpenCreate(true)}
+                            label={String(t("common.label.add"))}
+                        >
                             <Add />
                         </Button>
 
@@ -298,11 +301,15 @@ const SettingsLocalization = () => {
 
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                        label={String(t("electionEventScreen.localization.labels.key"))}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.key")
+                                        )}
                                     />
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                        label={String(t("electionEventScreen.localization.labels.value"))}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.value")
+                                        )}
                                         multiline
                                     />
                                 </>

@@ -211,7 +211,9 @@ export const CandidateDataForm: React.FC<{
         let tabNodes: Array<ReactNode> = []
 
         languageConf.forEach((lang) => {
-            tabNodes.push(<Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>)
+            tabNodes.push(
+                <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
+            )
         })
 
         // reset actived tab to first tab if only one
@@ -432,7 +434,10 @@ export const CandidateDataForm: React.FC<{
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TextInput source="type" label={String(t("candidateScreen.edit.type"))} />
+                                <TextInput
+                                    source="type"
+                                    label={String(t("candidateScreen.edit.type"))}
+                                />
                                 <TextInput source="presentation.subtype" label="Subtype" />
 
                                 <BooleanInput

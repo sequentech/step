@@ -200,7 +200,10 @@ export const TemplateList: React.FC = () => {
 
                     <ResourceListStyles.EmptyButtonList>
                         <CreateButton />
-                        <ReactAdminButton onClick={handleImport} label={String(t("common.label.import"))}>
+                        <ReactAdminButton
+                            onClick={handleImport}
+                            label={String(t("common.label.import"))}
+                        >
                             <UploadIcon />
                         </ReactAdminButton>
                     </ResourceListStyles.EmptyButtonList>
@@ -227,7 +230,10 @@ export const TemplateList: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={String(t("template.title"))} subtitle={String(t("template.subtitle"))} />
+            <ElectionHeader
+                title={String(t("template.title"))}
+                subtitle={String(t("template.subtitle"))}
+            />
 
             <List
                 resource="sequent_backend_template"

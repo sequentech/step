@@ -228,15 +228,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             action === EPublishActions.PENDING_START_VOTING
                 ? t(`publish.action.startVotingPeriod`)
                 : action === EPublishActions.PENDING_STOP_VOTING
-                ? t(`publish.action.stopVotingPeriod`)
-                : t(`publish.action.pauseVotingPeriod`)
+                  ? t(`publish.action.stopVotingPeriod`)
+                  : t(`publish.action.pauseVotingPeriod`)
 
         const dialogMessage = isGoldUser()
             ? action === EPublishActions.PENDING_START_VOTING
                 ? t("publish.dialog.startInfo")
                 : action === EPublishActions.PENDING_STOP_VOTING
-                ? t("publish.dialog.stopInfo")
-                : t("publish.dialog.pauseInfo")
+                  ? t("publish.dialog.stopInfo")
+                  : t("publish.dialog.pauseInfo")
             : t("publish.dialog.confirmation", {action: actionText})
         openDialog(dialogMessage)
 

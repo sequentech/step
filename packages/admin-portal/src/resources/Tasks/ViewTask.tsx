@@ -93,9 +93,11 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                             ),
                             color: theme.palette.background.default,
                         }}
-                        label={String(t("tasksScreen.status", {
-                            status: task?.execution_status as ETaskExecutionStatus,
-                        }))}
+                        label={String(
+                            t("tasksScreen.status", {
+                                status: task?.execution_status as ETaskExecutionStatus,
+                            })
+                        )}
                     />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails>
@@ -153,10 +155,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
                 fullWidth={true}
                 maxWidth="md"
             >
-                <>
-                {Content}
-            </>
-
+                <>{Content}</>
             </Dialog>
         )
     }

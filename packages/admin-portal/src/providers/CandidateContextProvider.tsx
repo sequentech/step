@@ -47,7 +47,7 @@ export const CandidateContextProvider = (props: CandidateContextProviderProps) =
 
 export const useCandidateStore: () => [
     string | null,
-    (CandidateId: string | null) => void
+    (CandidateId: string | null) => void,
 ] = () => {
     const {CandidateId, setCandidateId} = useContext(CandidateContext)
 

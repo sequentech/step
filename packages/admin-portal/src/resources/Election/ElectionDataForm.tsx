@@ -364,7 +364,9 @@ export const ElectionDataForm: React.FC = () => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
-                tabNodes.push(<Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>)
+                tabNodes.push(
+                    <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
+                )
             }
         }
 
@@ -405,7 +407,9 @@ export const ElectionDataForm: React.FC = () => {
                             {hasTos ? (
                                 <TextInput
                                     source={`presentation.i18n[${lang}].security_confirmation_html`}
-                                    label={String(t("electionScreen.field.securityConfirmationHtml"))}
+                                    label={String(
+                                        t("electionScreen.field.securityConfirmationHtml")
+                                    )}
                                 />
                             ) : null}
                         </div>
@@ -642,7 +646,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={4}>
-                                    <Grid size={{ xs: 12, md: 6 }}>
+                                    <Grid size={{xs: 12, md: 6}}>
                                         {renderVotingChannels(parsedValue)}
                                     </Grid>
                                 </Grid>
@@ -780,7 +784,9 @@ export const ElectionDataForm: React.FC = () => {
                                     min={0}
                                 />
                                 <SelectInput
-                                    label={String(t("electionScreen.castVoteGoldLevelPolicy.label"))}
+                                    label={String(
+                                        t("electionScreen.castVoteGoldLevelPolicy.label")
+                                    )}
                                     source="presentation.cast_vote_gold_level"
                                     choices={goldLevelChoices()}
                                     defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
@@ -842,7 +848,9 @@ export const ElectionDataForm: React.FC = () => {
                                 />
                                 <ManagedNumberInput
                                     source={"presentation.grace_period_secs"}
-                                    label={String(t("electionScreen.gracePeriodPolicy.gracePeriodSecs"))}
+                                    label={String(
+                                        t("electionScreen.gracePeriodPolicy.gracePeriodSecs")
+                                    )}
                                     defaultValue={0}
                                     sourceToWatch="presentation.grace_period_policy"
                                     isDisabled={(selectedPolicy: any) =>
@@ -859,7 +867,9 @@ export const ElectionDataForm: React.FC = () => {
                                 <ManagedSelectInput
                                     source={`presentation.security_confirmation_policy`}
                                     choices={securityConfirmationPolicyChoices()}
-                                    label={String(t(`electionScreen.securityConfirmationPolicy.label`))}
+                                    label={String(
+                                        t(`electionScreen.securityConfirmationPolicy.label`)
+                                    )}
                                     defaultValue={ESecurityConfirmationPolicy.NONE}
                                 />
                             </AccordionDetails>

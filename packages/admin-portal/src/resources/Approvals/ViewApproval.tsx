@@ -197,10 +197,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 fullWidth={true}
                 maxWidth="md"
             >
-                <>
-                {Content}
-            </>
-
+                <>{Content}</>
             </Dialog>
         )
     }

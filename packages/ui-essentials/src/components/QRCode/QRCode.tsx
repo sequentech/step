@@ -8,9 +8,9 @@ import {QRCodeSVG} from "qrcode.react"
 
 // React 19 compatibility wrapper for QRCodeSVG
 const QRCodeSVGFixed: React.FC<any> = (props) => {
-    const QR = QRCodeSVG as any;
-    return <QR {...props} />;
-};
+    const QR = QRCodeSVG as any
+    return <QR {...props} />
+}
 
 export interface QRCodeProps {
     value: string

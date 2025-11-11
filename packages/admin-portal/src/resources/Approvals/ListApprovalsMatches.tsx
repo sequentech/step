@@ -300,8 +300,8 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                                 attr.name && userApprovalInfo.includes(attr.name)
                                     ? (record as any)[attr.name]
                                     : attr?.name
-                                    ? (record as any).attributes[attr?.name]
-                                    : "-"
+                                      ? (record as any).attributes[attr?.name]
+                                      : "-"
 
                             return (
                                 <>
@@ -364,7 +364,10 @@ export const ListApprovalsMatches: React.FC<ListUsersProps> = ({
                             <TextField source="id" sx={{display: "block", width: "280px"}} />
                             {renderFields(listFields?.basicInfoFields)}
                             {renderFields(listFields?.attributesFields)}
-                            <ActionsColumn actions={actions} label={String(t("common.label.actions"))} />
+                            <ActionsColumn
+                                actions={actions}
+                                label={String(t("common.label.actions"))}
+                            />
                         </DatagridConfigurable>
                     )}
                 </PreloadedList>

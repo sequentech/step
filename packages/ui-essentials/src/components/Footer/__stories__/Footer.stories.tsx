@@ -9,9 +9,9 @@ import {theme} from "../../../services/theme"
 
 // React 19 compatibility wrapper for I18nextProvider
 const I18nextProviderFixed: React.FC<any> = (props) => {
-    const Provider = I18nextProvider as any;
-    return <Provider {...props} />;
-};
+    const Provider = I18nextProvider as any
+    return <Provider {...props} />
+}
 
 import i18n from "i18next"
 import {I18nextProvider, initReactI18next} from "react-i18next"
@@ -53,10 +53,9 @@ interface TemplateProps {
 }
 type FooterProps = React.ComponentProps<typeof Footer>
 
-const Template: StoryFn<React.FC<FooterProps & TemplateProps>> = ({
-    backgroundColor,
-    ...args
-}) => <Footer {...args} style={{backgroundColor: backgroundColor}} />
+const Template: StoryFn<React.FC<FooterProps & TemplateProps>> = ({backgroundColor, ...args}) => (
+    <Footer {...args} style={{backgroundColor: backgroundColor}} />
+)
 
 export const Primary = Template.bind({})
 // More on args: https://storybook.js.org/docs/react/writing-stories/args

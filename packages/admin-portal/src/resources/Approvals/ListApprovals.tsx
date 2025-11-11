@@ -255,12 +255,18 @@ const ApprovalsList = (props: ApprovalsListProps) => {
                 emptyText="-"
             />
             {restFields}
-            <ActionsColumn actions={props.actions} label={String(props.t("common.label.actions"))} />
+            <ActionsColumn
+                actions={props.actions}
+                label={String(props.t("common.label.actions"))}
+            />
         </DatagridConfigurable>
     )
 }
 
-const generateFilters = (fields: UserProfileAttribute[], t: ReturnType<typeof useTranslation>["t"]) => {
+const generateFilters = (
+    fields: UserProfileAttribute[],
+    t: ReturnType<typeof useTranslation>["t"]
+) => {
     return fields.map((attr) => {
         // const source = `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
         const source = `applicant_data.${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}`

@@ -30,8 +30,8 @@ export function useVotesHook({
     const query = hasDateRange
         ? GET_CAST_VOTES_BY_DATERANGE
         : electionId
-        ? GET_CAST_VOTES_FOR_ELECTION
-        : GET_CAST_VOTES
+          ? GET_CAST_VOTES_FOR_ELECTION
+          : GET_CAST_VOTES
     const variables = hasDateRange
         ? {
               electionEventId,
@@ -40,15 +40,15 @@ export function useVotesHook({
               endDate: endDate?.toISOString() ?? null,
           }
         : electionId
-        ? {
-              electionEventId,
-              electionId,
-              tenantId,
-          }
-        : {
-              electionEventId,
-              tenantId,
-          }
+          ? {
+                electionEventId,
+                electionId,
+                tenantId,
+            }
+          : {
+                electionEventId,
+                tenantId,
+            }
 
     return useQuery<GetCastVotesQuery>(query, {
         variables,

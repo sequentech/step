@@ -18,7 +18,7 @@ module.exports = function (env, argv) {
         output: {
             filename: "index.js",
             library: {
-              type: "module"          // <-- ES module, no UMD bootstrap
+                type: "module", // <-- ES module, no UMD bootstrap
             },
             path: path.resolve(__dirname, "dist"),
             clean: true,

@@ -624,7 +624,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }.create.subtitle`
                             )}
                         </Button>
-                        <ReactAdminButton onClick={handleImport} label={String(t("common.label.import"))}>
+                        <ReactAdminButton
+                            onClick={handleImport}
+                            label={String(t("common.label.import"))}
+                        >
                             <UploadIcon />
                         </ReactAdminButton>
                     </ResourceListStyles.EmptyButtonList>
@@ -919,8 +922,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 attr.name && userBasicInfo.includes(attr.name)
                                     ? (record as any)[attr.name]
                                     : attr?.name
-                                    ? (record as any).attributes[attr?.name]
-                                    : "-"
+                                      ? (record as any).attributes[attr?.name]
+                                      : "-"
 
                             return (
                                 <>
@@ -1314,16 +1317,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 handleClose={handleClose}
             >
                 <>
-                {/* The conditional below prevents re-rendering and data
+                    {/* The conditional below prevents re-rendering and data
                 refetching when closing the dialog with no id */}
-                {recordIds && recordIds.length > 0 && (
-                    <ElectoralLogList
-                        electionEventId={electionEventId}
-                        showActions={false}
-                        filterToShow={ElectoralLogFilters.USER_ID}
-                        filterValue={recordIds[0]?.toString()}
-                    />
-                )}
+                    {recordIds && recordIds.length > 0 && (
+                        <ElectoralLogList
+                            electionEventId={electionEventId}
+                            showActions={false}
+                            filterToShow={ElectoralLogFilters.USER_ID}
+                            filterValue={recordIds[0]?.toString()}
+                        />
+                    )}
                 </>
             </Dialog>
 

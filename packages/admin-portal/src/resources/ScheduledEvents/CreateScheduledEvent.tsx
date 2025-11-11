@@ -87,8 +87,8 @@ const CreateEvent: FC<CreateEventProps> = ({
     )
     const [eventType, setEventType] = useState<EventProcessors>(
         isEditEvent
-            ? (selectedEvent?.event_processor as EventProcessors | null) ??
-                  EventProcessors.START_VOTING_PERIOD
+            ? ((selectedEvent?.event_processor as EventProcessors | null) ??
+                  EventProcessors.START_VOTING_PERIOD)
             : EventProcessors.START_VOTING_PERIOD
     )
     useEffect(() => {

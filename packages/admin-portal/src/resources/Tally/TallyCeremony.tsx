@@ -941,9 +941,11 @@ export const TallyCeremony: React.FC = () => {
                                             ),
                                             color: theme.palette.background.default,
                                         }}
-                                        label={String(t("keysGeneration.ceremonyStep.executionStatus", {
-                                            status: tally?.execution_status,
-                                        }))}
+                                        label={String(
+                                            t("keysGeneration.ceremonyStep.executionStatus", {
+                                                status: tally?.execution_status,
+                                            })
+                                        )}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
@@ -1041,9 +1043,11 @@ export const TallyCeremony: React.FC = () => {
                                             ),
                                             color: theme.palette.background.default,
                                         }}
-                                        label={String(t("keysGeneration.ceremonyStep.executionStatus", {
-                                            status: tally?.execution_status,
-                                        }))}
+                                        label={String(
+                                            t("keysGeneration.ceremonyStep.executionStatus", {
+                                                status: tally?.execution_status,
+                                            })
+                                        )}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
@@ -1183,10 +1187,10 @@ export const TallyCeremony: React.FC = () => {
                                                 : t("tally.common.ceremony")
                                             : t("tally.common.initialization")
                                         : page === WizardSteps.Ceremony
-                                        ? t("tally.common.start")
-                                        : page === WizardSteps.Tally
-                                        ? t("tally.common.results")
-                                        : t("tally.common.next")}
+                                          ? t("tally.common.start")
+                                          : page === WizardSteps.Tally
+                                            ? t("tally.common.results")
+                                            : t("tally.common.next")}
                                     {isConfirming ? (
                                         <StyledCircularProgress
                                             key="progress-tally-next"

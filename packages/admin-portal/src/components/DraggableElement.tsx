@@ -29,7 +29,9 @@ const DraggableElementRow = styled.div`
     padding: 0.3rem 1rem;
     border-radius: 1rem;
     border: 2px dashed ${theme.palette.grey[500]};
-    transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; // Smooth transition for background color and shadow
+    transition:
+        background-color 0.2s ease-in-out,
+        box-shadow 0.2s ease-in-out; // Smooth transition for background color and shadow
 
     &:hover {
         border: 2px dashed ${theme.palette.primary.main};

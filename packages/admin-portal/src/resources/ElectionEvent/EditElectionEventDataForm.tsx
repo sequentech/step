@@ -377,7 +377,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages[lang]) {
-                tabNodes.push(<Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>)
+                tabNodes.push(
+                    <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
+                )
             }
         }
 
@@ -843,12 +845,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <BooleanInput
                                         disabled={!canEdit}
                                         source={"presentation.skip_election_list"}
-                                        label={String(t(`electionEventScreen.field.skipElectionList`))}
+                                        label={String(
+                                            t(`electionEventScreen.field.skipElectionList`)
+                                        )}
                                     />
                                     <BooleanInput
                                         disabled={!canEdit}
                                         source={"presentation.show_user_profile"}
-                                        label={String(t(`electionEventScreen.field.showUserProfile`))}
+                                        label={String(
+                                            t(`electionEventScreen.field.showUserProfile`)
+                                        )}
                                     />
                                     <SelectInput
                                         source="presentation.elections_order"
@@ -860,9 +866,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                         choices={showCastVoteLogsChoices()}
                                         validate={required()}
                                         defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
-                                        label={String(t(
-                                            "electionEventScreen.field.showCastVoteLogs.policyLabel"
-                                        ))}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.showCastVoteLogs.policyLabel"
+                                            )
+                                        )}
                                     />
                                     <FormDataConsumer>
                                         {({formData, ...rest}) => {
@@ -900,7 +908,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <TextInput
                                         resettable={true}
                                         source={"presentation.redirect_finish_url"}
-                                        label={String(t("electionEventScreen.field.redirectFinishUrl"))}
+                                        label={String(
+                                            t("electionEventScreen.field.redirectFinishUrl")
+                                        )}
                                     />
                                     <TextInput
                                         resettable={true}
@@ -933,7 +943,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 </AccordionSummary>
                                 <AccordionDetails>
                                     <Grid container spacing={4}>
-                                        <Grid size={{ xs: 12, md: 6 }}>
+                                        <Grid size={{xs: 12, md: 6}}>
                                             {renderVotingChannels(parsedValue)}
                                         </Grid>
                                     </Grid>
@@ -1111,7 +1121,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <BooleanInput
                                         disabled={!canEdit}
                                         source={`presentation.materials.activated`}
-                                        label={String(t(`electionEventScreen.field.materialActivated`))}
+                                        label={String(
+                                            t(`electionEventScreen.field.materialActivated`)
+                                        )}
                                     />
                                     <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
                                         {renderTabs(parsedValue, "materials")}
@@ -1149,9 +1161,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <SelectInput
                                         source={"presentation.contest_encryption_policy"}
                                         choices={contestEncryptionPolicyChoices()}
-                                        label={String(t(
-                                            "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
-                                        ))}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
+                                            )
+                                        )}
                                         defaultValue={
                                             EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
                                         }
@@ -1161,9 +1175,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <SelectInput
                                         source={"presentation.locked_down"}
                                         choices={lockdownStateChoices()}
-                                        label={String(t(
-                                            "electionEventScreen.field.lockdownState.policyLabel"
-                                        ))}
+                                        label={String(
+                                            t("electionEventScreen.field.lockdownState.policyLabel")
+                                        )}
                                         defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
                                         emptyText={undefined}
                                         validate={required()}
@@ -1171,9 +1185,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <SelectInput
                                         source={"presentation.decoded_ballot_inclusion_policy"}
                                         choices={decodedBallotsStateChoices()}
-                                        label={String(t(
-                                            "electionEventScreen.field.decodedBallots.policyLabel"
-                                        ))}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.decodedBallots.policyLabel"
+                                            )
+                                        )}
                                         defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
                                         emptyText={undefined}
                                         validate={required()}
@@ -1181,9 +1197,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <SelectInput
                                         source={"presentation.ceremonies_policy"}
                                         choices={ceremonyPolicyOptions()}
-                                        label={String(t(
-                                            "electionEventScreen.field.ceremoniesPolicy.policyLabel"
-                                        ))}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.ceremoniesPolicy.policyLabel"
+                                            )
+                                        )}
                                         defaultValue={
                                             EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
                                         }
@@ -1216,9 +1234,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <SelectInput
                                         source={`presentation.voting_portal_countdown_policy.policy`}
                                         choices={votingPortalCountDownPolicies()}
-                                        label={String(t(
-                                            "electionEventScreen.field.countDownPolicyOptions.policyLabel"
-                                        ))}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.countDownPolicyOptions.policyLabel"
+                                            )
+                                        )}
                                         defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
                                         emptyText={undefined}
                                         validate={required()}
@@ -1226,9 +1246,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     <SelectInput
                                         source={"presentation.voter_signing_policy"}
                                         choices={voterSigningPolicyChoices()}
-                                        label={String(t(
-                                            "electionEventScreen.field.voterSigningPolicy.policyLabel"
-                                        ))}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.voterSigningPolicy.policyLabel"
+                                            )
+                                        )}
                                         defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
                                         emptyText={undefined}
                                         validate={required()}
@@ -1246,9 +1268,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             source={
                                                 "presentation.voting_portal_countdown_policy.countdown_anticipation_secs"
                                             }
-                                            label={String(t(
-                                                "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
-                                            ))}
+                                            label={String(
+                                                t(
+                                                    "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
+                                                )
+                                            )}
                                             defaultValue={defaultSecondsForCountdown}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                             isDisabled={(selectedPolicy) =>
@@ -1261,9 +1285,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             source={
                                                 "presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"
                                             }
-                                            label={String(t(
-                                                "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
-                                            ))}
+                                            label={String(
+                                                t(
+                                                    "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
+                                                )
+                                            )}
                                             defaultValue={defaultSecondsForAlert}
                                             sourceToWatch="presentation.voting_portal_countdown_policy.policy"
                                             isDisabled={(selectedPolicy) =>
@@ -1310,15 +1336,19 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             {t("electionEventScreen.edit.voter_authentication")}
                                         </Typography>
                                         <SelectInput
-                                            label={String(t(
-                                                `electionEventScreen.field.enrollment.policyLabel`
-                                            ))}
+                                            label={String(
+                                                t(
+                                                    `electionEventScreen.field.enrollment.policyLabel`
+                                                )
+                                            )}
                                             source="presentation.enrollment"
                                             choices={enrollmentChoices()}
                                             onChange={(value) => handleEnrollmentChange(value)}
                                         />
                                         <SelectInput
-                                            label={String(t(`electionEventScreen.field.otp.policyLabel`))}
+                                            label={String(
+                                                t(`electionEventScreen.field.otp.policyLabel`)
+                                            )}
                                             source="presentation.otp"
                                             choices={otpChoices()}
                                             onChange={(value) => handleOtpChange(value)}

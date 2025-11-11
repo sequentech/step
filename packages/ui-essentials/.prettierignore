@@ -18,6 +18,16 @@
 *.gif
 *.svg
 *.ico
+*.wasm
+*.csv
+.env*
+.reuse/
+*.lock
+*.nix
+*.toml
+.devcontainer/
+*.rs
+*.py
 *.woff
 *.woff2
 *.ttf

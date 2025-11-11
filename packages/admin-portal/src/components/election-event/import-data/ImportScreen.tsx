@@ -218,24 +218,23 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     variant="info"
                 >
                     <>
-                    <SimpleForm toolbar={false} component={Box}>
-                        <Box>
-                            <InputLabel>
-                                {t("electionEventScreen.import.passwordDialog.description")}:
-                            </InputLabel>
-                            <PasswordInputStyle
-                                label={false}
-                                source="password"
-                                helperText={false}
-                                onChange={(e) => setPassword(e.target.value)}
-                                inputProps={{
-                                    ref: passwordInputRef,
-                                }}
-                            />
-                        </Box>
-                    </SimpleForm>
+                        <SimpleForm toolbar={false} component={Box}>
+                            <Box>
+                                <InputLabel>
+                                    {t("electionEventScreen.import.passwordDialog.description")}:
+                                </InputLabel>
+                                <PasswordInputStyle
+                                    label={false}
+                                    source="password"
+                                    helperText={false}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    inputProps={{
+                                        ref: passwordInputRef,
+                                    }}
+                                />
+                            </Box>
+                        </SimpleForm>
                     </>
-
                 </Dialog>
             </Box>
         )

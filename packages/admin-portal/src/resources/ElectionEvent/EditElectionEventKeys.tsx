@@ -364,7 +364,10 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                                 </Box>
                             )}
                         />
-                        <ActionsColumn actions={actions} label={String(t("common.label.actions"))} />
+                        <ActionsColumn
+                            actions={actions}
+                            label={String(t("common.label.actions"))}
+                        />
                     </DatagridConfigurable>
                 </List>
             )}

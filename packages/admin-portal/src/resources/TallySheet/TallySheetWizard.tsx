@@ -180,8 +180,8 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                                 {page === WizardSteps.Edit
                                     ? t("tallysheet.common.confirm")
                                     : page === WizardSteps.Confirm
-                                    ? t("tallysheet.common.save")
-                                    : t("tallysheet.common.next")}
+                                      ? t("tallysheet.common.save")
+                                      : t("tallysheet.common.next")}
                                 <ChevronRightIcon />
                             </>
                         </NextButton>

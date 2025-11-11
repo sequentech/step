@@ -502,7 +502,9 @@ export const ContestDataForm: React.FC = () => {
         let tabNodes: Array<ReactNode> = []
 
         languageConf.forEach((lang) => {
-            tabNodes.push(<Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>)
+            tabNodes.push(
+                <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
+            )
         })
 
         // reset actived tab to first tab if only one
@@ -783,7 +785,9 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.candidates_icon_checkbox_policy`}
                                     choices={candidatesIconCheckboxPolicy()}
-                                    label={String(t(`contestScreen.candidatesIconCheckboxPolicy.label`))}
+                                    label={String(
+                                        t(`contestScreen.candidatesIconCheckboxPolicy.label`)
+                                    )}
                                     defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
                                     validate={required()}
                                 />

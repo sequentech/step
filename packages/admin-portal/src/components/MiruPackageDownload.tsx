@@ -217,7 +217,11 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                                 overflow: "hidden",
                             }}
                         >
-                            <span title={String(t("tally.transmissionPackage.actions.download.emlTitle"))}>
+                            <span
+                                title={String(
+                                    t("tally.transmissionPackage.actions.download.emlTitle")
+                                )}
+                            >
                                 {t("tally.transmissionPackage.actions.download.emlTitle", {
                                     date: lastDocumentDate,
                                 })}
@@ -245,12 +249,14 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                             }}
                         >
                             <span
-                                title={String(t(
-                                    "tally.transmissionPackage.actions.download.transmissionPackageTitle",
-                                    {
-                                        date: lastDocumentDate,
-                                    }
-                                ))}
+                                title={String(
+                                    t(
+                                        "tally.transmissionPackage.actions.download.transmissionPackageTitle",
+                                        {
+                                            date: lastDocumentDate,
+                                        }
+                                    )
+                                )}
                             >
                                 {t(
                                     "tally.transmissionPackage.actions.download.transmissionPackageTitle",
@@ -271,9 +277,11 @@ export const MiruPackageDownload: React.FC<MiruPackageDownloadProps> = ({
                         }}
                     >
                         <span
-                            title={String(t(
-                                "tally.transmissionPackage.actions.download.transmissionReportTitle"
-                            ))}
+                            title={String(
+                                t(
+                                    "tally.transmissionPackage.actions.download.transmissionReportTitle"
+                                )
+                            )}
                         >
                             {t(
                                 "tally.transmissionPackage.actions.download.transmissionReportTitle"

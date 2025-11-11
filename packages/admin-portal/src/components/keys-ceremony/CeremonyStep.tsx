@@ -120,9 +120,11 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 color: theme.palette.background.default,
                             }}
                             className="keys-ceremony-status"
-                            label={String(t("keysGeneration.ceremonyStep.executionStatus", {
-                                status: ceremony?.execution_status ?? EStatus.IN_PROGRESS,
-                            }))}
+                            label={String(
+                                t("keysGeneration.ceremonyStep.executionStatus", {
+                                    status: ceremony?.execution_status ?? EStatus.IN_PROGRESS,
+                                })
+                            )}
                         />
                     </AccordionSummary>
                     <WizardStyles.AccordionDetails>

@@ -103,7 +103,10 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
                 sort={sort}
                 setSort={setSort}
             >
-                <TextField source="id" label={String(t("electionEventScreen.localization.labels.key"))} />
+                <TextField
+                    source="id"
+                    label={String(t("electionEventScreen.localization.labels.key"))}
+                />
                 <TextField
                     source="value"
                     label={String(t("electionEventScreen.localization.labels.value"))}
@@ -358,11 +361,15 @@ const EditElectionEventTextDataTable = () => {
 
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                        label={String(t("electionEventScreen.localization.labels.key"))}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.key")
+                                        )}
                                     />
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                        label={String(t("electionEventScreen.localization.labels.value"))}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.value")
+                                        )}
                                         multiline
                                     />
                                 </>

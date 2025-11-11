@@ -147,7 +147,9 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
 
                                         {elections ? (
                                             <CheckboxGroupInput
-                                                label={String(t("electionEventScreen.tally.elections"))}
+                                                label={String(
+                                                    t("electionEventScreen.tally.elections")
+                                                )}
                                                 source="election_ids"
                                                 choices={elections}
                                                 optionText="name"

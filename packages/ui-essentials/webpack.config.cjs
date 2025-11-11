@@ -14,22 +14,19 @@ module.exports = function (env, argv) {
         output: {
             filename: "index.js",
             library: {
-              type: "module"          // <-- ES module, no UMD bootstrap
+                type: "module", // <-- ES module, no UMD bootstrap
             },
             path: path.resolve(__dirname, "dist"),
             clean: true,
         },
-        experiments: { outputModule: true },
+        experiments: {outputModule: true},
         devtool: "source-map",
         module: {
             rules: [
                 {
                     test: /\.(js|ts)x?$/,
                     exclude: /node_modules/,
-                    use: [
-                        "babel-loader",
-                        "ts-loader",
-                    ],
+                    use: ["babel-loader", "ts-loader"],
                 },
                 {
                     type: "asset",

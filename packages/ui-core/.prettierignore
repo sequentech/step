@@ -22,6 +22,16 @@
 *.woff2
 *.ttf
 *.eot
+*.wasm
+*.csv
+.env*
+.reuse/
+*.lock
+*.nix
+*.toml
+.devcontainer/
+*.rs
+*.py
 .gitignore
 .ignore
 .prettierignore

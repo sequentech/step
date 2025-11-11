@@ -46,7 +46,11 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
                 onChange={handleChange}
             />
             <Tabs value={tab} onChange={changeTab}>
-                <Tab key="plaintext" label={String(t("emailEditor.tabs.plaintext"))} id="plaintext" />
+                <Tab
+                    key="plaintext"
+                    label={String(t("emailEditor.tabs.plaintext"))}
+                    id="plaintext"
+                />
                 <Tab key="richtext" label={String(t("emailEditor.tabs.richtext"))} id="richtext" />
             </Tabs>
             <CustomTabPanel key="plaintext" value={tab} index={0}>

@@ -136,9 +136,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
             !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
                 : trusteeStatus === ITrusteeStatus.WAITING &&
-                  tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                ? WizardSteps.Start
-                : WizardSteps.Status
+                    tally?.execution_status !== ITallyExecutionStatus.CANCELLED
+                  ? WizardSteps.Start
+                  : WizardSteps.Status
         )
     }, [trusteeStatus])
 

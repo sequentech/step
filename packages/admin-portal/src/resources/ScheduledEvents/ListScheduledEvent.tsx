@@ -288,7 +288,10 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
 
     return (
         <>
-            <ElectionHeader title={String(t("eventsScreen.title"))} subtitle="eventsScreen.subtitle" />
+            <ElectionHeader
+                title={String(t("eventsScreen.title"))}
+                subtitle="eventsScreen.subtitle"
+            />
             <List
                 resource="sequent_backend_scheduled_event"
                 filter={{
