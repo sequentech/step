@@ -24,57 +24,49 @@ interface TallyResultsCandidatesIRVProps {
 export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps> = ({
     processResults,
 }) => {
-    const scrollContainerRef = useRef<HTMLDivElement>(null)
-    const [showLeftArrow, setShowLeftArrow] = useState(false)
-    const [showRightArrow, setShowRightArrow] = useState(false)
+    const VISIBLE_ROUNDS = 5
+    const [representedRounds, setRepresentedRounds] = useState({ start: 0, end: VISIBLE_ROUNDS - 1 })
 
     useEffect(() => {
         console.log("TallyResultsCandidatesIRV processResults:", processResults)
+        // Extend rows vector by double, to test a long number of cols on the table
+        const extendedRows = processResults.rounds
+        processResults.rounds.push(...extendedRows)
+        
+        // Reset to initial range when data changes
+        setRepresentedRounds({ start: 0, end: Math.min(VISIBLE_ROUNDS - 1, processResults.rounds.length - 1) })
     }, [processResults])
 
-    useEffect(() => {
-        updateArrowVisibility()
-    }, [processResults])
-
-    const updateArrowVisibility = () => {
-        if (!scrollContainerRef.current) return
-
-        const {scrollLeft, scrollWidth, clientWidth} = scrollContainerRef.current
-        setShowLeftArrow(scrollLeft > 0)
-        setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 1)
-    }
-
-    const handleScroll = (direction: "left" | "right") => {
-        if (!scrollContainerRef.current) return
-
-        const scrollAmount = 200 // pixels to scroll
-        const currentScroll = scrollContainerRef.current.scrollLeft
-        const newScroll =
-            direction === "left" ? currentScroll - scrollAmount : currentScroll + scrollAmount
-
-        scrollContainerRef.current.scrollTo({
-            left: newScroll,
-            behavior: "smooth",
-        })
-
-        // Update arrow visibility after scroll
-        setTimeout(updateArrowVisibility, 300)
+    const handleNavigate = (direction: "left" | "right") => {
+        const totalRounds = rounds.length
+        
+        if (direction === "right" && representedRounds.end < totalRounds - 1) {
+            setRepresentedRounds({
+                start: representedRounds.start + 1,
+                end: representedRounds.end + 1
+            })
+        } else if (direction === "left" && representedRounds.start > 0) {
+            setRepresentedRounds({
+                start: representedRounds.start - 1,
+                end: representedRounds.end - 1
+            })
+        }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "ArrowLeft" && showLeftArrow) {
-            handleScroll("left")
-        } else if (e.key === "ArrowRight" && showRightArrow) {
-            handleScroll("right")
-        } else if (e.key === "Home" && scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({left: 0, behavior: "smooth"})
-            setTimeout(updateArrowVisibility, 300)
-        } else if (e.key === "End" && scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({
-                left: scrollContainerRef.current.scrollWidth,
-                behavior: "smooth",
+        const totalRounds = rounds.length
+        
+        if (e.key === "ArrowLeft" && representedRounds.start > 0) {
+            handleNavigate("left")
+        } else if (e.key === "ArrowRight" && representedRounds.end < totalRounds - 1) {
+            handleNavigate("right")
+        } else if (e.key === "Home") {
+            setRepresentedRounds({ start: 0, end: Math.min(VISIBLE_ROUNDS - 1, totalRounds - 1) })
+        } else if (e.key === "End") {
+            setRepresentedRounds({ 
+                start: Math.max(0, totalRounds - VISIBLE_ROUNDS), 
+                end: totalRounds - 1 
             })
-            setTimeout(updateArrowVisibility, 300)
         }
     }
 
@@ -83,6 +75,13 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     }
 
     const {rounds, name_references, candidates_status} = processResults
+
+    // Get visible rounds based on current range
+    const visibleRounds = rounds.slice(representedRounds.start, representedRounds.end + 1)
+    
+    // Calculate arrow visibility
+    const showLeftArrow = representedRounds.start > 0
+    const showRightArrow = representedRounds.end < rounds.length - 1
 
     // Format number with commas
     const formatNumber = (num: number): string => {
@@ -116,7 +115,6 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     return (
         <Box
             sx={{
-                position: "relative",
                 mt: 4,
                 borderTop: "1px solid #ccc",
                 pt: 4,
@@ -124,70 +122,12 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
             tabIndex={0}
             onKeyDown={handleKeyDown}
         >
-            {/* Left Navigation Arrow */}
-            {showLeftArrow && (
-                <IconButton
-                    onClick={() => handleScroll("left")}
-                    aria-label="Scroll left to previous rounds"
-                    sx={{
-                        "position": "absolute",
-                        "left": 140,
-                        "top": "50%",
-                        "transform": "translateY(-50%)",
-                        "zIndex": 10,
-                        "backgroundColor": "#1e3a5f",
-                        "color": "white",
-                        "width": 40,
-                        "height": 40,
-                        "&:hover": {
-                            backgroundColor: "#2c4f7c",
-                        },
-                    }}
-                >
-                    <ChevronLeft />
-                </IconButton>
-            )}
-
-            {/* Right Navigation Arrow */}
-            {showRightArrow && (
-                <IconButton
-                    onClick={() => handleScroll("right")}
-                    aria-label="Scroll right to next rounds"
-                    sx={{
-                        "position": "absolute",
-                        "right": 16,
-                        "top": "50%",
-                        "transform": "translateY(-50%)",
-                        "zIndex": 10,
-                        "backgroundColor": "#1e3a5f",
-                        "color": "white",
-                        "width": 40,
-                        "height": 40,
-                        "&:hover": {
-                            backgroundColor: "#2c4f7c",
-                        },
-                    }}
-                >
-                    <ChevronRight />
-                </IconButton>
-            )}
-
             <TableContainer
                 component={Paper}
-                ref={scrollContainerRef}
-                onScroll={updateArrowVisibility}
                 sx={{
                     "maxWidth": "100%",
-                    "overflowX": "auto",
                     "boxShadow": "none",
                     "border": "1px solid #e0e0e0",
-                    "&::-webkit-scrollbar": {
-                        height: 8,
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                        backgroundColor: "#ccc",
-                        borderRadius: 4,
-                    },
                 }}
             >
                 <Table sx={{minWidth: 650}}>
@@ -206,21 +146,76 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                             >
                                 Candidate
                             </TableCell>
-                            {rounds.map((_, index) => (
-                                <TableCell
-                                    key={index}
-                                    align="center"
-                                    sx={{
-                                        fontWeight: 600,
-                                        minWidth: 150,
-                                        whiteSpace: "nowrap",
-                                        backgroundColor: "#FBFBFB",
-                                        border: "1px solid #fff",
-                                    }}
-                                >
-                                    Round {index + 1}
-                                </TableCell>
-                            ))}
+                            {visibleRounds.map((_, visibleIndex) => {
+                                const roundIndex = representedRounds.start + visibleIndex
+                                const isFirstVisible = visibleIndex === 0
+                                const isLastVisible = visibleIndex === visibleRounds.length - 1
+                                
+                                return (
+                                    <TableCell
+                                        key={roundIndex}
+                                        align="center"
+                                        sx={{
+                                            fontWeight: 600,
+                                            minWidth: 150,
+                                            whiteSpace: "nowrap",
+                                            backgroundColor: "#FBFBFB",
+                                            border: "1px solid #fff",
+                                        }}
+                                    >
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                gap: 1,
+                                            }}
+                                        >
+                                            {/* Left arrow in first visible column */}
+                                            {isFirstVisible && showLeftArrow && (
+                                                <IconButton
+                                                    onClick={() => handleNavigate("left")}
+                                                    aria-label="Navigate to previous rounds"
+                                                    size="small"
+                                                    sx={{
+                                                        "backgroundColor": "#1e3a5f",
+                                                        "color": "white",
+                                                        "width": 24,
+                                                        "height": 24,
+                                                        "&:hover": {
+                                                            backgroundColor: "#2c4f7c",
+                                                        },
+                                                    }}
+                                                >
+                                                    <ChevronLeft sx={{fontSize: 18}} />
+                                                </IconButton>
+                                            )}
+                                            
+                                            <span>Round {roundIndex + 1}</span>
+                                            
+                                            {/* Right arrow in last visible column */}
+                                            {isLastVisible && showRightArrow && (
+                                                <IconButton
+                                                    onClick={() => handleNavigate("right")}
+                                                    aria-label="Navigate to next rounds"
+                                                    size="small"
+                                                    sx={{
+                                                        "backgroundColor": "#1e3a5f",
+                                                        "color": "white",
+                                                        "width": 24,
+                                                        "height": 24,
+                                                        "&:hover": {
+                                                            backgroundColor: "#2c4f7c",
+                                                        },
+                                                    }}
+                                                >
+                                                    <ChevronRight sx={{fontSize: 18}} />
+                                                </IconButton>
+                                            )}
+                                        </Box>
+                                    </TableCell>
+                                )
+                            })}
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -248,7 +243,8 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                 >
                                     {candidate.name}
                                 </TableCell>
-                                {rounds.map((round, roundIndex) => {
+                                {visibleRounds.map((round, visibleIndex) => {
+                                    const roundIndex = representedRounds.start + visibleIndex
                                     const status = getCandidateStatusInRound(
                                         candidate.id,
                                         roundIndex
