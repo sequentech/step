@@ -111,12 +111,12 @@ export default function DashboardElection() {
                         height={cardHeight}
                     />
                 </Container>
-                {showIpAdresses && record?.id && (
+                {/* NOTE:LOOP showIpAdresses && record?.id && (
                     <ListIpAddress
                         electionEventId={record?.election_event_id}
                         electionId={record?.id}
                     />
-                )}
+                )*/}
             </Box>
         </Box>
     )

@@ -256,7 +256,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
-                    {showIpAdresses && record?.id && <ListIpAddress electionEventId={record.id} />}
+                    {/* NOTE:LOOP showIpAdresses && record?.id && <ListIpAddress electionEventId={record.id} />*/}
                 </Box>
                 <Box
                     sx={{
