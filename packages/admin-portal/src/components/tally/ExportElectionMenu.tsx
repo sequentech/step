@@ -145,20 +145,12 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         }
 
         console.log("handleExport setPerformDownload")
-        if (format === EExportFormat.RECEIPTS_PDF) {
-            setPerformDownload({
-                id: documentId,
-                kind: EExportFormat.PDF,
-                name: `vote_receipts.pdf`,
-            })
-        } else {
-            let extension = format.replace("_", ".") // for converting tar_gz to tar.gz
-            setPerformDownload({
-                id: documentId,
-                kind: format,
-                name: `report.${extension}`,
-            })
-        }
+        let extension = format.replace("_", ".") // for converting tar_gz to tar.gz
+        setPerformDownload({
+            id: documentId,
+            kind: format,
+            name: `report.${extension}`,
+        })
     }
 
     const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>

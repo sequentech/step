@@ -1054,7 +1054,6 @@ const catalanTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
-                VOTE_RECEIPT: "Rebut de Vot",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 STATISTICAL_REPORT: "Informe Estadístic",

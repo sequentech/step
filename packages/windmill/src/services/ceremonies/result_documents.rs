@@ -47,7 +47,6 @@ use tracing::instrument;
 use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
-use velvet::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -89,18 +88,6 @@ async fn generic_save_documents(
     documents.json = process_and_upload_document(
         hasura_transaction,
         document_paths.json.clone(),
-        MIME_JSON,
-        OUTPUT_JSON,
-        &all_reports,
-        report_type.clone(),
-        tenant_id,
-        election_event_id,
-    )
-    .await?;
-
-    documents.vote_receipts_pdf = process_and_upload_document(
-        hasura_transaction,
-        document_paths.vote_receipts_pdf.clone(),
         MIME_JSON,
         OUTPUT_JSON,
         &all_reports,
@@ -206,7 +193,6 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             tar_gz: Some(base_path.display().to_string()),
             tar_gz_original: None,
             tar_gz_pdfs: None,
-            vote_receipts_pdf: None,
         }
     }
 
@@ -360,8 +346,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: Some(document.id),
                 tar_gz_original: Some(original_document.id),
                 tar_gz_pdfs: None,
-                vote_receipts_pdf: None,
-            };
+                };
 
             update_results_event_documents(
                 hasura_transaction,
@@ -391,8 +376,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: None,
                 tar_gz_original: None,
                 tar_gz_pdfs: None,
-                vote_receipts_pdf: None,
-            })
+                })
         }
     }
 }
@@ -430,7 +414,6 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             tar_gz: None,
             tar_gz_original: None,
             tar_gz_pdfs: None,
-            vote_receipts_pdf: None,
         }
     }
 
@@ -520,21 +503,6 @@ impl GenerateResultDocuments for ReportDataComputed {
                 self.contest.election_id, self.contest.id
             )),
         };
-        let vote_receipts_pdf = match area_id {
-            Some(area_id_str) => {
-                let path = base_path.join(format!(
-                    "output/velvet-vote-receipts/election__{}/contest__{}/area__{}",
-                    self.contest.election_id, self.contest.id, area_id_str
-                ));
-
-                if path.is_file() {
-                    Some(path.join(OUTPUT_RECEIPT_PDF).display().to_string())
-                } else {
-                    None
-                }
-            }
-            None => None,
-        };
 
         let json_path = folder_path.join(OUTPUT_JSON);
         let pdf_path = folder_path.join(OUTPUT_PDF);
@@ -559,7 +527,6 @@ impl GenerateResultDocuments for ReportDataComputed {
             tar_gz: None,
             tar_gz_original: None,
             tar_gz_pdfs: None,
-            vote_receipts_pdf: vote_receipts_pdf,
         }
     }
 
@@ -821,7 +788,6 @@ fn get_area_document_paths(
         tar_gz: None,
         tar_gz_original: None,
         tar_gz_pdfs: None,
-        vote_receipts_pdf: None,
     }
 }
 

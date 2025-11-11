@@ -8,7 +8,6 @@ export enum EExportFormat {
     HTML = "html",
     TAR_GZ = "tar_gz",
     TAR_GZ_PDFS = "tar_gz_pdfs",
-    RECEIPTS_PDF = "vote_receipts_pdf",
 }
 
 export type IResultDocuments = {

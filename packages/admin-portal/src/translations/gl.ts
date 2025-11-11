@@ -1044,7 +1044,6 @@ const galegoTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
-                VOTE_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorais",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 STATISTICAL_REPORT: "Informe Estatístico",

@@ -1049,7 +1049,6 @@ const frenchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
-                VOTE_RECEIPT: "Reçu de Vote",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",

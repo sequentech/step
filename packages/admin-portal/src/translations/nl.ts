@@ -1039,7 +1039,6 @@ const dutchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
-                VOTE_RECEIPT: "Ontvangstbewijs Stem",
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
                 STATISTICAL_REPORT: "Statistisch Rapport",

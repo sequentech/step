@@ -12,7 +12,6 @@ use strum_macros::{AsRefStr, Display, EnumString};
 pub enum PipeName {
     DecodeBallots,
     DecodeMCBallots,
-    VoteReceipts,
     BallotImages,
     MCBallotReceipts,
     MCBallotImages,
@@ -46,8 +45,6 @@ pub enum PipeNameOutputDir {
     DecodeBallots,
     #[strum(serialize = "velvet-decode-mcballots")]
     DecodeMCBallots,
-    #[strum(serialize = "velvet-vote-receipts")]
-    VoteReceipts,
     #[strum(serialize = "velvet-mcballot-receipts")]
     MCBallotReceipts,
     #[strum(serialize = "velvet-do-tally")]

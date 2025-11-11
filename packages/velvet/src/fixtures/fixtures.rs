@@ -250,8 +250,8 @@ pub fn get_config() -> Result<Config> {
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {
-                        id: "vote-receipts".to_string(),
-                        pipe: PipeName::VoteReceipts,
+                        id: "ballot-images".to_string(),
+                        pipe: PipeName::BallotImages,
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     config::PipeConfig {
@@ -319,8 +319,8 @@ pub fn get_config_mcballots() -> Result<Config> {
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {
-                        id: "vote-receipts".to_string(),
-                        pipe: PipeName::VoteReceipts,
+                        id: "ballot-images".to_string(),
+                        pipe: PipeName::BallotImages,
                         config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
                     },
                     config::PipeConfig {

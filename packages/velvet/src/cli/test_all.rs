@@ -570,7 +570,7 @@ mod tests {
             election_num * (area_num - 1)
         );
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // MultiBallotReceipts
@@ -658,7 +658,7 @@ mod tests {
             election_num * contest_num * (area_num - 1)
         );
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -712,7 +712,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -752,7 +752,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1113,7 +1113,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1285,7 +1285,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1439,7 +1439,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1599,7 +1599,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally

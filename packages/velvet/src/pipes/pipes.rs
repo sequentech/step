@@ -31,7 +31,6 @@ impl PipeManager {
         if let Some(current_pipe) = pipe_inputs.stage.current_pipe {
             Ok(match current_pipe {
                 PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
-                PipeName::VoteReceipts => Some(Box::new(VoteReceipts::new(pipe_inputs))),
                 PipeName::BallotImages => Some(Box::new(VoteReceipts::new(pipe_inputs))),
                 PipeName::DecodeMCBallots => Some(Box::new(DecodeMCBallots::new(pipe_inputs))),
                 PipeName::MCBallotReceipts => Some(Box::new(MCBallotReceipts::new(pipe_inputs))),

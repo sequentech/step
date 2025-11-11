@@ -1039,7 +1039,6 @@ const basqueTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                VOTE_RECEIPT: "Boto Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",

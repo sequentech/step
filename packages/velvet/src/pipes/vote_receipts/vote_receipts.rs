@@ -27,8 +27,6 @@ use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
 
-pub const VOTE_RECEIPT_OUTPUT_FILE_PDF: &str = "vote_receipts.pdf";
-pub const VOTE_RECEIPT_OUTPUT_FILE_HTML: &str = "vote_receipts.html";
 pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "ballot_images.pdf";
 pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "ballot_images.html";
 
@@ -156,19 +154,12 @@ impl VoteReceipts {
 
 #[instrument(skip_all)]
 fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
-    match pipe_type {
-        VoteReceiptPipeType::VOTE_RECEIPT => VoteReceiptsPipeData {
-            output_file_pdf: VOTE_RECEIPT_OUTPUT_FILE_PDF.to_string(),
-            output_file_html: VOTE_RECEIPT_OUTPUT_FILE_HTML.to_string(),
-            pipe_name_output_dir: PipeNameOutputDir::VoteReceipts.as_ref().to_string(),
-            pipe_name: PipeName::VoteReceipts.as_ref().to_string(),
-        },
-        VoteReceiptPipeType::BALLOT_IMAGES => VoteReceiptsPipeData {
-            output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
-            output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
-            pipe_name_output_dir: PipeNameOutputDir::BallotImages.as_ref().to_string(),
-            pipe_name: PipeName::BallotImages.as_ref().to_string(),
-        },
+    // Only BALLOT_IMAGES variant exists now
+    VoteReceiptsPipeData {
+        output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
+        output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
+        pipe_name_output_dir: PipeNameOutputDir::BallotImages.as_ref().to_string(),
+        pipe_name: PipeName::BallotImages.as_ref().to_string(),
     }
 }
 

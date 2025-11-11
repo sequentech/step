@@ -180,8 +180,6 @@ pub struct ReportOptions {
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum VoteReceiptPipeType {
-    #[strum(serialize = "VOTE_RECEIPT")]
-    VOTE_RECEIPT,
     #[strum(serialize = "BALLOT_IMAGES")]
     BALLOT_IMAGES,
 }

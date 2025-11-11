@@ -34,7 +34,6 @@ use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
 
-pub const VOTE_RECEIPTS_OUTPUT_FILE: &str = "vote_receipts";
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
 
 pub struct MCBallotReceipts {
@@ -209,38 +208,36 @@ impl MCBallotReceipts {
                 };
 
                 // Instead of calling ecies_sign_data here, we only CREATE the data
-                let (digital_signature, sign_data) =
-                    match (&pipe_config.acm_key, &pipe_config.pipe_type) {
-                        (Some(_acm_key), VoteReceiptPipeType::BALLOT_IMAGES) => {
-                            let data_str = format!(
-                                "{}:{}:{}:{}:{}",
-                                election_event_id,
-                                precint_id,
-                                ballot.mcballot.serial_number.clone().unwrap_or_default(),
-                                election_id,
-                                page_number.to_string()
-                            );
-                            // We'll push this into our bulk_sign_requests
-                            // We also need a unique ID to correlate the signature
-                            let sign_id = format!("b{}_c{}_p{}", b_idx, c_idx, page_number);
+                let (digital_signature, sign_data) = if pipe_config.acm_key.is_some() {
+                    let data_str = format!(
+                        "{}:{}:{}:{}:{}",
+                        election_event_id,
+                        precint_id,
+                        ballot.mcballot.serial_number.clone().unwrap_or_default(),
+                        election_id,
+                        page_number.to_string()
+                    );
+                    // We'll push this into our bulk_sign_requests
+                    // We also need a unique ID to correlate the signature
+                    let sign_id = format!("b{}_c{}_p{}", b_idx, c_idx, page_number);
 
-                            bulk_sign_requests.push(SignRequest {
-                                id: sign_id.clone(),
-                                data: data_str.clone(),
-                            });
+                    bulk_sign_requests.push(SignRequest {
+                        id: sign_id.clone(),
+                        data: data_str.clone(),
+                    });
 
-                            // We'll store so we can insert the signature after we do the bulk sign
-                            locators.push(ContestLocator {
-                                sign_id: sign_id.clone(),
-                                ballot_index: b_idx,
-                                contest_index: c_idx,
-                            });
+                    // We'll store so we can insert the signature after we do the bulk sign
+                    locators.push(ContestLocator {
+                        sign_id: sign_id.clone(),
+                        ballot_index: b_idx,
+                        contest_index: c_idx,
+                    });
 
-                            // We do not have a signature yet, so just placeholders
-                            (None, Some(data_str))
-                        }
-                        _ => (None, None),
-                    };
+                    // We do not have a signature yet, so just placeholders
+                    (None, Some(data_str))
+                } else {
+                    (None, None)
+                };
 
                 let cd: ContestData = ContestData {
                     contest: contest.clone(),
@@ -249,10 +246,7 @@ impl MCBallotReceipts {
                     overvotes,
                     digital_signature,
                     sign_data,
-                    page_number: match &pipe_config.pipe_type {
-                        VoteReceiptPipeType::BALLOT_IMAGES => Some(page_number),
-                        _ => None,
-                    },
+                    page_number: Some(page_number),
                 };
 
                 page_number += 1;
@@ -282,9 +276,7 @@ impl MCBallotReceipts {
 
         // 2. Now we do exactly one bulk sign if we have any sign_data
         let mut signatures_map: HashMap<String, String> = HashMap::new();
-        if let (Some(acm_key), VoteReceiptPipeType::BALLOT_IMAGES) =
-            (&pipe_config.acm_key, &pipe_config.pipe_type)
-        {
+        if let Some(acm_key) = &pipe_config.acm_key {
             if !bulk_sign_requests.is_empty() {
                 signatures_map = ecies_sign_data_bulk(acm_key, &bulk_sign_requests)
                     .map_err(|e| Error::UnexpectedError(format!("Error in bulk signing: {}", e)))?;
@@ -394,17 +386,11 @@ impl MCBallotReceipts {
 
 #[instrument(skip_all)]
 fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
-    match pipe_type {
-        VoteReceiptPipeType::VOTE_RECEIPT => VoteReceiptsPipeData {
-            output_file: VOTE_RECEIPTS_OUTPUT_FILE.to_string(),
-            pipe_name_output_dir: PipeNameOutputDir::MCBallotReceipts.as_ref().to_string(),
-            pipe_name: PipeName::VoteReceipts.as_ref().to_string(),
-        },
-        VoteReceiptPipeType::BALLOT_IMAGES => VoteReceiptsPipeData {
-            output_file: BALLOT_IMAGES_OUTPUT_FILE.to_string(),
-            pipe_name_output_dir: PipeNameOutputDir::MCBallotImages.as_ref().to_string(),
-            pipe_name: PipeName::MCBallotImages.as_ref().to_string(),
-        },
+    // Only BALLOT_IMAGES variant exists now
+    VoteReceiptsPipeData {
+        output_file: BALLOT_IMAGES_OUTPUT_FILE.to_string(),
+        pipe_name_output_dir: PipeNameOutputDir::MCBallotImages.as_ref().to_string(),
+        pipe_name: PipeName::MCBallotImages.as_ref().to_string(),
     }
 }
 

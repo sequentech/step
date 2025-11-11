@@ -46,7 +46,7 @@ impl PipeConfigVoteReceipts {
                 "file_qrcode_lib": "http://minio:9000/public/public-assets/qrcode.min.js"
             }),
             enable_pdfs: true,
-            pipe_type: pipe_type.unwrap_or(VoteReceiptPipeType::VOTE_RECEIPT),
+            pipe_type: pipe_type.unwrap_or(VoteReceiptPipeType::BALLOT_IMAGES),
             pdf_options: None,
             report_options: None,
             execution_annotations: None,
@@ -66,7 +66,7 @@ impl Default for PipeConfigVoteReceipts {
             system_template: system_html.to_string(),
             extra_data: json!("{}"),
             enable_pdfs: true,
-            pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
+            pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
             pdf_options: None,
             report_options: None,
             execution_annotations: None,
