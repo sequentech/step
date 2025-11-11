@@ -43,7 +43,8 @@ const Footer: React.FC<PaperProps> = (args) => {
         return (
             <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
                 <Typography variant="subtitle2" fontStyle="italic" color="error">
-                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;sequent
+                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;1
+                    &gt;``&lt;1
                     /&gt;`.
                 </Typography>
             </StyledPaper>

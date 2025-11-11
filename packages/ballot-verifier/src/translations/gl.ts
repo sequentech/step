@@ -76,7 +76,7 @@ const galegoTranslation: TranslationType = {
             contestNotFound: "Concurso non atopado: {{contestId}}",
         },
         footer: {
-            poweredBy: "Impulsado por <sequent />",
+            poweredBy: "Impulsado por <1></1>",
         },
         errors: {
             encoding: {
