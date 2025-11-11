@@ -16,18 +16,14 @@ use std::path::{Path, PathBuf};
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 
-pub const MC_VOTE_RECEIPT_FILE_NAME: &str = "mcballots_receipts";
 pub const MC_BALLOT_IMAGES_FILE_NAME: &str = "mcballots_images";
-pub const VOTE_RECEIOT_FILE_NAME: &str = "vote_receipts";
 pub const BALLOT_IMAGES_FILE_NAME: &str = "ballot_images";
 pub const INITIALIZATION_REPORT_FILE_NAME: &str = "INITIALIZATION_REPORT";
 pub const ELECTORAL_RESULTS_FILE_NAME: &str = "ELECTORAL_RESULTS";
 
 #[instrument(err, skip_all)]
 pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
-    if file_name.contains(MC_VOTE_RECEIPT_FILE_NAME) || file_name.contains(VOTE_RECEIOT_FILE_NAME) {
-        Ok(Some(ReportType::VOTE_RECEIPT))
-    } else if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME)
+    if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME)
         || file_name.contains(BALLOT_IMAGES_FILE_NAME)
     {
         Ok(Some(ReportType::BALLOT_IMAGES))

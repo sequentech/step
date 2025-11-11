@@ -1788,10 +1788,6 @@ const spanishTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Credenciales",
                 BALLOT_RECEIPT: "Comprobante de Votación",
-                PARTICIPATION_REPORT: "Informe de Participación",
-                ELECTORAL_RESULTS: "Resultados Electorales",
-                OTP: "OTP",
-                TALLY_REPORT: "Informe de Recuento",
             },
             email: {
                 subject: "Subject",
@@ -1928,38 +1924,12 @@ const spanishTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Credenciales",
-                BALLOT_RECEIPT: "Recibo de Voto",
-                VOTE_RECEIPT: "Recibo de Voto",
-                PARTICIPATION_REPORT: "Informe de Participación",
-                ELECTORAL_RESULTS: "Resultados Electorales",
-                OTP: "OTP",
-                TALLY_REPORT: "Informe de Cómputo",
-                MANUAL_VERIFICATION: "Verificar manualmente al votante",
-                STATISTICAL_REPORT: "Informe Estadístico",
                 INITIALIZATION_REPORT: "Informe de Inicialización",
-                STATUS: "Informe de Estado",
-                TRANSMISSION_REPORT: "Informes de Transmisión",
-                AUDIT_LOGS: "Registros de Auditoría",
-                ACTIVITY_LOGS: "Registros de Actividades",
-                OVCS_INFORMATION: "Información de OVCS",
-                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
-                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
-                OV_WHO_VOTED: "Usuarios OV Que Votaron",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Lista de OV que se preinscribieron pero fueron rechazados",
-                LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                VOTERS_TURNOUT_PERCENTAGE: "Participación de Votantes",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
-                OV_PRE_ENROLLED_APPROVED: "Lista de OV que se Preinscribieron (Aprobados)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Lista de OV que se Preinscribieron pero requieren Validación Manual",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Lista de OV que aún no se han Preinscrito",
-                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Número de OV que aún no se han Preinscrito",
+                ELECTORAL_RESULTS: "Resultados Electorales",
                 BALLOT_IMAGES: "Imágenes de Boletas",
+                BALLOT_RECEIPT: "Recibo de Voto",
+                ACTIVITY_LOGS: "Registros de Actividades",
+                MANUAL_VERIFICATION: "Verificación Manual",
             },
             method: {
                 email: "Email",

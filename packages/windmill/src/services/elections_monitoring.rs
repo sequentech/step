@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use tracing::{info, instrument};
 
-use crate::postgres::application::count_applications;
+use crate::postgres::application::{count_applications, EnrollmentFilters};
 use crate::postgres::area::get_areas_by_election_id;
 use crate::postgres::election::get_elections;
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
@@ -23,7 +23,6 @@ use super::keycloak_events::{
     count_keycloak_events_by_type, LOGIN_ERR_EVENT_TYPE, LOGIN_EVENT_TYPE,
 };
 use super::reports::report_variables::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
-use super::reports::voters::EnrollmentFilters;
 use super::transmission::{
     get_transmission_data_from_tally_session_by_area, get_transmission_servers_data,
 };

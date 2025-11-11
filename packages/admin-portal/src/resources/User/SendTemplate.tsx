@@ -504,13 +504,11 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                             value={template.type}
                             onChange={handleSelectTypeChange}
                         >
-                            {Object.values(ETemplateType)
-                                .filter((type) => type !== ETemplateType.MANUAL_VERIFICATION)
-                                .map((key) => (
-                                    <MenuItem key={key} value={key}>
-                                        {t(`sendCommunication.communicationType.${key}`)}
-                                    </MenuItem>
-                                ))}
+                            {Object.values(ETemplateType).map((key) => (
+                                <MenuItem key={key} value={key}>
+                                    {t(`sendCommunication.communicationType.${key}`)}
+                                </MenuItem>
+                            ))}
                         </FormStyles.Select>
                         <Typography variant="body2" sx={{margin: "0"}}>
                             {t("sendCommunication.alias")}

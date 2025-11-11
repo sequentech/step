@@ -1783,10 +1783,6 @@ const dutchTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Inloggegevens",
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
-                PARTICIPATION_REPORT: "Deelnamerapport",
-                ELECTORAL_RESULTS: "Verkiezingsresultaten",
-                OTP: "OTP",
-                TALLY_REPORT: "Telrapport",
             },
             email: {
                 subject: "Onderwerp",
@@ -1924,41 +1920,12 @@ const dutchTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Inloggegevens",
-                BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
-                VOTE_RECEIPT: "Ontvangstbewijzen Stem",
-                PARTICIPATION_REPORT: "Deelnamerapport",
-                ELECTORAL_RESULTS: "Verkiezingsresultaten",
-                OTP: "OTP",
-                TALLY_REPORT: "Telrapport",
-                MANUAL_VERIFICATION: "Kiezer handmatig verifiëren",
-                STATISTICAL_REPORT: "Statistisch Rapport",
                 INITIALIZATION_REPORT: "Initialisatierapport",
-                STATUS: "Statusrapport",
-                TRANSMISSION_REPORT: "Transmissierapporten",
-                AUDIT_LOGS: "Auditlogs",
-                ACTIVITY_LOGS: "Activiteitenlogs",
-                OVCS_INFORMATION: "OVCS Informatie",
-                OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
-                OVCS_STATISTICS: "Monitoring Stemmen Buitenland - OVCS Statistieken",
-                OV_WHO_VOTED: "Buitenlandse Kiezers Die Gestemd Hebben",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven maar afgekeurd",
-                LIST_OF_OVERSEAS_VOTERS: "Lijst van buitenlandse kiezers",
-                VOTERS_TURNOUT_PERCENTAGE: "Opkomst Kiezers",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Opkomst Buitenlandse Kiezers - per Status aan Boord en Geslacht",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Opkomst Buitenlandse Kiezers - per Status aan Boord, Geslacht en met Percentage",
-                OV_PRE_ENROLLED_APPROVED:
-                    "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven (Goedgekeurd)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven maar onderhevig aan handmatige validatie",
-                OV_WITH_VOTING_STATUS: "Lijst van buitenlandse kiezers met stemstatus",
-                OV_NOT_YET_PRE_ENROLLED_LIST:
-                    "Lijst van buitenlandse kiezers die nog niet vooraf zijn ingeschreven",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER:
-                    "Aantal buitenlandse kiezers die nog niet vooraf zijn ingeschreven",
+                ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 BALLOT_IMAGES: "Afbeeldingen Stembiljetten",
+                BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
+                ACTIVITY_LOGS: "Activiteitenlogs",
+                MANUAL_VERIFICATION: "Handmatige Verificatie",
             },
             method: {
                 email: "E-mail",

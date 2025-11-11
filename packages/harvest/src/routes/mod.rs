@@ -38,7 +38,6 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod limit_access_by_countries;
-pub mod manual_verification_pdf;
 pub mod miru_plugin;
 pub mod permissions;
 pub mod reports;

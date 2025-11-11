@@ -18,7 +18,6 @@ use crate::services::reports::report_variables::{get_app_hash, get_app_version, 
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
-use crate::services::reports::vote_receipt::VoteReceiptTemplate;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
@@ -495,69 +494,6 @@ struct VelvetTemplateData {
     pub title: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
-}
-
-#[instrument(skip_all, err)]
-pub async fn build_vote_receipe_pipe_config(
-    tally_session: &TallySession,
-    hasura_transaction: &Transaction<'_>,
-    minio_endpoint_base: String,
-    public_asset_path: String,
-) -> Result<PipeConfigVoteReceipts> {
-    let vote_receipt_renderer = VoteReceiptTemplate::new(ReportOrigins {
-        tenant_id: tally_session.tenant_id.clone(),
-        election_event_id: tally_session.election_event_id.clone(),
-        election_id: None,
-        template_alias: None,
-        voter_id: None,
-        report_origin: ReportOriginatedFrom::ExportFunction,
-        executer_username: None,
-        tally_session_id: None,
-    });
-
-    let (user_tpl_document, ext_cfg) = vote_receipt_renderer
-        .user_tpl_and_extra_cfg_provider(hasura_transaction)
-        .await
-        .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
-
-    let vote_receipt_system_template = vote_receipt_renderer
-        .get_system_template()
-        .await
-        .map_err(|e| anyhow!("Error getting the system template: {e:?}"))?;
-
-    let vote_receipt_extra_data = VelvetTemplateData {
-        title: VELVET_VOTE_RECEIPTS_TEMPLATE_TITLE.to_string(),
-        file_logo: format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-        ),
-        file_qrcode_lib: format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
-        ),
-    };
-
-    let report_hash = get_report_hash(&ReportType::VOTE_RECEIPT.to_string()).await?;
-
-    let execution_annotations = HashMap::from([
-        ("date_printed".to_string(), get_date_and_time()),
-        ("app_hash".to_string(), get_app_hash()),
-        ("app_version".to_string(), get_app_version()),
-        ("report_hash".to_string(), report_hash),
-    ]);
-
-    let vote_receipt_pipe_config = PipeConfigVoteReceipts {
-        template: user_tpl_document,
-        system_template: vote_receipt_system_template,
-        extra_data: serde_json::to_value(vote_receipt_extra_data)?,
-        enable_pdfs: true,
-        pipe_type: VoteReceiptPipeType::VOTE_RECEIPT,
-        pdf_options: Some(ext_cfg.pdf_options),
-        report_options: Some(ext_cfg.report_options),
-        execution_annotations: Some(execution_annotations),
-        acm_key: None,
-    };
-    Ok(vote_receipt_pipe_config)
 }
 
 #[instrument(skip_all, err)]

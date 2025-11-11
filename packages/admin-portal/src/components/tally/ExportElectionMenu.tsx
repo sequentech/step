@@ -308,13 +308,6 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                 electionId={electionId}
                                 tallySessionId={tallySessionId}
                             />
-                            <GenerateReport
-                                handleClose={handleClose}
-                                reportType={ETemplateType.VOTE_RECEIPT}
-                                electionEventId={electionEventId}
-                                electionId={electionId}
-                                tallySessionId={tallySessionId}
-                            />
                         </>
                     ) : null}
                     {tenantId &&
