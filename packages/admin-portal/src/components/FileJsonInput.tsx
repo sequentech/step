@@ -62,7 +62,9 @@ export const FileJsonInput: React.FC<FileJsonInputProps> = (props) => {
                 <FileInput
                     label={false}
                     source={fileSource}
-                    accept={"application/json"}
+                    accept={{
+                        "application/json": [".json"]
+                    }}
                     parse={(value) => {
                         return getJsonText(value, parsedValue)
                     }}

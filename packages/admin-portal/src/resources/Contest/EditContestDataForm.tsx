@@ -302,20 +302,20 @@ export const ContestDataForm: React.FC = () => {
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
         {
-            id: record.election_event_id,
-            meta: {tenant_id: record.tenant_id},
+            id: record?.election_event_id,
+            meta: {tenant_id: record?.tenant_id},
         }
     )
 
     const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
-        id: record.election_id,
+        id: record?.election_id,
     })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
+            id: record?.image_document_id || record?.tenant_id,
+            meta: {tenant_id: record?.tenant_id},
         }
     )
 
@@ -323,9 +323,9 @@ export const ContestDataForm: React.FC = () => {
 
     const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         filter: {
-            contest_id: record.id,
-            tenant_id: record.tenant_id,
-            election_event_id: record.election_event_id,
+            contest_id: record?.id,
+            tenant_id: record?.tenant_id,
+            election_event_id: record?.election_event_id,
         },
         pagination: {page: 1, perPage: 500},
     })
@@ -565,7 +565,7 @@ export const ContestDataForm: React.FC = () => {
                     notify(t("electionScreen.error.fileLoaded"), {type: "success"})
 
                     updateImage("sequent_backend_contest", {
-                        id: record.id,
+                        id: record?.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
                         },

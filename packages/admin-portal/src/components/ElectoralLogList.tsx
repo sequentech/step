@@ -292,7 +292,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 </DatagridConfigurable>
             </List>
             <ExportDialog
-                electionEventId={record.id ?? ""}
+                electionEventId={record?.id ?? ""}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
                 exportFormat={exportFormat}

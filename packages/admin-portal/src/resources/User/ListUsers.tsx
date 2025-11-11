@@ -865,7 +865,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         } catch (err) {
             console.log(`Tenant ID: ${tenantId}`)
             console.log(`Document ID: ${documentId}`)
-            console.log(`Election Event ID: ${electionEvent.id}`)
+            console.log(`Election Event ID: ${electionEvent?.id}`)
             console.log(``)
             console.log(`Error importing voters: ${err}`)
             updateWidgetFail(currWidget.identifier)

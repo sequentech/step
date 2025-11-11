@@ -172,9 +172,6 @@ export const CustomMenu = () => {
                             to="/user-roles"
                             primaryText={open ? t("sideMenu.usersAndRoles") : null}
                             leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
-                            placeholder={undefined}
-                            onPointerEnterCapture={undefined}
-                            onPointerLeaveCapture={undefined}
                         />
                     )}
                     {tenant && showSettings && (
@@ -182,9 +179,6 @@ export const CustomMenu = () => {
                             to="/settings"
                             primaryText={open ? t("sideMenu.settings") : null}
                             leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
-                            placeholder={undefined}
-                            onPointerEnterCapture={undefined}
-                            onPointerLeaveCapture={undefined}
                         />
                     )}
                     {tenant && showTemplates && (
@@ -192,9 +186,6 @@ export const CustomMenu = () => {
                             to="/sequent_backend_template"
                             primaryText={open && t("sideMenu.templates")}
                             leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
-                            placeholder={undefined}
-                            onPointerEnterCapture={undefined}
-                            onPointerLeaveCapture={undefined}
                         />
                     )}
                     {tenant?.settings?.help_links?.length > 0 && (

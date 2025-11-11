@@ -191,7 +191,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         let {errors} = await importAreas({
             variables: {
                 documentId,
-                electionEventId: record.id,
+                electionEventId: record?.id,
                 sha256,
             },
         })
@@ -209,7 +209,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         let {errors} = await upsertAreas({
             variables: {
                 documentId,
-                electionEventId: record.id,
+                electionEventId: record?.id,
             },
         })
 

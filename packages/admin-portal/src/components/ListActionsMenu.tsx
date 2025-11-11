@@ -42,10 +42,13 @@ export const ListActionsMenu: React.FC<ListActionsMenuProps> = (props) => {
     }
 
     const filteredActions = actions.filter(
-        (action) => !action.showAction || action.showAction(record.id)
+        (action) => !action.showAction || (record?.id && action.showAction(record?.id))
     )
 
     const handleClickAction = (action: Action) => {
+        if (!record?.id) {
+            return
+        }
         action.action(record.id)
         if (action.saveRecordAction) {
             action.saveRecordAction(record)

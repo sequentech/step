@@ -10,7 +10,6 @@ const dotenv = require("dotenv")
 // this will update the process.env with environment variables in .env file
 dotenv.config()
 
-const {CleanWebpackPlugin} = require("clean-webpack-plugin")
 const ESLintPlugin = require("eslint-webpack-plugin")
 const {ProgressPlugin} = require("webpack")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
@@ -48,6 +47,7 @@ module.exports = function (env, argv) {
             filename: "index.js",
             path: path.resolve(__dirname, "dist"),
             publicPath: "/", // Set to empty string to ensure correct base path
+            clean: true,
         },
         devtool: "source-map",
         module: {
@@ -118,7 +118,6 @@ module.exports = function (env, argv) {
             new ESLintPlugin({
                 extensions: [".js", ".jsx", ".ts", ".tsx"],
             }),
-            new CleanWebpackPlugin(),
             new webpack.DefinePlugin({
                 "process.env": JSON.stringify(process.env),
             }),

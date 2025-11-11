@@ -55,10 +55,10 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
             const {data: ballotResponse, errors} = await ExportBallotPublication({
                 variables: {
                     tenantId,
-                    electionEventId: record.election_event_id
-                        ? record.election_event_id
-                        : record.id,
-                    electionId: record.election_event_id ? record.id : null,
+                    electionEventId: record?.election_event_id
+                        ? record?.election_event_id
+                        : record?.id,
+                    electionId: record?.election_event_id ? record?.id : null,
                     ballotPublicationId: ballotPublicationId,
                 },
             })
