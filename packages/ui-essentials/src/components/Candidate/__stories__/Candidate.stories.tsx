@@ -8,12 +8,6 @@ import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import {Box} from "@mui/material"
 import Image from "mui-image"
 
-// React 19 compatibility wrapper for mui-image
-const ImageFixed: React.FC<any> = (props) => {
-    const Img = Image as any;
-    return <Img {...props} />;
-};
-
 import CandidateImg from "../../../../public/example_candidate.jpg"
 
 const CandidateWrapper: React.FC<CandidateProps & {className?: string}> = ({
@@ -45,7 +39,7 @@ type Story = StoryObj<typeof CandidateWrapper>
 
 export const Primary: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         description: "Candidate Description",
         isActive: true,
@@ -61,7 +55,7 @@ export const Primary: Story = {
 
 export const ReadOnly: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         description: "Candidate Description",
         isActive: false,
@@ -91,7 +85,7 @@ export const NoImage: Story = {
 
 export const NoDescription: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         isActive: true,
         url: "https://google.com",
@@ -119,7 +113,7 @@ export const OnlyTitle: Story = {
 
 export const LongDescription: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         description:
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
@@ -133,7 +127,7 @@ export const LongDescription: Story = {
 
 export const LongTitle: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title:
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
         description: "Candidate Description",
@@ -149,7 +143,7 @@ export const LongTitle: Story = {
 
 export const WithHtml: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title: (
             <>
                 Micky <b>Mouse</b>
@@ -172,7 +166,7 @@ export const WithHtml: Story = {
 
 export const Hover: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         description: "Candidate Description",
         className: "hover",
@@ -193,7 +187,7 @@ export const Hover: Story = {
 
 export const Active: Story = {
     args: {
-        children: <ImageFixed src={CandidateImg} duration={100} />,
+        children: <Image src={CandidateImg} duration={100} />,
         title: "Micky Mouse",
         description: "Candidate Description",
         className: "hover active",

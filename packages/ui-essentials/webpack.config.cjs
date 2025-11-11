@@ -42,6 +42,7 @@ module.exports = function (env, argv) {
             "react-dom": "react-dom",
             "react-router": "react-router",
             "@mui/material": "@mui/material",
+            "mui-image": "mui-image",
             "@emotion/react": "@emotion/react",
             "@emotion/styled": "@emotion/styled",
             "react-i18next": "react-i18next",

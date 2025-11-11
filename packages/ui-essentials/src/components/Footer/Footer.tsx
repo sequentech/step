@@ -8,12 +8,6 @@ import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import {Trans, useTranslation} from "react-i18next"
 
-// React 19 compatibility wrapper for Trans component
-const TransFixed: React.FC<any> = (props) => {
-    const T = Trans as any;
-    return <T {...props} />;
-};
-
 const StyledPaper = styled(Paper)(
     ({theme}) => `
         display: flex;
@@ -59,10 +53,10 @@ const Footer: React.FC<PaperProps> = (args) => {
     return (
         <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
             <Typography variant="subtitle2" fontStyle="italic">
-                <TransFixed
+                <Trans
                     i18nKey="footer.poweredBy"
                     components={[
-                        <strong />,
+                        <CustomLink />,
                         <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />
                     ]}
                 />

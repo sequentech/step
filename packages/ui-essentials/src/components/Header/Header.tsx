@@ -16,12 +16,6 @@ import {useTranslation} from "react-i18next"
 import {ProfileMenu} from "../ProfileMenu/ProfileMenu"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
-// React 19 compatibility wrapper for MUI icons
-const LogoutIconFixed: React.FC<any> = (props) => {
-    const Icon = LogoutIcon as any;
-    return <Icon {...props} />;
-};
-
 const smBreakpoint = theme.breakpoints.values.sm
 
 const HeaderWrapper = styled(PageBanner)`
@@ -39,11 +33,22 @@ const StyledLink = styled.a`
     max-width: 50%;
 `
 
-// React 19 compatibility - replaced styled(Image) with wrapper component
-const StyledImage: React.FC<any> = (props) => {
-    const Img = Image as any;
-    return <Img {...props} style={{ width: 40, height: 40, ...props.style }} />;
-}
+const StyledImage = styled(Image)`
+    height: 47px !important;
+    width: unset !important;
+    @media (max-width: ${theme.breakpoints.values.md}px) {
+        height: 37px !important;
+    }
+    @media (max-width: ${smBreakpoint}px) {
+        height: 30px !important;
+    }
+    @media (max-width: ${smBreakpoint / 2}px) {
+        height: 20px !important;
+    }
+    @media (max-width: ${smBreakpoint / 3}px) {
+        height: 10px !important;
+    }
+`
 
 export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
     <Tooltip {...props} classes={{popper: className}} />
@@ -181,7 +186,7 @@ export default function Header({
                                             setOpenModal(true)
                                         }}
                                     >
-                                        <LogoutIconFixed aria-hidden />
+                                        <LogoutIcon aria-hidden />
                                         <Box sx={{display: {xs: "none", sm: "block"}}}>
                                             {t("logout.buttonText")}
                                         </Box>
