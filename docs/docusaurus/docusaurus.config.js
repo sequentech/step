@@ -52,6 +52,9 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      prism: {
+        additionalLanguages: ['php', 'bash', 'json', 'yaml', 'rust', 'java'],
+      },
       navbar: {
         title: '    Home',
         logo: {
