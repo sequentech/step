@@ -161,58 +161,58 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                             whiteSpace: "nowrap",
                                             backgroundColor: "#FBFBFB",
                                             border: "1px solid #fff",
+                                            position: "relative",
                                         }}
                                     >
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                gap: 1,
-                                            }}
-                                        >
-                                            {/* Left arrow in first visible column */}
-                                            {isFirstVisible && showLeftArrow && (
-                                                <IconButton
-                                                    onClick={() => handleNavigate("left")}
-                                                    aria-label="Navigate to previous rounds"
-                                                    size="small"
-                                                    sx={{
-                                                        "backgroundColor": "#1e3a5f",
-                                                        "color": "white",
-                                                        "width": 24,
-                                                        "height": 24,
-                                                        "&:hover": {
-                                                            backgroundColor: "#2c4f7c",
-                                                        },
-                                                    }}
-                                                >
-                                                    <ChevronLeft sx={{fontSize: 18}} />
-                                                </IconButton>
-                                            )}
-                                            
-                                            <span>Round {roundIndex + 1}</span>
-                                            
-                                            {/* Right arrow in last visible column */}
-                                            {isLastVisible && showRightArrow && (
-                                                <IconButton
-                                                    onClick={() => handleNavigate("right")}
-                                                    aria-label="Navigate to next rounds"
-                                                    size="small"
-                                                    sx={{
-                                                        "backgroundColor": "#1e3a5f",
-                                                        "color": "white",
-                                                        "width": 24,
-                                                        "height": 24,
-                                                        "&:hover": {
-                                                            backgroundColor: "#2c4f7c",
-                                                        },
-                                                    }}
-                                                >
-                                                    <ChevronRight sx={{fontSize: 18}} />
-                                                </IconButton>
-                                            )}
-                                        </Box>
+                                        {/* Left arrow - positioned at left margin */}
+                                        {isFirstVisible && showLeftArrow && (
+                                            <IconButton
+                                                onClick={() => handleNavigate("left")}
+                                                aria-label="Navigate to previous rounds"
+                                                size="small"
+                                                sx={{
+                                                    "position": "absolute",
+                                                    "left": 25,
+                                                    "top": "50%",
+                                                    "transform": "translateY(-50%)",
+                                                    "backgroundColor": "#1e3a5f",
+                                                    "color": "white",
+                                                    "width": 24,
+                                                    "height": 24,
+                                                    "&:hover": {
+                                                        backgroundColor: "#2c4f7c",
+                                                    },
+                                                }}
+                                            >
+                                                <ChevronLeft sx={{fontSize: 18}} />
+                                            </IconButton>
+                                        )}
+                                        
+                                        <span>Round {roundIndex + 1}</span>
+                                        
+                                        {/* Right arrow - positioned at right margin */}
+                                        {isLastVisible && showRightArrow && (
+                                            <IconButton
+                                                onClick={() => handleNavigate("right")}
+                                                aria-label="Navigate to next rounds"
+                                                size="small"
+                                                sx={{
+                                                    "position": "absolute",
+                                                    "right": 25,
+                                                    "top": "50%",
+                                                    "transform": "translateY(-50%)",
+                                                    "backgroundColor": "#1e3a5f",
+                                                    "color": "white",
+                                                    "width": 24,
+                                                    "height": 24,
+                                                    "&:hover": {
+                                                        backgroundColor: "#2c4f7c",
+                                                    },
+                                                }}
+                                            >
+                                                <ChevronRight sx={{fontSize: 18}} />
+                                            </IconButton>
+                                        )}
                                     </TableCell>
                                 )
                             })}
