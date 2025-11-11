@@ -75,7 +75,7 @@ export const ElectionEventTabs: React.FC = () => {
     const [showApprovalList, setShowApprovalList] = React.useState<string | undefined>()
     const location = useLocation()
     const navigate = useNavigate()
-    const refreshRef = React.useRef<HTMLButtonElement>()
+    const refreshRef = React.useRef<HTMLButtonElement | null>(null)
     const {t} = useTranslation()
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN

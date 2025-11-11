@@ -169,8 +169,8 @@ export const EditElectionEventDataForm: React.FC = () => {
     })
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         filter: {
-            tenant_id: record.tenant_id,
-            election_event_id: record.id,
+            tenant_id: record?.tenant_id,
+            election_event_id: record?.id,
         },
     })
 
@@ -483,7 +483,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             let {data, errors} = await importCandidates({
                 variables: {
                     documentId,
-                    electionEventId: record.id,
+                    electionEventId: record?.id,
                     sha256,
                 },
             })
@@ -730,11 +730,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                     const onSave = async () => {
                         await handleUpdateCustomUrls(
                             parsedValue.presentation as IElectionEventPresentation,
-                            record.id
+                            record?.id
                         )
                         await handleUpdateVoterAuthentication(
                             parsedValue.presentation as IElectionEventPresentation,
-                            record.id
+                            record?.id
                         )
                         setActivateSave(false)
                     }
@@ -1352,7 +1352,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             />
 
             <ExportElectionEventDrawer
-                electionEventId={record.id}
+                electionEventId={record?.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
                 exportDocumentId={exportDocumentId}

@@ -19,7 +19,7 @@ interface CandidateContextProviderProps {
     /**
      * The elements wrapped by the Candidate context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const CandidateContextProvider = (props: CandidateContextProviderProps) => {

@@ -130,7 +130,7 @@ interface AuthContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 const generateTokenStorage = (newKeycloak: Keycloak): string => {
