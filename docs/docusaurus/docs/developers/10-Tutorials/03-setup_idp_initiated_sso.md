@@ -98,7 +98,7 @@ Once you have obtained the realm identifier:
 
 **To export the realm certificate:**
 1. Go to **Realm Settings** → **Keys** tab
-2. Find the `RSA` key
+2. Find the `RSA` key of use `SIG`
 3. Click **Certificate** button
 4. Copy the certificate (this will be provided to the client as `SP_CERT_DATA`)
 
@@ -109,6 +109,8 @@ typically already automatically set up by the default keycloak realm
 configuration in Sequent Voting Plataform. However, you can also use the
 instructions below to verify everything is correctly configured, or in case the
 realm template is misconfigured or old, to configure these settings manually.
+*Note: The vp-sso client configuration that comes by default at election event creation might be wrong or outdated.
+ It is recommended to create a new configuration or follow this guide to review it.*  
 
 1. **Navigate:** Go to **Clients** in the realm
 2. **Create Client:** Click **Create client**
@@ -135,7 +137,7 @@ realm template is misconfigured or old, to configure these settings manually.
    * **Sign Documents:** **ON**
    * **Sign Assertions:** **ON**
    * **Signature Algorithm:** `RSA_SHA256`
-   * **Client signature required:** **OFF** (the voting portal doesn't sign requests)
+   * **Client signature required:** **OFF** (the voting portal doesn't sign requests). Ignore it if this option does not appear.
   
 8. Click **`Save`**
 
@@ -175,6 +177,7 @@ need to edit the environment configuration variables in the `.devcontainer/.env`
 file. Otherwise, you will have to replicate these variables used by the
 `simplesamlphp` sample app, which you can find in
 `.devcontainer/simplesamlphp/.env.example`.
+If you are in dev environment edit `.devcontainer/.env.development` and do not forget to run the vscode task `update.env` afterwards. Last but not least: do not commit the changes.
 
 We will asume you are using the step repository devcontainer environment.
 
@@ -257,11 +260,12 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
    * **Principal Attribute:** email
    * **HTTP-POST Binding Response:** **ON**
    * **HTTP-POST Binding AuthnRequest:** **ON**
-   * **Want AuthnRequests Signed:** **OFF** (for testing; ON in production)
+   * **Want AuthnRequests Signed:** **ON**
    * **Signature Algorithm:** RSA_SHA256
    * **Want Assertions Signed:** **ON**
    * **Validate Signatures:** **ON**
    * **Validating X509 Certificates:** Paste SimpleSAMLphp's public certificate (`server.crt` content, without BEGIN/END lines)
+   * Click **Add** and scroll to the bottom to find the `First login flow override` setting.
    * **First login flow override:** saml first broker flow
 
 11. **Configure Attribute Mapper:**
@@ -456,6 +460,14 @@ Before going live, verify:
 - Verify client's IdP includes RelayState in SAML Response POST
 - Check client is using correct RelayState URL format
 - Test with SimpleSAMLphp to verify Keycloak side works
+
+#### Issue 5: "SimpleSAMLphp trigger page not reachable in dev ENV"
+
+**Cause:** Bad ports configuration
+
+**Resolution:**
+- Check PORTS tab in vscode to verify whether simplesamlphp service port is being forwarded
+- Add simplesamlphp:8083
 
 ### Debugging Tools
 
