@@ -10,14 +10,13 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
-
 export const EditElectionEventUsers: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const showUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_READ)
     const electionEventId = record?.election_event_id ?? record?.id
-    const electionId = record?.election_event_id? record?.id : undefined
+    const electionId = record?.election_event_id ? record?.id : undefined
 
     if (!showUsers) {
         return null
