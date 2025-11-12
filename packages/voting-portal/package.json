@@ -101,7 +101,6 @@
     "@vitejs/plugin-react": "^5.1.0",
     "babel-loader": "10.0.0",
     "babel-plugin-named-exports-order": "^0.0.2",
-    "clean-webpack-plugin": "4.0.0",
     "copy-webpack-plugin": "^13.0.1",
     "css-loader": "^7.1.2",
     "eslint": "^9.39.1",
