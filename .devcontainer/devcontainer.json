@@ -19,7 +19,8 @@
 		"immudb:3325",
 		"rabbitmq:5672",
 		"rabbitmq:15672",
-		"b3:50051"
+		"b3:50051",
+		"simplesamlphp:8083"
 	],
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
