@@ -26,6 +26,7 @@ use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, HashableBallot};
 use sequent_core::multi_ballot::HashableMultiBallot;
+use sequent_core::plaintext_ballot::HashablePlaintextBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
@@ -33,9 +34,9 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use serde_json::json;
 use std::collections::HashMap;
-use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
+use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use tempfile::NamedTempFile;
 use tokio::task::JoinHandle;
 use tracing::{event, info, instrument, Level};
@@ -43,6 +44,30 @@ use tracing::{event, info, instrument, Level};
 use deadpool_postgres::Client as DbClient;
 
 use std::sync::Arc; // Add this import
+
+pub enum BallotContent<C: Ctx> {
+    Plaintext(C::P),
+    Ciphertext(Ciphertext<C>),
+}
+
+// --- The Solution ---
+impl<C: Ctx> BallotContent<C> {
+    /// Tries to convert the ballot into a plaintext.
+    pub fn try_into_plaintext(self) -> Result<C::P> {
+        match self {
+            BallotContent::Plaintext(p) => Ok(p),
+            BallotContent::Ciphertext(_) => Err(anyhow!("Expected Plaintext, found Ciphertext")),
+        }
+    }
+
+    /// Tries to convert the ballot into a ciphertext.
+    pub fn try_into_ciphertext(self) -> Result<Ciphertext<C>> {
+        match self {
+            BallotContent::Ciphertext(c) => Ok(c),
+            BallotContent::Plaintext(_) => Err(anyhow!("Expected Ciphertext, found Plaintext")),
+        }
+    }
+}
 
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
@@ -80,7 +105,7 @@ pub async fn insert_ballots_messages(
     let realm = get_event_realm(&tenant_id, &election_event_id);
     // Wrap protocol_manager in an Arc
     let protocol_manager = Arc::new(
-        get_protocol_manager(
+        get_protocol_manager::<RistrettoCtx>(
             hasura_transaction,
             tenant_id,
             Some(election_event_id),
@@ -217,22 +242,23 @@ pub async fn insert_ballots_messages(
                             ballots_output_index,
                         )?;
 
-                    let ciphertexts = ballot_contents
+                    let ballot_contents: Vec<BallotContent<RistrettoCtx>> = ballot_contents
                         .into_iter()
                         .map(|ballot_str| {
                             info!("ballot_str: {ballot_str}");
-                            let ciphertext: Ciphertext<RistrettoCtx> =
-                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                    == contest_encryption_policy_clone
-                                {
+                            match contest_encryption_policy_clone {
+                                ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
                                     let hashable_multi_ballot: HashableMultiBallot =
                                         deserialize_str(&ballot_str)?;
 
                                     let hashable_multi_ballot_contests = hashable_multi_ballot
                                         .deserialize_contests()
                                         .map_err(|err| anyhow!("{:?}", err))?;
-                                    Some(hashable_multi_ballot_contests.ciphertext)
-                                } else {
+                                    Ok(BallotContent::Ciphertext(
+                                        hashable_multi_ballot_contests.ciphertext,
+                                    ))
+                                }
+                                ContestEncryptionPolicy::SINGLE_CONTEST => {
                                     let hashable_ballot: HashableBallot =
                                         deserialize_str(&ballot_str)?;
                                     let contests = hashable_ballot
@@ -244,10 +270,29 @@ pub async fn insert_ballots_messages(
                                             contest.contest_id
                                                 == contest_id.clone().unwrap_or_default()
                                         })
-                                        .map(|contest| contest.ciphertext.clone())
+                                        .map(|contest| {
+                                            BallotContent::Ciphertext(contest.ciphertext.clone())
+                                        })
+                                        .ok_or(anyhow!("Could not get ciphertext"))
                                 }
-                                .ok_or(anyhow!("Could not get ciphertext"))?;
-                            Ok(ciphertext)
+                                ContestEncryptionPolicy::PLAINTEXT => {
+                                    let hashable_plaintext_ballot: HashablePlaintextBallot =
+                                        deserialize_str(&ballot_str)?;
+                                    let contests = hashable_plaintext_ballot
+                                        .deserialize_contests::<RistrettoCtx>()
+                                        .map_err(|err| anyhow!("{:?}", err))?;
+                                    contests
+                                        .iter()
+                                        .find(|contest| {
+                                            contest.contest_id
+                                                == contest_id.clone().unwrap_or_default()
+                                        })
+                                        .map(|contest| {
+                                            BallotContent::Plaintext(contest.plaintext.clone())
+                                        })
+                                        .ok_or(anyhow!("Could not get ciphertext"))
+                                }
+                            }
                         })
                         .collect::<Result<Vec<_>>>()?;
 
@@ -277,23 +322,33 @@ pub async fn insert_ballots_messages(
                     event!(
                         Level::INFO,
                         "insertable_ballots len: {:?}",
-                        ciphertexts.len()
+                        ballot_contents.len()
                     );
 
                     let mut board = get_b3_pgsql_client().await?;
                     let batch = tally_session_contest.session_id.clone() as BatchNumber;
-                    add_ballots_to_board(
-                        &protocol_manager_arc_clone, // Use the Arc clone here
-                        &mut board,
-                        &board_name_clone,
-                        &board_messages_clone, // Use the cloned board_messages
-                        &configuration_clone,
-                        public_key_hash_clone,
-                        selected_trustees_clone,
-                        ciphertexts,
-                        batch,
-                    )
-                    .await?;
+
+                    if contest_encryption_policy_clone == ContestEncryptionPolicy::PLAINTEXT {
+                        todo!()
+                    } else {
+                        let ciphertexts = ballot_contents
+                            .into_iter()
+                            .map(BallotContent::try_into_ciphertext)
+                            .collect::<Result<Vec<_>>>()?;
+
+                        add_ballots_to_board(
+                            &protocol_manager_arc_clone,
+                            &mut board,
+                            &board_name_clone,
+                            &board_messages_clone,
+                            &configuration_clone,
+                            public_key_hash_clone,
+                            selected_trustees_clone,
+                            ciphertexts,
+                            batch,
+                        )
+                        .await?;
+                    }
 
                     Ok(updated_tally_session_contest)
                 })

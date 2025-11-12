@@ -22,6 +22,11 @@ use crate::multi_ballot::{
 };
 use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
+use crate::plaintext_ballot::{
+    AuditablePlaintextBallot, AuditablePlaintextBallotContest,
+    HashablePlaintextBallot, RawHashablePlaintextBallot,
+    SignedHashablePlaintextBallot,
+};
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
 use crate::util::normalize_vote::normalize_election;
@@ -390,6 +395,97 @@ pub fn hash_multi_ballot_sha512(
 ) -> Result<Hash, StrandError> {
     let raw_hashable_ballot =
         RawHashableMultiBallot::<RistrettoCtx>::try_from(hashable_ballot)
+            .map_err(|error| StrandError::Generic(format!("{:?}", error)))?;
+
+    let bytes = raw_hashable_ballot.strand_serialize()?;
+    hash::hash_to_array(&bytes)
+}
+
+////////////////////////////////////////////////////////////////
+/// Plaintext ballots
+////////////////////////////////////////////////////////////////
+
+pub fn encode_plaintext_ballot<C: Ctx<P = [u8; 30]>>(
+    ctx: &C,
+    decoded_contests: &Vec<DecodedVoteContest>,
+    config: &BallotStyle,
+) -> Result<AuditablePlaintextBallot, BallotError> {
+    if config.contests.len() != decoded_contests.len() {
+        return Err(BallotError::ConsistencyCheck(format!(
+            "Invalid number of decoded contests {} != {}",
+            config.contests.len(),
+            decoded_contests.len()
+        )));
+    }
+
+    // let public_key: C::E = parse_public_key::<C>(&config)?;
+
+    let mut contests: Vec<AuditablePlaintextBallotContest<C>> = vec![];
+
+    for decoded_contest in decoded_contests {
+        let contest = config
+            .contests
+            .iter()
+            .find(|contest| contest.id == decoded_contest.contest_id)
+            .ok_or_else(|| {
+                BallotError::Serialization(format!(
+                    "Can't find contest with id {} on ballot style",
+                    decoded_contest.contest_id
+                ))
+            })?;
+        let plaintext = contest
+            .encode_plaintext_contest(&decoded_contest)
+            .map_err(|err| {
+                BallotError::Serialization(format!(
+                    "Error encoding plaintext: {}",
+                    err
+                ))
+            })?;
+        // let (choice, proof) = encrypt_plaintext_candidate(
+        //     ctx,
+        //     public_key.clone(),
+        //     plaintext,
+        //     &DEFAULT_PLAINTEXT_LABEL,
+        // )?;
+        contests.push(AuditablePlaintextBallotContest::<C> {
+            contest_id: contest.id.clone(),
+            plaintext: plaintext,
+        });
+    }
+
+    let mut auditable_ballot = AuditablePlaintextBallot {
+        version: TYPES_VERSION,
+        issue_date: get_current_date(),
+        contests: AuditablePlaintextBallot::serialize_contests::<C>(&contests)?,
+        ballot_hash: String::from(""),
+        config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
+    };
+
+    let signed_hashable_ballot =
+        SignedHashablePlaintextBallot::try_from(&auditable_ballot)?;
+    let hashable_ballot: HashablePlaintextBallot =
+        HashablePlaintextBallot::try_from(&signed_hashable_ballot)?;
+    auditable_ballot.ballot_hash = hash_plaintext_ballot(&hashable_ballot)?;
+
+    Ok(auditable_ballot)
+}
+
+pub fn hash_plaintext_ballot(
+    hashable_ballot: &HashablePlaintextBallot,
+) -> Result<String, BallotError> {
+    let sha512_hash = hash_plaintext_ballot_sha512(hashable_ballot)
+        .map_err(|error| BallotError::Serialization(error.to_string()))?;
+    let short_hash = shorten_hash(&sha512_hash);
+    Ok(hex::encode(short_hash))
+}
+
+pub fn hash_plaintext_ballot_sha512(
+    hashable_ballot: &HashablePlaintextBallot,
+) -> Result<Hash, StrandError> {
+    let raw_hashable_ballot =
+        RawHashablePlaintextBallot::<RistrettoCtx>::try_from(hashable_ballot)
             .map_err(|error| StrandError::Generic(format!("{:?}", error)))?;
 
     let bytes = raw_hashable_ballot.strand_serialize()?;

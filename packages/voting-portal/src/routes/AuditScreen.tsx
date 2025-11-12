@@ -20,6 +20,7 @@ import {
     downloadBlob,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
@@ -116,13 +117,24 @@ const AuditScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
-    const {hashBallot, hashMultiBallot} = provideBallotService()
-    const isMultiContest =
-        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
-        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashedBallot = isMultiContest
-        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-        : hashBallot(auditableBallot as IAuditableSingleBallot)
+    const {hashBallot, hashMultiBallot, hashPlaintextBallot} = provideBallotService()
+
+    const encryptionPolicy =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+    const hashedBallot = (function () {
+        switch (encryptionPolicy) {
+            case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
+                return hashBallot(auditableBallot as IAuditableSingleBallot)
+            case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
+                return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+            case EElectionEventContestEncryptionPolicy.PLAINTEXT:
+                return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
+            default:
+                // TODO New VotingPortalError?
+                throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+        }
+    })()
+
     const ballotHash = auditableBallot && hashedBallot
     const backLink = useRootBackLink()
     const navigate = useNavigate()

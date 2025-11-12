@@ -320,6 +320,7 @@ const spanishTranslation: TranslationType = {
                     options: {
                         "single-contest": "Concurso único",
                         "multiple-contests": "Varios concursos",
+                        "plaintext": "Concurso único sin encriptar",
                     },
                     policyLabel: "Política de cifrado de concurso",
                 },

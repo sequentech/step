@@ -237,7 +237,9 @@ pub async fn insert_tally_session_contests(
             .await?;
             batch = batch + 1;
         }
-    } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
+    } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy
+        || ContestEncryptionPolicy::PLAINTEXT == contest_encryption_policy
+    {
         for area_contest in relevant_area_contests {
             let Some(contest) = contests_map.get(&area_contest.contest_id) else {
                 return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));

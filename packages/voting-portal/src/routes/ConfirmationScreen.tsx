@@ -11,6 +11,7 @@ import {
     EVotingStatus,
     IAuditableMultiBallot,
     IAuditableSingleBallot,
+    IAuditablePlaintextBallot,
     EElectionEventContestEncryptionPolicy,
     IElection,
 } from "@sequentech/ui-core"
@@ -352,7 +353,7 @@ const ConfirmationScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
-    const {hashBallot, hashMultiBallot} = provideBallotService()
+    const {hashBallot, hashMultiBallot, hashPlaintextBallot} = provideBallotService()
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
 
     const getBallotId = (): {
@@ -371,12 +372,21 @@ const ConfirmationScreen: React.FC = () => {
             }
         } else {
             console.log("auditableBallot normal flow")
-            const isMultiContest =
-                auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
-                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-            const hashableBallot = isMultiContest
-                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : hashBallot(auditableBallot as IAuditableSingleBallot)
+            const encryptionPolicy =
+                auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+            const hashableBallot = (function () {
+                switch (encryptionPolicy) {
+                    case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
+                        return hashBallot(auditableBallot as IAuditableSingleBallot)
+                    case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
+                        return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+                    case EElectionEventContestEncryptionPolicy.PLAINTEXT:
+                        return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
+                    default:
+                        // TODO New VotingPortalError?
+                        throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
+                }
+            })()
             const ballotIdStored = (auditableBallot && hashableBallot) || undefined
             const isDemoStored = oneBallotStyle?.ballot_eml.public_key?.is_demo
             return {ballotIdStored, isDemoStored}

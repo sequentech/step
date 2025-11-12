@@ -17,6 +17,7 @@ use crate::interpret_plaintext::{
 };
 use crate::multi_ballot::*;
 use crate::plaintext::*;
+use crate::plaintext_ballot::*;
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
@@ -234,6 +235,78 @@ pub fn to_hashable_multi_ballot_js(
 
 #[allow(clippy::all)]
 #[wasm_bindgen]
+pub fn to_hashable_plaintext_ballot_js(
+    auditable_plaintext_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Parse input
+    let auditable_plaintext_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_plaintext_ballot_json)
+            .map_err(|err| {
+                format!("Failed to parse auditable plaintext ballot: {}", err)
+            })
+            .into_json()?;
+    let auditable_plaintext_ballot: AuditablePlaintextBallot =
+        deserialize_value(auditable_plaintext_ballot_js)
+            .map_err(|err| {
+                format!("Failed to parse auditable plaintext ballot: {}", err)
+            })
+            .into_json()?;
+
+    // Test deserializing auditable ballot contests
+    let _auditable_ballot_contests = auditable_plaintext_ballot
+        .deserialize_contests::<RistrettoCtx>()
+        .map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_AUDITABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize auditable plaintext ballot contests: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Convert auditable ballot to signed hashable ballot
+    let deserialized_plaintext_ballot: SignedHashablePlaintextBallot =
+        SignedHashablePlaintextBallot::try_from(&auditable_plaintext_ballot).map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::CONVERT_ERROR,
+                error_msg: format!(
+                    "Failed to convert auditable plaintext ballot to hashable plaintext ballot: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Test deserializing hashable ballot contests
+    let _hashable_ballot_contests = deserialized_plaintext_ballot
+        .deserialize_contests::<RistrettoCtx>()
+        .map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::DESERIALIZE_HASHABLE_ERROR,
+                error_msg: format!(
+                    "Failed to deserialize hashable plaintext ballot contests: {}",
+                    err
+                ),
+            })
+        })?;
+
+    // Serialize the hashable ballot
+    let serializer = Serializer::json_compatible();
+    deserialized_plaintext_ballot
+        .serialize(&serializer)
+        .map_err(|err| {
+            JsValue::from(ErrorStatus {
+                error_type: BallotError::SERIALIZE_ERROR,
+                error_msg: format!(
+                    "Failed to serialize hashable plaintext ballot: {}",
+                    err
+                ),
+            })
+        })
+}
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
 pub fn hash_auditable_ballot_js(
     auditable_ballot_json: JsValue,
 ) -> Result<JsValue, JsValue> {
@@ -301,6 +374,41 @@ pub fn hash_auditable_multi_ballot_js(
     // return hash
     let hash_string: String = hash_multi_ballot(&hashable_multi_ballot)
         .map_err(|err| format!("Error hashing multi ballot: {err}",))
+        .into_json()?;
+    serde_wasm_bindgen::to_value(&hash_string)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn hash_auditable_plaintext_ballot_js(
+    auditable_plaintext_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // parse input
+    let auditable_plaintext_ballot_js: serde_json::Value =
+        serde_wasm_bindgen::from_value(auditable_plaintext_ballot_json)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot into value: {err}",)
+            })
+            .into_json()?;
+    let auditable_plaintext_ballot: AuditablePlaintextBallot =
+        deserialize_value(auditable_plaintext_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot: {err}",)
+            })
+            .into_json()?;
+
+    let hashable_plaintext_ballot =
+        HashablePlaintextBallot::try_from(&auditable_plaintext_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable plaintext ballot: {err}",
+            )
+        })?;
+
+    // return hash
+    let hash_string: String = hash_plaintext_ballot(&hashable_plaintext_ballot)
+        .map_err(|err| format!("Error hashing plaintext ballot: {err}",))
         .into_json()?;
     serde_wasm_bindgen::to_value(&hash_string)
         .map_err(|err| format!("Error writing javascript string: {err}",))
@@ -393,6 +501,49 @@ pub fn encrypt_decoded_multi_contest_js(
         .into_json()
 }
 
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn encode_plaintext_contest_js(
+    decoded_contests_json: JsValue,
+    election_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // parse inputs
+    let decoded_contests_js: Value =
+        serde_wasm_bindgen::from_value(decoded_contests_json)
+            .map_err(|err| format!("Error parsing decoded contests: {}", err))
+            .into_json()?;
+    let decoded_contests: Vec<DecodedVoteContest> =
+        deserialize_value(decoded_contests_js)
+            .map_err(|err| format!("Error parsing decoded contests: {}", err))
+            .into_json()?;
+    let election_js: Value = serde_wasm_bindgen::from_value(election_json)
+        .map_err(|err| format!("Error parsing election: {}", err))
+        .into_json()?;
+    let election: BallotStyle = deserialize_value(election_js)
+        .map_err(|err| format!("Error parsing election: {}", err))
+        .into_json()?;
+    // create context
+    let ctx = RistrettoCtx;
+
+    // encode ballot
+    let auditable_ballot = encode_plaintext_ballot::<RistrettoCtx>(
+        &ctx,
+        &decoded_contests,
+        &election,
+    )
+    .map_err(|err| format!("Error encrypting decoded contests {:?}", err))
+    .into_json()?;
+
+    // convert to json output
+    let serializer = Serializer::json_compatible();
+    auditable_ballot
+        .serialize(&serializer)
+        .map_err(|err| {
+            format!("Error converting auditable ballot to json {:?}", err)
+        })
+        .into_json()
+}
+
 // before: map_to_decoded_ballot
 #[allow(clippy::all)]
 #[wasm_bindgen]
@@ -420,6 +571,41 @@ pub fn decode_auditable_ballot_js(
     let plaintext = map_to_decoded_contest::<RistrettoCtx>(&auditable_ballot)
         .into_json()?;
     // https://crates.io/crates/serde-wasm-bindgen
+    let serializer = Serializer::json_compatible();
+    plaintext
+        .serialize(&serializer)
+        .map_err(|err| {
+            format!("Error converting decoded ballot to json {:?}", err)
+        })
+        .into_json()
+}
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn decode_auditable_plaintext_ballot_js(
+    auditable_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
+            .map_err(|err| {
+                format!(
+            "Error parsing auditable plaintext ballot javascript string: {}",
+            err
+        )
+            })
+            .into_json()?;
+    let auditable_ballot: AuditablePlaintextBallot =
+        deserialize_value(auditable_ballot_js)
+            .map_err(|err| {
+                format!(
+            "Error parsing auditable plaintext ballot javascript string: {}",
+            err
+        )
+            })
+            .into_json()?;
+    let plaintext =
+        map_to_decoded_plaintext_contest::<RistrettoCtx>(&auditable_ballot)
+            .into_json()?;
     let serializer = Serializer::json_compatible();
     plaintext
         .serialize(&serializer)
@@ -1089,6 +1275,57 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()
 }
 
+#[wasm_bindgen]
+pub fn sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    auditable_plaintext_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let auditable_plaintext_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_plaintext_ballot_json)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })
+            .into_json()?;
+    let auditable_plaintext_ballot: AuditablePlaintextBallot =
+        deserialize_value(auditable_plaintext_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable plaintext ballot: {err}",)
+            })
+            .into_json()?;
+
+    let hashable_plaintext_ballot =
+        HashablePlaintextBallot::try_from(&auditable_plaintext_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable plaintext ballot: {err}",
+            )
+        })
+        .into_json()?;
+
+    // Generates ephemeral voter signing key and signs the ballot
+    let signed_content =
+        sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key(
+            &ballot_id,
+            &election_id,
+            &hashable_plaintext_ballot,
+        )
+        .map_err(|err| format!("Error signing the ballot: {err}"))
+        .into_json()?;
+    serde_wasm_bindgen::to_value(&signed_content)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
 // returns true/false if verified/no-signature, error if the signature can't be
 // verified
 #[wasm_bindgen]
@@ -1178,6 +1415,57 @@ pub fn verify_multi_ballot_signature_js(
         &ballot_id,
         &election_id,
         &signed_hashable_multi_ballot,
+    )
+    .map_err(|err| format!("Error verifying the ballot signature: {err}"))
+    .into_json()?;
+
+    serde_wasm_bindgen::to_value(&result.is_some())
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn verify_plaintext_ballot_signature_js(
+    ballot_id: JsValue,
+    election_id: JsValue,
+    auditable_plaintext_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // Deserialize inputs
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let auditable_plaintext_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_plaintext_ballot_json)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })
+            .into_json()?;
+    let auditable_plaintext_ballot: AuditablePlaintextBallot =
+        deserialize_value(auditable_plaintext_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable plaintext ballot: {err}",)
+            })
+            .into_json()?;
+
+    let signed_hashable_plaintext_ballot =
+        SignedHashablePlaintextBallot::try_from(&auditable_plaintext_ballot).map_err(|err| {
+            format!(
+                "Error converting auditable ballot into hashable plaintext ballot: {err}",
+            )
+        })
+        .into_json()?;
+
+    // Verifies the ballot signature
+    let result = verify_plaintext_ballot_signature(
+        &ballot_id,
+        &election_id,
+        &signed_hashable_plaintext_ballot,
     )
     .map_err(|err| format!("Error verifying the ballot signature: {err}"))
     .into_json()?;

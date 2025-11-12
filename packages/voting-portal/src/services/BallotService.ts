@@ -4,26 +4,33 @@
 import {
     toHashableBallot,
     toHashableMultiBallot,
+    toHashablePlaintextBallot,
     hashBallot,
     hashMultiBallot,
+    hashPlaintextBallot,
     encryptBallotSelection,
     encryptMultiBallotSelection,
+    encodePlaintextBallotSelection,
     interpretContestSelection,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
+    decodeAuditablePlaintextBallot,
     checkIsBlank,
     signHashableBallot,
     signHashableMultiBallot,
+    signHashablePlaintextBallot,
     IDecodedVoteContest,
     IBallotStyle,
     IAuditableBallot,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     IHashableBallot,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IHashablePlaintextBallot,
     ISignedContent,
     IContest,
     BallotSelection,
@@ -32,8 +39,12 @@ import {
 export interface IBallotService {
     toHashableBallot: (auditableBallot: IAuditableSingleBallot) => IHashableSingleBallot
     toHashableMultiBallot: (auditableBallot: IAuditableMultiBallot) => IHashableMultiBallot
+    toHashablePlaintextBallot: (
+        auditableBallot: IAuditablePlaintextBallot
+    ) => IHashablePlaintextBallot
     hashBallot: (auditableBallot: IAuditableSingleBallot) => string
     hashMultiBallot: (auditableBallot: IAuditableMultiBallot) => string
+    hashPlaintextBallot: (auditableBallot: IAuditablePlaintextBallot) => string
     encryptBallotSelection: (
         ballotSelection: BallotSelection,
         election: IBallotStyle
@@ -42,6 +53,10 @@ export interface IBallotService {
         ballotSelection: BallotSelection,
         election: IBallotStyle
     ) => IAuditableMultiBallot
+    encodePlaintextBallotSelection: (
+        ballotSelection: BallotSelection,
+        election: IBallotStyle
+    ) => IAuditablePlaintextBallot
     interpretContestSelection: (
         contestSelection: Array<IDecodedVoteContest>,
         election: IBallotStyle
@@ -50,6 +65,7 @@ export interface IBallotService {
         contestSelections: Array<IDecodedVoteContest>,
         election: IBallotStyle
     ) => Array<IDecodedVoteContest>
+    // TODO interpretPlaintextContestSelection
     getWriteInAvailableCharacters: (
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
@@ -59,6 +75,9 @@ export interface IBallotService {
     ) => Array<IDecodedVoteContest> | null
     decodeAuditableMultiBallot: (
         auditableBallot: IAuditableMultiBallot
+    ) => Array<IDecodedVoteContest> | null
+    decodeAuditablePlaintextBallot: (
+        auditableBallot: IAuditablePlaintextBallot
     ) => Array<IDecodedVoteContest> | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
     signHashableBallot: (
@@ -71,21 +90,31 @@ export interface IBallotService {
         electionId: string,
         hashableBallot: IAuditableMultiBallot
     ) => ISignedContent | null
+    signHashablePlaintextBallot: (
+        ballotId: string,
+        electionId: string,
+        hashableBallot: IAuditablePlaintextBallot
+    ) => ISignedContent | null
 }
 
 export const provideBallotService = (): IBallotService => ({
     toHashableBallot,
     toHashableMultiBallot,
+    toHashablePlaintextBallot,
     hashBallot,
     hashMultiBallot,
+    hashPlaintextBallot,
     encryptBallotSelection,
     encryptMultiBallotSelection,
+    encodePlaintextBallotSelection,
     interpretContestSelection,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
+    decodeAuditablePlaintextBallot,
     checkIsBlank,
     signHashableBallot,
     signHashableMultiBallot,
+    signHashablePlaintextBallot,
 })

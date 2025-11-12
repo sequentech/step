@@ -319,6 +319,7 @@ const galegoTranslation: TranslationType = {
                     options: {
                         "single-contest": "Concurso único",
                         "multiple-contests": "Varios concursos",
+                        "plaintext": "Concurso único non cifrado",
                     },
                     policyLabel: "Política de cifrado de concurso",
                 },

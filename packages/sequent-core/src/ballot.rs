@@ -1592,6 +1592,9 @@ pub enum ContestEncryptionPolicy {
     #[strum(serialize = "single-contest")]
     #[serde(rename = "single-contest")]
     SINGLE_CONTEST,
+    #[strum(serialize = "plaintext")]
+    #[serde(rename = "plaintext")]
+    PLAINTEXT,
 }
 
 #[allow(non_camel_case_types)]

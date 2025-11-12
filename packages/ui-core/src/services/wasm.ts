@@ -16,23 +16,29 @@ import {
     sort_candidates_list_js,
     decode_auditable_ballot_js,
     decode_auditable_multi_ballot_js,
+    decode_auditable_plaintext_ballot_js,
     to_hashable_ballot_js,
     to_hashable_multi_ballot_js,
+    to_hashable_plaintext_ballot_js,
     hash_auditable_ballot_js,
     hash_auditable_multi_ballot_js,
+    hash_auditable_plaintext_ballot_js,
     encrypt_decoded_contest_js,
     encrypt_decoded_multi_contest_js,
+    encode_plaintext_contest_js,
     test_contest_reencoding_js,
     test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
     sign_hashable_ballot_with_ephemeral_voter_signing_key_js,
     sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js,
+    sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js,
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_plaintext_ballot_signature_js,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -40,12 +46,14 @@ import {
     ElectionsOrder,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     IBallotStyle,
     ICandidate,
     IContest,
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IHashablePlaintextBallot,
     ISignedContent,
 } from ".."
 
@@ -151,6 +159,17 @@ export const toHashableMultiBallot = (
     }
 }
 
+export const toHashablePlaintextBallot = (
+    auditablePlaintextBallot: IAuditablePlaintextBallot
+): IHashablePlaintextBallot => {
+    try {
+        return to_hashable_plaintext_ballot_js(auditablePlaintextBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 export const hashBallot = (auditableBallot: IAuditableSingleBallot): string => {
     try {
         return hash_auditable_ballot_js(auditableBallot)
@@ -163,6 +182,17 @@ export const hashBallot = (auditableBallot: IAuditableSingleBallot): string => {
 export const hashMultiBallot = (auditableMultiBallot: IAuditableMultiBallot): string => {
     try {
         return hash_auditable_multi_ballot_js(auditableMultiBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const hashPlaintextBallot = (
+    auditablePlaintextBallot: IAuditablePlaintextBallot
+): string => {
+    try {
+        return hash_auditable_plaintext_ballot_js(auditablePlaintextBallot)
     } catch (error) {
         console.log(error)
         throw error
@@ -193,6 +223,18 @@ export const encryptMultiBallotSelection = (
     }
 }
 
+export const encodePlaintextBallotSelection = (
+    ballotSelection: BallotSelection,
+    election: IBallotStyle
+): IAuditablePlaintextBallot => {
+    try {
+        return encode_plaintext_contest_js(ballotSelection, election)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 export const signHashableBallot = (
     ballot_id: string,
     election_id: string,
@@ -217,6 +259,23 @@ export const signHashableMultiBallot = (
 ): ISignedContent => {
     try {
         return sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const signHashablePlaintextBallot = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditablePlaintextBallot
+): ISignedContent => {
+    try {
+        return sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
             ballot_id,
             election_id,
             content
@@ -301,6 +360,18 @@ export const decodeAuditableMultiBallot = (
     }
 }
 
+export const decodeAuditablePlaintextBallot = (
+    auditableBallot: IAuditablePlaintextBallot
+): Array<IDecodedVoteContest> | null => {
+    try {
+        let decodedBallot = decode_auditable_plaintext_ballot_js(auditableBallot)
+        return decodedBallot as Array<IDecodedVoteContest>
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
     try {
         let is_blank: boolean = check_is_blank_js(contest)
@@ -332,6 +403,24 @@ export const verifyMultiBallotSignature = (
 ): boolean | null => {
     try {
         let isVerified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyPlaintextBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditablePlaintextBallot
+): boolean | null => {
+    try {
+        let isVerified: boolean = verify_plaintext_ballot_signature_js(
+            ballot_id,
+            election_id,
+            content
+        )
         return isVerified
     } catch (error) {
         console.log(error)

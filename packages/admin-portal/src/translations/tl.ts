@@ -320,6 +320,7 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         "single-contest": "Isang Paligsahan",
                         "multiple-contests": "Maraming Paligsahan",
+                        "plaintext": "Iisang Paligsahang Hindi Naka-encrypt",
                     },
                     policyLabel: "Patakaran sa Pag-encode ng Paligsahan",
                 },

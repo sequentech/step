@@ -32,6 +32,7 @@ import {
     EGraphQLErrorCode,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
     IHashableBallot,
@@ -68,8 +69,10 @@ import {
     sortContestList,
     hashBallot,
     hashMultiBallot,
+    hashPlaintextBallot,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IHashablePlaintextBallot,
 } from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -315,7 +318,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const isCastingBallot = useRef<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
+    const {toHashableBallot, toHashableMultiBallot, toHashablePlaintextBallot} =
+        provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -389,11 +393,30 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             }
         }
 
-        let hashableBallot: IHashableSingleBallot | IHashableMultiBallot | undefined
+        let hashableBallot:
+            | IHashableSingleBallot
+            | IHashableMultiBallot
+            | IHashablePlaintextBallot
+            | undefined
         try {
-            hashableBallot = isMultiContest
-                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+            const encryptionPolicy =
+                auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+
+            hashableBallot = (function () {
+                switch (encryptionPolicy) {
+                    case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
+                        return toHashableBallot(auditableBallot as IAuditableSingleBallot)
+                    case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
+                        return toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                    case EElectionEventContestEncryptionPolicy.PLAINTEXT:
+                        return toHashablePlaintextBallot(
+                            auditableBallot as IAuditablePlaintextBallot
+                        )
+                    default:
+                        // TODO New VotingPortalError?
+                        throw new Error(VotingPortalErrorType.INCONSISTENT_HASH)
+                }
+            })()
         } catch (error) {
             isCastingBallot.current = false
             console.error(error)
@@ -544,11 +567,20 @@ export const ReviewScreen: React.FC = () => {
     const isMultiContest =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashableBallot = auditableBallot
-        ? isMultiContest
-            ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : hashBallot(auditableBallot as IAuditableSingleBallot)
-        : undefined
+    const encryptionPolicy =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+    const hashableBallot = (function () {
+        switch (encryptionPolicy) {
+            case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
+                return hashBallot(auditableBallot as IAuditableSingleBallot)
+            case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
+                return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+            case EElectionEventContestEncryptionPolicy.PLAINTEXT:
+                return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
+            default:
+            // TODO Error?
+        }
+    })()
 
     const ballotId = useMemo(() => {
         return auditableBallot && hashableBallot ? hashableBallot : undefined

@@ -318,6 +318,7 @@ const dutchTranslation: TranslationType = {
                     options: {
                         "single-contest": "Enkele Verkiezing",
                         "multiple-contests": "Meerdere Verkiezingen",
+                        "plaintext": "Enkele Niet-versleutelde Verkiezing",
                     },
                     policyLabel: "Encryptiebeleid verkiezingen",
                 },
