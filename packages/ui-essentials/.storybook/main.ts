@@ -1,4 +1,6 @@
-// ui-essentials/.storybook/main.ts
+// SPDX-FileCopyrightText: 2025 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
 import {mergeConfig} from "vite"
 import path from "path"
