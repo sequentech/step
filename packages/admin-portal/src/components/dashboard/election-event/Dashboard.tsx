@@ -41,7 +41,7 @@ const Container = styled(Box)`
 
 interface DashboardElectionEventProps {
     refreshRef: any
-    onMount: () => void
+    onMount?: () => void
 }
 
 const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) => {
@@ -139,7 +139,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     }
 
     useEffect(() => {
-        onMount()
+        onMount?.()
     }, [onMount])
 
     useEffect(() => {
