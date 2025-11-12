@@ -35,13 +35,6 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     const [representedRounds, setRepresentedRounds] = useState({ start: 0, end: VISIBLE_ROUNDS - 1 })
 
     useEffect(() => {
-        console.log("TallyResultsCandidatesIRV processResults:", processResults)
-        // Extend rows vector by double, to test a long number of cols on the table
-        if (processResults.rounds.length < 10) {
-            const extendedRows = processResults.rounds
-            processResults.rounds.push(...extendedRows)
-        }
-        
         // Reset to initial range when data changes
         setRepresentedRounds({ start: 0, end: Math.min(VISIBLE_ROUNDS - 1, processResults.rounds.length - 1) })
     }, [processResults, VISIBLE_ROUNDS])
@@ -139,7 +132,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                     "border": "1px solid #e0e0e0",
                 }}
             >
-                <Table sx={{minWidth: 650}}>
+                <Table>
                     <TableHead>
                         <TableRow>
                             <TableCell
