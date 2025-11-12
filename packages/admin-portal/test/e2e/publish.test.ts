@@ -8,7 +8,6 @@ import {createElectionEvent} from "../commands/election-event/create"
 import {deleteElectionEvent} from "../commands/election-event/delete"
 import {pause} from ".."
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("publish tests", function () {
     before(function (browser) {
         browser.login()

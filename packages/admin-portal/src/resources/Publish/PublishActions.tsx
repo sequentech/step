@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useState} from "react"
-
-import styled from "@emotion/styled"
-import {styled as muiStyled} from "@mui/material/styles"
-
+import {styled} from "@mui/material/styles"
 import {CircularProgress, Typography, Menu, MenuItem} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
@@ -37,7 +34,7 @@ import PublishExport from "./PublishExport"
 type SvgIconComponent = typeof SvgIcon
 
 const PublishActionsStyled = {
-    Container: styled.div`
+    Container: styled("div")`
         display: flex;
         margin-bottom: 8px;
         justify-content: flex-end;
@@ -45,7 +42,7 @@ const PublishActionsStyled = {
     `,
 }
 
-export const StyledStatusButton = muiStyled(Button)`
+export const StyledStatusButton = styled(Button)`
     &.MuiButtonBase-root {
         line-height: 1 !important;
     }
@@ -57,7 +54,7 @@ export const StyledStatusButton = muiStyled(Button)`
     }
 `
 
-export const StyledMenuItem = muiStyled(MenuItem)`
+export const StyledMenuItem = styled(MenuItem)`
     &.MuiMenuItem-root {
         display: flex;
         gap: 8px;
@@ -159,7 +156,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         <Button
             onClick={onClick}
             className={className}
-            label={t(label)}
+            label={String(t(label))}
             style={
                 changingStatus || disabledStatus?.includes(status)
                     ? {
@@ -228,15 +225,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             action === EPublishActions.PENDING_START_VOTING
                 ? t(`publish.action.startVotingPeriod`)
                 : action === EPublishActions.PENDING_STOP_VOTING
-                ? t(`publish.action.stopVotingPeriod`)
-                : t(`publish.action.pauseVotingPeriod`)
+                  ? t(`publish.action.stopVotingPeriod`)
+                  : t(`publish.action.pauseVotingPeriod`)
 
         const dialogMessage = isGoldUser()
             ? action === EPublishActions.PENDING_START_VOTING
                 ? t("publish.dialog.startInfo")
                 : action === EPublishActions.PENDING_STOP_VOTING
-                ? t("publish.dialog.stopInfo")
-                : t("publish.dialog.pauseInfo")
+                  ? t("publish.dialog.stopInfo")
+                  : t("publish.dialog.pauseInfo")
             : t("publish.dialog.confirmation", {action: actionText})
         openDialog(dialogMessage)
 
@@ -467,7 +464,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             setStartAnchorEl(e.currentTarget)
                                         }
                                         className={"startVotingMenu"}
-                                        label={t("publish.action.startVotingPeriod")}
+                                        label={String(t("publish.action.startVotingPeriod"))}
                                         disabled={isStartButtonDisabled()}
                                     >
                                         <IconOrProgress
@@ -535,7 +532,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             setPauseAnchorEl(e.currentTarget)
                                         }
                                         className={"pauseVotingMenu"}
-                                        label={t("publish.action.pauseVotingPeriod")}
+                                        label={String(t("publish.action.pauseVotingPeriod"))}
                                         disabled={isPauseButtonDisabled()}
                                     >
                                         <IconOrProgress
@@ -600,7 +597,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                             setStopAnchorEl(e.currentTarget)
                                         }
                                         className={"stopVotingMenu"}
-                                        label={t("publish.action.stopVotingPeriod")}
+                                        label={String(t("publish.action.stopVotingPeriod"))}
                                         disabled={isStopButtonDisabled()}
                                     >
                                         <IconOrProgress
@@ -666,7 +663,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     Icon={Publish}
                                     onClick={() => handlePublish(false)}
                                     st={PublishStatus.Generated}
-                                    label={t("publish.action.publish")}
+                                    label={String(t("publish.action.publish"))}
                                     disabledStatus={[PublishStatus.Stopped]}
                                 />
                             )}
@@ -679,7 +676,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                         Icon={RotateLeft}
                                         disabledStatus={[]}
                                         st={PublishStatus.Generated}
-                                        label={t("publish.action.generate")}
+                                        label={String(t("publish.action.generate"))}
                                         onClick={() => handlePublish(true)}
                                     />
                                 </div>
@@ -702,9 +699,9 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     setCurrentCallback(null) // Reset the callback
                 }}
                 open={showDialog}
-                title={t("publish.dialog.title")}
-                ok={t("publish.dialog.ok")}
-                cancel={t("publish.dialog.ko")}
+                title={String(t("publish.dialog.title"))}
+                ok={String(t("publish.dialog.ok"))}
+                cancel={String(t("publish.dialog.ko"))}
                 variant="info"
             >
                 <Typography variant="body1">{dialogText}</Typography>

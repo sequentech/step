@@ -43,7 +43,7 @@ interface SettingsContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {

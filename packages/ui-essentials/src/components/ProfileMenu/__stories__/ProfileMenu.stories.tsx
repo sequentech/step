@@ -24,7 +24,7 @@ const meta: Meta<typeof ProfileMenu> = {
                     alignItems: "flex-end",
                 }}
             >
-                <Story />
+                <>{Story({} as any, {} as any)}</>
             </Box>
         ),
     ],

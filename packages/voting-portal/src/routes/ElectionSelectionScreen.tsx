@@ -33,7 +33,7 @@ import {selectElectionById, setElection, selectElectionIds} from "../store/elect
 import {AppDispatch} from "../store/store"
 import {addCastVotes, selectCastVotesByElectionId} from "../store/castVotes/castVotesSlice"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
-import {useQuery} from "@apollo/client"
+import {useQuery} from "@apollo/client/react"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {
     GetBallotStylesQuery,

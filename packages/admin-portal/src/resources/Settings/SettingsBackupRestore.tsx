@@ -145,7 +145,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                 toolbar={
                     <SaveButton
                         className="save"
-                        label={t("settings.backupRestore.backup.label")}
+                        label={String(t("settings.backupRestore.backup.label"))}
                         alwaysEnable
                         disabled={isLoading}
                     />
@@ -164,7 +164,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                 toolbar={
                     <SaveButton
                         className="save"
-                        label={t("settings.backupRestore.restore.label")}
+                        label={String(t("settings.backupRestore.restore.label"))}
                         alwaysEnable
                         disabled={
                             // TODO: fix disable mode
@@ -190,7 +190,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             onChange={(event) => handleImportOptionsChange("includeTenant", event)}
                         />
                     }
-                    label={t("settings.backupRestore.restore.tenantConfigOption")}
+                    label={String(t("settings.backupRestore.restore.tenantConfigOption"))}
                 />
 
                 <FormControlLabel
@@ -202,7 +202,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             }
                         />
                     }
-                    label={t("settings.backupRestore.restore.keycloakConfigOption")}
+                    label={String(t("settings.backupRestore.restore.keycloakConfigOption"))}
                 />
 
                 <FormControlLabel
@@ -212,7 +212,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             onChange={(event) => handleImportOptionsChange("includeRoles", event)}
                         />
                     }
-                    label={t("settings.backupRestore.restore.RolesConfigOption")}
+                    label={String(t("settings.backupRestore.restore.RolesConfigOption"))}
                 />
             </SimpleForm>
 

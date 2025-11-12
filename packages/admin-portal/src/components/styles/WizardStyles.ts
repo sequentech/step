@@ -4,9 +4,7 @@
 
 // Election Styles
 
-import styled from "@emotion/styled"
-import {styled as muiStyled} from "@mui/material/styles"
-
+import {styled} from "@mui/material/styles"
 import {SaveButton, Toolbar} from "react-admin"
 import {AccordionDetails, Box, Chip, Typography, CircularProgress} from "@mui/material"
 import Button from "@mui/material/Button"
@@ -24,7 +22,7 @@ export const WizardStyles = {
         width: 100%;
         margin: auto;
     `,
-    Toolbar: styled(Toolbar)`
+    Toolbar: styled(Toolbar as any)`
         bottom: 0;
         position: sticky;
         flex-direction: row;
@@ -43,12 +41,11 @@ export const WizardStyles = {
         padding: 0 2em;
         margin: 1em 2em 2em 0;
     `,
-    CreateButton: muiStyled(SaveButton)`
+    CreateButton: styled(SaveButton)`
         margin-left: auto;
         flex-direction: row-reverse;
     `,
-    DownloadProgress: muiStyled(CircularProgress)`
-    `,
+    DownloadProgress: styled(CircularProgress)``,
     StatusBox: styled(Box)`
         min-height: 50px;
     `,
@@ -63,7 +60,7 @@ export const WizardStyles = {
     AccordionTitle: styled(ElectionHeaderStyles.Title)`
         margin-bottom: 0 !important;
     `,
-    AccordionSubTitle: styled.div`
+    AccordionSubTitle: styled("div")`
         color: rgba(0, 0, 0, 0.6);
         font-size: 14px;
         font-family: Roboto;
@@ -103,35 +100,35 @@ export const WizardStyles = {
         width: 100%;
         margin: auto;
     `,
-    OrderedList: styled.ol`
+    OrderedList: styled("ol")`
         padding: 1em;
         margin-top: 1em;
         margin-left: 2em;
         display: block;
         list-style-type: decimal;
     `,
-    ListItem: styled.li`
+    ListItem: styled("li")`
         padding: 1em;
         display: list-item;
     `,
-    WizardContainer: styled.div`
+    WizardContainer: styled("div")`
         display: flex;
         flex-direction: column;
         min-height: 100%;
     `,
-    ContentWrapper: styled.div`
+    ContentWrapper: styled("div")`
         flex-grow: 1;
         overflow-y: auto;
         padding-bottom: 1rem; // Add some padding at the bottom to prevent content from being hidden behind the footer
     `,
-    FooterContainer: styled.div`
+    FooterContainer: styled("div")`
         width: 100%;
         position: sticky;
         bottom: 0;
         background-color: ${({theme}) => theme.palette.background.default};
         box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
     `,
-    StyledFooter: styled.div`
+    StyledFooter: styled("div")`
         margin: 0 auto;
         display: flex;
         justify-content: space-between;

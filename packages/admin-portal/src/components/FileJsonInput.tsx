@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {faCloudArrowUp} from "@fortawesome/free-solid-svg-icons"
 import {Box, Typography} from "@mui/material"
 import {Icon, theme} from "@sequentech/ui-essentials"
@@ -58,11 +58,13 @@ export const FileJsonInput: React.FC<FileJsonInputProps> = (props) => {
     return (
         <Box sx={{padding: "1rem 0"}}>
             <DragFileElement>
-                <Icon variant="info" icon={faCloudArrowUp} fontSize="50px" />
+                <Icon variant="info" icon={faCloudArrowUp as any} fontSize="50px" />
                 <FileInput
                     label={false}
                     source={fileSource}
-                    accept={"application/json"}
+                    accept={{
+                        "application/json": [".json"],
+                    }}
                     parse={(value) => {
                         return getJsonText(value, parsedValue)
                     }}

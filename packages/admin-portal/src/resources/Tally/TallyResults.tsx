@@ -12,7 +12,7 @@ import {
 } from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
-import {ReactI18NextChild, useTranslation} from "react-i18next"
+import {useTranslation} from "react-i18next"
 import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
@@ -97,7 +97,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         }, [elections])
 
         interface TabPanelProps {
-            children?: ReactI18NextChild | Iterable<ReactI18NextChild>
+            children?: React.ReactNode | Iterable<React.ReactNode>
             index: number
             value: number | null
         }

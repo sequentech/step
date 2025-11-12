@@ -7,7 +7,7 @@ import LanguageMenu from "../LanguageMenu/LanguageMenu"
 import PageBanner from "../PageBanner/PageBanner"
 import PageLimit from "../PageLimit/PageLimit"
 import {theme} from "../../services/theme"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Box, Button, Stack, Tooltip, TooltipProps, tooltipClasses} from "@mui/material"
 import Version from "../Version/Version"
 import LogoutIcon from "@mui/icons-material/Logout"
@@ -28,7 +28,7 @@ const HeaderWrapper = styled(PageBanner)`
     }
 ` as typeof Stack
 
-const StyledLink = styled.a`
+const StyledLink = styled("a")`
     max-height: 100%;
     max-width: 50%;
 `
@@ -70,7 +70,7 @@ export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) 
     },
 }))
 
-export const StyledButtonContainerWrapper = styled.div`
+export const StyledButtonContainerWrapper = styled("div")`
     position: relative;
     display: inline-block;
     padding: 0;

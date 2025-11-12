@@ -1,5 +1,4 @@
 #![allow(non_upper_case_globals)]
-#![feature(result_flattening)]
 #![recursion_limit = "256"]
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
@@ -12,10 +11,10 @@ use lazy_static::lazy_static;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use celery::Celery;
+use clap::Parser;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
-use structopt::StructOpt;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
@@ -40,44 +39,23 @@ lazy_static! {
     static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBatch);
 }
 
-#[derive(Debug, StructOpt, Clone)]
-#[structopt(
-    name = "windmill",
-    about = "Windmill task queue prosumer.",
-    setting = structopt::clap::AppSettings::ColoredHelp,
-)]
+#[derive(Debug, Parser, Clone)]
+#[command(name = "windmill", about = "Windmill task queue prosumer.")]
 enum CeleryOpt {
     Consume {
-        #[structopt(short, long, possible_values = &[
-            &*SHORT_QUEUE_NAME,
-            &*BEAT_QUEUE_NAME,
-            &*ELECTORAL_LOG_BEAT_QUEUE_NAME,
-            &*COMMUNICATION_QUEUE_NAME,
-            &*TALLY_QUEUE_NAME,
-            &*REPORTS_QUEUE_NAME,
-            &*IMPORT_EXPORT_QUEUE_NAME,
-            &*ELECTORAL_LOG_BATCH_QUEUE_NAME,
-            Queue::Short.as_ref(),
-            Queue::Beat.as_ref(),
-            Queue::ElectoralLogBeat.as_ref(),
-            Queue::Communication.as_ref(),
-            Queue::Tally.as_ref(),
-            Queue::Reports.as_ref(),
-            Queue::ImportExport.as_ref(),
-            Queue::ElectoralLogBatch.as_ref(),
-        ], default_value = &*BEAT_QUEUE_NAME)]
+        #[arg(short, long, num_args(1..), default_values_t = vec![BEAT_QUEUE_NAME.clone()])]
         queues: Vec<String>,
-        #[structopt(short, long, default_value = "100")]
+        #[arg(short, long, default_value = "100")]
         prefetch_count: u16,
-        #[structopt(short, long)]
+        #[arg(short, long)]
         acks_late: bool,
-        #[structopt(short, long, default_value = "4")]
+        #[arg(short, long, default_value = "4")]
         task_max_retries: u32,
-        #[structopt(short, long, default_value = "5")]
+        #[arg(short, long, default_value = "5")]
         broker_connection_max_retries: u32,
-        #[structopt(short, long, default_value = "10")]
+        #[arg(short = 'H', long, default_value = "10")]
         heartbeat: u16,
-        #[structopt(short, long)]
+        #[arg(short, long)]
         worker_threads: Option<usize>,
     },
     Produce,
@@ -109,7 +87,7 @@ fn read_worker_threads(opt: &CeleryOpt) -> usize {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let opt = CeleryOpt::from_args();
+    let opt = CeleryOpt::parse();
 
     let cpus = read_worker_threads(&opt);
     set_worker_threads(cpus);

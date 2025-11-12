@@ -16,7 +16,6 @@ import {
 } from "@sequentech/ui-core"
 import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
-import emotionStyled from "@emotion/styled"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
@@ -79,12 +78,12 @@ const CandidateListsWrapper = styled(Box)`
     }
 `
 
-const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
+const CandidatesSingleWrapper = styled("ul")<{columnCount: number}>`
     list-style: none;
     padding-inline-start: 0;
     column-gap: 0;
     margin: 0;
-    
+
     @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
         column-count: ${(data) => data.columnCount};
     }
@@ -94,12 +93,12 @@ const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
     }
 `
 
-const InvalidBlankWrapper = emotionStyled.ul<{columnCount: number}>`
+const InvalidBlankWrapper = styled("ul")<{columnCount: number}>`
     list-style: none;
     padding-inline-start: 0;
     column-gap: 0;
     margin: 0;
-    
+
     @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
         column-count: ${(data) => data.columnCount};
     }
@@ -107,7 +106,6 @@ const InvalidBlankWrapper = emotionStyled.ul<{columnCount: number}>`
     li + li {
         margin-top: 12px;
     }
-
 `
 export interface IQuestionProps {
     ballotStyle: IBallotStyle

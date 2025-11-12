@@ -12,7 +12,7 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../../../resources/User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
-import {styled} from "@mui/styles"
+import {styled} from "@mui/material/styles"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {WidgetProps} from "@/components/Widget"
@@ -164,9 +164,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
-                cancel={t("common.label.cancel")}
-                title={t("electionEventScreen.export.title")}
+                ok={String(t("common.label.export"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("electionEventScreen.export.title"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
@@ -186,7 +186,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
                         }
-                        label={t("electionEventScreen.export.encryptWithPassword")}
+                        label={String(t("electionEventScreen.export.encryptWithPassword"))}
                     />
                     <FormControlLabel
                         control={
@@ -195,7 +195,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => setIncludeVoters(!includeVoters)}
                             />
                         }
-                        label={t("electionEventScreen.export.includeVoters")}
+                        label={String(t("electionEventScreen.export.includeVoters"))}
                     />
                     <FormControlLabel
                         control={
@@ -204,7 +204,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => setActivityLogs(!activityLogs)}
                             />
                         }
-                        label={t("electionEventScreen.export.activityLogs")}
+                        label={String(t("electionEventScreen.export.activityLogs"))}
                     />
                     <FormControlLabel
                         control={
@@ -213,7 +213,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => toggleBulletinBoard(!bulletinBoard)}
                             />
                         }
-                        label={t("electionEventScreen.export.bulletinBoard")}
+                        label={String(t("electionEventScreen.export.bulletinBoard"))}
                     />
                     <FormControlLabel
                         control={
@@ -222,7 +222,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => setPublications(!publications)}
                             />
                         }
-                        label={t("electionEventScreen.export.publications")}
+                        label={String(t("electionEventScreen.export.publications"))}
                     />
                     <FormControlLabel
                         control={
@@ -231,7 +231,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => setS3Files(!s3Files)}
                             />
                         }
-                        label={t("electionEventScreen.export.s3Files")}
+                        label={String(t("electionEventScreen.export.s3Files"))}
                     />
                     <FormControlLabel
                         control={
@@ -240,7 +240,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => setScheduledEvents(!scheduledEvents)}
                             />
                         }
-                        label={t("electionEventScreen.export.scheduledEvents")}
+                        label={String(t("electionEventScreen.export.scheduledEvents"))}
                     />
                     <FormControlLabel
                         control={
@@ -249,7 +249,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => toggleCheckBoxWithPassword(setReports, !reports)}
                             />
                         }
-                        label={t("electionEventScreen.export.reports")}
+                        label={String(t("electionEventScreen.export.reports"))}
                     />
                     <FormControlLabel
                         control={
@@ -260,7 +260,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 }
                             />
                         }
-                        label={t("electionEventScreen.export.applications")}
+                        label={String(t("electionEventScreen.export.applications"))}
                     />
                     <FormControlLabel
                         control={

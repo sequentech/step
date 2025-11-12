@@ -9,7 +9,7 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
@@ -136,9 +136,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
             !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
                 : trusteeStatus === ITrusteeStatus.WAITING &&
-                  tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                ? WizardSteps.Start
-                : WizardSteps.Status
+                    tally?.execution_status !== ITallyExecutionStatus.CANCELLED
+                  ? WizardSteps.Start
+                  : WizardSteps.Status
         )
     }, [trusteeStatus])
 

@@ -15,7 +15,7 @@ interface WidgetContextProps {
 }
 
 const WidgetContext = createContext<WidgetContextProps>({
-    addWidget: () => ({} as WidgetProps),
+    addWidget: () => ({}) as WidgetProps,
     setWidgetTaskId: () => {},
     updateWidgetFail: () => {},
 })

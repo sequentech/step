@@ -98,7 +98,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     }, [electionData, contests])
 
     interface TabPanelProps {
-        children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
+        children?: React.ReactNode | Iterable<React.ReactNode>
         index: number
         value: number | null
     }

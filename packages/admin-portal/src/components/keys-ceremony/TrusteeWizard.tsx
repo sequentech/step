@@ -10,7 +10,7 @@ import {
     IExecutionStatus,
 } from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
-import {Alert} from "@mui/material"
+import {Alert, CircularProgress} from "@mui/material"
 import React, {useContext, useState, useEffect} from "react"
 import {StartStep} from "@/components/keys-ceremony/StartStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
@@ -43,7 +43,7 @@ const hasTrusteeCheckedKeys = (
 }
 
 interface TrusteeWizardProps {
-    electionEvent: Sequent_Backend_Election_Event
+    electionEvent?: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony
     setCurrentCeremony?: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     goBack: () => void
@@ -113,6 +113,10 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
 
     const checkKeysGenerated = () => {
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
+    }
+
+    if (!electionEvent) {
+        return <CircularProgress />
     }
 
     const isAutomaticCeremony =

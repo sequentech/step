@@ -18,6 +18,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
+    "types": [],
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
@@ -26,6 +27,7 @@
     }
   },
   "include": [
-    "src"
-, "../../constants"  ]
+    "src",
+    "../../constants"
+  ]
 }

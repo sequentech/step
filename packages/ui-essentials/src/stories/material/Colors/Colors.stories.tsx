@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {Meta, StoryObj} from "@storybook/react"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Box, Typography} from "@mui/material"
 import {theme} from "../../../services/theme"
 
@@ -44,7 +44,7 @@ const ColoredCell = styled(Box)`
     justify-content: center;
 `
 
-const TH = styled.th`
+const TH = styled("th")`
     width: 20%;
     height: 40px;
     font-weight: normal;
@@ -55,7 +55,7 @@ interface TDProps {
     isHeader: boolean
 }
 
-const TD = styled.td<TDProps>`
+const TD = styled("td")<TDProps>`
     width: 20%;
     border-top: ${({theme, isHeader}) =>
         isHeader ? `1px solid ${theme.palette.customGrey.light}` : "none"};

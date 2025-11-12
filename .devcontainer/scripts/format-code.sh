@@ -16,6 +16,7 @@ cd ../packages/
 cargo fmt
 
 # lint & prettify Typescript code
+yarn
 yarn lint:fix
 yarn prettify:fix
 

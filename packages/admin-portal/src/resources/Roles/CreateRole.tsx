@@ -140,7 +140,7 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close, permissions}) => {
 
                 <TextField
                     variant="outlined"
-                    label={t("usersAndRolesScreen.roles.fields.name")}
+                    label={String(t("usersAndRolesScreen.roles.fields.name"))}
                     value={role.name || ""}
                     name={"name"}
                     onChange={handleChange}

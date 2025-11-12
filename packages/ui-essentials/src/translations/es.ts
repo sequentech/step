@@ -65,7 +65,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         footer: {
-            poweredBy: "Funciona con <sequent />",
+            poweredBy: "Funciona con <1></1>",
         },
         errors: {
             encoding: {

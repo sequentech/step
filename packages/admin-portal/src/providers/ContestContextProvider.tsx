@@ -19,7 +19,7 @@ interface ContestContextProviderProps {
     /**
      * The elements wrapped by the Contest context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const ContestContextProvider = (props: ContestContextProviderProps) => {

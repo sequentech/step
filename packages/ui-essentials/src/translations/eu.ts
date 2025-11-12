@@ -62,7 +62,7 @@ const basqueTranslation = {
             },
         },
         footer: {
-            poweredBy: "Honek bultzatuta: <sequent />",
+            poweredBy: "Honek bultzatuta: <1></1>",
         },
         errors: {
             encoding: {

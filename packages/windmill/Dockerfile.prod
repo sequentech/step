@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.82.0-slim-bookworm as builder
+FROM rust:1.90.0-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -16,9 +16,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the specific nightly toolchain
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./electoral-log ./electoral-log
@@ -43,9 +40,8 @@ RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 WORKDIR /app/windmill
 RUN cargo build --release --locked
 
-
-
 FROM debian:bookworm
+
 # Install any necessary runtime dependencies for production
 
 RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
@@ -88,7 +84,9 @@ RUN case "${TARGETARCH}" in \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
-    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1
+    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
+    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=builder /app/target/release/main /usr/local/bin/main
 COPY --from=builder /app/target/release/beat /usr/local/bin/beat

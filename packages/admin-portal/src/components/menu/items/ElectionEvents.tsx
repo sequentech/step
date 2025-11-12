@@ -6,7 +6,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation, useNavigate} from "react-router-dom"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {
     Sequent_Backend_Election_Event,
@@ -633,13 +633,13 @@ export default function ElectionEvents() {
     }
 
     const debouncedSearchChange = useMemo(() => {
-        const debouncedFn = debounce((value) => {
+        const debouncedFn = debounce((value: string) => {
             console.log(`edu: debounce: ${value}`)
             // Expensive operation or API call
             setSearchInput(value)
         }, 300)
 
-        return (value: any) => {
+        return (value: string) => {
             // Update state immediately
             setInstantSearchInput(value)
             debouncedFn(value)
@@ -682,7 +682,7 @@ export default function ElectionEvents() {
                         <StyledIconButton
                             onClick={handleOpenCreateElectionEventMenu}
                             className="election-event-create-button"
-                            icon={faPlusCircle}
+                            icon={faPlusCircle as any}
                             size="xs"
                         />
                     ) : null}
@@ -693,7 +693,7 @@ export default function ElectionEvents() {
                         <SideBarContainer dir={i18n.dir(i18n.language)}>
                             <TextField
                                 dir={i18n.dir(i18n.language)}
-                                label={t("sideMenu.search")}
+                                label={String(t("sideMenu.search"))}
                                 size="small"
                                 value={instantSearchInput}
                                 onChange={(e) => debouncedSearchChange(e.target.value)}

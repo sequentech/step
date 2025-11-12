@@ -4,7 +4,6 @@
 import {Box, Button, Typography} from "@mui/material"
 import React from "react"
 import {styled} from "@mui/material/styles"
-import emotionStyled from "@emotion/styled"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
@@ -75,7 +74,7 @@ const TextContainer = styled(Box)`
     }
 `
 
-const StyledLink = emotionStyled.a`
+const StyledLink = styled("a")`
     text-decoration: underline;
     font-weight: normal;
     display: flex;

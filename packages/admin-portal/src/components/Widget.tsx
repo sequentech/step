@@ -232,7 +232,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                         className="view-icon"
                                         onClick={onSetViewTask}
                                     >
-                                        {t("tasksScreen.widget.viewTask")}
+                                        {t("tasksScreen.widget.viewTask") as any}
                                     </ViewTaskTypography>
                                 </>
                             ) : null}
@@ -248,7 +248,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                         downloading ||
                                         lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
                                     }
-                                    label={t("tasksScreen.widget.downloadDocument")}
+                                    label={String(t("tasksScreen.widget.downloadDocument"))}
                                 >
                                     <DownloadIcon />
                                 </DownloaButton>

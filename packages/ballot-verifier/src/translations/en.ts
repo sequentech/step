@@ -73,7 +73,7 @@ const englishTranslation = {
             contestNotFound: "Contest not found: {{contestId}}",
         },
         footer: {
-            poweredBy: "Powered by <sequent />",
+            poweredBy: "Powered by <1></1>",
         },
         errors: {
             encoding: {

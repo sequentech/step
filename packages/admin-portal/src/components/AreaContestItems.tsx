@@ -5,9 +5,7 @@
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {useQuery} from "@apollo/client"
-import styled from "@emotion/styled"
 import {Chip, IconButton} from "@mui/material"
-import {adminTheme} from "@sequentech/ui-essentials"
 import React, {useEffect} from "react"
 import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
 

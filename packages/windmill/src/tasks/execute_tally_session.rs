@@ -699,7 +699,7 @@ async fn map_plaintext_data(
             .collect(),
     };
 
-    let mut rng = StdRng::from_entropy();
+    let mut rng = StdRng::from_os_rng();
     available_trustees.shuffle(&mut rng);
 
     let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();

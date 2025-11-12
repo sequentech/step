@@ -49,7 +49,7 @@ export const VotersByChannel: React.FC<VotersByChannelProps> = ({data, width, he
     }
 
     return (
-        <CardChart title={t("dashboard.votersByChannels")}>
+        <CardChart title={String(t("dashboard.votersByChannels"))}>
             <Chart
                 options={state.options}
                 series={state.series}

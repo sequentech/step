@@ -64,7 +64,7 @@ const dutchTranslation: TranslationType = {
             },
         },
         footer: {
-            poweredBy: "Aangedreven door <sequent />",
+            poweredBy: "Aangedreven door <1></1>",
         },
         errors: {
             encoding: {

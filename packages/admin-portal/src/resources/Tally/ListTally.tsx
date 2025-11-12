@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useMemo} from "react"
-import {styled as MUIStiled} from "@mui/material/styles"
+import {styled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
     List,
@@ -44,7 +44,6 @@ import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import styled from "@emotion/styled"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
     ETallyType,
@@ -75,7 +74,7 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_event_id" key={5} />,
 ]
 
-const NotificationLink = styled.span`
+const NotificationLink = styled("span")`
     text-decoration: underline;
     cursor: pointer;
     padding: 2px;
@@ -85,20 +84,18 @@ const NotificationLink = styled.span`
     }
 `
 
-const StyledNull = styled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `
 
-const TrusteeKeyIcon = MUIStiled(KeyIcon)`
+const TrusteeKeyIcon = styled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
 
-export interface ListAreaProps {
-    recordTally: Sequent_Backend_Tally_Session
-}
+export interface ListAreaProps {}
 
-export const ListTally: React.FC<ListAreaProps> = (props) => {
+export const ListTally: React.FC<ListAreaProps> = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {
@@ -216,7 +213,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const CreateTallyButton = () => (
         <Button
-            label={t("electionEventScreen.tally.create.createTallyButton")}
+            label={String(t("electionEventScreen.tally.create.createTallyButton"))}
             onClick={() => {
                 setIsCreatingTally(true)
                 setCreatingFlag(ETallyType.ELECTORAL_RESULTS)
@@ -225,7 +222,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             style={{height: "10px"}}
             sx={{marginBottom: "10px"}}
         >
-            <IconButton icon={faPlus} fontSize="24px" />
+            <IconButton icon={faPlus as any} fontSize="24px" />
         </Button>
     )
 
@@ -233,11 +230,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         isListActions,
     }) => (
         <Button
-            label={t("electionEventScreen.tally.create.createInitializationReportButton")}
+            label={String(t("electionEventScreen.tally.create.createInitializationReportButton"))}
             onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
             disabled={!isKeyCeremonyFinished || !isPublished}
         >
-            {isListActions ? <Add /> : <IconButton icon={faPlus} fontSize="24px" />}
+            {isListActions ? <Add /> : <IconButton icon={faPlus as any} fontSize="24px" />}
         </Button>
     )
 
@@ -284,11 +281,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const actions = (record: RaRecord) => [
         {
             icon: isTrustee ? (
-                <Tooltip title={t("tallysheet.common.tallyCeremony.manage")}>
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.manage"))}>
                     <CellTowerIcon />
                 </Tooltip>
             ) : (
-                <Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
                     <DescriptionIcon />
                 </Tooltip>
             ),
@@ -297,7 +294,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         },
         {
             icon: (
-                <Tooltip title={t("tallysheet.common.tallyCeremony.cancel")}>
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.cancel"))}>
                     <DoNotDisturbOnIcon />
                 </Tooltip>
             ),
@@ -313,11 +310,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
                 record.execution_status === ITallyExecutionStatus.STARTED ||
                 record.execution_status === ITallyExecutionStatus.CONNECTED ? (
-                    <Tooltip title={t("tallysheet.common.tallyCeremony.addKey")}>
+                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.addKey"))}>
                         <TrusteeKeyIcon />
                     </Tooltip>
                 ) : (
-                    <Tooltip title={t("tallysheet.common.tallyCeremony.view")}>
+                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
                         <DescriptionIcon />
                     </Tooltip>
                 ),
@@ -459,7 +456,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
                         <TextField source="id" />
                         <FunctionField
-                            label={t("electionEventScreen.tally.tallyType.label")}
+                            label={String(t("electionEventScreen.tally.tallyType.label"))}
                             render={(record: RaRecord<Identifier>) =>
                                 t(`electionEventScreen.tally.tallyType.${record.tally_type}`)
                             }
@@ -468,7 +465,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
                         <FunctionField
                             key="permission_label"
-                            label={t("electionEventScreen.tally.permissionLabels")}
+                            label={String(t("electionEventScreen.tally.permissionLabels"))}
                             render={(record: RaRecord<Identifier>) => {
                                 return (
                                     <>
@@ -489,7 +486,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
                         <FunctionField
                             source="trustees"
-                            label={t("electionEventScreen.tally.trustees")}
+                            label={String(t("electionEventScreen.tally.trustees"))}
                             render={(record: RaRecord<Identifier>) => (
                                 <Box sx={{height: 36, overflowY: "scroll"}}>
                                     <TrusteeItems
@@ -501,14 +498,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         />
 
                         <FunctionField
-                            label={t("electionEventScreen.tally.electionNumber")}
+                            label={String(t("electionEventScreen.tally.electionNumber"))}
                             render={(record: RaRecord<Identifier>) =>
                                 record?.election_ids?.length || 0
                             }
                         />
 
                         <FunctionField
-                            label={t("electionEventScreen.tally.status")}
+                            label={String(t("electionEventScreen.tally.status"))}
                             render={(record: RaRecord<Identifier>) => (
                                 <StatusChip status={record.execution_status} />
                             )}
@@ -530,9 +527,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             <Dialog
                 variant="warning"
                 open={openCancelTally}
-                ok={t("tally.common.dialog.okCancel")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.cancelTitle")}
+                ok={String(t("tally.common.dialog.okCancel"))}
+                cancel={String(t("tally.common.dialog.cancel"))}
+                title={String(t("tally.common.dialog.cancelTitle"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmCancelAction()

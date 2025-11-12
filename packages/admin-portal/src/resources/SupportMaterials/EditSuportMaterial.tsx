@@ -86,7 +86,7 @@ const GetPublicURL: React.FC<GetPublicURLProps> = ({electionEventId}) => {
             <TextField
                 contentEditable={false}
                 value={url}
-                label={t("materials.fields.publicUrl")}
+                label={String(t("materials.fields.publicUrl"))}
             />
         </>
     )
@@ -172,7 +172,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                 component: () => (
                     <>
                         <TextField
-                            label={t("electionEventScreen.field.materialTitle")}
+                            label={String(t("electionEventScreen.field.materialTitle"))}
                             size="small"
                             value={valueMaterials?.title_i18n[lang] || ""}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -183,7 +183,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                             }
                         />
                         <TextField
-                            label={t("electionEventScreen.field.materialSubTitle")}
+                            label={String(t("electionEventScreen.field.materialSubTitle"))}
                             size="small"
                             value={valueMaterials?.subtitle_i18n[lang] || ""}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -300,7 +300,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                                     <Tabs elements={renderTabs(parsedValue)} />
                                     <BooleanInput
                                         source="is_hidden"
-                                        label={t("materials.fields.isHidden")}
+                                        label={String(t("materials.fields.isHidden"))}
                                     />
                                     {electionEventId ? (
                                         <GetPublicURL electionEventId={electionEventId} />

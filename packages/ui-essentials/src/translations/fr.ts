@@ -65,7 +65,7 @@ const frenchTranslation: TranslationType = {
             },
         },
         footer: {
-            poweredBy: "Propulsé par <sequent />",
+            poweredBy: "Propulsé par <1></1>",
         },
         errors: {
             encoding: {

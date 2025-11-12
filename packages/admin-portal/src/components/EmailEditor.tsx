@@ -40,19 +40,23 @@ export default function EmailEditor({record, setRecord}: EmailEditorProps) {
     return (
         <>
             <FormStyles.TextField
-                label={t("emailEditor.subject")}
+                label={String(t("emailEditor.subject"))}
                 name="subject"
                 value={record?.subject}
                 onChange={handleChange}
             />
             <Tabs value={tab} onChange={changeTab}>
-                <Tab key="plaintext" label={t("emailEditor.tabs.plaintext")} id="plaintext" />
-                <Tab key="richtext" label={t("emailEditor.tabs.richtext")} id="richtext" />
+                <Tab
+                    key="plaintext"
+                    label={String(t("emailEditor.tabs.plaintext"))}
+                    id="plaintext"
+                />
+                <Tab key="richtext" label={String(t("emailEditor.tabs.richtext"))} id="richtext" />
             </Tabs>
             <CustomTabPanel key="plaintext" value={tab} index={0}>
                 <FormStyles.TextField
                     name="plaintext_body"
-                    label={t("emailEditor.tabs.plaintext")}
+                    label={String(t("emailEditor.tabs.plaintext"))}
                     value={record?.plaintext_body}
                     onChange={handleChange}
                     multiline={true}

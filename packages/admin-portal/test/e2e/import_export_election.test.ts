@@ -10,7 +10,6 @@ import {getElectionEventId} from "../commands/getElectionEventId"
 
 let exportPath
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("import/export election event  tests", function () {
     before(function (browser) {
         browser.login()

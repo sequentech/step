@@ -25,7 +25,7 @@ interface PublishContextProviderProps {
     /**
      * The elements wrapped by the publish context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const PublishContextProvider = (props: PublishContextProviderProps) => {

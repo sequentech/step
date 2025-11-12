@@ -4,7 +4,7 @@
 import React, {useEffect} from "react"
 import {useListContext} from "react-admin"
 
-export const ResetFilters: React.FC = ({}) => {
+export const ResetFilters: React.FC = () => {
     const {setFilters} = useListContext()
 
     useEffect(() => {

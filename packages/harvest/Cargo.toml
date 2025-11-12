@@ -10,29 +10,29 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = { version = "0.5.0", features = ["json"] }
-serde = { version = "1.0.190", features = ["derive"] }
-serde_json = "1.0.105"
-serde_with = "3.4.0"
-bstr = "1.11.3"
+rocket = { version = "0.5", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_with = "3.4"
+bstr = "1.11"
 reqwest = { version="0.12", features = ["blocking", "json"] }
-handlebars = "6.1.0"
-anyhow = "1.0.75"
-tempfile = "3.15.0"
-either = "1.9.0"
-dotenv = "0.15.0"
-graphql_client = "0.13.0"
-tokio = { version = "1.32.0", features = ["full"] }
-chrono = "0.4.31"
-base64 = "0.21.0"
-celery = "0.5.5"
-strum = "0.25"
-strum_macros = "0.25"
-uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+handlebars = "6.1"
+anyhow = "1.0"
+tempfile = "3.15"
+either = "1.9"
+dotenv = "0.15"
+graphql_client = "0.14"
+tokio = { version = "1.32", features = ["full"] }
+chrono = "0.4"
+base64 = "0.22"
+celery = "0.5"
+strum = "0.27"
+strum_macros = "0.27"
+uuid = { version = "1.5", features = ["v4", "fast-rng"] }
 
 # s3
-aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.11.0"
+aws-config = { version = "1.0", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.11"
 
 # logging
 tracing = "0.1"
@@ -46,8 +46,8 @@ sequent-core = { path="../sequent-core", features = ["keycloak", "s3", "probe"] 
 windmill = { path="../windmill" }
 
 # To connect to the Database
-deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
+deadpool-postgres = { version = "0.14", features = ["rt_tokio_1", "serde"] }
 tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
 
 # used for sanitizing input
-regex = { version = "1.10.2" }
+regex = { version = "1.10" }

@@ -51,52 +51,58 @@ export const EditElectionEventAreasList: React.FC = () => {
                     </Tabs>
                     <CustomTabPanel value={value} index={0}>
                         <div style={{marginTop: "16px"}}>
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="name"
+                                label={String(t("electionEventScreen.field.name"))}
+                            />
                             <TextInput
                                 source="alias"
-                                label={t("electionEventScreen.field.alias")}
+                                label={String(t("electionEventScreen.field.alias"))}
                             />
                             <TextInput
                                 source="description"
-                                label={t("electionEventScreen.field.description")}
+                                label={String(t("electionEventScreen.field.description"))}
                             />
                         </div>
                     </CustomTabPanel>
                     <CustomTabPanel value={value} index={1}>
                         <div style={{marginTop: "16px"}}>
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="name"
+                                label={String(t("electionEventScreen.field.name"))}
+                            />
                             <TextInput
                                 source="alias"
-                                label={t("electionEventScreen.field.alias")}
+                                label={String(t("electionEventScreen.field.alias"))}
                             />
                             <TextInput
                                 source="description"
-                                label={t("electionEventScreen.field.description")}
+                                label={String(t("electionEventScreen.field.description"))}
                             />
                         </div>
                     </CustomTabPanel>
 
                     {/* <TabbedShowLayout>
                         <TabbedShowLayout.Tab label="English" >
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput source="name" label={String(t("electionEventScreen.field.name"))} />
                             <TextInput
                                 source="alias"
-                                label={t("electionEventScreen.field.alias")}
+                                label={String(t("electionEventScreen.field.alias"))}
                             />
                             <TextInput
                                 source="description"
-                                label={t("electionEventScreen.field.description")}
+                                label={String(t("electionEventScreen.field.description"))}
                             />
                         </TabbedShowLayout.Tab>
                         <TabbedShowLayout.Tab label="Spanish" >
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput source="name" label={String(t("electionEventScreen.field.name"))} />
                             <TextInput
                                 source="alias"
-                                label={t("electionEventScreen.field.alias")}
+                                label={String(t("electionEventScreen.field.alias"))}
                             />
                             <TextInput
                                 source="description"
-                                label={t("electionEventScreen.field.description")}
+                                label={String(t("electionEventScreen.field.description"))}
                             />
                         </TabbedShowLayout.Tab>
                     </TabbedShowLayout> */}
@@ -113,16 +119,16 @@ export const EditElectionEventAreasList: React.FC = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <DateTimeInput
                                 source="start_date"
-                                label={t("electionEventScreen.field.startDateTime")}
+                                label={String(t("electionEventScreen.field.startDateTime"))}
                             />
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <DateTimeInput
                                 source="end_date"
-                                label={t("electionEventScreen.field.endDateTime")}
+                                label={String(t("electionEventScreen.field.endDateTime"))}
                             />
                         </Grid>
                     </Grid>
@@ -139,7 +145,7 @@ export const EditElectionEventAreasList: React.FC = () => {
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <BooleanInput
                                 source="language.english"
                                 label={"English"}
@@ -166,7 +172,7 @@ export const EditElectionEventAreasList: React.FC = () => {
                 <AccordionDetails>
                     {" "}
                     <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{xs: 12, md: 6}}>
                             <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
                             <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
                         </Grid>

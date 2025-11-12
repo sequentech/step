@@ -64,7 +64,7 @@ const catalanTranslation: TranslationType = {
             },
         },
         footer: {
-            poweredBy: "Funciona amb <sequent />",
+            poweredBy: "Funciona amb <1></1>",
         },
         errors: {
             encoding: {

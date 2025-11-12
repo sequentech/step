@@ -39,12 +39,12 @@ const Footer: React.FC<PaperProps> = (args) => {
     const {t} = useTranslation()
     const poweredByString = t("footer.poweredBy")
 
-    if (!poweredByString.includes("<sequent />")) {
+    if (!poweredByString.includes("<0>") && !poweredByString.includes("<1>")) {
         return (
             <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
                 <Typography variant="subtitle2" fontStyle="italic" color="error">
-                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;sequent
-                    /&gt;`.
+                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;1
+                    &gt;``&lt;1 /&gt;`.
                 </Typography>
             </StyledPaper>
         )
@@ -55,26 +55,14 @@ const Footer: React.FC<PaperProps> = (args) => {
             <Typography variant="subtitle2" fontStyle="italic">
                 <Trans
                     i18nKey="footer.poweredBy"
-                    components={{
-                        link: <CustomLink />,
-                        sequent: <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
-                    }}
-                >
-                    <strong>Powered</strong> by&nbsp;
-                    <sequent />
-                </Trans>
+                    components={[
+                        <CustomLink />,
+                        <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
+                    ]}
+                />
             </Typography>
         </StyledPaper>
     )
-}
-
-declare global {
-    // eslint-disable-next-line @typescript-eslint/no-namespace
-    namespace JSX {
-        interface IntrinsicElements {
-            sequent: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-        }
-    }
 }
 
 export default Footer

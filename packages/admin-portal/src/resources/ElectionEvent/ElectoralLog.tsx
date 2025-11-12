@@ -32,7 +32,7 @@ export const ElectoralLog: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={t("logsScreen.title")} subtitle="logsScreen.subtitle" />
+            <ElectionHeader title={String(t("logsScreen.title"))} subtitle="logsScreen.subtitle" />
             <ElectoralLogList />
         </>
     )

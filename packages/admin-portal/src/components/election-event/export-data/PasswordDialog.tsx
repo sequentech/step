@@ -41,7 +41,9 @@ export const DecryptHelp: React.FC<{decryptionCommand: string}> = ({decryptionCo
                     readOnly: true,
                     endAdornment: (
                         <Tooltip
-                            title={t("electionEventScreen.import.passwordDialog.copyPassword")}
+                            title={String(
+                                t("electionEventScreen.import.passwordDialog.copyPassword")
+                            )}
                         >
                             <IconButton onClick={handleCopyPassword}>
                                 <ContentCopyIcon />
@@ -85,28 +87,32 @@ export const PasswordDialog: React.FC<PasswordDialogProps> = ({password, onClose
             open={true}
             handleClose={onClose}
             aria-labelledby="password-dialog-title"
-            title={t("electionEventScreen.export.passwordTitle")}
+            title={String(t("electionEventScreen.export.passwordTitle"))}
             ok={"Ok"}
         >
-            {t("electionEventScreen.export.passwordDescription")}
-            <TextField
-                fullWidth
-                margin="normal"
-                value={password}
-                InputProps={{
-                    readOnly: true,
-                    endAdornment: (
-                        <Tooltip
-                            title={t("electionEventScreen.import.passwordDialog.copyPassword")}
-                        >
-                            <IconButton onClick={handleCopyPassword}>
-                                <ContentCopyIcon />
-                            </IconButton>
-                        </Tooltip>
-                    ),
-                }}
-            />
-            {children}
+            <>
+                {t("electionEventScreen.export.passwordDescription")}
+                <TextField
+                    fullWidth
+                    margin="normal"
+                    value={password}
+                    InputProps={{
+                        readOnly: true,
+                        endAdornment: (
+                            <Tooltip
+                                title={String(
+                                    t("electionEventScreen.import.passwordDialog.copyPassword")
+                                )}
+                            >
+                                <IconButton onClick={handleCopyPassword}>
+                                    <ContentCopyIcon />
+                                </IconButton>
+                            </Tooltip>
+                        ),
+                    }}
+                />
+                {children}
+            </>
         </Dialog>
     )
 }

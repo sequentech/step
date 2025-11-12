@@ -11,7 +11,6 @@ interface LoginThis {
     submitButton: string
 }
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     before(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser.login()

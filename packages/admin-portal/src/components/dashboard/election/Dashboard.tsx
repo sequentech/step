@@ -5,7 +5,7 @@
 
 import React, {useContext} from "react"
 import {Box, CircularProgress} from "@mui/material"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
@@ -17,7 +17,6 @@ import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
 import {IElectionStatistics} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
@@ -111,12 +110,12 @@ export default function DashboardElection() {
                         height={cardHeight}
                     />
                 </Container>
-                {showIpAdresses && record?.id && (
+                {/* NOTE:LOOP showIpAdresses && record?.id && (
                     <ListIpAddress
                         electionEventId={record?.election_event_id}
                         electionId={record?.id}
                     />
-                )}
+                )*/}
             </Box>
         </Box>
     )

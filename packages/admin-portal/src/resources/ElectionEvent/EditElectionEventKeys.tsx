@@ -9,8 +9,7 @@ import {
     Sequent_Backend_Keys_Ceremony,
     TrusteeNamesQuery,
 } from "@/gql/graphql"
-import {styled as MUIStiled} from "@mui/material/styles"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import React, {ReactNode, useEffect, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
@@ -51,7 +50,7 @@ import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
 
-const NotificationLink = styled.span`
+const NotificationLink = styled("span")`
     text-decoration: underline;
     cursor: pointer;
     padding: 2px;
@@ -61,11 +60,11 @@ const NotificationLink = styled.span`
     }
 `
 
-const TrusteeKeyIcon = MUIStiled(KeyIcon)`
+const TrusteeKeyIcon = styled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
 
-const StyledNull = styled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `
@@ -181,7 +180,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             disabled={!keysCeremonies}
             className="keys-add-button"
         >
-            <ResourceListStyles.CreateIcon icon={faPlus} />
+            <ResourceListStyles.CreateIcon icon={faPlus as any} />
             {t("electionEventScreen.keys.createNew")}
         </Button>
     )
@@ -323,17 +322,17 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                         <DateField
                             source="created_at"
                             showTime={true}
-                            label={t("electionEventScreen.keys.started")}
+                            label={String(t("electionEventScreen.keys.started"))}
                         />
 
                         <FunctionField
-                            label={t("electionEventScreen.keys.statusLabel")}
+                            label={String(t("electionEventScreen.keys.statusLabel"))}
                             render={(record: any) => <StatusChip record={record} />}
                         />
 
                         <FunctionField
                             key="permission_label"
-                            label={t("electionEventScreen.tally.permissionLabels")}
+                            label={String(t("electionEventScreen.tally.permissionLabels"))}
                             render={(record: RaRecord<Identifier>) => {
                                 return (
                                     <>
@@ -354,7 +353,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
                         <FunctionField
                             source="trustees"
-                            label={t("electionEventScreen.tally.trustees")}
+                            label={String(t("electionEventScreen.tally.trustees"))}
                             render={(record: RaRecord<Identifier>) => (
                                 <Box sx={{height: 36, overflowY: "scroll"}}>
                                     <TrusteeItems
@@ -364,7 +363,10 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                                 </Box>
                             )}
                         />
-                        <ActionsColumn actions={actions} label={t("common.label.actions")} />
+                        <ActionsColumn
+                            actions={actions}
+                            label={String(t("common.label.actions"))}
+                        />
                     </DatagridConfigurable>
                 </List>
             )}

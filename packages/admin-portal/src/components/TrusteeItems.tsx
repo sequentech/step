@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useQuery} from "@apollo/client"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import React from "react"
 import {Identifier, RaRecord, useGetOne} from "react-admin"
 
@@ -24,7 +23,7 @@ interface TrusteeItemsProps {
     }>
 }
 
-const StyledChips = styled.div`
+const StyledChips = styled("div")`
     display: flex;
     padding: 1px 7px;
     flex-direction: row;
@@ -33,7 +32,7 @@ const StyledChips = styled.div`
     gap: 4px;
 `
 
-const StyledChip = styled.div`
+const StyledChip = styled("div")`
     display: flex;
     justify-content: center;
     align-items: center;
@@ -42,7 +41,7 @@ const StyledChip = styled.div`
     padding: 7px;
 `
 
-const StyledChipLabel = styled.div`
+const StyledChipLabel = styled("div")`
     font-family: Roboto;
     font-size: 12px;
     font-style: normal;

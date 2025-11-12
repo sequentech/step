@@ -134,7 +134,7 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             {/* {canPublishCreate && canReadPublish && ( */}
             <>
                 <Button onClick={handleCreateDrawer} className="publish-add-button">
-                    <IconButtonSequent icon={faPlus} fontSize="24px" />
+                    <IconButtonSequent icon={faPlus as any} fontSize="24px" />
                     {t("materials.empty.action")}
                 </Button>
                 <Typography variant="body1" paragraph>
@@ -179,23 +179,23 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                     <TextField source="id" />
                     <BooleanField
                         source={"is_hidden"}
-                        label={t("materials.fields.isHidden")}
+                        label={String(t("materials.fields.isHidden"))}
                         sortable={false}
                     />
                     <TextField
                         source={`data.title_i18n[${i18n.language}]`}
-                        label={t("common.label.title")}
+                        label={String(t("common.label.title"))}
                         sortable={false}
                     />
                     <TextField
                         source={`data.subtitle_i18n[${i18n.language}]`}
-                        label={t("common.label.subtitle")}
+                        label={String(t("common.label.subtitle"))}
                         sortable={false}
                     />
-                    {/* <TextField source={"kind"} label={t("common.label.kind")} sortable={false} /> */}
+                    {/* <TextField source={"kind"} label={String(t("common.label.kind"))} sortable={false} /> */}
 
                     <FunctionField
-                        label={t("common.label.kind")}
+                        label={String(t("common.label.kind"))}
                         render={(record: any) => {
                             return record.kind.includes("image") ? (
                                 <ImageIcon sx={{fontSize: "36px"}} />
@@ -241,9 +241,9 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

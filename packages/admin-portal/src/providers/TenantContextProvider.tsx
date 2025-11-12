@@ -26,7 +26,7 @@ interface TenantContextProviderProps {
     /**
      * The elements wrapped by the tenant context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const TenantContextProvider = (props: TenantContextProviderProps) => {

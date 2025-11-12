@@ -53,7 +53,10 @@ export const EditElectionEventTasks: React.FC<TTask> = ({showList}) => {
 
     return (
         <>
-            <ElectionHeader title={t("tasksScreen.title")} subtitle="tasksScreen.subtitle" />
+            <ElectionHeader
+                title={String(t("tasksScreen.title"))}
+                subtitle="tasksScreen.subtitle"
+            />
             {viewMode === ViewMode.List ? (
                 <ListTasks onViewTask={onViewTask} electionEventRecord={electionEventRecord} />
             ) : (

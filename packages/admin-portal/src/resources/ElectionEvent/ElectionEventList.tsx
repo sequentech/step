@@ -108,12 +108,12 @@ export const ElectionEventListContent: React.FC<ElectionEventListProps> = ({asid
                                 </Typography>
                                 <Box display="flex" gap={1}>
                                     <Button
-                                        label={t("common.label.add")}
+                                        label={String(t("common.label.add"))}
                                         startIcon={<AddIcon />}
                                         onClick={() => openCreateDrawer()}
                                     />
                                     <Button
-                                        label={t("common.label.import")}
+                                        label={String(t("common.label.import"))}
                                         startIcon={<PublishIcon />}
                                         onClick={() => openImportDrawer?.()}
                                     />

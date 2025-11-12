@@ -7,7 +7,7 @@ import React, {useCallback, useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
 import {FetchDocumentQuery} from "@/gql/graphql"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {theme} from "@sequentech/ui-essentials"
 import {downloadUrl} from "@sequentech/ui-core"
 import {EExportFormat, IResultDocuments} from "@/types/results"
@@ -53,7 +53,7 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
     return <CircularProgress />
 }
 
-export const ExportButton = styled.div`
+export const ExportButton = styled("div")`
     cursor: pointer;
     margin-left: 10px;
     margin-right: 10px;

@@ -6,7 +6,7 @@ export const getElectionId = async function (browser) {
     const currentUrl = await browser.url(function (result) {
         return result.value
     })
-    const electionIdMatch = currentUrl.match(/election\/([^\/]+)/)
+    const electionIdMatch = currentUrl.match(/election\/([^/]+)/)
     if (electionIdMatch) {
         const electionId = electionIdMatch[1]
         return electionId

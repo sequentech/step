@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useRef} from "react"
-import {ComponentStory, ComponentMeta} from "@storybook/react"
+import {StoryFn, Meta} from "@storybook/react"
 import CustomDropFile from "../CustomDropFile"
 import Button from "@mui/material/Button"
 import {within, userEvent} from "@storybook/testing-library"
@@ -27,9 +27,9 @@ export default {
         },
     },
     argTypes: {},
-} as ComponentMeta<typeof CustomDropFile>
+} as Meta<typeof CustomDropFile>
 
-const BasicTemplate: ComponentStory<typeof CustomDropFile> = (args) => (
+const BasicTemplate: StoryFn<typeof CustomDropFile> = (args) => (
     <CustomDropFile {...args}>
         <StyledBox />
     </CustomDropFile>
@@ -47,7 +47,7 @@ export interface WithButtonTemplateProps {
 }
 export type DropFileProps = React.ComponentProps<typeof CustomDropFile>
 
-const WithButtonTemplate: ComponentStory<React.FC<DropFileProps & WithButtonTemplateProps>> = ({
+const WithButtonTemplate: StoryFn<React.FC<DropFileProps & WithButtonTemplateProps>> = ({
     text,
     buttonText,
     ...args

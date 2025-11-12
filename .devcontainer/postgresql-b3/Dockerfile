@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM postgres:16-bullseye
+FROM postgres:18-bookworm
 
 RUN apt-get update \
     && apt-cache showpkg postgresql-$PG_MAJOR-pgaudit \
