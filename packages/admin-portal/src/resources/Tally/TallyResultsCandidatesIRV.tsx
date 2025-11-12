@@ -146,7 +146,6 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                     zIndex: 3,
                                     fontWeight: 600,
                                     border: "1px solid #fff",
-                                    minWidth: 180,
                                 }}
                             >
                                 Candidate
@@ -162,9 +161,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                         align="center"
                                         sx={{
                                             fontWeight: 600,
-                                            width: 230,
-                                            minWidth: 230,
-                                            maxWidth: 230,
+                                            width: 320,
+                                            minWidth: 320,
+                                            maxWidth: 320,
                                             whiteSpace: "nowrap",
                                             backgroundColor: "#FBFBFB",
                                             border: "1px solid #fff",
@@ -263,9 +262,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                             key={roundIndex}
                                             align="center"
                                             sx={{
-                                                width: 230,
-                                                minWidth: 230,
-                                                maxWidth: 230,
+                                                width: 320,
+                                                minWidth: 320,
+                                                maxWidth: 320,
                                                 backgroundColor: outcome ? "#F9F9FF" : "#E0E0E0",
                                                 border: "1px solid #fff",
                                             }}
