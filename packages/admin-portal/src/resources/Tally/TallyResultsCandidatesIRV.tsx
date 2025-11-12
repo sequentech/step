@@ -31,43 +31,46 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     const isLarge = useMediaQuery(theme.breakpoints.up("lg"))
     const isMedium = useMediaQuery(theme.breakpoints.up("md"))
     const VISIBLE_ROUNDS = isXL ? 4 : isLarge ? 3 : isMedium ? 2 : 1
-    
-    const [representedRounds, setRepresentedRounds] = useState({ start: 0, end: VISIBLE_ROUNDS - 1 })
+
+    const [representedRounds, setRepresentedRounds] = useState({start: 0, end: VISIBLE_ROUNDS - 1})
 
     useEffect(() => {
         // Reset to initial range when data changes
-        setRepresentedRounds({ start: 0, end: Math.min(VISIBLE_ROUNDS - 1, processResults.rounds.length - 1) })
+        setRepresentedRounds({
+            start: 0,
+            end: Math.min(VISIBLE_ROUNDS - 1, processResults.rounds.length - 1),
+        })
     }, [processResults, VISIBLE_ROUNDS])
 
     const handleNavigate = (direction: "left" | "right") => {
         const totalRounds = rounds.length
-        
+
         if (direction === "right" && representedRounds.end < totalRounds - 1) {
             setRepresentedRounds({
                 start: representedRounds.start + 1,
-                end: representedRounds.end + 1
+                end: representedRounds.end + 1,
             })
         } else if (direction === "left" && representedRounds.start > 0) {
             setRepresentedRounds({
                 start: representedRounds.start - 1,
-                end: representedRounds.end - 1
+                end: representedRounds.end - 1,
             })
         }
     }
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         const totalRounds = rounds.length
-        
+
         if (e.key === "ArrowLeft" && representedRounds.start > 0) {
             handleNavigate("left")
         } else if (e.key === "ArrowRight" && representedRounds.end < totalRounds - 1) {
             handleNavigate("right")
         } else if (e.key === "Home") {
-            setRepresentedRounds({ start: 0, end: Math.min(VISIBLE_ROUNDS - 1, totalRounds - 1) })
+            setRepresentedRounds({start: 0, end: Math.min(VISIBLE_ROUNDS - 1, totalRounds - 1)})
         } else if (e.key === "End") {
-            setRepresentedRounds({ 
-                start: Math.max(0, totalRounds - VISIBLE_ROUNDS), 
-                end: totalRounds - 1 
+            setRepresentedRounds({
+                start: Math.max(0, totalRounds - VISIBLE_ROUNDS),
+                end: totalRounds - 1,
             })
         }
     }
@@ -80,7 +83,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
 
     // Get visible rounds based on current range
     const visibleRounds = rounds.slice(representedRounds.start, representedRounds.end + 1)
-    
+
     // Calculate arrow visibility
     const showLeftArrow = representedRounds.start > 0
     const showRightArrow = representedRounds.end < rounds.length - 1
@@ -127,9 +130,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
             <TableContainer
                 component={Paper}
                 sx={{
-                    "maxWidth": "100%",
-                    "boxShadow": "none",
-                    "border": "1px solid #e0e0e0",
+                    maxWidth: "100%",
+                    boxShadow: "none",
+                    border: "1px solid #e0e0e0",
                 }}
             >
                 <Table>
@@ -152,7 +155,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                 const roundIndex = representedRounds.start + visibleIndex
                                 const isFirstVisible = visibleIndex === 0
                                 const isLastVisible = visibleIndex === visibleRounds.length - 1
-                                
+
                                 return (
                                     <TableCell
                                         key={roundIndex}
@@ -189,9 +192,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                 <ChevronLeft sx={{fontSize: 18}} />
                                             </IconButton>
                                         )}
-                                        
+
                                         <span>Round {roundIndex + 1}</span>
-                                        
+
                                         {/* Right arrow - positioned at right margin */}
                                         {isLastVisible && showRightArrow && (
                                             <IconButton
