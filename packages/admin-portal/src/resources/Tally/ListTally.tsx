@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useMemo} from "react"
-import {styled as MUIStiled} from "@mui/material/styles"
+import {styled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
     List,
@@ -44,7 +44,6 @@ import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import styled from "@emotion/styled"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
     ETallyType,
@@ -75,7 +74,7 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_event_id" key={5} />,
 ]
 
-const NotificationLink = styled.span`
+const NotificationLink = styled("span")`
     text-decoration: underline;
     cursor: pointer;
     padding: 2px;
@@ -85,12 +84,12 @@ const NotificationLink = styled.span`
     }
 `
 
-const StyledNull = styled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `
 
-const TrusteeKeyIcon = MUIStiled(KeyIcon)`
+const TrusteeKeyIcon = styled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
 

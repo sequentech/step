@@ -9,8 +9,7 @@ import {
     Sequent_Backend_Keys_Ceremony,
     TrusteeNamesQuery,
 } from "@/gql/graphql"
-import {styled as MUIStiled} from "@mui/material/styles"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import React, {ReactNode, useEffect, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
@@ -51,7 +50,7 @@ import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
 
-const NotificationLink = styled.span`
+const NotificationLink = styled("span")`
     text-decoration: underline;
     cursor: pointer;
     padding: 2px;
@@ -61,11 +60,11 @@ const NotificationLink = styled.span`
     }
 `
 
-const TrusteeKeyIcon = MUIStiled(KeyIcon)`
+const TrusteeKeyIcon = styled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
 
-const StyledNull = styled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `

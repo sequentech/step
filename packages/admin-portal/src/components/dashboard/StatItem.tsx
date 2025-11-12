@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {Box, styled, SvgIconTypeMap, Typography, Icon} from "@mui/material"
+import {Box, styled, Typography, Icon} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 
 const CardContainer = styled(Box)<{selected?: boolean}>`

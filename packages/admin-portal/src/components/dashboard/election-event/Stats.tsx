@@ -11,7 +11,7 @@ import FenceIcon from "@mui/icons-material/Fence"
 import GroupIcon from "@mui/icons-material/Group"
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
 import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import StatItem from "../StatItem"
 
 const CardList = styled(Box)`

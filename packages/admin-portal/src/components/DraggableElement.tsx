@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {theme} from "@sequentech/ui-essentials"
 import {TextField} from "react-admin"
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
@@ -18,7 +18,7 @@ export interface DraggableElementProps {
     isOver: boolean
 }
 
-const DraggableElementRow = styled.div`
+const DraggableElementRow = styled("div")`
     display: flex;
     flex-direction: row;
     align-items: center;

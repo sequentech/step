@@ -71,7 +71,7 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ITemplateMethod} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -85,7 +85,7 @@ const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
 
-const ContestRows = styled.div`
+const ContestRows = styled("div")`
     display: flex;
     flex-direction: column;
     width: 100%;

@@ -50,7 +50,6 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {styled} from "@mui/material/styles"
-import eStyled from "@emotion/styled"
 import {Chip, CircularProgress} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
@@ -63,7 +62,7 @@ const StyledChip = styled(Chip)`
     margin: 4px;
 `
 
-const StyledNull = eStyled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `

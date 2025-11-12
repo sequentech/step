@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useState} from "react"
-
-import styled from "@emotion/styled"
-import {styled as muiStyled} from "@mui/material/styles"
-
+import {styled} from "@mui/material/styles"
 import {CircularProgress, Typography, Menu, MenuItem} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
@@ -37,7 +34,7 @@ import PublishExport from "./PublishExport"
 type SvgIconComponent = typeof SvgIcon
 
 const PublishActionsStyled = {
-    Container: styled.div`
+    Container: styled("div")`
         display: flex;
         margin-bottom: 8px;
         justify-content: flex-end;
@@ -45,7 +42,7 @@ const PublishActionsStyled = {
     `,
 }
 
-export const StyledStatusButton = muiStyled(Button)`
+export const StyledStatusButton = styled(Button)`
     &.MuiButtonBase-root {
         line-height: 1 !important;
     }
@@ -57,7 +54,7 @@ export const StyledStatusButton = muiStyled(Button)`
     }
 `
 
-export const StyledMenuItem = muiStyled(MenuItem)`
+export const StyledMenuItem = styled(MenuItem)`
     &.MuiMenuItem-root {
         display: flex;
         gap: 8px;

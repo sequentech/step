@@ -76,7 +76,6 @@ import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
-import eStyled from "@emotion/styled"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
@@ -110,7 +109,7 @@ const StyledChip = styled(Chip)`
     margin: 4px;
 `
 
-const StyledNull = eStyled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `

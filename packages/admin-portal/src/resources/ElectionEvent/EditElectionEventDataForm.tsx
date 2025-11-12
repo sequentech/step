@@ -30,7 +30,7 @@ import {
     Box,
     Typography,
 } from "@mui/material"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import DownloadIcon from "@mui/icons-material/Download"
 import VideoCallIcon from "@mui/icons-material/VideoCall"
 import React, {useContext, useEffect, useState} from "react"
@@ -95,7 +95,7 @@ export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     electionsOrder?: Array<Sequent_Backend_Election>
 } & Sequent_Backend_Election_Event
 
-const ElectionRows = styled.div`
+const ElectionRows = styled("div")`
     display: flex;
     flex-direction: column;
     width: 100%;

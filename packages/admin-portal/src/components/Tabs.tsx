@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {SyntheticEvent} from "react"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 
 import {Tabs as MuiTabs, Tab as MuiTab, Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
 
 const TabStyles = {
-    Wrapper: styled.div`
+    Wrapper: styled("div")`
         display: flex;
         flex-direction: column;
         align-items: left;
@@ -19,7 +19,7 @@ const TabStyles = {
             margin-bottom: 10px;
         }
     `,
-    Content: styled.div`
+    Content: styled("div")`
         width: 100%;
         padding: 2rem var(--2, 16px);
     `,

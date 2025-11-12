@@ -35,7 +35,6 @@ import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
 import CustomDateField from "../User/CustomDateField"
 import {styled} from "@mui/material/styles"
-import eStyled from "@emotion/styled"
 import SelectArea from "@/components/area/SelectArea"
 import ElectionHeader from "@/components/ElectionHeader"
 import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
@@ -48,7 +47,7 @@ const StyledChip = styled(Chip)`
     margin: 4px;
 `
 
-const StyledNull = eStyled.div`
+const StyledNull = styled("div")`
     display: block;
     padding-left: 18px;
 `

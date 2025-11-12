@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {faCloudArrowUp} from "@fortawesome/free-solid-svg-icons"
 import {Box, Typography} from "@mui/material"
 import {Icon, theme} from "@sequentech/ui-essentials"

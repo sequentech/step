@@ -27,12 +27,8 @@ import SelectArea from "@/components/area/SelectArea"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {Checkbox, FormControlLabel} from "@mui/material"
-import {styled} from "@mui/styles"
+import {styled} from "@mui/material/styles"
 import {EEarlyVotingPolicy, IAreaPresentation} from "@sequentech/ui-core"
-
-const StyledCheckbox = styled(Checkbox)({
-    size: "small",
-})
 
 /**
  * FormContent component for creating or updating an Area entity.

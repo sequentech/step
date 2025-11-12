@@ -15,7 +15,7 @@ import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
 import {getNavLinkCreate, mapAddResource, mapImportResource} from "./TreeMenu"
 import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {divContainer} from "@/components/styles/Menu"
 import {useMutation} from "@apollo/client"
 import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
@@ -59,6 +59,15 @@ interface Props {
     anchorEl: HTMLParagraphElement | null
     reloadTree: () => void
 }
+
+const StyledIconContainer = styled("p")`
+    ${divContainer}
+    cursor: pointer
+`
+
+const StyledAddCircleIcon = styled(AddCircleIcon)`
+    color: ${adminTheme.palette.brandColor};
+`
 
 export default function MenuAction({
     isArchivedTab,
@@ -264,15 +273,6 @@ export default function MenuAction({
 
     const openActionMenu = Boolean(anchorEl)
     const idActionMenu = openActionMenu ? "action-menu" : undefined
-
-    const StyledIconContainer = styled.p`
-        ${divContainer}
-        cursor: pointer
-    `
-
-    const StyledAddCircleIcon = styled(AddCircleIcon)`
-        color: ${adminTheme.palette.brandColor};
-    `
 
     /**
      * Permissions

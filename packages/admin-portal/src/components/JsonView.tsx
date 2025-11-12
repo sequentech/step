@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {theme} from "@sequentech/ui-essentials"
 import React from "react"
 
@@ -13,7 +13,7 @@ export interface JsonViewProps {
 export const JsonView: React.FC<JsonViewProps> = (props) => {
     const {origin} = props
 
-    const AreaView = styled.div`
+    const AreaView = styled("div")`
         display: flex;
         width: 100%;
         background-color: ${theme.palette.lightBackground};
@@ -23,7 +23,7 @@ export const JsonView: React.FC<JsonViewProps> = (props) => {
         overflow-y: scroll;
     `
 
-    const AreaText = styled.pre`
+    const AreaText = styled("pre")`
         white-space: pre-wrap;
         white-space: -moz-pre-wrap;
         white-space: -pre-wrap;

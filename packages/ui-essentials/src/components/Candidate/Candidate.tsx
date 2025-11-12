@@ -10,7 +10,6 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked"
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked"
 import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
-import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
@@ -29,7 +28,7 @@ const UnselectableTypography = styled(Typography)`
     user-select: none;
 `
 
-const BorderBox = emotionStyled.li<{
+const BorderBox = styled("li")<{
     isactive: string
     hascategory: string
     isinvalidvote: string
@@ -90,7 +89,7 @@ const ImageBox = styled(Box)`
     flex-shrink: 0;
 `
 
-const StyledLink = emotionStyled.a`
+const StyledLink = styled("a")`
     text-decoration: underline;
     font-weight: normal;
     &:hover {

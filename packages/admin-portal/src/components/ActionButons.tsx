@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {IconButton} from "@mui/material"
 import {adminTheme} from "@sequentech/ui-essentials"
 import React from "react"

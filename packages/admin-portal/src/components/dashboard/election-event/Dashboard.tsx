@@ -7,7 +7,7 @@ import React, {useCallback, useContext, useEffect, useMemo, useState} from "reac
 import {Box, CircularProgress} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {useTranslation} from "react-i18next"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"

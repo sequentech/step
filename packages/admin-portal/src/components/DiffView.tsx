@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useCallback, useEffect, useMemo, useState} from "react"
-
-import styled from "@emotion/styled"
-
+import {styled} from "@mui/material/styles"
 import {diffLines} from "diff"
 import {CircularProgress} from "@mui/material"
 import {useTranslation} from "react-i18next"
@@ -15,7 +13,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {debounce} from "lodash"
 
 const DiffViewStyled = {
-    Header: styled.span`
+    Header: styled("span")`
         font-family: Roboto;
         font-size: 14px;
         font-weight: 500;
@@ -24,18 +22,18 @@ const DiffViewStyled = {
         text-align: left;
         text-transform: uppercase;
     `,
-    Container: styled.div`
+    Container: styled("div")`
         gap: 16px;
         display: flex;
         justify-content: space-around;
     `,
-    Content: styled.div`
+    Content: styled("div")`
         gap: 12px;
         display: flex;
         flex-direction: column;
         width: 100%;
     `,
-    Block: styled.div`
+    Block: styled("div")`
         position: relative;
         display: flex;
         flex-direction: column;
@@ -46,27 +44,27 @@ const DiffViewStyled = {
         width: 100%;
         max-height: 500px;
     `,
-    Json: styled.div`
+    Json: styled("div")`
         width: 100%;
         max-width: 35vw;
         overflow-x: scroll;
     `,
-    Removed: styled.pre`
+    Removed: styled("pre")`
         width: 100%;
         font-size: 12px;
         background-color: #fa958e;
         text-decoration: line-through;
     `,
-    Added: styled.pre`
+    Added: styled("pre")`
         width: 100%;
         font-size: 12px;
         background-color: #43e3a1;
     `,
-    Line: styled.pre`
+    Line: styled("pre")`
         width: 100%;
         font-size: 12px;
     `,
-    Loading: styled.div`
+    Loading: styled("div")`
         display: flex;
         height: 60vh;
         justify-content: center;

@@ -15,7 +15,6 @@ import {EPublishType} from "../Publish/EPublishType"
 import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
-import {Dialog} from "@sequentech/ui-essentials"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
@@ -64,6 +63,60 @@ const EditElectionEventReports = lazy(() =>
     import("../Reports/EditReportsTab").then((module) => ({
         default: module.EditReportsTab,
     }))
+)
+
+interface ITabProps {
+    refreshRef: React.RefObject<HTMLButtonElement | null>
+    handleChildMount: () => void
+}
+
+const DashboardElectionEventTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => (
+    <Suspense fallback={<div>Loading Dashboard...</div>}>
+        <Box sx={{overflowX: "auto"}}>
+            <DashboardElectionEvent refreshRef={refreshRef} onMount={handleChildMount} />
+        </Box>
+    </Suspense>
+)
+
+const MonitoringTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => (
+    <Suspense fallback={<div>Loading Dashboard...</div>}>
+        <OVOFDashboardElectionEvent refreshRef={refreshRef} onMount={handleChildMount} />
+    </Suspense>
+)
+const DataTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Data...</div>}>
+        <EditElectionEventData />
+    </Suspense>
+)
+
+const LocalizationTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Text Data...</div>}>
+        <EditElectionEventTextData />
+    </Suspense>
+)
+
+const KeysTab: React.FC<{showKeysList?: string | null}> = ({showKeysList}) => (
+    <Suspense fallback={<div>Loading Keys...</div>}>
+        <EditElectionEventKeys isShowCeremony={showKeysList} isShowTrusteeCeremony={showKeysList} />
+    </Suspense>
+)
+
+const VotersTab: React.FC<{record?: Sequent_Backend_Election_Event}> = ({record}) => (
+    <Suspense fallback={<div>Loading Voters...</div>}>
+        <EditElectionEventUsers electionEventId={record?.id} />
+    </Suspense>
+)
+
+const AreasTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Areas...</div>}>
+        <EditElectionEventAreas />
+    </Suspense>
+)
+
+const TallyTab: React.FC = () => (
+    <Suspense fallback={<div>Loading Tally...</div>}>
+        <EditElectionEventTally />
+    </Suspense>
 )
 
 export const ElectionEventTabs: React.FC = () => {
@@ -222,14 +275,10 @@ export const ElectionEventTabs: React.FC = () => {
                                   {
                                       label: t("electionEventScreen.tabs.dashboard"),
                                       component: () => (
-                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <Box sx={{overflowX: "auto"}}>
-                                                  <DashboardElectionEvent
-                                                      refreshRef={refreshRef}
-                                                      onMount={handleChildMount}
-                                                  />
-                                              </Box>
-                                          </Suspense>
+                                          <DashboardElectionEventTab
+                                              refreshRef={refreshRef}
+                                              handleChildMount={handleChildMount}
+                                          />
                                       ),
                                   },
                               ]
@@ -239,12 +288,10 @@ export const ElectionEventTabs: React.FC = () => {
                                   {
                                       label: t("electionEventScreen.tabs.monitoring"),
                                       component: () => (
-                                          <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                              <OVOFDashboardElectionEvent
-                                                  refreshRef={refreshRef}
-                                                  onMount={handleChildMount}
-                                              />
-                                          </Suspense>
+                                          <MonitoringTab
+                                              refreshRef={refreshRef}
+                                              handleChildMount={handleChildMount}
+                                          />
                                       ),
                                   },
                               ]
@@ -253,11 +300,7 @@ export const ElectionEventTabs: React.FC = () => {
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.data"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Data...</div>}>
-                                              <EditElectionEventData />
-                                          </Suspense>
-                                      ),
+                                      component: DataTab,
                                   },
                               ]
                             : []),
@@ -265,11 +308,7 @@ export const ElectionEventTabs: React.FC = () => {
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.localization"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Text Data...</div>}>
-                                              <EditElectionEventTextData />
-                                          </Suspense>
-                                      ),
+                                      component: LocalizationTab,
                                   },
                               ]
                             : []),
@@ -277,13 +316,7 @@ export const ElectionEventTabs: React.FC = () => {
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.voters"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Voters...</div>}>
-                                              <EditElectionEventUsers
-                                                  electionEventId={record?.id}
-                                              />
-                                          </Suspense>
-                                      ),
+                                      component: () => <VotersTab record={record} />,
                                   },
                               ]
                             : []),
@@ -291,11 +324,7 @@ export const ElectionEventTabs: React.FC = () => {
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.areas"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Areas...</div>}>
-                                              <EditElectionEventAreas />
-                                          </Suspense>
-                                      ),
+                                      component: AreasTab,
                                   },
                               ]
                             : []),
@@ -303,14 +332,7 @@ export const ElectionEventTabs: React.FC = () => {
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.keys"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Keys...</div>}>
-                                              <EditElectionEventKeys
-                                                  isShowCeremony={showKeysList}
-                                                  isShowTrusteeCeremony={showKeysList}
-                                              />
-                                          </Suspense>
-                                      ),
+                                      component: () => <KeysTab showKeysList={showKeysList} />,
                                       action: () => {
                                           setShowKeysList(uuidv4())
                                       },
@@ -321,11 +343,7 @@ export const ElectionEventTabs: React.FC = () => {
                             ? [
                                   {
                                       label: t("electionEventScreen.tabs.tally"),
-                                      component: () => (
-                                          <Suspense fallback={<div>Loading Tally...</div>}>
-                                              <EditElectionEventTally />
-                                          </Suspense>
-                                      ),
+                                      component: TallyTab,
                                       action: () => setTallyId(null),
                                   },
                               ]

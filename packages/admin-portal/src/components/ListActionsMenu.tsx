@@ -2,11 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IconButton, Menu, MenuItem} from "@mui/material"
+import {styled} from "@mui/material/styles"
 import {GridMoreVertIcon} from "@mui/x-data-grid"
 import React from "react"
 import {useRecordContext} from "react-admin"
 import {Action} from "./ActionButons"
-import {makeStyles} from "@mui/styles"
+const PREFIX = "ListActionsMenu"
+
+const classes = {
+    menu: `${PREFIX}-menu`,
+}
+
+const Root = styled("div")({
+    [`& .${classes.menu}`]: {
+        width: "max-content",
+    },
+})
 
 /*  
         In the component where you want to use the actions column as popover menu:
@@ -22,18 +33,12 @@ interface ListActionsMenuProps {
     actions: Array<Action>
 }
 
-const useStyles = makeStyles({
-    menu: {
-        width: "max-content",
-    },
-})
-
 export const ListActionsMenu: React.FC<ListActionsMenuProps> = (props) => {
     const record = useRecordContext()
     const {actions} = props
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
-    const classes = useStyles()
+
     const handleClick = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget)
     }
@@ -57,7 +62,7 @@ export const ListActionsMenu: React.FC<ListActionsMenuProps> = (props) => {
     }
 
     return (
-        <div>
+        <Root>
             <IconButton
                 id="actions-menu-button"
                 aria-controls={open ? "actions-menu" : undefined}
@@ -97,6 +102,6 @@ export const ListActionsMenu: React.FC<ListActionsMenuProps> = (props) => {
                       ))
                     : null}
             </Menu>
-        </div>
+        </Root>
     )
 }

@@ -12,7 +12,6 @@
     "@fortawesome/free-solid-svg-icons": "^7.0.1",
     "@fortawesome/react-fontawesome": "^3.0.2",
     "@mui/material": "7.3.2",
-    "@mui/styles": "6.4.8",
     "@mui/utils": "7.3.5",
     "@mui/x-data-grid": "8.17.0",
     "@react-page/react-admin": "5.4.5",

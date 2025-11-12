@@ -41,7 +41,7 @@ import {
 } from "../../gql/graphql"
 import React, {ReactNode, useCallback, useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {cloneDeep} from "lodash"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
@@ -74,7 +74,7 @@ import {IPermissions} from "@/types/keycloak"
 
 type FieldValues = Record<string, any>
 
-const CandidateRows = styled.div`
+const CandidateRows = styled("div")`
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -83,7 +83,7 @@ const CandidateRows = styled.div`
     padding: 1rem;
 `
 
-const ListWrapper = styled.div`
+const ListWrapper = styled("div")`
     display: flex;
     flex-direction: column;
     border-radius: 4px;
