@@ -20,7 +20,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
-import {ICountingAlgorithm} from "../Contest/constants"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined

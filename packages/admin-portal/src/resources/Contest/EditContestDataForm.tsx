@@ -60,7 +60,8 @@ import {
     ECandidatesIconCheckboxPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
-import {ICountingAlgorithm, IVotingType} from "./constants"
+import {IVotingType} from "./constants"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"

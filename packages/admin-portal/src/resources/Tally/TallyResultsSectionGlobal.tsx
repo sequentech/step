@@ -16,7 +16,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {TallyResultsSummary} from "./TallyResultsSummary"
 import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality"
 import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
-import {ICountingAlgorithm} from "../Contest/constants"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
 import {RunoffStatus} from "./types"
 

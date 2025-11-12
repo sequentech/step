@@ -34,6 +34,7 @@ import {SettingsContext} from "../../providers/SettingsContextProvider"
 import {IDecodedVoteContest} from "sequent-core"
 import {provideBallotService} from "../../services/BallotService"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -77,6 +78,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     setExplicitBlank,
     setIsTouched,
 }) => {
+    const isPreferentialVote = contest.counting_algorithm == ICountingAlgorithm.INSTANT_RUNOFF // TODO: WASM function is_preferencial()
+    const totalCandidates = contest.candidates.length
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
     )
@@ -210,6 +213,8 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     return (
         <Candidate
+            isPreferentialVote={isPreferentialVote}
+            totalCandidates={totalCandidates}
             title={translate(answer, "name", i18n.language)}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isActive={isActive}

@@ -9,6 +9,11 @@ import {IAreaPresentation} from "./AreaPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
+export enum ICountingAlgorithm {
+    PLURALITY_AT_LARGE = "plurality-at-large",
+    INSTANT_RUNOFF = "instant-runoff",
+}
+
 export enum EAllowTally {
     ALLOWED = "allowed",
     DISALLOWED = "disallowed",
@@ -89,7 +94,7 @@ export interface IContest {
     min_votes: number
     winning_candidates_num: number
     voting_type?: string
-    counting_algorithm?: string
+    counting_algorithm?: ICountingAlgorithm
     is_encrypted: boolean
     candidates: Array<ICandidate>
     presentation?: IContestPresentation

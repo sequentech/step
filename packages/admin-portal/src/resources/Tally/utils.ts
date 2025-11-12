@@ -4,7 +4,7 @@
 
 import {GridComparatorFn} from "@mui/x-data-grid"
 import {ParsedAnnotations, RunoffStatus} from "./types"
-import {ICountingAlgorithm} from "../Contest/constants"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 
 /**
  * Comparator function for sorting winning positions in DataGrid.

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, TextField, Typography} from "@mui/material"
+import {Box, MenuItem, Select, TextField, Typography} from "@mui/material"
 import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
@@ -108,6 +108,8 @@ export interface CandidateProps extends PropsWithChildren {
     index?: number
     shouldDisable?: boolean
     className?: string
+    isPreferentialVote?: boolean
+    totalCandidates?: number
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -128,6 +130,8 @@ const Candidate: React.FC<CandidateProps> = ({
     shouldDisable,
     index,
     className,
+    isPreferentialVote = false,
+    totalCandidates = 0,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
@@ -149,6 +153,19 @@ const Candidate: React.FC<CandidateProps> = ({
 
     const handleWriteInClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
         event.stopPropagation()
+    }
+
+    const handlePositionChange = (event: any) => {
+        event.stopPropagation()
+        // For preferential voting, we'll need to handle position selection
+        // The parent component should handle this through a callback
+    }
+
+    const getOrdinalSuffix = (num: number): string => {
+        if (num === 1) return "1st"
+        if (num === 2) return "2nd"
+        if (num === 3) return "3rd"
+        return `${num}th`
     }
 
     return (
@@ -209,7 +226,29 @@ const Candidate: React.FC<CandidateProps> = ({
                 </StyledLink>
             ) : null}
             {isActive ? (
-                iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
+                isPreferentialVote ? (
+                    <Select
+                        displayEmpty
+                        value={index || ""}
+                        onChange={handlePositionChange}
+                        disabled={shouldDisable}
+                        renderValue={(value) => {
+                            if (value === null || value === undefined) {
+                                return "Position"
+                            }
+                            return String(value)
+                        }}
+                        sx={{minWidth: 120}}
+                        className="candidate-position-select"
+                    >
+                        <MenuItem value="">None</MenuItem>
+                        {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (
+                            <MenuItem key={num} value={getOrdinalSuffix(num)}>
+                                {getOrdinalSuffix(num)}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                ) : iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
                         inputProps={{
                             "className": "candidate-input",

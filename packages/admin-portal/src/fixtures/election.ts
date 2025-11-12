@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ICountingAlgorithm, IVotingType} from "@/resources/Contest/constants"
+import {IVotingType} from "@/resources/Contest/constants"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {
     IBallotStyle,
     EInvalidVotePolicy,
