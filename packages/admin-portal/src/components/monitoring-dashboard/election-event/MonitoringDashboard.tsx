@@ -12,7 +12,7 @@ import {IPermissions} from "@/types/keycloak"
 
 interface MonitoringDashboardElectionEventProps {
     refreshRef: any
-    onMount: () => void
+    onMount?: () => void
 }
 
 const MonitoringDashboardElectionEvent: React.FC<MonitoringDashboardElectionEventProps> = (
@@ -24,7 +24,7 @@ const MonitoringDashboardElectionEvent: React.FC<MonitoringDashboardElectionEven
     const {globalSettings} = useContext(SettingsContext)
 
     useEffect(() => {
-        onMount()
+        onMount?.()
     }, [onMount])
 
     const {

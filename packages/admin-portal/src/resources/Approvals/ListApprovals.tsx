@@ -350,8 +350,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     })
 
-    const {filterValues} = useListContext()
-
     // ✨ Admin Portal > Approvals: Add Approved By row #5050
 
     useEffect(() => {
