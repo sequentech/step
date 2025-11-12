@@ -162,7 +162,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                         align="center"
                                         sx={{
                                             fontWeight: 600,
-                                            minWidth: 150,
+                                            width: 230,
+                                            minWidth: 230,
+                                            maxWidth: 230,
                                             whiteSpace: "nowrap",
                                             backgroundColor: "#FBFBFB",
                                             border: "1px solid #fff",
@@ -261,7 +263,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                             key={roundIndex}
                                             align="center"
                                             sx={{
-                                                minWidth: 150,
+                                                width: 230,
+                                                minWidth: 230,
+                                                maxWidth: 230,
                                                 backgroundColor: outcome ? "#F9F9FF" : "#E0E0E0",
                                                 border: "1px solid #fff",
                                             }}
@@ -283,7 +287,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                         }}
                                                     >
                                                         {formatNumber(outcome.wins)} (
-                                                        {outcome.percentage.toFixed(2)}%)
+                                                        {(outcome.percentage*100).toFixed(2)}%)
                                                     </Box>
                                                     {status === "winner" && (
                                                         <Chip
