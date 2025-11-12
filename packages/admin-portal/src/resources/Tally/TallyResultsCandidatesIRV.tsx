@@ -13,6 +13,8 @@ import {
     IconButton,
     Chip,
     Paper,
+    useTheme,
+    useMediaQuery,
 } from "@mui/material"
 import {ChevronLeft, ChevronRight} from "@mui/icons-material"
 import {RunoffStatus, ECandidateStatus} from "./types"
@@ -24,18 +26,25 @@ interface TallyResultsCandidatesIRVProps {
 export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps> = ({
     processResults,
 }) => {
-    const VISIBLE_ROUNDS = 5
+    const theme = useTheme()
+    const isXL = useMediaQuery(theme.breakpoints.up("xl"))
+    const isLarge = useMediaQuery(theme.breakpoints.up("lg"))
+    const isMedium = useMediaQuery(theme.breakpoints.up("md"))
+    const VISIBLE_ROUNDS = isXL ? 4 : isLarge ? 3 : isMedium ? 2 : 1
+    
     const [representedRounds, setRepresentedRounds] = useState({ start: 0, end: VISIBLE_ROUNDS - 1 })
 
     useEffect(() => {
         console.log("TallyResultsCandidatesIRV processResults:", processResults)
         // Extend rows vector by double, to test a long number of cols on the table
-        const extendedRows = processResults.rounds
-        processResults.rounds.push(...extendedRows)
+        if (processResults.rounds.length < 10) {
+            const extendedRows = processResults.rounds
+            processResults.rounds.push(...extendedRows)
+        }
         
         // Reset to initial range when data changes
         setRepresentedRounds({ start: 0, end: Math.min(VISIBLE_ROUNDS - 1, processResults.rounds.length - 1) })
-    }, [processResults])
+    }, [processResults, VISIBLE_ROUNDS])
 
     const handleNavigate = (direction: "left" | "right") => {
         const totalRounds = rounds.length
