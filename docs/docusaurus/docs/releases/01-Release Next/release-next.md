@@ -7,21 +7,16 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## ✨ IdP-initiated SAML SSO authentication flow support
+## 📖 Third-Party Libraries Reference Documentation
 
-Implemented comprehensive support for IdP-initiated SAML SSO authentication
-flow, enabling third-party Identity Providers to directly initiate
-authentication to the voting portal. The implementation includes a fully
-configurable SimpleSAMLphp reference IdP with multiple environment variables for
-seamless integration, updated Keycloak realm configurations with a dedicated
-SAML client (vp-sso), custom first-broker authentication flow with auto-linking
-capabilities, and support for signed SAML requests/responses with proper
-certificate validation. This allows organizations to integrate their existing
-authentication systems where users can click a button in their IdP to be
-automatically authenticated and redirected to the voting portal without first
-accessing the voting system directly.
+Added comprehensive developer documentation for managing Rust versions and
+third-party dependencies. Standardized on Rust stable 1.90.0 across all
+environments (Nix, GitHub Actions, Dockerfiles). Created automated tooling for
+dependency reporting and security audits, including scripts for generating
+dependency lists with licenses and descriptions. Updated all Rust crates, npm
+packages, and Maven dependencies to their latest compatible versions.
 
-- Issue: [#8213](https://github.com/sequentech/meta/issues/8213)
+- Issue: https://github.com/sequentech/meta/issues/7996
 
 ## ✨ Move voter signature to the voting portal
 

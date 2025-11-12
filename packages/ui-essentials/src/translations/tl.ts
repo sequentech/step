@@ -65,7 +65,7 @@ const tagalogTranslation: TranslationType = {
             },
         },
         footer: {
-            poweredBy: "Pinapagana ng <sequent />",
+            poweredBy: "Pinapagana ng <1></1>",
         },
         errors: {
             encoding: {

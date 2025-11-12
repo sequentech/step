@@ -22,6 +22,7 @@
     "noEmit": false,
     "noImplicitAny": false,
     "jsx": "react-jsx",
+    "types": [],
     "paths": {
       "@root/*": ["./src/*"]
     }

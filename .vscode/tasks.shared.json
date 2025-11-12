@@ -29,6 +29,54 @@
             "problemMatcher": []
         },
         {
+            "label": "generate.dependency.report",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/tasks/dependencies/generate-dependency-report.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "security.audit.dependencies",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/tasks/security/audit-dependencies.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "check.reuse",
             "command": "devenv",
             "args": [
@@ -933,6 +981,32 @@
             "isBackground": true,
             "runOptions": {
                 "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "build.sequent-core",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+              "-l",
+              "-c",
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "dedicated",
+              "showReuseMessage": true,
+              "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+              "runOn": "default"
             },
             "problemMatcher": []
         },

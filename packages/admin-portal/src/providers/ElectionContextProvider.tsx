@@ -19,7 +19,7 @@ interface ElectionContextProviderProps {
     /**
      * The elements wrapped by the Election context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const ElectionContextProvider = (props: ElectionContextProviderProps) => {

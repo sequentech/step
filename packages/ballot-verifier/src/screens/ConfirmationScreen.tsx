@@ -354,7 +354,7 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
 
 interface ActionButtonProps {}
 
-const ActionButtons: React.FC<ActionButtonProps> = ({}) => {
+const ActionButtons: React.FC<ActionButtonProps> = () => {
     const {t} = useTranslation()
     const triggerPrint = () => window.print()
 

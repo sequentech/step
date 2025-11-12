@@ -77,7 +77,7 @@ const spanishTranslation: TranslationType = {
             contestNotFound: "Pregunta no encontrada: {{contestId}}",
         },
         footer: {
-            poweredBy: "Funciona con <sequent />",
+            poweredBy: "Funciona con <1></1>",
         },
         errors: {
             encoding: {

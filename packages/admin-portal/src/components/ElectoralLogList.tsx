@@ -97,12 +97,14 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.exportFormat", {
-                    item: t("logsScreen.title"),
-                    format: exportFormat,
-                })}
+                ok={String(t("common.label.export"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(
+                    t("common.label.exportFormat", {
+                        item: t("logsScreen.title"),
+                        format: exportFormat,
+                    })
+                )}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()
@@ -189,18 +191,30 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     const filters: Array<ReactElement> = [
-        <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
-        <TextInput key={"username"} source={"username"} label={t("logsScreen.column.username")} />,
-        <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
+        <TextInput
+            key={"user_id"}
+            source={"user_id"}
+            label={String(t("logsScreen.column.user_id"))}
+        />,
+        <TextInput
+            key={"username"}
+            source={"username"}
+            label={String(t("logsScreen.column.username"))}
+        />,
+        <DateTimeInput
+            key={"created"}
+            source={"created"}
+            label={String(t("logsScreen.column.created"))}
+        />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
-            label={t("logsScreen.column.statement_timestamp")}
+            label={String(t("logsScreen.column.statement_timestamp"))}
         />,
         <TextInput
             key={"statement_kind"}
             source={"statement_kind"}
-            label={t("logsScreen.column.statement_kind")}
+            label={String(t("logsScreen.column.statement_kind"))}
         />,
     ]
 
@@ -230,10 +244,10 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             >
                 <ResetFilters />
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
-                    <NumberField source="id" label={t("logsScreen.column.id")} />
+                    <NumberField source="id" label={String(t("logsScreen.column.id"))} />
                     <FunctionField
                         source="user_id"
-                        label={t("logsScreen.column.user_id")}
+                        label={String(t("logsScreen.column.user_id"))}
                         render={(record: any) => {
                             const userId = JSON.parse(record.message).user_id
                             return (
@@ -245,7 +259,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     />
                     <FunctionField
                         source="username"
-                        label={t("logsScreen.column.username")}
+                        label={String(t("logsScreen.column.username"))}
                         render={(record: any) => {
                             const username = JSON.parse(record.message).username
                             return (
@@ -257,12 +271,12 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     />
                     <FunctionField
                         source="created"
-                        label={t("logsScreen.column.created")}
+                        label={String(t("logsScreen.column.created"))}
                         render={(record: any) => new Date(record.created * 1000).toUTCString()}
                     />
                     <FunctionField
                         source="statement_timestamp"
-                        label={t("logsScreen.column.statement_timestamp")}
+                        label={String(t("logsScreen.column.statement_timestamp"))}
                         render={(record: any) =>
                             new Date(record.statement_timestamp * 1000).toUTCString()
                         }
@@ -270,17 +284,17 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <TextField source="statement_kind" />
                     <FunctionField
                         source="event_type"
-                        label={t("logsScreen.column.statement_kind")}
+                        label={String(t("logsScreen.column.statement_kind"))}
                         render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField
                         source="log_type"
-                        label={t("logsScreen.column.log_type")}
+                        label={String(t("logsScreen.column.log_type"))}
                         render={(record: any) => getHeadField(record, "log_type")}
                     />
                     <FunctionField
                         source="description"
-                        label={t("logsScreen.column.description")}
+                        label={String(t("logsScreen.column.description"))}
                         render={(record: any) => (
                             <MessageField
                                 content={getHeadField(record, "description")}
@@ -292,7 +306,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 </DatagridConfigurable>
             </List>
             <ExportDialog
-                electionEventId={record.id ?? ""}
+                electionEventId={record?.id ?? ""}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
                 exportFormat={exportFormat}

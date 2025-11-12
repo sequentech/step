@@ -4,7 +4,7 @@
 import React from "react"
 import {Box, Typography} from "@mui/material"
 import StatItem from "./StatItem"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {StatItemProps} from "./StatItem"
 
 const Container = styled(Box)`

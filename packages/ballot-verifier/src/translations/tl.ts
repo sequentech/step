@@ -73,7 +73,7 @@ const tagalogTranslation = {
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
         },
         footer: {
-            poweredBy: "Pinapagana ng <sequent />",
+            poweredBy: "Pinapagana ng <1></1>",
         },
         errors: {
             encoding: {

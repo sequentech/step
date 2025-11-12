@@ -114,7 +114,7 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
     return (
         <PageHeaderStyles.Wrapper>
             <ElectionHeader
-                title={t("usersAndRolesScreen.roles.edit.title")}
+                title={String(t("usersAndRolesScreen.roles.edit.title"))}
                 subtitle="usersAndRolesScreen.roles.edit.subtitle"
             />
 

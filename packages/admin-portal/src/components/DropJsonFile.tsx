@@ -28,7 +28,7 @@ const DropJsonFile: React.FC<DropJsonFileProps> = ({handleFiles}) => {
                 variant="responsive"
                 sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
             >
-                <Icon variant="info" icon={faCloudArrowUp} fontSize="50px" />
+                <Icon variant="info" icon={faCloudArrowUp as any} fontSize="50px" />
                 <Box
                     sx={{
                         display: "flex",

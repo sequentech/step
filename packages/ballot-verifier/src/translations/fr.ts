@@ -75,7 +75,7 @@ const frenchTranslation: TranslationType = {
             contestNotFound: "Question non trouvée : {{contestId}}",
         },
         "footer": {
-            poweredBy: "Propulsé par <sequent />",
+            poweredBy: "Propulsé par <1></1>",
         },
         "errors": {
             encoding: {

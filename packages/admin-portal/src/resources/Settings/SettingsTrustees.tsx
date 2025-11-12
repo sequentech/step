@@ -135,7 +135,7 @@ export const SettingsTrustees: React.FC<void> = () => {
 
     const CreateButton = () => (
         <Button onClick={handleOpenCreateDrawer}>
-            <IconButton icon={faPlus} fontSize="24px" />
+            <IconButton icon={faPlus as any} fontSize="24px" />
             {t("trusteesSettingsScreen.common.createNew")}
         </Button>
     )
@@ -252,9 +252,9 @@ export const SettingsTrustees: React.FC<void> = () => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

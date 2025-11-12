@@ -166,7 +166,7 @@ export const SelectTenant = () => {
         )?.logo_url
         const newCss = (data?.sequent_backend_tenant[0].annotations as ITenantTheme | undefined)
             ?.css
-        setLogoImg(errors?.length > 0 ? SequentLogo : newLogoState ?? SequentLogo)
+        setLogoImg(errors?.length > 0 ? SequentLogo : (newLogoState ?? SequentLogo))
         setCss(newCss ?? "")
     }
 
@@ -365,7 +365,7 @@ export const SelectTenant = () => {
                                     <Box component="form" onSubmit={handleSubmit} sx={{mt: 2}}>
                                         <TextField
                                             fullWidth
-                                            label={t("common.label.tenantName")}
+                                            label={String(t("common.label.tenantName"))}
                                             variant="outlined"
                                             margin="normal"
                                             value={tenant}

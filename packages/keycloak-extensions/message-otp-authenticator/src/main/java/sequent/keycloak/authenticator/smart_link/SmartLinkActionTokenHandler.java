@@ -78,7 +78,7 @@ public class SmartLinkActionTokenHandler extends AbstractActionTokenHandler<Smar
 
     if (token.getScopes() != null) {
       authSession.setClientNote(OAuth2Constants.SCOPE, token.getScopes());
-      AuthenticationManager.setClientScopesInSession(authSession);
+      AuthenticationManager.setClientScopesInSession(session, authSession);
     }
 
     if (token.getRememberMe() != null && token.getRememberMe()) {

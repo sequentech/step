@@ -14,7 +14,7 @@ export const CustomActionsMenu = ({
 }: {
     anchorEl: HTMLElement | null
     handleCloseCustomMenu: () => void
-    customFiltersList: JSX.Element[]
+    customFiltersList: Array<React.ReactNode>
     open: boolean
     doContext: (ctx: ListControllerResult) => void
 }) => {

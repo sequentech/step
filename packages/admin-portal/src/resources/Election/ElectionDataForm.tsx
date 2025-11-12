@@ -71,7 +71,7 @@ import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ITemplateMethod} from "@/types/templates"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -85,7 +85,7 @@ const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
 
-const ContestRows = styled.div`
+const ContestRows = styled("div")`
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -322,7 +322,7 @@ export const ElectionDataForm: React.FC = () => {
                     <BooleanInput
                         key={lang}
                         source={`enabled_languages.${lang}`}
-                        label={t(`common.language.${lang}`)}
+                        label={String(t(`common.language.${lang}`))}
                         helperText={false}
                     />
                 ))}
@@ -353,7 +353,7 @@ export const ElectionDataForm: React.FC = () => {
                 <BooleanInput
                     key={channel}
                     source={`voting_channels[${channel}]`}
-                    label={t(`common.channel.${channel}`)}
+                    label={String(t(`common.channel.${channel}`))}
                 />
             )
         }
@@ -364,7 +364,9 @@ export const ElectionDataForm: React.FC = () => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
             if (parsedValue?.enabled_languages?.[lang]) {
-                tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
+                tabNodes.push(
+                    <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
+                )
             }
         }
 
@@ -392,20 +394,22 @@ export const ElectionDataForm: React.FC = () => {
                         <div style={{marginTop: "16px"}}>
                             <TextInput
                                 source={`presentation.i18n[${lang}].name`}
-                                label={t("electionEventScreen.field.name")}
+                                label={String(t("electionEventScreen.field.name"))}
                             />
                             <TextInput
                                 source={`presentation.i18n[${lang}].alias`}
-                                label={t("electionEventScreen.field.alias")}
+                                label={String(t("electionEventScreen.field.alias"))}
                             />
                             <TextInput
                                 source={`presentation.i18n[${lang}].description`}
-                                label={t("electionEventScreen.field.description")}
+                                label={String(t("electionEventScreen.field.description"))}
                             />
                             {hasTos ? (
                                 <TextInput
                                     source={`presentation.i18n[${lang}].security_confirmation_html`}
-                                    label={t("electionScreen.field.securityConfirmationHtml")}
+                                    label={String(
+                                        t("electionScreen.field.securityConfirmationHtml")
+                                    )}
                                 />
                             ) : null}
                         </div>
@@ -642,7 +646,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
+                                    <Grid size={{xs: 12, md: 6}}>
                                         {renderVotingChannels(parsedValue)}
                                     </Grid>
                                 </Grid>
@@ -671,7 +675,7 @@ export const ElectionDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.audit_button_cfg`}
                                     choices={auditButtonConfigChoices()}
-                                    label={t(`contestScreen.auditButtonConfig.label`)}
+                                    label={String(t(`contestScreen.auditButtonConfig.label`))}
                                     defaultValue={EVotingPortalAuditButtonCfg.SHOW}
                                     validate={required()}
                                 />
@@ -729,7 +733,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={1}>
-                                    <Grid item xs={2}>
+                                    <Grid size={2}>
                                         {parsedValue?.image_document_id &&
                                         parsedValue?.image_document_id !== "" ? (
                                             <img
@@ -740,7 +744,7 @@ export const ElectionDataForm: React.FC = () => {
                                             />
                                         ) : null}
                                     </Grid>
-                                    <Grid item xs={10}>
+                                    <Grid size={10}>
                                         <DropFile
                                             handleFiles={async (files) => handleFiles(files)}
                                         />
@@ -772,22 +776,24 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <BooleanInput
                                     source={"presentation.cast_vote_confirm"}
-                                    label={t(`electionScreen.edit.castVoteConfirm`)}
+                                    label={String(t(`electionScreen.edit.castVoteConfirm`))}
                                 />
                                 <NumberInput
                                     source="num_allowed_revotes"
-                                    label={t("electionScreen.edit.numAllowedVotes")}
+                                    label={String(t("electionScreen.edit.numAllowedVotes"))}
                                     min={0}
                                 />
                                 <SelectInput
-                                    label={t("electionScreen.castVoteGoldLevelPolicy.label")}
+                                    label={String(
+                                        t("electionScreen.castVoteGoldLevelPolicy.label")
+                                    )}
                                     source="presentation.cast_vote_gold_level"
                                     choices={goldLevelChoices()}
                                     defaultValue={ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL}
                                     validate={required()}
                                 />
                                 <SelectInput
-                                    label={t("electionScreen.startScreenTitlePolicy.label")}
+                                    label={String(t("electionScreen.startScreenTitlePolicy.label"))}
                                     source="presentation.start_screen_title_policy"
                                     choices={startScreenTitleChoices()}
                                     defaultValue={EStartScreenTitlePolicy.ELECTION}
@@ -795,7 +801,7 @@ export const ElectionDataForm: React.FC = () => {
                                 />
                                 {canEditPermissionLabel && (
                                     <TextInput
-                                        label={t("electionScreen.edit.permissionLabel")}
+                                        label={String(t("electionScreen.edit.permissionLabel"))}
                                         source="permission_label"
                                     />
                                 )}
@@ -807,7 +813,7 @@ export const ElectionDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.initialization_report_policy`}
                                     choices={initializationReportChoices()}
-                                    label={t("electionScreen.initializeReportPolicy.label")}
+                                    label={String(t("electionScreen.initializeReportPolicy.label"))}
                                     validate={required()}
                                 />
                                 <Box>
@@ -837,12 +843,14 @@ export const ElectionDataForm: React.FC = () => {
                                 <ManagedSelectInput
                                     source={`presentation.grace_period_policy`}
                                     choices={gracePeriodPolicyChoices()}
-                                    label={t(`electionScreen.gracePeriodPolicy.label`)}
+                                    label={String(t(`electionScreen.gracePeriodPolicy.label`))}
                                     defaultValue={EGracePeriodPolicy.NO_GRACE_PERIOD}
                                 />
                                 <ManagedNumberInput
                                     source={"presentation.grace_period_secs"}
-                                    label={t("electionScreen.gracePeriodPolicy.gracePeriodSecs")}
+                                    label={String(
+                                        t("electionScreen.gracePeriodPolicy.gracePeriodSecs")
+                                    )}
                                     defaultValue={0}
                                     sourceToWatch="presentation.grace_period_policy"
                                     isDisabled={(selectedPolicy: any) =>
@@ -852,14 +860,16 @@ export const ElectionDataForm: React.FC = () => {
                                 <ManagedSelectInput
                                     source={`status.allow_tally`}
                                     choices={allowTallyChoices()}
-                                    label={t(`electionScreen.edit.allowTallyPolicy`)}
+                                    label={String(t(`electionScreen.edit.allowTallyPolicy`))}
                                     defaultValue={EAllowTally.ALLOWED}
                                 />
 
                                 <ManagedSelectInput
                                     source={`presentation.security_confirmation_policy`}
                                     choices={securityConfirmationPolicyChoices()}
-                                    label={t(`electionScreen.securityConfirmationPolicy.label`)}
+                                    label={String(
+                                        t(`electionScreen.securityConfirmationPolicy.label`)
+                                    )}
                                     defaultValue={ESecurityConfirmationPolicy.NONE}
                                 />
                             </AccordionDetails>

@@ -350,7 +350,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     //            <FormControlLabel
     //                key={lang}
     //                sx={{width: "100%"}}
-    //                label={t(`common.language.${lang}`)}
+    //                label={String(t(`common.language.${lang}`))}
     //                control={<Switch checked={checked} onChange={handleLangChange(lang)} />}
     //            />
     //        )
@@ -369,7 +369,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                     <Toolbar>
                         <SaveButton
                             icon={<MailIcon />}
-                            label={t("sendCommunication.sendButton")}
+                            label={String(t("sendCommunication.sendButton"))}
                             alwaysEnable
                         />
                     </Toolbar>
@@ -430,7 +430,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                     <AccordionDetails>
                         <FormControlLabel
                             key="nowInput"
-                            label={t("sendCommunication.nowInput")}
+                            label={String(t("sendCommunication.nowInput"))}
                             control={
                                 <Switch
                                     checked={template.schedule.now}
@@ -439,10 +439,10 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                             }
                         />
                         <DateTimeInput
-                            validate={validateDate}
+                            validate={validateDate as any}
                             disabled={template.schedule.now}
                             source="schedule.date"
-                            label={t("sendCommunication.dateInput")}
+                            label={String(t("sendCommunication.dateInput"))}
                             parse={(value) => new Date(value).toISOString()}
                         />
                     </AccordionDetails>
@@ -538,7 +538,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                         {template.communication_method === ITemplateMethod.SMS && (
                             <FormStyles.TextField
                                 name="sms"
-                                label={t("sendCommunication.smsMessage")}
+                                label={String(t("sendCommunication.smsMessage"))}
                                 value={template.i18n["en"].sms?.message ?? ""}
                                 onChange={handleSmsChange}
                                 multiline={true}

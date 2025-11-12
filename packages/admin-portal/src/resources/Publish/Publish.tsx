@@ -500,7 +500,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 <FormDialog
                     open={open}
                     onClose={handleCloseEditDrawer}
-                    title={t("publish.dialog.title")}
+                    title={String(t("publish.dialog.title"))}
                 >
                     <EditPreview
                         publicationId={ballotPublicationId}

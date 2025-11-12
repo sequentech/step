@@ -41,5 +41,11 @@
   },
   "engines": {
     "node": ">=18.0"
+  },
+  "resolutions": {
+    "webpack-dev-server": "^5.2.1"
+  },
+  "overrides": {
+    "webpack-dev-server": ">=5.2.1"
   }
 }

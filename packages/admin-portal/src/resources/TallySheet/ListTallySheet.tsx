@@ -105,7 +105,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             {canCreate && (
                 <>
                     <Button onClick={createAction}>
-                        <IconButton icon={faPlus} fontSize="24px" />
+                        <IconButton icon={faPlus as any} fontSize="24px" />
                         {t("tallysheet.empty.action")}
                     </Button>
                     <Typography variant="body1" paragraph>
@@ -181,7 +181,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         {icon: <VisibilityIcon />, action: viewAction, showAction: () => canView},
         {
             icon: (
-                <Tooltip title={t("tallysheet.common.publish")}>
+                <Tooltip title={String(t("tallysheet.common.publish"))}>
                     <PublishedWithChangesIcon />
                 </Tooltip>
             ),
@@ -190,7 +190,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         },
         {
             icon: (
-                <Tooltip title={t("tallysheet.common.unpublish")}>
+                <Tooltip title={String(t("tallysheet.common.unpublish"))}>
                     <UnpublishedIcon />
                 </Tooltip>
             ),
@@ -241,19 +241,19 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     <TextField source="channel" />
 
                     <FunctionField
-                        label={t("tallysheet.table.contest")}
+                        label={String(t("tallysheet.table.contest"))}
                         render={(record: any) => <ContestItem record={contest.id} />}
                     />
 
                     <FunctionField
-                        label={t("tallysheet.table.area")}
+                        label={String(t("tallysheet.table.area"))}
                         render={(record: Sequent_Backend_Tally_Sheet) => (
                             <AreaItem record={record.area_id} />
                         )}
                     />
 
                     <FunctionField
-                        label={t("tallysheet.table.published")}
+                        label={String(t("tallysheet.table.published"))}
                         render={(record: any) =>
                             record.published_at ? <CheckCircleOutlineIcon color="success" /> : null
                         }
@@ -261,7 +261,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
                     <WrapperField source="actions" label="Actions">
                         <FunctionField
-                            label={t("tallysheet.table.area")}
+                            label={String(t("tallysheet.table.area"))}
                             render={(record: Sequent_Backend_Tally_Sheet) => (
                                 <ActionsColumn actions={actions(record)} />
                             )}
@@ -274,9 +274,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
@@ -290,9 +290,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             <Dialog
                 variant="warning"
                 open={openUnpublishDialog}
-                ok={t("tallysheet.common.unpublish")}
-                cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.unpublish")}
+                ok={String(t("tallysheet.common.unpublish"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("tallysheet.common.unpublish"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmPublishAction(false)
@@ -306,9 +306,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             <Dialog
                 variant="info"
                 open={openPublishDialog}
-                ok={t("tallysheet.common.publish")}
-                cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.publish")}
+                ok={String(t("tallysheet.common.publish"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("tallysheet.common.publish"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmPublishAction(true)

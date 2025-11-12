@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-
-import styled from "@emotion/styled"
-
+import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {Button, Identifier, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -21,18 +19,18 @@ import PublishExport from "./PublishExport"
 import {IChannelButtonInfo} from "@sequentech/ui-core"
 
 const PublishGenerateStyled = {
-    Container: styled.div`
+    Container: styled("div")`
         display: flex;
         flex-direction: column;
         gap: 32px;
         margin-top: -12px;
     `,
-    TitleWrapper: styled.div`
+    TitleWrapper: styled("div")`
         display: flex;
         flex-direction: row;
         justify-content: space-between;
     `,
-    AccordionHeaderTitle: styled.span`
+    AccordionHeaderTitle: styled("span")`
         font-family: Roboto;
         font-size: 24px;
         font-weight: 700;
@@ -40,13 +38,13 @@ const PublishGenerateStyled = {
         letter-spacing: 0px;
         text-align: left;
     `,
-    Loading: styled.div`
+    Loading: styled("div")`
         display: flex;
         height: 60vh;
         justify-content: center;
         align-items: center;
     `,
-    Bottom: styled.div`
+    Bottom: styled("div")`
         position: sticky;
         bottom: 0;
         display: flex;
@@ -166,7 +164,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         {showPublishButtonBack ? (
                             <Button
                                 onClick={onBack}
-                                label={t("publish.action.back")}
+                                label={String(t("publish.action.back"))}
                                 className="publish-back-button"
                                 style={{
                                     backgroundColor: "#eee",
@@ -183,7 +181,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         {showPublishPreview && showPublishView ? (
                             <Button
                                 onClick={onPreviewClick}
-                                label={t("publish.preview.action")}
+                                label={String(t("publish.preview.action"))}
                                 className="publish-preview-button"
                             >
                                 <Preview />
@@ -193,7 +191,7 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         {!readOnly && canWritePublish && (
                             <Button
                                 onClick={onPublish}
-                                label={t("publish.action.publish")}
+                                label={String(t("publish.action.publish"))}
                                 className="publish-publish-button"
                                 style={{
                                     color: "#fff",

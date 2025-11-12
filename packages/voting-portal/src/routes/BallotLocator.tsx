@@ -21,7 +21,7 @@ import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
-import {useQuery, useMutation} from "@apollo/client"
+import {useQuery, useMutation} from "@apollo/client/react"
 import {
     GetBallotStylesQuery,
     GetCastVoteQuery,

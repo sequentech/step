@@ -9,46 +9,46 @@ import {
     AutocompleteInput,
     AutocompleteArrayInput,
 } from "react-admin"
-import {styled as muiStyled} from "@mui/material/styles"
+import {styled} from "@mui/material/styles"
 import {FormControlLabel, Typography, Box, CircularProgress} from "@mui/material"
 import {Accordion, Select, TextField} from "@mui/material"
 
 export const FormStyles = {
-    TextInput: muiStyled(TextInput)`
+    TextInput: styled(TextInput)`
         input {
-            padding: 16.50px 14px;
+            padding: 16.5px 14px;
         }
-        
+
         label:not(.MuiInputLabel-shrink) {
             top: 8px;
         }
     `,
-    TextField: muiStyled(TextField)`
+    TextField: styled(TextField)`
         input {
-            padding: 16.50px 14px;
+            padding: 16.5px 14px;
         }
     `,
-    PasswordInput: muiStyled(PasswordInput)`
+    PasswordInput: styled(PasswordInput)`
         input {
-            padding: 16.50px 14px;
+            padding: 16.5px 14px;
         }
     `,
-    StatusBox: muiStyled(Box)`
+    StatusBox: styled(Box)`
         min-height: 50px;
     `,
-    ErrorMessage: muiStyled(Typography)`
+    ErrorMessage: styled(Typography)`
         color: ${({theme}) => theme.palette.errorColor};
     `,
-    ShowProgress: muiStyled(CircularProgress)`
+    ShowProgress: styled(CircularProgress)`
         text-align: center;
     `,
-    ReservedProgressSpace: muiStyled(Box)`
+    ReservedProgressSpace: styled(Box)`
         min-height: 45px;
     `,
-    CheckboxControlLabel: muiStyled(FormControlLabel)`
+    CheckboxControlLabel: styled(FormControlLabel)`
         padding-bottom: 2em !important;
     `,
-    AccordionExpanded: muiStyled(Accordion)`
+    AccordionExpanded: styled(Accordion)`
         margin-top: 1em;
         width: 100%;
 
@@ -64,15 +64,15 @@ export const FormStyles = {
             display: none;
         }
     `,
-    Select: muiStyled(Select)`
+    Select: styled(Select)`
         width: 100%;
     `,
-    DateInput: muiStyled(DateInput)`
+    DateInput: styled(DateInput)`
         input {
-            padding: 16.50px 14px;
+            padding: 16.5px 14px;
         }
     `,
-    AutocompleteInput: muiStyled(AutocompleteInput)`
+    AutocompleteInput: styled(AutocompleteInput)`
         input {
             padding: 10.5px 14px !important;
         }
@@ -80,7 +80,7 @@ export const FormStyles = {
             top: 8px;
         }
     `,
-    AutocompleteArrayInput: muiStyled(AutocompleteArrayInput)`
+    AutocompleteArrayInput: styled(AutocompleteArrayInput)`
         fieldset {
             border-color: ${({theme}) => theme.palette.grey[400]} !important;
         }
