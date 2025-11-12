@@ -78,7 +78,9 @@ export const Answer: React.FC<IAnswerProps> = ({
     setExplicitBlank,
     setIsTouched,
 }) => {
-    const isPreferentialVote = contest.counting_algorithm == ICountingAlgorithm.INSTANT_RUNOFF // TODO: WASM function is_preferencial()
+    const isPreferentialVote = contest.counting_algorithm == ICountingAlgorithm.INSTANT_RUNOFF
+    // TODO: WASM function wich calls is_preferencial()
+    // WASM function that calls to check the validity of a vote, no gaps
     const totalCandidates = contest.candidates.length
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)

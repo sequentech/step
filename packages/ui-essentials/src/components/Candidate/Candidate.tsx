@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, MenuItem, Select, TextField, Typography} from "@mui/material"
+import {Box, FormControl, InputLabel, MenuItem, Select, TextField, Typography} from "@mui/material"
 import React, {PropsWithChildren, ReactNode} from "react"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
@@ -110,6 +110,8 @@ export interface CandidateProps extends PropsWithChildren {
     className?: string
     isPreferentialVote?: boolean
     totalCandidates?: number
+    selectedPosition?: number | null
+    setSelectedPosition?: (value: number | null) => void
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -132,6 +134,8 @@ const Candidate: React.FC<CandidateProps> = ({
     className,
     isPreferentialVote = false,
     totalCandidates = 0,
+    selectedPosition,
+    setSelectedPosition,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
@@ -157,8 +161,10 @@ const Candidate: React.FC<CandidateProps> = ({
 
     const handlePositionChange = (event: any) => {
         event.stopPropagation()
-        // For preferential voting, we'll need to handle position selection
-        // The parent component should handle this through a callback
+        if (setSelectedPosition) {
+            const value = event.target.value
+            setSelectedPosition(value === "" ? null : value)
+        }
     }
 
     const getOrdinalSuffix = (num: number): string => {
@@ -167,6 +173,8 @@ const Candidate: React.FC<CandidateProps> = ({
         if (num === 3) return "3rd"
         return `${num}th`
     }
+    console.log("selectedPosition", selectedPosition)
+    console.log("isActive", isActive)
 
     return (
         <BorderBox
@@ -229,21 +237,24 @@ const Candidate: React.FC<CandidateProps> = ({
                 isPreferentialVote ? (
                     <Select
                         displayEmpty
-                        value={index || ""}
+                        value={selectedPosition ?? ""}
                         onChange={handlePositionChange}
                         disabled={shouldDisable}
                         renderValue={(value) => {
-                            if (value === null || value === undefined) {
-                                return "Position"
+                            console.log(value)
+                            if (typeof value === "number") {
+                                return getOrdinalSuffix(value)
                             }
-                            return String(value)
+                            return "Position"
                         }}
                         sx={{minWidth: 120}}
                         className="candidate-position-select"
                     >
-                        <MenuItem value="">None</MenuItem>
+                        <MenuItem value="">
+                            <em>None</em>
+                        </MenuItem>
                         {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (
-                            <MenuItem key={num} value={getOrdinalSuffix(num)}>
+                            <MenuItem key={num} value={num}>
                                 {getOrdinalSuffix(num)}
                             </MenuItem>
                         ))}
