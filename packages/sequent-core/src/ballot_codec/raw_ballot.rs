@@ -378,6 +378,41 @@ impl RawBallotCodec for Contest {
         );
         decoded_contest.update(blank_vote_check);
 
+        if self.get_counting_algorithm().is_preferential() {
+            match decoded_contest.validate_preferencial_order() {
+                Ok(()) => {}
+                Err(error) => match error {
+                    PreferencialOrderErrorType::PreferenceOrderWithGaps => {
+                        decoded_contest.invalid_errors.push(
+                            InvalidPlaintextError {
+                                error_type:
+                                    InvalidPlaintextErrorType::EncodingError,
+                                candidate_id: None,
+                                message: Some(
+                                    "errors.encoding.preferenceOrderWithGaps"
+                                        .to_string(),
+                                ),
+                                message_map: HashMap::new(),
+                            },
+                        );
+                    }
+                    PreferencialOrderErrorType::DuplicatedPosition => {
+                        decoded_contest.invalid_errors.push(
+                            InvalidPlaintextError {
+                                error_type: InvalidPlaintextErrorType::Implicit,
+                                candidate_id: None,
+                                message: Some(
+                                    "errors.encoding.duplicatedPosition"
+                                        .to_string(),
+                                ),
+                                message_map: HashMap::new(),
+                            },
+                        );
+                    }
+                },
+            }
+        }
+
         Ok(decoded_contest)
     }
 }

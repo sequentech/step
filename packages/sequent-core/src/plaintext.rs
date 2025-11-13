@@ -12,6 +12,7 @@ use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use strand::context::Ctx;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -19,6 +20,12 @@ pub enum InvalidPlaintextErrorType {
     Explicit,
     Implicit,
     EncodingError,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub enum PreferencialOrderErrorType {
+    PreferenceOrderWithGaps,
+    DuplicatedPosition,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -51,21 +58,38 @@ impl DecodedVoteContest {
                 .all(|choice| choice.selected < 0)
     }
 
-    /// Check that there are no gaps in the preferencial order
-    /// Retuns true if the order is valid
-    pub fn validate_preferencial_order(&self) -> bool {
+    /// Check that there are preferencial order errors
+    /// Returns Ok if the order is valid
+    pub fn validate_preferencial_order(
+        &self,
+    ) -> Result<(), PreferencialOrderErrorType> {
         let mut valid_choices: Vec<DecodedVoteChoice> = self
             .choices
             .iter()
             .filter(|choice| choice.selected >= 0)
             .cloned()
             .collect();
+
         valid_choices.sort_by(|a, b| a.selected.cmp(&b.selected));
         let valid_choices_order: Vec<i64> =
             valid_choices.iter().map(|choice| choice.selected).collect();
+
+        // After removing the invalids we check that there are no duplicates in
+        // the preference order
+        let valid_choices_unique_set =
+            valid_choices_order.iter().collect::<HashSet<_>>();
+        if valid_choices_order.len() != valid_choices_unique_set.len() {
+            return Err(PreferencialOrderErrorType::DuplicatedPosition);
+        }
+
+        // If there are no duplicates and the set has the same length, the only
+        // thing left to check is that there are no gaps
         let expected_order: Vec<i64> =
             (0..valid_choices_order.len() as i64).collect();
-        valid_choices_order == expected_order
+        if valid_choices_order != expected_order {
+            return Err(PreferencialOrderErrorType::PreferenceOrderWithGaps);
+        }
+        Ok(())
     }
 }
 

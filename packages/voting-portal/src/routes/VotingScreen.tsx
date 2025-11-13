@@ -190,6 +190,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     disableNextButton,
 }) => {
     const dispatch = useAppDispatch()
+    const submit = useSubmit()
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
@@ -217,6 +218,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             }
         } catch (err) {
             console.log("error", err)
+            submit({error: VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT}, {method: "post"})
         }
         return selectionState
     }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
