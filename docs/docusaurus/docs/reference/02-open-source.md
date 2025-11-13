@@ -1,5 +1,5 @@
 ---
-id: open source
+id: open_source
 title: Open Source
 ---
 <!--
