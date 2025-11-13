@@ -249,6 +249,7 @@ impl StrandSignatureSk {
         Self::from_der(&bytes)
     }
 
+    /*
     /// Returns a pkcs#10 csr der representation.
     pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
         let cert_sk_der = self.to_der()?;
@@ -292,7 +293,7 @@ impl StrandSignatureSk {
         let der = csr.serialize_der_with_signer(&self_ca)?;
 
         Ok(der)
-    }
+    } */
 }
 
 impl PartialEq for StrandSignaturePk {
@@ -615,6 +616,7 @@ pub(crate) mod tests {
         assert!(ok.is_ok());
     }
 
+    /*
     #[test]
     fn test_gen_sign_x509() {
         // Get CA certificate
@@ -642,7 +644,7 @@ pub(crate) mod tests {
         let not_ok = StrandSignaturePk::verify_x509_der(&der, None);
 
         assert!(!not_ok.is_ok());
-    }
+    }*/
 }
 
 pub fn info() -> String {
