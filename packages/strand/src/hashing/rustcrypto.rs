@@ -12,7 +12,7 @@ use sha2::Sha256;
 use sha2::Sha512;
 use sha3::Shake256;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 use std::path::PathBuf;
 
 use crate::util::StrandError;

@@ -40,6 +40,9 @@ use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
+use rcgen::CertificateSigningRequestParams;
+use rustls_pki_types::CertificateSigningRequestDer;
+use rustls_pki_types::PrivatePkcs8KeyDer;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
@@ -249,51 +252,69 @@ impl StrandSignatureSk {
         Self::from_der(&bytes)
     }
 
-    /*
     /// Returns a pkcs#10 csr der representation.
-    pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
+    pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {        
         let cert_sk_der = self.to_der()?;
+        let der_sk = PrivatePkcs8KeyDer::from(cert_sk_der);
+        let der_sk = rustls_pki_types::PrivateKeyDer::Pkcs8(der_sk);
+
         let cert_kp = rcgen::KeyPair::from_der_and_sign_algo(
-            &cert_sk_der,
+            // &cert_sk_der,
+            &der_sk,
             &rcgen::PKCS_ED25519,
         )?;
         let mut cert_params = rcgen::CertificateParams::default();
-        cert_params.alg = &rcgen::PKCS_ED25519;
-        cert_params.key_pair = Some(cert_kp);
+        let dname =  rcgen::string::PrintableString::try_from(name)?;
         let mut dn = rcgen::DistinguishedName::new();
         dn.push(
             rcgen::DnType::CommonName,
-            rcgen::DnValue::PrintableString(name),
+            rcgen::DnValue::PrintableString(dname),
         );
         cert_params.distinguished_name = dn;
+        let csr = cert_params.serialize_request(&cert_kp)?;
+        let der = csr.der();
+        let der_bytes: Vec<u8> = der.to_vec();
 
-        let cert = rcgen::Certificate::from_params(cert_params)?;
-        let csr_der = cert.serialize_request_der()?;
-
-        Ok(csr_der)
+        Ok(der_bytes)
     }
 
     /// Signs a certificate csr and returns a x509 der representation.
     pub fn sign_csr(
         &self,
         self_der: &[u8],
+        name: String,
         csr_der: &[u8],
     ) -> Result<Vec<u8>, StrandError> {
-        let sk_der = self.to_der()?;
-        let self_kp = rcgen::KeyPair::from_der(&sk_der)?;
-        let self_params =
-            rcgen::CertificateParams::from_ca_cert_der(&self_der, self_kp)?;
-        let self_ca = rcgen::Certificate::from_params(self_params)?;
+        println!("Signing CSR...");
+        
+        let self_sk = PrivatePkcs8KeyDer::from(self_der);
+        println!("Self SK loaded");
+        let self_sk = rustls_pki_types::PrivateKeyDer::Pkcs8(self_sk);
+        print!("Self SK parsed...");
+        let self_kp = rcgen::KeyPair::from_der_and_sign_algo(
+            &self_sk,
+            &rcgen::PKCS_ED25519,
+        ).unwrap();
+        print!("Self KP parsed...");
+        
+        let mut self_params = rcgen::CertificateParams::default();
+        let dname =  rcgen::string::PrintableString::try_from(name)?;
+        let mut dn = rcgen::DistinguishedName::new();
+        dn.push(
+            rcgen::DnType::CommonName,
+            rcgen::DnValue::PrintableString(dname),
+        );
+        self_params.distinguished_name = dn;
 
-        let csr = rcgen::CertificateSigningRequest::from_der(&csr_der)?;
-        /* csr.params.serial_number = Some(5555.into());
-        let now = OffsetDateTime::now_utc();
-        csr.params.not_before = now;
-        csr.params.not_after = now.checked_add(Duration::days(30))?;*/
-        let der = csr.serialize_der_with_signer(&self_ca)?;
+        let self_issuer = rcgen::Issuer::from_params(&self_params, self_kp);
 
-        Ok(der)
-    } */
+        let csr_der = CertificateSigningRequestDer::from(csr_der);
+        let csr = CertificateSigningRequestParams::from_der(&csr_der)?;
+        let signed = csr.signed_by(&self_issuer)?;
+        let signed_der = signed.der();
+
+        Ok(signed_der.to_vec())
+    }
 }
 
 impl PartialEq for StrandSignaturePk {
@@ -630,7 +651,7 @@ pub(crate) mod tests {
         let cert_sk = StrandSignatureSk::gen().unwrap();
         let csr_der = cert_sk.csr_der("TEST".to_string()).unwrap();
         // Sign generated certificate with CA
-        let der = ca_sk.sign_csr(&ca_der, &csr_der).unwrap();
+        let der = ca_sk.sign_csr(&ca_der, "TEST".to_string(), &csr_der).unwrap();
 
         // Parse and validate the certificate we just generated with respect to
         // the CA pk

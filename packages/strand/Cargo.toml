@@ -50,6 +50,7 @@ p384 = "0.13"
 # certificates
 x509-parser = "0.17.0"
 rcgen = {version = "0.14.5", features = ["x509-parser"] }
+rustls-pki-types = "=1.13.0"
 
 # symmetric
 chacha20poly1305 = "0.10"
