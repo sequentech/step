@@ -1030,6 +1030,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         omit={listFields.omitFields}
                         isOpenSideBar={isOpenSidebar}
                         bulkActionButtons={<BulkActions />}
+                        rowClick={false}
                     >
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
                         <BooleanField
