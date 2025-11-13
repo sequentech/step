@@ -157,9 +157,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         ) 
     }
     const setChecked = (value: boolean) => {
-        console.log("setChecked value: ", value)
-
-        if (!isActive || isReview) {
+        if (!isActive || isReview || isPreferentialVote) {
             return
         }
         setIsTouched(true)

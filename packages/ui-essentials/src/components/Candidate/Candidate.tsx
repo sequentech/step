@@ -235,12 +235,11 @@ const Candidate: React.FC<CandidateProps> = ({
                 isPreferentialVote ? (
                     <Select
                         displayEmpty
-                        value={selectedPosition ?? ""}
+                        value={selectedPosition ?? 0}
                         onChange={handlePositionChange}
                         disabled={shouldDisable}
                         renderValue={(value) => {
-                            console.log(value)
-                            if (typeof value === "number") {
+                            if (typeof value === "number" && value > 0) {
                                 return getOrdinalSuffix(value)
                             }
                             return "Position"
@@ -248,7 +247,7 @@ const Candidate: React.FC<CandidateProps> = ({
                         sx={{minWidth: 120}}
                         className="candidate-position-select"
                     >
-                        <MenuItem value="">
+                        <MenuItem value={0}>
                             <em>None</em>
                         </MenuItem>
                         {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (

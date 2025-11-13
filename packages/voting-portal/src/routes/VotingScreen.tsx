@@ -18,6 +18,7 @@ import {
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
+    BallotSelection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -207,10 +208,17 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             return []
         }
         console.log("ballotSelectionState", ballotSelectionState)
-        let err = isMultiContest
-            ? interpretMultiContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
-            : interpretContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
-        return err
+        let selectionState: BallotSelection = []
+        try {
+            if (isMultiContest) {
+                selectionState = interpretMultiContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+            } else {
+                selectionState = interpretContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+            }
+        } catch (err) {
+            console.log("error", err)
+        }
+        return selectionState
     }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
 
     const handleNext = () => {
