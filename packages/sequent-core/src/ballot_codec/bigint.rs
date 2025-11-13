@@ -113,7 +113,8 @@ impl BigUIntCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String> {
-        if !plaintext.validate_preferencial_order(self.get_counting_algorithm())
+        if self.get_counting_algorithm().is_preferential()
+            && !plaintext.validate_preferencial_order()
         {
             return Err("Invalid preferential order".to_string());
         }

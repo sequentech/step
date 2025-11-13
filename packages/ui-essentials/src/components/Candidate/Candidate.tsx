@@ -111,7 +111,7 @@ export interface CandidateProps extends PropsWithChildren {
     isPreferentialVote?: boolean
     totalCandidates?: number
     selectedPosition?: number | null
-    setSelectedPosition?: (value: number | null) => void
+    handlePreferentialChange?: (value: number | null) => void
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -135,7 +135,7 @@ const Candidate: React.FC<CandidateProps> = ({
     isPreferentialVote = false,
     totalCandidates = 0,
     selectedPosition,
-    setSelectedPosition,
+    handlePreferentialChange,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
@@ -161,9 +161,9 @@ const Candidate: React.FC<CandidateProps> = ({
 
     const handlePositionChange = (event: any) => {
         event.stopPropagation()
-        if (setSelectedPosition) {
+        if (handlePreferentialChange) {
             const value = event.target.value
-            setSelectedPosition(value === "" ? null : value)
+            handlePreferentialChange(value === "" ? null : value)
         }
     }
 
@@ -173,8 +173,6 @@ const Candidate: React.FC<CandidateProps> = ({
         if (num === 3) return "3rd"
         return `${num}th`
     }
-    console.log("selectedPosition", selectedPosition)
-    console.log("isActive", isActive)
 
     return (
         <BorderBox

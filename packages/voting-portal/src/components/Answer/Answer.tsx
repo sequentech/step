@@ -82,6 +82,8 @@ export const Answer: React.FC<IAnswerProps> = ({
     // TODO: WASM function wich calls is_preferencial()
     // WASM function that calls to check the validity of a vote, no gaps
     const totalCandidates = contest.candidates.length
+    const [selectedPosition, setSelectedPosition] = useState<number | null>(null)
+
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
     )
@@ -132,7 +134,31 @@ export const Answer: React.FC<IAnswerProps> = ({
             })
         )
     }
+    
+    const handlePreferentialChange = (position: number | null ) => {
+        if (!isActive || isReview) {
+            return
+        }
+        setIsTouched(true)
+        setSelectedPosition(position)
+        let cleanedText =
+            selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
+        console.log("position: ", position)
+        dispatch(
+            setBallotSelectionVoteChoice({
+                ballotStyle,
+                contestId,
+                voteChoice: {
+                    id: answer.id,
+                    selected: position ? (position - 1) : -1,
+                    write_in_text: cleanedText,
+                },
+            })
+        ) 
+    }
     const setChecked = (value: boolean) => {
+        console.log("setChecked value: ", value)
+
         if (!isActive || isReview) {
             return
         }
@@ -166,15 +192,13 @@ export const Answer: React.FC<IAnswerProps> = ({
             )
         }
 
-        console.log("selectedChoicesSum: ", selectedChoicesSum)
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
                 contestId,
                 voteChoice: {
                     id: answer.id,
-                    // selected: value ? 0 : -1,
-                    selected: value ? selectedChoicesSum : -1, // TODO: This is a hack to test IRV
+                    selected: value ? 0 : -1,
                     write_in_text: cleanedText,
                 },
             })
@@ -231,6 +255,8 @@ export const Answer: React.FC<IAnswerProps> = ({
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
             shouldDisable={shouldDisable}
             iconCheckboxPolicy={iconCheckboxPolicy}
+            selectedPosition={selectedPosition}
+            handlePreferentialChange={handlePreferentialChange}
         >
             {imageUrl ? (
                 <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
