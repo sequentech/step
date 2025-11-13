@@ -591,6 +591,118 @@ mod tests {
 
     #[cfg(not(feature = "wasm"))]
     #[test]
+    pub(crate) fn test_shuffle_rng() {
+        use std::time::Instant;
+        use rand_chacha::{ChaCha12Rng, rand_core::SeedableRng};
+
+        use crate::shuffler::Shuffler;
+        
+        let ctx = &RistrettoCtx;
+        let mut csprng = ctx.get_rng();
+
+        let mut ps = vec![];
+        for _ in 0..10000 {
+            let mut fill = [0u8; 30];
+            csprng.fill_bytes(&mut fill);
+            let p = to_plaintext_array(&fill.to_vec());
+            ps.push(p);
+        }        
+        
+        let sk = PrivateKey::gen(ctx);
+        let pk = sk.get_pk();
+        println!("Computing ciphertexts..");
+        let es = ps.iter()
+            .map(|p| {
+                let encoded = ctx.encode(p).unwrap();
+                pk.encrypt(&encoded)
+            })
+            .collect::<Vec<_>>();
+        
+        let seed = vec![];
+        let now = Instant::now(); println!("* generators..");
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+        println!("* generators {}", now.elapsed().as_millis());
+        let shuffler = Shuffler {
+            pk: &pk,
+            ctx: (*ctx).clone(),
+        };
+
+        let beg = Instant::now();
+
+        let rng_seed = [0u8; 32];
+        let mut rng = ChaCha12Rng::from_seed(rng_seed);
+        
+        // let mut rng = ctx.get_rng();
+
+        let now = Instant::now(); println!("* gen shuffle..");
+        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_rng(&es, &mut rng);
+        println!("* gen shuffle {}", now.elapsed().as_millis());
+        let now = Instant::now();println!("* gen proof..");
+        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        println!("* gen proof {}", now.elapsed().as_millis());
+        let now = Instant::now(); println!("* check proof..");
+        let ok = shuffler.check_proof(&proof, es.clone(), e_primes.clone(), hs, &[]).unwrap();
+        assert!(ok);
+        println!("* check proof {}", now.elapsed().as_millis());
+
+        println!("All shuffle {}", beg.elapsed().as_millis());
+
+        let ds = e_primes.iter()
+            .map(|c| {
+                let decrypted = sk.decrypt(c);
+                ctx.decode(&decrypted)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(ds.len(), ps.len());
+        for d in &ds {
+            assert!(ps.contains(d));
+        }
+
+        let seed = vec![];
+        let now = Instant::now(); println!("* generators..");
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+        println!("* generators {}", now.elapsed().as_millis());
+        let shuffler = Shuffler {
+            pk: &pk,
+            ctx: (*ctx).clone(),
+        };
+
+        let beg = Instant::now();
+        let rng_seed = [0u8; 32];
+        let mut rng = ChaCha12Rng::from_seed(rng_seed);
+
+        let now = Instant::now(); println!("* gen shuffle..");
+        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_rng(&es, &mut rng);
+        println!("* gen shuffle {}", now.elapsed().as_millis());
+        let now = Instant::now();println!("* gen proof..");
+        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        println!("* gen proof {}", now.elapsed().as_millis());
+        let now = Instant::now(); println!("* check proof..");
+        let ok = shuffler.check_proof(&proof, es, e_primes.clone(), hs, &[]).unwrap();
+        println!("* check proof {}", now.elapsed().as_millis());
+
+        println!("All shuffle {}", beg.elapsed().as_millis());
+
+        let ds2 = e_primes.iter()
+            .map(|c| {
+                let decrypted = sk.decrypt(c);
+                ctx.decode(&decrypted)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(ds2.len(), ps.len());
+        for d in &ds2 {
+            assert!(ps.contains(d));
+        }
+
+        assert_eq!(ds, ds2);
+
+        assert!(ok);
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    #[test]
     fn test_product_shuffle() {
         let ctx = RistrettoCtx;
         test_product_shuffle_generic(&ctx);

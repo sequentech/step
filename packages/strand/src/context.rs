@@ -40,6 +40,7 @@
 //! ```
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use rand::{CryptoRng, RngCore};
 // use crate::zkp::Zkp;
 use crate::{
     elgamal::{PrivateKey, PublicKey},
@@ -69,7 +70,7 @@ pub trait Ctx:
     /// The type of plaintexts.
     type P: Plaintext;
     /// The random number generator type associated to this backend.
-    type R: Send + Sync;
+    type R: Send + Sync + RngCore + CryptoRng;
 
     /// Returns the generator of group (or basepoint).
     fn generator(&self) -> &Self::E;
