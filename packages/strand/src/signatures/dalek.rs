@@ -253,7 +253,7 @@ impl StrandSignatureSk {
     }
 
     /// Returns a pkcs#10 csr der representation.
-    pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {        
+    pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
         let cert_sk_der = self.to_der()?;
         let der_sk = PrivatePkcs8KeyDer::from(cert_sk_der);
         let der_sk = rustls_pki_types::PrivateKeyDer::Pkcs8(der_sk);
@@ -264,7 +264,7 @@ impl StrandSignatureSk {
             &rcgen::PKCS_ED25519,
         )?;
         let mut cert_params = rcgen::CertificateParams::default();
-        let dname =  rcgen::string::PrintableString::try_from(name)?;
+        let dname = rcgen::string::PrintableString::try_from(name)?;
         let mut dn = rcgen::DistinguishedName::new();
         dn.push(
             rcgen::DnType::CommonName,
@@ -286,7 +286,7 @@ impl StrandSignatureSk {
         csr_der: &[u8],
     ) -> Result<Vec<u8>, StrandError> {
         println!("Signing CSR...");
-        
+
         let self_sk = PrivatePkcs8KeyDer::from(self_der);
         println!("Self SK loaded");
         let self_sk = rustls_pki_types::PrivateKeyDer::Pkcs8(self_sk);
@@ -294,11 +294,12 @@ impl StrandSignatureSk {
         let self_kp = rcgen::KeyPair::from_der_and_sign_algo(
             &self_sk,
             &rcgen::PKCS_ED25519,
-        ).unwrap();
+        )
+        .unwrap();
         print!("Self KP parsed...");
-        
+
         let mut self_params = rcgen::CertificateParams::default();
-        let dname =  rcgen::string::PrintableString::try_from(name)?;
+        let dname = rcgen::string::PrintableString::try_from(name)?;
         let mut dn = rcgen::DistinguishedName::new();
         dn.push(
             rcgen::DnType::CommonName,
@@ -306,7 +307,7 @@ impl StrandSignatureSk {
         );
         self_params.distinguished_name = dn;
 
-        let self_issuer = rcgen::Issuer::from_params(&self_params, self_kp);
+        let self_issuer = rcgen::Issuer::from_params(&self_params, &self_kp);
 
         let csr_der = CertificateSigningRequestDer::from(csr_der);
         let csr = CertificateSigningRequestParams::from_der(&csr_der)?;
@@ -651,7 +652,9 @@ pub(crate) mod tests {
         let cert_sk = StrandSignatureSk::gen().unwrap();
         let csr_der = cert_sk.csr_der("TEST".to_string()).unwrap();
         // Sign generated certificate with CA
-        let der = ca_sk.sign_csr(&ca_der, "TEST".to_string(), &csr_der).unwrap();
+        let der = ca_sk
+            .sign_csr(&ca_der, "TEST".to_string(), &csr_der)
+            .unwrap();
 
         // Parse and validate the certificate we just generated with respect to
         // the CA pk
