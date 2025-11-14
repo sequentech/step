@@ -28,6 +28,12 @@ const frenchTranslation: TranslationType = {
             preferential: {
                 position: "Position",
                 none: "Aucune",
+                ordinals: {
+                    first: "er",
+                    second: "e",
+                    third: "e",
+                    other: "e",
+                },
             },
         },
         homeScreen: {

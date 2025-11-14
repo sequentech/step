@@ -28,6 +28,12 @@ const dutchTranslation: TranslationType = {
             preferential: {
                 position: "Positie",
                 none: "Geen",
+                ordinals: {
+                    first: "e",
+                    second: "e",
+                    third: "e",
+                    other: "e",
+                },
             },
         },
         homeScreen: {

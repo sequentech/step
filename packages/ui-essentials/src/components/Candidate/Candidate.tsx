@@ -168,10 +168,10 @@ const Candidate: React.FC<CandidateProps> = ({
     }
 
     const getOrdinalSuffix = (num: number): string => {
-        if (num === 1) return "1st"
-        if (num === 2) return "2nd"
-        if (num === 3) return "3rd"
-        return `${num}th`
+        if (num === 1) return `${num}${t("candidate.preferential.ordinals.first")}`
+        if (num === 2) return `${num}${t("candidate.preferential.ordinals.second")}`
+        if (num === 3) return `${num}${t("candidate.preferential.ordinals.third")}`
+        return `${num}${t("candidate.preferential.ordinals.other")}`
     }
 
     return (

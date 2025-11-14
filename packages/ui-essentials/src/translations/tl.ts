@@ -28,6 +28,12 @@ const tagalogTranslation: TranslationType = {
             preferential: {
                 position: "Posisyon",
                 none: "Wala",
+                ordinals: {
+                    first: "st",
+                    second: "nd",
+                    third: "rd",
+                    other: "th",
+                },
             },
         },
         homeScreen: {

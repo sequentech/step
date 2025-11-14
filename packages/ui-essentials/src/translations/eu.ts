@@ -27,6 +27,12 @@ const basqueTranslation = {
             preferential: {
                 position: "Posizioa",
                 none: "Bat ere ez",
+                ordinals: {
+                    first: ".",
+                    second: ".",
+                    third: ".",
+                    other: ".",
+                },
             },
         },
         homeScreen: {

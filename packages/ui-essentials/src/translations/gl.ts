@@ -27,6 +27,12 @@ const galegoTranslation = {
             preferential: {
                 position: "Posición",
                 none: "Ningún",
+                ordinals: {
+                    first: "º",
+                    second: "º",
+                    third: "º",
+                    other: "º",
+                },
             },
         },
         homeScreen: {

@@ -28,6 +28,12 @@ const catalanTranslation: TranslationType = {
             preferential: {
                 position: "Posició",
                 none: "Cap",
+                ordinals: {
+                    first: "º",
+                    second: "º",
+                    third: "º",
+                    other: "º",
+                },
             },
         },
         homeScreen: {

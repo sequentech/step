@@ -28,6 +28,12 @@ const spanishTranslation: TranslationType = {
             preferential: {
                 position: "Posición",
                 none: "Ninguna",
+                ordinals: {
+                    first: "º",
+                    second: "º",
+                    third: "º",
+                    other: "º",
+                },
             },
         },
         homeScreen: {
