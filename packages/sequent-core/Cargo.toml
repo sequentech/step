@@ -146,3 +146,6 @@ lambda_openwhisk = []
 lambda_aws_lambda = []
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }

@@ -48,8 +48,8 @@ ecdsa = {version = "0.16", features = ["signing"] }
 p384 = "0.13"
 
 # certificates
-x509-parser = "0.17.0"
-rcgen = {version = "=0.14.3", features = ["x509-parser"] }
+x509-parser = "0.18.0"
+rcgen = {version = "0.14", features = ["x509-parser"] }
 rustls-pki-types = "=1.13.0"
 
 # symmetric
