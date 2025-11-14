@@ -120,7 +120,7 @@ impl StrandSignaturePk {
     /// Parses a spki der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignaturePk, StrandError> {
         let sk = VerifyingKey::from_public_key_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
 
         Ok(StrandSignaturePk(sk))
     }
@@ -230,7 +230,7 @@ impl StrandSignatureSk {
     /// Parses a pkcs#8 v1 or v2 der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignatureSk, StrandError> {
         let sk = SigningKey::from_pkcs8_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
 
         Ok(StrandSignatureSk(sk))
     }

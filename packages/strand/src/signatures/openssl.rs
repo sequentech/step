@@ -105,7 +105,7 @@ impl StrandSignaturePk {
 pub struct StrandSignatureSk(EcKey<Private>);
 impl StrandSignatureSk {
     /// Generates a key using randomness from rng::StrandRng.
-    pub fn gen() -> Result<StrandSignatureSk, StrandError> {
+    pub fn generate() -> Result<StrandSignatureSk, StrandError> {
         let group = EcGroup::from_curve_name(CURVE)?;
         let key = EcKey::<Private>::generate(&group)?;
 
@@ -287,7 +287,7 @@ pub(crate) mod tests {
         let msg2 = b"not_ok";
 
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let sk_b = sk.strand_serialize().unwrap();
             let sk_d = StrandSignatureSk::strand_deserialize(&sk_b).unwrap();
 
@@ -318,7 +318,7 @@ pub(crate) mod tests {
         let other_message = b"not_ok";
 
         let (public_key_string, signature_string) = {
-            let signing_key = StrandSignatureSk::gen().unwrap();
+            let signing_key = StrandSignatureSk::generate().unwrap();
             let signing_key_string: String = signing_key.try_into().unwrap();
             let signing_key_deserialized: StrandSignatureSk =
                 signing_key_string.try_into().unwrap();

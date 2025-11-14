@@ -64,6 +64,8 @@ pub enum StrandError {
     #[cfg(any(feature = "openssl_core", feature = "openssl_full"))]
     #[error("openssl error: {0}")]
     OpenSSLError(#[from] openssl::error::ErrorStack),
+    #[error("ed25519 error: {0}")]
+    Ed25519Error(#[from] ed25519_dalek::ed25519::Error)
 }
 
 /// Converts a slice into a hash-sized array.

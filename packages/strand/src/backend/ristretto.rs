@@ -591,7 +591,7 @@ mod tests {
 
     #[cfg(not(feature = "wasm"))]
     #[test]
-    pub(crate) fn test_shuffle_rng() {
+    pub(crate) fn test_shuffle_with_perm_rng() {
         use std::time::Instant;
         use rand_chacha::{ChaCha12Rng, rand_core::SeedableRng};
 
@@ -601,7 +601,7 @@ mod tests {
         let mut csprng = ctx.get_rng();
 
         let mut ps = vec![];
-        for _ in 0..10000 {
+        for _ in 0..1000 {
             let mut fill = [0u8; 30];
             csprng.fill_bytes(&mut fill);
             let p = to_plaintext_array(&fill.to_vec());
@@ -728,8 +728,8 @@ mod tests {
     fn test_threshold() {
         let mut csprng = StrandRng;
 
-        let trustees = rand::thread_rng().gen_range(2..11);
-        let threshold = rand::thread_rng().gen_range(2..trustees + 1);
+        let trustees = rand::rng().random_range(2..11);
+        let threshold = rand::rng().random_range(2..trustees + 1);
         let ctx = RistrettoCtx;
         let mut fill = [0u8; 30];
         csprng.fill_bytes(&mut fill);

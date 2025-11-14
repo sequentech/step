@@ -34,7 +34,7 @@ rustcrypto_interop_test = []
 
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
-curve25519-dalek = { version = "=4.1", features = [] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
+curve25519-dalek = { version = "=5.0.0-pre.1", features = ["precomputed-tables", "digest"] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = { version = "0.2", optional = true }
 num-integer = { version = "0.1", optional = true }
@@ -43,7 +43,7 @@ malachite = { version = "0.6", default-features = false, features = ["naturals_a
 rug = { version = "~1.23", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
-ed25519-dalek = { version = "=2.1", features = ["rand_core", "pkcs8"] }
+ed25519-dalek = { version = "=3.0.0-pre.1", features = ["rand_core", "pkcs8", "alloc"] }
 ecdsa = {version = "0.16", features = ["signing"] }
 p384 = "0.13"
 
@@ -52,13 +52,13 @@ x509-parser = "0.15.1"
 rcgen = {version = "0.11.3", features = ["x509-parser"] }
 
 # symmetric
-chacha20poly1305 = "0.10"
-generic-array = "=0.14"
+chacha20poly1305 = "=0.11.0-rc.2"
+hybrid-array = "0.4.5"
 
 # Hashing
-sha2 = "0.10"
+sha2 = "=0.11.0-rc.3"
 # Needed for extendable hashing function when deriving generators for ristretto
-sha3 = "0.10"
+sha3 = "=0.11.0-rc.3"
 
 # Serialization
 # borsh = "0.9.3"
@@ -66,10 +66,10 @@ borsh = { version = "1.5", features = ["derive"] }
 base64 = "0.22.1"
 
 # RNG
-rand = { package="rand", version = "=0.8" } # 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
+rand = { package="rand", version = "=0.9" } # Fixed: 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
 rand_core = { version = "0.9", optional = true }
 getrandom = { version = "=0.2", optional = true } # curve25519-dalek depends on digest v10.0 which is stuck at getrandom-0.2.15
-
+rand_chacha = "0.9"
 
 # WASM
 # Note: Using specific version of wasm-bindgen to match Nix version

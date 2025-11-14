@@ -31,12 +31,11 @@ use chacha20poly1305::{
     consts::{U12, U32},
     ChaCha20Poly1305,
 };
-use generic_array::GenericArray;
+use hybrid_array::Array;
 
-use crate::rng::StrandRng;
 use crate::util::StrandError;
 
-pub type SymmetricKey = GenericArray<u8, U32>;
+pub type SymmetricKey = Array<u8, U32>;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct EncryptionData {
@@ -46,7 +45,7 @@ pub struct EncryptionData {
 impl EncryptionData {
     pub fn new(
         encrypted_bytes: Vec<u8>,
-        nonce: GenericArray<u8, U12>,
+        nonce: Array<u8, U12>,
     ) -> EncryptionData {
         EncryptionData {
             encrypted_bytes,
@@ -55,20 +54,18 @@ impl EncryptionData {
     }
 }
 
-pub fn gen_key() -> GenericArray<u8, U32> {
-    let mut csprng = StrandRng;
-    let key = chacha20poly1305::ChaCha20Poly1305::generate_key(&mut csprng);
+pub fn gen_key() -> Array<u8, U32> {
+    let key = chacha20poly1305::ChaCha20Poly1305::generate_key().unwrap();
     key
 }
 pub fn encrypt(
-    key: GenericArray<u8, U32>,
+    key: Array<u8, U32>,
     data: &[u8],
 ) -> Result<EncryptionData, StrandError> {
-    let mut csprng = StrandRng;
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
     // 4,294,967,296 messages with random nonces can be encrypted under a given
     // key
-    let nonce = ChaCha20Poly1305::generate_nonce(&mut csprng);
+    let nonce = ChaCha20Poly1305::generate_nonce().unwrap();
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher
         .encrypt(&nonce, data)
@@ -81,7 +78,7 @@ pub fn encrypt(
 }
 
 pub fn decrypt(
-    key: &GenericArray<u8, U32>,
+    key: &Array<u8, U32>,
     ed: &EncryptionData,
 ) -> Result<Vec<u8>, StrandError> {
     let cipher = ChaCha20Poly1305::new(&key);
@@ -94,14 +91,15 @@ pub fn decrypt(
 }
 
 pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, StrandError> {
-    let key = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
+    let key = Array::<u8, U32>::try_from(bytes).to_owned();
 
-    Ok(key)
+    Ok(key.unwrap())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rng::StrandRng;
     use rand::RngCore;
 
     #[test]
