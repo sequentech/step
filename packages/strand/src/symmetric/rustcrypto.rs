@@ -93,7 +93,7 @@ pub fn decrypt(
 pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, StrandError> {
     let key = Array::<u8, U32>::try_from(bytes).to_owned();
 
-    Ok(key.expect("Fixme"))
+    key.map_err(|e| StrandError::InvalidSymmetricKeyLength(e.to_string()))
 }
 
 #[cfg(test)]
