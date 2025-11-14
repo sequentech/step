@@ -227,8 +227,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
         const selectedReceipt = receipts?.filter(
             (receipt) =>
-                receipt.communication_method === selectedMethod &&
-                receipt.template.alias === value
+                receipt.communication_method === selectedMethod && receipt.template.alias === value
         )
 
         if (selectedReceipt && selectedReceipt.length > 0) {

@@ -41,7 +41,7 @@ use std::path::PathBuf;
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
-use velvet::config::vote_receipt::PipeConfigVoteReceipts;
+use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
 
@@ -72,7 +72,7 @@ async fn create_config(
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
-    let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
+    let ballot_images_pipe_config: PipeConfigBallotImages = build_ballot_images_pipe_config(
         &tally_session,
         &hasura_transaction,
         minio_endpoint_base.clone(),

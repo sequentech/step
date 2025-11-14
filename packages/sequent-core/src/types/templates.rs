@@ -174,12 +174,3 @@ pub struct ReportOptions {
     pub max_items_per_report: Option<usize>,
     pub max_threads: Option<usize>,
 }
-
-#[allow(non_camel_case_types)]
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
-)]
-pub enum VoteReceiptPipeType {
-    #[strum(serialize = "BALLOT_IMAGES")]
-    BALLOT_IMAGES,
-}

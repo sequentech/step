@@ -23,8 +23,7 @@ pub const ELECTORAL_RESULTS_FILE_NAME: &str = "ELECTORAL_RESULTS";
 
 #[instrument(err, skip_all)]
 pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
-    if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME)
-        || file_name.contains(BALLOT_IMAGES_FILE_NAME)
+    if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME) || file_name.contains(BALLOT_IMAGES_FILE_NAME)
     {
         Ok(Some(ReportType::BALLOT_IMAGES))
     } else if file_name.contains(INITIALIZATION_REPORT_FILE_NAME) {

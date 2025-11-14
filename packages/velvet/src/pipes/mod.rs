@@ -7,12 +7,12 @@ pub mod pipe_inputs;
 pub mod pipe_name;
 
 // Pipes
+pub mod ballot_images;
 pub mod decode_ballots;
 pub mod do_tally;
 pub mod generate_db;
 pub mod generate_reports;
 pub mod mark_winners;
-pub mod vote_receipts;
 
 mod pipes;
 pub use pipes::*;

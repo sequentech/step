@@ -431,4 +431,3 @@ pub async fn encrypt_report_route(
 
     Ok(Json(output))
 }
-

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::config::vote_receipt::{PipeConfigVoteReceipts, DEFAULT_MCBALLOT_TITLE};
+use crate::config::ballot_images_config::{PipeConfigBallotImages, DEFAULT_MCBALLOT_TITLE};
 use crate::pipes::decode_ballots::decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
@@ -20,7 +20,6 @@ use sequent_core::services::{pdf, reports};
 use sequent_core::signatures::ecies_encrypt::ecies_sign_data_bulk;
 use sequent_core::signatures::ecies_encrypt::SignRequest;
 use sequent_core::temp_path::generate_temp_file;
-use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::Serialize;
 use serde_json::Map;
@@ -36,11 +35,11 @@ use tracing::{info, instrument};
 
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
 
-pub struct MCBallotReceipts {
+pub struct MCBallotImages {
     pub pipe_inputs: PipeInputs,
 }
 
-pub struct VoteReceiptsPipeData {
+pub struct BallotImagesPipeData {
     pub output_file: String,
     pub pipe_name: String,
     pub pipe_name_output_dir: String,
@@ -131,19 +130,19 @@ fn sort_candidates(candidates: &mut Vec<DecodedChoice>, order_field: CandidatesO
     }
 }
 
-impl MCBallotReceipts {
-    #[instrument(skip_all, name = "MCBallotReceipts::new")]
+impl MCBallotImages {
+    #[instrument(skip_all, name = "MCBallotImages::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 
     #[instrument(skip_all, err)]
-    fn print_vote_receipts(
+    fn print_ballot_images(
         &self,
         ballots: &[Bridge],
         contests: &Vec<Contest>,
         election_input: &InputElectionConfig,
-        pipe_config: &PipeConfigVoteReceipts,
+        pipe_config: &PipeConfigBallotImages,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         // 1. Gather the sign_data for all ballots/contests
@@ -371,23 +370,22 @@ impl MCBallotReceipts {
     }
 
     #[instrument(skip_all)]
-    pub fn get_config(&self) -> Result<PipeConfigVoteReceipts> {
-        let pipe_config: PipeConfigVoteReceipts = self
+    pub fn get_config(&self) -> Result<PipeConfigBallotImages> {
+        let pipe_config: PipeConfigBallotImages = self
             .pipe_inputs
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
             .and_then(|pc| pc.config)
             .map(|value| serde_json::from_value(value))
             .transpose()?
-            .unwrap_or(PipeConfigVoteReceipts::mcballot(None));
+            .unwrap_or(PipeConfigBallotImages::mcballot());
         Ok(pipe_config)
     }
 }
 
 #[instrument(skip_all)]
-fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
-    // Only BALLOT_IMAGES variant exists now
-    VoteReceiptsPipeData {
+fn get_pipe_data() -> BallotImagesPipeData {
+    BallotImagesPipeData {
         output_file: BALLOT_IMAGES_OUTPUT_FILE.to_string(),
         pipe_name_output_dir: PipeNameOutputDir::MCBallotImages.as_ref().to_string(),
         pipe_name: PipeName::MCBallotImages.as_ref().to_string(),
@@ -450,11 +448,11 @@ struct BallotCsvData {
     pub file_name: String,
     pub hash: String,
 }
-impl Pipe for MCBallotReceipts {
+impl Pipe for MCBallotImages {
     #[instrument(err, skip_all, name = "MultiBallotReceipts::exec")]
     fn exec(&self) -> Result<()> {
-        let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
-        let pipe_data = get_pipe_data(pipe_config.pipe_type.clone());
+        let pipe_config: PipeConfigBallotImages = self.get_config()?;
+        let pipe_data = get_pipe_data();
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
 
@@ -517,7 +515,7 @@ impl Pipe for MCBallotReceipts {
                                     "processing batch {chunk_index} len = {len}",
                                     len = chunk.len()
                                 );
-                                let (bytes_pdf, bytes_html) = self.print_vote_receipts(
+                                let (bytes_pdf, bytes_html) = self.print_ballot_images(
                                     chunk,
                                     &area_contests.contests,
                                     &election_input,

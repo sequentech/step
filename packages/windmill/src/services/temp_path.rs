@@ -15,7 +15,6 @@ pub const QR_CODE_TEMPLATE: &'static str = "<div id=\"qrcode\"></div>";
 pub const LOGO_TEMPLATE: &'static str = "<div class=\"logo\"></div>";
 pub const PUBLIC_ASSETS_LOGO_IMG: &'static str = "sequent-logo.svg";
 pub const PUBLIC_ASSETS_QRCODE_LIB: &'static str = "qrcode.min.js";
-pub const PUBLIC_ASSETS_VELVET_MC_VOTE_RECEIPTS_TEMPLATE: &'static str = "mc_vote_receipt_user.hbs";
 pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE: &'static str = "ballot_images_user.hbs";
 pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM: &'static str =
     "ballot_images_system.hbs";

@@ -1792,7 +1792,7 @@ mod tests {
 
         // Execute pipeline stages
         state.exec_next()?; // DecodeBallots
-        state.exec_next()?; // VoteReceipts
+        state.exec_next()?; // BallotImages
         state.exec_next()?; // DoTally
         state.exec_next()?; // MarkWinners
         state.exec_next()?; // Generate reports

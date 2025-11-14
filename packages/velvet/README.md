@@ -48,14 +48,14 @@ cargo test -- cli::test_all::tests::test_hierarchical_area_aggregation
 
 ## Development
 
-For example if you are testing a specific vote receipts template, you could do:
+For example if you are testing a specific ballot images template, you could do:
 
 ```bash
 cargo build
-# update velvet config with vote receipts template
+# update velvet config with ballot images template
 python3 testing/bin/utils/update_velvet_config.py \
     --config-path ./velvet-config.json \
-    --template-path ./src/resources/vote_receipts.hbs && \
+    --template-path ./src/resources/ballot_images.hbs && \
 
 # run velvet
 rm -rf output2; \

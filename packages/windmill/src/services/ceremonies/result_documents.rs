@@ -346,7 +346,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: Some(document.id),
                 tar_gz_original: Some(original_document.id),
                 tar_gz_pdfs: None,
-                };
+            };
 
             update_results_event_documents(
                 hasura_transaction,
@@ -376,7 +376,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: None,
                 tar_gz_original: None,
                 tar_gz_pdfs: None,
-                })
+            })
         }
     }
 }

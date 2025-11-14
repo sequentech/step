@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::config::vote_receipt::PipeConfigVoteReceipts;
+use crate::config::ballot_images_config::PipeConfigBallotImages;
 use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::do_tally::tally::Tally;
 use crate::pipes::error::{Error, Result};
@@ -14,7 +14,6 @@ use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates, Weight};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -30,29 +29,30 @@ use uuid::Uuid;
 pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "ballot_images.pdf";
 pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "ballot_images.html";
 
-pub struct VoteReceipts {
+pub struct BallotImages {
     pub pipe_inputs: PipeInputs,
 }
-pub struct VoteReceiptsPipeData {
+
+pub struct BallotImagesPipeData {
     pub output_file_pdf: String,
     pub output_file_html: String,
     pub pipe_name: String,
     pub pipe_name_output_dir: String,
 }
 
-impl VoteReceipts {
-    #[instrument(skip_all, name = "VoteReceipts::new")]
+impl BallotImages {
+    #[instrument(skip_all, name = "BallotImages::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 
     #[instrument(skip_all, err)]
-    fn print_vote_receipts(
+    fn print_ballot_images(
         &self,
         path: &Path,
         contest: &Contest,
         election_input: &InputElectionConfig,
-        pipe_config: &PipeConfigVoteReceipts,
+        pipe_config: &PipeConfigBallotImages,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(
@@ -139,8 +139,8 @@ impl VoteReceipts {
     }
 
     #[instrument(err, skip_all)]
-    pub fn get_config(&self) -> Result<PipeConfigVoteReceipts> {
-        let pipe_config: PipeConfigVoteReceipts = self
+    pub fn get_config(&self) -> Result<PipeConfigBallotImages> {
+        let pipe_config: PipeConfigBallotImages = self
             .pipe_inputs
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
@@ -153,9 +153,8 @@ impl VoteReceipts {
 }
 
 #[instrument(skip_all)]
-fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
-    // Only BALLOT_IMAGES variant exists now
-    VoteReceiptsPipeData {
+fn get_pipe_data() -> BallotImagesPipeData {
+    BallotImagesPipeData {
         output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
         output_file_html: BALLOT_IMAGES_OUTPUT_FILE_HTML.to_string(),
         pipe_name_output_dir: PipeNameOutputDir::BallotImages.as_ref().to_string(),
@@ -163,8 +162,8 @@ fn get_pipe_data(pipe_type: VoteReceiptPipeType) -> VoteReceiptsPipeData {
     }
 }
 
-impl Pipe for VoteReceipts {
-    #[instrument(err, skip_all, name = "VoteReceipts::exec")]
+impl Pipe for BallotImages {
+    #[instrument(err, skip_all, name = "BallotImages::exec")]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs
@@ -173,9 +172,9 @@ impl Pipe for VoteReceipts {
             .as_path()
             .join(PipeNameOutputDir::DecodeBallots.as_ref());
 
-        let pipe_config: PipeConfigVoteReceipts = self.get_config()?;
+        let pipe_config: PipeConfigBallotImages = self.get_config()?;
 
-        let pipe_type_data = get_pipe_data(pipe_config.pipe_type.clone());
+        let pipe_type_data = get_pipe_data();
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
@@ -189,7 +188,7 @@ impl Pipe for VoteReceipts {
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
 
                     if decoded_ballots_file.exists() {
-                        let (bytes_pdf, bytes_html) = self.print_vote_receipts(
+                        let (bytes_pdf, bytes_html) = self.print_ballot_images(
                             decoded_ballots_file.as_path(),
                             &contest_input.contest,
                             &election_input,

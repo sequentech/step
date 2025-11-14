@@ -43,9 +43,7 @@ use sequent_core::types::hasura::core::{
     Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{
-    PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody, VoteReceiptPipeType,
-};
+use sequent_core::types::templates::{PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody};
 pub use sequent_core::util::date_time::get_date_and_time;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
@@ -61,8 +59,8 @@ use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
+use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
-use velvet::config::vote_receipt::PipeConfigVoteReceipts;
 use velvet::pipes::generate_db::{PipeConfigGenerateDatabase, DATABASE_FILENAME};
 use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_inputs::{
@@ -502,7 +500,7 @@ pub async fn build_ballot_images_pipe_config(
     hasura_transaction: &Transaction<'_>,
     minio_endpoint_base: String,
     public_asset_path: String,
-) -> Result<PipeConfigVoteReceipts> {
+) -> Result<PipeConfigBallotImages> {
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
 
@@ -541,12 +539,11 @@ pub async fn build_ballot_images_pipe_config(
 
     let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    let ballot_images_pipe_config = PipeConfigVoteReceipts {
+    let ballot_images_pipe_config = PipeConfigBallotImages {
         template: user_tpl_document,
         system_template: ballot_imagest_system_template,
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
         enable_pdfs: true,
-        pipe_type: VoteReceiptPipeType::BALLOT_IMAGES,
         pdf_options: Some(ext_cfg.pdf_options),
         report_options: Some(ext_cfg.report_options),
         execution_annotations: None,
