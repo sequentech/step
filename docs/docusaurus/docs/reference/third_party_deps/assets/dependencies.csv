@@ -3,17 +3,16 @@ ECIESEncryption,com.madgag.spongycastle:core,1.58.0.0,Bouncy Castle Licence,"Spo
 ECIESEncryption,com.madgag.spongycastle:prov,1.58.0.0,Bouncy Castle Licence,"Spongy Castle is a package-rename (org.bouncycastle.* to org.spongycastle.*) of Bouncy Castle intended for the Android platform. Android unfortunately ships with a stripped-down version of Bouncy Castle, which prevents easy upgrades - Spongy Castle overcomes this and provides a full, up-to-date version of the Bouncy Castle cryptographic libs."
 admin-portal,@apollo/client,3.8.0,MIT,A fully-featured caching GraphQL client.
 admin-portal,@bb-tech/ra-components,2.0.6,MIT,Additional opensource components for react-admin 4.x
-admin-portal,@emotion/react,11.10.0,MIT,> Simple styling in React.
-admin-portal,@emotion/styled,11.10.0,MIT,styled API for emotion
-admin-portal,@fortawesome/fontawesome-svg-core,^6.1.1,MIT,"The iconic font, CSS, and SVG framework"
-admin-portal,@fortawesome/free-brands-svg-icons,^6.1.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
-admin-portal,@fortawesome/free-solid-svg-icons,^6.1.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
-admin-portal,@fortawesome/react-fontawesome,^0.1.18,MIT,Official React component for Font Awesome
-admin-portal,@mui/material,5.13.3,MIT,Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box.
-admin-portal,@mui/styles,^5.14.19,MIT,MUI Styles - The legacy JSS-based styling solution of Material UI.
-admin-portal,@mui/utils,^5.14.19,MIT,Utility functions for React components.
-admin-portal,@mui/x-data-grid,6.18.2,MIT,The Community plan edition of the MUI X Data Grid components.
-admin-portal,@react-page/react-admin,5.4.4,MIT,see the ReactAdmin example in the docs
+admin-portal,@emotion/react,11.14.0,MIT,> Simple styling in React.
+admin-portal,@emotion/styled,11.14.1,MIT,styled API for emotion
+admin-portal,@fortawesome/fontawesome-svg-core,^7.0.1,MIT,"The iconic font, CSS, and SVG framework"
+admin-portal,@fortawesome/free-brands-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
+admin-portal,@fortawesome/free-solid-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
+admin-portal,@fortawesome/react-fontawesome,^3.0.2,MIT,Official React component for Font Awesome
+admin-portal,@mui/material,7.3.2,MIT,Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box.
+admin-portal,@mui/utils,7.3.5,MIT,Utility functions for React components.
+admin-portal,@mui/x-data-grid,8.17.0,MIT,The Community plan edition of the MUI X Data Grid components.
+admin-portal,@react-page/react-admin,5.4.5,MIT,see the ReactAdmin example in the docs
 admin-portal,@reduxjs/toolkit,1.9.5,MIT,"The official, opinionated, batteries-included toolset for efficient Redux development"
 admin-portal,@tinymce/tinymce-react,^4.3.2,MIT,Official TinyMCE React Component
 admin-portal,tinymce,^7.0.0,GPL-2.0-or-later,Web based JavaScript HTML WYSIWYG editor control.
@@ -25,37 +24,35 @@ admin-portal,diff,^5.1.0,BSD-3-Clause,A JavaScript text diff implementation.
 admin-portal,dompurify,^3.2.4,(MPL-2.0 OR Apache-2.0),"DOMPurify is a DOM-only, super-fast, uber-tolerant XSS sanitizer for HTML, MathML and SVG. It's written in JavaScript and works in all modern browsers (Safari, Opera (15+), Internet Explorer (10+), Firefox and Chrome - as well as almost anything else usin"
 admin-portal,fs-extra,^11.2.0,MIT,"fs-extra contains methods that aren't included in the vanilla Node.js fs package. Such as recursive mkdir, copy, and remove."
 admin-portal,graphql,^16.8.1,MIT,A Query Language and Runtime which can target any service.
-admin-portal,i18next,^21.8.16,MIT,i18next internationalization framework
-admin-portal,i18next-browser-languagedetector,^6.1.4,MIT,language detector used in browser environment for i18next
+admin-portal,i18next,^25.5.2,MIT,i18next internationalization framework
+admin-portal,i18next-browser-languagedetector,^8.2.0,MIT,language detector used in browser environment for i18next
 admin-portal,intl-tel-input,^24.5.0,MIT,A JavaScript plugin for entering and validating international telephone numbers
 admin-portal,jotai,^2.6.0,MIT,👻 Primitive and flexible state management for React
 admin-portal,json-edit-react,^1.17.1,MIT,React component for editing or viewing JSON/object data
-admin-portal,keycloak-js,^22.0.1,Apache-2.0,A client-side JavaScript OpenID Connect library that can be used to secure web applications.
+admin-portal,keycloak-js,^26.2.1,Apache-2.0,A client-side JavaScript OpenID Connect library that can be used to secure web applications.
 admin-portal,lodash,^4.17.21,MIT,Lodash modular utilities.
 admin-portal,moment-timezone,^0.5.46,MIT,Parse and display moments in any timezone.
-admin-portal,mui-image,1.0.7,ISC,Display images as per the Material guidelines. For React apps using Material-UI.
 admin-portal,process,^0.11.10,MIT,process information for node.js and browsers
 admin-portal,ra-data-hasura,0.6.0,MIT,A data provider for connecting react-admin to a Hasura endpoint
-admin-portal,react,18.1.0,MIT,React is a JavaScript library for building user interfaces.
-admin-portal,react-admin,4.12.4,MIT,"A frontend Framework for building admin applications on top of REST services, using ES6, React and Material UI"
+admin-portal,mui-image,1.0.9,ISC,Display images as per the Material guidelines. For React apps using Material-UI.
+admin-portal,react,19.1.1,MIT,React is a JavaScript library for building user interfaces.
+admin-portal,react-admin,5.12.3,MIT,"A frontend Framework for building admin applications on top of REST services, using ES6, React and Material UI"
 admin-portal,react-admin-import-csv,4.0.1,MIT,CSV import button for react-admin
 admin-portal,react-admin-json-view,2.0.0,MIT,JSON field and input for react-admin.
 admin-portal,react-apexcharts,1.4.1,SEE LICENSE IN LICENSE,React.js wrapper for ApexCharts
 admin-portal,react-diff-view,^3.2.0,MIT,A git diff component to consume the git unified diff output.
 admin-portal,react-dnd,16.0.1,MIT,Drag and Drop for React
 admin-portal,react-dnd-html5-backend,16.0.1,MIT,HTML5 backend for React DnD
-admin-portal,react-dom,18.1.0,MIT,React package for working with the DOM.
-admin-portal,react-i18next,11.18.3,MIT,Internationalization for react done right. Using the i18next i18n ecosystem.
+admin-portal,react-dom,19.1.1,MIT,React package for working with the DOM.
+admin-portal,react-i18next,15.7.3,MIT,Internationalization for react done right. Using the i18next i18n ecosystem.
 admin-portal,react-js-cron,^5.0.1,MIT,A React cron editor with antd inspired by jqCron
 admin-portal,react-redux,8.1.2,MIT,Official React bindings for Redux
-admin-portal,react-router,^6.1.0,MIT,Declarative routing for React
-admin-portal,react-router-dom,^6.1.0,MIT,Declarative routing for React web applications
-admin-portal,react-scripts,5.0.1,MIT,Configuration and scripts for Create React App.
+admin-portal,react-router,7.9.5,MIT,Declarative routing for React
 admin-portal,sql.js,^1.13.0,MIT,"SQLite library with support for opening and writing databases, prepared statements, and more. This SQLite library is in pure javascript (compiled with emscripten)."
 admin-portal,stream-browserify,^3.0.0,MIT,the stream module from node core for browsers
 admin-portal,util,^0.12.5,MIT,Node.js's util module for all engines
 admin-portal,uuid,9.0.0,MIT,RFC9562 UUIDs
-admin-portal,web-vitals,^2.1.0,Apache-2.0,Easily measure performance metrics in JavaScript
+admin-portal,web-vitals,^5.1.0,Apache-2.0,Easily measure performance metrics in JavaScript
 b3,borsh,1.5,MIT OR Apache-2.0,Binary Object Representation Serializer for Hashing
 b3,strum,0.27,MIT,Helpful macros for working with enums and strings
 b3,anyhow,1.0,MIT OR Apache-2.0,Flexible concrete Error type built on std::error::Error
@@ -79,27 +76,26 @@ b3,tokio,1.38,MIT,"An event-driven, non-blocking I/O platform for writing asynch
 b3,tokio-postgres,0.7,MIT OR Apache-2.0,"A native, asynchronous PostgreSQL client"
 b3,bb8-postgres,0.9,MIT,Full-featured async (tokio-based) postgres connection pool (like r2d2)
 b3,clap,4.0,MIT OR Apache-2.0,"A simple to use, efficient, and full-featured Command Line Argument Parser"
-ballot-verifier,@craco/craco,^7.1.0,Apache-2.0,"Create React App Configuration Override, an easy and comprehensible configuration layer for create-react-app."
 ballot-verifier,@apollo/client,3.8.0,MIT,A fully-featured caching GraphQL client.
-ballot-verifier,@fortawesome/fontawesome-svg-core,^6.1.1,MIT,"The iconic font, CSS, and SVG framework"
-ballot-verifier,@fortawesome/free-brands-svg-icons,^6.1.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
-ballot-verifier,@fortawesome/free-solid-svg-icons,^6.1.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
-ballot-verifier,@fortawesome/react-fontawesome,^0.1.18,MIT,Official React component for Font Awesome
-ballot-verifier,i18next,^21.8.16,MIT,i18next internationalization framework
-ballot-verifier,i18next-browser-languagedetector,^6.1.4,MIT,language detector used in browser environment for i18next
+ballot-verifier,@fortawesome/fontawesome-svg-core,^7.0.1,MIT,"The iconic font, CSS, and SVG framework"
+ballot-verifier,@fortawesome/free-brands-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
+ballot-verifier,@fortawesome/free-solid-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
+ballot-verifier,@fortawesome/react-fontawesome,^3.0.2,MIT,Official React component for Font Awesome
+ballot-verifier,i18next,^25.5.2,MIT,i18next internationalization framework
+ballot-verifier,i18next-browser-languagedetector,^8.2.0,MIT,language detector used in browser environment for i18next
 ballot-verifier,lodash,^4.17.21,MIT,Lodash modular utilities.
-ballot-verifier,react,18.1.0,MIT,React is a JavaScript library for building user interfaces.
-ballot-verifier,react-dom,18.1.0,MIT,React package for working with the DOM.
-ballot-verifier,mui-image,1.0.7,ISC,Display images as per the Material guidelines. For React apps using Material-UI.
-ballot-verifier,react-i18next,11.18.3,MIT,Internationalization for react done right. Using the i18next i18n ecosystem.
+ballot-verifier,react,19.1.1,MIT,React is a JavaScript library for building user interfaces.
+ballot-verifier,react-dom,19.1.1,MIT,React package for working with the DOM.
+ballot-verifier,mui-image,1.0.9,ISC,Display images as per the Material guidelines. For React apps using Material-UI.
+ballot-verifier,react-i18next,15.7.3,MIT,Internationalization for react done right. Using the i18next i18n ecosystem.
 ballot-verifier,react-redux,8.1.2,MIT,Official React bindings for Redux
-ballot-verifier,react-router-dom,6.11.2,MIT,Declarative routing for React web applications
-ballot-verifier,@mui/material,5.13.3,MIT,Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box.
+ballot-verifier,react-router-dom,7.9.1,MIT,Declarative routing for React web applications
+ballot-verifier,@mui/material,7.3.2,MIT,Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box.
 ballot-verifier,@reduxjs/toolkit,1.9.5,MIT,"The official, opinionated, batteries-included toolset for efficient Redux development"
-ballot-verifier,@emotion/react,11.10.0,MIT,> Simple styling in React.
-ballot-verifier,@emotion/styled,11.10.0,MIT,styled API for emotion
+ballot-verifier,@emotion/react,11.14.0,MIT,> Simple styling in React.
+ballot-verifier,@emotion/styled,11.14.1,MIT,styled API for emotion
 ballot-verifier,react-scripts,5.0.1,MIT,Configuration and scripts for Create React App.
-ballot-verifier,web-vitals,^2.1.0,Apache-2.0,Easily measure performance metrics in JavaScript
+ballot-verifier,web-vitals,^5.1.0,Apache-2.0,Easily measure performance metrics in JavaScript
 braid,rand,0.9,MIT OR Apache-2.0,Random number generators and other randomness functionality.
 braid,getrandom,=0.2,MIT OR Apache-2.0,A small cross-platform library for retrieving random data from system source
 braid,crepe,0.1,MIT OR Apache-2.0,Datalog in Rust as a procedural macro
@@ -310,8 +306,9 @@ strand,rug,~1.23,LGPL-3.0+,"Arbitrary-precision integers, rational, floating-poi
 strand,ed25519-dalek,=2.1,BSD-3-Clause,"Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust."
 strand,ecdsa,0.16,Apache-2.0 OR MIT,"Pure Rust implementation of the Elliptic Curve Digital Signature Algorithm (ECDSA) as specified in FIPS 186-4 (Digital Signature Standard), providing RFC6979 deterministic signatures as well as support for added entropy"
 strand,p384,0.13,Apache-2.0 OR MIT,"Pure Rust implementation of the NIST P-384 (a.k.a. secp384r1) elliptic curve as defined in SP 800-186 with support for ECDH, ECDSA signing/verification, and general purpose curve arithmetic support."
-strand,x509-parser,0.15.1,MIT OR Apache-2.0,Parser for the X.509 v3 format (RFC 5280 certificates)
-strand,rcgen,0.11.3,MIT OR Apache-2.0,Rust X.509 certificate generator
+strand,x509-parser,0.17.0,MIT OR Apache-2.0,Parser for the X.509 v3 format (RFC 5280 certificates)
+strand,rcgen,=0.14.3,MIT OR Apache-2.0,Rust X.509 certificate generator
+strand,rustls-pki-types,=1.13.0,MIT OR Apache-2.0,Shared types for the rustls PKI ecosystem
 strand,chacha20poly1305,0.10,Apache-2.0 OR MIT,"Pure Rust implementation of the ChaCha20Poly1305 Authenticated Encryption with Additional Data Cipher (RFC 8439) with optional architecture-specific hardware acceleration. Also contains implementations of the XChaCha20Poly1305 extended nonce variant of ChaCha20Poly1305, and the reduced-round ChaCha8Poly1305 and ChaCha12Poly1305 lightweight variants."
 strand,generic-array,=0.14,MIT,Generic types implementing functionality of arrays
 strand,sha2,0.10,MIT OR Apache-2.0,"Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512."
@@ -331,19 +328,19 @@ strand,cfg-if,1.0,MIT OR Apache-2.0,"A macro to ergonomically define an item dep
 strand,thiserror,2.0,MIT OR Apache-2.0,derive(Error)
 strand,serde,1.0.215,MIT OR Apache-2.0,A generic serialization/deserialization framework
 strand,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadecimal representation.
-ui-core,i18next,^21.8.16,MIT,i18next internationalization framework
-ui-core,i18next-browser-languagedetector,^6.1.4,MIT,language detector used in browser environment for i18next
-ui-core,react-scripts,5.0.1,MIT,Configuration and scripts for Create React App.
-ui-core,moderndash,^3.7.3,MIT,A Typescript-First utility library inspired by Lodash. Optimized for modern browsers.
-ui-core,sanitize-html,2.12.1,MIT,"Clean up user-submitted HTML, preserving allowlisted elements and allowlisted attributes on a per-element basis"
-ui-core,html-react-parser,4.2.0,MIT,HTML to React parser.
+ui-core,html-react-parser,5.2.8,MIT,HTML to React parser.
+ui-core,i18next,^25.5.2,MIT,i18next internationalization framework
+ui-core,i18next-browser-languagedetector,^8.2.0,MIT,language detector used in browser environment for i18next
+ui-core,moderndash,4.0.0,MIT,A Typescript-First utility library inspired by Lodash. Optimized for modern browsers.
 ui-core,qrcode.react,3.1.0,ISC,React component to generate QR codes
-ui-essentials,@fortawesome/fontawesome-svg-core,^6.1.1,MIT,"The iconic font, CSS, and SVG framework"
-ui-essentials,@fortawesome/free-brands-svg-icons,^6.1.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
-ui-essentials,@fortawesome/free-solid-svg-icons,^6.1.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
-ui-essentials,@fortawesome/react-fontawesome,^0.1.18,MIT,Official React component for Font Awesome
-ui-essentials,i18next,^21.8.16,MIT,i18next internationalization framework
-ui-essentials,i18next-browser-languagedetector,^6.1.4,MIT,language detector used in browser environment for i18next
+ui-core,sanitize-html,2.12.1,MIT,"Clean up user-submitted HTML, preserving allowlisted elements and allowlisted attributes on a per-element basis"
+ui-essentials,@fortawesome/fontawesome-svg-core,^7.0.1,MIT,"The iconic font, CSS, and SVG framework"
+ui-essentials,@fortawesome/free-brands-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
+ui-essentials,@fortawesome/free-solid-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
+ui-essentials,@fortawesome/react-fontawesome,^3.0.2,MIT,Official React component for Font Awesome
+ui-essentials,i18next,^25.5.2,MIT,i18next internationalization framework
+ui-essentials,i18next-browser-languagedetector,^8.2.0,MIT,language detector used in browser environment for i18next
+ui-essentials,qrcode.react,3.1.0,ISC,React component to generate QR codes
 velvet,clap,4.4,MIT OR Apache-2.0,"A simple to use, efficient, and full-featured Command Line Argument Parser"
 velvet,rand,0.9,MIT OR Apache-2.0,Random number generators and other randomness functionality.
 velvet,serde,1.0,MIT OR Apache-2.0,A generic serialization/deserialization framework
@@ -371,7 +368,7 @@ voting-portal,@fortawesome/free-brands-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The
 voting-portal,@fortawesome/free-solid-svg-icons,^7.0.1,(CC-BY-4.0 AND MIT),"The iconic font, CSS, and SVG framework"
 voting-portal,@fortawesome/react-fontawesome,^3.0.2,MIT,Official React component for Font Awesome
 voting-portal,@mui/material,7.3.2,MIT,Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box.
-voting-portal,@reduxjs/toolkit,2.9.0,MIT,"The official, opinionated, batteries-included toolset for efficient Redux development"
+voting-portal,@reduxjs/toolkit,2.10.1,MIT,"The official, opinionated, batteries-included toolset for efficient Redux development"
 voting-portal,dotenv,17.2.2,BSD-2-Clause,Loads environment variables from .env file
 voting-portal,graphql,16.11.0,MIT,A Query Language and Runtime which can target any service.
 voting-portal,i18next,^25.5.2,MIT,i18next internationalization framework
@@ -383,8 +380,7 @@ voting-portal,react,19.1.1,MIT,React is a JavaScript library for building user i
 voting-portal,react-dom,19.1.1,MIT,React package for working with the DOM.
 voting-portal,react-i18next,15.7.3,MIT,Internationalization for react done right. Using the i18next i18n ecosystem.
 voting-portal,react-redux,9.2.0,MIT,Official React bindings for Redux
-voting-portal,react-router-dom,7.9.1,MIT,Declarative routing for React web applications
-voting-portal,react-scripts,5.0.1,MIT,Configuration and scripts for Create React App.
+voting-portal,react-router,7.9.5,MIT,Declarative routing for React
 voting-portal,uuid,13.0.0,MIT,RFC9562 UUIDs
 voting-portal,web-vitals,^5.1.0,Apache-2.0,Easily measure performance metrics in JavaScript
 windmill,rocket,0.5,MIT OR Apache-2.0,"Web framework with a focus on usability, security, extensibility, and speed."
@@ -455,7 +451,7 @@ windmill,hex,0.4,MIT OR Apache-2.0,Encoding and decoding data into/from hexadeci
 windmill,once_cell,1.20,MIT OR Apache-2.0,Single assignment cells and lazy values.
 windmill,walkdir,2.3,Unlicense/MIT,Recursively walk a directory.
 windmill,croner,2.0,MIT,"Fully-featured, lightweight, and efficient Rust library designed for parsing and evaluating cron patterns"
-windmill,unicode-normalization,0.1,MIT/Apache-2.0,"This crate provides functions for normalization of Unicode strings, including Canonical and Compatible Decomposition and Recomposition, as described in Unicode Standard Annex #15."
+windmill,unicode-normalization,0.1,MIT OR Apache-2.0,"This crate provides functions for normalization of Unicode strings, including Canonical and Compatible Decomposition and Recomposition, as described in Unicode Standard Annex #15."
 windmill,num_cpus,1.16,MIT OR Apache-2.0,Get the number of CPUs on a machine.
 windmill,ordered-float,5.0,MIT,Wrappers for total ordering on floats
 windmill,rust_xlsxwriter,0.90.0,MIT OR Apache-2.0,A Rust library for writing Excel 2007 xlsx files
