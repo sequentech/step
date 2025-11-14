@@ -176,14 +176,7 @@ export const ElectionTabs: React.FC = () => {
         }
 
         return result
-    }, [
-        showDashboard,
-        showData,
-        showVoters,
-        showPublish,
-        showApprovalsExecution,
-        t,
-    ])
+    }, [showDashboard, showData, showVoters, showPublish, showApprovalsExecution, t])
 
     if (!record || !hasPermissionToViewElection) {
         return (
