@@ -36,7 +36,7 @@ web-sys = { version = "0.3", features = ['Performance', 'console'], optional = t
 cfg-if = "1.0"
 # signatures
 ed25519-dalek = {version = "=3.0.0-pre.1", features = ["serde"]}
-curve25519-dalek = { version = "=4.1", features = [] }
+curve25519-dalek = { version = "=5.0.0-pre.1", features = [] }
 # aws
 aws-config = { version = "1.6", features = ["behavior-version-latest"], optional = true }
 aws-sdk-sesv2 = { version = "1.70", optional = true }
@@ -60,7 +60,7 @@ base64 = "0.22"
 # rust to json schema
 schemars = { version = "0.8", features = ["chrono"]}
 # strand
-strand = { path="../strand", features = ["num_bigint"]}
+strand = { path="../strand", features = []}
 
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"

@@ -25,17 +25,17 @@ impl CryptoRng for StrandRng {}
 impl RngCore for StrandRng {
     #[inline(always)]
     fn next_u32(&mut self) -> u32 {
-        OsRng.try_next_u32().unwrap()
+        OsRng.try_next_u32().expect("Fixme")
     }
 
     #[inline(always)]
     fn next_u64(&mut self) -> u64 {
-        OsRng.try_next_u64().unwrap()
+        OsRng.try_next_u64().expect("Fixme")
     }
 
     #[inline(always)]
     fn fill_bytes(&mut self, dest: &mut [u8]) {
-        OsRng.try_fill_bytes(dest).unwrap()
+        OsRng.try_fill_bytes(dest).expect("Fixme")
     }
 }
 
