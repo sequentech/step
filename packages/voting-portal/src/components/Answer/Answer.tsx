@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
     stringToHtml,
@@ -78,16 +78,11 @@ export const Answer: React.FC<IAnswerProps> = ({
     setIsTouched,
 }) => {
     const {isPreferential} = provideBallotService()
-    const isPreferentialVote = useMemo(
-        () => {
-            if (!contest.counting_algorithm) return false
-            return isPreferential(contest.counting_algorithm)
-        },
-        [contest.counting_algorithm]
-    )
+    const isPreferentialVote = useMemo(() => {
+        if (!contest.counting_algorithm) return false
+        return isPreferential(contest.counting_algorithm)
+    }, [contest.counting_algorithm])
     const totalCandidates = contest.candidates.length
-    const [selectedPosition, setSelectedPosition] = useState<number | null>(null)
-
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
     )
@@ -105,6 +100,12 @@ export const Answer: React.FC<IAnswerProps> = ({
         () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
         [isInvalidVoteInput, answer]
     )
+    const [selectedPosition, setSelectedPosition] = useState<number | null>(null)
+
+    useEffect(() => {
+        const sel = selectionState?.selected ?? -1
+        setSelectedPosition(sel + 1) // Selected positions start at 1, not 0. And 0 means no selection
+    }, [selectionState])
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {

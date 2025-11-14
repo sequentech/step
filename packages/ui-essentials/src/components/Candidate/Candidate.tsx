@@ -234,39 +234,40 @@ const Candidate: React.FC<CandidateProps> = ({
                     </Typography>
                 </StyledLink>
             ) : null}
-            {isActive ? (
-                isPreferentialVote ? (
-                    <Select
-                        displayEmpty
-                        value={selectedPosition ?? 0}
-                        onChange={handlePositionChange}
-                        disabled={shouldDisable}
-                        renderValue={(value) => {
-                            if (typeof value === "number" && value > 0) {
-                                return getOrdinalSuffix(value)
-                            }
-                            return t("candidate.preferential.position")
-                        }}
-                        sx={{
-                            "minWidth": 120,
-                            "marginRight": 1,
-                            "& .MuiSelect-select": {
-                                paddingTop: "6px",
-                                paddingBottom: "6px",
-                            },
-                        }}
-                        className="candidate-position-select"
-                    >
-                        <MenuItem value={0}>
-                            <em>{t("candidate.preferential.none")}</em>
+
+            {isPreferentialVote ? (
+                <Select
+                    displayEmpty
+                    value={selectedPosition ?? 0}
+                    onChange={handlePositionChange}
+                    disabled={!isActive}
+                    renderValue={(value) => {
+                        if (typeof value === "number" && value > 0) {
+                            return getOrdinalSuffix(value)
+                        }
+                        return t("candidate.preferential.position")
+                    }}
+                    sx={{
+                        "minWidth": 120,
+                        "marginRight": 1,
+                        "& .MuiSelect-select": {
+                            paddingTop: "6px",
+                            paddingBottom: "6px",
+                        },
+                    }}
+                    className="candidate-position-select"
+                >
+                    <MenuItem value={0}>
+                        <em>{t("candidate.preferential.none")}</em>
+                    </MenuItem>
+                    {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (
+                        <MenuItem key={num} value={num}>
+                            {getOrdinalSuffix(num)}
                         </MenuItem>
-                        {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (
-                            <MenuItem key={num} value={num}>
-                                {getOrdinalSuffix(num)}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                ) : iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
+                    ))}
+                </Select>
+            ) : isActive ? (
+                iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
                         inputProps={{
                             "className": "candidate-input",
