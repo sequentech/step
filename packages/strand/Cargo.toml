@@ -68,7 +68,7 @@ base64 = "0.22.1"
 # RNG
 rand = { package="rand", version = "=0.9" } # Fixed: 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
 rand_core = { version = "0.9", optional = true }
-getrandom = { version = "=0.2", optional = true } # curve25519-dalek depends on digest v10.0 which is stuck at getrandom-0.2.15
+getrandom = { version = "=0.3.4", optional = true } # curve25519-dalek depends on digest v10.0 which is stuck at getrandom-0.2.15
 rand_chacha = "0.9"
 
 # WASM
