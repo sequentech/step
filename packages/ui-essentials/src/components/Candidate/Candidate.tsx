@@ -44,6 +44,7 @@ const BorderBox = emotionStyled.li<{
     gap: 10px;
     align-items: center;
     flex-grow: 2;
+    transition: all 0.2s ease;
     ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
     ${({isactive, hascategory, theme}) =>
         isactive === "true"
@@ -54,6 +55,7 @@ const BorderBox = emotionStyled.li<{
                         cursor: pointer;
                         boxShadow: unset;
                         border-color: ${theme.palette.customGrey.light};
+                        transform: translateY(-2px);
                     }
                     &:active {
                         backgroundColor: #eee;
@@ -63,6 +65,7 @@ const BorderBox = emotionStyled.li<{
                     &:hover {
                         cursor: pointer;
                         boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                        transform: translateY(-2px);
                     }
                     &:active {
                         backgroundColor: #eee;
@@ -244,7 +247,14 @@ const Candidate: React.FC<CandidateProps> = ({
                             }
                             return t("candidate.preferential.position")
                         }}
-                        sx={{minWidth: 120}}
+                        sx={{
+                            "minWidth": 120,
+                            "marginRight": 1,
+                            "& .MuiSelect-select": {
+                                paddingTop: "6px",
+                                paddingBottom: "6px",
+                            },
+                        }}
                         className="candidate-position-select"
                     >
                         <MenuItem value={0}>

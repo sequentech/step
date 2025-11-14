@@ -77,8 +77,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     setExplicitBlank,
     setIsTouched,
 }) => {
-        
-        
     const {isPreferential} = provideBallotService()
     const isPreferentialVote = isPreferential(contest.counting_algorithm)
     const totalCandidates = contest.candidates.length
@@ -134,8 +132,8 @@ export const Answer: React.FC<IAnswerProps> = ({
             })
         )
     }
-    
-    const handlePreferentialChange = (position: number | null ) => {
+
+    const handlePreferentialChange = (position: number | null) => {
         if (!isActive || isReview) {
             return
         }
@@ -150,11 +148,11 @@ export const Answer: React.FC<IAnswerProps> = ({
                 contestId,
                 voteChoice: {
                     id: answer.id,
-                    selected: position ? (position - 1) : -1,
+                    selected: position ? position - 1 : -1,
                     write_in_text: cleanedText,
                 },
             })
-        ) 
+        )
     }
     const setChecked = (value: boolean) => {
         if (!isActive || isReview || isPreferentialVote) {

@@ -196,7 +196,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                             </IconButton>
                                         )}
 
-                                        <span>{t("tally.table.preferential.round")} {roundIndex + 1}</span>
+                                        <span>
+                                            {t("tally.table.preferential.round")} {roundIndex + 1}
+                                        </span>
 
                                         {/* Right arrow - positioned at right margin */}
                                         {isLastVisible && showRightArrow && (
@@ -288,11 +290,13 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                         }}
                                                     >
                                                         {formatNumber(outcome.wins)} (
-                                                        {(outcome.percentage*100).toFixed(2)}%)
+                                                        {(outcome.percentage * 100).toFixed(2)}%)
                                                     </Box>
                                                     {status === "winner" && (
                                                         <Chip
-                                                            label={t("tally.table.preferential.winner")}
+                                                            label={t(
+                                                                "tally.table.preferential.winner"
+                                                            )}
                                                             sx={{
                                                                 backgroundColor: "#4caf50",
                                                                 color: "white",
@@ -303,7 +307,9 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                     )}
                                                     {status === "eliminated" && (
                                                         <Chip
-                                                            label={t("tally.table.preferential.eliminated")}
+                                                            label={t(
+                                                                "tally.table.preferential.eliminated"
+                                                            )}
                                                             variant="outlined"
                                                             sx={{
                                                                 borderColor: "#f44336",
