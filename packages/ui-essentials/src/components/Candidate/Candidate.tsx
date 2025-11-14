@@ -97,7 +97,7 @@ const StyledLink = emotionStyled.a`
 export interface CandidateProps extends PropsWithChildren {
     title: string | ReactNode
     description?: string | ReactNode
-    isActive?: boolean
+    isActive?: boolean // Shall the candidate be selectable (Checkbox or Position combo box)?
     isInvalidVote?: boolean
     checked?: boolean
     iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
