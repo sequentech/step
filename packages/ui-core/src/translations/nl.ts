@@ -25,6 +25,16 @@ const dutchTranslation: TranslationType = {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",
             blankVote: "Blank Vote",
+            preferential: {
+                position: "Positie",
+                none: "Geen",
+                ordinals: {
+                    first: "e",
+                    second: "e",
+                    third: "e",
+                    other: "e",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",

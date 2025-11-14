@@ -78,7 +78,13 @@ export const Answer: React.FC<IAnswerProps> = ({
     setIsTouched,
 }) => {
     const {isPreferential} = provideBallotService()
-    const isPreferentialVote = isPreferential(contest.counting_algorithm)
+    const isPreferentialVote = useMemo(
+        () => {
+            if (!contest.counting_algorithm) return false
+            return isPreferential(contest.counting_algorithm)
+        },
+        [contest.counting_algorithm]
+    )
     const totalCandidates = contest.candidates.length
     const [selectedPosition, setSelectedPosition] = useState<number | null>(null)
 

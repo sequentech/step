@@ -55,7 +55,7 @@ const BorderBox = emotionStyled.li<{
                         cursor: pointer;
                         boxShadow: unset;
                         border-color: ${theme.palette.customGrey.light};
-                        transform: translateY(-2px);
+                        transform: translateY(4px);
                     }
                     &:active {
                         backgroundColor: #eee;
@@ -65,7 +65,7 @@ const BorderBox = emotionStyled.li<{
                     &:hover {
                         cursor: pointer;
                         boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
-                        transform: translateY(-2px);
+                        transform: translateY(4px);
                     }
                     &:active {
                         backgroundColor: #eee;
