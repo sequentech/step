@@ -130,7 +130,7 @@ interface AuthContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 const generateTokenStorage = (newKeycloak: Keycloak): string => {
@@ -452,7 +452,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const extractPermissionLabels = (input: string): string[] => {
-        const regex = /\"(.*?)\"/g
+        const regex = /"(.*?)"/g
         const matches = []
         let match
         while ((match = regex.exec(input)) !== null) {
@@ -619,9 +619,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 variant="info"
                 hasCloseButton={false}
                 open={openModal}
-                ok={t("common.label.logout")}
-                cancel={t("common.label.continue")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.logout"))}
+                cancel={String(t("common.label.continue"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         modifySelectedTenantId(null)

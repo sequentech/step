@@ -3,19 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+import {styled} from "@mui/material/styles"
 import {Box, Tooltip} from "@mui/material"
 import {Icon} from "@sequentech/ui-essentials"
 import {IconDefinition} from "@fortawesome/fontawesome-svg-core"
 import {theme} from "@sequentech/ui-essentials"
-import {makeStyles} from "@mui/styles"
+const PREFIX = "IconTooltip"
 
-interface IconTooltipProps {
-    icon: IconDefinition
-    info: string
-    infoContainerWidth?: string
+const classes = {
+    tooltip: `${PREFIX}-tooltip`,
+    arrow: `${PREFIX}-arrow`,
 }
-const useStyles = makeStyles(() => ({
-    tooltip: {
+
+const StyledTooltip = styled(Tooltip)(() => ({
+    [`& .${classes.tooltip}`]: {
         backgroundColor: `${theme.palette.blue.light}`,
         color: "rgba(0, 0, 0)",
         width: "220px",
@@ -25,17 +26,23 @@ const useStyles = makeStyles(() => ({
         flexDirection: "column",
         gap: "8px",
     },
-    arrow: {
+
+    [`& .${classes.arrow}`]: {
         color: `${theme.palette.blue.light}`,
         fontSize: "20px",
         transform: "translate3d(190px, 0px, 0px) !important",
     },
 }))
 
+interface IconTooltipProps {
+    icon: IconDefinition
+    info: string
+    infoContainerWidth?: string
+}
+
 const IconTooltip = ({icon, info, infoContainerWidth = "250px"}: IconTooltipProps) => {
-    const classes = useStyles()
     return (
-        <Tooltip
+        <StyledTooltip
             title={info}
             arrow
             placement="bottom-end"
@@ -54,9 +61,9 @@ const IconTooltip = ({icon, info, infoContainerWidth = "250px"}: IconTooltipProp
             }}
         >
             <Box sx={{width: "30px"}}>
-                <Icon icon={icon} />
+                <Icon icon={icon as any} />
             </Box>
-        </Tooltip>
+        </StyledTooltip>
     )
 }
 

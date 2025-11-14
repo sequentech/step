@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {theme} from "@sequentech/ui-essentials"
 import {TextField} from "react-admin"
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
@@ -18,7 +18,7 @@ export interface DraggableElementProps {
     isOver: boolean
 }
 
-const DraggableElementRow = styled.div`
+const DraggableElementRow = styled("div")`
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -29,7 +29,9 @@ const DraggableElementRow = styled.div`
     padding: 0.3rem 1rem;
     border-radius: 1rem;
     border: 2px dashed ${theme.palette.grey[500]};
-    transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out; // Smooth transition for background color and shadow
+    transition:
+        background-color 0.2s ease-in-out,
+        box-shadow 0.2s ease-in-out; // Smooth transition for background color and shadow
 
     &:hover {
         border: 2px dashed ${theme.palette.primary.main};

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {ComponentStory, ComponentMeta} from "@storybook/react"
+import {StoryFn, Meta} from "@storybook/react"
 import LanguageMenu from "../LanguageMenu"
 import Box from "@mui/material/Box"
 import {within, userEvent} from "@storybook/testing-library"
@@ -16,9 +16,9 @@ export default {
         },
     },
     argTypes: {},
-} as ComponentMeta<typeof LanguageMenu>
+} as Meta<typeof LanguageMenu>
 
-const Template: ComponentStory<typeof LanguageMenu> = (args) => (
+const Template: StoryFn<typeof LanguageMenu> = (args) => (
     <Box style={{display: "inline-flex", backgroundColor: "white"}}>
         <LanguageMenu {...args} />
     </Box>

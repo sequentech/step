@@ -41,7 +41,7 @@ export const VotesPerDay: React.FC<VotersPerDayProps> = ({data, width, height, e
     }
 
     return (
-        <CardChart title={t("dashboard.voteByDay")}>
+        <CardChart title={String(t("dashboard.voteByDay"))}>
             <Chart
                 options={state.options}
                 series={state.series}

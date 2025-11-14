@@ -47,7 +47,7 @@ import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
-import {useMutation, useQuery, ApolloError} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client/react"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
@@ -275,8 +275,18 @@ const useTryInsertCastVote = () => {
                         t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}_${errorCode}`)
                     )
                 }
-            } else if (error instanceof ApolloError && error.networkError) {
-                console.log(error.name, error.message, error.cause, error.networkError)
+            } else if (
+                error &&
+                typeof error === "object" &&
+                "networkError" in error &&
+                error.networkError
+            ) {
+                console.log(
+                    (error as any).name,
+                    (error as any).message,
+                    (error as any).cause,
+                    (error as any).networkError
+                )
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error

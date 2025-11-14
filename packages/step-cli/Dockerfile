@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.82.0-slim-bookworm as builder
+FROM rust:1.90.0-slim-bookworm as builder
 
 WORKDIR /app
 
@@ -16,9 +16,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the specific nightly toolchain
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./electoral-log ./electoral-log

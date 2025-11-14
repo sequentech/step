@@ -6,7 +6,6 @@ import {NightwatchAPI} from "nightwatch"
 import {createElectionEvent} from "../commands/election-event/create"
 import {pause} from ".."
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("keys trustee 1 tests", function () {
     before(function (browser) {
         // login

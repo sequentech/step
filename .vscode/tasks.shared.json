@@ -29,6 +29,54 @@
             "problemMatcher": []
         },
         {
+            "label": "generate.dependency.report",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/tasks/dependencies/generate-dependency-report.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "security.audit.dependencies",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/tasks/security/audit-dependencies.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "check.reuse",
             "command": "devenv",
             "args": [
@@ -108,7 +156,31 @@
                 "bash",
                 "--",
                 "-c",
-                "cd docs/docusaurus && yarn start",
+                "cd docs/docusaurus && yarn && yarn start",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "start.build.docusaurus",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd docs/docusaurus && yarn && yarn build",
             ],
             "presentation": {
                 "echo": true,
@@ -331,11 +403,11 @@
             "problemMatcher": []
         },
         {
-          "label": "logs.restart.simplesaml",
+          "label": "logs.restart.simplesamlphp",
           "command": "bash",
           "args": [
             "-c",
-            "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker compose logs -f --tail 100 simplesaml"
+            "docker compose stop simplesamlphp; docker compose build simplesamlphp && docker compose up -d --no-deps simplesamlphp && docker compose logs -f --tail 100 simplesamlphp"
           ],
           "options": {
             "env": {
@@ -536,7 +608,7 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.simplesaml",
+            "label": "logs.simplesamlphp",
             "command": "docker",
             "args": [
                 "compose",
@@ -544,7 +616,7 @@
                 "-f",
                 "--tail",
                 "200",
-                "simplesaml",
+                "simplesamlphp",
             ],
             "options": {
                 "env": {
@@ -937,6 +1009,32 @@
             "isBackground": true,
             "runOptions": {
                 "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "build.sequent-core",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+              "-l",
+              "-c",
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "dedicated",
+              "showReuseMessage": true,
+              "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+              "runOn": "default"
             },
             "problemMatcher": []
         },

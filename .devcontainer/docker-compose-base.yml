@@ -5,7 +5,7 @@
 services:
   devcontainer:
     profiles: ["full", "base"]
-    image: ghcr.io/cachix/devenv:v1.0.7
+    image: ghcr.io/cachix/devenv/devcontainer:v1.10
     container_name: devcontainer
     volumes:
     - type: bind
@@ -61,7 +61,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql
       - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
@@ -256,7 +256,7 @@ services:
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
-      - keycloak_db_data:/var/lib/postgresql/data
+      - keycloak_db_data:/var/lib/postgresql
       - keycloak_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
@@ -821,7 +821,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
-      - b3_db_data:/var/lib/postgresql/data
+      - b3_db_data:/var/lib/postgresql
       - b3_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:

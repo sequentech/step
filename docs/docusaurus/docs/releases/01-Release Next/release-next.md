@@ -36,6 +36,17 @@ available and provides comprehensive statistics for election events and election
 
 - Issue: [#9060](https://github.com/sequentech/meta/issues/9060)
 
+## 📖 Third-Party Libraries Reference Documentation
+
+Added comprehensive developer documentation for managing Rust versions and
+third-party dependencies. Standardized on Rust stable 1.90.0 across all
+environments (Nix, GitHub Actions, Dockerfiles). Created automated tooling for
+dependency reporting and security audits, including scripts for generating
+dependency lists with licenses and descriptions. Updated all Rust crates, npm
+packages, and Maven dependencies to their latest compatible versions.
+
+- Issue: https://github.com/sequentech/meta/issues/7996
+
 ## ✨ Move voter signature to the voting portal
 
 The voting portal will sign the ballot using an ephemeral key. The ballot will 

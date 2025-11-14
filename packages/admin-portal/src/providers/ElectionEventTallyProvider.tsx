@@ -69,7 +69,7 @@ export const ElectionEventTallyContext = createContext<ElectionEventTallyContext
 )
 
 interface ElectionEventTallyContextProviderProps {
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const ElectionEventTallyContextProvider = (

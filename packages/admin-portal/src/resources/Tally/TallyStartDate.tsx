@@ -31,7 +31,7 @@ export const TallyStartDate: React.FC = () => {
         <TextField
             sx={{width: "100%"}}
             disabled
-            label={t("tally.common.date")}
+            label={String(t("tally.common.date"))}
             defaultValue={new Date(data?.created_at).toLocaleDateString().slice(0, 10)}
             InputProps={{
                 endAdornment: (

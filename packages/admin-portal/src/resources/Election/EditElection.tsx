@@ -52,11 +52,11 @@ const ElectionForm: React.FC = () => {
         const {data, errors} = await createScheduledEvent({
             variables: {
                 tenantId: tenantId,
-                electionEventId: record.election_event_id,
+                electionEventId: record?.election_event_id,
                 eventProcessor: ScheduledEventType.UPDATE_VOTING_STATUS,
                 cronConfig: undefined,
                 eventPayload: {
-                    election_id: record.id,
+                    election_id: record?.id,
                     status: nextStatus,
                 },
                 createdBy: "admin",
@@ -66,7 +66,7 @@ const ElectionForm: React.FC = () => {
         refresh()
     }
 
-    let votingStatus = getVotingStatus(record.status)
+    let votingStatus = getVotingStatus(record?.status)
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -134,14 +134,14 @@ const ElectionForm: React.FC = () => {
                     }}
                     state={{
                         record: {
-                            election_id: record.id,
-                            election_event_id: record.election_event_id,
-                            tenant_id: record.tenant_id,
+                            election_id: record?.id,
+                            election_event_id: record?.election_event_id,
+                            tenant_id: record?.tenant_id,
                         },
                     }}
                 >
                     <Button>
-                        <IconButton icon={faPlusCircle} fontSize="24px" />
+                        <IconButton icon={faPlusCircle as any} fontSize="24px" />
                         Add contest
                     </Button>
                 </Link>

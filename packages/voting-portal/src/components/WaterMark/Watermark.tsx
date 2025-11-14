@@ -10,7 +10,7 @@ import {
     selectFirstBallotStyle,
     showDemo,
 } from "../../store/ballotStyles/ballotStylesSlice"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {SystemProps} from "@mui/system"
 import {useParams} from "react-router-dom"

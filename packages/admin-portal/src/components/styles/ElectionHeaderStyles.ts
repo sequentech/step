@@ -4,22 +4,22 @@
 
 // Election Event A
 
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 
 export const ElectionHeaderStyles = {
-    Wrapper: styled.div`
+    Wrapper: styled("div")`
         display: flex;
         flex-direction: column;
         padding: var(--2, 16px);
         align-items: left;
     `,
-    ThinWrapper: styled.div`
+    ThinWrapper: styled("div")`
         display: flex;
         flex-direction: column;
         padding: var(--2, 0);
         align-items: left;
     `,
-    Title: styled.div`
+    Title: styled("div")`
         color: rgba(0, 0, 0, 0.87);
         font-size: 24px;
         font-family: Roboto;
@@ -27,7 +27,7 @@ export const ElectionHeaderStyles = {
         line-height: 32.02px;
         word-wrap: break-word;
     `,
-    SubTitle: styled.div`
+    SubTitle: styled("div")`
         color: rgba(0, 0, 0, 0.6);
         font-size: 14px;
         font-family: Roboto;
@@ -36,7 +36,7 @@ export const ElectionHeaderStyles = {
         letter-spacing: 0.17px;
         word-wrap: break-word;
     `,
-    AccordionTitle: styled.div`
+    AccordionTitle: styled("div")`
         color: rgba(0, 0, 0, 0.6);
         font-size: 16px;
         font-family: Roboto;

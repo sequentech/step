@@ -49,8 +49,8 @@ export const UserAndRoles: React.FC = () => {
                 onChange={handleChange}
                 aria-label="Users and Roles tabs"
             >
-                {showUsers ? <Tab label={t("usersAndRolesScreen.users.title")} /> : null}
-                {showRoles ? <Tab label={t("usersAndRolesScreen.roles.title")} /> : null}
+                {showUsers ? <Tab label={String(t("usersAndRolesScreen.users.title"))} /> : null}
+                {showRoles ? <Tab label={String(t("usersAndRolesScreen.roles.title"))} /> : null}
             </SidebarScreenStyles.Tabs>
             <SidebarScreenStyles.CustomTabPanel value={value} index={0}>
                 <ListUsers />

@@ -4,14 +4,14 @@
 
 import React from "react"
 import {IApplicationsStatus} from "@/types/applications"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {statusColor} from "@/resources/Tally/constants"
 
 interface TrusteeItemsProps {
     status: string
 }
 
-const StyledChips = styled.div`
+const StyledChips = styled("div")`
     display: flex;
     padding: 1px 7px;
     flex-direction: row;
@@ -19,7 +19,7 @@ const StyledChips = styled.div`
     gap: 4px;
 `
 
-const StyledChip = styled.div`
+const StyledChip = styled("div")`
     display: flex;
     justify-content: center;
     align-items: center;
@@ -29,7 +29,7 @@ const StyledChip = styled.div`
     padding: 1px 7px;
 `
 
-const StyledChipLabel = styled.div`
+const StyledChipLabel = styled("div")`
     color: #fff;
     font-family: Roboto;
     font-size: 12px;

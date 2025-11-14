@@ -32,30 +32,29 @@ rustcrypto_interop_test = []
 
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
-curve25519-dalek = { version = "=4.1.2", features = [] }
+curve25519-dalek = { version = "=4.1", features = [] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = { version = "0.2", optional = true }
 num-integer = { version = "0.1", optional = true }
-num-modular = { version = "0.5", features = ["num-bigint"], optional = true }
-malachite = { version = "0.3.2", default-features = false, features = [ "naturals_and_integers" ], optional = true }
-rug = { version = "~1.23.0", default-features = false, features = ["integer", "rand"], optional = true }
+num-modular = { version = "=0.5", features = ["num-bigint"], optional = true } # Pinned to avoid compile errors at the moment
+malachite = { version = "0.6", default-features = false, features = ["naturals_and_integers"], optional = true }
+rug = { version = "~1.23", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
-# ed25519-dalek = { version = "=2.1.1", features = ["rand_core", "pkcs8"] }
-ed25519-dalek = { version = "=2.1.1", features = ["rand_core", "pkcs8"] }
-ecdsa = {version = "0.16.8", features = ["signing"] }
-p384 = "0.13.0"
+ed25519-dalek = { version = "=2.1", features = ["rand_core", "pkcs8"] }
+ecdsa = {version = "0.16", features = ["signing"] }
+p384 = "0.13"
 
 # certificates
 x509-parser = "0.15.1"
 rcgen = {version = "0.11.3", features = ["x509-parser"] }
 
 # symmetric
-chacha20poly1305 = "0.10.1"
-generic-array = "0.14.6"
+chacha20poly1305 = "0.10"
+generic-array = "=0.14"
 
 # Hashing
-sha2 = "0.10.7"
+sha2 = "0.10"
 # Needed for extendable hashing function when deriving generators for ristretto
 sha3 = "0.10"
 
@@ -65,38 +64,39 @@ borsh = { version = "1.5", features = ["derive"] }
 base64 = "0.22.1"
 
 # RNG
-rand = { package="rand", version = "0.8" }
-getrandom = { version = "0.2" }
-rand_core = { version = "0.6.4", optional = true }
+rand = { package="rand", version = "=0.8" } # 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
+rand_core = { version = "0.9", optional = true }
+getrandom = { version = "=0.2", optional = true } # curve25519-dalek depends on digest v10.0 which is stuck at getrandom-0.2.15
 
 # WASM
-wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = true}
-wasm-bindgen = {version = "=0.2.92", optional = true}
-serde-wasm-bindgen = {version = "0.4", optional = true}
+# Note: Using specific version of wasm-bindgen to match Nix version
+wasm-bindgen-rayon = {version = "1.3", features = ["no-bundler"], optional = true}
+wasm-bindgen = {version = "=0.2.100", optional = true}
+serde-wasm-bindgen = {version = "0.6", optional = true}
 web-sys = { version = "0.3", features = ['Performance'], optional = true }
 
 # RNG, ecdsa, sha512, shake256, aes-gcm
 # OpenSSL needs to be configured to operate in FIPS mode
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10.57", optional = true }
+openssl = { version = "0.10", optional = true }
 
 rayon = { version = "1.5", optional = true }
 cfg-if = "1.0"
-thiserror = "1.0.50"
+thiserror = "2.0"
 
 # Only needed for wasm demo
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0.215", features = ["derive"] }
 
 # Used for debug impl and demo
-hex = { version = "0.4.2" }
+hex = { version = "0.4" }
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.5"
 serde_json = "1.0"
 
 [build-dependencies]
-rustc_version = "0.4.0"
+rustc_version = "0.4"
 
 [[bench]]
 name = "shuffle"

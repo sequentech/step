@@ -31,9 +31,8 @@ const config = {
         docs: {
           path: 'docs',
           sidebarPath: require.resolve('./sidebars.js'),
-          // remove editUrl if you don't want "edit this page" links
           editUrl:
-            'https://github.com/sequentech/step/docs/docusaurus',
+            'https://github.com/sequentech/step/edit/main/docs/docusaurus',
         },
         // completely remove the blog
         blog: false,
@@ -52,6 +51,9 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      prism: {
+        additionalLanguages: ['php', 'bash', 'json', 'yaml', 'rust', 'java'],
+      },
       navbar: {
         title: '',
         logo: {

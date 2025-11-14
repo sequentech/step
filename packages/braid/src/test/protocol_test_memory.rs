@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use log::{error, info};
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -36,7 +36,7 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     // let n_threshold = n_trustees;
     let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let all = &max[0..n_trustees];
-    let mut rng = &mut rand::thread_rng();
+    let mut rng = &mut rand::rng();
     let threshold: Vec<usize> = all
         .choose_multiple(&mut rng, n_threshold)
         .cloned()

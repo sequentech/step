@@ -9,6 +9,7 @@ import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
+import {CircularProgress} from "@mui/material"
 
 export const ContestTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
@@ -23,6 +24,9 @@ export const ContestTabs: React.FC = () => {
         if (id) {
             setTallySheetId(id)
         }
+    }
+    if (!record) {
+        return <CircularProgress />
     }
 
     return (

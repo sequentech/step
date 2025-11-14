@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect} from "react"
-import {ComponentStory, ComponentMeta} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react"
 import Container from "@mui/material/Container"
 import {ConfirmationScreen} from "../../screens/ConfirmationScreen"
 import {LanguageSetter} from "@sequentech/ui-essentials"
@@ -15,35 +15,37 @@ import {
 } from "../../services/BallotService"
 import {IDecodedVoteChoice, IContest, IContestLayoutProperties} from "@sequentech/ui-core"
 
-export default {
+// === Component Props ===
+type ConfirmationScreenProps = React.ComponentProps<typeof ConfirmationScreen>
+
+// === Story Args (includes story-only controls) ===
+interface StoryArgs extends ConfirmationScreenProps {
+    language: "en" | "es"
+    ordered: boolean
+}
+
+// === Meta ===
+const meta = {
     title: "screens/ConfirmationScreen",
     component: ConfirmationScreen,
     decorators: [withRouter],
     parameters: {
-        backgrounds: {
-            default: "white",
-        },
-        reactRouter: {
-            routePath: "/confirmation",
-            routeParams: {},
-        },
+        backgrounds: {default: "white"},
+        reactRouter: {routePath: "/confirmation", routeParams: {}},
     },
+    // Only define argTypes for *actual component props*
+    // `language` and `ordered` are NOT props → don't include in argTypes
     argTypes: {
-        language: {
-            options: ["en", "es"],
-            control: {type: "radio"},
-        },
-        ordered: {
-            options: [true, false],
-        },
-        ballotService: {
-            table: {
-                disable: true,
-            },
-        },
+        // Hide internal props
+        ballotService: {table: {disable: true}},
+        // Allow controlling real props if needed
+        // confirmationBallot: { control: false },
     },
-} as ComponentMeta<typeof ConfirmationScreen>
+} satisfies Meta<typeof ConfirmationScreen>
 
+export default meta
+
+// === Service Provider ===
 const getBallotServiceProvider = (ordered: boolean): IBallotService => {
     const service = provideBallotService()
 
@@ -52,30 +54,21 @@ const getBallotServiceProvider = (ordered: boolean): IBallotService => {
     const getLayoutProperties = (question: IContest): IContestLayoutProperties | null => ({
         state: "state",
         sorted: false,
-        ordered: ordered,
+        ordered,
     })
 
-    return {
-        ...service,
-        getPoints,
-        getLayoutProperties,
-    }
+    return {...service, getPoints, getLayoutProperties}
 }
 
-interface TemplateProps {
-    language: "en" | "es"
-    ordered: boolean
-}
-
-type ConfirmationScreenProps = React.ComponentProps<typeof ConfirmationScreen>
-
-const Template: ComponentStory<React.FC<TemplateProps & ConfirmationScreenProps>> = ({
+// === Template ===
+const Template: React.FC<StoryArgs> = ({
     language,
     ordered,
-    ballotService: _ballotService,
-    ...args
+    ballotService: _,
+    ...componentProps
 }) => {
     const [service, setService] = useState(getBallotServiceProvider(ordered))
+
     useEffect(() => {
         setService(getBallotServiceProvider(ordered))
     }, [ordered])
@@ -83,26 +76,32 @@ const Template: ComponentStory<React.FC<TemplateProps & ConfirmationScreenProps>
     return (
         <Container style={{backgroundColor: "white"}}>
             <LanguageSetter language={language}>
-                <ConfirmationScreen ballotService={service} {...args} />
+                <ConfirmationScreen ballotService={service} {...componentProps} />
             </LanguageSetter>
         </Container>
     )
 }
 
-export const Primary = Template.bind({})
+// === Stories ===
+type Story = StoryObj<StoryArgs>
 
-Primary.args = {
-    label: "ConfirmationScreen",
-    language: "en",
-    ordered: false,
-    confirmationBallot: ConfirmationBallot as IConfirmationBallot,
+export const Primary: Story = {
+    render: (args) => <Template {...args} />,
+    args: {
+        language: "en",
+        ordered: false,
+        confirmationBallot: ConfirmationBallot as IConfirmationBallot,
+        ballotId: "ballot-123", // adjust as needed
+        // label: "ConfirmationScreen", // if optional
+    },
 }
 
-export const Loading = Template.bind({})
-
-Loading.args = {
-    label: "ConfirmationScreen",
-    language: "en",
-    ordered: false,
-    confirmationBallot: null,
+export const Loading: Story = {
+    render: (args) => <Template {...args} />,
+    args: {
+        language: "en",
+        ordered: false,
+        confirmationBallot: null,
+        ballotId: "ballot-123",
+    },
 }

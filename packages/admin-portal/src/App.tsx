@@ -119,7 +119,7 @@ const App: React.FC<AppProps> = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
     const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
-    i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
+    i18n.on("languageChanged", (lng: string) => adminI18nProvider.changeLocale(lng))
     const {isAuthenticated} = useContext(AuthContext)
 
     useEffect(() => {
@@ -137,7 +137,7 @@ const App: React.FC<AppProps> = () => {
             <Admin
                 dataProvider={dataProvider || undefined}
                 layout={CustomLayout}
-                theme={fullAdminTheme}
+                theme={fullAdminTheme as any}
                 i18nProvider={adminI18nProvider}
             >
                 <CustomRoutes>

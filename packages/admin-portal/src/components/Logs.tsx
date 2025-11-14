@@ -14,7 +14,7 @@ import {useTranslation} from "react-i18next"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {IKeysCeremonyLog} from "@/services/KeyCeremony"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 
 export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
     max-height: 400px;

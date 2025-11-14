@@ -2,18 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import styled from "@emotion/styled"
-import {styled as muiStyled} from "@mui/material/styles"
+import {styled} from "@mui/material/styles"
 import {Box, Drawer, Button} from "@mui/material"
 import {CustomTabPanel} from "../CustomTabPanel"
 import Tabs from "@mui/material/Tabs"
 
 export const SidebarScreenStyles = {
-    CustomTabPanel: muiStyled(CustomTabPanel)`
+    CustomTabPanel: styled(CustomTabPanel)`
         padding: 10px;
     `,
-    Tabs: muiStyled(Tabs)`
+    Tabs: styled(Tabs)`
         border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-        margin-bottom: 10px
+        margin-bottom: 10px;
     `,
 }

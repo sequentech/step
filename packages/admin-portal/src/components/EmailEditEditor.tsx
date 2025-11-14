@@ -42,13 +42,23 @@ export default function EmailEditEditor({
 
     return (
         <>
-            {sourceSubject && <TextInput label={t("emailEditor.subject")} source={sourceSubject} />}
+            {sourceSubject && (
+                <TextInput label={String(t("emailEditor.subject"))} source={sourceSubject} />
+            )}
             <Tabs value={tab} onChange={changeTab}>
                 {sourceBodyHTML && (
-                    <Tab key="richtext" label={t("emailEditor.tabs.richtext")} id="richtext" />
+                    <Tab
+                        key="richtext"
+                        label={String(t("emailEditor.tabs.richtext"))}
+                        id="richtext"
+                    />
                 )}
                 {sourceBodyPlainText && (
-                    <Tab key="plaintext" label={t("emailEditor.tabs.plaintext")} id="plaintext" />
+                    <Tab
+                        key="plaintext"
+                        label={String(t("emailEditor.tabs.plaintext"))}
+                        id="plaintext"
+                    />
                 )}
             </Tabs>
             {sourceBodyHTML && (
@@ -59,7 +69,7 @@ export default function EmailEditEditor({
             {sourceBodyPlainText && (
                 <CustomTabPanel key="plaintext" value={tab} index={sourceBodyHTML ? 1 : 0}>
                     <TextInput
-                        label={t("emailEditor.tabs.plaintext")}
+                        label={String(t("emailEditor.tabs.plaintext"))}
                         source={sourceBodyPlainText}
                         multiline={true}
                         minRows={6}

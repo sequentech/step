@@ -26,7 +26,7 @@ interface ApolloContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const ApolloContextProvider = ({children}: ApolloContextProviderProps) => {

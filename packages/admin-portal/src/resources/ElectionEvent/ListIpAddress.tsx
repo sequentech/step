@@ -43,11 +43,11 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
 
     const Filters = useMemo(
         () => [
-            <FormStyles.TextInput key="ip" source="ip" label={`${t(`dashboard.ipAddress.ip`)}`} />,
+            <FormStyles.TextInput key="ip" source="ip" label={t(`dashboard.ipAddress.ip`)} />,
             <FormStyles.AutocompleteInput
                 key="country"
                 source="country"
-                label={`${t(`dashboard.ipAddress.country`)}`}
+                label={t(`dashboard.ipAddress.country`)}
                 choices={COUNTRIES}
                 optionValue="code"
                 fullWidth
@@ -55,7 +55,7 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
             <SelectElection
                 key="election"
                 source="election_id"
-                label={`${t(`dashboard.ipAddress.ElectionName`)}`}
+                label={t(`dashboard.ipAddress.ElectionName`)}
                 tenantId={tenantId}
                 electionEventId={electionEventId}
             />,
@@ -105,13 +105,13 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
                     <FunctionField
                         source="ip"
                         sortable={false}
-                        label={`${t(`dashboard.ipAddress.ip`)}`}
+                        label={t(`dashboard.ipAddress.ip`)}
                         render={(record: RecordVoteCloudflareData) => (record.ip ? record.ip : "-")}
                     />
                     <FunctionField
                         source="country"
                         sortable={false}
-                        label={`${t(`dashboard.ipAddress.country`)}`}
+                        label={t(`dashboard.ipAddress.country`)}
                         render={(record: RecordVoteCloudflareData) =>
                             record.country ? record.country : "-"
                         }
@@ -119,17 +119,17 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
                     <TextField
                         source="vote_count"
                         sortable={false}
-                        label={`${t(`dashboard.ipAddress.VoteCount`)}`}
+                        label={t(`dashboard.ipAddress.VoteCount`)}
                     />
                     <TextField
                         source="election_name"
                         sortable={false}
-                        label={`${t(`dashboard.ipAddress.ElectionName`)}`}
+                        label={t(`dashboard.ipAddress.ElectionName`)}
                     />
                     <TextField
                         source="voters_id"
                         sortable={false}
-                        label={`${t(`dashboard.ipAddress.VotersId`)}`}
+                        label={t(`dashboard.ipAddress.VotersId`)}
                     />
                 </DatagridConfigurable>
             </ListStyle>

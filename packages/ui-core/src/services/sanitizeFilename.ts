@@ -10,7 +10,8 @@ export const takeLastNChars = (s: string, n: number): string => {
 
 export const sanitizeFilename = (filename: string, max = FOLDER_MAX_CHARS): string => {
     // Regular expression to match invalid filename characters
-    const invalidCharsRegex = /[<>:"\/\\|?*\x00-\x1F]/g
+    // eslint-disable-next-line no-control-regex
+    const invalidCharsRegex = /[<>:"/\\|?*\x00-\x1F]/g
 
     // Replace invalid characters with an underscore or remove them
     const sanitized = filename

@@ -2,14 +2,12 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.88.0-slim-bookworm AS builder
+FROM rust:1.90.0-slim-bookworm AS builder
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config wget && \
     wget https://download.java.net/java/GA/jdk22.0.2/c9ecb94cd31b495da20a27d4581645e8/9/GPL/openjdk-22.0.2_linux-x64_bin.tar.gz && \
     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
-    rustup toolchain install nightly-2025-05-04 && \
-    rustup default nightly-2025-05-04 && \
     cargo binstall -y cargo-watch && \
     # cleanups
     apt-get clean && \

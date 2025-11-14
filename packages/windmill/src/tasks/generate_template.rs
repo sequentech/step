@@ -320,7 +320,7 @@ async fn generate_template_block(
             Err(err)
         }
     }
-    .context("Error generatingtemplate document")?;
+    .context("Error generating template document")?;
 
     match hasura_transaction.commit().await {
         Ok(transaction) => {

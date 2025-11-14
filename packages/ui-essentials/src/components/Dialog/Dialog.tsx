@@ -8,16 +8,15 @@ import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
 import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
-import styledEmotion from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
-import {styled as muiStyled} from "@mui/material/styles"
 
-const StyledBackdrop = styledEmotion(Backdrop)`
+const StyledBackdrop = styled(Backdrop)`
     opacity: 0.5 !important;
 `
 
-const StyledDialogActions = muiStyled(DialogActions)`
+const StyledDialogActions = styled(DialogActions)`
     @media (max-width: 600px) {
         &.has-middle.MuiDialogActions-root {
             flex-direction: column !important;
@@ -29,7 +28,7 @@ const StyledDialogActions = muiStyled(DialogActions)`
     }
 `
 
-const StyledDialogErrorContent = muiStyled(DialogContent)(({theme}) => ({
+const StyledDialogErrorContent = styled(DialogContent)(({theme}) => ({
     color: theme.palette.errorColor,
 }))
 

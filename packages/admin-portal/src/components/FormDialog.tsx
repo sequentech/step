@@ -44,7 +44,7 @@ const FormDialog: React.FC<GenericDialogProps> = ({open, onClose, title, childre
                     {title}
                 </Box>
                 <IconButton
-                    icon={faTimesCircle}
+                    icon={faTimesCircle as any}
                     variant="primary"
                     onClick={() => onClose()}
                     className="dialog-icon-close"
