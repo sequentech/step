@@ -43,10 +43,17 @@ pub fn info() -> String {
     format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }
 
+/// RNG based on StdRng
+/// 
+/// This is currently unused, but demonstrates how to use StdRng
+/// as the underlying RNG for Strand. Unlike OsRng, StdRng
+/// cannot fail to provide randomness after it has been seeded,
+/// so it implements RngCore without the need for TryRngCore.
 pub struct StrandStdRng(StdRng);
 
 impl CryptoRng for StrandStdRng {}
 
+// Unlike StrandRng, StrandStdRng can implement RngCore instead of TryRngCore.
 impl RngCore for StrandStdRng {
     #[inline(always)]
     fn next_u32(&mut self) -> u32 {
