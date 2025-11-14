@@ -1657,6 +1657,12 @@ const dutchTranslation: TranslationType = {
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
                 weight: "Gewicht",
+                preferential: {
+                    candidate: "Kandidaat",
+                    winner: "Winnaar",
+                    eliminated: "Geëlimineerd",
+                    round: "Ronde",
+                },
             },
             chart: {
                 votesForCandidates: "Stemmen voor Kandidaten",

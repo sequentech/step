@@ -18,6 +18,7 @@ import {
 } from "@mui/material"
 import {ChevronLeft, ChevronRight} from "@mui/icons-material"
 import {RunoffStatus, ECandidateStatus} from "./types"
+import {useTranslation} from "react-i18next"
 
 interface TallyResultsCandidatesIRVProps {
     processResults: RunoffStatus
@@ -26,6 +27,7 @@ interface TallyResultsCandidatesIRVProps {
 export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps> = ({
     processResults,
 }) => {
+    const {t} = useTranslation()
     const theme = useTheme()
     const isXL = useMediaQuery(theme.breakpoints.up("xl"))
     const isLarge = useMediaQuery(theme.breakpoints.up("lg"))
@@ -148,7 +150,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                     border: "1px solid #fff",
                                 }}
                             >
-                                Candidate
+                                {t("tally.table.preferential.candidate")}
                             </TableCell>
                             {visibleRounds.map((_, visibleIndex) => {
                                 const roundIndex = representedRounds.start + visibleIndex
@@ -194,7 +196,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                             </IconButton>
                                         )}
 
-                                        <span>Round {roundIndex + 1}</span>
+                                        <span>{t("tally.table.preferential.round")} {roundIndex + 1}</span>
 
                                         {/* Right arrow - positioned at right margin */}
                                         {isLastVisible && showRightArrow && (
@@ -290,7 +292,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                     </Box>
                                                     {status === "winner" && (
                                                         <Chip
-                                                            label="Winner"
+                                                            label={t("tally.table.preferential.winner")}
                                                             sx={{
                                                                 backgroundColor: "#4caf50",
                                                                 color: "white",
@@ -301,7 +303,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
                                                     )}
                                                     {status === "eliminated" && (
                                                         <Chip
-                                                            label="Eliminated"
+                                                            label={t("tally.table.preferential.eliminated")}
                                                             variant="outlined"
                                                             sx={{
                                                                 borderColor: "#f44336",

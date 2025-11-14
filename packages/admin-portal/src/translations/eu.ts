@@ -1657,6 +1657,12 @@ const basqueTranslation: TranslationType = {
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
                 weight: "Pisua",
+                preferential: {
+                    candidate: "Hautagaia",
+                    winner: "Irabazlea",
+                    eliminated: "Baztertua",
+                    round: "Txanda",
+                },
             },
             chart: {
                 votesForCandidates: "Hautagaientzako Botoak",

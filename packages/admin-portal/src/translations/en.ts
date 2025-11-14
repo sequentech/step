@@ -1648,6 +1648,12 @@ const englishTranslation = {
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
                 weight: "Weight",
+                preferential: {
+                    candidate: "Candidate",
+                    winner: "Winner",
+                    eliminated: "Eliminated",
+                    round: "Round",
+                },
             },
             chart: {
                 votesForCandidates: "Votes For Candidates",

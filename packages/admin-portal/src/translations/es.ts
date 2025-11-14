@@ -1662,6 +1662,12 @@ const spanishTranslation: TranslationType = {
                 number_of_votes: "Número de votos",
                 winning_position: "Posición ganadora",
                 weight: "Peso",
+                preferential: {
+                    candidate: "Candidato",
+                    winner: "Ganador",
+                    eliminated: "Eliminado",
+                    round: "Ronda",
+                },
             },
             chart: {
                 votesForCandidates: "Votos por Candidatos",

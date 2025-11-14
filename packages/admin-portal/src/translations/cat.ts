@@ -1671,6 +1671,12 @@ const catalanTranslation: TranslationType = {
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
                 weight: "Pes",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Guanyador",
+                    eliminated: "Eliminat",
+                    round: "Ronda",
+                },
             },
             chart: {
                 votesForCandidates: "Vots per Candidats",

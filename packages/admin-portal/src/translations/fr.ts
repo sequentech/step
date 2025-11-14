@@ -1674,6 +1674,12 @@ const frenchTranslation: TranslationType = {
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
                 weight: "Poids",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Gagnant",
+                    eliminated: "Éliminé",
+                    round: "Tour",
+                },
             },
             chart: {
                 votesForCandidates: "Votes pour les Candidats",

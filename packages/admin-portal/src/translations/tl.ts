@@ -1664,6 +1664,12 @@ const tagalogTranslation: TranslationType = {
                 number_of_votes: "Bilang ng mga boto",
                 winning_position: "Panalong posisyon",
                 weight: "Timbang",
+                preferential: {
+                    candidate: "Kandidato",
+                    winner: "Nanalo",
+                    eliminated: "Naalis",
+                    round: "Ikot",
+                },
             },
             chart: {
                 votesForCandidates: "Mga Boto para sa mga Kandidato",
