@@ -8801,7 +8801,7 @@ dependencies = [
  "curve25519-dalek 5.0.0-pre.1",
  "ecdsa 0.16.9",
  "ed25519-dalek",
- "getrandom 0.2.16",
+ "getrandom 0.3.4",
  "hex",
  "hybrid-array",
  "malachite",
