@@ -23,6 +23,10 @@ const englishTranslation = {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",
             blankVote: "Blank Vote",
+            preferential: {
+                position: "Position",
+                none: "None",
+            },
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",

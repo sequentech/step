@@ -25,6 +25,10 @@ const catalanTranslation: TranslationType = {
             moreInformationLink: "Més informació",
             writeInsPlaceholder: "Tecleja aquí el candidat per escrit",
             blankVote: "Vot en blanc",
+            preferential: {
+                position: "Posició",
+                none: "Cap",
+            },
         },
         homeScreen: {
             title: "Verificador de Vot Sequent",

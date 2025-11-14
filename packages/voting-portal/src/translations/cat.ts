@@ -321,6 +321,8 @@ const catalanTranslation: TranslationType = {
                 overVoteDisabled:
                     "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
                 blankVote: "Vot en Blanc: 0 opcions seleccionades",
+                preferenceOrderWithGaps: "L'ordre de preferència té un o més buits.",
+                duplicatedPosition: "La mateixa posició va ser seleccionada per a dos o més candidats.",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",

@@ -319,6 +319,8 @@ const galegoTranslation: TranslationType = {
                 overVoteDisabled:
                     "Máximo alcanzado: Seleccionaches o máximo {{numSelected}} opcións. Para cambiar a selección, deselecciona primeiro outra opción.",
                 blankVote: "Voto en branco: 0 opcións seleccionadas",
+                preferenceOrderWithGaps: "A orde de preferencia ten un ou máis ocos.",
+                duplicatedPosition: "A mesma posición foi seleccionada para dous ou máis candidatos.",
             },
             explicit: {
                 notAllowed:

@@ -242,13 +242,13 @@ const Candidate: React.FC<CandidateProps> = ({
                             if (typeof value === "number" && value > 0) {
                                 return getOrdinalSuffix(value)
                             }
-                            return "Position"
+                            return t("candidate.preferential.position")
                         }}
                         sx={{minWidth: 120}}
                         className="candidate-position-select"
                     >
                         <MenuItem value={0}>
-                            <em>None</em>
+                            <em>{t("candidate.preferential.none")}</em>
                         </MenuItem>
                         {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (
                             <MenuItem key={num} value={num}>

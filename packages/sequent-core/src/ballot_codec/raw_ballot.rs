@@ -388,7 +388,7 @@ impl RawBallotCodec for Contest {
                                 error_type: InvalidPlaintextErrorType::Implicit,
                                 candidate_id: None,
                                 message: Some(
-                                    "errors.encoding.preferenceOrderWithGaps"
+                                    "errors.implicit.preferenceOrderWithGaps"
                                         .to_string(),
                                 ),
                                 message_map: HashMap::new(),
@@ -398,11 +398,10 @@ impl RawBallotCodec for Contest {
                     PreferencialOrderErrorType::DuplicatedPosition => {
                         decoded_contest.invalid_errors.push(
                             InvalidPlaintextError {
-                                error_type:
-                                    InvalidPlaintextErrorType::EncodingError,
+                                error_type: InvalidPlaintextErrorType::Implicit,
                                 candidate_id: None,
                                 message: Some(
-                                    "errors.encoding.duplicatedPosition"
+                                    "errors.implicit.duplicatedPosition"
                                         .to_string(),
                                 ),
                                 message_map: HashMap::new(),

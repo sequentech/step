@@ -24,6 +24,10 @@ const galegoTranslation = {
             moreInformationLink: "Máis información",
             writeInsPlaceholder: "Escriba aquí o candidato por escrito",
             blankVote: "Voto en Branco",
+            preferential: {
+                position: "Posición",
+                none: "Ningún",
+            },
         },
         homeScreen: {
             title: "Verificador de Papeletas Sequent",

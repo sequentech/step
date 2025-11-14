@@ -25,6 +25,10 @@ const dutchTranslation: TranslationType = {
             moreInformationLink: "Meer informatie",
             writeInsPlaceholder: "Typ hier de naam van de kandidaat",
             blankVote: "Blanco stem",
+            preferential: {
+                position: "Positie",
+                none: "Geen",
+            },
         },
         homeScreen: {
             title: "Sequent Stembiljet Verifieerder",

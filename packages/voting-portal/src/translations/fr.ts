@@ -319,6 +319,8 @@ const frenchTranslation: TranslationType = {
                 overVoteDisabled:
                     "Maximum atteint : Vous avez sélectionné le maximum de {{numSelected}} choix. Pour changer votre sélection, veuillez d'abord désélectionner une autre option.",
                 blankVote: "Vote Blanc: 0 options sélectionnées",
+                preferenceOrderWithGaps: "L'ordre de préférence comporte un ou plusieurs trous.",
+                duplicatedPosition: "La même position a été sélectionnée pour deux ou plusieurs candidats.",
             },
             explicit: {
                 notAllowed:
