@@ -20,6 +20,7 @@ use crate::plaintext::*;
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
+use crate::types::ceremonies::CountingAlgType;
 use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
@@ -709,6 +710,21 @@ pub fn get_candidate_points_js(
 
     let serializer = Serializer::json_compatible();
     Serialize::serialize(&points, &serializer)
+        .map_err(|err| format!("{:?}", err))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn is_preferential_js(
+    counting_algorithm_js: JsValue,
+) -> Result<JsValue, JsValue> {
+    let counting_algorithm: CountingAlgType =
+        serde_wasm_bindgen::from_value(counting_algorithm_js)
+            .map_err(|err| format!("Error parsing counting algorithm: {}", err))
+            .into_json()?;
+    let is_pref = counting_algorithm.is_preferential();
+    let serializer = Serializer::json_compatible();
+    Serialize::serialize(&is_pref, &serializer)
         .map_err(|err| format!("{:?}", err))
         .into_json()
 }
