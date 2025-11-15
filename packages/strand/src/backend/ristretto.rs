@@ -631,11 +631,9 @@ mod tests {
 
         let rng_seed = [0u8; 32];
         let mut rng = ChaCha12Rng::from_seed(rng_seed);
-        
-        // let mut rng = ctx.get_rng();
 
         let now = Instant::now(); println!("* gen shuffle..");
-        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_rng(&es, &mut rng);
+        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
         println!("* gen shuffle {}", now.elapsed().as_millis());
         let now = Instant::now();println!("* gen proof..");
         let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
@@ -673,7 +671,7 @@ mod tests {
         let mut rng = ChaCha12Rng::from_seed(rng_seed);
 
         let now = Instant::now(); println!("* gen shuffle..");
-        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_rng(&es, &mut rng);
+        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
         println!("* gen shuffle {}", now.elapsed().as_millis());
         let now = Instant::now();println!("* gen proof..");
         let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();

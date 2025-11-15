@@ -132,7 +132,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (result, rs, perm)
     }
 
-    pub fn gen_shuffle_with_rng<R: RngCore + CryptoRng>(
+    pub fn gen_shuffle_with_perm_rng<R: RngCore + CryptoRng>(
         &self,
         ciphertexts: &[Ciphertext<C>],
         rng: &mut R,

@@ -8,7 +8,7 @@ use tracing::info;
 use strand::context::Ctx;
 
 use crate::protocol::board::{Board, BoardFactory};
-use crate::protocol::trustee2::Trustee;
+use crate::protocol::trustee::Trustee;
 use crate::util::ProtocolError;
 
 /// A protocol session.

@@ -17,7 +17,7 @@ use tracing::{error, info};
 
 use braid::protocol::session::session_m::SessionFactory;
 use braid::protocol::session::session_master::SessionMaster;
-use braid::protocol::trustee2::TrusteeConfig;
+use braid::protocol::trustee::TrusteeConfig;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
@@ -163,11 +163,11 @@ async fn run(args: &Cli) -> Result<()> {
         };
 
         boards.retain(|b| !ignored_boards.contains(b));
-        let boards_len = boards.len();
         master.refresh_sets(boards).await?;
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "jemalloc")] {
+                
                 // Many statistics are cached and only updated
                 // when the epoch is advanced:
                 let e_ = e.advance();
@@ -179,7 +179,7 @@ async fn run(args: &Cli) -> Result<()> {
                     if res > max_allocated {
                         max_allocated = res;
                     }
-                    info!("{} MB allocated / {} MB resident (max = {} MB) ({} boards)", (alloc / mb), (res / mb), (max_allocated / mb), boards_len);
+                    info!("{} MB allocated / {} MB resident (max = {} MB) ({} boards)", (alloc / mb), (res / mb), (max_allocated / mb), boards.len());
                 }
             }
         }

@@ -12,8 +12,8 @@ use strand::symm::SymmetricKey;
 use strand::backend::ristretto::RistrettoCtx;
 use tracing::info;
 
-use crate::protocol::trustee2::Trustee;
-use crate::protocol::trustee2::TrusteeConfig;
+use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee::TrusteeConfig;
 use crate::util::ProtocolError;
 
 use strand::context::Ctx;

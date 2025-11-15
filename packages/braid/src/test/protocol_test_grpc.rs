@@ -32,7 +32,7 @@ use crate::protocol::board::grpc_m::GrpcB3;
 use crate::protocol::board::grpc_m::GrpcB3BoardParams;
 
 use crate::protocol::session::Session;
-use crate::protocol::trustee2::Trustee;
+use crate::protocol::trustee::Trustee;
 
 const B3_URL: &'static str = "http://127.0.0.1:50051";
 const TEST_BOARD: &'static str = "protocoltest";
@@ -43,8 +43,8 @@ const PG_PASSW: &'static str = "password";
 const PG_PORT: u32 = 5432;
 
 pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
-    let n_trustees = rand::thread_rng().gen_range(2..13);
-    let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
+    let n_trustees = rand::rng().random_range(2..13);
+    let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
     // let n_trustees = 2;
     // let n_threshold = n_trustees;

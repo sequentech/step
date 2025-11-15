@@ -22,7 +22,7 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local2::{ArtifactEntryIdentifier, StatementEntryIdentifier};
+use crate::protocol::board::local::{ArtifactEntryIdentifier, StatementEntryIdentifier};
 use b3::messages::artifact::Ballots;
 use b3::messages::artifact::Configuration;
 use b3::messages::message::Message;
@@ -30,7 +30,7 @@ use b3::messages::newtypes::PublicKeyHash;
 use b3::messages::newtypes::NULL_TRUSTEE;
 use b3::messages::protocol_manager::ProtocolManager;
 
-use crate::protocol::trustee2::Trustee;
+use crate::protocol::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
 use b3::messages::newtypes::MAX_TRUSTEES;
 

@@ -9,7 +9,7 @@ use tracing::info;
 use tracing::instrument;
 
 use braid::protocol::board::grpc_m::GrpcB3;
-use braid::protocol::trustee2::Trustee;
+use braid::protocol::trustee::Trustee;
 use braid::verify::verifier::Verifier;
 
 use strand::backend::ristretto::RistrettoCtx;

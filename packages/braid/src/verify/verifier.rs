@@ -19,7 +19,7 @@ use b3::messages::statement::StatementType;
 use crate::protocol::board::grpc_m::GrpcB3;
 use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
-use crate::protocol::trustee2::Trustee;
+use crate::protocol::trustee::Trustee;
 
 use crate::util::dbg_hash;
 use crate::verify::datalog::Target;

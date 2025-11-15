@@ -5,7 +5,7 @@
 /// Used to retrieve and post protocol messages to the board.
 pub mod grpc_m;
 /// A LocalBoard is a trustee's view of a bulletin board.
-pub mod local2;
+pub mod local;
 
 use anyhow::Result;
 use b3::grpc::BoardMessages;

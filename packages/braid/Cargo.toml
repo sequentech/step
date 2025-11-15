@@ -14,7 +14,7 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 rand = "0.9"
-getrandom = { version = "=0.2" }
+getrandom = { version = "=0.3.4" }
 
 strand = { path="../strand", features=["rayon"] }
 b3 = { path="../b3", features = ["client"] }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol::trustee2::Trustee;
+use crate::protocol::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
 use b3::messages::artifact::{DkgPublicKey, Plaintexts};
 use b3::messages::message::Message;

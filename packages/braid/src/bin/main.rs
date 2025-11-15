@@ -14,8 +14,8 @@ use tracing::instrument;
 use tracing::{error, info};
 
 use braid::protocol::session::Session;
-use braid::protocol::trustee2::Trustee;
-use braid::protocol::trustee2::TrusteeConfig;
+use braid::protocol::trustee::Trustee;
+use braid::protocol::trustee::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
