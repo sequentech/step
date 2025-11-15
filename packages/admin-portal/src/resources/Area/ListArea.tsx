@@ -293,7 +293,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             disableSyncWithLocation
                         >
                             <ResetFilters />
-                            <DatagridConfigurable omit={OMIT_FIELDS}>
+                            <DatagridConfigurable omit={OMIT_FIELDS} rowClick={false}>
                                 <TextField source="id" />
                                 <TextField source="name" className="area-name" />
                                 <TextField source="description" className="area-description" />
