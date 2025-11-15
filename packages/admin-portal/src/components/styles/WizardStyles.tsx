@@ -5,11 +5,26 @@
 // Election Styles
 
 import {styled} from "@mui/material/styles"
-import {SaveButton, Toolbar} from "react-admin"
-import {AccordionDetails, Box, Chip, Typography, CircularProgress} from "@mui/material"
+import {SaveButton, Toolbar, DeleteButton} from "react-admin"
+import {AccordionDetails, Box, Chip, Typography, CircularProgress, Paper} from "@mui/material"
 import Button from "@mui/material/Button"
 import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import { ReactNode } from 'react'
+
+interface CustomToolbarProps {
+    children?: ReactNode;
+    [key: string]: any; // Allow any other props to be passed through
+}
+
+// Try to mimic the react-admin v3 toolbar 
+export const CustomToolbar = ({ children, ...props }: CustomToolbarProps) => (
+    <WizardStyles.Paper elevation={2}>
+        <Toolbar {...props}>
+            {children}
+        </Toolbar>
+    </WizardStyles.Paper>
+)
 
 export const WizardStyles = {
     WizardWrapper: styled(Box)`
@@ -22,19 +37,25 @@ export const WizardStyles = {
         width: 100%;
         margin: auto;
     `,
-    Toolbar: styled(Toolbar as any)`
+    Paper: styled(Paper)`
         bottom: 0;
         position: sticky;
+        clip-path: inset(-10px -10px 0px -10px);
+    `,
+    Toolbar: styled(CustomToolbar as any)`
         flex-direction: row;
         justify-content: space-between;
+        padding: 18px !important;
     `,
     BackButton: styled(Button)`
         margin-right: auto;
-        background-color: ${({theme}) => theme.palette.grey[100]};
+        background-color: ${({theme}) => theme.palette.white};
         color: ${({theme}) => theme.palette.brandColor};
+        padding: 0px 4rem;
     `,
     NextButton: styled(Button)`
         margin-left: auto;
+        padding: 0px 4rem;
     `,
     DownloadButton: styled(Button)`
         width: fit-content;
