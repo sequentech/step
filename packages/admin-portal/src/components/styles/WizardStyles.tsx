@@ -10,19 +10,17 @@ import {AccordionDetails, Box, Chip, Typography, CircularProgress, Paper} from "
 import Button from "@mui/material/Button"
 import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
-import { ReactNode } from 'react'
+import {ReactNode} from "react"
 
 interface CustomToolbarProps {
-    children?: ReactNode;
-    [key: string]: any; // Allow any other props to be passed through
+    children?: ReactNode
+    [key: string]: any // Allow any other props to be passed through
 }
 
-// Try to mimic the react-admin v3 toolbar 
-export const CustomToolbar = ({ children, ...props }: CustomToolbarProps) => (
+// Try to mimic the react-admin v3 toolbar
+export const CustomToolbar = ({children, ...props}: CustomToolbarProps) => (
     <WizardStyles.Paper elevation={2}>
-        <Toolbar {...props}>
-            {children}
-        </Toolbar>
+        <Toolbar {...props}>{children}</Toolbar>
     </WizardStyles.Paper>
 )
 
