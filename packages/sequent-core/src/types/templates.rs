@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use headless_chrome::types::PrintToPdfOptions;
@@ -148,7 +147,6 @@ pub struct SendTemplateBody {
     // TODO: Rename this struct
     pub audience_selection: Option<AudienceSelection>,
     pub audience_voter_ids: Option<Vec<String>>,
-    pub r#type: Option<TemplateType>,
     pub communication_method: Option<TemplateMethod>,
     pub schedule_now: Option<bool>,
     pub schedule_date: Option<String>,
@@ -181,15 +179,4 @@ pub struct CommunicationTemplatesExtraConfig {
 pub struct ReportOptions {
     pub max_items_per_report: Option<usize>,
     pub max_threads: Option<usize>,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
-)]
-pub enum VoteReceiptPipeType {
-    #[strum(serialize = "VOTE_RECEIPT")]
-    VOTE_RECEIPT,
-    #[strum(serialize = "BALLOT_IMAGES")]
-    BALLOT_IMAGES,
 }

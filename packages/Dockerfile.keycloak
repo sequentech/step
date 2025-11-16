@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -40,11 +40,10 @@ RUN keytool \
    -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
    -keystore conf/server.keystore
 
-# Copy the compiled 2FA authenticator SPI into the Keycloak providers directory
+# Copy the compiled authenticator SPIs into the Keycloak providers directory
 # before calling `kc.sh build`
 COPY --chown=keycloak:keycloak \
    --from=spis-build \
-   /build/keycloak-extensions/inetum-authenticator/target/sequent.inetum-authenticator.jar \
    /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
    /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
    /build/keycloak-extensions/conditional-authenticators/target/sequent.conditional-authenticators.jar \

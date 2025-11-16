@@ -841,6 +841,34 @@
             "problemMatcher": []
         },
         {
+            "label": "logs.reset.minio",
+            "command": "bash",
+            "args": [
+                "-c",
+                "./scripts/update-certs.sh && docker compose stop minio configure-minio && docker compose up -d --build --no-deps minio && docker compose up --build -d --no-deps configure-minio && docker compose logs -f minio configure-minio",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.restart.trustees",
             "command": "bash",
             "args": [
@@ -1141,6 +1169,31 @@
                 "focus": false,
                 "panel": "dedicated",
                 "showReuseMessage": false,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "update.license.headers",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "python3",
+                "--",
+                "./scripts/update_license_headers.py",
+                ".",
+                "--include-excluded"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
                 "clear": false
             },
             "isBackground": true,

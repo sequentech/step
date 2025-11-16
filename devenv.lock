@@ -62,10 +62,17 @@
         ]
       },
       "locked": {
+<<<<<<< HEAD
         "lastModified": 1763988335,
         "owner": "cachix",
         "repo": "git-hooks.nix",
         "rev": "50b9238891e388c9fdc6a5c49e49c42533a1b5ce",
+=======
+        "lastModified": 1763032142,
+        "owner": "cachix",
+        "repo": "git-hooks.nix",
+        "rev": "84255025dee4c8701a99fbff65ac3c9095952f99",
+>>>>>>> 261ad8fe6 (✨ Publicly Open Source Preparations (#2149))
         "type": "github"
       },
       "original": {
