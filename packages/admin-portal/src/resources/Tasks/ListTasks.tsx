@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect, useState} from "react"

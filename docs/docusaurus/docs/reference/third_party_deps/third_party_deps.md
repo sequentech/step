@@ -38,17 +38,16 @@ The admin portal is a React-based web application for administrative functions.
 |------------|---------|---------|-------------|
 | @apollo/client | 3.8.0 | MIT | A fully-featured caching GraphQL client. |
 | @bb-tech/ra-components | 2.0.6 | MIT | Additional opensource components for react-admin 4.x |
-| @emotion/react | 11.10.0 | MIT | > Simple styling in React. |
-| @emotion/styled | 11.10.0 | MIT | styled API for emotion |
-| @fortawesome/fontawesome-svg-core | ^6.1.1 | MIT | The iconic font, CSS, and SVG framework |
-| @fortawesome/free-brands-svg-icons | ^6.1.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
-| @fortawesome/free-solid-svg-icons | ^6.1.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
-| @fortawesome/react-fontawesome | ^0.1.18 | MIT | Official React component for Font Awesome |
-| @mui/material | 5.13.3 | MIT | Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box. |
-| @mui/styles | ^5.14.19 | MIT | MUI Styles - The legacy JSS-based styling solution of Material UI. |
-| @mui/utils | ^5.14.19 | MIT | Utility functions for React components. |
-| @mui/x-data-grid | 6.18.2 | MIT | The Community plan edition of the MUI X Data Grid components. |
-| @react-page/react-admin | 5.4.4 | MIT | see the ReactAdmin example in the docs |
+| @emotion/react | 11.14.0 | MIT | > Simple styling in React. |
+| @emotion/styled | 11.14.1 | MIT | styled API for emotion |
+| @fortawesome/fontawesome-svg-core | ^7.0.1 | MIT | The iconic font, CSS, and SVG framework |
+| @fortawesome/free-brands-svg-icons | ^7.0.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
+| @fortawesome/free-solid-svg-icons | ^7.0.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
+| @fortawesome/react-fontawesome | ^3.0.2 | MIT | Official React component for Font Awesome |
+| @mui/material | 7.3.2 | MIT | Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box. |
+| @mui/utils | 7.3.5 | MIT | Utility functions for React components. |
+| @mui/x-data-grid | 8.17.0 | MIT | The Community plan edition of the MUI X Data Grid components. |
+| @react-page/react-admin | 5.4.5 | MIT | see the ReactAdmin example in the docs |
 | @reduxjs/toolkit | 1.9.5 | MIT | The official, opinionated, batteries-included toolset for efficient Redux development |
 | @tinymce/tinymce-react | ^4.3.2 | MIT | Official TinyMCE React Component |
 | @types/diff | ^5.0.8 | MIT | Stub TypeScript definitions entry for diff, which provides its own types definitions |
@@ -59,38 +58,37 @@ The admin portal is a React-based web application for administrative functions.
 | dompurify | ^3.2.4 | (MPL-2.0 OR Apache-2.0) | DOMPurify is a DOM-only, super-fast, uber-tolerant XSS sanitizer for HTML, MathML and SVG. It's written in JavaScript and works in all modern browsers (Safari, Opera (15+), Internet Explorer (10+), Firefox and Chrome - as well as almost anything else usin |
 | fs-extra | ^11.2.0 | MIT | fs-extra contains methods that aren't included in the vanilla Node.js fs package. Such as recursive mkdir, copy, and remove. |
 | graphql | ^16.8.1 | MIT | A Query Language and Runtime which can target any service. |
-| i18next | ^21.8.16 | MIT | i18next internationalization framework |
-| i18next-browser-languagedetector | ^6.1.4 | MIT | language detector used in browser environment for i18next |
+| i18next | ^25.5.2 | MIT | i18next internationalization framework |
+| i18next-browser-languagedetector | ^8.2.0 | MIT | language detector used in browser environment for i18next |
+| idb | 7.1.1 | ISC | A small wrapper that makes IndexedDB usable |
 | intl-tel-input | ^24.5.0 | MIT | A JavaScript plugin for entering and validating international telephone numbers |
 | jotai | ^2.6.0 | MIT | 👻 Primitive and flexible state management for React |
 | json-edit-react | ^1.17.1 | MIT | React component for editing or viewing JSON/object data |
-| keycloak-js | ^22.0.1 | Apache-2.0 | A client-side JavaScript OpenID Connect library that can be used to secure web applications. |
+| keycloak-js | ^26.2.1 | Apache-2.0 | A client-side JavaScript OpenID Connect library that can be used to secure web applications. |
 | lodash | ^4.17.21 | MIT | Lodash modular utilities. |
 | moment-timezone | ^0.5.46 | MIT | Parse and display moments in any timezone. |
-| mui-image | 1.0.7 | ISC | Display images as per the Material guidelines. For React apps using Material-UI. |
+| mui-image | 1.0.9 | ISC | Display images as per the Material guidelines. For React apps using Material-UI. |
 | process | ^0.11.10 | MIT | process information for node.js and browsers |
 | ra-data-hasura | 0.6.0 | MIT | A data provider for connecting react-admin to a Hasura endpoint |
-| react | 18.1.0 | MIT | React is a JavaScript library for building user interfaces. |
-| react-admin | 4.12.4 | MIT | A frontend Framework for building admin applications on top of REST services, using ES6, React and Material UI |
+| react | 19.1.1 | MIT | React is a JavaScript library for building user interfaces. |
+| react-admin | 5.12.3 | MIT | A frontend Framework for building admin applications on top of REST services, using ES6, React and Material UI |
 | react-admin-import-csv | 4.0.1 | MIT | CSV import button for react-admin |
 | react-admin-json-view | 2.0.0 | MIT | JSON field and input for react-admin. |
 | react-apexcharts | 1.4.1 | SEE LICENSE IN LICENSE | React.js wrapper for ApexCharts |
 | react-diff-view | ^3.2.0 | MIT | A git diff component to consume the git unified diff output. |
 | react-dnd | 16.0.1 | MIT | Drag and Drop for React |
 | react-dnd-html5-backend | 16.0.1 | MIT | HTML5 backend for React DnD |
-| react-dom | 18.1.0 | MIT | React package for working with the DOM. |
-| react-i18next | 11.18.3 | MIT | Internationalization for react done right. Using the i18next i18n ecosystem. |
+| react-dom | 19.1.1 | MIT | React package for working with the DOM. |
+| react-i18next | 15.7.3 | MIT | Internationalization for react done right. Using the i18next i18n ecosystem. |
 | react-js-cron | ^5.0.1 | MIT | A React cron editor with antd inspired by jqCron |
 | react-redux | 8.1.2 | MIT | Official React bindings for Redux |
-| react-router | ^6.1.0 | MIT | Declarative routing for React |
-| react-router-dom | ^6.1.0 | MIT | Declarative routing for React web applications |
-| react-scripts | 5.0.1 | MIT | Configuration and scripts for Create React App. |
+| react-router | 7.9.5 | MIT | Declarative routing for React |
 | sql.js | ^1.13.0 | MIT | SQLite library with support for opening and writing databases, prepared statements, and more. This SQLite library is in pure javascript (compiled with emscripten). |
 | stream-browserify | ^3.0.0 | MIT | the stream module from node core for browsers |
 | tinymce | ^7.0.0 | GPL-2.0-or-later | Web based JavaScript HTML WYSIWYG editor control. |
 | util | ^0.12.5 | MIT | Node.js's util module for all engines |
 | uuid | 9.0.0 | MIT | RFC9562 UUIDs |
-| web-vitals | ^2.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
+| web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
 
 ## B3
 
@@ -129,26 +127,24 @@ The ballot verifier is a React-based application for verifying ballot integrity 
 | Dependency | Version | License | Description |
 |------------|---------|---------|-------------|
 | @apollo/client | 3.8.0 | MIT | A fully-featured caching GraphQL client. |
-| @craco/craco | ^7.1.0 | Apache-2.0 | Create React App Configuration Override, an easy and comprehensible configuration layer for create-react-app. |
-| @emotion/react | 11.10.0 | MIT | > Simple styling in React. |
-| @emotion/styled | 11.10.0 | MIT | styled API for emotion |
-| @fortawesome/fontawesome-svg-core | ^6.1.1 | MIT | The iconic font, CSS, and SVG framework |
-| @fortawesome/free-brands-svg-icons | ^6.1.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
-| @fortawesome/free-solid-svg-icons | ^6.1.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
-| @fortawesome/react-fontawesome | ^0.1.18 | MIT | Official React component for Font Awesome |
-| @mui/material | 5.13.3 | MIT | Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box. |
+| @emotion/react | 11.14.0 | MIT | > Simple styling in React. |
+| @emotion/styled | 11.14.1 | MIT | styled API for emotion |
+| @fortawesome/fontawesome-svg-core | ^7.0.1 | MIT | The iconic font, CSS, and SVG framework |
+| @fortawesome/free-brands-svg-icons | ^7.0.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
+| @fortawesome/free-solid-svg-icons | ^7.0.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
+| @fortawesome/react-fontawesome | ^3.0.2 | MIT | Official React component for Font Awesome |
+| @mui/material | 7.3.2 | MIT | Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box. |
 | @reduxjs/toolkit | 1.9.5 | MIT | The official, opinionated, batteries-included toolset for efficient Redux development |
-| i18next | ^21.8.16 | MIT | i18next internationalization framework |
-| i18next-browser-languagedetector | ^6.1.4 | MIT | language detector used in browser environment for i18next |
+| i18next | ^25.5.2 | MIT | i18next internationalization framework |
+| i18next-browser-languagedetector | ^8.2.0 | MIT | language detector used in browser environment for i18next |
 | lodash | ^4.17.21 | MIT | Lodash modular utilities. |
-| mui-image | 1.0.7 | ISC | Display images as per the Material guidelines. For React apps using Material-UI. |
-| react | 18.1.0 | MIT | React is a JavaScript library for building user interfaces. |
-| react-dom | 18.1.0 | MIT | React package for working with the DOM. |
-| react-i18next | 11.18.3 | MIT | Internationalization for react done right. Using the i18next i18n ecosystem. |
+| mui-image | 1.0.9 | ISC | Display images as per the Material guidelines. For React apps using Material-UI. |
+| react | 19.1.1 | MIT | React is a JavaScript library for building user interfaces. |
+| react-dom | 19.1.1 | MIT | React package for working with the DOM. |
+| react-i18next | 15.7.3 | MIT | Internationalization for react done right. Using the i18next i18n ecosystem. |
 | react-redux | 8.1.2 | MIT | Official React bindings for Redux |
-| react-router-dom | 6.11.2 | MIT | Declarative routing for React web applications |
-| react-scripts | 5.0.1 | MIT | Configuration and scripts for Create React App. |
-| web-vitals | ^2.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
+| react-router | 7.9.5 | MIT | Declarative routing for React |
+| web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
 
 ## Braid
 
@@ -464,12 +460,11 @@ UI Core provides shared user interface components and utilities.
 
 | Dependency | Version | License | Description |
 |------------|---------|---------|-------------|
-| html-react-parser | 4.2.0 | MIT | HTML to React parser. |
-| i18next | ^21.8.16 | MIT | i18next internationalization framework |
-| i18next-browser-languagedetector | ^6.1.4 | MIT | language detector used in browser environment for i18next |
-| moderndash | ^3.7.3 | MIT | A Typescript-First utility library inspired by Lodash. Optimized for modern browsers. |
+| html-react-parser | 5.2.8 | MIT | HTML to React parser. |
+| i18next | ^25.5.2 | MIT | i18next internationalization framework |
+| i18next-browser-languagedetector | ^8.2.0 | MIT | language detector used in browser environment for i18next |
+| moderndash | 4.0.0 | MIT | A Typescript-First utility library inspired by Lodash. Optimized for modern browsers. |
 | qrcode.react | 3.1.0 | ISC | React component to generate QR codes |
-| react-scripts | 5.0.1 | MIT | Configuration and scripts for Create React App. |
 | sanitize-html | 2.12.1 | MIT | Clean up user-submitted HTML, preserving allowlisted elements and allowlisted attributes on a per-element basis |
 
 ## UI Essentials
@@ -478,12 +473,13 @@ UI Essentials provides essential user interface components and styling utilities
 
 | Dependency | Version | License | Description |
 |------------|---------|---------|-------------|
-| @fortawesome/fontawesome-svg-core | ^6.1.1 | MIT | The iconic font, CSS, and SVG framework |
-| @fortawesome/free-brands-svg-icons | ^6.1.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
-| @fortawesome/free-solid-svg-icons | ^6.1.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
-| @fortawesome/react-fontawesome | ^0.1.18 | MIT | Official React component for Font Awesome |
-| i18next | ^21.8.16 | MIT | i18next internationalization framework |
-| i18next-browser-languagedetector | ^6.1.4 | MIT | language detector used in browser environment for i18next |
+| @fortawesome/fontawesome-svg-core | ^7.0.1 | MIT | The iconic font, CSS, and SVG framework |
+| @fortawesome/free-brands-svg-icons | ^7.0.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
+| @fortawesome/free-solid-svg-icons | ^7.0.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
+| @fortawesome/react-fontawesome | ^3.0.2 | MIT | Official React component for Font Awesome |
+| i18next | ^25.5.2 | MIT | i18next internationalization framework |
+| i18next-browser-languagedetector | ^8.2.0 | MIT | language detector used in browser environment for i18next |
+| qrcode.react | 3.1.0 | ISC | React component to generate QR codes |
 
 ## Velvet
 
@@ -525,7 +521,7 @@ The voting portal is a React-based web application that provides the voter inter
 | @fortawesome/free-solid-svg-icons | ^7.0.1 | (CC-BY-4.0 AND MIT) | The iconic font, CSS, and SVG framework |
 | @fortawesome/react-fontawesome | ^3.0.2 | MIT | Official React component for Font Awesome |
 | @mui/material | 7.3.2 | MIT | Material UI is an open-source React component library that implements Google's Material Design. It's comprehensive and can be used in production out of the box. |
-| @reduxjs/toolkit | 2.9.0 | MIT | The official, opinionated, batteries-included toolset for efficient Redux development |
+| @reduxjs/toolkit | 2.10.1 | MIT | The official, opinionated, batteries-included toolset for efficient Redux development |
 | dotenv | 17.2.2 | BSD-2-Clause | Loads environment variables from .env file |
 | graphql | 16.11.0 | MIT | A Query Language and Runtime which can target any service. |
 | i18next | ^25.5.2 | MIT | i18next internationalization framework |
@@ -537,8 +533,7 @@ The voting portal is a React-based web application that provides the voter inter
 | react-dom | 19.1.1 | MIT | React package for working with the DOM. |
 | react-i18next | 15.7.3 | MIT | Internationalization for react done right. Using the i18next i18n ecosystem. |
 | react-redux | 9.2.0 | MIT | Official React bindings for Redux |
-| react-router-dom | 7.9.1 | MIT | Declarative routing for React web applications |
-| react-scripts | 5.0.1 | MIT | Configuration and scripts for Create React App. |
+| react-router | 7.9.5 | MIT | Declarative routing for React |
 | uuid | 13.0.0 | MIT | RFC9562 UUIDs |
 | web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
 
@@ -617,7 +612,7 @@ Windmill provides workflow automation and task orchestration capabilities.
 | toml | 0.8 | MIT OR Apache-2.0 | A native Rust encoder and decoder of TOML-formatted files and streams. Provides implementations of the standard Serialize/Deserialize traits for TOML data to facilitate deserializing and serializing Rust structures. |
 | tracing | 0.1 | MIT | Application-level tracing for Rust. |
 | tracing-subscriber | 0.3 | MIT | Utilities for implementing and composing `tracing` subscribers. |
-| unicode-normalization | 0.1 | MIT/Apache-2.0 | This crate provides functions for normalization of Unicode strings, including Canonical and Compatible Decomposition and Recomposition, as described in Unicode Standard Annex #15. |
+| unicode-normalization | 0.1 | MIT OR Apache-2.0 | This crate provides functions for normalization of Unicode strings, including Canonical and Compatible Decomposition and Recomposition, as described in Unicode Standard Annex #15. |
 | uuid | 1.5 | Apache-2.0 OR MIT | A library to generate and parse UUIDs. |
 | walkdir | 2.3 | Unlicense/MIT | Recursively walk a directory. |
 | xz2 | 0.1 | MIT/Apache-2.0 | Rust bindings to liblzma providing Read/Write streams as well as low-level in-memory encoding/decoding. |

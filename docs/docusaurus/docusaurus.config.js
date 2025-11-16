@@ -1,5 +1,5 @@
 /*
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+/* SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 */
 
@@ -55,10 +55,11 @@ const config = {
         additionalLanguages: ['php', 'bash', 'json', 'yaml', 'rust', 'java'],
       },
       navbar: {
-        title: '    Home',
+        title: '',
         logo: {
           alt: 'Sequent Logo',
           src: '/img/logo_negative.svg',
+          href: '/docs/system_introduction/',
         },
         items: [
           {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -917,10 +917,6 @@ const tagalogTranslation: TranslationType = {
                 "report-delete": "Tanggalin ang Ulat",
                 "report-generate": "Lumikha ng Ulat",
                 "report-preview": "I-preview ang Ulat",
-                "monitoring-dashboard-view-election-event":
-                    "Pagtingin sa Dashboard ng Pagsubaybay sa Halalan",
-                "monitoring-dashboard-view-election":
-                    "Pagtingin sa Dashboard ng Pagsubaybay sa Kaganapan ng Halalan",
                 "monitor-authenticated-voters": "Pagmamatyag sa Mga Awtentikadong Botante",
                 "monitor-all-approve-disapprove-voters":
                     "Basahin ang Pagmamatyag sa Mga Aprubado at Hindi Aprubado",
@@ -1048,7 +1044,6 @@ const tagalogTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Resibo ng Balota",
-                VOTE_RECEIPT: "Resibo ng Boto",
                 ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
@@ -1790,10 +1785,6 @@ const tagalogTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Resibo ng Balota",
-                PARTICIPATION_REPORT: "Ulat ng Paglahok",
-                ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
-                OTP: "OTP",
-                TALLY_REPORT: "Ulat ng Bilang",
             },
             email: {
                 subject: "Paksa",
@@ -1930,39 +1921,12 @@ const tagalogTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Mga Kredensyal",
-                BALLOT_RECEIPT: "Resibo ng Balota",
-                VOTE_RECEIPT: "Resibo ng Boto",
-                PARTICIPATION_REPORT: "Ulat ng Partisipasyon",
-                ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
-                OTP: "OTP",
-                TALLY_REPORT: "Ulat ng Pagbibilang",
-                MANUAL_VERIFICATION: "Manwal na i-verify ang botante",
-                STATISTICAL_REPORT: "Ulat na Pangkaalaman",
                 INITIALIZATION_REPORT: "Ulat ng Inisyal na Proseso",
-                STATUS: "Ulat ng Kalagayan",
-                TRANSMISSION_REPORT: "Mga Ulat ng Transmisyon",
-                AUDIT_LOGS: "Mga Log ng Audit",
-                ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
-                OVCS_INFORMATION: "Impormasyon ng OVCS",
-                OVCS_EVENTS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Kaganapan ng OVCS",
-                OVCS_STATISTICS: "Pagsubaybay ng Pagboto sa Ibang Bansa - Mga Estadistika ng OVCS",
-                OV_WHO_VOTED: "Mga Gumagamit ng OV na Bumoto",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Listahan ng OV na Nagpaunang-enrol ngunit Hindi Naaprubahan",
-                LIST_OF_OVERSEAS_VOTERS: "Listahan ng mga botanteng nasa ibang bansa",
-                VOTERS_TURNOUT_PERCENTAGE: "Turnout ng mga Botante",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan at Kasarian",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Turnout ng mga Botante sa Ibang Bansa - ayon sa Kalagayan, Kasarian at may Porsyento",
-                OV_PRE_ENROLLED_APPROVED: "Listahan ng mga OV na Pre-enrolled (Inaprubahan)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Listahan ng mga OV na Pre-enrolled ngunit Kailangan ng Manwal na Pagpapatunay",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Listahan ng mga OV na Hindi pa Pre-enrolled",
-                OV_WITH_VOTING_STATUS:
-                    "Listahan ng mga Botante sa Ibang Bansa na may Kalagayan ng Pagboto",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Bilang ng mga OV na Hindi pa Pre-enrolled",
+                ELECTORAL_RESULTS: "Mga Resulta ng Halalan",
                 BALLOT_IMAGES: "Mga Larawan ng Balota",
+                BALLOT_RECEIPT: "Resibo ng Balota",
+                ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
+                MANUAL_VERIFICATION: "Manwal na Pag-verify",
             },
             method: {
                 email: "Email",

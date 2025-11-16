@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -173,29 +173,6 @@ export const EditElectionEventDataForm: React.FC = () => {
             election_event_id: record?.id,
         },
     })
-
-    const {data: verifyVoterTemplates} = useGetList<Sequent_Backend_Template>(
-        "sequent_backend_template",
-        {
-            filter: {
-                tenant_id: tenantId,
-                type: ETemplateType.MANUAL_VERIFICATION,
-            },
-        }
-    )
-
-    const manuallyVerifyVoterTemplates = (): Array<EnumChoice<string>> => {
-        if (!verifyVoterTemplates) {
-            return []
-        }
-        const template_names = (verifyVoterTemplates as Sequent_Backend_Template[]).map((entry) => {
-            return {
-                id: entry.id,
-                name: entry.template?.name,
-            }
-        })
-        return template_names
-    }
 
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
