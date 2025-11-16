@@ -3,7 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {ReactElement, useContext, useMemo} from "react"
-import {DatagridConfigurable, FunctionField, List, TextField, useSidebarState} from "react-admin"
+import {
+    DatagridConfigurable,
+    FunctionField,
+    List,
+    TextField,
+    useRecordContext,
+    useSidebarState,
+} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
@@ -14,6 +21,7 @@ import SelectElection from "@/components/election/SelectElection"
 import {COUNTRIES} from "@/lib/countries"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ListActions} from "@/components/ListActions"
+import {Sequent_Backend_Election} from "@/gql/graphql"
 
 const ListStyle = styled(List)`
     button.RaFilterFormInput-hideButton {
@@ -23,8 +31,6 @@ const ListStyle = styled(List)`
 
 export interface ListIpAddressProps {
     aside?: ReactElement
-    electionEventId?: string
-    electionId?: string
 }
 
 export interface RecordVoteCloudflareData {
@@ -32,14 +38,26 @@ export interface RecordVoteCloudflareData {
     country?: string
 }
 
-export const ListIpAddress: React.FC<ListIpAddressProps> = ({
-    aside,
-    electionEventId,
-    electionId,
-}) => {
+const Empty: React.FC = () => {
+    const {t} = useTranslation()
+
+    return (
+        <ResourceListStyles.EmptyBox style={{margin: "8px"}}>
+            <Typography variant="h4" paragraph>
+                {t(`dashboard.ipAddress.emptyState`)}
+            </Typography>
+        </ResourceListStyles.EmptyBox>
+    )
+}
+
+export const ListIpAddress: React.FC<ListIpAddressProps> = ({aside}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const {globalSettings} = useContext(SettingsContext)
+    const record = useRecordContext<Sequent_Backend_Election>()
+
+    const electionEventId = record?.election_event_id ?? record?.id
+    const electionId = record?.election_event_id ? record?.id : undefined
 
     const Filters = useMemo(
         () => [
@@ -63,14 +81,6 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
         []
     )
 
-    const Empty = () => (
-        <ResourceListStyles.EmptyBox style={{margin: "8px"}}>
-            <Typography variant="h4" paragraph>
-                {t(`dashboard.ipAddress.emptyState`)}
-            </Typography>
-        </ResourceListStyles.EmptyBox>
-    )
-
     const filters = () => {
         const filters: any = {
             tenant_id: tenantId,
@@ -84,6 +94,10 @@ export const ListIpAddress: React.FC<ListIpAddressProps> = ({
             filters["election_id"] = electionId
         }
         return filters
+    }
+
+    if (!electionEventId) {
+        return null
     }
 
     return (

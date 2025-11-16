@@ -110,6 +110,28 @@
         "type": "github"
       }
     },
+    "pre-commit-hooks": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "gitignore": "gitignore",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1762441963,
+        "owner": "cachix",
+        "repo": "pre-commit-hooks.nix",
+        "rev": "8e7576e79b88c16d7ee3bbd112c8d90070832885",
+        "treeHash": "c474917813c7c6e4ec9bd5c5cd53ce84d143a321",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cachix",
+        "repo": "pre-commit-hooks.nix",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "devenv": "devenv",

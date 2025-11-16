@@ -353,7 +353,8 @@ sudo chown vscode:vscode /workspaces/step/packages/target -R
 ### Can't rebuild containers
 
 If you're getting an error of this kind
-```
+
+```bash
 vscode ➜ /workspaces/step (main) $ devenv shell
 • Building shell ...
 • Using Cachix: devenv
@@ -361,6 +362,7 @@ thread 'main' panicked at /tmp/nix-build-devenv-1.4.0.drv-0/source/devenv/src/cn
 to resolve gc_root: Os { code: 2, kind: NotFound, message: "No such file or directory" }
 ...
 ```
+
 when running in the terminal `devenv shell` or in the `Rebuild Container` vscode task. This can happen when devenv version was updated but the cache wasn´t, try:
 1. Remove folders `step/.direnv` and `step/.devenv`.
 2. Then run `Rebuild Container Without Cache`.
