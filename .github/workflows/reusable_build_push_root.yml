@@ -119,5 +119,5 @@ jobs:
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}
 
-     - name: Run e2e tests
-       run: docker run --rm  ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }} e2e
+    - name: Run e2e tests
+      run: docker run --rm  ${{ vars.AWS_ECR_REGISTRY }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }} e2e
