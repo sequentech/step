@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-developers/contributing" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.8.1">
+<title data-rh="true">Contributing Guide | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/contributing"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Contributing Guide | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/contributing"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/contributing" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/contributing" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Contributing Guide","item":"https://your-docusaurus-site.example.com/docusaurus/main/docs/developers/contributing"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.54d9e100.css">
+<script src="/docusaurus/main/assets/js/runtime~main.994b54c1.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/main.1c2125c4.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t="light";var e=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",e||t),document.documentElement.setAttribute("data-theme-choice",e||t)}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/docusaurus/main/img/logo_negative.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docusaurus/main/docs/system_introduction/"><div class="navbar__logo"><img src="/docusaurus/main/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/docusaurus/main/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate"></b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docusaurus/main/docs/system_introduction/">Docs</a><a href="/docusaurus/main/graphql" class="navbar__item navbar__link" target="_blank">GraphQL API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/sequentech" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docusaurus/main/docs/system_introduction/">System Introduction</a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/main/docs/system_introduction/">Sequent Voting Platform Documentation</a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/main/docs/admin_portal/election_management">Admin Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/main/docs/voting_portal/voting_portal">Voting Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/main/docs/election_auditors/ballot_signature">Election Auditors</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docusaurus/main/docs/developers/contributing">Developers</a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docusaurus/main/docs/developers/contributing">Contributing Guide</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/main/docs/developers/graphql_api">GraphQL API</a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/CLI/cli">CLI</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Development-Environment/nvd-api-key-setup">Development Environment</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Admin-Portal/developers_admin_portal">Admin Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Voting-Portal/cast_vote_errors">Voting Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Keycloak/developers_keycloak">Keycloak</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Velvet/developers_velvet">Velvet</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Windmill/developers_windmill">Windmill</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Braid/braid_trustees_configuration">Braid</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Tutorials/add_new_language">Tutorials</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/main/docs/developers/Updates/generating-dependency-report">Updates</a></div></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/main/docs/reference/reference">Reference</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/main/docs/releases/Release Next/release-next">Releases</a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docusaurus/main/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Developers</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Contributing Guide</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Contributing to Sequent Voting Platform</h1></header>
+<p>Thank you for your interest in contributing to the Sequent Voting Platform! This guide will help you get started with contributing to our open-source project.</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="ways-to-contribute">Ways to Contribute<a href="#ways-to-contribute" class="hash-link" aria-label="Direct link to Ways to Contribute" title="Direct link to Ways to Contribute">​</a></h2>
+<p>There are many ways to contribute to Sequent:</p>
+<ul>
+<li><strong>Report bugs</strong> - Help us identify and fix issues</li>
+<li><strong>Suggest features</strong> - Share ideas for improvements</li>
+<li><strong>Improve documentation</strong> - Help make our docs clearer and more comprehensive</li>
+<li><strong>Submit code</strong> - Fix bugs or implement new features</li>
+<li><strong>Review pull requests</strong> - Help review contributions from other developers</li>
+<li><strong>Answer questions</strong> - Help other users in our <a href="https://discord.gg/WfvSTmcdY8" target="_blank" rel="noopener noreferrer">Discord community</a></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="getting-started">Getting Started<a href="#getting-started" class="hash-link" aria-label="Direct link to Getting Started" title="Direct link to Getting Started">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="prerequisites">Prerequisites<a href="#prerequisites" class="hash-link" aria-label="Direct link to Prerequisites" title="Direct link to Prerequisites">​</a></h3>
+<p>Before contributing, make sure you have:</p>
+<ul>
+<li>A <a href="https://github.com/signup" target="_blank" rel="noopener noreferrer">GitHub account</a></li>
+<li>Git installed on your local machine</li>
+<li>Docker installed for running the development environment</li>
+<li>Basic knowledge of the technologies we use (see <a href="/docusaurus/main/docs/reference/software-architecture/intro">System Architecture</a>)</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="development-environment-setup">Development Environment Setup<a href="#development-environment-setup" class="hash-link" aria-label="Direct link to Development Environment Setup" title="Direct link to Development Environment Setup">​</a></h3>
+<p>The fastest way to start developing is using VS Code Dev Containers or GitHub Codespaces:</p>
+<ol>
+<li><strong>Fork the repository</strong> on GitHub</li>
+<li><strong>Clone your fork</strong>:<!-- -->
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> clone https://github.com/YOUR-USERNAME/step.git</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> step</span><br></span></code></pre></div></div>
+</li>
+<li><strong>Open in VS Code</strong> with the Dev Containers extension installed</li>
+<li>The environment will automatically set up all dependencies</li>
+</ol>
+<p>For detailed setup instructions, see the <a href="/docusaurus/main/docs/developers/graphql_api">GraphQL API Documentation</a>.</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="development-workflow">Development Workflow<a href="#development-workflow" class="hash-link" aria-label="Direct link to Development Workflow" title="Direct link to Development Workflow">​</a></h3>
+<ol>
+<li>
+<p><strong>Create a branch</strong> for your work:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> checkout </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-b</span><span class="token plain"> feature/your-feature-name</span><br></span></code></pre></div></div>
+</li>
+<li>
+<p><strong>Make your changes</strong> following our coding standards</p>
+</li>
+<li>
+<p><strong>Test your changes</strong> thoroughly:</p>
+<ul>
+<li>Run existing tests</li>
+<li>Add new tests for new features</li>
+<li>Verify the documentation builds correctly</li>
+</ul>
+</li>
+<li>
+<p><strong>Commit your changes</strong> with clear, descriptive messages:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">add</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">.</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> commit </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-m</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;feat: add new feature description&quot;</span><br></span></code></pre></div></div>
+</li>
+<li>
+<p><strong>Push to your fork</strong>:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> push origin feature/your-feature-name</span><br></span></code></pre></div></div>
+</li>
+<li>
+<p><strong>Open a Pull Request</strong> on GitHub</p>
+</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="coding-standards">Coding Standards<a href="#coding-standards" class="hash-link" aria-label="Direct link to Coding Standards" title="Direct link to Coding Standards">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="general-guidelines">General Guidelines<a href="#general-guidelines" class="hash-link" aria-label="Direct link to General Guidelines" title="Direct link to General Guidelines">​</a></h3>
+<ul>
+<li>Write clear, readable code with meaningful variable names</li>
+<li>Add comments for complex logic</li>
+<li>Keep functions small and focused</li>
+<li>Follow the existing code style in each part of the project</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="language-specific-standards">Language-Specific Standards<a href="#language-specific-standards" class="hash-link" aria-label="Direct link to Language-Specific Standards" title="Direct link to Language-Specific Standards">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="rust">Rust<a href="#rust" class="hash-link" aria-label="Direct link to Rust" title="Direct link to Rust">​</a></h4>
+<ul>
+<li>Follow the <a href="https://rust-lang.github.io/api-guidelines/" target="_blank" rel="noopener noreferrer">Rust API Guidelines</a></li>
+<li>Run <code>cargo fmt</code> before committing</li>
+<li>Run <code>cargo clippy</code> and address warnings</li>
+<li>Add documentation comments for public APIs</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="typescriptjavascript">TypeScript/JavaScript<a href="#typescriptjavascript" class="hash-link" aria-label="Direct link to TypeScript/JavaScript" title="Direct link to TypeScript/JavaScript">​</a></h4>
+<ul>
+<li>Use TypeScript for new frontend code</li>
+<li>Follow the ESLint configuration</li>
+<li>Run <code>yarn prettify:fix</code> before committing</li>
+<li>Use functional components and hooks in React</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_LWe7" id="documentation">Documentation<a href="#documentation" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation">​</a></h4>
+<ul>
+<li>Write in clear, concise English</li>
+<li>Include code examples where appropriate</li>
+<li>Update the documentation when changing functionality</li>
+<li>Check for broken links before submitting</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="commit-message-convention">Commit Message Convention<a href="#commit-message-convention" class="hash-link" aria-label="Direct link to Commit Message Convention" title="Direct link to Commit Message Convention">​</a></h2>
+<p>We follow the <a href="https://www.conventionalcommits.org/" target="_blank" rel="noopener noreferrer">Conventional Commits</a> specification:</p>
+<ul>
+<li><code>feat:</code> - A new feature</li>
+<li><code>fix:</code> - A bug fix</li>
+<li><code>docs:</code> - Documentation only changes</li>
+<li><code>style:</code> - Code style changes (formatting, missing semicolons, etc.)</li>
+<li><code>refactor:</code> - Code changes that neither fix bugs nor add features</li>
+<li><code>perf:</code> - Performance improvements</li>
+<li><code>test:</code> - Adding or updating tests</li>
+<li><code>chore:</code> - Changes to build process or auxiliary tools</li>
+</ul>
+<p>Example:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">feat: add ballot verification to voting portal</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">This commit adds the ability for voters to verify their ballot</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">through the voting portal interface.</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="contributor-license-agreement-cla">Contributor License Agreement (CLA)<a href="#contributor-license-agreement-cla" class="hash-link" aria-label="Direct link to Contributor License Agreement (CLA)" title="Direct link to Contributor License Agreement (CLA)">​</a></h2>
+<p>Before we can accept your contribution, you must sign the <strong>Sequent Contributor License Agreement (CLA)</strong>. This is a one-time requirement that ensures:</p>
+<ul>
+<li>You have the legal right to contribute the code</li>
+<li>Sequent can use and distribute your contributions</li>
+<li>The project remains open source under the AGPL-3.0 license</li>
+<li>Contributors are properly credited and protected</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="how-it-works">How It Works<a href="#how-it-works" class="hash-link" aria-label="Direct link to How It Works" title="Direct link to How It Works">​</a></h3>
+<ol>
+<li>When you submit your first pull request, the CLA Assistant bot will automatically comment on your PR</li>
+<li>Review the <a href="https://github.com/sequentech/step/blob/main/.github/cla/CLA.md" target="_blank" rel="noopener noreferrer">full CLA document</a></li>
+<li>Sign by commenting on your PR with: <code>I have read the CLA Document and I hereby sign the CLA</code></li>
+<li>The bot will record your signature and update your PR status</li>
+<li>You only need to sign once - all future contributions are covered</li>
+</ol>
+<p>The CLA signing process is quick and straightforward. If you have any questions about the CLA, please reach out on our <a href="https://discord.gg/WfvSTmcdY8" target="_blank" rel="noopener noreferrer">Discord community</a> or comment on your pull request.</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="pull-request-process">Pull Request Process<a href="#pull-request-process" class="hash-link" aria-label="Direct link to Pull Request Process" title="Direct link to Pull Request Process">​</a></h2>
+<ol>
+<li>
+<p><strong>Ensure your PR</strong>:</p>
+<ul>
+<li>Has a clear title and description</li>
+<li>References any related issues (e.g., &quot;Fixes #123&quot;)</li>
+<li>Includes tests for new functionality</li>
+<li>Updates documentation as needed</li>
+<li>Passes all CI checks</li>
+<li><strong>Has a signed CLA</strong> (for first-time contributors)</li>
+</ul>
+</li>
+<li>
+<p><strong>PR Review</strong>:</p>
+<ul>
+<li>At least one maintainer review is required</li>
+<li>Address review comments promptly</li>
+<li>Be open to feedback and discussion</li>
+</ul>
+</li>
+<li>
+<p><strong>After Approval</strong>:</p>
+<ul>
+<li>Maintainers will merge your PR</li>
+<li>Your contribution will be included in the next release</li>
+</ul>
+</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="testing">Testing<a href="#testing" class="hash-link" aria-label="Direct link to Testing" title="Direct link to Testing">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="running-tests">Running Tests<a href="#running-tests" class="hash-link" aria-label="Direct link to Running Tests" title="Direct link to Running Tests">​</a></h3>
+<p>For Rust packages:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> packages/</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><br></span></code></pre></div></div>
+<p>For frontend packages:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> packages/</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="writing-tests">Writing Tests<a href="#writing-tests" class="hash-link" aria-label="Direct link to Writing Tests" title="Direct link to Writing Tests">​</a></h3>
+<ul>
+<li>Write unit tests for new functions and modules</li>
+<li>Write integration tests for API endpoints</li>
+<li>Write end-to-end tests for critical user flows</li>
+<li>Aim for good test coverage, especially for critical code paths</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="documentation-1">Documentation<a href="#documentation-1" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation">​</a></h2>
+<p>When contributing documentation:</p>
+<ol>
+<li>
+<p><strong>Preview your changes</strong>:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> docs/docusaurus</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">npm</span><span class="token plain"> start</span><br></span></code></pre></div></div>
+</li>
+<li>
+<p><strong>Check for broken links</strong>:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">npm</span><span class="token plain"> run build</span><br></span></code></pre></div></div>
+</li>
+<li>
+<p><strong>Follow the documentation structure</strong> in the <code>docs/</code> folder</p>
+</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="license">License<a href="#license" class="hash-link" aria-label="Direct link to License" title="Direct link to License">​</a></h2>
+<p>By contributing to Sequent Voting Platform, you agree that your contributions will be licensed under the AGPL-3.0-only license. Make sure all new files include the appropriate SPDX license header:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">&lt;!--</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc &lt;legal@sequentech.io&gt;</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">SPDX-License-Identifier: AGPL-3.0-only</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">--&gt;</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="code-of-conduct">Code of Conduct<a href="#code-of-conduct" class="hash-link" aria-label="Direct link to Code of Conduct" title="Direct link to Code of Conduct">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="our-pledge">Our Pledge<a href="#our-pledge" class="hash-link" aria-label="Direct link to Our Pledge" title="Direct link to Our Pledge">​</a></h3>
+<p>We are committed to providing a welcoming and inclusive environment for all contributors, regardless of:</p>
+<ul>
+<li>Age, body size, disability, ethnicity, gender identity and expression</li>
+<li>Level of experience, education, socio-economic status</li>
+<li>Nationality, personal appearance, race, religion, or sexual identity and orientation</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="our-standards">Our Standards<a href="#our-standards" class="hash-link" aria-label="Direct link to Our Standards" title="Direct link to Our Standards">​</a></h3>
+<p><strong>Positive behavior includes</strong>:</p>
+<ul>
+<li>Being respectful and considerate</li>
+<li>Accepting constructive criticism gracefully</li>
+<li>Focusing on what&#x27;s best for the community</li>
+<li>Showing empathy towards other community members</li>
+</ul>
+<p><strong>Unacceptable behavior includes</strong>:</p>
+<ul>
+<li>Harassment, trolling, or insulting comments</li>
+<li>Personal or political attacks</li>
+<li>Publishing others&#x27; private information without permission</li>
+<li>Any conduct inappropriate in a professional setting</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="enforcement">Enforcement<a href="#enforcement" class="hash-link" aria-label="Direct link to Enforcement" title="Direct link to Enforcement">​</a></h3>
+<p>Instances of unacceptable behavior may be reported to the project maintainers. All complaints will be reviewed and investigated, resulting in a response deemed necessary and appropriate.</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="getting-help">Getting Help<a href="#getting-help" class="hash-link" aria-label="Direct link to Getting Help" title="Direct link to Getting Help">​</a></h2>
+<p>If you need help or have questions:</p>
+<ul>
+<li><strong>Discord</strong>: Join our <a href="https://discord.gg/WfvSTmcdY8" target="_blank" rel="noopener noreferrer">Discord community</a></li>
+<li><strong>GitHub Issues</strong>: Check existing issues or create a new one</li>
+<li><strong>Documentation</strong>: Browse our <a href="https://docs.sequentech.io/docusaurus/main/" target="_blank" rel="noopener noreferrer">comprehensive documentation</a></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="recognition">Recognition<a href="#recognition" class="hash-link" aria-label="Direct link to Recognition" title="Direct link to Recognition">​</a></h2>
+<p>Contributors who make significant contributions will be:</p>
+<ul>
+<li>Listed in our project contributors</li>
+<li>Acknowledged in release notes</li>
+<li>Invited to participate in project discussions and decisions</li>
+</ul>
+<p>Thank you for contributing to Sequent Voting Platform! Your efforts help make online voting more secure, transparent, and accessible for everyone.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/developers/00-contributing.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/main/docs/election_auditors/election_verifier"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Election Verifier</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/main/docs/developers/graphql_api"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">GraphQL API</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#ways-to-contribute" class="table-of-contents__link toc-highlight">Ways to Contribute</a></li><li><a href="#getting-started" class="table-of-contents__link toc-highlight">Getting Started</a><ul><li><a href="#prerequisites" class="table-of-contents__link toc-highlight">Prerequisites</a></li><li><a href="#development-environment-setup" class="table-of-contents__link toc-highlight">Development Environment Setup</a></li><li><a href="#development-workflow" class="table-of-contents__link toc-highlight">Development Workflow</a></li></ul></li><li><a href="#coding-standards" class="table-of-contents__link toc-highlight">Coding Standards</a><ul><li><a href="#general-guidelines" class="table-of-contents__link toc-highlight">General Guidelines</a></li><li><a href="#language-specific-standards" class="table-of-contents__link toc-highlight">Language-Specific Standards</a></li></ul></li><li><a href="#commit-message-convention" class="table-of-contents__link toc-highlight">Commit Message Convention</a></li><li><a href="#contributor-license-agreement-cla" class="table-of-contents__link toc-highlight">Contributor License Agreement (CLA)</a><ul><li><a href="#how-it-works" class="table-of-contents__link toc-highlight">How It Works</a></li></ul></li><li><a href="#pull-request-process" class="table-of-contents__link toc-highlight">Pull Request Process</a></li><li><a href="#testing" class="table-of-contents__link toc-highlight">Testing</a><ul><li><a href="#running-tests" class="table-of-contents__link toc-highlight">Running Tests</a></li><li><a href="#writing-tests" class="table-of-contents__link toc-highlight">Writing Tests</a></li></ul></li><li><a href="#documentation-1" class="table-of-contents__link toc-highlight">Documentation</a></li><li><a href="#license" class="table-of-contents__link toc-highlight">License</a></li><li><a href="#code-of-conduct" class="table-of-contents__link toc-highlight">Code of Conduct</a><ul><li><a href="#our-pledge" class="table-of-contents__link toc-highlight">Our Pledge</a></li><li><a href="#our-standards" class="table-of-contents__link toc-highlight">Our Standards</a></li><li><a href="#enforcement" class="table-of-contents__link toc-highlight">Enforcement</a></li></ul></li><li><a href="#getting-help" class="table-of-contents__link toc-highlight">Getting Help</a></li><li><a href="#recognition" class="table-of-contents__link toc-highlight">Recognition</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
+</body>
+</html>
