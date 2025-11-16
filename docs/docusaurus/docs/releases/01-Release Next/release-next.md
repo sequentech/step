@@ -7,34 +7,82 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## 🔧 Removal of Monitoring Dashboard
+## 🔧 Publicly Open Source Preparations
 
-The monitoring dashboard functionality has been removed from the Admin Portal,
-including all associated GraphQL queries, backend routes, and permissions. This
-feature is being replaced by the existing dashboard functionality in future
-releases.
+This release transitions the Sequent Voting Platform from an on-request
+permisioned open-source repository to a no-requirements, publicly-available
+open-source repository. These changes include license compliance updates,
+removal of client-specific integrations, improved documentation, and various
+code modernization efforts.
+
+- Issue: [#9060](https://github.com/sequentech/meta/issues/9060)
+
+### License Compliance (REUSE 4.0)
+All files now have proper SPDX license headers standardized to AGPL-3.0-only
+with copyright assigned to "Sequent Tech Inc <legal@sequentech.io>". The license
+headers and copyright year have been unified across the codebase - the project
+was already open source. The project has migrated from `.reuse/dep5` to 
+`REUSE.toml` for improved license management compliance with the REUSE 4.0 
+specification.
+
+**New Features:**
+- Contributor License Agreement (CLA) system with automated GitHub workflow
+- Comprehensive third-party dependency documentation with OSI-approved licenses
+- New contributing guide and developer documentation
+- Updated README for open-source audience
+
+### Removed Features & Integrations
+
+The following features and integrations have been moved to our private
+repository in `beyound`:
+
+1. **Inetum Integration** - All Inetum-specific authentication code has been
+   removed, including Keycloak extensions and custom authenticators.
+
+2. **Datafix Integration** - All Datafix integration documentation and API
+   endpoints have been removed.
+
+3. **Monitoring Dashboard** - The monitoring dashboard was not a supported
+   feature so for the time being and pending a redesign, we have removed it.
+
+### Terminology Changes
+
+**"Vote Receipts" → "Ballot Images"**
+
+Throughout the codebase, user interface, and documentation, the terminology has
+been updated from "vote receipts" to "ballot images" for clearer communication.
+While template file names have been retained for backward compatibility, all
+internal references have been updated.
+
+### Admin Portal Changes
+
+- **ESLint Migration:** Migrated from legacy ESLint configuration to new flat
+  config format
+- **Configuration Modernization:** Renamed config files from `.js` to `.cjs` for
+  better CommonJS compatibility
+- **UI Improvements:** Fixed sticky toolbar issues and restored widget
+  background colors
+- **Dependency Updates:** Updated all npm packages and rebuilt WASM packages
 
 ### Migration Required
 
-The following Keycloak permissions must be manually removed from all tenant realms:
+#### Remove some Permissions
+
+The following Keycloak permissions must be manually removed from all tenant
+realms:
 
 - `monitoring-dashboard-view-election-event`
 - `monitoring-dashboard-view-election`
 
-To remove these permissions from Keycloak:
-
+**Steps:**
 1. Log in to the Keycloak Admin Console
 2. Select the tenant realm (e.g., `dev`)
 3. Navigate to `Realm Roles`
 4. Search for and delete the roles:
    - `monitoring-dashboard-view-election-event`
    - `monitoring-dashboard-view-election`
-5. If these roles were assigned to any groups or users, remove those assignments first
-
-Note: The dashboard functionality (`admin-dashboard-view` permission) remains
-available and provides comprehensive statistics for election events and elections.
-
-- Issue: [#9060](https://github.com/sequentech/meta/issues/9060)
+5. If these roles were assigned to any groups or users, remove those assignments
+   first
 
 ## 📖 Third-Party Libraries Reference Documentation
 
