@@ -19,7 +19,7 @@ code modernization efforts.
 
 ### License Compliance (REUSE 4.0)
 All files now have proper SPDX license headers standardized to AGPL-3.0-only
-with copyright assigned to "Sequent Tech Inc <legal@sequentech.io>". The license
+with copyright assigned to `Sequent Tech Inc <legal@sequentech.io>`. The license
 headers and copyright year have been unified across the codebase - the project
 was already open source. The project has migrated from `.reuse/dep5` to 
 `REUSE.toml` for improved license management compliance with the REUSE 4.0 
