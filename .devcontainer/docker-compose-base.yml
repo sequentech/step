@@ -38,7 +38,6 @@ services:
       - "8083:8083"
     environment:
       # SimpleSAMLphp General Configuration
-      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE}
       - SSP_ADMIN_PASSWORD=${SSP_ADMIN_PASSWORD}
       - SSP_LOG_LEVEL=${SSP_LOG_LEVEL}
       - SSP_LOG_HANDLER=${SSP_LOG_HANDLER}

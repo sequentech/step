@@ -213,14 +213,14 @@ $configOverride = [
      * session.cookie.secure - Whether session cookies should be marked as secure
      * Set to false in development mode to allow HTTP, true in production for HTTPS
      */
-    'session.cookie.secure' => getenv('DEVELOPMENT_MODE') !== 'true',
+    'session.cookie.secure' => true,
 
     /**
      * session.cookie.samesite - SameSite attribute for session cookies
      * Set to 'Lax' in development to prevent CORS issues
      * Options: 'None', 'Lax', 'Strict', null
      */
-    'session.cookie.samesite' => getenv('DEVELOPMENT_MODE') === 'true' ? 'Lax' : null,
+    'session.cookie.samesite' => 'Lax',
 
     /**
      * saml20.idp.allowunsolicited - Allow IdP-initiated SSO

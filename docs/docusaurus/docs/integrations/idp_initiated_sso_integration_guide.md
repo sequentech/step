@@ -73,7 +73,7 @@ Contact Sequent technical support to request your integration parameters. You'll
 |-----------|-------------|---------|
 | `TENANT_ID` | Your organization's tenant UUID | `abc12345-6789-...` |
 | `EVENT_ID` | Your voting event UUID | `def67890-1234-...` |
-| `SP_BASE_URL` | Sequent's authentication service URL | `https://login-example.sequent.vote` |
+| `SP_BASE_URL` | Sequent's authentication service URL | `https://login-example.sequent.vote/auth/` |
 | `VOTING_PORTAL_URL` | Voting portal base URL | `https://voting-example.sequent.vote` |
 | `SP_IDP_ALIAS` | Your IdP identifier | `yourcompany-idp` |
 | `SP_CLIENT_ID` | SAML client ID | `vp-sso` |
@@ -117,7 +117,7 @@ SSP_EXAMPLE_USERS=user1:password:user1@example.com,user2:password:user2@example.
 # Sequent configuration (from Step 1)
 TENANT_ID=<your-tenant-id>
 EVENT_ID=<your-event-id>
-SP_BASE_URL=https://login-example.sequent.vote
+SP_BASE_URL=https://login-example.sequent.vote/auth/
 SP_IDP_ALIAS=yourcompany-idp
 SP_CLIENT_ID=vp-sso
 SP_CERT_DATA=<certificate-from-sequent>
@@ -212,6 +212,10 @@ Sequent needs your IdP metadata to configure trust. Provide:
 3. **IdP SSO URL:** `https://localhost:8083/simplesaml/saml2/idp/SSOService.php`
 4. **Public Certificate:** Found in `.devcontainer/simplesamlphp/cert/server.crt`
 
+:::note Why you still send `server.crt`
+When you expose SimpleSAMLphp through ngrok, ngrok terminates HTTPS on the public URL and presents **its** TLS certificate to browsers. That only affects the transport channel. The certificate stored at `.devcontainer/simplesamlphp/cert/server.crt` is different: SimpleSAMLphp uses it to **sign SAML responses/assertions** and it is embedded in your IdP metadata. Sequent needs this signing certificate (not the ngrok TLS cert) to validate every message your IdP issues, regardless of which tunnel or proxy you use.
+:::
+
 **For testing:** Sequent will configure their staging environment to accept assertions from your local SimpleSAMLphp instance.
 
 ---
@@ -300,7 +304,7 @@ $config = require __DIR__ . '/../config.php';
 // Build the ACS URL where Sequent receives SAML responses
 $acsUrl = sprintf(
     '%s/realms/%s/broker/%s/endpoint/clients/%s',
-    $config['sp_base_url'],      // https://login-example.sequent.vote
+    $config['sp_base_url'],      // https://login-example.sequent.vote/auth/
     $config['sp_realm'],          // tenant-...-event-...
     $config['sp_idp_alias'],      // yourcompany-idp
     $config['sp_client_id']       // vp-sso
