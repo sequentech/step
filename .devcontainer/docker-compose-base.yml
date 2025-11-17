@@ -26,15 +26,40 @@ services:
       # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
-  simplesaml:
+
+  simplesamlphp:
     profiles: ["full"]
-    image: kenchan0130/simplesamlphp
+    image: sequentech.local/simplesamlphp
     container_name: simplesamlphp
+    build:
+      context: ./simplesamlphp
+      dockerfile: Dockerfile
     ports:
-      - "8083:8080"
-    volumes:
-      - ./simplesaml/authsources.php:/var/www/simplesamlphp/config/authsources.php
-      - ./simplesaml/saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
+      - "8083:8083"
+    environment:
+      # SimpleSAMLphp General Configuration
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE}
+      - SSP_ADMIN_PASSWORD=${SSP_ADMIN_PASSWORD}
+      - SSP_LOG_LEVEL=${SSP_LOG_LEVEL}
+      - SSP_LOG_HANDLER=${SSP_LOG_HANDLER}
+      - SSP_SECRET_SALT=${SSP_SECRET_SALT}
+      - SSP_ENABLED_MODULES=${SSP_ENABLED_MODULES}
+      - SSP_EXAMPLE_USERS=${SSP_EXAMPLE_USERS}
+      # IdP Deployment Configuration
+      - IDP_BASE_URL=${IDP_BASE_URL}
+      - IDP_HOSTNAME=${IDP_HOSTNAME}
+      # Target Application (Voting Event) Configuration
+      - TENANT_ID=${TENANT_ID}
+      - EVENT_ID=${EVENT_ID}
+      # Service Provider (Keycloak) Configuration
+      - SP_BASE_URL=${SP_BASE_URL}
+      - SP_IDP_ALIAS=${SP_IDP_ALIAS}
+      - SP_CLIENT_ID=${SP_CLIENT_ID}
+      - SP_CERT_DATA=${SP_CERT_DATA}
+      # Voting Portal Configuration
+      - VOTING_PORTAL_URL=${VOTING_PORTAL_URL}
+      # Apache Configuration
+      - APACHE_CERT_NAME=ssl-cert-snakeoil
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
