@@ -20,17 +20,17 @@ const UnselectableTypography = styled(Typography)`
 
 const BorderBox = emotionStyled.li<{
     isactive: string
-    hascategory: string
+    hasCategory: string
     isinvalidvote: string
     isdisabled: string
 }>`
     border: 2px solid
-        ${({hascategory, isactive, theme}) =>
+        ${({hasCategory: hascategory, isactive, theme}) =>
             isactive === "true" && hascategory === "true"
                 ? theme.palette.white
                 : theme.palette.customGrey.light};
-    ${({hascategory, isinvalidvote, theme}) =>
-        hascategory === "true"
+    ${({hasCategory: hasCategory, isinvalidvote, theme}) =>
+        hasCategory === "true"
             ? `backgroundColor: ${theme.palette.white};`
             : isinvalidvote === "true"
             ? `backgroundColor: ${theme.palette.lightBackground};`
@@ -46,29 +46,26 @@ const BorderBox = emotionStyled.li<{
     flex-grow: 2;
     transition: all 0.2s ease;
     ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
-    ${({isactive, hascategory, theme}) =>
+    ${({isactive, hasCategory: hasCategory, theme}) =>
         isactive === "true"
-            ? hascategory === "true"
+            ? hasCategory === "true"
                 ? `
-                    boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     &:hover {
                         cursor: pointer;
-                        boxShadow: unset;
                         border-color: ${theme.palette.customGrey.light};
-                        transform: translateY(4px);
                     }
                     &:active {
-                        backgroundColor: #eee;
+                        background-color: #eee;
                     }
                 `
                 : `
                     &:hover {
                         cursor: pointer;
-                        boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
-                        transform: translateY(4px);
+                        box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     }
                     &:active {
-                        backgroundColor: #eee;
+                        background-color: #eee;
                     }
                 `
             : ""}
@@ -177,10 +174,11 @@ const Candidate: React.FC<CandidateProps> = ({
         return `${num}${t("candidate.preferential.ordinals.other")}`
     }
 
+    console.log("hasCategory", hasCategory)
     return (
         <BorderBox
             isactive={String(!!isActive)}
-            hascategory={String(!!hasCategory)}
+            hasCategory={String(!!hasCategory)}
             isinvalidvote={String(!!isInvalidVote)}
             isdisabled={String(!!shouldDisable)}
             onClick={onClick}
