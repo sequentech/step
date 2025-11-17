@@ -47,7 +47,6 @@ services:
       - SSP_EXAMPLE_USERS=${SSP_EXAMPLE_USERS}
       # IdP Deployment Configuration
       - IDP_BASE_URL=${IDP_BASE_URL}
-      - IDP_HOSTNAME=${IDP_HOSTNAME}
       # Target Application (Voting Event) Configuration
       - TENANT_ID=${TENANT_ID}
       - EVENT_ID=${EVENT_ID}

@@ -264,7 +264,6 @@ Development environment variables:
 ```bash
 # IdP Configuration (SimpleSAMLphp)
 IDP_BASE_URL=http://localhost:8083/simplesaml
-IDP_HOSTNAME=localhost:8083
 
 # SP Configuration (Keycloak)
 SP_BASE_URL=http://127.0.0.1:8090

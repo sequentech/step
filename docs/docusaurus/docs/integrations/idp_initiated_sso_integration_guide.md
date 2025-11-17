@@ -108,7 +108,6 @@ to make this work are the following:
 ```bash
 # Your local IdP URLs (for development)
 IDP_BASE_URL=http://localhost:8083/simplesaml
-IDP_HOSTNAME=localhost:8083
 
 # Example users for testing SimpleSAMLphp authentication
 # Format: "username1:password1:email1,username2:password2:email2,..."
@@ -168,12 +167,12 @@ choco install ngrok # Windows
 
 **Start ngrok tunnel:**
 ```bash
-ngrok http 8083
+ngrok http https://localhost:8083
 ```
 
 **You'll see output like:**
 ```
-Forwarding  https://abc123.ngrok.io -> http://localhost:8083
+Forwarding  https://abc123.ngrok.io -> https://localhost:8083 
 ```
 
 **Update your configuration** with the ngrok URL:
@@ -182,11 +181,9 @@ Edit `simplesamlphp/.env` and change:
 ```bash
 # Before:
 IDP_BASE_URL=http://localhost:8083/simplesaml
-IDP_HOSTNAME=localhost:8083
 
 # After (use your ngrok URL):
 IDP_BASE_URL=https://abc123.ngrok.io/simplesaml
-IDP_HOSTNAME=abc123.ngrok.io
 ```
 
 **Restart SimpleSAMLphp** to pick up the new configuration:
