@@ -36,7 +36,7 @@ jobs:
           allowlist: 'dependabot*,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech'
           
           # Customize the CLA message
-          remote-organization-name: 'Sequent Tech Inc'
+          remote-organization-name: 'sequenttech'
           remote-repository-name: 'step'
           
           # Customize the message shown to contributors
