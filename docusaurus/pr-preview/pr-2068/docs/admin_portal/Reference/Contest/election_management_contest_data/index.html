@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2068/docs/admin_portal/Reference/Contest/election_management_contest_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2068/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2068/docs/admin_portal/Reference/Contest/election_management_contest_data"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2068/docs/admin_portal/Reference/Contest/election_management_contest_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2068/docs/admin_portal/Reference/Contest/election_management_contest_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2068/docs/admin_portal/Reference/Contest/election_management_contest_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2068/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2068/assets/js/runtime~main.32f780da.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2068/assets/js/runtime~main.e8846d4a.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2068/assets/js/main.fa90c594.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -153,6 +153,16 @@
 <li><strong>Warn</strong>: Warning during ballot and review phases.</li>
 <li><strong>Warn Implicit and Explicit</strong>: Warning for explicitly invalid (null/spoiled) and implicitly invalid (e.g., too many).</li>
 <li><strong>Not Allowed</strong>: Cannot submit if invalid options selected.</li>
+</ul>
+<h5 class="anchor anchorWithStickyNavbar_LWe7" id="preferential-systems-eg-instant-runoff">Preferential systems (e.g. Instant Runoff)<a href="#preferential-systems-eg-instant-runoff" class="hash-link" aria-label="Direct link to Preferential systems (e.g. Instant Runoff)" title="Direct link to Preferential systems (e.g. Instant Runoff)">​</a></h5>
+<h6 class="anchor anchorWithStickyNavbar_LWe7" id="what-is-considered-implicit-invalid-error">What is considered Implicit invalid error?<a href="#what-is-considered-implicit-invalid-error" class="hash-link" aria-label="Direct link to What is considered Implicit invalid error?" title="Direct link to What is considered Implicit invalid error?">​</a></h6>
+<ul>
+<li><strong>Duplicated Position</strong>: Whether casting the vote is allowed or not depends on the policy. Either case ranking 2 candidates
+with the same position will invalidate the vote.</li>
+</ul>
+<h6 class="anchor anchorWithStickyNavbar_LWe7" id="what-will-cause-an-alert-but-its-still-valid">What will cause an alert but it´s still valid?<a href="#what-will-cause-an-alert-but-its-still-valid" class="hash-link" aria-label="Direct link to What will cause an alert but it´s still valid?" title="Direct link to What will cause an alert but it´s still valid?">​</a></h6>
+<ul>
+<li><strong>Preference order with gaps</strong>: Missing one of the positions in between, e.g. 1,2,4,5.</li>
 </ul>
 <h4 class="anchor anchorWithStickyNavbar_LWe7" id="blank-vote-policy">Blank Vote Policy<a href="#blank-vote-policy" class="hash-link" aria-label="Direct link to Blank Vote Policy" title="Direct link to Blank Vote Policy">​</a></h4>
 <p>When voter selects blank vote option:</p>
