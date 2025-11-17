@@ -1,8 +1,8 @@
-# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.82.0
+FROM rust:1.90.0-slim-bookworm AS builder
 
 WORKDIR /app
 COPY ./immu-board ./immu-board
@@ -54,10 +54,10 @@ RUN case "${TARGETARCH}" in \
     && tar xvf ${JAVA_FILENAME} \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
-    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1
+    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
+    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 
 # java -jar ecies-tool.jar create-keys public.pem private.pem
-RUN rustup default nightly
 
 WORKDIR /app/windmill
 RUN cargo build

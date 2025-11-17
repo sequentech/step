@@ -1,9 +1,9 @@
-//SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {css} from "@emotion/react"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import AddIcon from "@mui/icons-material/Add"
 import {NavLink} from "react-router-dom"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
@@ -224,7 +224,7 @@ const highlightedItem = css`
     }
 `
 
-export const TreeMenuItemContainer = styled.div<{isClicked: boolean}>`
+export const TreeMenuItemContainer = styled("div")<{isClicked: boolean}>`
     display: flex;
     text-align: left;
     align-items: center;

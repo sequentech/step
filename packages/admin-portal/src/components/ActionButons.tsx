@@ -1,7 +1,7 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {IconButton} from "@mui/material"
 import {adminTheme} from "@sequentech/ui-essentials"
 import React from "react"
@@ -42,7 +42,7 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
         margin-left: 8px;
     `
     const filteredActions = actions.filter(
-        (action) => !action.showAction || action.showAction(record.id)
+        (action) => !action.showAction || (record && action.showAction(record.id))
     )
 
     return (
@@ -52,7 +52,7 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
                       <StyledIconButton
                           className={action.className ?? ""}
                           key={index}
-                          onClick={() => action.action(record.id)}
+                          onClick={() => record && action.action(record?.id)}
                       >
                           {action.icon}
                       </StyledIconButton>

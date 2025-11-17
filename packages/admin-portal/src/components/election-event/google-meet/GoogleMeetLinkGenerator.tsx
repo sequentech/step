@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -153,7 +153,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                         {!generatedLink ? (
                             <>
                                 <TextField
-                                    label={t("googleMeet.meetingTitle", "Meeting Title")}
+                                    label={String(t("googleMeet.meetingTitle", "Meeting Title"))}
                                     value={meetingTitle}
                                     onChange={(e) => setMeetingTitle(e.target.value)}
                                     fullWidth
@@ -161,7 +161,9 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                 />
 
                                 <TextField
-                                    label={t("googleMeet.description", "Description (Optional)")}
+                                    label={String(
+                                        t("googleMeet.description", "Description (Optional))")
+                                    )}
                                     value={meetingDescription}
                                     onChange={(e) => setMeetingDescription(e.target.value)}
                                     fullWidth
@@ -171,7 +173,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
 
                                 <Box display="flex" gap={2}>
                                     <TextField
-                                        label={t("googleMeet.startDate", "Start Date")}
+                                        label={String(t("googleMeet.startDate", "Start Date"))}
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
@@ -180,7 +182,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                         sx={{flex: 1}}
                                     />
                                     <TextField
-                                        label={t("googleMeet.startTime", "Start Time")}
+                                        label={String(t("googleMeet.startTime", "Start Time"))}
                                         type="time"
                                         value={startTime}
                                         onChange={(e) => setStartTime(e.target.value)}
@@ -191,7 +193,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                 </Box>
 
                                 <TextField
-                                    label={t("googleMeet.duration", "Duration (minutes)")}
+                                    label={String(t("googleMeet.duration", "Duration (minutes))"))}
                                     type="number"
                                     value={duration}
                                     onChange={(e) => setDuration(e.target.value)}
@@ -200,7 +202,9 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                 />
 
                                 <TextField
-                                    label={t("googleMeet.attendeeEmails", "Attendee Emails")}
+                                    label={String(
+                                        t("googleMeet.attendeeEmails", "Attendee Emails")
+                                    )}
                                     value={attendeeEmails}
                                     onChange={(e) => setAttendeeEmails(e.target.value)}
                                     fullWidth
@@ -245,7 +249,7 @@ export const GoogleMeetLinkGenerator: React.FC<GoogleMeetLinkGeneratorProps> = (
                                     <IconButton
                                         onClick={copyToClipboard}
                                         color="primary"
-                                        title={t("googleMeet.copy", "Copy to clipboard")}
+                                        title={String(t("googleMeet.copy", "Copy to clipboard"))}
                                     >
                                         <ContentCopy />
                                     </IconButton>

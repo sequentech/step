@@ -1,7 +1,6 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-#![feature(int_roundings)]
 #[macro_use]
 extern crate quick_error;
 extern crate cfg_if;

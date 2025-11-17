@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -41,7 +41,7 @@ import {
 } from "../../gql/graphql"
 import React, {ReactNode, useCallback, useContext, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {cloneDeep} from "lodash"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
@@ -75,7 +75,7 @@ import {IPermissions} from "@/types/keycloak"
 
 type FieldValues = Record<string, any>
 
-const CandidateRows = styled.div`
+const CandidateRows = styled("div")`
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -84,7 +84,7 @@ const CandidateRows = styled.div`
     padding: 1rem;
 `
 
-const ListWrapper = styled.div`
+const ListWrapper = styled("div")`
     display: flex;
     flex-direction: column;
     border-radius: 4px;
@@ -180,7 +180,7 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
         }
 
         return languageConf.map((lang) => (
-            <Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>
+            <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
         ))
     }
 
@@ -303,20 +303,20 @@ export const ContestDataForm: React.FC = () => {
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
         {
-            id: record.election_event_id,
-            meta: {tenant_id: record.tenant_id},
+            id: record?.election_event_id,
+            meta: {tenant_id: record?.tenant_id},
         }
     )
 
     const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
-        id: record.election_id,
+        id: record?.election_id,
     })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
+            id: record?.image_document_id || record?.tenant_id,
+            meta: {tenant_id: record?.tenant_id},
         }
     )
 
@@ -324,9 +324,9 @@ export const ContestDataForm: React.FC = () => {
 
     const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
         filter: {
-            contest_id: record.id,
-            tenant_id: record.tenant_id,
-            election_event_id: record.election_event_id,
+            contest_id: record?.id,
+            tenant_id: record?.tenant_id,
+            election_event_id: record?.election_event_id,
         },
         pagination: {page: 1, perPage: 500},
     })
@@ -503,7 +503,9 @@ export const ContestDataForm: React.FC = () => {
         let tabNodes: Array<ReactNode> = []
 
         languageConf.forEach((lang) => {
-            tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
+            tabNodes.push(
+                <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
+            )
         })
 
         // reset actived tab to first tab if only one
@@ -523,15 +525,15 @@ export const ContestDataForm: React.FC = () => {
                     <div style={{marginTop: "16px"}}>
                         <TextInput
                             source={`presentation.i18n[${lang}].name`}
-                            label={t("electionEventScreen.field.name")}
+                            label={String(t("electionEventScreen.field.name"))}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].alias`}
-                            label={t("electionEventScreen.field.alias")}
+                            label={String(t("electionEventScreen.field.alias"))}
                         />
                         <TextInput
                             source={`presentation.i18n[${lang}].description`}
-                            label={t("electionEventScreen.field.description")}
+                            label={String(t("electionEventScreen.field.description"))}
                         />
                     </div>
                 </CustomTabPanel>
@@ -566,7 +568,7 @@ export const ContestDataForm: React.FC = () => {
                     notify(t("electionScreen.error.fileLoaded"), {type: "success"})
 
                     updateImage("sequent_backend_contest", {
-                        id: record.id,
+                        id: record?.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
                         },
@@ -754,21 +756,21 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source="presentation.under_vote_policy"
                                     choices={underVotePolicyChoices()}
-                                    label={t(`contestScreen.underVotePolicy.label`)}
+                                    label={String(t(`contestScreen.underVotePolicy.label`))}
                                     validate={required()}
                                 />
 
                                 <SelectInput
                                     source="presentation.invalid_vote_policy"
                                     choices={invalidVotePolicyChoices()}
-                                    label={t(`contestScreen.invalidVotePolicy.label`)}
+                                    label={String(t(`contestScreen.invalidVotePolicy.label`))}
                                     validate={required()}
                                 />
 
                                 <SelectInput
                                     source={`presentation.blank_vote_policy`}
                                     choices={blankVotePolicyChoices()}
-                                    label={t(`contestScreen.blankVotePolicy.label`)}
+                                    label={String(t(`contestScreen.blankVotePolicy.label`))}
                                     defaultValue={EBlankVotePolicy.ALLOWED}
                                     validate={required()}
                                 />
@@ -776,7 +778,7 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.over_vote_policy`}
                                     choices={overVotePolicyChoices()}
-                                    label={t(`contestScreen.overVotePolicy.label`)}
+                                    label={String(t(`contestScreen.overVotePolicy.label`))}
                                     defaultValue={EOverVotePolicy.ALLOWED}
                                     validate={required()}
                                 />
@@ -784,14 +786,16 @@ export const ContestDataForm: React.FC = () => {
                                 <SelectInput
                                     source={`presentation.candidates_icon_checkbox_policy`}
                                     choices={candidatesIconCheckboxPolicy()}
-                                    label={t(`contestScreen.candidatesIconCheckboxPolicy.label`)}
+                                    label={String(
+                                        t(`contestScreen.candidatesIconCheckboxPolicy.label`)
+                                    )}
                                     defaultValue={ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX}
                                     validate={required()}
                                 />
 
                                 <TextInput
                                     source={`presentation.pagination_policy`}
-                                    label={t(`contestScreen.paginationPolicy.label`)}
+                                    label={String(t(`contestScreen.paginationPolicy.label`))}
                                 />
                             </AccordionDetails>
                         </Accordion>
@@ -816,7 +820,7 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Grid container spacing={1}>
-                                    <Grid item xs={2}>
+                                    <Grid size={2}>
                                         {parsedValue?.image_document_id &&
                                         parsedValue?.image_document_id !== "" ? (
                                             <img
@@ -827,7 +831,7 @@ export const ContestDataForm: React.FC = () => {
                                             />
                                         ) : null}
                                     </Grid>
-                                    <Grid item xs={10}>
+                                    <Grid size={10}>
                                         <DropFile
                                             handleFiles={async (files) => handleFiles(files)}
                                         />

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -573,7 +573,7 @@ mod tests {
             election_num * (area_num - 1)
         );
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // MultiBallotReceipts
@@ -661,7 +661,7 @@ mod tests {
             election_num * contest_num * (area_num - 1)
         );
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -715,7 +715,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -755,7 +755,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1116,7 +1116,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1288,7 +1288,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1442,7 +1442,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1602,7 +1602,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1795,7 +1795,7 @@ mod tests {
 
         // Execute pipeline stages
         state.exec_next()?; // DecodeBallots
-        state.exec_next()?; // VoteReceipts
+        state.exec_next()?; // BallotImages
         state.exec_next()?; // DoTally
         state.exec_next()?; // MarkWinners
         state.exec_next()?; // Generate reports

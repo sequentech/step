@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
@@ -165,7 +165,7 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
         <FormDialog
             open={open}
             onClose={handleClose}
-            title={t("usersAndRolesScreen.editPassword.label")}
+            title={String(t("usersAndRolesScreen.editPassword.label"))}
         >
             <>
                 <SimpleForm
@@ -204,8 +204,10 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
                                 <Box sx={{display: "flex", gap: "8px"}}>
                                     {t(`usersAndRolesScreen.editPassword.temporatyLabel`)}
                                     <IconTooltip
-                                        icon={faInfoCircle}
-                                        info={t(`usersAndRolesScreen.editPassword.temporatyInfo`)}
+                                        icon={faInfoCircle as any}
+                                        info={String(
+                                            t(`usersAndRolesScreen.editPassword.temporatyInfo`)
+                                        )}
                                     />
                                 </Box>
                             </InputLabelStyle>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
@@ -97,7 +97,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
     }, [contestId, contestAreas])
 
     interface TabPanelProps {
-        children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
+        children?: React.ReactNode
         index: number
         value: number | null
     }
@@ -179,7 +179,10 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
                     {t("electionEventScreen.stats.areas")}.{" "}
                 </Typography>
                 <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
-                    <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
+                    <Tab
+                        label={String(t("tally.common.global"))}
+                        onClick={() => tabGlobalClicked()}
+                    />
                     {areasData?.map((area, index) => {
                         return (
                             <Tab

@@ -3,25 +3,97 @@ id: release-next
 title: Release Notes next
 ---
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## ✨ IdP-initiated SAML SSO authentication flow support
+## 🔧 Publicly Open Source Preparations
 
-Implemented comprehensive support for IdP-initiated SAML SSO authentication
-flow, enabling third-party Identity Providers to directly initiate
-authentication to the voting portal. The implementation includes a fully
-configurable SimpleSAMLphp reference IdP with multiple environment variables for
-seamless integration, updated Keycloak realm configurations with a dedicated
-SAML client (vp-sso), custom first-broker authentication flow with auto-linking
-capabilities, and support for signed SAML requests/responses with proper
-certificate validation. This allows organizations to integrate their existing
-authentication systems where users can click a button in their IdP to be
-automatically authenticated and redirected to the voting portal without first
-accessing the voting system directly.
+This release transitions the Sequent Voting Platform from an on-request
+permisioned open-source repository to a no-requirements, publicly-available
+open-source repository. These changes include license compliance updates,
+removal of client-specific integrations, improved documentation, and various
+code modernization efforts.
 
-- Issue: [#8213](https://github.com/sequentech/meta/issues/8213)
+- Issue: [#9060](https://github.com/sequentech/meta/issues/9060)
+
+### License Compliance (REUSE 4.0)
+All files now have proper SPDX license headers standardized to AGPL-3.0-only
+with copyright assigned to `Sequent Tech Inc <legal@sequentech.io>`. The license
+headers and copyright year have been unified across the codebase - the project
+was already open source. The project has migrated from `.reuse/dep5` to 
+`REUSE.toml` for improved license management compliance with the REUSE 4.0 
+specification.
+
+**New Features:**
+- Contributor License Agreement (CLA) system with automated GitHub workflow
+- Comprehensive third-party dependency documentation with OSI-approved licenses
+- New contributing guide and developer documentation
+- Updated README for open-source audience
+
+### Removed Features & Integrations
+
+The following features and integrations have been moved to our private
+repository in `beyound`:
+
+1. **Inetum Integration** - All Inetum-specific authentication code has been
+   removed, including Keycloak extensions and custom authenticators.
+
+2. **Datafix Integration** - All Datafix integration documentation and API
+   endpoints have been removed.
+
+3. **Monitoring Dashboard** - The monitoring dashboard was not a supported
+   feature so for the time being and pending a redesign, we have removed it.
+
+### Terminology Changes
+
+**"Vote Receipts" → "Ballot Images"**
+
+Throughout the codebase, user interface, and documentation, the terminology has
+been updated from "vote receipts" to "ballot images" for clearer communication.
+While template file names have been retained for backward compatibility, all
+internal references have been updated.
+
+### Admin Portal Changes
+
+- **ESLint Migration:** Migrated from legacy ESLint configuration to new flat
+  config format
+- **Configuration Modernization:** Renamed config files from `.js` to `.cjs` for
+  better CommonJS compatibility
+- **UI Improvements:** Fixed sticky toolbar issues and restored widget
+  background colors
+- **Dependency Updates:** Updated all npm packages and rebuilt WASM packages
+
+### Migration Required
+
+#### Remove some Permissions
+
+The following Keycloak permissions must be manually removed from all tenant
+realms:
+
+- `monitoring-dashboard-view-election-event`
+- `monitoring-dashboard-view-election`
+
+**Steps:**
+1. Log in to the Keycloak Admin Console
+2. Select the tenant realm (e.g., `dev`)
+3. Navigate to `Realm Roles`
+4. Search for and delete the roles:
+   - `monitoring-dashboard-view-election-event`
+   - `monitoring-dashboard-view-election`
+5. If these roles were assigned to any groups or users, remove those assignments
+   first
+
+## 📖 Third-Party Libraries Reference Documentation
+
+Added comprehensive developer documentation for managing Rust versions and
+third-party dependencies. Standardized on Rust stable 1.90.0 across all
+environments (Nix, GitHub Actions, Dockerfiles). Created automated tooling for
+dependency reporting and security audits, including scripts for generating
+dependency lists with licenses and descriptions. Updated all Rust crates, npm
+packages, and Maven dependencies to their latest compatible versions.
+
+- Issue: https://github.com/sequentech/meta/issues/7996
 
 ## ✨ Move voter signature to the voting portal
 

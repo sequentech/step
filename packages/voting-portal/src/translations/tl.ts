@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -18,7 +18,7 @@ const tagalogTranslation: TranslationType = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Pinapagana ng <sequent />",
+            poweredBy: "Pinapagana ng <1></1>",
         },
         votingScreen: {
             backButton: "Bumalik",

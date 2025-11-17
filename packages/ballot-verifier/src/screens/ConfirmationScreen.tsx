@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, useMemo, PropsWithChildren} from "react"
@@ -371,7 +371,7 @@ const BallotIdSection: React.FC<BallotIdSectionProps> = ({confirmationBallot, ba
 
 interface ActionButtonProps {}
 
-const ActionButtons: React.FC<ActionButtonProps> = ({}) => {
+const ActionButtons: React.FC<ActionButtonProps> = () => {
     const {t} = useTranslation()
     const triggerPrint = () => window.print()
 

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -912,9 +912,6 @@ const englishTranslation = {
                 "report-delete": "Delete Report",
                 "report-generate": "Generate Report",
                 "report-preview": "Preview Report",
-                "monitoring-dashboard-view-election-event":
-                    "Election Event Monitoring Dashboard View",
-                "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
                 "monitor-authenticated-voters": "Monitoring Authenticated Voters",
                 "monitor-all-approve-disapprove-voters":
                     "Read Monitoring Approve Disapprove Voters",
@@ -1036,7 +1033,6 @@ const englishTranslation = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
-                VOTE_RECEIPT: "Vote Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
@@ -1780,10 +1776,6 @@ const englishTranslation = {
             communicationType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
-                PARTICIPATION_REPORT: "Participation Report",
-                ELECTORAL_RESULTS: "Electoral Results",
-                OTP: "OTP",
-                TALLY_REPORT: "Tally Report",
             },
             email: {
                 subject: "Subject",
@@ -1920,37 +1912,12 @@ const englishTranslation = {
             },
             type: {
                 CREDENTIALS: "Credentials",
-                BALLOT_RECEIPT: "Ballot Receipt",
-                VOTE_RECEIPT: "Vote Receipts",
-                PARTICIPATION_REPORT: "Participation Report",
-                ELECTORAL_RESULTS: "Electoral Results",
-                OTP: "OTP",
-                TALLY_REPORT: "Tally Report",
-                MANUAL_VERIFICATION: "Manually verify voter",
-                STATISTICAL_REPORT: "Statistical Report",
                 INITIALIZATION_REPORT: "Initialization Report",
-                STATUS: "Status Report",
-                TRANSMISSION_REPORT: "Transmission Reports",
-                AUDIT_LOGS: "Audit Logs",
-                ACTIVITY_LOGS: "Activity Logs",
-                OVCS_INFORMATION: "OVCS Information",
-                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
-                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
-                OV_WHO_VOTED: "OV Users Who Voted",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
-                LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
-                VOTERS_TURNOUT_PERCENTAGE: "Voters Turnout",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Overseas Voters’ Turnout - per Aboard Status and Sex",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
-                OV_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "List of OV who Pre-enrolled but subject for Manual Validation",
-                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "List of OV who have not yet Pre-enrolled",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "No. of OV who have not yet Pre-enrolled",
+                ELECTORAL_RESULTS: "Electoral Results",
                 BALLOT_IMAGES: "Ballot Images",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                ACTIVITY_LOGS: "Activity Logs",
+                MANUAL_VERIFICATION: "Manual Verification",
             },
             method: {
                 email: "Email",

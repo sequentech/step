@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -18,7 +18,7 @@ const frenchTranslation: TranslationType = {
             audit: "Auditer",
         },
         footer: {
-            poweredBy: "Propulsé par <sequent />",
+            poweredBy: "Propulsé par <1></1>",
         },
         votingScreen: {
             backButton: "Retour",

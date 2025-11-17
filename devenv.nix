@@ -25,8 +25,9 @@
     openssl
     glibc
     openssh
-    postgresql_15
+    postgresql_18
     python3
+    openssh
 
     # immudb
     go
@@ -66,6 +67,8 @@
     sqlite
 
     cargo-watch
+    cargo-license
+    cargo-audit
 
     python3
     python3Packages.virtualenvwrapper
@@ -92,7 +95,7 @@
   languages.rust = {
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
-    channel = "nightly";
+    channel = "stable";
     toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
