@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">IdP SSO Configuration &amp; Handoff | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2165/docs/developers/Tutorials/setup_idp_initiated_sso"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="IdP SSO Configuration &amp; Handoff | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2165/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2165/docs/developers/Tutorials/setup_idp_initiated_sso"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2165/docs/developers/Tutorials/setup_idp_initiated_sso" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2165/docs/developers/Tutorials/setup_idp_initiated_sso" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"IdP SSO Configuration & Handoff","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2165/docs/developers/Tutorials/setup_idp_initiated_sso"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2165/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2165/assets/js/runtime~main.fff98965.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2165/assets/js/runtime~main.3106f4e4.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2165/assets/js/main.079b8b43.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -171,7 +171,7 @@ It is recommended to create a new configuration or follow this guide to review i
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="step-13-prepare-configuration-for-client">Step 1.3: Prepare Configuration for Client<a href="#step-13-prepare-configuration-for-client" class="hash-link" aria-label="Direct link to Step 1.3: Prepare Configuration for Client" title="Direct link to Step 1.3: Prepare Configuration for Client">​</a></h3>
 <p>At this point, you have the Keycloak configuration complete. Now prepare the information package for the client.</p>
 <p><strong>Configuration values to provide to client:</strong></p>
-<table><thead><tr><th>Parameter</th><th>Value</th><th>Example</th></tr></thead><tbody><tr><td><code>TENANT_ID</code></td><td>The tenant UUID</td><td><code>abc12345-6789-...</code></td></tr><tr><td><code>EVENT_ID</code></td><td>The event UUID</td><td><code>def67890-1234-...</code></td></tr><tr><td><code>SP_BASE_URL</code></td><td>Keycloak base URL</td><td><code>https://login-example.sequent.vote</code></td></tr><tr><td><code>SP_IDP_ALIAS</code></td><td>IdP alias (decided with client)</td><td><code>clientname-idp</code></td></tr><tr><td><code>SP_CLIENT_ID</code></td><td>SAML client ID</td><td><code>vp-sso</code></td></tr><tr><td><code>SP_CERT_DATA</code></td><td>Keycloak realm certificate</td><td><code>MIIDOzCCAi...</code></td></tr><tr><td><code>VOTING_PORTAL_URL</code></td><td>Voting portal URL</td><td><code>https://voting-example.sequent.vote</code></td></tr></tbody></table>
+<table><thead><tr><th>Parameter</th><th>Value</th><th>Example</th></tr></thead><tbody><tr><td><code>TENANT_ID</code></td><td>The tenant UUID</td><td><code>abc12345-6789-...</code></td></tr><tr><td><code>EVENT_ID</code></td><td>The event UUID</td><td><code>def67890-1234-...</code></td></tr><tr><td><code>SP_BASE_URL</code></td><td>Keycloak base URL</td><td><code>https://login-example.sequent.vote/auth/</code></td></tr><tr><td><code>SP_IDP_ALIAS</code></td><td>IdP alias (decided with client)</td><td><code>clientname-idp</code></td></tr><tr><td><code>SP_CLIENT_ID</code></td><td>SAML client ID</td><td><code>vp-sso</code></td></tr><tr><td><code>SP_CERT_DATA</code></td><td>Keycloak realm certificate</td><td><code>MIIDOzCCAi...</code></td></tr><tr><td><code>VOTING_PORTAL_URL</code></td><td>Voting portal URL</td><td><code>https://voting-example.sequent.vote</code></td></tr></tbody></table>
 <hr>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="phase-2-test-with-simplesamlphp-reference-implementation">Phase 2: Test with SimpleSAMLphp Reference Implementation<a href="#phase-2-test-with-simplesamlphp-reference-implementation" class="hash-link" aria-label="Direct link to Phase 2: Test with SimpleSAMLphp Reference Implementation" title="Direct link to Phase 2: Test with SimpleSAMLphp Reference Implementation">​</a></h2>
 <p>Before handing off to the client, test the Keycloak configuration using the
@@ -200,7 +200,7 @@ testing this with devcontainers, you can run in VSCode the task
 </li>
 <li>
 <p><strong>Login into SimpleSAMLphp application</strong>, it should be an URL like
-<code>http://localhost:8083/simplesaml/module.php/admin</code>, in general something
+<code>https://localhost:8083/simplesaml/module.php/admin</code>, in general something
 like <code>{IDP_BASE_URL}/module.php/admin</code>. You should get a login page as below:</p>
 </li>
 </ol>
@@ -232,30 +232,38 @@ this is just a sample implementation, use secure passwords in production.</p></d
 <li><strong>Configure Identity Provider:</strong></li>
 </ol>
 <ul>
-<li><strong>Alias:</strong> <code>yourcompany-idp</code> (matches <code>SP_IDP_ALIAS</code> from <code>.env</code>). *Note:
-It is not possible to edit the Alias, if it already exists, then remove it
-and create a new Identity Provider.</li>
-<li><strong>Display Name:</strong> <code>SimpleSAMLphp IdP</code></li>
-<li><strong>Service provider entity ID:</strong> <code>tenant-{TENANT_ID}-event-{EVENT_ID}</code></li>
+<li>
+<p><strong>Alias:</strong> <code>yourcompany-idp</code> (matches <code>SP_IDP_ALIAS</code> from <code>.env</code>).</p>
+<div class="theme-admonition theme-admonition-note admonition_xJq3 alert alert--secondary"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 14 16"><path fill-rule="evenodd" d="M6.3 5.69a.942.942 0 0 1-.28-.7c0-.28.09-.52.28-.7.19-.18.42-.28.7-.28.28 0 .52.09.7.28.18.19.28.42.28.7 0 .28-.09.52-.28.7a1 1 0 0 1-.7.3c-.28 0-.52-.11-.7-.3zM8 7.99c-.02-.25-.11-.48-.31-.69-.2-.19-.42-.3-.69-.31H6c-.27.02-.48.13-.69.31-.2.2-.3.44-.31.69h1v3c.02.27.11.5.31.69.2.2.42.31.69.31h1c.27 0 .48-.11.69-.31.2-.19.3-.42.31-.69H8V7.98v.01zM7 2.3c-3.14 0-5.7 2.54-5.7 5.68 0 3.14 2.56 5.7 5.7 5.7s5.7-2.55 5.7-5.7c0-3.15-2.56-5.69-5.7-5.69v.01zM7 .98c3.86 0 7 3.14 7 7s-3.14 7-7 7-7-3.12-7-7 3.14-7 7-7z"></path></svg></span>note</div><div class="admonitionContent_BuS1"><p>It is not possible to edit the Alias if it already exists. If you need to change it, remove the existing Identity Provider and create a new one.</p></div></div>
+</li>
+<li>
+<p><strong>Display Name:</strong> <code>SimpleSAMLphp IdP</code></p>
+</li>
+<li>
+<p><strong>Service provider entity ID:</strong> <code>tenant-{TENANT_ID}-event-{EVENT_ID}</code></p>
+</li>
 </ul>
 <ol>
 <li><strong>Import SimpleSAMLphp metadata (recommended):</strong></li>
 </ol>
 <ul>
 <li><strong>Use Entity Descriptor</strong>: <strong>OFF</strong></li>
-<li>Download <code>http://localhost:8083/simplesaml/saml2/idp/metadata.php</code></li>
+<li>Download <code>https://localhost:8083/simplesaml/saml2/idp/metadata.php</code></li>
 <li>Drag and drop the downloaded xml into <strong>Import config from file</strong></li>
-<li><strong>Principal Type:</strong> Attribute Name</li>
-<li><strong>Principal Attribute:</strong> email</li>
+<li><strong>Principal Type:</strong> <code>Attribute [Name]</code></li>
+<li><strong>Principal Attribute:</strong> <code>email</code></li>
 <li><strong>Validate Signatures:</strong> <strong>ON</strong></li>
-<li><strong>First login flow override:</strong> saml first broker flow</li>
+<li><strong>Want AuthnRequests signed:</strong> <strong>ON</strong></li>
 <li>Click <strong>Add</strong></li>
+<li>Then edit it and configure <strong>First login flow override:</strong> saml first broker
+flow.</li>
+<li>Click <strong>Save</strong></li>
 </ul>
 <p><strong>OR manually configure:</strong></p>
 <ul>
 <li><strong>Use Entity Descriptor</strong>: <strong>OFF</strong></li>
-<li><strong>Single Sign-On Service URL:</strong> <code>http://localhost:8083/simplesaml/saml2/idp/SSOService.php</code></li>
-<li><strong>Single Logout Service URL:</strong> <code>http://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php</code></li>
+<li><strong>Single Sign-On Service URL:</strong> <code>https://localhost:8083/simplesaml/saml2/idp/SSOService.php</code></li>
+<li><strong>Single Logout Service URL:</strong> <code>https://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php</code></li>
 <li><strong>NameID Policy Format:</strong> Transient</li>
 <li><strong>Principal Type:</strong> Attribute Name</li>
 <li><strong>Principal Attribute:</strong> email</li>
@@ -301,7 +309,7 @@ and create a new Identity Provider.</li>
 <ol>
 <li>
 <p><strong>Access the SimpleSAMLphp trigger page:</strong></p>
-<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">http://localhost:8083/simplesaml/idp-initiated-sso.php</span><br></span></code></pre></div></div>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">https://localhost:8083/simplesaml/idp-initiated-sso.php</span><br></span></code></pre></div></div>
 </li>
 <li>
 <p><strong>Click &quot;Login to Voting Portal&quot;</strong></p>
