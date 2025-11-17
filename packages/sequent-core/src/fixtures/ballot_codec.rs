@@ -2694,6 +2694,12 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             ("numSelected".to_string(), "3".to_string()),
                             ("max".to_string(), "2".to_string())
                         ]),
+                    },
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.duplicatedPosition".to_string()),
+                        message_map: HashMap::new(),
                     }
                 ],
                 invalid_alerts: vec![],
