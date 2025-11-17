@@ -161,12 +161,9 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
             </>
         )
     }
-    
+
     const {isPreferential} = provideBallotService()
-    const isPreferentialVote = useMemo(() => {
-        if (!question.counting_algorithm) return false
-        return isPreferential(question.counting_algorithm)
-    }, [question.counting_algorithm])
+    const isPreferentialVote = isPreferential(question.counting_algorithm)
 
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&

@@ -52,7 +52,7 @@ export interface IBallotService {
         election_id: string,
         content: IAuditableMultiBallot
     ) => boolean | null
-    isPreferential: (countingAlgorithm: ICountingAlgorithm) => boolean
+    isPreferential: (countingAlgorithm?: ICountingAlgorithm) => boolean
 }
 
 export const provideBallotService = (): IBallotService => ({
