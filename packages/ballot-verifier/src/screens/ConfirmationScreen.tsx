@@ -123,7 +123,13 @@ interface CandidateChoiceProps {
     selectedPosition?: number | null
 }
 
-const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, writeInValue, isPreferentialVote, selectedPosition}) => {
+const CandidateChoice: React.FC<CandidateChoiceProps> = ({
+    answer,
+    isWriteIn,
+    writeInValue,
+    isPreferentialVote,
+    selectedPosition,
+}) => {
     const imageUrl = answer && getImageUrl(answer)
 
     return (

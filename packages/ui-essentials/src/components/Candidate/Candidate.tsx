@@ -29,7 +29,7 @@ const BorderBox = emotionStyled.li<{
             isactive === "true" && hascategory === "true"
                 ? theme.palette.white
                 : theme.palette.customGrey.light};
-    ${({hasCategory: hasCategory, isinvalidvote, theme}) =>
+    ${({hasCategory, isinvalidvote, theme}) =>
         hasCategory === "true"
             ? `backgroundColor: ${theme.palette.white};`
             : isinvalidvote === "true"
@@ -46,7 +46,7 @@ const BorderBox = emotionStyled.li<{
     flex-grow: 2;
     transition: all 0.2s ease;
     ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
-    ${({isactive, hasCategory: hasCategory, theme}) =>
+    ${({isactive, hasCategory, theme}) =>
         isactive === "true"
             ? hasCategory === "true"
                 ? `

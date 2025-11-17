@@ -58,8 +58,12 @@ impl DecodedVoteContest {
                 .all(|choice| choice.selected < 0)
     }
 
-    /// Check that there are preferencial order errors
-    /// Returns Ok if the order is valid
+    /// Check the validity of the preference order.
+    /// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
+    /// but this is generally not considered invalid, so the caller can
+    /// handle it depending on the policy or jurisdiction rules.
+    /// Returns Ok if the order is valid after sorting it and if it is
+    /// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
     pub fn validate_preferencial_order(
         &self,
     ) -> Result<(), PreferencialOrderErrorType> {

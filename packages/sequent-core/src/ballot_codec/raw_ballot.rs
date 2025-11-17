@@ -383,7 +383,7 @@ impl RawBallotCodec for Contest {
                 Ok(()) => {}
                 Err(error) => match error {
                     PreferencialOrderErrorType::PreferenceOrderWithGaps => {
-                        decoded_contest.invalid_errors.push(
+                        decoded_contest.invalid_alerts.push(
                             InvalidPlaintextError {
                                 error_type: InvalidPlaintextErrorType::Implicit,
                                 candidate_id: None,

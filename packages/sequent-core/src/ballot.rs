@@ -5,7 +5,9 @@
 #![allow(dead_code)]
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
-use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use crate::plaintext::{
+    DecodedVoteChoice, DecodedVoteContest, PreferencialOrderErrorType,
+};
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::types::ceremonies::{
@@ -1511,21 +1513,12 @@ impl Contest {
         if !contains_all {
             return false;
         }
-        if self.get_counting_algorithm() == CountingAlgType::InstantRunoff {
+        if self.get_counting_algorithm().is_preferential() {
             // Check that there are no gaps in the preference order
-            let mut valid_choices: Vec<DecodedVoteChoice> = decoded_contest
-                .choices
-                .iter()
-                .filter(|choice| choice.selected >= 0)
-                .cloned()
-                .collect();
-            valid_choices.sort_by(|a, b| a.selected.cmp(&b.selected));
-            let valid_choices_order: Vec<i64> =
-                valid_choices.iter().map(|choice| choice.selected).collect();
-            let expected_order: Vec<i64> =
-                (0..valid_choices_order.len() as i64).collect();
-            if valid_choices_order != expected_order {
-                return false;
+            match decoded_contest.validate_preferencial_order() {
+                Ok(_) => (),
+                Err(PreferencialOrderErrorType::PreferenceOrderWithGaps) => (), /* Not considered invalid */
+                Err(_) => return false,
             }
         }
         true
