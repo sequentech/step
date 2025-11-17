@@ -110,6 +110,15 @@ When voter selection is invalid (e.g., null vote or too many selections):
 - **Warn Implicit and Explicit**: Warning for explicitly invalid (null/spoiled) and implicitly invalid (e.g., too many).
 - **Not Allowed**: Cannot submit if invalid options selected.
 
+##### Preferential systems (e.g. Instant Runoff)
+
+###### What is considered Implicit invalid error?
+- **Duplicated Position**: Whether casting the vote is allowed or not depends on the policy. Either case ranking 2 candidates
+  with the same position will invalidate the vote.
+
+###### What will cause an alert but it´s still valid?
+- **Preference order with gaps**: Missing one of the positions in between, e.g. 1,2,4,5.
+
 #### Blank Vote Policy
 When voter selects blank vote option:
 - **Allowed**: Submit without warning.
