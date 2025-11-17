@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-developers/Updates/generating-dependency-report" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.8.1">
+<title data-rh="true">generating-dependency-report | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2164/docs/developers/Updates/generating-dependency-report"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="generating-dependency-report | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2164/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2164/docs/developers/Updates/generating-dependency-report"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2164/docs/developers/Updates/generating-dependency-report" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2164/docs/developers/Updates/generating-dependency-report" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Generating Dependency Report","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-2164/docs/developers/Updates/generating-dependency-report"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2164/assets/css/styles.54d9e100.css">
+<script src="/docusaurus/pr-preview/pr-2164/assets/js/runtime~main.95620670.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2164/assets/js/main.bcc7eba7.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t="light";var e=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",e||t),document.documentElement.setAttribute("data-theme-choice",e||t)}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/docusaurus/pr-preview/pr-2164/img/logo_negative.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docusaurus/pr-preview/pr-2164/docs/system_introduction/"><div class="navbar__logo"><img src="/docusaurus/pr-preview/pr-2164/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/docusaurus/pr-preview/pr-2164/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate"></b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docusaurus/pr-preview/pr-2164/docs/system_introduction/">Docs</a><a href="/docusaurus/pr-preview/pr-2164/graphql" class="navbar__item navbar__link" target="_blank">GraphQL API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/sequentech" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="true" href="/docusaurus/pr-preview/pr-2164/docs/system_introduction/">System Introduction</a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/system_introduction/">Sequent Voting Platform Documentation</a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2164/docs/admin_portal/election_management">Admin Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2164/docs/voting_portal/voting_portal">Voting Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2164/docs/election_auditors/ballot_signature">Election Auditors</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docusaurus/pr-preview/pr-2164/docs/developers/contributing">Developers</a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/contributing">Contributing Guide</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/graphql_api">GraphQL API</a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/CLI/cli">CLI</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Development-Environment/nvd-api-key-setup">Development Environment</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Admin-Portal/developers_admin_portal">Admin Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Voting-Portal/cast_vote_errors">Voting Portal</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Keycloak/developers_keycloak">Keycloak</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Velvet/developers_velvet">Velvet</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Windmill/developers_windmill">Windmill</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Braid/braid_trustees_configuration">Braid</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Tutorials/add_new_language">Tutorials</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Updates/generating-dependency-report">Updates</a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Updates/generating-dependency-report">Generating Dependency Report</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-2164/docs/developers/Updates/updating-rust-version">Updating Rust Version</a></li></ul></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2164/docs/reference/reference">Reference</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-2164/docs/releases/Release Next/release-next">Releases</a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docusaurus/pr-preview/pr-2164/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Developers</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Updates</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Generating Dependency Report</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Generating Dependency Report</h1></header>
+<p>This guide explains how to generate and update the third-party dependency documentation using the VS Code task available in the Step Repository. This automated system tracks all dependencies across the monorepo and maintains up-to-date license compliance information.</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview">​</a></h2>
+<p>The Step Repository includes an automated dependency tracking system that:</p>
+<ul>
+<li>Scans all packages in the monorepo for third-party dependencies</li>
+<li>Extracts version and license information from package registries</li>
+<li>Generates a CSV report with comprehensive dependency data</li>
+<li>Updates the Docusaurus documentation with current dependency tables</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="when-to-run-the-task">When to Run the Task<a href="#when-to-run-the-task" class="hash-link" aria-label="Direct link to When to Run the Task" title="Direct link to When to Run the Task">​</a></h2>
+<p>You should generate a new dependency report in these situations:</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="1-after-adding-new-dependencies">1. <strong>After Adding New Dependencies</strong><a href="#1-after-adding-new-dependencies" class="hash-link" aria-label="Direct link to 1-after-adding-new-dependencies" title="Direct link to 1-after-adding-new-dependencies">​</a></h3>
+<p>Whenever you add a new dependency to any package:</p>
+<ul>
+<li>Added a new npm package to <code>package.json</code></li>
+<li>Added a new Rust crate to <code>Cargo.toml</code></li>
+<li>Added a new Maven dependency to <code>pom.xml</code></li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="2-after-updating-dependency-versions">2. <strong>After Updating Dependency Versions</strong><a href="#2-after-updating-dependency-versions" class="hash-link" aria-label="Direct link to 2-after-updating-dependency-versions" title="Direct link to 2-after-updating-dependency-versions">​</a></h3>
+<p>When you update existing dependencies to new versions:</p>
+<ul>
+<li>Running <code>yarn upgrade</code> or <code>cargo update</code></li>
+<li>Manually bumping version numbers</li>
+<li>Merging dependabot or renovate PRs</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="3-before-major-releases">3. <strong>Before Major Releases</strong><a href="#3-before-major-releases" class="hash-link" aria-label="Direct link to 3-before-major-releases" title="Direct link to 3-before-major-releases">​</a></h3>
+<p>As part of the release checklist:</p>
+<ul>
+<li>Ensure all dependency information is current</li>
+<li>Verify license compliance for the release</li>
+<li>Update documentation for stakeholders</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="4-during-license-audits">4. <strong>During License Audits</strong><a href="#4-during-license-audits" class="hash-link" aria-label="Direct link to 4-during-license-audits" title="Direct link to 4-during-license-audits">​</a></h3>
+<p>When conducting compliance reviews:</p>
+<ul>
+<li>Generate fresh license information</li>
+<li>Review any new dependencies</li>
+<li>Check for license compatibility issues</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="5-periodic-maintenance">5. <strong>Periodic Maintenance</strong><a href="#5-periodic-maintenance" class="hash-link" aria-label="Direct link to 5-periodic-maintenance" title="Direct link to 5-periodic-maintenance">​</a></h3>
+<p>Regular updates (recommended monthly or quarterly):</p>
+<ul>
+<li>Keep documentation synchronized with actual dependencies</li>
+<li>Catch any drift between code and documentation</li>
+<li>Maintain accurate compliance records</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="how-to-execute-the-task">How to Execute the Task<a href="#how-to-execute-the-task" class="hash-link" aria-label="Direct link to How to Execute the Task" title="Direct link to How to Execute the Task">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="using-vs-code-recommended">Using VS Code (Recommended)<a href="#using-vs-code-recommended" class="hash-link" aria-label="Direct link to Using VS Code (Recommended)" title="Direct link to Using VS Code (Recommended)">​</a></h3>
+<p>The easiest and most reliable method is through the VS Code task:</p>
+<ol>
+<li>
+<p><strong>Open the Command Palette</strong></p>
+<ul>
+<li>Press <code>Ctrl+Shift+P</code> (Linux/Windows) or <code>Cmd+Shift+P</code> (macOS)</li>
+</ul>
+</li>
+<li>
+<p><strong>Select the Task</strong></p>
+<ul>
+<li>Type <code>Tasks: Run Task</code> and press Enter</li>
+<li>Search for <code>generate.dependency.report</code></li>
+<li>Press Enter to execute</li>
+</ul>
+</li>
+<li>
+<p><strong>Monitor Progress</strong></p>
+<ul>
+<li>The task opens in a dedicated terminal panel</li>
+<li>Watch for completion messages:<!-- -->
+<ul>
+<li><code>🔍 Generating dependency CSV...</code></li>
+<li><code>📝 Updating markdown documentation...</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Verify Results</strong></p>
+<ul>
+<li>Check the terminal for any errors</li>
+<li>Review the updated files (see Output Files section)</li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="using-command-line">Using Command Line<a href="#using-command-line" class="hash-link" aria-label="Direct link to Using Command Line" title="Direct link to Using Command Line">​</a></h3>
+<p>Alternatively, you can run the task manually from the terminal:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># From the repository root</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">devenv shell </span><span class="token function" style="color:rgb(130, 170, 255)">bash</span><span class="token plain"> -- </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-c</span><span class="token plain"> ./scripts/tasks/dependencies/generate-dependency-report.sh</span><br></span></code></pre></div></div>
+<p>Or if you&#x27;re already in a devenv shell:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">./scripts/tasks/dependencies/generate-dependency-report.sh</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="how-it-works">How It Works<a href="#how-it-works" class="hash-link" aria-label="Direct link to How It Works" title="Direct link to How It Works">​</a></h2>
+<p>The dependency report generation system consists of three main components that work together:</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="1-dependency-scanner-list_depspy">1. Dependency Scanner (<code>list_deps.py</code>)<a href="#1-dependency-scanner-list_depspy" class="hash-link" aria-label="Direct link to 1-dependency-scanner-list_depspy" title="Direct link to 1-dependency-scanner-list_depspy">​</a></h3>
+<p>The scanner examines all packages in the monorepo and extracts dependency information:</p>
+<p><strong>What it scans:</strong></p>
+<ul>
+<li><strong>Rust packages</strong>: Reads <code>Cargo.toml</code> files, queries <a href="https://crates.io" target="_blank" rel="noopener noreferrer">crates.io</a> API for license data</li>
+<li><strong>TypeScript/JavaScript packages</strong>: Reads <code>package.json</code> files, queries <a href="https://npmjs.com" target="_blank" rel="noopener noreferrer">npmjs.com</a> API for license data</li>
+<li><strong>Java packages</strong>: Reads <code>pom.xml</code> files, queries <a href="https://central.sonatype.com" target="_blank" rel="noopener noreferrer">Maven Central</a> API for license data</li>
+</ul>
+<p><strong>What it extracts:</strong></p>
+<ul>
+<li>Package name</li>
+<li>Dependency name and version</li>
+<li>License information (fetched from package registries)</li>
+<li>Description (when available)</li>
+</ul>
+<p><strong>Output:</strong></p>
+<ul>
+<li>CSV file at <code>docs/docusaurus/docs/reference/third_party_deps/assets/dependencies.csv</code></li>
+<li>Contains columns: Package, Dependency, Version, License, Description</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="2-documentation-generator-update_deps_docspy">2. Documentation Generator (<code>update_deps_docs.py</code>)<a href="#2-documentation-generator-update_deps_docspy" class="hash-link" aria-label="Direct link to 2-documentation-generator-update_deps_docspy" title="Direct link to 2-documentation-generator-update_deps_docspy">​</a></h3>
+<p>The generator intelligently updates the markdown documentation:</p>
+<p><strong>How it works:</strong></p>
+<ul>
+<li>Reads the CSV file generated by the scanner</li>
+<li>Parses the existing markdown documentation</li>
+<li>Detects package sections automatically (e.g., &quot;Admin Portal&quot;, &quot;Voting Portal&quot;)</li>
+<li>Maps CSV package names to markdown section headers</li>
+<li><strong>Preserves all existing content</strong>: descriptions, overviews, license compliance sections</li>
+<li><strong>Updates only dependency tables</strong> with current data from CSV</li>
+<li>Maintains formatting and structure</li>
+</ul>
+<p><strong>Key feature:</strong></p>
+<ul>
+<li>Safe to run repeatedly without losing manual edits to package descriptions or other content</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="3-orchestration-script-generate-dependency-reportsh">3. Orchestration Script (<code>generate-dependency-report.sh</code>)<a href="#3-orchestration-script-generate-dependency-reportsh" class="hash-link" aria-label="Direct link to 3-orchestration-script-generate-dependency-reportsh" title="Direct link to 3-orchestration-script-generate-dependency-reportsh">​</a></h3>
+<p>The wrapper script coordinates the entire process:</p>
+<p><strong>Steps:</strong></p>
+<ol>
+<li>Creates a Python virtual environment (if not exists)</li>
+<li>Activates the virtual environment</li>
+<li>Installs required Python dependencies (<code>requests</code>, <code>tomli</code>)</li>
+<li>Runs the dependency scanner to generate CSV</li>
+<li>Runs the documentation generator to update markdown</li>
+<li>Outputs results to <code>docs/docusaurus/docs/reference/third_party_deps/</code></li>
+</ol>
+<p><strong>Environment setup:</strong></p>
+<ul>
+<li>Uses isolated Python virtualenv at <code>scripts/tasks/dependencies/.venv</code></li>
+<li>Installs dependencies from <code>requirements.txt</code></li>
+<li>Cleans up after completion</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="technical-details">Technical Details<a href="#technical-details" class="hash-link" aria-label="Direct link to Technical Details" title="Direct link to Technical Details">​</a></h3>
+<p><strong>VS Code Task Configuration:</strong></p>
+<p>The task is defined in <code>.vscode/tasks.json</code> (lines 28-51):</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;label&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;generate.dependency.report&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;command&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;devenv&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;args&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;shell&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;bash&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;--&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;-c&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;./scripts/tasks/dependencies/generate-dependency-report.sh&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;presentation&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;reveal&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;always&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;panel&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;dedicated&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;isBackground&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">false</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p><strong>Key aspects:</strong></p>
+<ul>
+<li>Runs within the devenv shell for consistent environment</li>
+<li>Uses a dedicated terminal panel for output</li>
+<li>Synchronous execution (waits for completion)</li>
+<li>Always reveals output for monitoring</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="output-files">Output Files<a href="#output-files" class="hash-link" aria-label="Direct link to Output Files" title="Direct link to Output Files">​</a></h2>
+<p>After running the task, you&#x27;ll find updated files at:</p>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="csv-report">CSV Report<a href="#csv-report" class="hash-link" aria-label="Direct link to CSV Report" title="Direct link to CSV Report">​</a></h3>
+<p><strong>Location:</strong> <code>docs/docusaurus/docs/reference/third_party_deps/assets/dependencies.csv</code></p>
+<p><strong>Format:</strong></p>
+<div class="language-csv codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-csv codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">Package,Dependency,Version,License,Description</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">admin-portal,react,18.2.0,MIT,React is a JavaScript library for building user interfaces.</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">admin-portal,typescript,5.3.3,Apache-2.0,TypeScript is a language for application scale JavaScript development</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">...</span><br></span></code></pre></div></div>
+<p><strong>Purpose:</strong></p>
+<ul>
+<li>Machine-readable dependency data</li>
+<li>Source for documentation generation</li>
+<li>Can be used for automated compliance checks</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="markdown-documentation">Markdown Documentation<a href="#markdown-documentation" class="hash-link" aria-label="Direct link to Markdown Documentation" title="Direct link to Markdown Documentation">​</a></h3>
+<p><strong>Location:</strong> <code>docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md</code></p>
+<p><strong>Purpose:</strong></p>
+<ul>
+<li>Human-readable documentation</li>
+<li>Automatically included in Docusaurus site</li>
+<li>Available at <code>/docs/reference/third_party_deps/third_party_deps</code></li>
+</ul>
+<p><strong>Structure:</strong></p>
+<ul>
+<li>Overview section</li>
+<li>Package sections with dependency tables</li>
+<li>License compliance information</li>
+<li>Automatically formatted and sorted</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="why-this-system-exists">Why This System Exists<a href="#why-this-system-exists" class="hash-link" aria-label="Direct link to Why This System Exists" title="Direct link to Why This System Exists">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="legal-compliance">Legal Compliance<a href="#legal-compliance" class="hash-link" aria-label="Direct link to Legal Compliance" title="Direct link to Legal Compliance">​</a></h3>
+<p><strong>License tracking:</strong></p>
+<ul>
+<li>Maintains accurate records of all third-party licenses</li>
+<li>Ensures compliance with open source license requirements</li>
+<li>Facilitates legal reviews and audits</li>
+</ul>
+<p><strong>Attribution:</strong></p>
+<ul>
+<li>Provides proper attribution to dependency authors</li>
+<li>Documents license terms for each dependency</li>
+<li>Supports transparency requirements</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="operational-benefits">Operational Benefits<a href="#operational-benefits" class="hash-link" aria-label="Direct link to Operational Benefits" title="Direct link to Operational Benefits">​</a></h3>
+<p><strong>Dependency visibility:</strong></p>
+<ul>
+<li>Single source of truth for all dependencies</li>
+<li>Easy to review what packages use what dependencies</li>
+<li>Helps identify duplicate or outdated dependencies</li>
+</ul>
+<p><strong>Security:</strong></p>
+<ul>
+<li>Know what external code is in the system</li>
+<li>Identify packages that need security updates</li>
+<li>Track dependency chains for vulnerability management</li>
+</ul>
+<p><strong>Maintenance:</strong></p>
+<ul>
+<li>Understand impact of dependency updates</li>
+<li>Plan upgrades and migrations</li>
+<li>Document technical debt</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="documentation-quality">Documentation Quality<a href="#documentation-quality" class="hash-link" aria-label="Direct link to Documentation Quality" title="Direct link to Documentation Quality">​</a></h3>
+<p><strong>Automation:</strong></p>
+<ul>
+<li>Reduces manual documentation burden</li>
+<li>Prevents documentation drift</li>
+<li>Ensures accuracy through direct source scanning</li>
+</ul>
+<p><strong>Consistency:</strong></p>
+<ul>
+<li>Standardized format across all packages</li>
+<li>Uniform license information presentation</li>
+<li>Predictable structure for readers</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="best-practices">Best Practices<a href="#best-practices" class="hash-link" aria-label="Direct link to Best Practices" title="Direct link to Best Practices">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="1-run-after-dependency-changes">1. <strong>Run After Dependency Changes</strong><a href="#1-run-after-dependency-changes" class="hash-link" aria-label="Direct link to 1-run-after-dependency-changes" title="Direct link to 1-run-after-dependency-changes">​</a></h3>
+<p>Always run the task after modifying dependencies:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># After adding/updating dependencies</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">add</span><span class="token plain"> some-package</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># or</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">add</span><span class="token plain"> some-crate</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Then run the task</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># VS Code: Ctrl+Shift+P → Tasks: Run Task → generate.dependency.report</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="2-review-generated-output">2. <strong>Review Generated Output</strong><a href="#2-review-generated-output" class="hash-link" aria-label="Direct link to 2-review-generated-output" title="Direct link to 2-review-generated-output">​</a></h3>
+<p>After running the task:</p>
+<ul>
+<li>Check the CSV for completeness</li>
+<li>Review the markdown for formatting</li>
+<li>Verify license information looks correct</li>
+<li>Note any &quot;N/A&quot; licenses for manual investigation</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="3-commit-both-files">3. <strong>Commit Both Files</strong><a href="#3-commit-both-files" class="hash-link" aria-label="Direct link to 3-commit-both-files" title="Direct link to 3-commit-both-files">​</a></h3>
+<p>Always commit both generated files together:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">add</span><span class="token plain"> docs/docusaurus/docs/reference/third_party_deps/assets/dependencies.csv</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">add</span><span class="token plain"> docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">git</span><span class="token plain"> commit </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-m</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;docs: update dependency report&quot;</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="4-include-in-prs">4. <strong>Include in PRs</strong><a href="#4-include-in-prs" class="hash-link" aria-label="Direct link to 4-include-in-prs" title="Direct link to 4-include-in-prs">​</a></h3>
+<p>When your PR adds or updates dependencies:</p>
+<ul>
+<li>Run the dependency report task</li>
+<li>Include the updated files in your PR</li>
+<li>Mention the license changes in PR description</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="5-regular-updates">5. <strong>Regular Updates</strong><a href="#5-regular-updates" class="hash-link" aria-label="Direct link to 5-regular-updates" title="Direct link to 5-regular-updates">​</a></h3>
+<p>Schedule regular dependency report updates:</p>
+<ul>
+<li>Set a calendar reminder (monthly or quarterly)</li>
+<li>Include in release checklist</li>
+<li>Part of dependency update sprints</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="troubleshooting">Troubleshooting<a href="#troubleshooting" class="hash-link" aria-label="Direct link to Troubleshooting" title="Direct link to Troubleshooting">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="task-not-found-in-vs-code">Task Not Found in VS Code<a href="#task-not-found-in-vs-code" class="hash-link" aria-label="Direct link to Task Not Found in VS Code" title="Direct link to Task Not Found in VS Code">​</a></h3>
+<p><strong>Problem:</strong> Can&#x27;t find <code>generate.dependency.report</code> in task list</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Reload VS Code: <code>Ctrl+Shift+P</code> → <code>Developer: Reload Window</code></li>
+<li>Check <code>.vscode/tasks.json</code> exists in repository root</li>
+<li>Ensure you&#x27;re in the devenv shell</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="python-virtual-environment-issues">Python Virtual Environment Issues<a href="#python-virtual-environment-issues" class="hash-link" aria-label="Direct link to Python Virtual Environment Issues" title="Direct link to Python Virtual Environment Issues">​</a></h3>
+<p><strong>Problem:</strong> Script fails with Python module errors</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Delete the virtual environment: <code>rm -rf scripts/tasks/dependencies/.venv</code></li>
+<li>Run the task again (will recreate virtualenv)</li>
+<li>Check Python 3 is available: <code>python3 --version</code></li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="api-rate-limiting">API Rate Limiting<a href="#api-rate-limiting" class="hash-link" aria-label="Direct link to API Rate Limiting" title="Direct link to API Rate Limiting">​</a></h3>
+<p><strong>Problem:</strong> Script fails with &quot;rate limit exceeded&quot; errors</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Wait a few minutes and retry</li>
+<li>The script queries package registries (crates.io, npmjs.com, Maven Central)</li>
+<li>If persistent, run script at a different time</li>
+<li>Consider implementing API tokens (for maintainers)</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="incomplete-license-information">Incomplete License Information<a href="#incomplete-license-information" class="hash-link" aria-label="Direct link to Incomplete License Information" title="Direct link to Incomplete License Information">​</a></h3>
+<p><strong>Problem:</strong> CSV shows &quot;N/A&quot; for some licenses</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>This may be expected for packages without proper license metadata</li>
+<li>Manually check the package repository for license information</li>
+<li>Update the CSV manually if needed (note: will be overwritten on next run)</li>
+<li>Consider filing issues with upstream packages to add license metadata</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="merge-conflicts-in-generated-files">Merge Conflicts in Generated Files<a href="#merge-conflicts-in-generated-files" class="hash-link" aria-label="Direct link to Merge Conflicts in Generated Files" title="Direct link to Merge Conflicts in Generated Files">​</a></h3>
+<p><strong>Problem:</strong> Git merge conflicts in CSV or markdown</p>
+<p><strong>Solutions:</strong></p>
+<ol>
+<li>Accept incoming changes (from main/master branch)</li>
+<li>Re-run the dependency report task</li>
+<li>The task will regenerate correct current state</li>
+<li>Commit the regenerated files</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="related-documentation">Related Documentation<a href="#related-documentation" class="hash-link" aria-label="Direct link to Related Documentation" title="Direct link to Related Documentation">​</a></h2>
+<ul>
+<li><a href="/docusaurus/pr-preview/pr-2164/docs/reference/third_party_deps/">Third-Party Dependencies Documentation</a> - Generated dependency documentation</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="further-information">Further Information<a href="#further-information" class="hash-link" aria-label="Direct link to Further Information" title="Direct link to Further Information">​</a></h2>
+<p>For more details about the dependency scanning system architecture, see:</p>
+<ul>
+<li><code>scripts/tasks/dependencies/README.md</code> - System architecture and components</li>
+<li><code>scripts/tasks/dependencies/list_deps.py</code> - Dependency scanner implementation</li>
+<li><code>scripts/tasks/dependencies/update_deps_docs.py</code> - Documentation generator implementation</li>
+<li><code>.vscode/tasks.json</code> - Complete task configuration</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/developers/11-Updates/generating-dependency-report.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2164/docs/developers/Tutorials/setup_idp_initiated_sso"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">IdP SSO Configuration &amp; Handoff</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-2164/docs/developers/Updates/updating-rust-version"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Updating Rust Version</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#when-to-run-the-task" class="table-of-contents__link toc-highlight">When to Run the Task</a><ul><li><a href="#1-after-adding-new-dependencies" class="table-of-contents__link toc-highlight">1. <strong>After Adding New Dependencies</strong></a></li><li><a href="#2-after-updating-dependency-versions" class="table-of-contents__link toc-highlight">2. <strong>After Updating Dependency Versions</strong></a></li><li><a href="#3-before-major-releases" class="table-of-contents__link toc-highlight">3. <strong>Before Major Releases</strong></a></li><li><a href="#4-during-license-audits" class="table-of-contents__link toc-highlight">4. <strong>During License Audits</strong></a></li><li><a href="#5-periodic-maintenance" class="table-of-contents__link toc-highlight">5. <strong>Periodic Maintenance</strong></a></li></ul></li><li><a href="#how-to-execute-the-task" class="table-of-contents__link toc-highlight">How to Execute the Task</a><ul><li><a href="#using-vs-code-recommended" class="table-of-contents__link toc-highlight">Using VS Code (Recommended)</a></li><li><a href="#using-command-line" class="table-of-contents__link toc-highlight">Using Command Line</a></li></ul></li><li><a href="#how-it-works" class="table-of-contents__link toc-highlight">How It Works</a><ul><li><a href="#1-dependency-scanner-list_depspy" class="table-of-contents__link toc-highlight">1. Dependency Scanner (<code>list_deps.py</code>)</a></li><li><a href="#2-documentation-generator-update_deps_docspy" class="table-of-contents__link toc-highlight">2. Documentation Generator (<code>update_deps_docs.py</code>)</a></li><li><a href="#3-orchestration-script-generate-dependency-reportsh" class="table-of-contents__link toc-highlight">3. Orchestration Script (<code>generate-dependency-report.sh</code>)</a></li><li><a href="#technical-details" class="table-of-contents__link toc-highlight">Technical Details</a></li></ul></li><li><a href="#output-files" class="table-of-contents__link toc-highlight">Output Files</a><ul><li><a href="#csv-report" class="table-of-contents__link toc-highlight">CSV Report</a></li><li><a href="#markdown-documentation" class="table-of-contents__link toc-highlight">Markdown Documentation</a></li></ul></li><li><a href="#why-this-system-exists" class="table-of-contents__link toc-highlight">Why This System Exists</a><ul><li><a href="#legal-compliance" class="table-of-contents__link toc-highlight">Legal Compliance</a></li><li><a href="#operational-benefits" class="table-of-contents__link toc-highlight">Operational Benefits</a></li><li><a href="#documentation-quality" class="table-of-contents__link toc-highlight">Documentation Quality</a></li></ul></li><li><a href="#best-practices" class="table-of-contents__link toc-highlight">Best Practices</a><ul><li><a href="#1-run-after-dependency-changes" class="table-of-contents__link toc-highlight">1. <strong>Run After Dependency Changes</strong></a></li><li><a href="#2-review-generated-output" class="table-of-contents__link toc-highlight">2. <strong>Review Generated Output</strong></a></li><li><a href="#3-commit-both-files" class="table-of-contents__link toc-highlight">3. <strong>Commit Both Files</strong></a></li><li><a href="#4-include-in-prs" class="table-of-contents__link toc-highlight">4. <strong>Include in PRs</strong></a></li><li><a href="#5-regular-updates" class="table-of-contents__link toc-highlight">5. <strong>Regular Updates</strong></a></li></ul></li><li><a href="#troubleshooting" class="table-of-contents__link toc-highlight">Troubleshooting</a><ul><li><a href="#task-not-found-in-vs-code" class="table-of-contents__link toc-highlight">Task Not Found in VS Code</a></li><li><a href="#python-virtual-environment-issues" class="table-of-contents__link toc-highlight">Python Virtual Environment Issues</a></li><li><a href="#api-rate-limiting" class="table-of-contents__link toc-highlight">API Rate Limiting</a></li><li><a href="#incomplete-license-information" class="table-of-contents__link toc-highlight">Incomplete License Information</a></li><li><a href="#merge-conflicts-in-generated-files" class="table-of-contents__link toc-highlight">Merge Conflicts in Generated Files</a></li></ul></li><li><a href="#related-documentation" class="table-of-contents__link toc-highlight">Related Documentation</a></li><li><a href="#further-information" class="table-of-contents__link toc-highlight">Further Information</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
+</body>
+</html>
