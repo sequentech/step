@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,7 +7,6 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::encrypter::encrypt_file;
 use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
-use crate::services::ceremonies::velvet_tally::build_vote_receipe_pipe_config;
 use crate::services::ceremonies::velvet_tally::call_velvet;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
@@ -42,7 +41,7 @@ use std::path::PathBuf;
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
-use velvet::config::vote_receipt::PipeConfigVoteReceipts;
+use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
 
@@ -54,11 +53,6 @@ pub enum EGenerateTemplate {
         election_id: String,
         tally_session_id: String,
     },
-    VoteReceipts {
-        election_event_id: String,
-        election_id: String,
-        tally_session_id: String,
-    },
 }
 
 #[instrument(err, skip(hasura_transaction, tally_session))]
@@ -66,7 +60,6 @@ async fn create_config(
     hasura_transaction: &Transaction<'_>,
     tally_session: &TallySession,
     tally_path: &PathBuf,
-    is_ballot_images: bool,
     contest_encryption_policy: &ContestEncryptionPolicy,
 ) -> AnyhowResult<String> {
     let config_path = tally_path.join("velvet-config.json");
@@ -79,57 +72,29 @@ async fn create_config(
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
-    let pipe_config: serde_json::Value = if is_ballot_images {
-        let ballot_images_pipe_config: PipeConfigVoteReceipts = build_ballot_images_pipe_config(
-            &tally_session,
-            &hasura_transaction,
-            minio_endpoint_base.clone(),
-            public_asset_path.clone(),
-        )
-        .await?;
-        serde_json::to_value(ballot_images_pipe_config)?
-    } else {
-        let vote_receipt_pipe_config: PipeConfigVoteReceipts = build_vote_receipe_pipe_config(
-            &tally_session,
-            &hasura_transaction,
-            minio_endpoint_base.clone(),
-            public_asset_path.clone(),
-        )
-        .await?;
-        serde_json::to_value(vote_receipt_pipe_config)?
-    };
+    let ballot_images_pipe_config: PipeConfigBallotImages = build_ballot_images_pipe_config(
+        &tally_session,
+        &hasura_transaction,
+        minio_endpoint_base.clone(),
+        public_asset_path.clone(),
+    )
+    .await?;
+    let pipe_config = serde_json::to_value(ballot_images_pipe_config)?;
 
-    let first_pipe_id = if is_ballot_images {
-        "ballot-images"
-    } else {
-        "vote-receipts"
-    };
+    let first_pipe_id = "ballot-images";
 
     let stages_def = {
         let mut map = HashMap::new();
         map.insert(
             "main".to_string(),
             velvet::config::Stage {
-                pipeline: vec![if is_ballot_images {
-                    velvet::config::PipeConfig {
-                        id: first_pipe_id.to_string(),
-                        pipe: match contest_encryption_policy {
-                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::MCBallotImages,
-                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotImages,
-                        },
-                        config: Some(pipe_config),
-                    }
-                } else {
-                    velvet::config::PipeConfig {
-                        id: first_pipe_id.to_string(),
-                        pipe: match contest_encryption_policy {
-                            ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
-                                PipeName::MCBallotReceipts
-                            }
-                            ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::VoteReceipts,
-                        },
-                        config: Some(pipe_config),
-                    }
+                pipeline: vec![velvet::config::PipeConfig {
+                    id: first_pipe_id.to_string(),
+                    pipe: match contest_encryption_policy {
+                        ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::MCBallotImages,
+                        ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::BallotImages,
+                    },
+                    config: Some(pipe_config),
                 }],
             },
         );
@@ -163,18 +128,11 @@ async fn generate_template_document(
     document_id: &str,
     input: &EGenerateTemplate,
 ) -> AnyhowResult<()> {
-    let (is_ballot_images, election_event_id, election_id, tally_session_id) = match input.clone() {
-        EGenerateTemplate::BallotImages {
-            election_event_id,
-            election_id,
-            tally_session_id,
-        } => (true, election_event_id, election_id, tally_session_id),
-        EGenerateTemplate::VoteReceipts {
-            election_event_id,
-            election_id,
-            tally_session_id,
-        } => (false, election_event_id, election_id, tally_session_id),
-    };
+    let EGenerateTemplate::BallotImages {
+        election_event_id,
+        election_id,
+        tally_session_id,
+    } = input.clone();
 
     let tally_session = get_tally_session_by_id(
         hasura_transaction,
@@ -207,29 +165,15 @@ async fn generate_template_document(
 
     let tally_path_path = tally_path.into_path();
 
-    let (pipe_name, report_type) = if is_ballot_images {
-        (
-            if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
-                PipeNameOutputDir::MCBallotImages
-            } else {
-                PipeNameOutputDir::BallotImages
-            }
-            .as_ref()
-            .to_string(),
-            ReportType::BALLOT_IMAGES,
-        )
+    let pipe_name = if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
+        PipeNameOutputDir::MCBallotImages
     } else {
-        (
-            if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
-                PipeNameOutputDir::MCBallotReceipts
-            } else {
-                PipeNameOutputDir::VoteReceipts
-            }
-            .as_ref()
-            .to_string(),
-            ReportType::VOTE_RECEIPT,
-        )
-    };
+        PipeNameOutputDir::BallotImages
+    }
+    .as_ref()
+    .to_string();
+
+    let report_type = ReportType::BALLOT_IMAGES;
 
     let step_path = tally_path_path.join("output").join(&pipe_name);
 
@@ -241,7 +185,6 @@ async fn generate_template_document(
         hasura_transaction,
         &tally_session,
         &tally_path_path,
-        is_ballot_images,
         &contest_encryption_policy,
     )
     .await?;
@@ -308,11 +251,7 @@ async fn generate_template_document(
     let file_size =
         get_file_size(&final_zipped_file).with_context(|| "Error obtaining file size")?;
 
-    let otuput_doc_name = if is_ballot_images {
-        format!("election-{election_id}-ballot-images.{file_extension}")
-    } else {
-        format!("election-{election_id}-vote-receipts.{file_extension}")
-    };
+    let otuput_doc_name = format!("election-{election_id}-ballot-images.{file_extension}");
 
     let _document = upload_and_return_document(
         &hasura_transaction,

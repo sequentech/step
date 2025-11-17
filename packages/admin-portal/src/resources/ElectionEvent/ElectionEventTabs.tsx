@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {
@@ -29,9 +29,6 @@ import {Tabs} from "@/components/Tabs"
 // Lazy load all tab contents
 // ---------------------------------------------------------------------
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
-const OVOFDashboardElectionEvent = lazy(
-    () => import("@/components/monitoring-dashboard/election-event/MonitoringDashboard")
-)
 const EditElectionEventData = lazy(() =>
     import("./EditElectionEventData").then((m) => ({default: m.EditElectionEventData}))
 )
@@ -85,12 +82,6 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => (
         <Box sx={{overflowX: "auto"}}>
             <DashboardElectionEvent refreshRef={refreshRef} onMount={handleChildMount} />
         </Box>
-    </Suspense>
-)
-
-const MonitoringTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => (
-    <Suspense fallback={<div>Loading Monitoring...</div>}>
-        <OVOFDashboardElectionEvent refreshRef={refreshRef} onMount={handleChildMount} />
     </Suspense>
 )
 
@@ -230,11 +221,6 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ADMIN_DASHBOARD_VIEW
     )
-    const showMonitoringDashboard = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION_EVENT
-    )
     const showData =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_DATA_TAB)
@@ -314,15 +300,6 @@ export const ElectionEventTabs: React.FC = () => {
             result.push({
                 label: t("electionEventScreen.tabs.dashboard"),
                 component: DashboardTab,
-                props: {refreshRef, handleChildMount},
-            })
-        }
-
-        // Monitoring
-        if (showMonitoringDashboard) {
-            result.push({
-                label: t("electionEventScreen.tabs.monitoring"),
-                component: MonitoringTab,
                 props: {refreshRef, handleChildMount},
             })
         }
@@ -426,7 +403,6 @@ export const ElectionEventTabs: React.FC = () => {
         return result
     }, [
         showDashboard,
-        showMonitoringDashboard,
         showData,
         showTextData,
         showVoters,
