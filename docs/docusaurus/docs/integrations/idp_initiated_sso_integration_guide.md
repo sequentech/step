@@ -107,7 +107,7 @@ to make this work are the following:
 
 ```bash
 # Your local IdP URLs (for development)
-IDP_BASE_URL=http://localhost:8083/simplesaml
+IDP_BASE_URL=https://localhost:8083/simplesaml
 
 # Example users for testing SimpleSAMLphp authentication
 # Format: "username1:password1:email1,username2:password2:email2,..."
@@ -180,7 +180,7 @@ Forwarding  https://abc123.ngrok.io -> https://localhost:8083
 Edit `simplesamlphp/.env` and change:
 ```bash
 # Before:
-IDP_BASE_URL=http://localhost:8083/simplesaml
+IDP_BASE_URL=https://localhost:8083/simplesaml
 
 # After (use your ngrok URL):
 IDP_BASE_URL=https://abc123.ngrok.io/simplesaml
@@ -206,10 +206,10 @@ Once running with ngrok, access:
 
 Sequent needs your IdP metadata to configure trust. Provide:
 
-1. **IdP Metadata URL:** `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
+1. **IdP Metadata URL:** `https://localhost:8083/simplesaml/saml2/idp/metadata.php`
    - Or download and send the XML file
-2. **IdP Entity ID:** Found in the metadata (will be `http://localhost:8083/simplesaml/saml2/idp/metadata.php`)
-3. **IdP SSO URL:** `http://localhost:8083/simplesaml/saml2/idp/SSOService.php`
+2. **IdP Entity ID:** Found in the metadata (will be `https://localhost:8083/simplesaml/saml2/idp/metadata.php`)
+3. **IdP SSO URL:** `https://localhost:8083/simplesaml/saml2/idp/SSOService.php`
 4. **Public Certificate:** Found in `.devcontainer/simplesamlphp/cert/server.crt`
 
 **For testing:** Sequent will configure their staging environment to accept assertions from your local SimpleSAMLphp instance.
@@ -220,7 +220,7 @@ Sequent needs your IdP metadata to configure trust. Provide:
 
 ### 4.1 Test End-to-End Flow
 
-1. Open browser to: `http://localhost:8083/simplesaml/idp-initiated-sso.php`
+1. Open browser to: `https://localhost:8083/simplesaml/idp-initiated-sso.php`
 2. Click **"Login to Voting Portal"**
 3. Authenticate with test credentials (as configured in `SSP_EXAMPLE_USERS`):
    - Default: Username: `user1` / Password: `password`
@@ -269,7 +269,7 @@ All configuration in one place, loaded from environment variables:
 <?php
 return [
     // Your IdP configuration
-    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'http://localhost:8083/simplesaml',
+    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'https://localhost:8083/simplesaml',
 
     // Sequent provided values
     'tenant_id' => getenv('TENANT_ID') ?: '...',

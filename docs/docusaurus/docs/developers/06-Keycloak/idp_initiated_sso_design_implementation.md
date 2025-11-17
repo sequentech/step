@@ -207,7 +207,7 @@ All deployment-specific values centralized in one location:
 
 ```php
 return [
-    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'http://localhost:8083/simplesaml',
+    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'https://localhost:8083/simplesaml',
     'sp_base_url' => getenv('SP_BASE_URL') ?: 'http://127.0.0.1:8090',
     'sp_realm' => 'tenant-' . (getenv('TENANT_ID') ?: '...') . '-event-' . (getenv('EVENT_ID') ?: '...'),
     'tenant_id' => getenv('TENANT_ID') ?: '...',
@@ -263,7 +263,7 @@ Development environment variables:
 
 ```bash
 # IdP Configuration (SimpleSAMLphp)
-IDP_BASE_URL=http://localhost:8083/simplesaml
+IDP_BASE_URL=https://localhost:8083/simplesaml
 
 # SP Configuration (Keycloak)
 SP_BASE_URL=http://127.0.0.1:8090
@@ -315,7 +315,7 @@ Voting Portal: https://voting.sequentech.io
 ### Testing with Reference Implementation
 
 1. Start dev container (SimpleSAMLphp runs automatically)
-2. Access trigger page: `http://localhost:8083/simplesaml/idp-initiated-sso.php`
+2. Access trigger page: `https://localhost:8083/simplesaml/idp-initiated-sso.php`
 3. Login with test credentials (configured via `SSP_EXAMPLE_USERS` env var):
    - Default: `user1`/`password` (email: user1@example.com)
    - Or: `user2`/`password` (email: user2@example.com)
