@@ -45,6 +45,7 @@
         "owner": "edolstra",
         "repo": "flake-compat",
         "rev": "f387cd2afec9419c8ee37694406ca490c3f34ee5",
+        "treeHash": "39896b0f8854c066ba1a6284eaffd74a748ebf59",
         "type": "github"
       },
       "original": {
@@ -53,31 +54,10 @@
         "type": "github"
       }
     },
-    "git-hooks": {
-      "inputs": {
-        "flake-compat": "flake-compat",
-        "gitignore": "gitignore",
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1763032142,
-        "owner": "cachix",
-        "repo": "git-hooks.nix",
-        "rev": "84255025dee4c8701a99fbff65ac3c9095952f99",
-        "type": "github"
-      },
-      "original": {
-        "owner": "cachix",
-        "repo": "git-hooks.nix",
-        "type": "github"
-      }
-    },
     "gitignore": {
       "inputs": {
         "nixpkgs": [
-          "git-hooks",
+          "pre-commit-hooks",
           "nixpkgs"
         ]
       },
@@ -86,6 +66,7 @@
         "owner": "hercules-ci",
         "repo": "gitignore.nix",
         "rev": "cb5e3fdca1de58ccbc3ef53de65bd372b48f567c",
+        "treeHash": "6e7c3e38f45571139b6094f67596c1223c4426b7",
         "type": "github"
       },
       "original": {
@@ -119,11 +100,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1762441963,
+        "lastModified": 1763319842,
         "owner": "cachix",
         "repo": "pre-commit-hooks.nix",
-        "rev": "8e7576e79b88c16d7ee3bbd112c8d90070832885",
-        "treeHash": "c474917813c7c6e4ec9bd5c5cd53ce84d143a321",
+        "rev": "7275fa67fbbb75891c16d9dee7d88e58aea2d761",
+        "treeHash": "a1b909761bd60a20b90a527389a5f68cb3b231dc",
         "type": "github"
       },
       "original": {
@@ -136,11 +117,8 @@
       "inputs": {
         "devenv": "devenv",
         "fenix": "fenix",
-        "git-hooks": "git-hooks",
         "nixpkgs": "nixpkgs",
-        "pre-commit-hooks": [
-          "git-hooks"
-        ],
+        "pre-commit-hooks": "pre-commit-hooks",
         "rust-overlay": "rust-overlay"
       }
     },

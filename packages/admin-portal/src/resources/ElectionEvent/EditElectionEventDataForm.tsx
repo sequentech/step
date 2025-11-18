@@ -270,7 +270,7 @@ export const EditElectionEventDataForm: React.FC = () => {
 
             return temp
         },
-        [defaultVotingChannels]
+        [votingSettings]
     )
 
     useEffect(() => {
