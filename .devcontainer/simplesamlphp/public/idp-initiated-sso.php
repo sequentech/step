@@ -21,20 +21,11 @@ $simpleSamlBaseUrl = '/simplesaml';
 // Build the Keycloak SP Entity ID from realm
 $keycloakSpEntityId = $config->getString('sp_realm');
 
-// Build the final redirect URL (voting portal login page)
-$finalRedirectUrl = sprintf(
-    '%s/tenant/%s/event/%s/login',
-    $config->getString('voting_portal_url'),
-    $config->getString('tenant_id'),
-    $config->getString('event_id')
-);
-
 // --- Logic ---
 $idpSsoUrl = "{$simpleSamlBaseUrl}/saml2/idp/SSOService.php";
 
 $queryParams = [
     'spentityid' => $keycloakSpEntityId,
-    'RelayState' => $finalRedirectUrl,
 ];
 
 $loginUrl = $idpSsoUrl . '?' . http_build_query($queryParams);

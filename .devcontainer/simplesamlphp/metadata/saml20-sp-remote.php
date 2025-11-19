@@ -41,7 +41,7 @@ $metadata[$config['sp_realm']] = [
     'AssertionConsumerService' => [
         [
             'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST',
-            'Location' => $keycloakSloUrl,
+            'Location' => $keycloakSpAcsUrl,
         ],
     ],
     'SingleLogoutService' => [
