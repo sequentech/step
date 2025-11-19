@@ -194,7 +194,7 @@ docker-compose restart simplesamlphp
 ### 2.5 Access the Reference Implementation
 
 Once running with ngrok, access:
-- **Admin interface:** `https://abc123.ngrok.io/simplesaml/` (use your ngrok URL)
+- **Admin interface:** `https://abc123.ngrok.io/simplesaml/module.php/admin` (use your ngrok URL)
 - **IdP metadata:** `https://abc123.ngrok.io/simplesaml/saml2/idp/metadata.php`
 - **SSO trigger page:** `https://abc123.ngrok.io/simplesaml/idp-initiated-sso.php`
 
@@ -206,10 +206,10 @@ Once running with ngrok, access:
 
 Sequent needs your IdP metadata to configure trust. Provide:
 
-1. **IdP Metadata URL:** `https://localhost:8083/simplesaml/saml2/idp/metadata.php`
+1. **IdP Metadata URL:** `https://abc123.ngrok.io/simplesaml/saml2/idp/metadata.php`
    - Or download and send the XML file
-2. **IdP Entity ID:** Found in the metadata (will be `https://localhost:8083/simplesaml/saml2/idp/metadata.php`)
-3. **IdP SSO URL:** `https://localhost:8083/simplesaml/saml2/idp/SSOService.php`
+2. **IdP Entity ID:** Found in the metadata (will be `https://abc123.ngrok.io/simplesaml/saml2/idp/metadata.php`)
+3. **IdP SSO URL:** `https://abc123.ngrok.io/simplesaml/saml2/idp/SSOService.php`
 4. **Public Certificate:** Found in `.devcontainer/simplesamlphp/cert/server.crt`
 
 :::note Why you still send `server.crt`
@@ -224,7 +224,7 @@ When you expose SimpleSAMLphp through ngrok, ngrok terminates HTTPS on the publi
 
 ### 4.1 Test End-to-End Flow
 
-1. Open browser to: `https://localhost:8083/simplesaml/idp-initiated-sso.php`
+1. Open browser to: `https://abc123.ngrok.io/simplesaml/idp-initiated-sso.php`
 2. Click **"Login to Voting Portal"**
 3. Authenticate with test credentials (as configured in `SSP_EXAMPLE_USERS`):
    - Default: Username: `user1` / Password: `password`
@@ -273,7 +273,7 @@ All configuration in one place, loaded from environment variables:
 <?php
 return [
     // Your IdP configuration
-    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'https://localhost:8083/simplesaml',
+    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'https://abc123.ngrok.io/simplesaml',
 
     // Sequent provided values
     'tenant_id' => getenv('TENANT_ID') ?: '...',
@@ -361,18 +361,9 @@ $config = require __DIR__ . '/../config.php';
 // The SP Entity ID to target
 $spEntityId = $config['sp_realm'];
 
-// Where to redirect after authentication
-$finalRedirectUrl = sprintf(
-    '%s/tenant/%s/event/%s/login',
-    $config['voting_portal_url'],
-    $config['tenant_id'],
-    $config['event_id']
-);
-
 // Build SSO URL with parameters
 $ssoUrl = "/simplesaml/saml2/idp/SSOService.php?" . http_build_query([
     'spentityid' => $spEntityId,        // Which SP to send to
-    'RelayState' => $finalRedirectUrl,  // Where to go after auth
 ]);
 ?>
 
