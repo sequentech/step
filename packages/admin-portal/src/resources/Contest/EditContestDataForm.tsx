@@ -350,13 +350,6 @@ export const ContestDataForm: React.FC = () => {
         }
     }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
 
-    const votingTypesChoices = (): Array<EnumChoice<IVotingType>> => {
-        return Object.values(IVotingType).map((value) => ({
-            id: value,
-            name: t(`contestScreen.options.${value.toLowerCase()}`),
-        }))
-    }
-
     const countingAlgorithmChoices = (): Array<EnumChoice<ICountingAlgorithm>> => {
         return Object.values(ICountingAlgorithm).map((value) => ({
             id: value,
@@ -650,11 +643,6 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput
-                                    source="voting_type"
-                                    choices={votingTypesChoices()}
-                                    validate={required()}
-                                />
                                 <SelectInput
                                     source="counting_algorithm"
                                     choices={countingAlgorithmChoices()}

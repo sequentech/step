@@ -47,13 +47,6 @@ export const CreateContest: React.FC = () => {
     const {refetch} = useTreeMenuData(false)
     const {setLastCreatedResource} = useContext(NewResourceContext)
 
-    const votingTypesChoices = () => {
-        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
-            id: value,
-            name: t(`contestScreen.options.${value.toLowerCase()}`),
-        }))
-    }
-
     const countingAlgorithmChoices = () => {
         return (Object.values(ICountingAlgorithm) as ICountingAlgorithm[]).map((value) => ({
             id: value,
@@ -108,7 +101,7 @@ export const CreateContest: React.FC = () => {
                     <SelectInput
                         source="counting_algorithm"
                         defaultValue={ICountingAlgorithm.PLURALITY_AT_LARGE}
-                        choices={countingAlgorithmChoices()} // TODO: Add the translations
+                        choices={countingAlgorithmChoices()}
                     />
                     <SelectInput
                         source="presentation.candidates_order"

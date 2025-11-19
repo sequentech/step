@@ -12,13 +12,14 @@ import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 export enum ICountingAlgorithm {
     PLURALITY_AT_LARGE = "plurality-at-large",
     INSTANT_RUNOFF = "instant-runoff",
-    BORDA_NAURU = "borda-nauru",
-    BORDA = "borda",
-    BORDA_MAS_MADRID = "borda-mas-madrid",
-    PAIRWISE_BETA = "pairwise-beta",
-    DESBORDA3 = "desborda3",
-    DESBORDA2 = "desborda2",
-    DESBORDA = "desborda",
+    // // These variants below are presnet in the Rust enum, but not supported by velvet tally. I´s commented to not show them in the UI:
+    //     BORDA_NAURU = "borda-nauru",
+    //     BORDA = "borda",
+    //     BORDA_MAS_MADRID = "borda-mas-madrid",
+    //     PAIRWISE_BETA = "pairwise-beta",
+    //     DESBORDA3 = "desborda3",
+    //     DESBORDA2 = "desborda2",
+    //     DESBORDA = "desborda",
 }
 
 export enum EAllowTally {
