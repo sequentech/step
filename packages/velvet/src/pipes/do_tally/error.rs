@@ -8,7 +8,6 @@ pub type Result<T, E = Box<dyn StdError>> = std::result::Result<T, E>;
 
 #[derive(Debug)]
 pub enum Error {
-    EmptyTallyResults,
     TallyTypeNotFound,
     TallyTypeNotImplemented(String),
 }

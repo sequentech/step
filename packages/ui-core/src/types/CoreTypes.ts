@@ -12,7 +12,7 @@ import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 export enum ICountingAlgorithm {
     PLURALITY_AT_LARGE = "plurality-at-large",
     INSTANT_RUNOFF = "instant-runoff",
-    // // These variants below are presnet in the Rust enum, but not supported by velvet tally. I´s commented to not show them in the UI:
+    // // These variants below are present in the Rust enum, but not supported by velvet tally. It´s commented out to not show them in the UI till they are completely supported:
     //     BORDA_NAURU = "borda-nauru",
     //     BORDA = "borda",
     //     BORDA_MAS_MADRID = "borda-mas-madrid",

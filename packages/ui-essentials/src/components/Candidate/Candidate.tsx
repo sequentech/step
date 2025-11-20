@@ -29,20 +29,18 @@ const UnselectableTypography = styled(Typography)`
 `
 
 const BorderBox = styled("li")<{
-    isactive: string
-    hasCategory: string
-    isinvalidvote: string
-    isdisabled: string
+    isSelectable: boolean
+    hasCategory: boolean
+    isInvalidVote: boolean
+    isDisabled: boolean
 }>`
     border: 2px solid
-        ${({hasCategory: hascategory, isactive, theme}) =>
-            isactive === "true" && hascategory === "true"
-                ? theme.palette.white
-                : theme.palette.customGrey.light};
-    ${({hasCategory, isinvalidvote, theme}) =>
-        hasCategory === "true"
+        ${({hasCategory, isSelectable, theme}) =>
+            isSelectable && hasCategory ? theme.palette.white : theme.palette.customGrey.light};
+    ${({hasCategory, isInvalidVote, theme}) =>
+        hasCategory
             ? `backgroundColor: ${theme.palette.white};`
-            : isinvalidvote === "true"
+            : isInvalidVote
               ? `backgroundColor: ${theme.palette.lightBackground};`
               : ""}
     border-radius: 10px;
@@ -55,10 +53,10 @@ const BorderBox = styled("li")<{
     align-items: center;
     flex-grow: 2;
     transition: all 0.2s ease;
-    ${({isdisabled}) => (isdisabled === "true" ? `opacity: 50%;` : "")}
-    ${({isactive, hasCategory, theme}) =>
-        isactive === "true"
-            ? hasCategory === "true"
+    ${({isDisabled}) => (isDisabled ? `opacity: 50%;` : "")}
+    ${({isSelectable, hasCategory, theme}) =>
+        isSelectable
+            ? hasCategory
                 ? `
                     box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     &:hover {
@@ -104,7 +102,7 @@ const StyledLink = styled("a")`
 export interface CandidateProps extends PropsWithChildren {
     title: string | ReactNode
     description?: string | ReactNode
-    isActive?: boolean // Shall the candidate be selectable (Checkbox or Position combo box)?
+    isSelectable?: boolean // Shall the candidate be selectable (Checkbox or Position combo box)?
     isInvalidVote?: boolean
     checked?: boolean
     iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
@@ -127,7 +125,7 @@ export interface CandidateProps extends PropsWithChildren {
 const Candidate: React.FC<CandidateProps> = ({
     title,
     description,
-    isActive,
+    isSelectable: isSelectable,
     isInvalidVote,
     checked,
     iconCheckboxPolicy,
@@ -184,13 +182,12 @@ const Candidate: React.FC<CandidateProps> = ({
         return `${num}${t("candidate.preferential.ordinals.other")}`
     }
 
-    console.log("hasCategory", hasCategory)
     return (
         <BorderBox
-            isactive={String(!!isActive)}
-            hasCategory={String(!!hasCategory)}
-            isinvalidvote={String(!!isInvalidVote)}
-            isdisabled={String(!!shouldDisable)}
+            isSelectable={!!isSelectable}
+            hasCategory={!!hasCategory}
+            isInvalidVote={!!isInvalidVote}
+            isDisabled={!!shouldDisable}
             onClick={onClick}
             className={`candidate-item ${className}`}
         >
@@ -248,7 +245,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     displayEmpty
                     value={selectedPosition ?? 0}
                     onChange={handlePositionChange}
-                    disabled={!isActive}
+                    disabled={!isSelectable}
                     renderValue={(value) => {
                         if (typeof value === "number" && value > 0) {
                             return getOrdinalSuffix(value)
@@ -274,7 +271,7 @@ const Candidate: React.FC<CandidateProps> = ({
                         </MenuItem>
                     ))}
                 </Select>
-            ) : isActive ? (
+            ) : isSelectable ? (
                 iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
                         inputProps={{

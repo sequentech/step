@@ -5,8 +5,8 @@
 use rusqlite::Connection;
 use sequent_core::types::hasura::core::{Area, TallySession};
 use sequent_core::types::results::{
-    ResultsAreaContest, ResultsAreaContestCandidate, ResultsContest, ResultsContestCandidate,
-    ResultsElection,
+    Candidate, ResultsAreaContest, ResultsContest, ResultsContestCandidate, ResultsElection,
+    EXTENDED_METRICS, PROCESS_RESULTS,
 };
 use serde_json::json;
 use tempfile::{NamedTempFile, TempPath};
@@ -423,9 +423,9 @@ pub async fn save_results(
                 .expect("Failed to convert to JSON");
             let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
-            annotations["extended_metrics"] = extended_metrics_value;
+            annotations[EXTENDED_METRICS] = extended_metrics_value;
             if let Some(process_results) = contest.contest_result.process_results.clone() {
-                annotations["process_results"] = process_results;
+                annotations[PROCESS_RESULTS] = process_results;
             }
 
             if let Some(area) = &contest.area {
