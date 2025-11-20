@@ -104,7 +104,7 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     useEffect(() => {
         const sel = selectionState?.selected ?? -1
-        setSelectedPosition(sel + 1) // Selected positions start at 1, not 0. And 0 means no selection
+        setSelectedPosition(sel + 1) // Selected positions in the UI start at 1, not 0. And 0 means no selection
     }, [selectionState])
 
     const isChecked = (): boolean => {
@@ -148,7 +148,6 @@ export const Answer: React.FC<IAnswerProps> = ({
         setSelectedPosition(position)
         let cleanedText =
             selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
-        console.log("position: ", position)
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,

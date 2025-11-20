@@ -208,7 +208,6 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         if (!ballotSelectionState) {
             return []
         }
-        console.log("ballotSelectionState", ballotSelectionState)
         let selectionState: BallotSelection = []
         try {
             if (isMultiContest) {
@@ -223,7 +222,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                 )
             }
         } catch (err) {
-            console.log("error", err)
+            console.log("Error was thrown by wasm interface: ", err)
             submit({error: VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT}, {method: "post"})
         }
         return selectionState

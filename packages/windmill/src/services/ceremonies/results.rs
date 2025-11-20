@@ -18,7 +18,6 @@ use crate::services::ceremonies::result_documents::save_result_documents;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use reqwest::header::ToStrError;
 use rusqlite::Connection;
 use rusqlite::Transaction as SqliteTransaction;
 use sequent_core::sqlite::results_event::find_results_event_sqlite;
