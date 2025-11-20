@@ -2,5 +2,5 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod instant_runoff;
-pub mod pipes;
+pub mod irv_integration_tests;
+pub mod irv_unit_tests;

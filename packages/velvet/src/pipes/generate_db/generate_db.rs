@@ -5,8 +5,8 @@
 use rusqlite::Connection;
 use sequent_core::types::hasura::core::{Area, TallySession};
 use sequent_core::types::results::{
-    Candidate, ResultsAreaContest, ResultsContest, ResultsContestCandidate, ResultsElection,
-    EXTENDED_METRICS, PROCESS_RESULTS,
+    ResultsAreaContest, ResultsAreaContestCandidate, ResultsContest, ResultsContestCandidate,
+    ResultsElection, EXTENDED_METRICS, PROCESS_RESULTS,
 };
 use serde_json::json;
 use tempfile::{NamedTempFile, TempPath};
