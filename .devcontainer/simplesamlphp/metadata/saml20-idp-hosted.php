@@ -38,7 +38,7 @@ $metadata[$entityId] = [
     'saml20.sendartifact' => false,
     'ArtifactResolutionService' => [
         [
-            'Location' => 'http://localhost:8083/simplesaml/saml2/idp/ArtifactResolutionService.php',
+            'Location' => 'https://localhost:8083/simplesaml/saml2/idp/ArtifactResolutionService.php',
             'Binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Artifact',
             'isDefault' => true,
         ],

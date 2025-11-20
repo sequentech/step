@@ -157,7 +157,7 @@ At this point, you have the Keycloak configuration complete. Now prepare the inf
 |-----------|-------|---------|
 | `TENANT_ID` | The tenant UUID | `abc12345-6789-...` |
 | `EVENT_ID` | The event UUID | `def67890-1234-...` |
-| `SP_BASE_URL` | Keycloak base URL | `https://login-example.sequent.vote` |
+| `SP_BASE_URL` | Keycloak base URL | `https://login-example.sequent.vote/auth/` |
 | `SP_IDP_ALIAS` | IdP alias (decided with client) | `clientname-idp` |
 | `SP_CLIENT_ID` | SAML client ID | `vp-sso` |
 | `SP_CERT_DATA` | Keycloak realm certificate | `MIIDOzCCAi...` |
@@ -204,7 +204,7 @@ We will asume you are using the step repository devcontainer environment.
    `logs.restart.simplesamlphp`.
 
 3. **Login into SimpleSAMLphp application**, it should be an URL like
-   `http://localhost:8083/simplesaml/module.php/admin`, in general something
+   `https://localhost:8083/simplesaml/module.php/admin`, in general something
    like `{IDP_BASE_URL}/module.php/admin`. You should get a login page as below:
 
 :::tip
@@ -237,26 +237,31 @@ Now configure Keycloak to accept SAML assertions from your local SimpleSAMLphp i
 10. **Navigate to Identity Providers** in your Keycloak realm
 8. **Add provider:** Click **Add provider** → **SAML v2.0**
 9.  **Configure Identity Provider:**
-   * **Alias:** `yourcompany-idp` (matches `SP_IDP_ALIAS` from `.env`). *Note: 
-      It is not possible to edit the Alias, if it already exists, then remove it 
-      and create a new Identity Provider.
+   * **Alias:** `yourcompany-idp` (matches `SP_IDP_ALIAS` from `.env`).
+
+      :::note
+      It is not possible to edit the Alias if it already exists. If you need to change it, remove the existing Identity Provider and create a new one.
+      :::
    * **Display Name:** `SimpleSAMLphp IdP`
    * **Service provider entity ID:** `tenant-{TENANT_ID}-event-{EVENT_ID}`
 
 1.  **Import SimpleSAMLphp metadata (recommended):**
    * **Use Entity Descriptor**: **OFF**
-   * Download `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
+   * Download `https://localhost:8083/simplesaml/saml2/idp/metadata.php`
    * Drag and drop the downloaded xml into **Import config from file**
-   * **Principal Type:** Attribute Name
-   * **Principal Attribute:** email
+   * **Principal Type:** `Attribute [Name]`
+   * **Principal Attribute:** `email`
    * **Validate Signatures:** **ON**
-   * **First login flow override:** saml first broker flow
+   * **Want AuthnRequests signed:** **ON**
    * Click **Add**
+   * Then edit it and configure **First login flow override:** saml first broker
+     flow.
+   * Click **Save**
 
    **OR manually configure:**
    * **Use Entity Descriptor**: **OFF**
-   * **Single Sign-On Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SSOService.php`
-   * **Single Logout Service URL:** `http://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php`
+   * **Single Sign-On Service URL:** `https://localhost:8083/simplesaml/saml2/idp/SSOService.php`
+   * **Single Logout Service URL:** `https://localhost:8083/simplesaml/saml2/idp/SingleLogoutService.php`
    * **NameID Policy Format:** Transient
    * **Principal Type:** Attribute Name
    * **Principal Attribute:** email
@@ -303,7 +308,7 @@ To skip the Keycloak login page and automatically redirect users to the external
 
 1. **Access the SimpleSAMLphp trigger page:**
    ```
-   http://localhost:8083/simplesaml/idp-initiated-sso.php
+   https://localhost:8083/simplesaml/idp-initiated-sso.php
    ```
 
 2. **Click "Login to Voting Portal"**
