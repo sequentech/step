@@ -1,5 +1,55 @@
 <?php
 
+/**
+ * Normalize the externally visible SimpleSAMLphp endpoint settings.
+ *
+ * Why this exists:
+ * - Operators only set `IDP_BASE_URL`; we derive host/port from it
+ *   automatically.
+ * - SimpleSAMLphp needs a canonical base URL and a list of trusted redirect
+ *   domains to issue secure cookies.
+ * - Ngrok / reverse-proxy deployments must explicitly trust the public hostname
+ *   to avoid rejected logins.
+ *
+ * This helper consolidates those pieces once and documents the assumptions so
+ * the rest of the config stays readable.
+ */
+if (!function_exists('buildIdpEndpointConfig')) {
+function buildIdpEndpointConfig(): array
+{
+    // Default to HTTPS on 8083 so local dev matches production expectations (secure cookies, ngrok, etc.).
+    $baseUrlEnv = getenv('IDP_BASE_URL') ?: 'https://localhost:8083/simplesaml';
+    $baseUrl = rtrim($baseUrlEnv, '/');
+
+    $parsedHost = parse_url($baseUrl, PHP_URL_HOST);
+    $parsedPort = parse_url($baseUrl, PHP_URL_PORT);
+    $hostWithPort = $parsedHost ? $parsedHost . ($parsedPort ? ':' . $parsedPort : '') : null;
+
+    $hostname = $hostWithPort ?: 'localhost:8083';
+
+    // Ensure SimpleSAMLphp only trusts redirects/callbacks for valid public hosts.
+    $trustedDomains = array_values(array_unique(array_filter([
+        $parsedHost,
+    ])));
+
+    if (empty($trustedDomains)) {
+        $trustedDomains = ['localhost'];
+    }
+
+    return [
+        'base_url' => $baseUrl,
+        'hostname' => $hostname,
+        'trusted_domains' => $trustedDomains,
+    ];
+}
+
+}
+
+$idpEndpoint = buildIdpEndpointConfig();
+$idpBaseUrl = $idpEndpoint['base_url'];
+$idpHostname = $idpEndpoint['hostname'];
+$trustedDomains = $idpEndpoint['trusted_domains'];
+
 // =============================================================================
 // CUSTOM APPLICATION CONFIGURATION
 // =============================================================================
@@ -14,10 +64,10 @@ $configOverride = [
      * The base URL where SimpleSAMLphp is hosted.
      *
      * Examples:
-     * - Development: 'http://localhost:8083/simplesaml'
+     * - Development: 'https://localhost:8083/simplesaml'
      * - Production: 'https://idp.example.com/simplesaml'
      */
-    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'http://localhost:8083/simplesaml',
+    'idp_base_url' => $idpBaseUrl,
 
     /**
      * The hostname/domain of your SimpleSAMLphp IdP server.
@@ -26,7 +76,7 @@ $configOverride = [
      * - Development: 'localhost:8083'
      * - Production: 'idp.example.com'
      */
-    'idp_hostname' => getenv('IDP_HOSTNAME') ?: 'localhost:8083',
+    'idp_hostname' => $idpHostname,
 
     // =========================================================================
     // TARGET APPLICATION CONFIGURATION
@@ -163,14 +213,14 @@ $configOverride = [
      * session.cookie.secure - Whether session cookies should be marked as secure
      * Set to false in development mode to allow HTTP, true in production for HTTPS
      */
-    'session.cookie.secure' => getenv('DEVELOPMENT_MODE') !== 'true',
+    'session.cookie.secure' => true,
 
     /**
      * session.cookie.samesite - SameSite attribute for session cookies
      * Set to 'Lax' in development to prevent CORS issues
      * Options: 'None', 'Lax', 'Strict', null
      */
-    'session.cookie.samesite' => getenv('DEVELOPMENT_MODE') === 'true' ? 'Lax' : null,
+    'session.cookie.samesite' => 'Lax',
 
     /**
      * saml20.idp.allowunsolicited - Allow IdP-initiated SSO
@@ -189,6 +239,16 @@ $configOverride = [
      * Set to '/' to make cookies available across all paths
      */
     'session.cookie.path' => '/',
+
+    /**
+     * baseurlpath - Absolute base URL SimpleSAMLphp should use when building links
+     */
+    'baseurlpath' => $idpBaseUrl . '/',
+
+    /**
+     * trusted.url.domains - Domains considered safe for redirects
+     */
+    'trusted.url.domains' => $trustedDomains,
 ];
 
 // =============================================================================
