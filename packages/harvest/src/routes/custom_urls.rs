@@ -82,46 +82,12 @@ pub async fn update_custom_url(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let prev_custom_urls =
-        if let Some(presentation) = &election_event.presentation {
-            if let Some(custom_urls_obj) = presentation.get("custom_urls") {
-                PreviousCustomUrls {
-                    login: custom_urls_obj
-                        .get("login")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    enrollment: custom_urls_obj
-                        .get("enrollment")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                    saml: custom_urls_obj
-                        .get("saml")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_owned(),
-                }
-            } else {
-                PreviousCustomUrls {
-                    login: "".to_owned(),
-                    enrollment: "".to_owned(),
-                    saml: "".to_owned(),
-                }
-            }
-        } else {
-            PreviousCustomUrls {
-                login: "".to_owned(),
-                enrollment: "".to_owned(),
-                saml: "".to_owned(),
-            }
-        };
+    info!("update_custom_url body: {:?}", body);
 
     match set_custom_url(
         &body.redirect_to,
         &body.origin,
         &body.dns_prefix,
-        &prev_custom_urls,
         &body.key,
     )
     .await
@@ -160,12 +126,15 @@ pub async fn get_custom_url(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_READ],
     )?;
-    let rule = get_page_rule(&body.redirect_to).await.map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error reading custom url: {error:?}"),
-        )
-    })?;
+    // TODO FIX
+    let rule = get_page_rule(&body.redirect_to, "")
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading custom url: {error:?}"),
+            )
+        })?;
 
     match rule {
         Some(r) => {
