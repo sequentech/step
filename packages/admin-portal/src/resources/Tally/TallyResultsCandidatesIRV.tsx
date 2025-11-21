@@ -31,8 +31,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     const theme = useTheme()
     const isXL = useMediaQuery(theme.breakpoints.up("xl"))
     const isLarge = useMediaQuery(theme.breakpoints.up("lg"))
-    const isMedium = useMediaQuery(theme.breakpoints.up("md"))
-    const VISIBLE_ROUNDS = isXL ? 4 : isLarge ? 3 : isMedium ? 2 : 1
+    const VISIBLE_ROUNDS = isXL ? 3 : isLarge ? 2 : 1
 
     const [representedRounds, setRepresentedRounds] = useState({start: 0, end: VISIBLE_ROUNDS - 1})
 
