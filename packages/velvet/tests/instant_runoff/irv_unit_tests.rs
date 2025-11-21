@@ -479,5 +479,5 @@ fn test_preferential_order_ok() {
     };
 
     let result = vote.validate_preferencial_order();
-    assert_eq!(result, Ok(()));
+    assert_eq!(result.is_ok(), true);
 }
