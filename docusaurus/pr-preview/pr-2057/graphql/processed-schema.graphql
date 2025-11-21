@@ -63,9 +63,10 @@ input Boolean_comparison_exp {
 
 type CastVoteEntry {
   ballot_id: String!
+  message: String
   statement_kind: String!
   statement_timestamp: Int!
-  username: String!
+  username: String
 }
 
 type CastVotesByIp {
@@ -224,28 +225,6 @@ input ElectionEventStatsInput {
   user_timezone: String!
 }
 
-type ElectionEventStatsMonitoringOutput {
-  approval_stats: MonitoringApproval
-  authentication_stats: MonitoringAuthentication
-  total_closed_votes: Int
-  total_elections: Int
-  total_eligible_voters: Int
-  total_enrolled_voters: Int
-  total_genereated_tally: Int
-  total_initialize: Int
-  total_not_closed_votes: Int
-  total_not_genereated_tally: Int
-  total_not_initialize: Int
-  total_not_open_votes: Int
-  total_not_start_counting_votes: Int
-  total_not_started_votes: Int
-  total_open_votes: Int
-  total_start_counting_votes: Int
-  total_started_votes: Int
-  transmission_stats: MonitoringTransmissionStatus
-  voting_stats: MonitoringVotingSatus
-}
-
 type ElectionEventStatsOutput {
   total_areas: Int!
   total_distinct_voters: Int!
@@ -260,14 +239,6 @@ input ElectionStatsInput {
   end_date: String!
   start_date: String!
   user_timezone: String!
-}
-
-type ElectionStatsMonitoringOutput {
-  approval_stats: MonitoringApproval
-  authentication_stats: MonitoringAuthentication
-  total_eligible_voters: Int
-  total_enrolled_voters: Int
-  total_voted: Int
 }
 
 type ElectionStatsOutput {
@@ -385,6 +356,10 @@ type ExportUsersOutput {
 
 type FetchDocumentOutput {
   url: String!
+}
+
+type GenerateGoogleMeetOutput {
+  meet_link: String
 }
 
 type GenerateTemplateOutput {
@@ -660,33 +635,6 @@ type LogEventOutput {
 
 type ManageElectionDatesOutput {
   error_msg: String
-}
-
-type MonitoringApproval {
-  total_approved: Int
-  total_automated_approved: Int
-  total_automated_disapproved: Int
-  total_disapproved: Int
-  total_manual_approved: Int
-  total_manual_disapproved: Int
-}
-
-type MonitoringAuthentication {
-  total_authenticated: Int
-  total_invalid_password_errors: Int
-  total_invalid_users_errors: Int
-  total_not_authenticated: Int
-}
-
-type MonitoringTransmissionStatus {
-  total_half_transmitted_results: Int
-  total_not_transmitted_results: Int
-  total_transmitted_results: Int
-}
-
-type MonitoringVotingSatus {
-  total_voted: Int
-  total_voted_tests_elections: Int
 }
 
 type OptionalId {
@@ -1476,6 +1424,8 @@ type mutation_root {
   export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
   export_users(election_event_id: String, election_id: String, tenant_id: String!): ExportUsersOutput
   generate_ballot_publication(election_event_id: uuid!, election_id: uuid): PublishBallotOutput
+  """generate Google Meet link for election events"""
+  generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
   generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!): generateReportOutput
   generate_template(election_event_id: String!, election_id: String!, tally_session_id: String!, type: String!): GenerateTemplateOutput
   generate_transmission_report(election_event_id: String!, election_id: String, tally_session_id: String, tenant_id: String!): generateReportOutput
@@ -4246,8 +4196,6 @@ type query_root {
   getElectionEventStats(object: ElectionEventStatsInput!): ElectionEventStatsOutput
   """get election event stats"""
   getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
-  get_election_event_monitoring(election_event_id: uuid!): ElectionEventStatsMonitoringOutput
-  get_election_monitoring(election_event_id: uuid!, election_id: uuid!): ElectionStatsMonitoringOutput
   """list permissions"""
   get_permissions(body: GetPermissionsInput!): GetPermissionsOutput!
   get_roles(body: GetRolesInput!): GetRolesOutput!
