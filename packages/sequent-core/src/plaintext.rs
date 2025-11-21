@@ -78,7 +78,7 @@ impl DecodedVoteContest {
         let valid_choices_order: Vec<i64> =
             valid_choices.iter().map(|choice| choice.selected).collect();
 
-        // After removing the invalids we check that there are no duplicates in
+        // After removing the unselected choices we check that there are no duplicates in
         // the preference order
         let valid_choices_unique_set =
             valid_choices_order.iter().collect::<HashSet<_>>();

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::plaintext::DecodedVoteChoice;
+use anyhow::Ok;
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, PreferencialOrderErrorType};
 use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::*;
 
@@ -394,7 +395,8 @@ fn test_many_candidates_first_active_with_highest_preference() {
 
 #[test]
 fn test_duplicate_selected_values() {
-    // Although this shouldn't happen in practice, the function should handle it
+    // Although this shouldn't happen in practice (because the vote will be declared INVALID).
+    // We want to check that the function should be able to handle it
     let runoff = create_runoff_status(vec![
         "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
         "b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e",
@@ -415,4 +417,67 @@ fn test_duplicate_selected_values() {
         result == Some("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string())
             || result == Some("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e".to_string())
     );
+}
+
+#[test]
+fn test_preferential_order_error_duplicated_position() {
+    let choices = vec![
+        create_choice("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e", 1),
+        create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 0),
+        create_choice("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", 2),
+        create_choice("d4e5f6a7-b8c9-4d5e-8f9a-3b4c5d6e7f8a", 2), // Same selected value
+    ];
+    let vote: DecodedVoteContest = DecodedVoteContest {
+        contest_id: "some-id".to_string(),
+        is_explicit_invalid: false,
+        invalid_errors: vec![], // In practice here should be an error because of the duplication
+        invalid_alerts: vec![],
+        choices,
+    };
+
+    let result = vote.validate_preferencial_order();
+    assert_eq!(result, Err(PreferencialOrderErrorType::DuplicatedPosition));
+}
+
+#[test]
+fn test_preferential_order_error_preference_order_with_gaps() {
+    let choices = vec![
+        create_choice("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e", 1),
+        create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 0),
+        create_choice("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", 2),
+        create_choice("d4e5f6a7-b8c9-4d5e-8f9a-3b4c5d6e7f8a", 4), // Gap at 3
+    ];
+    let vote: DecodedVoteContest = DecodedVoteContest {
+        contest_id: "some-id".to_string(),
+        is_explicit_invalid: false,
+        invalid_errors: vec![],
+        invalid_alerts: vec![], // In practice here should be an alert because of the gaps
+        choices,
+    };
+
+    let result = vote.validate_preferencial_order();
+    assert_eq!(
+        result,
+        Err(PreferencialOrderErrorType::PreferenceOrderWithGaps)
+    );
+}
+
+#[test]
+fn test_preferential_order_ok() {
+    let choices = vec![
+        create_choice("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e", 1),
+        create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 0),
+        create_choice("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", 2),
+        create_choice("d4e5f6a7-b8c9-4d5e-8f9a-3b4c5d6e7f8a", 3),
+    ];
+    let vote: DecodedVoteContest = DecodedVoteContest {
+        contest_id: "some-id".to_string(),
+        is_explicit_invalid: false,
+        invalid_errors: vec![],
+        invalid_alerts: vec![],
+        choices,
+    };
+
+    let result = vote.validate_preferencial_order();
+    assert_eq!(result, Ok(()));
 }

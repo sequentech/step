@@ -12,9 +12,9 @@ use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
 use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::*;
-/// Helper function to create a candidate UUID with a specific suffix
-fn candidate_id(suffix: &str) -> String {
-    let id = match suffix.chars().next().unwrap_or('a') {
+/// Helper function to create a candidate UUID from an specific initial
+fn candidate_id(initial: &str) -> String {
+    let id = match initial.chars().next().unwrap_or('a').to_ascii_lowercase() {
         'a' => "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
         'b' => "b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e",
         'c' => "c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f",
@@ -591,7 +591,7 @@ fn test_run_with_random_ballots() {
 }
 
 #[test]
-fn test_all_invalid_ballots() {
+fn test_all_ballot_candidates_unselected() {
     // Setup: Create 3 candidates
     let candidate_ids = vec![candidate_id("a"), candidate_id("b"), candidate_id("c")];
 
@@ -661,10 +661,19 @@ fn test_all_invalid_ballots() {
     let last_round = runoff.get_last_round();
     assert!(last_round.is_some(), "There should be at least one round");
 
-    let last_round = last_round.unwrap();
+    let last_round = last_round.unwrap_or_default();
     assert!(
         last_round.winner.is_none(),
         "There should be no winner when all ballots are invalid"
+    );
+    let all_zero = last_round
+        .candidates_wins
+        .iter()
+        .all(|(_id, outcome)| outcome.wins == 0);
+
+    assert!(
+        all_zero,
+        "All candidates should have 0 votes when all ballots are empty"
     );
 }
 

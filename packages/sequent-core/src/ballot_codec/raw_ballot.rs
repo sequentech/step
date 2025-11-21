@@ -597,8 +597,32 @@ mod tests {
     }
 
     #[test]
+    fn test_irv_invalid_ballot() {
+        let fixture = get_irv_fixture_invalid_ballot();
+
+        // Encode the plaintext to raw ballot
+        let encoded_raw_ballot = fixture
+            .contest
+            .encode_to_raw_ballot(&fixture.plaintext)
+            .expect("Failed to encode plaintext to raw ballot");
+
+        // Decode the raw ballot back to plaintext
+        let decoded_plaintext = fixture
+            .contest
+            .decode_from_raw_ballot(&encoded_raw_ballot)
+            .expect("Failed to decode raw ballot to plaintext");
+
+        // Compare the selections of the choices
+        assert_eq!(
+            decoded_plaintext.is_invalid(),
+            true,
+            "Ballot should be invalid"
+        );
+    }
+
+    #[test]
     fn test_irv_encode_decode() {
-        let fixture = get_irv_fixture();
+        let fixture = get_irv_fixture_valid_ballot();
 
         // Encode the plaintext to raw ballot
         let encoded_raw_ballot = fixture
