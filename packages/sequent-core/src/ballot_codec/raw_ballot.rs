@@ -4,6 +4,7 @@
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
+use crate::types::ceremonies::CountingAlgType;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
@@ -103,18 +104,24 @@ impl RawBallotCodec for Contest {
             if candidate.is_explicit_invalid() {
                 continue;
             }
-            if self.get_counting_algorithm() == "plurality-at-large" {
-                // We just flag if the candidate was selected or not with 1 for
-                // selected and 0 otherwise
-                choices.push(u64::from(choice.selected > -1));
-            } else {
-                // we add 1 because the counting starts with 1, as zero means
-                // this candidate was not voted / ranked
-                let value =
-                    (choice.selected + 1).to_u64().ok_or_else(|| {
-                        "selected value must be positive or zero".to_string()
-                    })?;
-                choices.push(value);
+            match self.get_counting_algorithm() {
+                CountingAlgType::PluralityAtLarge => {
+                    // We just flag if the candidate was selected or not with 1
+                    // for selected and 0 otherwise
+                    choices.push(u64::from(choice.selected > -1));
+                }
+                _ => {
+                    // we add 1 because the counting starts with 1, as zero
+                    // means this candidate was not voted /
+                    // ranked (selected was -1). This should work for IRV and
+                    // other preferencial counting algorithms
+                    let value =
+                        (choice.selected + 1).to_u64().ok_or_else(|| {
+                            "selected value must be positive or zero"
+                                .to_string()
+                        })?;
+                    choices.push(value);
+                }
             }
         }
         // Populate the bases and the raw_ballot values with the write-ins
@@ -378,6 +385,40 @@ impl RawBallotCodec for Contest {
         );
         decoded_contest.update(blank_vote_check);
 
+        if self.get_counting_algorithm().is_preferential() {
+            match decoded_contest.validate_preferencial_order() {
+                Ok(()) => {}
+                Err(error) => match error {
+                    PreferencialOrderErrorType::PreferenceOrderWithGaps => {
+                        decoded_contest.invalid_alerts.push(
+                            InvalidPlaintextError {
+                                error_type: InvalidPlaintextErrorType::Implicit,
+                                candidate_id: None,
+                                message: Some(
+                                    "errors.implicit.preferenceOrderWithGaps"
+                                        .to_string(),
+                                ),
+                                message_map: HashMap::new(),
+                            },
+                        );
+                    }
+                    PreferencialOrderErrorType::DuplicatedPosition => {
+                        decoded_contest.invalid_errors.push(
+                            InvalidPlaintextError {
+                                error_type: InvalidPlaintextErrorType::Implicit,
+                                candidate_id: None,
+                                message: Some(
+                                    "errors.implicit.duplicatedPosition"
+                                        .to_string(),
+                                ),
+                                message_map: HashMap::new(),
+                            },
+                        );
+                    }
+                },
+            }
+        }
+
         Ok(decoded_contest)
     }
 }
@@ -390,6 +431,7 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use crate::mixed_radix::encode;
+    use crate::types::ceremonies::CountingAlgType;
     use std::cmp;
 
     #[test]
@@ -475,7 +517,7 @@ mod tests {
                         fixture.plaintext.choices[idx].write_in_text
                     );
                     if fixture.contest.get_counting_algorithm()
-                        == "plurality-at-large"
+                        == CountingAlgType::PluralityAtLarge
                     {
                         assert_eq!(
                             decoded_ballot.choices[idx].selected,
@@ -551,6 +593,69 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn test_irv_invalid_ballot() {
+        let fixture = get_irv_fixture_invalid_ballot();
+
+        // Encode the plaintext to raw ballot
+        let encoded_raw_ballot = fixture
+            .contest
+            .encode_to_raw_ballot(&fixture.plaintext)
+            .expect("Failed to encode plaintext to raw ballot");
+
+        // Decode the raw ballot back to plaintext
+        let decoded_plaintext = fixture
+            .contest
+            .decode_from_raw_ballot(&encoded_raw_ballot)
+            .expect("Failed to decode raw ballot to plaintext");
+
+        // Compare the selections of the choices
+        assert_eq!(
+            decoded_plaintext.is_invalid(),
+            true,
+            "Ballot should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_irv_encode_decode() {
+        let fixture = get_irv_fixture_valid_ballot();
+
+        // Encode the plaintext to raw ballot
+        let encoded_raw_ballot = fixture
+            .contest
+            .encode_to_raw_ballot(&fixture.plaintext)
+            .expect("Failed to encode plaintext to raw ballot");
+
+        // Decode the raw ballot back to plaintext
+        let decoded_plaintext = fixture
+            .contest
+            .decode_from_raw_ballot(&encoded_raw_ballot)
+            .expect("Failed to decode raw ballot to plaintext");
+
+        // Compare the selections of the choices
+        assert_eq!(
+            fixture.plaintext.choices.len(),
+            decoded_plaintext.choices.len(),
+            "Number of choices should match"
+        );
+
+        for idx in 0..fixture.plaintext.choices.len() {
+            assert_eq!(
+                fixture.plaintext.choices[idx].id,
+                decoded_plaintext.choices[idx].id,
+                "Choice ID should match at index {}",
+                idx
+            );
+            assert_eq!(
+                fixture.plaintext.choices[idx].selected,
+                decoded_plaintext.choices[idx].selected,
+                "Choice selection should match at index {}",
+                idx
+            );
         }
     }
 }

@@ -6,6 +6,21 @@
         "/workspaces/step/packages/Cargo.toml",
         "./packages/sequent-core/Cargo.toml"
     ],
+    "rust-analyzer.cargo.allFeatures": true,
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.restartServerOnConfigChange": true,
+    "rust-analyzer.trace.server": "verbose",
+    "rust-analyzer.check.overrideCommand": [
+        "cargo",
+        "clippy",
+        "--manifest-path",
+        "${workspaceFolder}/packages/sequent-core/Cargo.toml",
+        "--no-deps",
+        "--keep-going",
+        "--message-format=json-diagnostic-rendered-ansi",
+        "--",
+        "-Aclippy::too_many_arguments"
+    ],
     "editor.rulers": [80],
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",

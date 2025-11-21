@@ -61,3 +61,34 @@ BROWSERSTACK_USERNAME=$BROWSERSTACK_USERNAME BROWSERSTACK_ACCESS_KEY=$BROWSERSTA
 cargo build --release
 ./target/release/sequent-core > ballot-schema.json
 ```
+
+
+
+## Troubleshooting
+
+### Build errors related to Permission denied errors when running cargo test or cargo clean locally.
+
+At build errors when running `cargo test` locally it´s typically due to permission issues.
+You should consider to try `cargo clean` first to start from a clean environment.
+Then, if you encounter permission errors when trying to run `cargo test` or `cargo clean`, such as:
+
+```bash
+error: failed to remove file `/workspaces/step/packages/target/debug/deps/rmetaKakzvF/full.rmeta`
+
+Caused by:
+  Permission denied (os error 13)
+```
+
+This is typically due to incorrect file ownership in the `target` directory. To fix this:
+
+1. Change the ownership of the target directory:
+   ```bash
+   sudo chown -R $USER:$USER /workspaces/step/packages/target
+   ```
+
+2. Run `cargo clean` to remove the build artifacts:
+   ```bash
+   cargo clean
+   ```
+
+3. Now you can run `cargo test` again without permission issues.

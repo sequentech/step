@@ -8,11 +8,12 @@ use std::collections::HashMap;
 use crate::{
     ballot::{BallotStyle, Contest},
     plaintext::{DecodedVoteChoice, DecodedVoteContest},
+    types::ceremonies::CountingAlgType,
 };
 
 pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
-    tally_type: &str,
+    tally_type: CountingAlgType,
     remove_errors: bool,
     invalid_choice_ids: &Vec<String>,
 ) -> DecodedVoteContest {
@@ -60,7 +61,7 @@ pub fn normalize_election(
             let invalid_candidate_ids = contest.get_invalid_candidate_ids();
             Ok(normalize_vote_contest(
                 &decoded_contest,
-                contest.get_counting_algorithm().as_str(),
+                contest.get_counting_algorithm(),
                 remove_errors,
                 &invalid_candidate_ids,
             ))
@@ -74,10 +75,10 @@ pub fn normalize_election(
 
 pub fn normalize_vote_choice(
     input: &DecodedVoteChoice,
-    tally_type: &str,
+    tally_type: CountingAlgType,
 ) -> DecodedVoteChoice {
     let mut original = input.clone();
-    if "plurality-at-large" == tally_type {
+    if CountingAlgType::PluralityAtLarge == tally_type {
         original.selected = if original.selected < 0 { -1 } else { 0 };
     } else {
         original.selected = if original.selected < 0 {

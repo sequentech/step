@@ -25,6 +25,16 @@ const frenchTranslation: TranslationType = {
             moreInformationLink: "Plus d'informations",
             writeInsPlaceholder: "Tapez ici le candidat par écrit",
             blankVote: "Vote blanc",
+            preferential: {
+                position: "Position",
+                none: "Aucune",
+                ordinals: {
+                    first: "er",
+                    second: "e",
+                    third: "e",
+                    other: "e",
+                },
+            },
         },
         homeScreen: {
             title: "Vérificateur de vote Sequent",

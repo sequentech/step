@@ -5,9 +5,14 @@
 #![allow(dead_code)]
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
+use crate::plaintext::{
+    DecodedVoteChoice, DecodedVoteContest, PreferencialOrderErrorType,
+};
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::ceremonies::CeremoniesPolicy;
+use crate::types::ceremonies::{
+    CeremoniesPolicy, CountingAlgType, TallyOperation,
+};
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use ::core::convert::TryInto;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -1422,7 +1427,7 @@ pub struct Contest {
     pub min_votes: i64,
     pub winning_candidates_num: i64,
     pub voting_type: Option<String>,
-    pub counting_algorithm: Option<String>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+    pub counting_algorithm: Option<CountingAlgType>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
     pub is_encrypted: bool,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
@@ -1439,10 +1444,8 @@ impl Contest {
             .unwrap_or(false)
     }
 
-    pub fn get_counting_algorithm(&self) -> String {
-        self.counting_algorithm
-            .clone()
-            .unwrap_or("plurality-at-large".into())
+    pub fn get_counting_algorithm(&self) -> CountingAlgType {
+        self.counting_algorithm.unwrap_or_default()
     }
 
     pub fn base32_writeins(&self) -> bool {
@@ -2337,11 +2340,16 @@ impl Deref for Weight {
 )]
 pub struct AreaAnnotations {
     pub weight: Option<Weight>,
+    pub tally_operation: Option<TallyOperation>,
 }
 
 impl AreaAnnotations {
     pub fn get_weight(&self) -> Weight {
-        self.weight.clone().unwrap_or_default()
+        self.weight.unwrap_or_default()
+    }
+    pub fn get_tally_operation(&self) -> TallyOperation {
+        self.tally_operation
+            .unwrap_or(TallyOperation::ProcessBallotsAll)
     }
 }
 

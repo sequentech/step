@@ -1310,6 +1310,7 @@ const spanishTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
+                "instant-runoff": "Segunda Vuelta Instantánea",
                 "random": "Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
@@ -1657,6 +1658,12 @@ const spanishTranslation: TranslationType = {
                 number_of_votes: "Número de votos",
                 winning_position: "Posición ganadora",
                 weight: "Peso",
+                preferential: {
+                    candidate: "Candidato",
+                    winner: "Ganador",
+                    eliminated: "Eliminado",
+                    round: "Ronda",
+                },
             },
             chart: {
                 votesForCandidates: "Votos por Candidatos",

@@ -7,10 +7,12 @@ use crate::ballot_codec::multi_ballot::{
 };
 use crate::ballot_codec::PlaintextCodec;
 use crate::multi_ballot::AuditableMultiBallotContests;
+use crate::types::ceremonies::CountingAlgType;
 use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use strand::context::Ctx;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -18,6 +20,12 @@ pub enum InvalidPlaintextErrorType {
     Explicit,
     Implicit,
     EncodingError,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub enum PreferencialOrderErrorType {
+    PreferenceOrderWithGaps,
+    DuplicatedPosition,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -48,6 +56,44 @@ impl DecodedVoteContest {
                 .clone()
                 .iter()
                 .all(|choice| choice.selected < 0)
+    }
+
+    /// Check the validity of the preference order.
+    /// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
+    /// but this is generally not considered invalid, so the caller can
+    /// handle it depending on the policy or jurisdiction rules.
+    /// Returns Ok if the order is valid after sorting it and if it is
+    /// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
+    pub fn validate_preferencial_order(
+        &self,
+    ) -> Result<(), PreferencialOrderErrorType> {
+        let mut valid_choices: Vec<DecodedVoteChoice> = self
+            .choices
+            .iter()
+            .filter(|choice| choice.selected >= 0)
+            .cloned()
+            .collect();
+
+        valid_choices.sort_by(|a, b| a.selected.cmp(&b.selected));
+        let valid_choices_order: Vec<i64> =
+            valid_choices.iter().map(|choice| choice.selected).collect();
+
+        // After removing the unselected choices we check that there are no duplicates in
+        // the preference order
+        let valid_choices_unique_set =
+            valid_choices_order.iter().collect::<HashSet<_>>();
+        if valid_choices_order.len() != valid_choices_unique_set.len() {
+            return Err(PreferencialOrderErrorType::DuplicatedPosition);
+        }
+
+        // If there are no duplicates and the set has the same length, the only
+        // thing left to check is that there are no gaps
+        let expected_order: Vec<i64> =
+            (0..valid_choices_order.len() as i64).collect();
+        if valid_choices_order != expected_order {
+            return Err(PreferencialOrderErrorType::PreferenceOrderWithGaps);
+        }
+        Ok(())
     }
 }
 
