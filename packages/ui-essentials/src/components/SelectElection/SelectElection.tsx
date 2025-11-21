@@ -1,10 +1,9 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Button, Typography} from "@mui/material"
 import React from "react"
 import {styled} from "@mui/material/styles"
-import emotionStyled from "@emotion/styled"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
@@ -75,7 +74,7 @@ const TextContainer = styled(Box)`
     }
 `
 
-const StyledLink = emotionStyled.a`
+const StyledLink = styled("a")`
     text-decoration: underline;
     font-weight: normal;
     display: flex;

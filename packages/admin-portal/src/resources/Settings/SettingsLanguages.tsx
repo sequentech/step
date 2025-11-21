@@ -1,10 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-
-import styled from "@emotion/styled"
-
+import {styled} from "@mui/material/styles"
 import {Switch, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useEditController} from "react-admin"
@@ -13,17 +11,17 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ILanguageConf, ITenantSettings, getLanguages} from "@sequentech/ui-core"
 
 const SettingsLanguagesStyles = {
-    Wrapper: styled.div`
+    Wrapper: styled("div")`
         display: flex;
         flex-direction: column;
     `,
-    Content: styled.div`
+    Content: styled("div")`
         display: flex;
         width: 239px;
         align-items: center;
         justify-content: space-between;
     `,
-    Text: styled.span`
+    Text: styled("span")`
         text-transform: capitalize;
     `,
 }

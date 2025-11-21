@@ -1,9 +1,12 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import Chart, {Props} from "react-apexcharts"
+import CardChart from "@/components/dashboard/charts/Charts"
+import {Box, Typography} from "@mui/material"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
@@ -30,11 +33,104 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     total_voters_percent: number | "-"
 }
 
+interface GeneralInformationChartsProps {
+    results: Sequent_Backend_Election_Extended[]
+    selectedElectionId?: string
+}
+
+const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
+    results,
+    selectedElectionId,
+}) => {
+    const {t} = useTranslation()
+
+    // Filter out results with valid participation data
+    const validResults = results.filter(
+        (result) => isNumber(result.elegible_census) && isNumber(result.total_voters)
+    )
+
+    if (validResults.length === 0) {
+        return null
+    }
+
+    // Find the selected result or use the first one as default
+    const selectedResult = selectedElectionId
+        ? validResults.find((result) => result.id === selectedElectionId)
+        : validResults[0]
+
+    if (!selectedResult) {
+        return null
+    }
+
+    const result = selectedResult
+    const eligibleCensus = result.elegible_census as number
+    const totalVoters = result.total_voters as number
+    const nonVoters = eligibleCensus - totalVoters
+
+    const chartData = [
+        {
+            label: t("tally.chart.totalVoters"),
+            value: totalVoters,
+        },
+        {
+            label: t("tally.chart.nonVoters"),
+            value: nonVoters,
+        },
+    ].filter((item) => item.value > 0)
+
+    const chartOptions: Props = {
+        options: {
+            labels: chartData.map((item) => item.label),
+            legend: {
+                position: "right",
+            },
+            responsive: [
+                {
+                    breakpoint: 480,
+                    options: {
+                        chart: {
+                            width: 200,
+                        },
+                        legend: {
+                            position: "bottom",
+                        },
+                    },
+                },
+            ],
+        },
+        series: chartData.map((item) => item.value),
+    }
+
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                mb: 2,
+                border: "1px solid #cccccc99",
+                maxWidth: {xs: "100%", lg: 450},
+            }}
+        >
+            <CardChart title={result.name} collapsible={true}>
+                <Chart
+                    options={chartOptions.options}
+                    series={chartOptions.series}
+                    type="pie"
+                    width="100%"
+                    height={300}
+                />
+            </CardChart>
+        </Box>
+    )
+}
+
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
     const {tenantId, electionEventId, resultsEventId, electionIds} = props
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
+    const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
@@ -71,8 +167,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             )
 
             setResultsData(temp)
+            // Set default selected election to the first one if none is selected
+            if (!selectedElectionId && temp.length > 0) {
+                setSelectedElectionId(temp[0].id)
+            }
         }
-    }, [results, elections])
+    }, [results, elections, selectedElectionId])
 
     const columns: GridColDef[] = [
         {
@@ -80,8 +180,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
-            valueGetter(params) {
-                return aliasRenderer(params.row)
+            valueGetter(value, row) {
+                return aliasRenderer(row)
             },
         },
         {
@@ -111,19 +211,57 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     return (
         <>
             {resultsData.length ? (
-                <DataGrid
-                    rows={resultsData}
-                    columns={columns}
-                    initialState={{
-                        pagination: {
-                            paginationModel: {
-                                pageSize: 10,
-                            },
-                        },
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: {xs: "column", lg: "row"},
+                        gap: 4,
+                        alignItems: "flex-start",
                     }}
-                    pageSizeOptions={[10, 20, 50, 100]}
-                    disableRowSelectionOnClick
-                />
+                >
+                    <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
+                        <GeneralInformationCharts
+                            results={resultsData}
+                            selectedElectionId={selectedElectionId || undefined}
+                        />
+                    </Box>
+                    <Box sx={{flex: "1 1 auto", alignItems: "center", mt: 2, minWidth: 0}}>
+                        <DataGrid
+                            sx={{
+                                "mt": 0,
+                                "& .MuiDataGrid-row.selected": {
+                                    backgroundColor: "rgba(25, 118, 210, 0.08)",
+                                },
+                                "& .MuiDataGrid-row.selected:hover": {
+                                    backgroundColor: "rgba(25, 118, 210, 0.12)",
+                                },
+                                "& .MuiDataGrid-cell:focus": {
+                                    outline: "none",
+                                },
+                                "& .MuiDataGrid-cell:focus-within": {
+                                    outline: "none",
+                                },
+                            }}
+                            rows={resultsData}
+                            columns={columns}
+                            initialState={{
+                                pagination: {
+                                    paginationModel: {
+                                        pageSize: 10,
+                                    },
+                                },
+                            }}
+                            pageSizeOptions={[10, 20, 50, 100]}
+                            disableRowSelectionOnClick
+                            onRowClick={(params) => {
+                                setSelectedElectionId(params.row.id)
+                            }}
+                            getRowClassName={(params) =>
+                                params.row.id === selectedElectionId ? "selected" : ""
+                            }
+                        />
+                    </Box>
+                </Box>
             ) : (
                 <NoItem />
             )}

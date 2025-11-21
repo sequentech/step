@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -108,6 +108,18 @@ const dutchTranslation: TranslationType = {
                 header: "Nog geen gebieden.",
                 action: "Gebied aanmaken",
             },
+            formImputs: {
+                allowEarlyVoting: "Vroeg Stemmen Toestaan",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Sleutel",
+                gapiEmail: "Google Calendar Authenticatie E-mail",
+            },
+            errors: {
+                invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
+            },
         },
         lookAndFeelScreen: {
             common: {
@@ -146,6 +158,7 @@ const dutchTranslation: TranslationType = {
                 templates: "SJABLONEN",
                 languages: "TALEN",
                 localization: "LOCALISATIE",
+                integrations: "INTEGRATIES",
                 lookAndFeel: "LOOK & FEEL",
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",
@@ -342,6 +355,13 @@ const dutchTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Automatische ceremonies toestaan",
                         "manual-ceremonies": "Handmatige ceremonies",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Beleid voor Gewogen Stemmen",
+                    options: {
+                        "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
                 },
             },
@@ -894,9 +914,6 @@ const dutchTranslation: TranslationType = {
                 "report-delete": "Rapport Verwijderen",
                 "report-generate": "Rapport Genereren",
                 "report-preview": "Rapport Voorbeeldweergave",
-                "monitoring-dashboard-view-election-event":
-                    "Monitoring Dashboard Verkiezingsevenement Bekijken",
-                "monitoring-dashboard-view-election": "Monitoring Dashboard Verkiezing Bekijken",
                 "monitor-authenticated-voters": "Monitoring Geauthenticeerde Kiezers",
                 "monitor-all-approve-disapprove-voters":
                     "Monitoring Goedgekeurde/Afgekeurde Kiezers Lezen",
@@ -952,6 +969,7 @@ const dutchTranslation: TranslationType = {
                 "voter-email-tlf-edit": "E-mail/telefoonvelden kiezers bewerken",
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
+                "google-meet-link": "Google Meet Link Genereren",
             },
         },
         generalSettingsScreen: {
@@ -1021,7 +1039,6 @@ const dutchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
-                VOTE_RECEIPT: "Ontvangstbewijs Stem",
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
                 STATISTICAL_REPORT: "Statistisch Rapport",
@@ -1077,6 +1094,25 @@ const dutchTranslation: TranslationType = {
                 edit: "Bewerken",
                 preview: "Voorbeeldweergave",
             },
+        },
+        googleMeet: {
+            title: "Google Meet Link Genereren",
+            generateButton: "Meet Genereren",
+            meetingTitle: "Vergadertitel",
+            description: "Beschrijving (Optioneel)",
+            startDate: "Startdatum",
+            startTime: "Starttijd",
+            duration: "Duur (minuten)",
+            attendeeEmails: "Emails Deelnemers",
+            attendeeEmailHelp: "Komma-gescheiden emails voor vergaderdeelnemers",
+            note: "Opmerking: Dit zal een agenda-evenement aanmaken in uw Google Calendar met een Google Meet link. U moet inloggen op uw Google account.",
+            success: "Google Meet Link Succesvol Gegenereerd!",
+            copy: "Kopiëren naar klembord",
+            copied: "Link gekopieerd naar klembord!",
+            instructions:
+                "Deel deze link met deelnemers om deel te nemen aan de vergadering. Het agenda-evenement is toegevoegd aan uw Google Calendar.",
+            generating: "Genereren...",
+            generate: "Meet Link Genereren",
         },
         common: {
             export: "Exporteren kan lang duren. Weet u zeker dat u records wilt exporteren?",
@@ -1135,6 +1171,7 @@ const dutchTranslation: TranslationType = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Vroeg stemmen",
             },
             message: {
                 delete: "Weet u zeker dat u dit item wilt verwijderen?",
@@ -1614,6 +1651,14 @@ const dutchTranslation: TranslationType = {
                 blank_votes_percent: "Percentage Blanco Stemmen",
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
+                weight: "Gewicht",
+            },
+            chart: {
+                votesForCandidates: "Stemmen voor Kandidaten",
+                blankVotes: "Blanco Stemmen",
+                invalidVotes: "Ongeldige Stemmen",
+                totalVoters: "Totaal Kiezers",
+                nonVoters: "Niet-kiezers",
             },
         },
         publish: {
@@ -1633,9 +1678,17 @@ const dutchTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Initialisatierapport Genereren",
                 startVotingPeriod: "Stemperiode Starten",
+                startKioskVoting: "Kioskstemmen Starten",
+                startOnlineVoting: "Online Stemmen Starten",
+                startEarlyVoting: "Vroeg Stemmen Starten",
                 stopVotingPeriod: "Stemperiode Stoppen",
+                stopOnlineVoting: "Online Stemmen Stoppen",
+                stopEarlyVoting: "Vroeg Stemmen Stoppen",
                 stopKioskVotingPeriod: "Kiosk Stemmen Stoppen",
                 pauseVotingPeriod: "Stemperiode Pauzeren",
+                pauseKioskVoting: "Kioskstemmen Pauzeren",
+                pauseOnlineVoting: "Online Stemmen Pauzeren",
+                pauseEarlyVoting: "Vroeg Stemmen Pauzeren",
                 generate: "Regenereren",
                 publish: "Wijzigingen Publiceren",
                 back: "Terug",
@@ -1726,10 +1779,6 @@ const dutchTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Inloggegevens",
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
-                PARTICIPATION_REPORT: "Deelnamerapport",
-                ELECTORAL_RESULTS: "Verkiezingsresultaten",
-                OTP: "OTP",
-                TALLY_REPORT: "Telrapport",
             },
             email: {
                 subject: "Onderwerp",
@@ -1867,41 +1916,12 @@ const dutchTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Inloggegevens",
-                BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
-                VOTE_RECEIPT: "Ontvangstbewijzen Stem",
-                PARTICIPATION_REPORT: "Deelnamerapport",
-                ELECTORAL_RESULTS: "Verkiezingsresultaten",
-                OTP: "OTP",
-                TALLY_REPORT: "Telrapport",
-                MANUAL_VERIFICATION: "Kiezer handmatig verifiëren",
-                STATISTICAL_REPORT: "Statistisch Rapport",
                 INITIALIZATION_REPORT: "Initialisatierapport",
-                STATUS: "Statusrapport",
-                TRANSMISSION_REPORT: "Transmissierapporten",
-                AUDIT_LOGS: "Auditlogs",
-                ACTIVITY_LOGS: "Activiteitenlogs",
-                OVCS_INFORMATION: "OVCS Informatie",
-                OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
-                OVCS_STATISTICS: "Monitoring Stemmen Buitenland - OVCS Statistieken",
-                OV_WHO_VOTED: "Buitenlandse Kiezers Die Gestemd Hebben",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven maar afgekeurd",
-                LIST_OF_OVERSEAS_VOTERS: "Lijst van buitenlandse kiezers",
-                VOTERS_TURNOUT_PERCENTAGE: "Opkomst Kiezers",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Opkomst Buitenlandse Kiezers - per Status aan Boord en Geslacht",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Opkomst Buitenlandse Kiezers - per Status aan Boord, Geslacht en met Percentage",
-                OV_PRE_ENROLLED_APPROVED:
-                    "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven (Goedgekeurd)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Lijst van buitenlandse kiezers die vooraf zijn ingeschreven maar onderhevig aan handmatige validatie",
-                OV_WITH_VOTING_STATUS: "Lijst van buitenlandse kiezers met stemstatus",
-                OV_NOT_YET_PRE_ENROLLED_LIST:
-                    "Lijst van buitenlandse kiezers die nog niet vooraf zijn ingeschreven",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER:
-                    "Aantal buitenlandse kiezers die nog niet vooraf zijn ingeschreven",
+                ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 BALLOT_IMAGES: "Afbeeldingen Stembiljetten",
+                BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
+                ACTIVITY_LOGS: "Activiteitenlogs",
+                MANUAL_VERIFICATION: "Handmatige Verificatie",
             },
             method: {
                 email: "E-mail",

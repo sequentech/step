@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -67,6 +66,7 @@ pub struct Area {
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub parent_id: Option<String>,
+    pub presentation: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -203,6 +203,7 @@ pub struct VotingChannels {
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+    pub early_voting: Option<bool>,
 }
 
 impl Default for VotingChannels {
@@ -212,6 +213,7 @@ impl Default for VotingChannels {
             kiosk: None,
             telephone: None,
             paper: None,
+            early_voting: None,
         }
     }
 }

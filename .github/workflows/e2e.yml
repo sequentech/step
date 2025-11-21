@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,23 +6,36 @@ name: E2E Tests
 on:
   workflow_dispatch:
     inputs:
-      loadtestingImage:
-        description: 'Load testing image to use'
+      tag:
+        description: 'The Tag of the Load Test Image'
         required: true
         type: string
-        default: '133529410358.dkr.ecr.eu-west-1.amazonaws.com/loadtesting'
+      arguments:
+        description: 'Arguments for the Load Test'
+        required: false
+        type: string
+        default: vote-cast --voting-url https://voting-dev.sequent.vote/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/d068c768-4ea4-4d6f-acbb-42f6aec1a6e7/login --batches 1 --number-of-voters 100 --password-pattern Qwerty1234! --instances 1
 
 jobs:
   e2e:
     runs-on:
       - env=infra-euw1
       - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
+      - runner=4cpu-linux-x64
       - image=ubuntu24-full-x64
+      - disk=large
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - uses: cachix/install-nix-action@v26
+    - uses: cachix/cachix-action@v14
+      with:
+        name: devenv
+    - name: Install devenv.sh
+      run: nix profile install nixpkgs#devenv
+    #- name: Run admin and voting portal
+    #  run: scripts/e2e-up.sh
     - name: Set loadtestingImage variable with default fallback
-      run: echo "LOADTESTING_IMAGE=${{ github.event.inputs.loadtestingImage || 'loadtesting:latest' }}" >> $GITHUB_ENV
+      run: echo "LOADTESTING_IMAGE=loadtesting:${{ github.event.inputs.tag }}" >> $GITHUB_ENV
     - name: Build image
       uses: docker/build-push-action@v5
       with:
@@ -32,4 +45,4 @@ jobs:
         tags: ${{ env.LOADTESTING_IMAGE }}
     - name: Run e2e tests
       run: |
-        docker run ${{ env.LOADTESTING_IMAGE }} e2e
+        docker run ${{ env.LOADTESTING_IMAGE }} ${{ github.event.inputs.arguments }}

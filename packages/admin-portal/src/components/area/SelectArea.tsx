@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {SxProps} from "@mui/material"
+import {SxProps, Theme} from "@mui/material"
 import {AutocompleteInput, Identifier, ReferenceInput} from "react-admin"
 
 interface SelectAreaProps {
@@ -11,7 +11,7 @@ interface SelectAreaProps {
     source: string
     label?: string
     onSelectArea?: (...event: any[]) => void
-    customStyle?: SxProps
+    customStyle?: SxProps<Theme>
     isRequired?: boolean
     disabled?: boolean
 }
@@ -55,7 +55,7 @@ const SelectArea = ({
                 filterToQuery={areaFilterToQuery}
                 onChange={onSelectArea}
                 debounce={100}
-                sx={customStyle}
+                sx={customStyle as any}
                 isRequired={isRequired}
                 disabled={disabled}
             />

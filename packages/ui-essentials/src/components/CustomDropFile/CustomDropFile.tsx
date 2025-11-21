@@ -1,15 +1,14 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler} from "react"
-import styledEmotion from "@emotion/styled"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
 import {useForwardedRef} from "@sequentech/ui-core"
 import {Typography} from "@mui/material"
 import theme from "../../services/theme"
 
-const StyledForm = styledEmotion.form`
+const StyledForm = styled("form")`
     height: 16rem;
     width: 100%;
     max-width: 100%;
@@ -18,12 +17,12 @@ const StyledForm = styledEmotion.form`
     margin-bottom: 16px;
 `
 
-const StyledInput = styledEmotion.input`
+const StyledInput = styled("input")`
     display: none;
 `
 
 // const StyledLabel = styledEmotion(Paper)<{dragActive: boolean}>`
-const StyledLabel = styledEmotion.label<{dragActive: boolean}>`
+const StyledLabel = styled("label")<{dragActive: boolean}>`
     height: 100%;
     display: flex;
     align-items: center;

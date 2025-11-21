@@ -1,15 +1,15 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, CandidatePresentation, ContestPresentation,
-    ElectionEventPresentation, ElectionPresentation, I18nContent,
-    StringifiedPeriodDates,
+    self, AreaAnnotations, AreaPresentation, CandidatePresentation,
+    ContestPresentation, ElectionEventPresentation, ElectionPresentation,
+    I18nContent, StringifiedPeriodDates, WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::hasura::core as hasura_types;
+use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::env;
@@ -53,7 +53,7 @@ pub fn create_ballot_style(
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
-        .map(|presentation| serde_json::from_value(presentation))
+        .map(|presentation| deserialize_value(presentation))
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election Event presentation {:?}", err)
@@ -63,7 +63,7 @@ pub fn create_ballot_style(
     let election_event_annotations: HashMap<String, String> = election_event
         .annotations
         .clone()
-        .map(|annotations| serde_json::from_value(annotations))
+        .map(|annotations| deserialize_value(annotations))
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election Event annotations {:?}", err)
@@ -73,7 +73,7 @@ pub fn create_ballot_style(
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
-        .map(|presentation| serde_json::from_value(presentation))
+        .map(|presentation| deserialize_value(presentation))
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election presentation {:?}", err)
@@ -83,7 +83,7 @@ pub fn create_ballot_style(
     let election_annotations: HashMap<String, String> = election
         .annotations
         .clone()
-        .map(|annotations| serde_json::from_value(annotations))
+        .map(|annotations| deserialize_value(annotations))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
         .unwrap_or_default();
@@ -100,6 +100,29 @@ pub fn create_ballot_style(
             create_contest(contest, election_candidates)
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
+
+    let event_weighted_voting_policy: WeightedVotingPolicy =
+        election_event_presentation
+            .weighted_voting_policy
+            .clone()
+            .unwrap_or(WeightedVotingPolicy::default());
+
+    let mut area_annotations: Option<AreaAnnotations> = None;
+    if event_weighted_voting_policy
+        == WeightedVotingPolicy::AREAS_WEIGHTED_VOTING
+    {
+        area_annotations = area.clone().read_annotations()?;
+    }
+    let area_presentation: AreaPresentation = area
+        .presentation
+        .clone()
+        .map(|presentation| {
+            deserialize_value(presentation).map_err(|err| {
+                anyhow!("Error parsing area presentation: {}", err)
+            })
+        })
+        .transpose()?
+        .unwrap_or_default();
 
     Ok(ballot::BallotStyle {
         id,
@@ -120,12 +143,14 @@ pub fn create_ballot_style(
                 }),
         ),
         area_id: area.id,
+        area_presentation: Some(area_presentation),
         contests,
         election_event_presentation: Some(election_event_presentation.clone()),
         election_presentation: Some(election_presentation),
         election_dates: Some(election_dates),
         election_event_annotations: Some(election_event_annotations),
         election_annotations: Some(election_annotations),
+        area_annotations,
     })
 }
 
@@ -139,7 +164,7 @@ fn create_contest(
     let contest_presentation = contest
         .presentation
         .clone()
-        .map(|presentation_value| serde_json::from_value(presentation_value))
+        .map(|presentation_value| deserialize_value(presentation_value))
         .unwrap_or(Ok(ContestPresentation::new()))?;
     let name_i18n = parse_i18n_field(&contest_presentation.i18n, "name");
     let description_i18n =
@@ -153,9 +178,7 @@ fn create_contest(
             let candidate_presentation = candidate
                 .presentation
                 .clone()
-                .map(|presentation_value| {
-                    serde_json::from_value(presentation_value)
-                })
+                .map(|presentation_value| deserialize_value(presentation_value))
                 .unwrap_or(Ok(CandidatePresentation::new()))?;
 
             let name_i18n =

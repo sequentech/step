@@ -1,6 +1,6 @@
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;

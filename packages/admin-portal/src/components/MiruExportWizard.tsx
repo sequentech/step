@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -64,7 +64,7 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 interface IMiruExportWizardProps {}
 
-export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
+export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     const elementRef = useRef(null)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {globalSettings} = useContext(SettingsContext)
@@ -367,8 +367,8 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
         return signed === 0
             ? theme.palette.warning.main
             : signed === minimum
-            ? theme.palette.info.main
-            : theme.palette.brandSuccess
+              ? theme.palette.info.main
+              : theme.palette.brandSuccess
     }
 
     const signedCount: () => number = () => {
@@ -610,8 +610,8 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                                             <CellTowerIcon />
                                         )}
                                         <span
-                                            title={t(
-                                                "tally.transmissionPackage.actions.send.title"
+                                            title={String(
+                                                t("tally.transmissionPackage.actions.send.title")
                                             )}
                                         >
                                             {t("tally.transmissionPackage.actions.send.title")}
@@ -645,7 +645,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                                     <RestartAltIcon />
                                 )}
                                 <span
-                                    title={t("tally.transmissionPackage.actions.regenerate.title")}
+                                    title={String(
+                                        t("tally.transmissionPackage.actions.regenerate.title")
+                                    )}
                                 >
                                     {t("tally.transmissionPackage.actions.regenerate.title")}
                                 </span>
@@ -708,11 +710,13 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                             color: theme.palette.background.default,
                             textTransform: "uppercase",
                         }}
-                        label={t("tally.transmissionPackage.signatures.status", {
-                            signed: signedCount(),
-                            total: trusteeCount(),
-                            minimum: minimumSignatures(),
-                        })}
+                        label={String(
+                            t("tally.transmissionPackage.signatures.status", {
+                                signed: signedCount(),
+                                total: trusteeCount(),
+                                minimum: minimumSignatures(),
+                            })
+                        )}
                     />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
@@ -749,10 +753,12 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                             color: theme.palette.background.default,
                             textTransform: "uppercase",
                         }}
-                        label={t("tally.transmissionPackage.destinationServers.status", {
-                            signed: serverSentToCount(),
-                            total: serversTotalCount(),
-                        })}
+                        label={String(
+                            t("tally.transmissionPackage.destinationServers.status", {
+                                signed: serverSentToCount(),
+                                total: serversTotalCount(),
+                            })
+                        )}
                     />
                 </AccordionSummary>
                 <WizardStyles.AccordionDetails style={{zIndex: 100}}>
@@ -783,9 +789,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             <Dialog
                 variant="info"
                 open={confirmSendMiruModal}
-                ok={t("tally.transmissionPackage.actions.send.dialog.confirm")}
-                cancel={t("tally.transmissionPackage.actions.send.dialog.cancel")}
-                title={t("tally.transmissionPackage.actions.send.dialog.title")}
+                ok={String(t("tally.transmissionPackage.actions.send.dialog.confirm"))}
+                cancel={String(t("tally.transmissionPackage.actions.send.dialog.cancel"))}
+                title={String(t("tally.transmissionPackage.actions.send.dialog.title"))}
                 handleClose={(result: boolean) => {
                     setConfirmSendMiruModal(false)
                     if (result) {
@@ -800,9 +806,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             <Dialog
                 variant="info"
                 open={confirmRegenerateMiruModal}
-                ok={t("tally.transmissionPackage.actions.regenerate.dialog.confirm")}
-                cancel={t("tally.transmissionPackage.actions.regenerate.dialog.cancel")}
-                title={t("tally.transmissionPackage.actions.regenerate.dialog.title")}
+                ok={String(t("tally.transmissionPackage.actions.regenerate.dialog.confirm"))}
+                cancel={String(t("tally.transmissionPackage.actions.regenerate.dialog.cancel"))}
+                title={String(t("tally.transmissionPackage.actions.regenerate.dialog.title"))}
                 handleClose={(result: boolean) => {
                     setConfirmRegenerateMiruModal(false)
                     if (
@@ -825,9 +831,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
             <Dialog
                 variant="info"
                 open={!!signatureId}
-                ok={t("tally.transmissionPackage.actions.sign.dialog.confirm")}
-                cancel={t("tally.transmissionPackage.actions.regenerate.dialog.cancel")}
-                title={t("tally.transmissionPackage.actions.sign.dialog.title")}
+                ok={String(t("tally.transmissionPackage.actions.sign.dialog.confirm"))}
+                cancel={String(t("tally.transmissionPackage.actions.regenerate.dialog.cancel"))}
+                title={String(t("tally.transmissionPackage.actions.sign.dialog.title"))}
                 handleClose={(result: boolean) => {
                     if (!result || !signatureId || !passwordState) {
                         setSignatureId("")
@@ -841,7 +847,9 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = ({}) => {
                 <Box>
                     <TextField
                         dir={i18n.dir(i18n.language)}
-                        label={t("tally.transmissionPackage.actions.sign.dialog.input.placeholder")}
+                        label={String(
+                            t("tally.transmissionPackage.actions.sign.dialog.input.placeholder")
+                        )}
                         size="small"
                         value={passwordState}
                         onChange={(e) => setPasswordState(e.target.value)}

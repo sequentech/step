@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
 import {electionStatusColor} from "@/resources/Tally/constants"
 import {ITallyElectionStatus} from "@/types/ceremonies"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 
 /*  
         In the component where you want to use the actions column:
@@ -21,7 +21,7 @@ interface ElectionStatusItemProps {
     name: ITallyElectionStatus | undefined
 }
 
-const StyledChips = styled.div`
+const StyledChips = styled("div")`
     display: flex;
     padding: 1px 7px;
     flex-direction: row;
@@ -29,7 +29,7 @@ const StyledChips = styled.div`
     gap: 4px;
 `
 
-const StyledChip = styled.div`
+const StyledChip = styled("div")`
     display: flex;
     justify-content: center;
     align-items: center;
@@ -39,7 +39,7 @@ const StyledChip = styled.div`
     padding: 1px 7px;
 `
 
-const StyledChipLabel = styled.div`
+const StyledChipLabel = styled("div")`
     color: #fff;
     font-family: Roboto;
     font-size: 12px;

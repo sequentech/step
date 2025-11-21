@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Button, Typography} from "@mui/material"
@@ -23,8 +23,8 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({onDownload}) => {
 
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
-            electionEventId: record.election_event_id,
-            documentId: record.id,
+            electionEventId: record?.election_event_id,
+            documentId: record?.id,
         },
     })
 
@@ -33,7 +33,7 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({onDownload}) => {
         downloading = true
         console.log("downloading")
 
-        downloadUrl(data.fetchDocument.url, record.name || "report.pdf").then(() => onDownload())
+        downloadUrl(data.fetchDocument.url, record?.name || "report.pdf").then(() => onDownload())
     }
 
     return <CircularProgress />

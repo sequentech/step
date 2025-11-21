@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,7 +6,7 @@ import {gql} from "@apollo/client"
 
 export const GET_AREAS = gql`
     query sequent_backend_area($electionEventId: uuid!) {
-        sequent_backend_area(where: {election_event_id: {_eq: $electionEventId}}) {
+        sequent_backend_area(where: {election_event_id: {_eq: $electionEventId}}, limit: 1000) {
             id
             name
         }

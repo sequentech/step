@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -30,3 +30,4 @@ export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"
 export * from "./services/wasm"
 export * from "./services/sanitizeFilename"
+export * from "./types/AreaPresentation"

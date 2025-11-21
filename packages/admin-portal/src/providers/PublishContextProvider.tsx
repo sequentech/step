@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
@@ -25,7 +25,7 @@ interface PublishContextProviderProps {
     /**
      * The elements wrapped by the publish context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const PublishContextProvider = (props: PublishContextProviderProps) => {
