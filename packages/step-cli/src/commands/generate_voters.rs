@@ -93,6 +93,8 @@ impl GenerateVoters {
         let min_age = voters_config.min_age;
         let max_age = voters_config.max_age;
         let overseas_reference = voters_config.overseas_reference;
+        let authorized_elections_count = voters_config.authorized_elections_count;
+        let email_verified = voters_config.email_verified;
 
         // Parse election event file parts.
         let areas: &[serde_json::Value] = election_data
@@ -306,7 +308,17 @@ impl GenerateVoters {
                 .cloned()
                 .unwrap_or_else(|| (election_country_candidate.clone(), "Unknown".to_string()));
             let joined_aliases = if !election_aliases.is_empty() {
-                election_aliases.join("|")
+                if authorized_elections_count > 0 {
+                    let amount =
+                        std::cmp::min(authorized_elections_count as usize, election_aliases.len());
+                    election_aliases
+                        .choose_multiple(&mut rand::thread_rng(), amount)
+                        .cloned()
+                        .collect::<Vec<String>>()
+                        .join("|")
+                } else {
+                    election_aliases.join("|")
+                }
             } else {
                 "Unknown".to_string()
             };
@@ -358,6 +370,7 @@ impl GenerateVoters {
                     "email" => email.clone(),
                     "password_salt" => password_salt.to_string(),
                     "hashed_password" => hashed_password.to_string(),
+                    "email_verified" => email_verified.to_string(),
                     _ => "".to_string(), // default empty if field not recognized
                 };
                 record.push(value);
