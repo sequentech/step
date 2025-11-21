@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -17,6 +17,7 @@ export interface UpsertAreaProps {
     electionEventId: Identifier | undefined
     close?: () => void
     area_presentation?: IAreaPresentation
+    weightedVotingForAreas?: boolean
 }
 
 /**
@@ -43,7 +44,7 @@ const FormContentWrapper: React.FC<UpsertAreaProps> = (props) => {
  * @returns A React element that renders the Area form for creation or editing, or null while loading.
  */
 export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close} = props
+    const {record, id, electionEventId, close, weightedVotingForAreas} = props
 
     const [renderUI, setRenderUI] = useState(false)
 
@@ -76,6 +77,7 @@ export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
                                 id={id}
                                 electionEventId={electionEventId}
                                 close={close}
+                                weightedVotingForAreas={weightedVotingForAreas}
                             />
                         </PageHeaderStyles.Wrapper>
                     </EditBase>
@@ -87,6 +89,7 @@ export const UpsertArea: React.FC<UpsertAreaProps> = (props) => {
                                 id={id}
                                 electionEventId={electionEventId}
                                 close={close}
+                                weightedVotingForAreas={weightedVotingForAreas}
                             />
                         </PageHeaderStyles.Wrapper>
                     </Create>

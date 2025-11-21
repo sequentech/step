@@ -18,6 +18,7 @@ import {
     TextInput,
     AutocompleteArrayInput,
     ReferenceArrayInput,
+    NumberInput,
     BooleanInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -26,12 +27,8 @@ import SelectArea from "@/components/area/SelectArea"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {Checkbox, FormControlLabel} from "@mui/material"
-import {styled} from "@mui/styles"
+import {styled} from "@mui/material/styles"
 import {EEarlyVotingPolicy, IAreaPresentation} from "@sequentech/ui-core"
-
-const StyledCheckbox = styled(Checkbox)({
-    size: "small",
-})
 
 /**
  * FormContent component for creating or updating an Area entity.
@@ -53,7 +50,7 @@ const StyledCheckbox = styled(Checkbox)({
  * - Supports contest selection with autocomplete and filtering.
  */
 export const FormContent: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close, area_presentation} = props
+    const {record, id, electionEventId, close, area_presentation, weightedVotingForAreas} = props
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -173,7 +170,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                         <TextInput source="description" />
 
                         <ReferenceArrayInput
-                            label={t("areas.sequent_backend_area_contest")}
+                            label={String(t("areas.sequent_backend_area_contest"))}
                             reference="sequent_backend_contest"
                             source="area_contest_ids"
                             filter={{
@@ -212,10 +209,19 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                                 />
                             </>
                         ) : null}
+                        {weightedVotingForAreas && (
+                            <NumberInput
+                                label="Weight"
+                                source="annotations.weight"
+                                format={(value) => Math.floor(value)}
+                                min={1}
+                                defaultValue={1}
+                            />
+                        )}
                         <BooleanInput
                             source="allow_early_voting_boolean"
                             defaultValue={getAllowEarlyVotingDefaultValue()}
-                            label={t("areas.formImputs.allowEarlyVoting")}
+                            label={String(t("areas.formImputs.allowEarlyVoting"))}
                             disabled={!isEarlyVotingChannelEnabled()}
                         />
                     </SimpleForm>

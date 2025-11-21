@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -60,31 +60,12 @@ pub struct Report {
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum ReportType {
-    MANUAL_VERIFICATION,
-    BALLOT_RECEIPT,
-    VOTE_RECEIPT,
-    ELECTORAL_RESULTS,
-    STATISTICAL_REPORT,
-    ACTIVITY_LOGS,
-    TRANSMISSION_REPORT,
-    STATUS,
-    OV_PRE_ENROLLED_APPROVED,
-    OV_WHO_VOTED,
-    PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION,
-    PRE_ENROLLED_OV_BUT_DISAPPROVED,
-    LIST_OF_OVERSEAS_VOTERS,
-    OVCS_STATISTICS,
-    OVCS_INFORMATION,
-    OVCS_EVENTS,
-    OV_WITH_VOTING_STATUS,
     INITIALIZATION_REPORT,
-    AUDIT_LOGS,
-    OV_NOT_YET_PRE_ENROLLED_LIST,
-    OV_NOT_YET_PRE_ENROLLED_NUMBER,
-    VOTERS_TURNOUT_PERCENTAGE,
-    OV_TURNOUT_PER_ABOARD_STATUS_SEX,
-    OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE,
+    ELECTORAL_RESULTS,
     BALLOT_IMAGES,
+    BALLOT_RECEIPT,
+    ACTIVITY_LOGS,
+    MANUAL_VERIFICATION,
 }
 
 pub struct ReportWrapper(pub Report);

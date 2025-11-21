@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useMemo, useState} from "react"
@@ -140,7 +140,7 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close, permissions}) => {
 
                 <TextField
                     variant="outlined"
-                    label={t("usersAndRolesScreen.roles.fields.name")}
+                    label={String(t("usersAndRolesScreen.roles.fields.name"))}
                     value={role.name || ""}
                     name={"name"}
                     onChange={handleChange}

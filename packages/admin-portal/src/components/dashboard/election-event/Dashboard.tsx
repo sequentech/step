@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,7 +6,7 @@ import React, {useCallback, useContext, useEffect, useMemo, useState} from "reac
 import {Box, CircularProgress} from "@mui/material"
 import {useQuery} from "@apollo/client"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {useTranslation} from "react-i18next"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
@@ -41,7 +40,7 @@ const Container = styled(Box)`
 
 interface DashboardElectionEventProps {
     refreshRef: any
-    onMount: () => void
+    onMount?: () => void
 }
 
 const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) => {
@@ -139,7 +138,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
     }
 
     useEffect(() => {
-        onMount()
+        onMount?.()
     }, [onMount])
 
     useEffect(() => {
@@ -256,7 +255,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
-                    {showIpAdresses && record?.id && <ListIpAddress electionEventId={record.id} />}
+                    {showIpAdresses && record?.id && <ListIpAddress />}
                 </Box>
                 <Box
                     sx={{

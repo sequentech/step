@@ -1,8 +1,8 @@
-# SPDX-FileCopyrightText: 2024-2025 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rustlang/rust:nightly-bookworm-slim
+FROM rust:1.90.0-slim-bookworm
 
 # Copy projects
 WORKDIR /app
@@ -25,9 +25,6 @@ RUN apt-get update \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the specific nightly toolchain
-RUN rustup toolchain install nightly-2024-09-01 \
-    && rustup default nightly-2024-09-01
 
 ARG VAULT_VERSION=1.15.5
 

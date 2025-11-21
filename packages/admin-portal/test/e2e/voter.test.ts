@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,7 +7,6 @@ import {pause, voterDetails} from ".."
 import {createElectionEvent} from "../commands/election-event/create"
 import {deleteElectionEvent} from "../commands/election-event/delete"
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("voters tests", function () {
     before(function (browser) {
         browser.login()

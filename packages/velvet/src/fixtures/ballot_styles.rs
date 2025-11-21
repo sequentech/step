@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -37,6 +37,7 @@ pub fn get_ballot_style_1(
         election_event_presentation: None,
         election_presentation: None,
         election_dates: None,
+        area_annotations: None,
     }
 }
 
@@ -67,5 +68,6 @@ pub fn generate_ballot_style(
         election_dates: None,
         election_event_annotations: Default::default(),
         election_annotations: Default::default(),
+        area_annotations: None,
     }
 }

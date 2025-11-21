@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,8 +12,8 @@ use std::path::PathBuf;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::config::ballot_images_config::PipeConfigBallotImages;
 use crate::config::generate_reports::PipeConfigGenerateReports;
-use crate::config::vote_receipt::PipeConfigVoteReceipts;
 use crate::config::{self, Config};
 use crate::pipes::generate_db::PipeConfigGenerateDatabase;
 use crate::pipes::generate_db::DATABASE_FILENAME;
@@ -231,7 +230,7 @@ impl Drop for TestFixture {
 
 #[instrument]
 pub fn get_config() -> Result<Config> {
-    let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
+    let ballot_images_pipe_config = PipeConfigBallotImages::new();
     let database_pipe_config = PipeConfigGenerateDatabase {
         include_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
@@ -251,9 +250,9 @@ pub fn get_config() -> Result<Config> {
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {
-                        id: "vote-receipts".to_string(),
-                        pipe: PipeName::VoteReceipts,
-                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                        id: "ballot-images".to_string(),
+                        pipe: PipeName::BallotImages,
+                        config: Some(serde_json::to_value(ballot_images_pipe_config)?),
                     },
                     config::PipeConfig {
                         id: "do-tally".to_string(),
@@ -294,8 +293,8 @@ pub fn get_config() -> Result<Config> {
 
 #[instrument]
 pub fn get_config_mcballots() -> Result<Config> {
-    let vote_receipt_pipe_config = PipeConfigVoteReceipts::new();
-    let mcballot_receipt_pipe_config = PipeConfigVoteReceipts::mcballot(None);
+    let ballot_images_pipe_config = PipeConfigBallotImages::new();
+    let mcballot_images_pipe_config = PipeConfigBallotImages::mcballot();
     let database_pipe_config = PipeConfigGenerateDatabase {
         include_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
@@ -320,14 +319,14 @@ pub fn get_config_mcballots() -> Result<Config> {
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {
-                        id: "vote-receipts".to_string(),
-                        pipe: PipeName::VoteReceipts,
-                        config: Some(serde_json::to_value(vote_receipt_pipe_config)?),
+                        id: "ballot-images".to_string(),
+                        pipe: PipeName::BallotImages,
+                        config: Some(serde_json::to_value(ballot_images_pipe_config)?),
                     },
                     config::PipeConfig {
-                        id: "multi-ballot-receipts".to_string(),
+                        id: "multi-ballot-images".to_string(),
                         pipe: PipeName::MCBallotReceipts,
-                        config: Some(serde_json::to_value(mcballot_receipt_pipe_config)?),
+                        config: Some(serde_json::to_value(mcballot_images_pipe_config)?),
                     },
                     config::PipeConfig {
                         id: "do-tally".to_string(),

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
 import BallotLocator from "../routes/BallotLocator"
@@ -8,6 +8,8 @@ const englishTranslation = {
     translations: {
         common: {
             goBack: "Go back",
+            showMore: "Show More",
+            showLess: "Show Less",
         },
         breadcrumbSteps: {
             electionList: "Ballot List",
@@ -17,7 +19,7 @@ const englishTranslation = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Powered by <sequent />",
+            poweredBy: "Powered by <1></1>",
         },
         votingScreen: {
             backButton: "Back",
@@ -366,6 +368,7 @@ const englishTranslation = {
                 statement_timestamp: "Statement Timestamp",
                 username: "Username",
                 ballot_id: "Ballot ID",
+                message: "Message",
             },
         },
     },

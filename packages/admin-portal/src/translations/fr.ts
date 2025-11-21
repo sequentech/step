@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -113,6 +113,15 @@ const frenchTranslation: TranslationType = {
                 allowEarlyVoting: "Autoriser le Vote Anticipé",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clé de Compte de Service Google Calendar",
+                gapiEmail: "Email d'Authentification Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Liens d'Aide",
@@ -150,6 +159,7 @@ const frenchTranslation: TranslationType = {
                 templates: "MODÈLES",
                 languages: "LANGUES",
                 localization: "LOCALISATION",
+                integrations: "INTÉGRATIONS",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
@@ -347,6 +357,13 @@ const frenchTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Autoriser les cérémonies automatiques",
                         "manual-ceremonies": "Cérémonies manuelles",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Politique de Vote Pondéré",
+                    options: {
+                        "areas-weighted-voting": "Vote Pondéré par Zones",
+                        "disabled-weighted-voting": "Vote Pondéré Désactivé",
                     },
                 },
             },
@@ -902,10 +919,6 @@ const frenchTranslation: TranslationType = {
                 "report-delete": "Supprimer un Rapport",
                 "report-generate": "Générer un Rapport",
                 "report-preview": "Aperçu du Rapport",
-                "monitoring-dashboard-view-election-event":
-                    "Vue du Tableau de Bord de Suivi des Élections",
-                "monitoring-dashboard-view-election":
-                    "Vue du Tableau de Bord de Suivi des Événements Électoraux",
                 "monitor-authenticated-voters": "Surveillance des Électeurs Authentifiés",
                 "monitor-all-approve-disapprove-voters":
                     "Lire la Surveillance des Électeurs Approuvés et Refusés",
@@ -965,6 +978,7 @@ const frenchTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
+                "google-meet-link": "Générer un Lien Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1035,7 +1049,6 @@ const frenchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
-                VOTE_RECEIPT: "Reçu de Vote",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
@@ -1091,6 +1104,26 @@ const frenchTranslation: TranslationType = {
                 edit: "Modifier",
                 preview: "Aperçu",
             },
+        },
+        googleMeet: {
+            title: "Générer un Lien Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Titre de la Réunion",
+            description: "Description (Optionnel)",
+            startDate: "Date de Début",
+            startTime: "Heure de Début",
+            duration: "Durée (minutes)",
+            attendeeEmails: "Emails des Participants",
+            attendeeEmailHelp:
+                "Emails séparés par des virgules pour les participants de la réunion",
+            note: "Note : Cela créera un événement de calendrier dans votre Google Calendar avec un lien Google Meet. Vous devrez vous connecter à votre compte Google.",
+            success: "Lien Google Meet Généré avec Succès !",
+            copy: "Copier dans le presse-papiers",
+            copied: "Lien copié dans le presse-papiers !",
+            instructions:
+                "Partagez ce lien avec les participants pour rejoindre la réunion. L'événement de calendrier a été ajouté à votre Google Calendar.",
+            generating: "Génération...",
+            generate: "Générer le Lien Meet",
         },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",
@@ -1634,6 +1667,14 @@ const frenchTranslation: TranslationType = {
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
+                weight: "Poids",
+            },
+            chart: {
+                votesForCandidates: "Votes pour les Candidats",
+                blankVotes: "Votes Blancs",
+                invalidVotes: "Votes Invalides",
+                totalVoters: "Total des Électeurs",
+                nonVoters: "Non-Électeurs",
             },
         },
         publish: {
@@ -1754,10 +1795,6 @@ const frenchTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
-                PARTICIPATION_REPORT: "Rapport de Participation",
-                ELECTORAL_RESULTS: "Résultats Électoraux",
-                OTP: "OTP",
-                TALLY_REPORT: "Rapport de comptage",
             },
             email: {
                 subject: "Sujet",
@@ -1894,37 +1931,12 @@ const frenchTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Identifiants",
-                BALLOT_RECEIPT: "Reçu de Vote",
-                VOTE_RECEIPT: "Reçu de Vote",
-                PARTICIPATION_REPORT: "Rapport de Participation",
-                ELECTORAL_RESULTS: "Résultats Électoraux",
-                OTP: "OTP",
-                TALLY_REPORT: "Rapport de Dépouillement",
-                MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
-                STATISTICAL_REPORT: "Rapport Statistique",
                 INITIALIZATION_REPORT: "Rapport d'Initialisation",
-                STATUS: "Rapport de Statut",
-                TRANSMISSION_REPORT: "Rapports de Transmission",
-                AUDIT_LOGS: "Journaux d'Audit",
-                ACTIVITY_LOGS: "Journaux d'Activité",
-                OVCS_INFORMATION: "Informations OVCS",
-                OVCS_EVENTS: "Surveillance du Vote à l'Étranger - Événements OVCS",
-                OVCS_STATISTICS: "Surveillance du Vote à l'Étranger - Statistiques OVCS",
-                OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
-                LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                VOTERS_TURNOUT_PERCENTAGE: "Participation des Électeurs",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
-                OV_PRE_ENROLLED_APPROVED: "Liste des OV qui se sont Préinscrits (Approuvés)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Liste des OV qui ne sont pas encore Préinscrits",
-                OV_WITH_VOTING_STATUS: "Liste des Électeurs à l'Étranger avec Statut de Vote",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre d'OV qui ne sont pas encore Préinscrits",
+                ELECTORAL_RESULTS: "Résultats Électoraux",
                 BALLOT_IMAGES: "Images des Bulletins",
+                BALLOT_RECEIPT: "Reçu de Vote",
+                ACTIVITY_LOGS: "Journaux d'Activité",
+                MANUAL_VERIFICATION: "Vérification Manuelle",
             },
             method: {
                 email: "Email",

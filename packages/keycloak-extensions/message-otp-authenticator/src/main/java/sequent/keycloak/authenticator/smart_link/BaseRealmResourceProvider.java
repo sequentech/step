@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -28,7 +28,7 @@ public abstract class BaseRealmResourceProvider implements RealmResourceProvider
     HttpRequest request = session.getContext().getHttpRequest();
     log.debugf("request method %s", request.getHttpMethod());
     if (request != null && "OPTIONS".equals(request.getHttpMethod())) {
-      return new CorsResource(session, request);
+      return new CorsResource(session);
     } else {
       return getRealmResource();
     }

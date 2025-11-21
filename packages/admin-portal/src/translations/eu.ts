@@ -113,6 +113,15 @@ const basqueTranslation: TranslationType = {
                 allowEarlyVoting: "Onartu Goiztiarra Bozketa",
             },
         },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
+                gapiEmail: "Google Calendar Autentifikazio Helbide Elektronikoa",
+            },
+            errors: {
+                invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",
+            },
+        },
         lookAndFeelScreen: {
             common: {
                 helpLinks: "Laguntza Estekak",
@@ -150,6 +159,7 @@ const basqueTranslation: TranslationType = {
                 templates: "TXANTILOIAK",
                 languages: "HIZKUNTZAK",
                 localization: "LOKALIZAZIOA",
+                integrations: "Integrazioak",
                 lookAndFeel: "Itxura eta Sentimendua",
                 schedules: "PROGRAMATUTAKO GERTAERAK",
                 trustees: "FIDEIKOMISARIOAK",
@@ -347,6 +357,13 @@ const basqueTranslation: TranslationType = {
                     options: {
                         "automated-ceremonies": "Zeremonia automatikoak baimendu",
                         "manual-ceremonies": "Eskuzko zeremoniak",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Bozketa Ponderatuaren Politika",
+                    options: {
+                        "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
                 },
             },
@@ -898,9 +915,6 @@ const basqueTranslation: TranslationType = {
                 "report-delete": "Ezabatu Txostena",
                 "report-generate": "Sortu Txostena",
                 "report-preview": "Aurreikusi Txostena",
-                "monitoring-dashboard-view-election-event":
-                    "Hauteskunde Gertaera Monitorizazio Panela Ikusi",
-                "monitoring-dashboard-view-election": "Hauteskunde Monitorizazio Panela Ikusi",
                 "monitor-authenticated-voters": "Monitorizatu Autentifikatutako Bozkatzaileak",
                 "monitor-all-approve-disapprove-voters":
                     "Irakurri Monitorizazio Onartu Ezarri Bozkatzaileak",
@@ -955,6 +969,7 @@ const basqueTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editatu bozkatzaileen email/telefono eremuak",
                 "cloudflare-write": "Editatu Herrialde Blokeo Arauak Cloudflare-n",
                 "transmission-report-generate": "Sortu Transmisio Txostena",
+                "google-meet-link": "Google Meet Esteka Sortu",
             },
         },
         generalSettingsScreen: {
@@ -1024,7 +1039,6 @@ const basqueTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                VOTE_RECEIPT: "Boto Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
@@ -1080,6 +1094,25 @@ const basqueTranslation: TranslationType = {
                 edit: "Editatu",
                 preview: "Aurreikusi",
             },
+        },
+        googleMeet: {
+            title: "Google Meet Esteka Sortu",
+            generateButton: "Google Meet",
+            meetingTitle: "Bileraren Izenburua",
+            description: "Deskribapena (Aukerakoa)",
+            startDate: "Hasiera Data",
+            startTime: "Hasiera Ordua",
+            duration: "Iraupena (minutuak)",
+            attendeeEmails: "Partaideen Emailak",
+            attendeeEmailHelp: "Komaz banandutako emailak bilerako partaideentzat",
+            note: "Oharra: Honek zure Google Calendar-en gertaera bat sortuko du Google Meet esteka batekin. Zure Google kontuan saioa hasi beharko duzu.",
+            success: "Google Meet Esteka Arrakastaz Sortua!",
+            copy: "Arbelera kopiatu",
+            copied: "Esteka arbelera kopiatua!",
+            instructions:
+                "Partekatu esteka hau partaideekin bileran parte hartzeko. Egutegi gertaera zure Google Calendar-era gehitu da.",
+            generating: "Sortzen...",
+            generate: "Meet Esteka Sortu",
         },
         common: {
             export: "Esportazioa eragiketa luzea izan daiteke. Ziur zaude erregistroak esportatu nahi dituzula?",
@@ -1618,6 +1651,14 @@ const basqueTranslation: TranslationType = {
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
+                weight: "Pisua",
+            },
+            chart: {
+                votesForCandidates: "Hautagaientzako Botoak",
+                blankVotes: "Boto Zuriak",
+                invalidVotes: "Boto Baliogabeak",
+                totalVoters: "Bozkatzaile Guztiak",
+                nonVoters: "Ez-bozkatzaileak",
             },
         },
         publish: {
@@ -1734,10 +1775,6 @@ const basqueTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Kredentzialak",
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                PARTICIPATION_REPORT: "Parte-hartze Txostena",
-                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
-                OTP: "OTP",
-                TALLY_REPORT: "Zenbaketa Txostena",
             },
             email: {
                 subject: "Gaia",
@@ -1874,38 +1911,12 @@ const basqueTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Kredentzialak",
-                BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                VOTE_RECEIPT: "Boto Jasoagiriak",
-                PARTICIPATION_REPORT: "Parte-hartze Txostena",
-                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
-                OTP: "OTP",
-                TALLY_REPORT: "Zenbaketa Txostena",
-                MANUAL_VERIFICATION: "Eskuz egiaztatu bozkatzailea",
-                STATISTICAL_REPORT: "Txosten Estatistikoa",
                 INITIALIZATION_REPORT: "Hasierako Txostena",
-                STATUS: "Egoera Txostena",
-                TRANSMISSION_REPORT: "Transmisio Txostenak",
-                AUDIT_LOGS: "Auditoria Egunkariak",
-                ACTIVITY_LOGS: "Jarduera Egunkariak",
-                OVCS_INFORMATION: "OVCS Informazioa",
-                OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
-                OVCS_STATISTICS: "Atzerriko Bozketa Monitorizazioa - OVCS Estatistikak",
-                OV_WHO_VOTED: "Bozkatu duten AB Erabiltzaileak",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
-                LIST_OF_OVERSEAS_VOTERS: "Atzerriko Bozkatzaileen Zerrenda",
-                VOTERS_TURNOUT_PERCENTAGE: "Bozkatzaileen Parte-hartzea",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera eta Sexuaren arabera",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera, Sexu eta Ehunekoarekin",
-                OV_PRE_ENROLLED_APPROVED: "Aurre-matrikulatu diren ABen zerrenda (Onartua)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Aurre-matrikulatu baina Eskuzko Baliozkotzearen menpean dauden ABen zerrenda",
-                OV_WITH_VOTING_STATUS: "Bozketa Egoerarekin Atzerriko Bozkatzaileen zerrenda",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Oraindik Aurre-matrikulatu ez diren ABen zerrenda",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Oraindik Aurre-matrikulatu ez diren AB kopurua",
+                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 BALLOT_IMAGES: "Bozketa Irudiak",
+                BALLOT_RECEIPT: "Bozketa Jasoagiria",
+                ACTIVITY_LOGS: "Jarduera Egunkariak",
+                MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
             },
             method: {
                 email: "Emaila",

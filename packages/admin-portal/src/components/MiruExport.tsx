@@ -1,17 +1,17 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useMemo} from "react"
 import {Box, MenuItem} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {theme} from "@sequentech/ui-essentials"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAtomValue} from "jotai"
 import {Sequent_Backend_Results_Area_Contest, Sequent_Backend_Area} from "@/gql/graphql"
 import {uniq} from "lodash"
 
-export const ExportButton = styled.div`
+export const ExportButton = styled("div")`
     cursor: pointer;
     margin-left: 10px;
     margin-right: 10px;

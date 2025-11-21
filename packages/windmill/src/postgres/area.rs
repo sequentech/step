@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -41,7 +41,7 @@ impl TryFrom<Row> for AreaWrapper {
  * Returns a vector of areas per election event, with the posibility of
  * filtering by area_id
  */
-#[instrument(skip(hasura_transaction), err)]
+#[instrument(skip(hasura_transaction, area_ids), err)]
 pub async fn get_areas(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

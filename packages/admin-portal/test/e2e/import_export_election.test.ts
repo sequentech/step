@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,7 +10,6 @@ import {getElectionEventId} from "../commands/getElectionEventId"
 
 let exportPath
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("import/export election event  tests", function () {
     before(function (browser) {
         browser.login()

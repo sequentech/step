@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -42,7 +42,6 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
-import {Button} from "react-admin"
 import {GetTaskByIdQuery} from "@/gql/graphql"
 
 interface LogTableProps {
@@ -178,7 +177,6 @@ export const Widget: React.FC<WidgetProps> = ({
                         className="accordion-summary"
                         isLoading={taskDataStatus === ETaskExecutionStatus.IN_PROGRESS}
                         expandIcon={<ExpandMoreIcon />}
-                        sx={{backgroundColor: "#0F054C"}}
                     >
                         <HeaderBox className="header-box">
                             <InfoBox className="info-box">
@@ -232,7 +230,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                         className="view-icon"
                                         onClick={onSetViewTask}
                                     >
-                                        {t("tasksScreen.widget.viewTask")}
+                                        {t("tasksScreen.widget.viewTask") as any}
                                     </ViewTaskTypography>
                                 </>
                             ) : null}
@@ -248,7 +246,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                         downloading ||
                                         lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
                                     }
-                                    label={t("tasksScreen.widget.downloadDocument")}
+                                    label={String(t("tasksScreen.widget.downloadDocument"))}
                                 >
                                     <DownloadIcon />
                                 </DownloaButton>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,9 +10,10 @@ import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+import {CircularProgress} from "@mui/material"
 
 interface AdminWizardProps {
-    electionEvent: Sequent_Backend_Election_Event
+    electionEvent?: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
 
@@ -54,6 +55,10 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
             setCurrentStep(calculateCurrentStep())
         }
     }, [currentCeremony?.execution_status])
+
+    if (!electionEvent) {
+        return <CircularProgress />
+    }
     return (
         <WizardStyles.WizardWrapper>
             <BreadCrumbSteps

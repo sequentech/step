@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import Tabs from "@mui/material/Tabs"
@@ -40,10 +40,10 @@ export const Logs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={t("logsScreen.title")} subtitle="logsScreen.subtitle" />
+            <ElectionHeader title={String(t("logsScreen.title"))} subtitle="logsScreen.subtitle" />
             <SidebarScreenStyles.Tabs value={tab} onChange={handleChange} aria-label="Log tabs">
-                <Tab label={t("logsScreen.main.title")} />
-                <Tab label={t("logsScreen.iam.title")} />
+                <Tab label={String(t("logsScreen.main.title"))} />
+                <Tab label={String(t("logsScreen.iam.title"))} />
             </SidebarScreenStyles.Tabs>
             <SidebarScreenStyles.CustomTabPanel value={tab} index={0}>
                 <PgAuditList auditTable={PgAuditTable.PgauditHasura} />

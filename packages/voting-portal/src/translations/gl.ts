@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
 import {TranslationType} from "./en"
@@ -8,6 +8,8 @@ const galegoTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Volver",
+            showMore: "Mostrar Máis",
+            showLess: "Mostrar Menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Papeletas",
@@ -17,7 +19,7 @@ const galegoTranslation: TranslationType = {
             audit: "Auditoría",
         },
         footer: {
-            poweredBy: "Desenvolvido por <sequent />",
+            poweredBy: "Desenvolvido por <1></1>",
         },
         votingScreen: {
             backButton: "Volver",
@@ -370,6 +372,7 @@ const galegoTranslation: TranslationType = {
                 statement_timestamp: "Marca de tempo",
                 username: "Nome de usuario",
                 ballot_id: "ID da papeleta",
+                message: "Mensaxe",
             },
         },
     },

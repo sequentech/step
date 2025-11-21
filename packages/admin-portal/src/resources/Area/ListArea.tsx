@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect, useState} from "react"
@@ -32,11 +32,12 @@ import {IPermissions} from "@/types/keycloak"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {useMutation} from "@apollo/client"
 import {IMPORT_AREAS} from "@/queries/ImportAreas"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {UPSERT_AREAS} from "@/queries/UpsertAreas"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useAreaPermissions} from "./useAreaPermissions"
 import {UpsertArea} from "./UpsertArea"
+import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -83,11 +84,14 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         canReadArea,
         canDeleteArea,
         canImportArea,
-        canExportArea,
         canUpsertArea,
         showAreaColumns,
         showAreaFilters,
     } = useAreaPermissions()
+
+    const weightedVotingForAreas =
+        record?.presentation?.weighted_voting_policy ===
+        EElectionEventWeightedVotingPolicy.AREAS_WEIGHTED_VOTING
 
     const [importAreas] = useMutation<ImportAreasMutation>(IMPORT_AREAS, {
         context: {
@@ -127,11 +131,11 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 <>
                     <ActionsBox>
                         <Button onClick={createAction} className="area-add-button">
-                            <IconButton icon={faPlus} fontSize="24px" />
+                            <IconButton icon={faPlus as any} fontSize="24px" />
                             {t("areas.empty.action")}
                         </Button>
                         <Button onClick={() => setOpenImportDrawer(true)}>
-                            <IconButton icon={faPlus} fontSize="24px" />
+                            <IconButton icon={faPlus as any} fontSize="24px" />
                             {t("common.label.import")}
                         </Button>
                     </ActionsBox>
@@ -187,7 +191,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         let {errors} = await importAreas({
             variables: {
                 documentId,
-                electionEventId: record.id,
+                electionEventId: record?.id,
                 sha256,
             },
         })
@@ -205,7 +209,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         let {errors} = await upsertAreas({
             variables: {
                 documentId,
-                electionEventId: record.id,
+                electionEventId: record?.id,
             },
         })
 
@@ -259,6 +263,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                                             record={record}
                                             electionEventId={id}
                                             close={handleCloseCreateDrawer}
+                                            weightedVotingForAreas={weightedVotingForAreas}
                                         />
                                     }
                                     withComponent={canCreateArea}
@@ -288,16 +293,18 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             disableSyncWithLocation
                         >
                             <ResetFilters />
-                            <DatagridConfigurable omit={OMIT_FIELDS}>
+                            <DatagridConfigurable omit={OMIT_FIELDS} rowClick={false}>
                                 <TextField source="id" />
                                 <TextField source="name" className="area-name" />
                                 <TextField source="description" className="area-description" />
 
                                 <FunctionField
-                                    label={t("areas.sequent_backend_area_contest")}
+                                    label={String(t("areas.sequent_backend_area_contest"))}
                                     render={(record: any) => <AreaContestItems record={record} />}
                                 />
-
+                                {weightedVotingForAreas && (
+                                    <TextField source="annotations.weight" label="Weight" />
+                                )}
                                 <WrapperField source="actions" label="Actions">
                                     <ActionsColumn actions={actions} />
                                 </WrapperField>
@@ -319,6 +326,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     id={recordId}
                     electionEventId={id}
                     close={handleCloseEditDrawer}
+                    weightedVotingForAreas={weightedVotingForAreas}
                 />
             </Drawer>
             <Drawer
@@ -329,14 +337,19 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <UpsertArea record={record} electionEventId={id} close={handleCloseCreateDrawer} />
+                <UpsertArea
+                    record={record}
+                    electionEventId={id}
+                    close={handleCloseCreateDrawer}
+                    weightedVotingForAreas={weightedVotingForAreas}
+                />
             </Drawer>
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

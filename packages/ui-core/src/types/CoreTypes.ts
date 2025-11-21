@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -153,6 +153,8 @@ export interface IAuditableBallot {
     issue_date: string
     config: IBallotStyle
     ballot_hash: string
+    voter_signing_pk?: string
+    voter_ballot_signature?: string
 }
 export interface IAuditableSingleBallot extends IAuditableBallot {
     contests: Array<string>
@@ -165,13 +167,20 @@ export interface IHashableBallot {
     version: number
     issue_date: string
     config: string
+    voter_signing_pk?: string
+    voter_ballot_signature?: string
 }
-export interface IHashableSingleBallot {
+export interface IHashableSingleBallot extends IHashableBallot {
     contests: Array<string>
 }
 
-export interface IHashableMultiBallot {
+export interface IHashableMultiBallot extends IHashableBallot {
     contests: string
+}
+
+export interface ISignedContent {
+    public_key: string
+    signature: string
 }
 
 export enum EInvalidPlaintextErrorType {
@@ -228,8 +237,14 @@ export interface IExtensionErrorInternalError {
     message?: string | null
 }
 
+export interface IExtensionErrorInternalResponse {
+    body?: string | null
+    status?: number | null
+}
+
 export interface IExtensionErrorInternal {
     error?: IExtensionErrorInternalError | null
+    response?: IExtensionErrorInternalResponse | null
 }
 
 export interface IExtensionError {

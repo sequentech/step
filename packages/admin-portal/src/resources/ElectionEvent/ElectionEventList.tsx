@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -108,12 +108,12 @@ export const ElectionEventListContent: React.FC<ElectionEventListProps> = ({asid
                                 </Typography>
                                 <Box display="flex" gap={1}>
                                     <Button
-                                        label={t("common.label.add")}
+                                        label={String(t("common.label.add"))}
                                         startIcon={<AddIcon />}
                                         onClick={() => openCreateDrawer()}
                                     />
                                     <Button
-                                        label={t("common.label.import")}
+                                        label={String(t("common.label.import"))}
                                         startIcon={<PublishIcon />}
                                         onClick={() => openImportDrawer?.()}
                                     />

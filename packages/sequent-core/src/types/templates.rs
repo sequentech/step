@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use headless_chrome::types::PrintToPdfOptions;
@@ -89,6 +88,8 @@ pub struct PrintToPdfOptionsLocal {
     pub footer_template: Option<String>,
     pub prefer_css_page_size: Option<bool>,
     pub transfer_mode: Option<String>,
+    pub generate_document_outline: Option<bool>,
+    pub generate_tagged_pdf: Option<bool>,
 }
 
 impl PrintToPdfOptionsLocal {
@@ -112,6 +113,8 @@ impl PrintToPdfOptionsLocal {
             footer_template: pdf_options.footer_template.clone(),
             prefer_css_page_size: pdf_options.prefer_css_page_size,
             transfer_mode: None,
+            generate_document_outline: pdf_options.generate_document_outline,
+            generate_tagged_pdf: pdf_options.generate_tagged_pdf,
         }
     }
 
@@ -133,6 +136,8 @@ impl PrintToPdfOptionsLocal {
             header_template: self.header_template.clone(),
             footer_template: self.footer_template.clone(),
             prefer_css_page_size: self.prefer_css_page_size,
+            generate_document_outline: self.generate_document_outline,
+            generate_tagged_pdf: self.generate_tagged_pdf,
             transfer_mode: None,
         }
     }
@@ -142,7 +147,6 @@ pub struct SendTemplateBody {
     // TODO: Rename this struct
     pub audience_selection: Option<AudienceSelection>,
     pub audience_voter_ids: Option<Vec<String>>,
-    pub r#type: Option<TemplateType>,
     pub communication_method: Option<TemplateMethod>,
     pub schedule_now: Option<bool>,
     pub schedule_date: Option<String>,
@@ -175,15 +179,4 @@ pub struct CommunicationTemplatesExtraConfig {
 pub struct ReportOptions {
     pub max_items_per_report: Option<usize>,
     pub max_threads: Option<usize>,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
-)]
-pub enum VoteReceiptPipeType {
-    #[strum(serialize = "VOTE_RECEIPT")]
-    VOTE_RECEIPT,
-    #[strum(serialize = "BALLOT_IMAGES")]
-    BALLOT_IMAGES,
 }
