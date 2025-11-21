@@ -505,14 +505,6 @@ type Mutation {
 }
 
 type Mutation {
-    publish_tally_sheet(
-        election_event_id: uuid!
-        tally_sheet_id: uuid!
-        publish: Boolean
-    ): PublishTallyOutput
-}
-
-type Mutation {
     render_document_pdf(
         document_id: uuid!
         election_event_id: uuid
@@ -621,6 +613,32 @@ type Mutation {
 
 type Mutation {
     upsert_areas(election_event_id: String!, document_id: String!): OptionalId
+}
+
+type Mutation {
+    create_new_tally_sheet(
+        election_event_id: String!
+        channel: String!
+        content: jsonb!
+        contest_id: String!
+        area_id: String!
+    ): TallySheetOutput
+}
+
+type Mutation {
+    add_tally_sheet_version(
+        election_event_id: String!
+        tally_sheet_id: String!
+        old_version: Int!
+    ): AddTallySheetOutput
+}
+
+type Mutation {
+    review_tally_sheet(
+        election_event_id: String!
+        tally_sheet_id: String!
+        new_status: String!
+    ): TallySheetOutput
 }
 
 enum EarlyVotingPolicy {
@@ -1227,10 +1245,6 @@ type RestorePrivateKeyOutput {
     is_valid: Boolean!
 }
 
-type PublishTallyOutput {
-    tally_sheet_id: uuid
-}
-
 type InsertCastVoteOutput {
     id: uuid!
     tenant_id: uuid!
@@ -1267,6 +1281,31 @@ type ManageElectionDatesOutput {
 type ExportLogsOutput {
     document_id: String!
     task_execution: tasks_execution_type
+}
+
+type AddTallySheetOutput {
+    tally_sheet_id: String!
+}
+
+type TallySheetOutput {
+    id: String!
+    tenant_id: String!
+    election_event_id: String!
+    election_id: String!
+    contest_id: String!
+    area_id: String!
+    created_at: String
+    last_updated_at: String
+    labels: jsonb
+    annotations: jsonb
+    reviewed_at: String
+    reviewed_by_user_id: String
+    content: jsonb
+    channel: String
+    deleted_at: String
+    created_by_user_id: String
+    status: String!
+    version: Int!
 }
 
 type ExportAllUsersOutput {

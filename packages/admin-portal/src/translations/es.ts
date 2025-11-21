@@ -599,6 +599,7 @@ const spanishTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Logs",
                 approvals: "Aprobaciones",
+                tallySheets: "Hojas de Recuento",
             },
             gracePeriodPolicy: {
                 "label": "Política de período de gracia",
@@ -824,7 +825,7 @@ const spanishTranslation: TranslationType = {
                 "document-download": "Descargar Documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "trustee-ceremony": "Ceremonia de Fideicomisario",
-                "tally-sheet-publish": "Publicar Acta de Recuento",
+                "tally-sheet-review": "Revisar hoja de recuento",
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
@@ -1790,8 +1791,12 @@ const spanishTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnas",
+            subtitle: "Urnas digitalizadas por canal",
             createTallySuccess: "Hoja de Recuento creada",
             createTallyError: "Error creando Hoja de Recuento",
+            createTallyErrorSameKindExists:
+                "La hoja de recuento ya existe para esta contienda con el mismo canal y área",
             allFieldsRequired: "Todos los campos son obligatorios",
             header: {
                 change: "Changes to be Published",
@@ -1805,6 +1810,11 @@ const spanishTranslation: TranslationType = {
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
+                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
             },
             label: {
                 area: "Area",
@@ -1834,10 +1844,13 @@ const spanishTranslation: TranslationType = {
                 subtitle: "Configuración de la Hoja de Recuento.",
                 candidates: "Candidatos",
                 save: "Guardar",
-                publish: "Publicar",
-                unpublish: "Despublicar",
-                warningUnPublish: "¿Estas seguro de despublicar esta Hoja de Recuento?",
-                warningPublish: "¿Estas seguro de publicar esta Hoja de Recuento?",
+                approve: "Aprobar",
+                disapprove: "Desaprobar",
+                show: "Mostrar",
+                add: "Añadir",
+                versions: "Versiones",
+                warningDisapprove: "¿Está seguro de desaprobar esta Hoja de Recuento?",
+                warningApprove: "¿Está seguro de aprobar esta Hoja de Recuento?",
             },
             empty: {
                 header: "No hay Hojas de Recuento.",
@@ -1853,11 +1866,19 @@ const spanishTranslation: TranslationType = {
             table: {
                 area: "Area",
                 contest: "Cotienda",
-                published: "Publicado",
+                approvedVersion: "Versión aprobada",
+                latestVersion: "Última versión",
+            },
+            versionsTable: {
+                version: "Versión",
+                createdBy: "Creado por",
+                reviewedBy: "Revisado por",
+                createdAt: "Creado el",
+                reviewedAt: "Revisado el",
             },
             message: {
-                publishError: "Error publicando la Hoja de Recuento",
-                publishSuccess: "Hoja de Recuento publicada",
+                reviewError: "Error revisando la Hoja de Recuento",
+                reviewSuccess: "Hoja de Recuento revisada",
             },
         },
         application: {

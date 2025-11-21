@@ -599,6 +599,7 @@ const catalanTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Registres",
                 approvals: "Aprovacions",
+                tallySheets: "Fulls de recompte",
             },
             gracePeriodPolicy: {
                 "label": "Política de període de gràcia",
@@ -824,7 +825,7 @@ const catalanTranslation: TranslationType = {
                 "document-download": "Descarregar Documents",
                 "tally-sheet-create": "Crear Acta de Recompte",
                 "trustee-ceremony": "Cerimònia de Fideïcomissari",
-                "tally-sheet-publish": "Publicar Acta de Recompte",
+                "tally-sheet-review": "Revisar full de recompte",
                 "tally-sheet-view": "Veure Acta de Recompte",
                 "admin-ceremony": "Administrar Cerimònia de Claus",
                 "tally-sheet-delete": "Esborrar Acta de Recompte",
@@ -1799,8 +1800,12 @@ const catalanTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnes",
+            subtitle: "Urnes digitalitzades per canal",
             createTallySuccess: "Acta de Recompte creada",
             createTallyError: "Error creant Acta de Recompte",
+            createTallyErrorSameKindExists:
+                "El full de recompte ja existeix per a aquest concurs amb el mateix canal i àrea",
             allFieldsRequired: "Tots els camps són obligatoris",
             header: {
                 change: "Canvis a Publicar",
@@ -1814,6 +1819,11 @@ const catalanTranslation: TranslationType = {
                 generate: "Regenerar",
                 publish: "Publicar Canvis",
                 back: "Enrere",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "El total de vots vàlids no coincideix amb la suma dels vots dels candidats més els vots en blanc",
+                censusTooSmall: "El cens ha de ser major o igual al total de vots",
             },
             label: {
                 area: "Àrea",
@@ -1843,10 +1853,13 @@ const catalanTranslation: TranslationType = {
                 subtitle: "Configuració de l'Acta de Recompte.",
                 candidates: "Candidats",
                 save: "Guardar",
-                publish: "Publicar",
-                unpublish: "Despublicar",
-                warningUnPublish: "Estàs segur de despublicar aquesta Acta de Recompte?",
-                warningPublish: "Estàs segur de publicar aquesta Acta de Recompte?",
+                approve: "Aprovar",
+                disapprove: "Desaprovar",
+                show: "Mostrar",
+                add: "Afegir",
+                versions: "Versions",
+                warningDisapprove: "Estàs segur de desaprovar aquest Full de Recompte?",
+                warningApprove: "Estàs segur d'aprovar aquest Full de Recompte?",
             },
             empty: {
                 header: "No hi ha Actes de Recompte.",
@@ -1862,11 +1875,19 @@ const catalanTranslation: TranslationType = {
             table: {
                 area: "Àrea",
                 contest: "Contesa",
-                published: "Publicat",
+                approvedVersion: "Versió aprovada",
+                latestVersion: "Última versió",
+            },
+            versionsTable: {
+                version: "Versió",
+                createdBy: "Creat per",
+                reviewedBy: "Revisat per",
+                createdAt: "Creat el",
+                reviewedAt: "Revisat el",
             },
             message: {
-                publishError: "Error publicant l'Acta de Recompte",
-                publishSuccess: "Acta de Recompte publicada",
+                reviewError: "Error revisant l'Acta de Recompte",
+                reviewSuccess: "Acta de Recompte revisada",
             },
         },
         application: {

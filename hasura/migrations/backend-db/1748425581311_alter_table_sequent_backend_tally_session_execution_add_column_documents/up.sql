@@ -1434,7 +1434,7 @@ alter table "sequent_backend"."support_material"
 alter table "sequent_backend"."support_material" add column "document_id" text
  null;
 
-CREATE TABLE "sequent_backend"."tally_sheet" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "tenant_id" uuid NOT NULL, "election_event_id" uuid NOT NULL, "election_id" uuid NOT NULL, "contest_id" uuid NOT NULL, "area_id" uuid NOT NULL, "created_at" timestamptz NOT NULL DEFAULT now(), "last_updated_at" timestamptz NOT NULL DEFAULT now(), "labels" jsonb, "annotations" jsonb, "published_at" timestamptz, "published_by_user_id" text, "content" jsonb, "channel" text, PRIMARY KEY ("id","tenant_id","election_event_id") , FOREIGN KEY ("tenant_id") REFERENCES "sequent_backend"."tenant"("id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("election_event_id") REFERENCES "sequent_backend"."election_event"("id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("area_id", "tenant_id", "election_event_id") REFERENCES "sequent_backend"."area"("id", "tenant_id", "election_event_id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("contest_id", "tenant_id", "election_event_id") REFERENCES "sequent_backend"."contest"("id", "tenant_id", "election_event_id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("election_id", "tenant_id", "election_event_id") REFERENCES "sequent_backend"."election"("id", "tenant_id", "election_event_id") ON UPDATE restrict ON DELETE restrict);
+CREATE TABLE "sequent_backend"."tally_sheet" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "tenant_id" uuid NOT NULL, "election_event_id" uuid NOT NULL, "election_id" uuid NOT NULL, "contest_id" uuid NOT NULL, "area_id" uuid NOT NULL, "created_at" timestamptz NOT NULL DEFAULT now(), "last_updated_at" timestamptz NOT NULL DEFAULT now(), "labels" jsonb, "annotations" jsonb, "reviewed_at" timestamptz, "reviewed_by_user_id" text, "content" jsonb, "channel" text, PRIMARY KEY ("id","tenant_id","election_event_id") , FOREIGN KEY ("tenant_id") REFERENCES "sequent_backend"."tenant"("id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("election_event_id") REFERENCES "sequent_backend"."election_event"("id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("area_id", "tenant_id", "election_event_id") REFERENCES "sequent_backend"."area"("id", "tenant_id", "election_event_id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("contest_id", "tenant_id", "election_event_id") REFERENCES "sequent_backend"."contest"("id", "tenant_id", "election_event_id") ON UPDATE restrict ON DELETE restrict, FOREIGN KEY ("election_id", "tenant_id", "election_event_id") REFERENCES "sequent_backend"."election"("id", "tenant_id", "election_event_id") ON UPDATE restrict ON DELETE restrict);
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 alter table "sequent_backend"."tally_sheet" add column "deleted_at" timestamptz
@@ -1444,6 +1444,14 @@ alter table "sequent_backend"."tally_sheet" add column "created_by_user_id" text
  null;
 
 alter table "sequent_backend"."tally_sheet" alter column "created_by_user_id" set not null;
+
+alter table "sequent_backend"."tally_sheet" alter column "status" set not null;
+alter table "sequent_backend"."tally_sheet" alter column "status" text
+ null;
+
+alter table "sequent_backend"."tally_sheet" alter column "version" integer
+ null;
+alter table "sequent_backend"."tally_sheet" alter column "version" set not null;
 
 alter table "sequent_backend"."results_area_contest_candidate" add column "cast_votes_percent" numeric
  null;
@@ -1867,3 +1875,6 @@ ALTER TABLE "sequent_backend"."document" ALTER COLUMN "size" TYPE int8;
 
 alter table "sequent_backend"."tally_session_execution" add column "documents" JSONB
  null;
+
+CREATE UNIQUE INDEX "tally_sheet_uniq_version" on
+  "sequent_backend"."tally_sheet" using btree ("tenant_id", "election_event_id", "election_id", "contest_id", "area_id", "channel", "version");

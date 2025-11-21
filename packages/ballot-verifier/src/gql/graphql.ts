@@ -1,6 +1,6 @@
 import {TypedDocumentNode as DocumentNode} from "@graphql-typed-document-node/core"
 export type Maybe<T> = T | null
-export type InputMaybe<T> = Maybe<T>
+export type InputMaybe<T> = T | null | undefined
 export type Exact<T extends {[key: string]: unknown}> = {[K in keyof T]: T[K]}
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & {[SubKey in K]?: Maybe<T[SubKey]>}
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & {[SubKey in K]: Maybe<T[SubKey]>}
@@ -23,6 +23,11 @@ export type Scalars = {
     numeric: {input: any; output: any}
     timestamptz: {input: any; output: any}
     uuid: {input: any; output: any}
+}
+
+export type AddTallySheetOutput = {
+    __typename?: "AddTallySheetOutput"
+    tally_sheet_id: Scalars["String"]["output"]
 }
 
 export type Aggregate = {
@@ -772,11 +777,6 @@ export type PublishBallotOutput = {
     ballot_publication_id: Scalars["uuid"]["output"]
 }
 
-export type PublishTallyOutput = {
-    __typename?: "PublishTallyOutput"
-    tally_sheet_id?: Maybe<Scalars["uuid"]["output"]>
-}
-
 export type RenderDocumentPdfOutput = {
     __typename?: "RenderDocumentPDFOutput"
     document_id?: Maybe<Scalars["String"]["output"]>
@@ -879,6 +879,28 @@ export type String_Comparison_Exp = {
     _regex?: InputMaybe<Scalars["String"]["input"]>
     /** does the column match the given SQL regular expression */
     _similar?: InputMaybe<Scalars["String"]["input"]>
+}
+
+export type TallySheetOutput = {
+    __typename?: "TallySheetOutput"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    area_id: Scalars["String"]["output"]
+    channel?: Maybe<Scalars["String"]["output"]>
+    content?: Maybe<Scalars["jsonb"]["output"]>
+    contest_id: Scalars["String"]["output"]
+    created_at?: Maybe<Scalars["String"]["output"]>
+    created_by_user_id?: Maybe<Scalars["String"]["output"]>
+    deleted_at?: Maybe<Scalars["String"]["output"]>
+    election_event_id: Scalars["String"]["output"]
+    election_id: Scalars["String"]["output"]
+    id: Scalars["String"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    last_updated_at?: Maybe<Scalars["String"]["output"]>
+    reviewed_at?: Maybe<Scalars["String"]["output"]>
+    reviewed_by_user_id?: Maybe<Scalars["String"]["output"]>
+    status: Scalars["String"]["output"]
+    tenant_id: Scalars["String"]["output"]
+    version: Scalars["Int"]["output"]
 }
 
 export type TotalAggregate = {
@@ -1051,6 +1073,8 @@ export type Mutation_Root = {
     ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>
     /** Verify User Registration Application */
     VerifyApplication: Scalars["String"]["output"]
+    /** add_tally_sheet_version */
+    add_tally_sheet_version?: Maybe<AddTallySheetOutput>
     /** check private key */
     check_private_key?: Maybe<CheckPrivateKeyOutput>
     /** create scheduled event */
@@ -1060,6 +1084,8 @@ export type Mutation_Root = {
     create_election?: Maybe<CreateElectionOutput>
     /** create keys ceremony */
     create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>
+    /** create_new_tally_sheet */
+    create_new_tally_sheet?: Maybe<TallySheetOutput>
     create_permission?: Maybe<KeycloakPermission>
     create_role: KeycloakRole
     create_tally_ceremony?: Maybe<CreateTallyOutput>
@@ -1405,10 +1431,10 @@ export type Mutation_Root = {
     manage_election_dates?: Maybe<ManageElectionDatesOutput>
     prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>
     publish_ballot?: Maybe<PublishBallotOutput>
-    /** publish_tally_sheet */
-    publish_tally_sheet?: Maybe<PublishTallyOutput>
     render_document_pdf?: Maybe<RenderDocumentPdfOutput>
     restore_private_key?: Maybe<RestorePrivateKeyOutput>
+    /** review_tally_sheet */
+    review_tally_sheet?: Maybe<TallySheetOutput>
     send_transmission_package?: Maybe<OptionalId>
     set_custom_urls?: Maybe<SetCustomUrlsOutput>
     set_role_permission?: Maybe<SetRolePermissionOutput>
@@ -1718,6 +1744,13 @@ export type Mutation_RootVerifyApplicationArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootAdd_Tally_Sheet_VersionArgs = {
+    election_event_id: Scalars["String"]["input"]
+    old_version: Scalars["Int"]["input"]
+    tally_sheet_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootCheck_Private_KeyArgs = {
     object: CheckPrivateKeyInput
 }
@@ -1752,6 +1785,15 @@ export type Mutation_RootCreate_ElectionArgs = {
 /** mutation root */
 export type Mutation_RootCreate_Keys_CeremonyArgs = {
     object: CreateKeysCeremonyInput
+}
+
+/** mutation root */
+export type Mutation_RootCreate_New_Tally_SheetArgs = {
+    area_id: Scalars["String"]["input"]
+    channel: Scalars["String"]["input"]
+    content: Scalars["jsonb"]["input"]
+    contest_id: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -2943,13 +2985,6 @@ export type Mutation_RootPublish_BallotArgs = {
 }
 
 /** mutation root */
-export type Mutation_RootPublish_Tally_SheetArgs = {
-    election_event_id: Scalars["uuid"]["input"]
-    publish?: InputMaybe<Scalars["Boolean"]["input"]>
-    tally_sheet_id: Scalars["uuid"]["input"]
-}
-
-/** mutation root */
 export type Mutation_RootRender_Document_PdfArgs = {
     document_id: Scalars["uuid"]["input"]
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -2959,6 +2994,13 @@ export type Mutation_RootRender_Document_PdfArgs = {
 /** mutation root */
 export type Mutation_RootRestore_Private_KeyArgs = {
     object: RestorePrivateKeyInput
+}
+
+/** mutation root */
+export type Mutation_RootReview_Tally_SheetArgs = {
+    election_event_id: Scalars["String"]["input"]
+    new_status: Scalars["String"]["input"]
+    tally_sheet_id: Scalars["String"]["input"]
 }
 
 /** mutation root */

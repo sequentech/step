@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {Show} from "react-admin"
+
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",
@@ -597,6 +599,7 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
                 approvals: "Approvals",
+                tallySheets: "Tally Sheets",
             },
             gracePeriodPolicy: {
                 "label": "Grace Period Policy",
@@ -821,7 +824,7 @@ const englishTranslation = {
                 "document-download": "Download Documents",
                 "tally-sheet-create": "Create Tally Sheet",
                 "trustee-ceremony": "Trustee Ceremony",
-                "tally-sheet-publish": "Publish Tally Sheet",
+                "tally-sheet-review": "Review Tally Sheet",
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
@@ -1775,8 +1778,12 @@ const englishTranslation = {
             },
         },
         tallysheet: {
+            title: "Ballot boxes",
+            subtitle: "Digitalized ballot boxes by channel",
             createTallySuccess: "Tally Sheet saved",
             createTallyError: "Error saving Tally Sheet",
+            createTallyErrorSameKindExists:
+                "Tally Sheet already exists for this contest with the same channel and area",
             allFieldsRequired: "All fields are required",
             header: {
                 change: "Changes to be Published",
@@ -1790,6 +1797,11 @@ const englishTranslation = {
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
+                censusTooSmall: "Census must be greater or equal than the total votes",
             },
             label: {
                 area: "Area",
@@ -1819,10 +1831,13 @@ const englishTranslation = {
                 subtitle: "Tally Sheet configuration.",
                 candidates: "Candidates",
                 save: "Save",
-                publish: "Publish",
-                unpublish: "Unpublish",
-                warningUnPublish: "Are you sure tu unpublish this Tally Sheet?",
-                warningPublish: "Are you sure tu publish this Tally Sheet?",
+                approve: "Approve",
+                disapprove: "Disapprove",
+                show: "Show",
+                add: "Add",
+                versions: "Versions",
+                warningDisapprove: "Are you sure to disapprove this Tally Sheet?",
+                warningApprove: "Are you sure to approve this Tally Sheet?",
             },
             empty: {
                 header: "No Tally Sheet Yet.",
@@ -1838,11 +1853,19 @@ const englishTranslation = {
             table: {
                 area: "Area",
                 contest: "Contest",
-                published: "Published",
+                approvedVersion: "Approved version",
+                latestVersion: "Latest version",
+            },
+            versionsTable: {
+                version: "Version",
+                createdBy: "Created by",
+                reviewedBy: "Reviewed by",
+                createdAt: "Created at",
+                reviewedAt: "Reviewed at",
             },
             message: {
-                publishError: "Error publishing tally sheet",
-                publishSuccess: "Tally sheet published",
+                reviewError: "Error reviewing tally sheet",
+                reviewSuccess: "Tally sheet reviewed",
             },
         },
         application: {

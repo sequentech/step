@@ -598,6 +598,7 @@ const tagalogTranslation: TranslationType = {
                 publish: "I-publish",
                 logs: "Mga Log",
                 approvals: "Approvals",
+                tallySheets: "Mga Talaksahan",
             },
             gracePeriodPolicy: {
                 "label": "Patakaran sa Palugit",
@@ -824,7 +825,7 @@ const tagalogTranslation: TranslationType = {
                 "document-download": "I-download ang Mga Dokumento",
                 "tally-sheet-create": "Lumikha ng Tally Sheet",
                 "trustee-ceremony": "Seremonya ng Tagapangasiwa",
-                "tally-sheet-publish": "I-publish ang Tally Sheet",
+                "tally-sheet-review": "Suriin ang Tally Sheet",
                 "tally-sheet-view": "Tingnan ang Tally Sheet",
                 "admin-ceremony": "Seremonya ng Admin",
                 "tally-sheet-delete": "Tanggalin ang Tally Sheet",
@@ -1791,8 +1792,12 @@ const tagalogTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Mga Kahon ng Balota",
+            subtitle: "Digitalized na mga kahon ng balota ayon sa channel",
             createTallySuccess: "Na-save ang Tally Sheet",
             createTallyError: "Error sa pag-save ng Tally Sheet",
+            createTallyErrorSameKindExists:
+                "Ang Tally Sheet ay umiiral na para sa paligsahang ito na may parehong channel at lugar",
             allFieldsRequired: "Lahat ng mga patlang ay kinakailangan",
             header: {
                 change: "Mga Pagbabago na Ipinapublish",
@@ -1806,6 +1811,12 @@ const tagalogTranslation: TranslationType = {
                 generate: "I-regenerate",
                 publish: "I-publish ang mga Pagbabago",
                 back: "Bumalik",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato at mga blangkong boto",
+                censusTooSmall:
+                    "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
             },
             label: {
                 area: "Lugar",
@@ -1835,10 +1846,13 @@ const tagalogTranslation: TranslationType = {
                 subtitle: "Pag-configure ng Tally Sheet.",
                 candidates: "Mga Kandidato",
                 save: "I-save",
-                publish: "I-publish",
-                unpublish: "I-unpublish",
-                warningUnPublish: "Sigurado ka bang i-unpublish ang Tally Sheet na ito?",
-                warningPublish: "Sigurado ka bang i-publish ang Tally Sheet na ito?",
+                approve: "Aprubahan",
+                disapprove: "Hindi aprubahan",
+                show: "Ipakita",
+                add: "Idagdag",
+                versions: "Mga bersyon",
+                warningDisapprove: "Sigurado ka bang hindi aprubahan ang Tally Sheet na ito?",
+                warningApprove: "Sigurado ka bang aprubahan ang Tally Sheet na ito?",
             },
             empty: {
                 header: "Walang Tally Sheet Pa.",
@@ -1854,11 +1868,19 @@ const tagalogTranslation: TranslationType = {
             table: {
                 area: "Lugar",
                 contest: "Paligsahan",
-                published: "Na-publish",
+                approvedVersion: "Inaprubahang bersyon",
+                latestVersion: "Pinakabagong bersyon",
+            },
+            versionsTable: {
+                version: "Bersyon",
+                createdBy: "Ginawa ni",
+                reviewedBy: "Na-review ni",
+                createdAt: "Ginawa noong",
+                reviewedAt: "Na-review noong",
             },
             message: {
-                publishError: "Error sa pag-publish ng tally sheet",
-                publishSuccess: "Na-publish ang tally sheet",
+                reviewError: "Error sa pag-review ng tally sheet",
+                reviewSuccess: "Na-review ang tally sheet",
             },
         },
         application: {

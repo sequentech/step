@@ -296,12 +296,15 @@ pub struct TallySheet {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub published_at: Option<DateTime<Local>>,
-    pub published_by_user_id: Option<String>,
+    pub reviewed_at: Option<DateTime<Local>>,
+    pub reviewed_by_user_id: Option<String>,
     pub content: Option<AreaContestResults>,
     pub channel: Option<String>,
-    pub deleted_at: Option<DateTime<Local>>,
+    pub deleted_at: Option<DateTime<Local>>, /* Mark as deleted when a new
+                                              * version is created. */
     pub created_by_user_id: String,
+    pub status: String,
+    pub version: i32,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

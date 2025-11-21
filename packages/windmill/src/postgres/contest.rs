@@ -149,23 +149,24 @@ pub async fn get_contest_by_id(
     tenant_id: &str,
     election_event_id: &str,
     contest_id: &str,
-) -> Result<Contest> {
+) -> Result<Option<Contest>> {
     let statement = hasura_transaction
         .prepare(
             r#"
-                SELECT *
+                SELECT
+                    *
                 FROM
                     sequent_backend.contest
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2;
-                    contest_id = $3;
+                    election_event_id = $2 AND
+                    id = $3;
             "#,
         )
         .await?;
 
-    let row: Option<Row> = hasura_transaction
-        .query_opt(
+    let rows: Vec<Row> = hasura_transaction
+        .query(
             &statement,
             &[
                 &Uuid::parse_str(tenant_id)?,
@@ -175,14 +176,15 @@ pub async fn get_contest_by_id(
         )
         .await?;
 
-    if let Some(row) = row {
-        let contest: Contest = row
-            .try_into()
-            .map(|res: ContestWrapper| -> Contest { res.0 })?;
-        Ok(contest as Contest)
-    } else {
-        Err(anyhow::anyhow!("No contest found with the provided id"))
-    }
+    let elements: Vec<Contest> = rows
+        .into_iter()
+        .map(|row| -> Result<Contest> {
+            row.try_into()
+                .map(|res: ContestWrapper| -> Contest { res.0 })
+        })
+        .collect::<Result<Vec<Contest>>>()?;
+
+    Ok(elements.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]

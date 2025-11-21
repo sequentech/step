@@ -2029,3 +2029,5 @@ DROP TABLE "sequent_backend"."event";
 DROP TABLE "sequent_backend"."tenant";
 
 drop schema "sequent_backend" cascade;
+
+DROP INDEX IF EXISTS "sequent_backend"."tally_sheet_uniq_channel";

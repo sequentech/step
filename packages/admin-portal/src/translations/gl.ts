@@ -598,6 +598,7 @@ const galegoTranslation: TranslationType = {
                 publish: "Publicar",
                 logs: "Rexistros",
                 approvals: "Aprobacións",
+                tallySheets: "Follas de recuento",
             },
             gracePeriodPolicy: {
                 "label": "Política de Período de Gracia",
@@ -823,7 +824,7 @@ const galegoTranslation: TranslationType = {
                 "document-download": "Descargar Documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "trustee-ceremony": "Ceremonia de Fideicomisario",
-                "tally-sheet-publish": "Publicar Acta de Recuento",
+                "tally-sheet-review": "Revisar folla de reconto",
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
@@ -1790,8 +1791,12 @@ const galegoTranslation: TranslationType = {
             },
         },
         tallysheet: {
+            title: "Urnas",
+            subtitle: "Urnas dixitalizadas por canal",
             createTallySuccess: "Acta de Escrutinio gardada",
             createTallyError: "Erro ao gardar a Acta de Escrutinio",
+            createTallyErrorSameKindExists:
+                "A folla de reconto xa existe para este concurso co mesmo canal e área",
             allFieldsRequired: "Todos os campos son obrigatorios",
             header: {
                 change: "Cambios a Publicar",
@@ -1805,6 +1810,11 @@ const galegoTranslation: TranslationType = {
                 generate: "Rexenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",
+            },
+            inputError: {
+                totalValidDoesNotMatch:
+                    "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
+                censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
             },
             label: {
                 area: "Área",
@@ -1834,11 +1844,13 @@ const galegoTranslation: TranslationType = {
                 subtitle: "Configuración da Acta de Escrutinio.",
                 candidates: "Candidatos",
                 save: "Gardar",
-                publish: "Publicar",
-                unpublish: "Despublicar",
-                warningUnPublish:
-                    "¿Estás seguro de que queres despublicar esta Acta de Escrutinio?",
-                warningPublish: "¿Estás seguro de que queres publicar esta Acta de Escrutinio?",
+                approve: "Aprobar",
+                disapprove: "Desaprobar",
+                show: "Amosar",
+                add: "Engadir",
+                versions: "Versións",
+                warningDisapprove: "Está seguro de desaprobar esta Folla de Reconto?",
+                warningApprove: "Está seguro de aprobar esta Folla de Reconto?",
             },
             empty: {
                 header: "Aínda non hai Acta de Escrutinio.",
@@ -1854,11 +1866,19 @@ const galegoTranslation: TranslationType = {
             table: {
                 area: "Área",
                 contest: "Concurso",
-                published: "Publicado",
+                approvedVersion: "Versión aprobada",
+                latestVersion: "Última versión",
+            },
+            versionsTable: {
+                version: "Versión",
+                createdBy: "Creado por",
+                reviewedBy: "Revisado por",
+                createdAt: "Creado o",
+                reviewedAt: "Revisado o",
             },
             message: {
-                publishError: "Erro ao publicar a acta de escrutinio",
-                publishSuccess: "Acta de escrutinio publicada",
+                reviewError: "Erro ao revisar a acta de escrutinio",
+                reviewSuccess: "Acta de escrutinio revisada",
             },
         },
         application: {

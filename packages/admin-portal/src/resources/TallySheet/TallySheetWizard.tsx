@@ -6,16 +6,23 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {Identifier, Notification, useGetOne, useNotify} from "react-admin"
+import {Identifier, Notification, useGetList, useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {
     Sequent_Backend_Contest,
+    Sequent_Backend_Election,
     Sequent_Backend_Tally_Sheet,
     Sequent_Backend_Tally_Sheet_Insert_Input,
+    CreateNewTallySheetMutation,
+    AddTallySheetVersionMutation,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {EditTallySheet} from "./EditTallySheet"
 import {ShowTallySheet} from "./ShowTallySheet"
+import {useMutation} from "@apollo/client"
+import {CREATE_NEW_TALLY_SHEET} from "@/queries/createNewTallySheet"
+import {ADD_TALLY_SHEET_VERSION} from "@/queries/addTallySheetVersion"
+import {IPermissions} from "@/types/keycloak"
 
 export const WizardSteps = {
     List: -1,
@@ -27,14 +34,14 @@ export const WizardSteps = {
 
 interface TallySheetWizardProps {
     tallySheetId?: Identifier | undefined
-    contest: Sequent_Backend_Contest
+    election: Sequent_Backend_Election
     action: number
     doAction: (action: number, id?: Identifier) => void
 }
 
 export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
-    const {action, contest, tallySheetId, doAction} = props
-
+    const {action, election: election, tallySheetId, doAction} = props
+    console.log("tallySheetId: ", tallySheetId)
     const submitRef = React.useRef<HTMLButtonElement>(null)
     const notify = useNotify()
 
@@ -48,14 +55,74 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         Sequent_Backend_Tally_Sheet | undefined
     >()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(false)
+    const [choosenContest, setChoosenContest] = useState<Sequent_Backend_Contest | undefined>()
 
-    const {data: tallySheet} = useGetOne("sequent_backend_tally_sheet", {id: tallySheetId})
+    const {data: tallySheet} = useGetOne<Sequent_Backend_Tally_Sheet>(
+        "sequent_backend_tally_sheet",
+        {id: tallySheetId},
+        {enabled: !!tallySheetId}
+    )
+
+    const {data: contest} = useGetOne<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {id: tallySheet?.contest_id},
+        {enabled: !!tallySheet}
+    )
+
+    const {data: listTallySheets} = useGetList<Sequent_Backend_Tally_Sheet>(
+        "sequent_backend_tally_sheet",
+        {filter: {contest_id: election.id}},
+        {enabled: !!election.id}
+    )
+
+    const [CreateNewTallySheet] = useMutation<CreateNewTallySheetMutation>(CREATE_NEW_TALLY_SHEET, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.TALLY_SHEET_CREATE,
+            },
+        },
+    })
 
     useEffect(() => {
         if (action) {
             setPage(action)
         }
     }, [action])
+
+    useEffect(() => {
+        if (contest) {
+            setChoosenContest(contest)
+        }
+    }, [contest])
+
+    const insertTallySheetAction = async () => {
+        try {
+            const tallySheetString = localStorage.getItem("tallySheetData")
+            if (!tallySheetString) {
+                return
+            }
+            const tallySheetData: Sequent_Backend_Tally_Sheet_Insert_Input =
+                JSON.parse(tallySheetString)
+            let {errors} = await CreateNewTallySheet({
+                variables: {
+                    electionEventId: tallySheetData.election_event_id,
+                    channel: tallySheetData.channel,
+                    content: tallySheetData.content,
+                    contestId: tallySheetData.contest_id,
+                    areaId: tallySheetData.area_id,
+                },
+            })
+            if (errors) {
+                notify(t("tallysheet.createTallyError"), {type: "error"})
+                console.log(`Error creating tally sheet: ${errors}`)
+            } else {
+                notify(t("tallysheet.createTallySuccess"), {type: "success"})
+            }
+        } catch (error) {
+            notify(t("tallysheet.createTallyError"), {type: "error"})
+            console.log(`Error creating tally sheet: ${error}`)
+        }
+    }
 
     const handleNext = () => {
         if (page === WizardSteps.Start || page === WizardSteps.Edit) {
@@ -70,7 +137,8 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 }
             }, 400)
         } else if (page === WizardSteps.Confirm) {
-            submitRef.current?.click()
+            console.log("confirmed: ", tallySheetId, tallySheet) // ITs undefined when adding a new one.
+            insertTallySheetAction()
             doAction(WizardSteps.List)
         }
     }
@@ -93,6 +161,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }
 
+    console.log("page: ", page)
     return (
         <>
             <WizardStyles.WizardWrapper>
@@ -113,7 +182,9 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 {page === WizardSteps.Start && (
                     <>
                         <EditTallySheet
-                            contest={contest}
+                            election={election}
+                            choosenContest={choosenContest}
+                            setChoosenContest={setChoosenContest}
                             doSelectArea={(id: Identifier) => setAreaId(id)}
                             doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
@@ -121,50 +192,55 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                                 setCreatedTallySheet(tallySheet)
                             }}
                             submitRef={submitRef}
+                            setIsButtonDisabled={setIsButtonDisabled}
                         />
                     </>
                 )}
-
-                {page === WizardSteps.Edit && (
+                {page === WizardSteps.Edit && (choosenContest || tallySheet) && (
                     <>
-                        <EditTallySheet
+                        <EditTallySheet // TODO: EditTallySheet will keep the business logic for entering the results and calculations. But the area/contest/channel selection should be done on a separate component
                             tallySheet={tallySheet}
-                            contest={contest}
+                            election={election}
+                            choosenContest={choosenContest}
+                            setChoosenContest={setChoosenContest}
                             doCreatedTalySheet={(
                                 tallySheet: Sequent_Backend_Tally_Sheet_Insert_Input
                             ) => {
                                 setCreatedTallySheet(tallySheet)
                             }}
                             submitRef={submitRef}
+                            setIsButtonDisabled={setIsButtonDisabled}
                         />
                     </>
                 )}
 
-                {page === WizardSteps.Confirm && (
-                    <>
-                        <ShowTallySheet
-                            tallySheet={createdTallySheet || tallySheet}
-                            contest={contest}
-                            doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
-                                setEditedTallySheet(tallySheet)
-                            }
-                            submitRef={submitRef}
-                        />
-                    </>
-                )}
+                {page === WizardSteps.Confirm &&
+                    choosenContest /* TODO: check if this is necessary*/ && (
+                        <>
+                            <ShowTallySheet
+                                tallySheet={createdTallySheet || tallySheet}
+                                contest={choosenContest}
+                                doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
+                                    setEditedTallySheet(tallySheet)
+                                }
+                                submitRef={submitRef}
+                            />
+                        </>
+                    )}
 
-                {page === WizardSteps.View && (
-                    <>
-                        <ShowTallySheet
-                            tallySheet={tallySheet}
-                            contest={contest}
-                            doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
-                                setEditedTallySheet(tallySheet)
-                            }
-                            submitRef={submitRef}
-                        />
-                    </>
-                )}
+                {page === WizardSteps.View &&
+                    choosenContest /* TODO: check if this is necessary*/ && (
+                        <>
+                            <ShowTallySheet
+                                tallySheet={tallySheet}
+                                contest={choosenContest}
+                                doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
+                                    setEditedTallySheet(tallySheet)
+                                }
+                                submitRef={submitRef}
+                            />
+                        </>
+                    )}
 
                 <TallyStyles.StyledFooter>
                     <CancelButton className="list-actions" onClick={handleBack}>
