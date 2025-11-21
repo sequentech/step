@@ -35,7 +35,7 @@ export const TallyStyles = {
         bottom: 0;
         background-color: ${({theme}) => theme.palette.background.default};
         box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
-        z-index: 10;  // Renders the footer on top of other content, avoids transparency issues
+        z-index: 10; // Renders the footer on top of other content, avoids transparency issues
     `,
     StyledFooter: styled("div")`
         max-width: 1280px;
