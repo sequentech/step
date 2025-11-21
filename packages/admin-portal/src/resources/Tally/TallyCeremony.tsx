@@ -147,7 +147,7 @@ export const TallyCeremony: React.FC = () => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
-    const allowTallyCeremonyCreation = useRef<boolean>(true)
+    const allowTallyCeremonyCreation = useRef<boolean>(false)
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
@@ -493,6 +493,11 @@ export const TallyCeremony: React.FC = () => {
         )
     }, [elections, tallySession])
 
+    useMemo(() => {
+        allowTallyCeremonyCreation.current =
+            tally?.execution_status === undefined && page === WizardSteps.Start
+    }, [tally, page])
+
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
             let isStartAllowed =
@@ -590,7 +595,7 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    const confirmStartAction = async () => {
+    const createCeremonyAction = async () => {
         try {
             setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
@@ -616,7 +621,6 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
         } finally {
-            allowTallyCeremonyCreation.current = true
             refetch()
         }
     }
@@ -1229,7 +1233,7 @@ export const TallyCeremony: React.FC = () => {
                     if (result) {
                         if (allowTallyCeremonyCreation.current) {
                             allowTallyCeremonyCreation.current = false
-                            confirmStartAction() // Creates the ceremony
+                            createCeremonyAction() // Creates the ceremony
                         }
                     } else {
                         setIsButtonDisabled(false)
