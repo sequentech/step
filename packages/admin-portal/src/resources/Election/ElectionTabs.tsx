@@ -76,6 +76,66 @@ const ApprovalsTab: React.FC = () => {
     )
 }
 
+const TallySheetsTab: React.FC = () => {
+    const [action, setAction] = useState<number>(WizardSteps.List)
+    const [refresh, setRefresh] = useState<string | null>(null)
+    const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
+    const electionRecord = useRecordContext<Sequent_Backend_Election>()
+    const {t} = useTranslation()
+
+    const handleAction = (action: number, id?: Identifier) => {
+        setAction(action)
+        setRefresh(new Date().getTime().toString())
+        if (id) {
+            setTallySheetId(id)
+        }
+    }
+
+    if (!electionRecord) {
+        return null
+    }
+
+    return (
+        <Suspense fallback={<div>Loading Tally Sheets...</div>}>
+            <ElectionHeader title={t("tallysheet.title")} subtitle="tallysheet.subtitle" />
+            {action === WizardSteps.List ? (
+                <ListTallySheet
+                    election={electionRecord}
+                    doAction={handleAction}
+                    reload={refresh}
+                />
+            ) : action === WizardSteps.Start ? (
+                <TallySheetWizard
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : action === WizardSteps.Edit ? (
+                <TallySheetWizard
+                    tallySheetId={tallySheetId}
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : action === WizardSteps.Confirm ? (
+                <TallySheetWizard
+                    tallySheetId={tallySheetId}
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : action === WizardSteps.View ? (
+                <TallySheetWizard
+                    tallySheetId={tallySheetId}
+                    election={electionRecord}
+                    action={action}
+                    doAction={handleAction}
+                />
+            ) : null}
+        </Suspense>
+    )
+}
+
 // ---------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------
@@ -86,19 +146,7 @@ export const ElectionTabs: React.FC = () => {
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
-    const [action, setAction] = useState<number>(WizardSteps.List)
-    const [refresh, setRefresh] = useState<string | null>(null)
-    const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
-    // const contestRecord = useRecordContext<Sequent_Backend_Contest>()
 
-    const handleAction = (action: number, id?: Identifier) => {
-        setAction(action)
-        setRefresh(new Date().getTime().toString())
-        if (id) {
-            setTallySheetId(id)
-        }
-        console.log("id: ", id)
-    }
     const isElectionEventLocked =
         electionRecord?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
 
@@ -130,6 +178,12 @@ export const ElectionTabs: React.FC = () => {
     const showApprovalsExecution =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_APPROVALS_TAB)
+
+    const showTallySheets = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TALLY_SHEET_VIEW
+    )
 
     // Permission label check
     useEffect(() => {
@@ -190,10 +244,17 @@ export const ElectionTabs: React.FC = () => {
             })
         }
 
+        if (showTallySheets) {
+            result.push({
+                label: t("electionScreen.tabs.tallySheets"),
+                component: TallySheetsTab,
+            })
+        }
+
         return result
     }, [showDashboard, showData, showVoters, showPublish, showApprovalsExecution, t])
 
-    if (!record || !hasPermissionToViewElection) {
+    if (!electionRecord || !hasPermissionToViewElection) {
         return (
             <ResourceListStyles.EmptyBox>
                 <Typography variant="h4" paragraph>
@@ -221,107 +282,11 @@ export const ElectionTabs: React.FC = () => {
                 }
                 subtitle="electionScreen.common.subtitle"
             />
-
-            {/* FIX MERGE CONFLICT */}
-            {/* <Box sx={{bgcolor: "background.paper"}}>
-                <RecordContextProvider value={record}>
+            <Box sx={{bgcolor: "background.paper"}}>
+                <RecordContextProvider value={electionRecord}>
                     <Tabs elements={tabs} />
                 </RecordContextProvider>
-            </Box> */}
-
-            <Tabs
-                elements={[
-                    ...(showDashboard
-                        ? [
-                              {
-                                  label: t("electionScreen.tabs.dashboard"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                          <DashboardElection />
-                                      </Suspense>
-                                  ),
-                              },
-                          ]
-                        : []),
-                    ...(showMonitoringDashboard
-                        ? [
-                              {
-                                  label: t("electionScreen.tabs.monitoring"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Dashboard...</div>}>
-                                          <MonitoringDashboardElection />
-                                      </Suspense>
-                                  ),
-                              },
-                          ]
-                        : []),
-                    ...(showData
-                        ? [
-                              {
-                                  label: t("electionScreen.tabs.data"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Data...</div>}>
-                                          <EditElectionData />
-                                      </Suspense>
-                                  ),
-                              },
-                          ]
-                        : []),
-                    ...(showVoters
-                        ? [
-                              {
-                                  label: t("electionScreen.tabs.voters"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Voters...</div>}>
-                                          <EditElectionEventUsers
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
-                                          />
-                                      </Suspense>
-                                  ),
-                              },
-                          ]
-                        : []),
-                    ...(showPublish
-                        ? [
-                              {
-                                  label: t("electionScreen.tabs.publish"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Publish...</div>}>
-                                          <Publish
-                                              key={tabKey}
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
-                                              type={EPublishType.Election}
-                                          />
-                                      </Suspense>
-                                  ),
-                                  action: (index: number) => {
-                                      localStorage.setItem(
-                                          "electionPublishTabIndex",
-                                          index.toString()
-                                      )
-                                  },
-                              },
-                          ]
-                        : []),
-                    ...(showApprovalsExecution
-                        ? [
-                              {
-                                  label: t("electionScreen.tabs.approvals"),
-                                  component: () => (
-                                      <Suspense fallback={<div>Loading Approvals...</div>}>
-                                          <EditElectionEventApprovals
-                                              electionEventId={record?.election_event_id}
-                                              electionId={record?.id}
-                                          />
-                                      </Suspense>
-                                  ),
-                              },
-                          ]
-                        : []),
-                ]}
-            />
+            </Box>
         </Box>
     )
 }

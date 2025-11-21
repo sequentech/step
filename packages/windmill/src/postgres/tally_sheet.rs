@@ -16,8 +16,6 @@ use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::reports::status;
-
 pub struct TallySheetWrapper(pub TallySheet);
 
 impl TryFrom<Row> for TallySheetWrapper {
