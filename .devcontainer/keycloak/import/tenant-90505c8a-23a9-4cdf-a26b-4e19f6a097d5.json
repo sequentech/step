@@ -1059,24 +1059,6 @@
         "attributes": {}
       },
       {
-        "id": "3f9f2af5-3435-4316-a309-7f304b778d71",
-        "name": "monitoring-dashboard-view-election",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
-        "id": "840c84e4-e684-4615-8e01-719d66bef9d7",
-        "name": "monitoring-dashboard-view-election-event",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "3edaf58a-d406-4005-909b-0b941dae9107",
         "name": "notification-read",
         "description": "",
@@ -1430,6 +1412,15 @@
       {
         "id": "57a42bb2-2db5-4022-a5ba-d5e8982a9e42",
         "name": "support-material-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "271e6394-2000-4dfc-99cc-8960aba46339",
+        "name": "google-meet-link",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2185,8 +2176,6 @@
       "attributes": {},
       "realmRoles": [
         "user-import",
-        "monitoring-dashboard-view-election-event",
-        "monitoring-dashboard-view-election",
         "monitor-authenticated-voters",
         "monitor-all-approve-disapprove-voters",
         "monitor-automatic-approve-disapprove-voters",
@@ -2280,6 +2269,7 @@
         "report-write",
         "communication-template-write",
         "cast-vote-read",
+        "google-meet-link",
         "tally-results-read",
         "settings-voting-channels-tab",
         "tenant-read",

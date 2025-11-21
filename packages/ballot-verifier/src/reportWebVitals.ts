@@ -1,16 +1,16 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ReportHandler} from "web-vitals"
+import {MetricType} from "web-vitals"
 
-const reportWebVitals = (onPerfEntry?: ReportHandler) => {
+const reportWebVitals = (onPerfEntry?: (metric: MetricType) => void) => {
     if (onPerfEntry && onPerfEntry instanceof Function) {
-        import("web-vitals").then(({getCLS, getFID, getFCP, getLCP, getTTFB}) => {
-            getCLS(onPerfEntry)
-            getFID(onPerfEntry)
-            getFCP(onPerfEntry)
-            getLCP(onPerfEntry)
-            getTTFB(onPerfEntry)
+        import("web-vitals").then(({onCLS, onINP, onFCP, onLCP, onTTFB}) => {
+            onCLS(onPerfEntry)
+            onINP(onPerfEntry)
+            onFCP(onPerfEntry)
+            onLCP(onPerfEntry)
+            onTTFB(onPerfEntry)
         })
     }
 }

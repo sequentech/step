@@ -81,7 +81,9 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Esportatu Maizter Konfigurazioa",
                 IMPORT_TENANT_CONFIG: "Inportatu Maizter Konfigurazioa",
                 RENDER_DOCUMENT_PDF: "Errendatu Dokumentu PDFa",
+                DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
+                EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -106,6 +108,18 @@ const basqueTranslation: TranslationType = {
             empty: {
                 header: "Ez dago Eremurik oraindik.",
                 action: "Sortu Eremua",
+            },
+            formImputs: {
+                allowEarlyVoting: "Onartu Goiztiarra Bozketa",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Zerbitzu Kontu Giltza",
+                gapiEmail: "Google Calendar Autentifikazio Helbide Elektronikoa",
+            },
+            errors: {
+                invalidGapiKey: "Google Calendar Zerbitzu Kontu Giltza formatu baliogabea",
             },
         },
         lookAndFeelScreen: {
@@ -145,6 +159,7 @@ const basqueTranslation: TranslationType = {
                 templates: "TXANTILOIAK",
                 languages: "HIZKUNTZAK",
                 localization: "LOKALIZAZIOA",
+                integrations: "Integrazioak",
                 lookAndFeel: "Itxura eta Sentimendua",
                 schedules: "PROGRAMATUTAKO GERTAERAK",
                 trustees: "FIDEIKOMISARIOAK",
@@ -282,6 +297,13 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                showCastVoteLogs: {
+                    policyLabel: "Erakutsi Logs Bozketa Taba",
+                    options: {
+                        "show-logs-tab": "Erakutsi Logs Bozketa Taba",
+                        "hide-logs-tab": "Ez Erakutsi Logs Bozketa Taba",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Blokeo Egoera",
                     options: {
@@ -328,6 +350,20 @@ const basqueTranslation: TranslationType = {
                     options: {
                         enabled: "Gaituta",
                         disabled: "Desgaituta",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Giltza/Zenbaketa zeremonien politika",
+                    options: {
+                        "automated-ceremonies": "Zeremonia automatikoak baimendu",
+                        "manual-ceremonies": "Eskuzko zeremoniak",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Bozketa Ponderatuaren Politika",
+                    options: {
+                        "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
                 },
             },
@@ -880,9 +916,6 @@ const basqueTranslation: TranslationType = {
                 "report-delete": "Ezabatu Txostena",
                 "report-generate": "Sortu Txostena",
                 "report-preview": "Aurreikusi Txostena",
-                "monitoring-dashboard-view-election-event":
-                    "Hauteskunde Gertaera Monitorizazio Panela Ikusi",
-                "monitoring-dashboard-view-election": "Hauteskunde Monitorizazio Panela Ikusi",
                 "monitor-authenticated-voters": "Monitorizatu Autentifikatutako Bozkatzaileak",
                 "monitor-all-approve-disapprove-voters":
                     "Irakurri Monitorizazio Onartu Ezarri Bozkatzaileak",
@@ -937,6 +970,7 @@ const basqueTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editatu bozkatzaileen email/telefono eremuak",
                 "cloudflare-write": "Editatu Herrialde Blokeo Arauak Cloudflare-n",
                 "transmission-report-generate": "Sortu Transmisio Txostena",
+                "google-meet-link": "Google Meet Esteka Sortu",
             },
         },
         generalSettingsScreen: {
@@ -1006,7 +1040,6 @@ const basqueTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                VOTE_RECEIPT: "Boto Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
@@ -1062,6 +1095,25 @@ const basqueTranslation: TranslationType = {
                 edit: "Editatu",
                 preview: "Aurreikusi",
             },
+        },
+        googleMeet: {
+            title: "Google Meet Esteka Sortu",
+            generateButton: "Google Meet",
+            meetingTitle: "Bileraren Izenburua",
+            description: "Deskribapena (Aukerakoa)",
+            startDate: "Hasiera Data",
+            startTime: "Hasiera Ordua",
+            duration: "Iraupena (minutuak)",
+            attendeeEmails: "Partaideen Emailak",
+            attendeeEmailHelp: "Komaz banandutako emailak bilerako partaideentzat",
+            note: "Oharra: Honek zure Google Calendar-en gertaera bat sortuko du Google Meet esteka batekin. Zure Google kontuan saioa hasi beharko duzu.",
+            success: "Google Meet Esteka Arrakastaz Sortua!",
+            copy: "Arbelera kopiatu",
+            copied: "Esteka arbelera kopiatua!",
+            instructions:
+                "Partekatu esteka hau partaideekin bileran parte hartzeko. Egutegi gertaera zure Google Calendar-era gehitu da.",
+            generating: "Sortzen...",
+            generate: "Meet Esteka Sortu",
         },
         common: {
             export: "Esportazioa eragiketa luzea izan daiteke. Ziur zaude erregistroak esportatu nahi dituzula?",
@@ -1120,6 +1172,7 @@ const basqueTranslation: TranslationType = {
             channel: {
                 online: "Linea",
                 kiosk: "Kiosko",
+                early_voting: "Aurre-botoa",
             },
             message: {
                 delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
@@ -1221,6 +1274,12 @@ const basqueTranslation: TranslationType = {
                 "semi-open-list": "Zerrenda Erdi Irekia",
                 "invalid-vote": "Baliogabeko Botoa",
                 "blank-vote": "Boto Zuria",
+            },
+            invalidVotePosition: {
+                label: "Baliogabeko Botoaren Posizioa",
+                null: "Ezer ez (Lehenetsia)",
+                top: "Goian",
+                bottom: "Behean",
             },
             error: {},
             createCandidateSuccess: "Hautagaia sortua",
@@ -1328,12 +1387,17 @@ const basqueTranslation: TranslationType = {
                     ok: "Bai, Sortu Giltzen Zeremonia",
                     cancel: "Ezeztatu",
                     title: "Ziur zaude Giltzen Zeremonia sortu nahi duzula?",
+                    automaticCeremonyTitle:
+                        "Ziur zaude giltza-ekitaldi automatiko bat sortu nahi duzula?",
                     description:
                         "Giltzen Zeremonia sortzear zaude. Ekintza honek Fideikomisarioei jakinaraziko die Hauteskunde Gertaera Giltzen sorkuntzan eta banaketan parte har dezaten.",
+                    automaticCeremonyDescription:
+                        "Giltza-ekitaldi automatiko bat sortzear zaude. Honek ez die arduradunei parte hartzeko jakinaraziko.",
                 },
                 filterTrustees: "Iragazi Fideikomisarioak",
                 errorPermisionLabels:
                     "Errorea Giltzen Zeremonia sortzerakoan: Gutxienez baimen-etiketa bat falta da.",
+                automaticCeremonyToggle: "Zeremonia automatikoa",
             },
             ceremonyStep: {
                 cancel: "Ezeztatu Giltzen Zeremonia",
@@ -1552,6 +1616,8 @@ const basqueTranslation: TranslationType = {
                         "Zenbaketa zeremonia ezeztatuzera noa. Ekintza hau ezin da desegin.",
                     ceremony:
                         "Beharrezko fideikomisario guztiek beren giltza zatiak egiaztatu dituzte. Dena prest dago emaitzak jasotzen hasteko. Zenbaketa hasi nahi duzu?",
+                    startAutomatedTallyMessage:
+                        "Hautatu 'Start Tally' zenbaketa-prozesua exekutatzeko eta emaitzak bistaratzeko, edo 'Close' ezeztatzeko.",
                 },
             },
             table: {
@@ -1586,6 +1652,14 @@ const basqueTranslation: TranslationType = {
                 blank_votes_percent: "Boto Zuri Ehunekoa",
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
+                weight: "Pisua",
+            },
+            chart: {
+                votesForCandidates: "Hautagaientzako Botoak",
+                blankVotes: "Boto Zuriak",
+                invalidVotes: "Boto Baliogabeak",
+                totalVoters: "Bozkatzaile Guztiak",
+                nonVoters: "Ez-bozkatzaileak",
             },
         },
         publish: {
@@ -1605,9 +1679,17 @@ const basqueTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Sortu Hasierako Txostena",
                 startVotingPeriod: "Hasi Bozketa",
+                startKioskVoting: "Hasi Kiosko Bozketa",
+                startOnlineVoting: "Hasi Online Bozketa",
+                startEarlyVoting: "Hasi Aurre-botoa",
                 stopVotingPeriod: "Gelditu Bozketa",
+                stopOnlineVoting: "Gelditu Online Bozketa",
+                stopEarlyVoting: "Gelditu Aurre-botoa",
                 stopKioskVotingPeriod: "Gelditu Kiosko Bozketa",
                 pauseVotingPeriod: "Pausatu Bozketa",
+                pauseKioskVoting: "Pausatu Kiosko Bozketa",
+                pauseOnlineVoting: "Pausatu Online Bozketa",
+                pauseEarlyVoting: "Pausatu Aurre-botoa",
                 generate: "Bersortu",
                 publish: "Argitaratu Aldaketak",
                 back: "Atzera",
@@ -1694,10 +1776,6 @@ const basqueTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Kredentzialak",
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                PARTICIPATION_REPORT: "Parte-hartze Txostena",
-                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
-                OTP: "OTP",
-                TALLY_REPORT: "Zenbaketa Txostena",
             },
             email: {
                 subject: "Gaia",
@@ -1855,38 +1933,12 @@ const basqueTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Kredentzialak",
-                BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                VOTE_RECEIPT: "Boto Jasoagiriak",
-                PARTICIPATION_REPORT: "Parte-hartze Txostena",
-                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
-                OTP: "OTP",
-                TALLY_REPORT: "Zenbaketa Txostena",
-                MANUAL_VERIFICATION: "Eskuz egiaztatu bozkatzailea",
-                STATISTICAL_REPORT: "Txosten Estatistikoa",
                 INITIALIZATION_REPORT: "Hasierako Txostena",
-                STATUS: "Egoera Txostena",
-                TRANSMISSION_REPORT: "Transmisio Txostenak",
-                AUDIT_LOGS: "Auditoria Egunkariak",
-                ACTIVITY_LOGS: "Jarduera Egunkariak",
-                OVCS_INFORMATION: "OVCS Informazioa",
-                OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
-                OVCS_STATISTICS: "Atzerriko Bozketa Monitorizazioa - OVCS Estatistikak",
-                OV_WHO_VOTED: "Bozkatu duten AB Erabiltzaileak",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
-                LIST_OF_OVERSEAS_VOTERS: "Atzerriko Bozkatzaileen Zerrenda",
-                OV_TURNOUT_PERCENTAGE: "Atzerriko Bozkatzaileen Parte-hartzea",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera eta Sexuaren arabera",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera, Sexu eta Ehunekoarekin",
-                OV_PRE_ENROLLED_APPROVED: "Aurre-matrikulatu diren ABen zerrenda (Onartua)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Aurre-matrikulatu baina Eskuzko Baliozkotzearen menpean dauden ABen zerrenda",
-                OV_WITH_VOTING_STATUS: "Bozketa Egoerarekin Atzerriko Bozkatzaileen zerrenda",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Oraindik Aurre-matrikulatu ez diren ABen zerrenda",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Oraindik Aurre-matrikulatu ez diren AB kopurua",
+                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 BALLOT_IMAGES: "Bozketa Irudiak",
+                BALLOT_RECEIPT: "Bozketa Jasoagiria",
+                ACTIVITY_LOGS: "Jarduera Egunkariak",
+                MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
             },
             method: {
                 email: "Emaila",

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
 import {TranslationType} from "./en"
@@ -8,6 +8,8 @@ const galegoTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Volver",
+            showMore: "Mostrar Máis",
+            showLess: "Mostrar Menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Papeletas",
@@ -17,7 +19,7 @@ const galegoTranslation: TranslationType = {
             audit: "Auditoría",
         },
         footer: {
-            poweredBy: "Desenvolvido por <sequent />",
+            poweredBy: "Desenvolvido por <1></1>",
         },
         votingScreen: {
             backButton: "Volver",
@@ -34,6 +36,14 @@ const galegoTranslation: TranslationType = {
                 content:
                     "Algunhas das túas respostas farán que a papeleta sexa inválida ou quede en branco en unha ou máis preguntas.",
                 ok: "Volver e revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
+            warningDialog: {
+                title: "Revisa a túa papeleta",
+                content:
+                    "A túa papeleta contén seleccións que poden necesitar a túa atención (como seleccionar menos opcións das permitidas). A túa papeleta é válida e contarase tal como se enviou.",
+                ok: "Voltar e revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
@@ -339,6 +349,10 @@ const galegoTranslation: TranslationType = {
             notFound: "O teu ID de papeleta {{ballotId}} non foi localizado",
             contentDesc: "Este é o contido da túa Papeleta:",
             wrongFormatBallotId: "Formato incorrecto para o ID da Papeleta",
+            ballotIdNotFoundAtFilter:
+                "Non atopado, comprobe que o ID da Papeleta seja correcto e pertenezca a este usuario.",
+            filterByBallotId: "Filtrar por ID da Papeleta",
+            totalBallots: "Papeletas: {{total}}",
             steps: {
                 lookup: "Localiza a túa Papeleta",
                 result: "Resultado",
@@ -348,6 +362,17 @@ const galegoTranslation: TranslationType = {
                 content:
                     "Esta pantalla permite ao votante atopar o seu voto utilizando o ID da papeleta para recuperalo. Este procedemento permite verificar que a súa papeleta foi emitida correctamente e que a papeleta rexistrada coincide coa papeleta encriptada enviada.",
                 ok: "Aceptar",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localiza a tua Papeleta",
+            },
+            column: {
+                statement_kind: "Tipo",
+                statement_timestamp: "Marca de tempo",
+                username: "Nome de usuario",
+                ballot_id: "ID da papeleta",
+                message: "Mensaxe",
             },
         },
     },

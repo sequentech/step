@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{
@@ -22,7 +21,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::{
-    KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
 };
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
@@ -323,6 +322,7 @@ pub async fn create_keys_ceremony(
     trustee_names: Vec<String>,
     election_id: Option<String>,
     name: Option<String>,
+    is_automatic_ceremony: bool,
 ) -> Result<String> {
     // verify trustee names and fetch their objects to get their ids
     let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
@@ -420,6 +420,16 @@ pub async fn create_keys_ceremony(
         .into_iter()
         .collect(); // Convert back to Vec
 
+    let ceremony_policy = if is_automatic_ceremony {
+        CeremoniesPolicy::AUTOMATED_CEREMONIES
+    } else {
+        CeremoniesPolicy::MANUAL_CEREMONIES
+    };
+
+    let settings = serde_json::json!({
+        "policy": ceremony_policy.to_string(),
+    });
+
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
         &transaction,
@@ -431,7 +441,7 @@ pub async fn create_keys_ceremony(
         /* status */ Some(status),
         /* execution_status */ Some(execution_status),
         name,
-        None,
+        Some(settings),
         is_default,
         permission_labels,
     )
@@ -443,6 +453,7 @@ pub async fn create_keys_ceremony(
         .with_context(|| "missing bulletin board")?;
 
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    let election_ids = election_id.clone().map(|id| vec![id]);
     let electoral_log = ElectoralLog::for_admin_user(
         &transaction,
         &board_name,
@@ -450,7 +461,7 @@ pub async fn create_keys_ceremony(
         &election_event.id,
         user_id,
         Some(username.to_string()),
-        election_id.clone(),
+        election_ids.clone(),
         None,
     )
     .await?;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -262,9 +262,14 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         contests: AuditableBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
-    let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot)?;
+    let hashable_ballot: HashableBallot =
+        HashableBallot::try_from(&signed_hashable_ballot)?;
     auditable_ballot.ballot_hash = hash_ballot(&hashable_ballot)?;
 
     Ok(auditable_ballot)
@@ -361,6 +366,8 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
         contests: AuditableMultiBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
     let hashable_ballot = HashableMultiBallot::try_from(&auditable_ballot)?;
@@ -530,47 +537,4 @@ mod tests {
         assert_eq!(format!("{:?}", auditable_ballot.unwrap_err()), "".to_string());
         //assert!(auditable_ballot.is_ok());
     }*/
-}
-
-/// Test multi-contest reencoding functionality
-pub fn test_multi_contest_reencoding(
-    decoded_multi_contests: &Vec<DecodedVoteContest>,
-    ballot_style: &BallotStyle,
-) -> Result<Vec<DecodedVoteContest>, String> {
-    // encode ballot
-    let (plaintext, _ballot_choices) =
-        encode_to_plaintext_decoded_multi_contest(
-            decoded_multi_contests,
-            ballot_style,
-        )
-        .map_err(|err| format!("Error encoded decoded contests {:?}", err))?;
-
-    let decoded_ballot_choices =
-        BallotChoices::decode_from_30_bytes(&plaintext, ballot_style).map_err(
-            |err| format!("Error decoding ballot choices {:?}", err),
-        )?;
-
-    let output_decoded_contests =
-        map_decoded_ballot_choices_to_decoded_contests(
-            decoded_ballot_choices,
-            &ballot_style.contests,
-        )
-        .map_err(|err| format!("Error mapping decoded contests {:?}", err))?;
-
-    let input_compare =
-        normalize_election(decoded_multi_contests, ballot_style, true)
-            .map_err(|err| format!("Error normalizing input {:?}", err))?;
-
-    let output_compare =
-        normalize_election(&output_decoded_contests, ballot_style, true)
-            .map_err(|err| format!("Error normalizing output {:?}", err))?;
-
-    if input_compare != output_compare {
-        return Err(format!(
-            "Consistency check failed. Input != Output, {:?} != {:?}",
-            input_compare, output_compare
-        ));
-    }
-
-    Ok(output_decoded_contests)
 }

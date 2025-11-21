@@ -1,10 +1,15 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
+
+import BallotLocator from "../routes/BallotLocator"
+
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
         common: {
             goBack: "Go back",
+            showMore: "Show More",
+            showLess: "Show Less",
         },
         breadcrumbSteps: {
             electionList: "Ballot List",
@@ -14,7 +19,7 @@ const englishTranslation = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Powered by <sequent />",
+            poweredBy: "Powered by <1></1>",
         },
         votingScreen: {
             backButton: "Back",
@@ -30,6 +35,14 @@ const englishTranslation = {
                 title: "Invalid or blank vote",
                 content:
                     "Some of your answers will render the ballot in one or more questions invalid or blank.",
+                ok: "Back and review",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
+            warningDialog: {
+                title: "Review your ballot",
+                content:
+                    "Your ballot contains selections that may need your attention (such as selecting fewer options than allowed). Your ballot is valid and will be counted as submitted.",
                 ok: "Back and review",
                 continue: "Continue",
                 cancel: "Cancel",
@@ -332,6 +345,10 @@ const englishTranslation = {
             notFound: "Your ballot ID {{ballotId}} has not been located",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Wrong format for Ballot ID",
+            ballotIdNotFoundAtFilter:
+                "Not found, check that your Ballot ID is correct and belongs to this user.",
+            filterByBallotId: "Filter by Ballot ID",
+            totalBallots: "Total Ballots: {{total}}",
             steps: {
                 lookup: "Locate your Ballot",
                 result: "Result",
@@ -341,6 +358,17 @@ const englishTranslation = {
                 content:
                     "This screen allows the voter to find their vote by using the Ballot ID to retrieve it. This procedure enables checking that their ballot was correctly cast and that the recorded ballot coincides with the encrypted ballot they sent.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Ballot Locator",
+            },
+            column: {
+                statement_kind: "Statement kind",
+                statement_timestamp: "Statement Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
+                message: "Message",
             },
         },
     },

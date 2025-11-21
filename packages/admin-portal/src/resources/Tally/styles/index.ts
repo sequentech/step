@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import Button from "@mui/material/Button"
 
 export const CancelButton = styled(Button)`
@@ -28,7 +28,7 @@ export const NextButton = styled(Button)`
     }
 `
 
-export const StyledTitle = styled.div`
+export const StyledTitle = styled("div")`
     color: rgba(0, 0, 0, 0.87);
     font-size: 24px;
     font-family: Roboto;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -20,5 +20,7 @@ export enum ETasksExecution {
     EXPORT_APPLICATION = "EXPORT_APPLICATION",
     IMPORT_APPLICATION = "IMPORT_APPLICATION",
     RENDER_DOCUMENT_PDF = "RENDER_DOCUMENT_PDF",
+    DELETE_ELECTION_EVENT = "DELETE_ELECTION_EVENT",
     PREPARE_PUBLICATION_PREVIEW = "PREPARE_PUBLICATION_PREVIEW",
+    EXPORT_TALLY_RESULTS_XLSX = "EXPORT_TALLY_RESULTS_XLSX",
 }

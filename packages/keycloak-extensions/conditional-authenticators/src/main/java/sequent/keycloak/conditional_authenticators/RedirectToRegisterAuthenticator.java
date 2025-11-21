@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -43,6 +43,8 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
   protected UriBuilder prepareBaseUriBuilder(final AuthenticationFlowContext context) {
     final String requestURI = context.getUriInfo().getBaseUri().getPath();
     final UriBuilder uriBuilder = UriBuilder.fromUri(requestURI);
+    // replace path, since the base should not add any, as it's added later on
+    uriBuilder.replacePath("");
     final ClientModel client = context.getAuthenticationSession().getClient();
     final AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
 
@@ -52,6 +54,8 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
     if (authenticationSession != null) {
       uriBuilder.queryParam(Constants.TAB_ID, authenticationSession.getTabId());
     }
+    log.infov("requestURI = {0}, uriBuilder.build() = {1}", requestURI, uriBuilder.build());
+
     return uriBuilder;
   }
 

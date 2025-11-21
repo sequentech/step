@@ -1,17 +1,19 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
-import React, {useState} from "react"
+import React, {useCallback, useEffect, useMemo, useState} from "react"
 import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+import {CircularProgress} from "@mui/material"
 
 interface AdminWizardProps {
-    electionEvent: Sequent_Backend_Election_Event
+    electionEvent?: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
 
@@ -24,7 +26,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
     setCurrentCeremony,
     goBack,
 }) => {
-    const calculateCurrentStep: () => number = () => {
+    const calculateCurrentStep: () => number = useCallback(() => {
         if (!currentCeremony) {
             return 0 // configure
         } else {
@@ -37,7 +39,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
                 return 2 // final state
             }
         }
-    }
+    }, [currentCeremony?.execution_status, currentCeremony?.settings])
 
     const [currentStep, setCurrentStep] = useState<number>(calculateCurrentStep())
 
@@ -45,6 +47,18 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
         setCurrentStep(1)
     }
 
+    const isAutomaticPolicy =
+        currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
+    useEffect(() => {
+        if (isAutomaticPolicy) {
+            setCurrentStep(calculateCurrentStep())
+        }
+    }, [currentCeremony?.execution_status])
+
+    if (!electionEvent) {
+        return <CircularProgress />
+    }
     return (
         <WizardStyles.WizardWrapper>
             <BreadCrumbSteps
@@ -71,6 +85,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
                     currentCeremonyId={currentCeremony?.id}
                     electionEvent={electionEvent}
                     goBack={goBack}
+                    setCurrentCeremony={isAutomaticPolicy ? setCurrentCeremony : undefined}
                 />
             )}
         </WizardStyles.WizardWrapper>

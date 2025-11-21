@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
@@ -21,7 +21,7 @@ use crate::services::ceremonies::insert_ballots::{
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_finished, generate_logs, print_messages, sort_logs,
+    append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
 };
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::ceremonies::tally_ceremony::{
@@ -68,10 +68,10 @@ use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -682,14 +682,24 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
+    let keys_ceremony_policy = keys_ceremony.policy();
+
     let threshold = keys_ceremonies[0].threshold as usize;
-    let mut available_trustees: Vec<String> = ceremony_status
-        .trustees
-        .into_iter()
-        .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
-        .map(|trustee| trustee.name.clone())
-        .collect();
-    let mut rng = StdRng::from_entropy();
+    let mut available_trustees: Vec<String> = match keys_ceremony_policy {
+        CeremoniesPolicy::MANUAL_CEREMONIES => ceremony_status
+            .trustees
+            .into_iter()
+            .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
+            .map(|trustee| trustee.name.clone())
+            .collect(),
+        CeremoniesPolicy::AUTOMATED_CEREMONIES => ceremony_status
+            .trustees
+            .into_iter()
+            .map(|trustee| trustee.name.clone())
+            .collect(),
+    };
+
+    let mut rng = StdRng::from_os_rng();
     available_trustees.shuffle(&mut rng);
 
     let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
@@ -1118,8 +1128,11 @@ pub async fn execute_tally_session_wrapped(
         .clone()
         .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
 
-    new_status.logs =
-        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]));
+    new_status.logs = if is_execution_completed {
+        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+    } else {
+        append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+    };
 
     // insert tally_session_execution
     insert_tally_session_execution(

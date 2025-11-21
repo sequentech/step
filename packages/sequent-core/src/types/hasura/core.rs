@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,7 +12,9 @@ use crate::{
     ballot::{ContestEncryptionPolicy, DecodedBallotsInclusionPolicy},
     serialization::deserialize_with_path::deserialize_value,
     types::{
-        ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
+        ceremonies::{
+            CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus,
+        },
         tally_sheets::AreaContestResults,
     },
 };
@@ -65,6 +66,7 @@ pub struct Area {
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub parent_id: Option<String>,
+    pub presentation: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -201,6 +203,7 @@ pub struct VotingChannels {
     pub kiosk: Option<bool>,
     pub telephone: Option<bool>,
     pub paper: Option<bool>,
+    pub early_voting: Option<bool>,
 }
 
 impl Default for VotingChannels {
@@ -210,6 +213,7 @@ impl Default for VotingChannels {
             kiosk: None,
             telephone: None,
             paper: None,
+            early_voting: None,
         }
     }
 }
@@ -337,6 +341,17 @@ impl KeysCeremony {
     pub fn status(&self) -> Result<KeysCeremonyStatus> {
         deserialize_value(self.status.clone().unwrap_or_default())
             .map_err(|err| anyhow!("{:?}", err))
+    }
+
+    pub fn policy(&self) -> CeremoniesPolicy {
+        let settings = self.settings.as_ref().unwrap_or(&Value::Null);
+        settings
+            .get("policy")
+            .and_then(|value: &Value| value.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| CeremoniesPolicy::MANUAL_CEREMONIES.to_string())
+            .parse::<CeremoniesPolicy>()
+            .unwrap_or(CeremoniesPolicy::MANUAL_CEREMONIES)
     }
 }
 

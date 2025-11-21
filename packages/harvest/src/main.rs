@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![recursion_limit = "256"]
@@ -53,6 +52,7 @@ async fn rocket() -> _ {
                 routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
                 routes::ballot_publication_prepare_preview::prepare_ballot_publication_preview,
+                routes::voter_electoral_log::list_cast_vote_messages,
                 routes::insert_cast_vote::insert_cast_vote,
                 routes::fetch_document::fetch_document,
                 routes::elections::create_election,
@@ -105,9 +105,9 @@ async fn rocket() -> _ {
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
                 routes::tally_ceremony::update_tally_ceremony,
-                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::tally_sheets::create_new_tally_sheet,
                 routes::tally_sheets::review_tally_sheet,
+                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::create_ballot_receipt::create_ballot_receipt,
                 routes::election_dates::manage_election_dates,
                 routes::custom_urls::update_custom_url,
@@ -125,16 +125,15 @@ async fn rocket() -> _ {
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
-                routes::reports::generate_transmission_report,
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
-                routes::election_event_monitoring::get_election_event_monitoring_f,
-                routes::election_monitoring::get_election_monitoring_f,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
                 routes::set_voter_authentication::set_voter_authentication,
+                routes::export_tally_results::export_tally_results_route,
+                routes::google_meet::generate_google_meeting,
             ],
         )
         .manage(LastDatafixAccessToken::init())

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -14,10 +14,11 @@ import {
     IDecodedVoteChoice,
     IBallotStyle,
     IContest,
-    IAuditableBallot,
     IAuditableSingleBallot,
-    IContestLayoutProperties,
     IAuditableMultiBallot,
+    IContestLayoutProperties,
+    verifyBallotSignature,
+    verifyMultiBallotSignature,
 } from "@sequentech/ui-core"
 
 export interface IConfirmationBallot {
@@ -39,6 +40,16 @@ export interface IBallotService {
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
     generateSampleAuditableBallot: () => IAuditableSingleBallot | null
     checkIsBlank: (contest: IDecodedVoteContest) => boolean | null
+    verifyBallotSignature: (
+        ballot_id: string,
+        election_id: string,
+        content: IAuditableSingleBallot
+    ) => boolean | null
+    verifyMultiBallotSignature: (
+        ballot_id: string,
+        election_id: string,
+        content: IAuditableMultiBallot
+    ) => boolean | null
 }
 
 export const provideBallotService = (): IBallotService => ({
@@ -50,4 +61,6 @@ export const provideBallotService = (): IBallotService => ({
     getPoints,
     generateSampleAuditableBallot,
     checkIsBlank,
+    verifyBallotSignature,
+    verifyMultiBallotSignature,
 })

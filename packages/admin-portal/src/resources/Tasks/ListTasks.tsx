@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <dev@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect, useState} from "react"
@@ -26,10 +26,11 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "@/components/ResetFilters"
 import {useTasksPermissions} from "./useTasksPermissions"
+import {CircularProgress} from "@mui/material"
 
 export interface ListTasksProps {
     onViewTask: (id: Identifier) => void
-    electionEventRecord: Sequent_Backend_Election_Event
+    electionEventRecord?: Sequent_Backend_Election_Event
 }
 export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRecord}) => {
     const notify = useNotify()
@@ -55,12 +56,12 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
     const OMIT_FIELDS: string[] = []
 
     const filters: Array<ReactElement> = [
-        <TextInput source="id" key="id_filter" label={t("tasksScreen.column.id")} />,
-        <TextInput source="type" key="type_filter" label={t("tasksScreen.column.type")} />,
+        <TextInput source="id" key="id_filter" label={String(t("tasksScreen.column.id"))} />,
+        <TextInput source="type" key="type_filter" label={String(t("tasksScreen.column.type"))} />,
         <TextInput
             source="execution_status"
             key="status_filter"
-            label={t("tasksScreen.column.execution_status")}
+            label={String(t("tasksScreen.column.execution_status"))}
         />,
     ]
 
@@ -109,6 +110,10 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
         }
     }
 
+    if (!electionEventRecord) {
+        return <CircularProgress />
+    }
+
     return (
         <>
             <List
@@ -136,23 +141,23 @@ export const ListTasks: React.FC<ListTasksProps> = ({onViewTask, electionEventRe
                     <DateField
                         source="start_at"
                         showTime={true}
-                        label={t("tasksScreen.column.start_at")}
+                        label={String(t("tasksScreen.column.start_at"))}
                     />
                     <FunctionField
-                        label={t("tasksScreen.column.execution_status")}
+                        label={String(t("tasksScreen.column.execution_status"))}
                         render={(record: any) => <StatusChip status={record.execution_status} />}
                     />
-                    <ActionsColumn actions={actions} label={t("common.label.actions")} />
+                    <ActionsColumn actions={actions} label={String(t("common.label.actions"))} />
                 </DatagridConfigurable>
             </List>
 
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
+                ok={String(t("common.label.export"))}
                 okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.export"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()

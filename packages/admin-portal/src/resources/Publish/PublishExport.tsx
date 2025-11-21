@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -50,15 +50,15 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
     const confirmExportAction = async () => {
         let currWidget: WidgetProps | undefined
         try {
-            currWidget = addWidget(ETasksExecution.EXPORT_BALLOT_PUBLICATION)
+            currWidget = addWidget(ETasksExecution.EXPORT_BALLOT_PUBLICATION, undefined)
 
             const {data: ballotResponse, errors} = await ExportBallotPublication({
                 variables: {
                     tenantId,
-                    electionEventId: record.election_event_id
-                        ? record.election_event_id
-                        : record.id,
-                    electionId: record.election_event_id ? record.id : null,
+                    electionEventId: record?.election_event_id
+                        ? record?.election_event_id
+                        : record?.id,
+                    electionId: record?.election_event_id ? record?.id : null,
                     ballotPublicationId: ballotPublicationId,
                 },
             })
@@ -95,10 +95,10 @@ const PublishExport: FC<PublishExportProps> = ({ballotPublicationId}) => {
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
+                ok={String(t("common.label.export"))}
                 okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.export"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -59,8 +59,6 @@ export enum IPermissions {
     DOCUMENT_DOWNLOAD = "document-download",
     ADMIN_CEREMONY = "admin-ceremony",
     ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
-    MONITORING_DASHBOARD_VIEW_ELECTION_EVENT = "monitoring-dashboard-view-election-event",
-    MONITORING_DASHBOARD_VIEW_ELECTION = "monitoring-dashboard-view-election",
     CAST_VOTE_READ = "cast-vote-read",
     DOCUMENT_READ = "document-read",
     DOCUMENT_WRITE = "document-write",
@@ -194,4 +192,5 @@ export enum IPermissions {
     USER_IMPORT = "user-import",
     VOTER_VOTED_EDIT = "voter-voted-edit", // permission to edit a voter that has already cast a vote
     VOTER_EMAIL_TLF_EDIT = "voter-email-tlf-edit", // permission to edit voter fields: email and mobile number
+    GOOGLE_MEET_LINK = "google-meet-link",
 }

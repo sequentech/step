@@ -25,8 +25,9 @@
     openssl
     glibc
     openssh
-    postgresql_15
+    postgresql_18
     python3
+    openssh
 
     # immudb
     go
@@ -66,12 +67,17 @@
     sqlite
 
     cargo-watch
+    cargo-license
+    cargo-audit
 
     python3
     python3Packages.virtualenvwrapper
 
     # for parsing docker-compose.yml
     yq
+
+    # AI. Note, requires allowUnfree: true in devenv.yaml
+    claude-code
   ];
 
   # https://devenv.sh/scripts/
@@ -89,7 +95,7 @@
   languages.rust = {
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustchannel
-    channel = "nightly";
+    channel = "stable";
     toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
@@ -100,8 +106,8 @@
     };
   };
 
-  # https://devenv.sh/pre-commit-hooks/
-  pre-commit.hooks = {
+  # https://devenv.sh/git-hooks/
+  git-hooks.hooks = {
     clippy.enable = false;
     rustfmt.enable = false;
     reuse = {

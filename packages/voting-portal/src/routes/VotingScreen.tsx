@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -17,6 +17,7 @@ import {
     IAuditableMultiBallot,
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
+    EVoterSigningPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -46,6 +47,13 @@ import {sortContestList} from "@sequentech/ui-core"
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
     text-decoration: none;
+    /* ensure the link contains only a single tabbable element: the button below */
+    &:focus {
+        outline: none;
+    }
+    & *[tabindex] {
+        outline: none;
+    }
 `
 
 const StyledTitle = styled(Typography)`
@@ -198,9 +206,10 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         if (!ballotSelectionState) {
             return []
         }
-        return isMultiContest
+        let err = isMultiContest
             ? interpretMultiContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
             : interpretContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
+        return err
     }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
 
     const handleNext = () => {
@@ -271,6 +280,7 @@ const VotingScreen: React.FC = () => {
     let [decodedContests, setDecodedContests] = useState<Record<string, IDecodedVoteContest>>({})
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
     const [openNotVoted, setOpenNonVoted] = useState(false)
+    const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
     const {
@@ -278,6 +288,10 @@ const VotingScreen: React.FC = () => {
         encryptMultiBallotSelection,
         decodeAuditableBallot,
         decodeAuditableMultiBallot,
+        signHashableMultiBallot,
+        signHashableBallot,
+        hashMultiBallot,
+        hashBallot,
     } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
@@ -317,15 +331,16 @@ const VotingScreen: React.FC = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
-    function handlePrev() {
-        dispatch(clearIsVoted())
-    }
-
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
         } else if (showNextDialog() || disableNextButton()) {
             setOpenNonVoted(true)
+
+            const newHasInvalidErrors = Object.values(decodedContests).some(
+                (a) => a?.invalid_errors.length > 0
+            )
+            setHasInvalidErrors(newHasInvalidErrors)
         } else {
             finallyEncryptAndReview()
         }
@@ -339,12 +354,36 @@ const VotingScreen: React.FC = () => {
 
         try {
             const isMultiContest =
-                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy ===
                 EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+            const doSignBallot =
+                ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy ===
+                EVoterSigningPolicy.WITH_SIGNATURE
 
             const auditableBallot = isMultiContest
                 ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
                 : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+
+            let ballotId = isMultiContest
+                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
+                : hashBallot(auditableBallot as IAuditableSingleBallot)
+
+            if (doSignBallot) {
+                let signedContent = isMultiContest
+                    ? signHashableMultiBallot(
+                          ballotId,
+                          ballotStyle.election_id,
+                          auditableBallot as IAuditableMultiBallot
+                      )
+                    : signHashableBallot(
+                          ballotId,
+                          ballotStyle.election_id,
+                          auditableBallot as IAuditableSingleBallot
+                      )
+                auditableBallot.voter_signing_pk = signedContent?.public_key
+                auditableBallot.voter_ballot_signature = signedContent?.signature
+            }
 
             dispatch(
                 setAuditableBallot({
@@ -484,12 +523,30 @@ const VotingScreen: React.FC = () => {
                 <Dialog
                     handleClose={(value) => warnAllowContinue(value)}
                     open={openNotVoted}
-                    title={t("votingScreen.nonVotedDialog.title")}
-                    ok={t("votingScreen.nonVotedDialog.continue")}
-                    cancel={t("votingScreen.nonVotedDialog.cancel")}
+                    title={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.title"
+                            : "votingScreen.warningDialog.title"
+                    )}
+                    ok={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.continue"
+                            : "votingScreen.warningDialog.continue"
+                    )}
+                    cancel={t(
+                        hasInvalidErrors
+                            ? "votingScreen.nonVotedDialog.cancel"
+                            : "votingScreen.warningDialog.cancel"
+                    )}
                     variant="action"
                 >
-                    {stringToHtml(t("votingScreen.nonVotedDialog.content"))}
+                    {stringToHtml(
+                        t(
+                            hasInvalidErrors
+                                ? "votingScreen.nonVotedDialog.content"
+                                : "votingScreen.warningDialog.content"
+                        )
+                    )}
                 </Dialog>
             )}
         </PageLimit>

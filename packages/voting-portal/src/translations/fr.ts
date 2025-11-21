@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const frenchTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Revenir",
+            showMore: "Afficher plus",
+            showLess: "Afficher moins",
         },
         breadcrumbSteps: {
             electionList: "Liste des Élections",
@@ -16,7 +18,7 @@ const frenchTranslation: TranslationType = {
             audit: "Auditer",
         },
         footer: {
-            poweredBy: "Propulsé par <sequent />",
+            poweredBy: "Propulsé par <1></1>",
         },
         votingScreen: {
             backButton: "Retour",
@@ -33,6 +35,14 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs questions.",
                 ok: "Revenir et réviser",
+                continue: "Continuer",
+                cancel: "Annuler",
+            },
+            warningDialog: {
+                title: "Vérifiez votre bulletin",
+                content:
+                    "Votre bulletin contient des sélections qui peuvent nécessiter votre attention (comme sélectionner moins d'options que permis). Votre bulletin est valide et sera compté tel que soumis.",
+                ok: "Retour et vérification",
                 continue: "Continuer",
                 cancel: "Annuler",
             },
@@ -339,6 +349,10 @@ const frenchTranslation: TranslationType = {
             notFound: "Votre ID de Bulletin {{ballotId}} n'a pas été localisé",
             contentDesc: "Voici le contenu de votre Bulletin : ",
             wrongFormatBallotId: "Format incorrect pour l'ID du Bulletin",
+            ballotIdNotFoundAtFilter:
+                "Non trouvé, veuillez verifier que l'ID du Bulletin soit correct et appartenir a cet utilisateur.",
+            filterByBallotId: "Filtrez par ID de Bulletin",
+            totalBallots: "Total: {{total}}",
             steps: {
                 lookup: "Localisez votre Bulletin",
                 result: "Résultat",
@@ -348,6 +362,17 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Cet écran permet au votant de trouver son bulletin en utilisant l'ID du Bulletin pour le récupérer. Cette procédure permet de vérifier que son vote a été émis correctement et que le vote enregistré correspond au vote chiffré émis.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localisez votre Bulletin",
+            },
+            column: {
+                statement_kind: "Type",
+                statement_timestamp: "Marque de temps",
+                username: "Nom d'utilisateur",
+                ballot_id: "ID de Bulletin",
+                message: "Message",
             },
         },
     },

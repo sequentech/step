@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,12 +13,19 @@ use crate::pipes::{
 use crate::utils::HasId;
 use rayon::prelude::*;
 use sequent_core::{
-    ballot::Candidate,
+    ballot::{BallotStyle, Candidate},
+    ballot_style,
     services::area_tree::TreeNodeArea,
-    types::{hasura::core::TallySheet, tally_sheets::VotingChannel},
+    sqlite::election_event,
+    types::hasura::core::TallySheet,
+    types::tally_sheets::VotingChannel,
     util::path::{get_folder_name, list_subfolders},
 };
-use sequent_core::{ballot::Contest, services::area_tree::TreeNode};
+use sequent_core::{
+    ballot::{Contest, Weight},
+    services::area_tree::TreeNode,
+};
+
 use serde::{Deserialize, Serialize};
 use std::cmp;
 use std::sync::Arc;
@@ -93,6 +100,22 @@ impl DoTally {
 
         Ok(())
     }
+}
+
+#[instrument]
+pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> Weight {
+    let area_ballot_style: Option<&BallotStyle> = ballot_styles
+        .iter()
+        .find(|bs| bs.area_id == area_id.to_string());
+
+    area_ballot_style
+        .map(|bs| {
+            bs.area_annotations
+                .as_ref()
+                .map(|area_annotations| area_annotations.get_weight())
+        })
+        .flatten()
+        .unwrap_or_default()
 }
 
 impl Pipe for DoTally {
@@ -223,30 +246,40 @@ impl Pipe for DoTally {
                                     })
                                     .sum();
 
-                                let children_area_paths: Vec<PathBuf> = children_areas
+                                let children_area_paths: Vec<(PathBuf, Weight)> = children_areas
                                     .iter()
-                                    .map(|child_area| -> Result<PathBuf, Error> {
-                                        Ok(PipeInputs::build_path(
-                                            &input_dir,
-                                            &election_id,
-                                            Some(&contest_id),
-                                            Some(&Uuid::parse_str(&child_area.id).map_err(
-                                                |err| {
-                                                    Error::UnexpectedError(format!(
-                                                        "Uuid parse error: {err:?}"
-                                                    ))
-                                                },
-                                            )?),
-                                        )
-                                        .join(OUTPUT_DECODED_BALLOTS_FILE))
+                                    .map(|child_area| -> Result<(PathBuf, Weight), Error> {
+                                        let child_area_id = Uuid::parse_str(&child_area.id)
+                                            .map_err(|err| {
+                                                Error::UnexpectedError(format!(
+                                                    "Uuid parse error: {err:?}"
+                                                ))
+                                            })?;
+
+                                        let child_area_weight = get_area_weight(
+                                            election_input.ballot_styles.clone(),
+                                            child_area_id,
+                                        );
+
+                                        Ok((
+                                            PipeInputs::build_path(
+                                                &input_dir,
+                                                &election_id,
+                                                Some(&contest_id),
+                                                Some(&child_area_id),
+                                            )
+                                            .join(OUTPUT_DECODED_BALLOTS_FILE),
+                                            child_area_weight,
+                                        ))
                                     })
-                                    .collect::<Result<Vec<PathBuf>, Error>>()?;
+                                    .collect::<Result<Vec<(PathBuf, Weight)>, Error>>()?;
 
                                 let counting_algorithm = tally::create_tally(
                                     &contest_object,
                                     children_area_paths,
                                     census_size,
                                     auditable_votes_size,
+                                    vec![],
                                     vec![],
                                 )
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -259,23 +292,35 @@ impl Pipe for DoTally {
                                 serde_json::to_writer_pretty(file, &res)?; // Using pretty for readability
                             }
 
+                            let area_weight = get_area_weight(
+                                election_input.ballot_styles.clone(),
+                                area_input.id,
+                            );
+
                             // Create area tally
                             let counting_algorithm_area = tally::create_tally(
                                 &contest_object,
-                                vec![decoded_ballots_file.clone()],
+                                vec![(decoded_ballots_file.clone(), area_weight)],
                                 area_input.census,
                                 area_input.auditable_votes,
                                 vec![],
+                                vec![],
                             )
                             .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                            let res_area = counting_algorithm_area
+                            let mut area_tally_results = counting_algorithm_area
                                 .tally()
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+                            if let Some(extended_metrics) =
+                                area_tally_results.extended_metrics.as_mut()
+                            {
+                                extended_metrics.weight = area_weight;
+                            }
 
                             fs::create_dir_all(&base_output_path)?;
                             let file_path_area = base_output_path.join(OUTPUT_CONTEST_RESULT_FILE);
                             let file_area = fs::File::create(file_path_area)?;
-                            serde_json::to_writer_pretty(file_area, &res_area)?; // Using pretty
+                            serde_json::to_writer_pretty(file_area, &area_tally_results)?; // Using pretty
 
                             // Tally sheets tally for this area
                             let mut area_specific_tally_sheet_results: Vec<(
@@ -334,6 +379,7 @@ impl Pipe for DoTally {
                                 area_input.census,
                                 area_input.auditable_votes,
                                 area_specific_tally_sheet_results,
+                                area_tally_results,
                             ))
                         })
                         .collect(); // Collects Result<Vec<(PathBuf, u64, u64, Vec<_>)>, Error>
@@ -346,14 +392,21 @@ impl Pipe for DoTally {
                     let mut sum_auditable_votes: u64 = 0;
                     let mut tally_sheet_results_for_contest: Vec<(ContestResult, TallySheet)> =
                         vec![];
+                    let mut area_tally_results_for_contest: Vec<ContestResult> = vec![];
 
-                    for (ballot_file, census, auditable_votes_val, sheet_results) in
-                        collected_area_outputs
+                    for (
+                        ballot_file,
+                        census,
+                        auditable_votes_val,
+                        sheet_results,
+                        area_tally_results,
+                    ) in collected_area_outputs
                     {
                         contest_ballot_files.push(ballot_file);
                         sum_census += census;
                         sum_auditable_votes += auditable_votes_val;
                         tally_sheet_results_for_contest.extend(sheet_results);
+                        area_tally_results_for_contest.push(area_tally_results);
                     }
 
                     // Create contest-level output path (directory for the contest)
@@ -379,10 +432,11 @@ impl Pipe for DoTally {
                     // Create final contest tally
                     let final_counting_algorithm = tally::create_tally(
                         &contest_object_for_contest,
-                        contest_ballot_files,
+                        vec![],
                         sum_census,
                         sum_auditable_votes,
                         final_only_sheet_results,
+                        area_tally_results_for_contest,
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                     let final_res = final_counting_algorithm
@@ -433,6 +487,8 @@ pub struct ExtendedMetricsContest {
     pub expected_votes: u64,
     //Total counted ballots
     pub total_ballots: u64,
+    pub weight: Weight, // Used to store the actual weight used to tally an specific area.
+    pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
 }
 
 impl ExtendedMetricsContest {
@@ -444,7 +500,7 @@ impl ExtendedMetricsContest {
         result.votes_actually += other.votes_actually;
         result.expected_votes += other.expected_votes;
         result.total_ballots += other.total_ballots;
-
+        result.total_weight += other.total_weight;
         result
     }
 }
@@ -481,17 +537,21 @@ pub struct ContestResult {
 impl ContestResult {
     #[instrument(skip_all)]
     pub fn calculate_percentages(&self) -> ContestResult {
-        let valid_not_blank = self.total_valid_votes - self.total_blank_votes;
+        let total_weight = self
+            .extended_metrics
+            .clone()
+            .unwrap_or_default()
+            .total_weight;
         let candidate_result: Vec<CandidateResult> = self
             .candidate_result
             .clone()
             .into_iter()
             .map(|candidate_result| {
                 let percentage_votes = (candidate_result.total_count as f64
-                    / cmp::max(1, valid_not_blank) as f64)
+                    / cmp::max(1, total_weight) as f64)
                     * 100.0;
                 let mut new_candidate_result = candidate_result.clone();
-                new_candidate_result.percentage_votes = percentage_votes;
+                new_candidate_result.percentage_votes = percentage_votes.clamp(0.0, 100.0);
 
                 new_candidate_result
             })
@@ -543,8 +603,8 @@ impl ContestResult {
             aggregate.census += other.census;
         }
         let aggregate_metrics = aggregate.extended_metrics.unwrap_or_default();
-        aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default());
-        aggregate.extended_metrics = Some(aggregate_metrics);
+        aggregate.extended_metrics =
+            Some(aggregate_metrics.aggregate(&other.extended_metrics.clone().unwrap_or_default()));
         aggregate.total_votes += other.total_votes;
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;

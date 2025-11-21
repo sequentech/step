@@ -1,5 +1,5 @@
 <#--
-SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
@@ -58,7 +58,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                     </div>
 
                                     <#--  You can add a password strength bar if passwordStrengthBar is set to either username or email depending on realm.registrationEmailAsUsername settings to add a strength bar -->
-                                    <#if attribute.annotations.passwordStrengthBar??>
+                                    <#if attribute.annotations.passwordStrengthBar?? && formMode?? && (formMode!"REGISTRATION") != "LOGIN">
                                         <div class="pf-c-progress pf-m-sm" id="password-progress">
                                             <div class="pf-c-progress__bar" id="password-progress-aria" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="password-progress">
                                                 <div class="pf-c-progress__indicator" id="password-progress-indicator"></div>
@@ -79,32 +79,34 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 </div>
                             </div>
 
-                            <div class="${properties.kcFormGroupClass!}">
-                                <div class="${properties.kcLabelWrapperClass!}">
-                                    <label for="password-confirm"
-                                           class="${properties.kcLabelClass!}">${msg("passwordConfirm")}</label> *
-                                </div>
-                                <div class="${properties.kcInputWrapperClass!}">
-                                    <div class="${properties.kcInputGroup!}">
-                                        <input type="password" id="password-confirm" class="${properties.kcInputClass!}"
-                                               name="password-confirm"
-                                               aria-invalid="<#if messagesPerField.existsError('password-confirm')>true</#if>"
-                                        />
-                                        <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
-                                                aria-controls="password-confirm"  data-password-toggle
-                                                data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
-                                                data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
-                                            <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
-                                        </button>
+                            <#if formMode?? && (formMode!"REGISTRATION") != "LOGIN">
+                                <div class="${properties.kcFormGroupClass!}">
+                                    <div class="${properties.kcLabelWrapperClass!}">
+                                        <label for="password-confirm"
+                                            class="${properties.kcLabelClass!}">${msg("passwordConfirm")}</label> *
                                     </div>
+                                    <div class="${properties.kcInputWrapperClass!}">
+                                        <div class="${properties.kcInputGroup!}">
+                                            <input type="password" id="password-confirm" class="${properties.kcInputClass!}"
+                                                name="password-confirm"
+                                                aria-invalid="<#if messagesPerField.existsError('password-confirm')>true</#if>"
+                                            />
+                                            <button class="${properties.kcFormPasswordVisibilityButtonClass!}" type="button" aria-label="${msg('showPassword')}"
+                                                    aria-controls="password-confirm"  data-password-toggle
+                                                    data-icon-show="${properties.kcFormPasswordVisibilityIconShow!}" data-icon-hide="${properties.kcFormPasswordVisibilityIconHide!}"
+                                                    data-label-show="${msg('showPassword')}" data-label-hide="${msg('hidePassword')}">
+                                                <i class="${properties.kcFormPasswordVisibilityIconShow!}" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
 
-                                    <#if messagesPerField.existsError('password-confirm')>
-                                        <span id="input-error-password-confirm" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
-		                                ${kcSanitize(messagesPerField.get('password-confirm'))?no_esc}
-		                            </span>
-                                    </#if>
+                                        <#if messagesPerField.existsError('password-confirm')>
+                                            <span id="input-error-password-confirm" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+                                            ${kcSanitize(messagesPerField.get('password-confirm'))?no_esc}
+                                        </span>
+                                        </#if>
+                                    </div>
                                 </div>
-                            </div>
+                            </#if>
                         </#if>
                     </#if>
                 </#if>

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -86,14 +86,14 @@ pub async fn save_results(
             let total_blank_votes_percent: f64 =
                 contest.contest_result.percentage_total_blank_votes / 100.0;
 
-            let extended_metrics_value = serde_json::to_value(
-                contest
-                    .contest_result
-                    .extended_metrics
-                    .clone()
-                    .unwrap_or_default(),
-            )
-            .expect("Failed to convert to JSON");
+            let contest_result_ext_metrics = contest
+                .contest_result
+                .extended_metrics
+                .clone()
+                .unwrap_or_default();
+            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
+                .expect("Failed to convert to JSON");
+            let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
             annotations["extended_metrics"] = extended_metrics_value;
 
@@ -143,13 +143,6 @@ pub async fn save_results(
                     annotations: Some(annotations),
                     documents: None,
                 });
-
-                let votes_base: f64 = cmp::max(
-                    contest.contest_result.total_votes
-                        - contest.contest_result.total_invalid_votes
-                        - contest.contest_result.total_blank_votes,
-                    1,
-                ) as f64;
 
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
@@ -221,13 +214,6 @@ pub async fn save_results(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
                 });
-
-                let votes_base: f64 = cmp::max(
-                    contest.contest_result.total_votes
-                        - contest.contest_result.total_invalid_votes
-                        - contest.contest_result.total_blank_votes,
-                    1,
-                ) as f64;
 
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
@@ -483,6 +469,7 @@ pub async fn populate_results_tables(
 
         let documents = TallySessionDocuments {
             sqlite: Some(document_id.to_string()),
+            xlsx: None,
         };
 
         Ok((results_event_id_opt, Some(documents)))

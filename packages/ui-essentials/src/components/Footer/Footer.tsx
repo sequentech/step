@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -18,15 +18,16 @@ const StyledPaper = styled(Paper)(
         align-items: center;
         color: ${theme.palette.customGrey.contrastText};
     `
-)
+) as typeof Paper
 
-const StyledLink = styled(Link)`
-    text-decoration: underline;
-    font-weight: normal;
-    &:hover {
-        text-decoration: none;
-    }
-`
+const StyledLink = styled(Link)(({theme}) => ({
+    "textDecoration": "underline",
+    "fontWeight": "normal",
+    "color": theme.palette.blue.dark,
+    "&:hover": {
+        textDecoration: "none",
+    },
+}))
 
 const CustomLink = ({title, href}: {title?: string; href?: string}) => (
     <StyledLink className="footer-link" href={href} target="_blank" rel="noopener noreferrer">
@@ -38,42 +39,30 @@ const Footer: React.FC<PaperProps> = (args) => {
     const {t} = useTranslation()
     const poweredByString = t("footer.poweredBy")
 
-    if (!poweredByString.includes("<sequent />")) {
+    if (!poweredByString.includes("<0>") && !poweredByString.includes("<1>")) {
         return (
-            <StyledPaper className="footer-class" {...args}>
+            <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
                 <Typography variant="subtitle2" fontStyle="italic" color="error">
-                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;sequent
-                    /&gt;`.
+                    Error: Invalid translation for footer.poweredBy. It must contain `&lt;1
+                    &gt;``&lt;1 /&gt;`.
                 </Typography>
             </StyledPaper>
         )
     }
 
     return (
-        <StyledPaper className="footer-class" {...args}>
+        <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
             <Typography variant="subtitle2" fontStyle="italic">
                 <Trans
                     i18nKey="footer.poweredBy"
-                    components={{
-                        link: <CustomLink />,
-                        sequent: <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
-                    }}
-                >
-                    <strong>Powered</strong> by&nbsp;
-                    <sequent />
-                </Trans>
+                    components={[
+                        <CustomLink />,
+                        <CustomLink href="//sequentech.io" title="Sequent Tech Inc" />,
+                    ]}
+                />
             </Typography>
         </StyledPaper>
     )
-}
-
-declare global {
-    // eslint-disable-next-line @typescript-eslint/no-namespace
-    namespace JSX {
-        interface IntrinsicElements {
-            sequent: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement>
-        }
-    }
 }
 
 export default Footer

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::{
@@ -171,14 +171,6 @@ pub async fn update_publish_ballot(
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let election_ids_str = match election_ids.len() > 1 {
-        true => None,
-        false => match election_ids.len() > 0 {
-            true => Some(election_ids[0].clone()),
-            false => None,
-        },
-    };
-
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let electoral_log = ElectoralLog::for_admin_user(
         hasura_transaction,
@@ -187,20 +179,20 @@ pub async fn update_publish_ballot(
         &election_event.id,
         &user_id,
         Some(username.clone()),
-        election_ids_str.clone(),
+        Some(election_ids.clone()),
         None,
     )
     .await?;
     electoral_log
         .post_election_published(
             election_event_id.clone(),
-            election_ids_str,
+            Some(election_ids.clone()),
             ballot_publication_id.clone(),
             Some(user_id),
             Some(username),
         )
         .await
-        .with_context(|| "error posting to the electoral log")?;
+        .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
     Ok(())
 }
 

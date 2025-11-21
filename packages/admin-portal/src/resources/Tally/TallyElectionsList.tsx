@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
@@ -85,8 +85,8 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
-            valueGetter(params) {
-                return aliasRenderer(params.row)
+            valueGetter(value, row) {
+                return aliasRenderer(row)
             },
         },
         {

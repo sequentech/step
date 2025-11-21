@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
@@ -162,9 +162,9 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             <Dialog
                 variant="info"
                 open={openConfirmationModal}
-                ok={t("keysGeneration.downloadStep.confirmdDialog.ok")}
-                cancel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
-                title={t("keysGeneration.downloadStep.confirmdDialog.title")}
+                ok={String(t("keysGeneration.downloadStep.confirmdDialog.ok"))}
+                cancel={String(t("keysGeneration.downloadStep.confirmdDialog.cancel"))}
+                title={String(t("keysGeneration.downloadStep.confirmdDialog.title"))}
                 okEnabled={() => firstCheckbox && secondCheckbox}
                 handleClose={(result: boolean) => {
                     if (result) {
@@ -199,7 +199,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 className="keys-download-first-checkbox"
                             />
                         }
-                        label={t("keysGeneration.downloadStep.confirmdDialog.firstCopy")}
+                        label={String(t("keysGeneration.downloadStep.confirmdDialog.firstCopy"))}
                     />
                     <FormControlLabel
                         control={
@@ -211,7 +211,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                                 className="keys-download-second-checkbox"
                             />
                         }
-                        label={t("keysGeneration.downloadStep.confirmdDialog.secondCopy")}
+                        label={String(t("keysGeneration.downloadStep.confirmdDialog.secondCopy"))}
                     />
                 </FormGroup>
             </Dialog>

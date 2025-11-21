@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useEffect} from "react"
@@ -158,7 +158,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             {canCreate && (
                 <>
                     <Button onClick={createAction}>
-                        <IconButton icon={faPlus} fontSize="24px" />
+                        <IconButton icon={faPlus as any} fontSize="24px" />
                         {t("tallysheet.empty.action")}
                     </Button>
                     <Typography variant="body1" paragraph>
@@ -212,13 +212,13 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             icon: <Add />,
             action: addAction,
             showAction: () => canCreate,
-            label: t("tallysheet.common.add"),
+            label: String(t("tallysheet.common.add")),
         },
         {
             icon: <WorkHistory />,
             action: versionsTableAction,
             showAction: () => canView,
-            label: t("tallysheet.common.versions"),
+            label: String(t("tallysheet.common.versions")),
         },
     ]
 
@@ -267,26 +267,26 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         <TextField source="channel" />
 
                         <FunctionField
-                            label={t("tallysheet.table.contest")}
+                            label={String(t("tallysheet.table.contest"))}
                             render={(record: any) => <ContestItem record={record.contest_id} />}
                         />
 
                         <FunctionField
-                            label={t("tallysheet.table.area")}
+                            label={String(t("tallysheet.table.area"))}
                             render={(record: Sequent_Backend_Tally_Sheet) => (
                                 <AreaItem record={record.area_id} />
                             )}
                         />
 
                         <FunctionField
-                            label={t("tallysheet.table.latestVersion")}
+                            label={String(t("tallysheet.table.latestVersion"))}
                             render={(record: any) =>
                                 getLatestVersion(record.area_id, record.contest_id, record.channel)
                             }
                         />
 
                         <FunctionField
-                            label={t("tallysheet.table.approvedVersion")}
+                            label={String(t("tallysheet.table.approvedVersion"))}
                             render={(record: any) =>
                                 getLatestApprovedVersion(
                                     record.area_id,
@@ -298,7 +298,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
                         <WrapperField source="actions" label="Actions">
                             <FunctionField
-                                label={t("tallysheet.table.area")}
+                                label={String(t("tallysheet.table.area"))}
                                 render={(record: Sequent_Backend_Tally_Sheet) => (
                                     <ListActionsMenu actions={actions(record)} />
                                 )}
@@ -310,9 +310,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             <Dialog
                 variant="warning"
                 open={openDisapproveDialog}
-                ok={t("tallysheet.common.disapprove")}
-                cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.disapprove")}
+                ok={String(t("tallysheet.common.disapprove"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("tallysheet.common.disapprove"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmReviewAction(EStatus.DISAPPROVED)
@@ -326,9 +326,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             <Dialog
                 variant="info"
                 open={openApproveDialog}
-                ok={t("tallysheet.common.approve")}
-                cancel={t("common.label.cancel")}
-                title={t("tallysheet.common.disapprove")}
+                ok={String(t("tallysheet.common.approve"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("tallysheet.common.disapprove"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmReviewAction(EStatus.APPROVED)

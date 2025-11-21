@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useMemo, useState} from "react"
@@ -52,6 +52,9 @@ export interface IAnswerProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
+    explicitBlank: boolean
+    setExplicitBlank: (value: boolean) => void
+    setIsTouched: (value: boolean) => void
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -70,6 +73,9 @@ export const Answer: React.FC<IAnswerProps> = ({
     selectedChoicesSum,
     setSelectedChoicesSum,
     disableSelect,
+    explicitBlank,
+    setExplicitBlank,
+    setIsTouched,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
@@ -77,7 +83,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     const questionState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
-    const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     const question = ballotStyle.ballot_eml.contests.find((contest) => contest.id === contestId)
     const dispatch = useAppDispatch()
     const {globalSettings} = useContext(SettingsContext)
@@ -126,6 +131,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         if (!isActive || isReview) {
             return
         }
+        setIsTouched(true)
         if (isInvalidVote) {
             setInvalidVote(value)
             return
@@ -138,6 +144,8 @@ export const Answer: React.FC<IAnswerProps> = ({
                 setExplicitBlank(false)
             }
             return
+        } else if (value && explicitBlank) {
+            setExplicitBlank(false)
         }
 
         let cleanedText =

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const tagalogTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Bumalik",
+            showMore: "Lakihan ang nakikita",
+            showLess: "Bawasan ang nakikita",
         },
         breadcrumbSteps: {
             electionList: "Listahan ng mga Balota",
@@ -16,7 +18,7 @@ const tagalogTranslation: TranslationType = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Pinapagana ng <sequent />",
+            poweredBy: "Pinapagana ng <1></1>",
         },
         votingScreen: {
             backButton: "Bumalik",
@@ -34,6 +36,14 @@ const tagalogTranslation: TranslationType = {
                     "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga tanong.",
                 ok: "Bumalik at suriin",
                 continue: "Ipagpatuloy",
+                cancel: "Kanselahin",
+            },
+            warningDialog: {
+                title: "Suriin ang iyong balota",
+                content:
+                    "Ang iyong balota ay naglalaman ng mga pagpili na maaaring mangailangan ng iyong pansin (tulad ng pagpili ng mas kaunting opsyon kaysa sa pinapayagan). Ang iyong balota ay wasto at biblangin ayon sa iyong isinumite.",
+                ok: "Bumalik at suriin",
+                continue: "Magpatuloy",
                 cancel: "Kanselahin",
             },
         },
@@ -339,6 +349,9 @@ const tagalogTranslation: TranslationType = {
             notFound: "Ang iyong ballot ID {{ballotId}} ay hindi natagpuan",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
+            ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
+            filterByBallotId: "Tumutugma sa Ballot ID",
+            totalBallots: "Kumulang mga balota: {{total}}",
             steps: {
                 lookup: "Hanapin ang Iyong Balota",
                 result: "Resulta",
@@ -348,6 +361,17 @@ const tagalogTranslation: TranslationType = {
                 content:
                     "Sa screen na ito maaring hanapin ng botante ang kaniyang boto gamit ang Ballot ID upang matagpuan ito. Sa ganitong pamamaraan, maaring suriin kung ang balota ay nai-submit nang tama at kung ang naitalang balota ay tumutugma sa encrypted na balota na kanilang ipinadala.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Lokaliseer uw Stembiljet",
+            },
+            column: {
+                statement_kind: "Uri",
+                statement_timestamp: "Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
+                message: "Mensahe",
             },
         },
     },

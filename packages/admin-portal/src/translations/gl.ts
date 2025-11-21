@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -81,7 +81,9 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
+                EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -106,6 +108,18 @@ const galegoTranslation: TranslationType = {
             empty: {
                 header: "Aínda non hai áreas.",
                 action: "Crear Área",
+            },
+            formImputs: {
+                allowEarlyVoting: "Permitir Votación Anticipada",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clave de Conta de Servizo de Google Calendar",
+                gapiEmail: "Correo de Autenticación de Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Formato de Clave de Conta de Servizo de Google Calendar inválido",
             },
         },
         lookAndFeelScreen: {
@@ -145,6 +159,7 @@ const galegoTranslation: TranslationType = {
                 templates: "MODELOS",
                 languages: "IDIOMAS",
                 localization: "LOCALIZACIÓN",
+                integrations: "Integracións",
                 lookAndFeel: "Aspecto",
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "FIDUCIARIOS",
@@ -282,6 +297,13 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                showCastVoteLogs: {
+                    policyLabel: "Mostrar Tab de Logs de Votación",
+                    options: {
+                        "show-logs-tab": "Mostrar Tab de Logs de Votación",
+                        "hide-logs-tab": "No Mostrar Tab de Logs de Votación",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Estado de Bloqueo",
                     options: {
@@ -328,6 +350,20 @@ const galegoTranslation: TranslationType = {
                     options: {
                         enabled: "Habilitado",
                         disabled: "Deshabilitado",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Política de cerimonias de chaves/reconto",
+                    options: {
+                        "automated-ceremonies": "Permitir cerimonias automáticas",
+                        "manual-ceremonies": "Cerimonias manuais",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Política de Votación Ponderada",
+                    options: {
+                        "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
                 },
             },
@@ -881,9 +917,6 @@ const galegoTranslation: TranslationType = {
                 "report-delete": "Eliminar Informe",
                 "report-generate": "Generar Informe",
                 "report-preview": "Vista Previa del Informe",
-                "monitoring-dashboard-view-election-event":
-                    "Vista del Panel de Monitoreo de Eventos Electorales",
-                "monitoring-dashboard-view-election": "Vista del Panel de Monitoreo de Elecciones",
                 "monitor-authenticated-voters": "Monitoreo de Votantes Autenticados",
                 "monitor-all-approve-disapprove-voters":
                     "Leer Monitoreo de Votantes Aprobados y Rechazados",
@@ -941,6 +974,7 @@ const galegoTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Editar email/teléfono de los votantes",
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmisión",
+                "google-meet-link": "Xerar Ligazón de Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -1011,7 +1045,6 @@ const galegoTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
-                VOTE_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorais",
                 MANUAL_VERIFICATION: "Verificación Manual",
                 STATISTICAL_REPORT: "Informe Estatístico",
@@ -1067,6 +1100,25 @@ const galegoTranslation: TranslationType = {
                 edit: "Editar",
                 preview: "Vista Previa",
             },
+        },
+        googleMeet: {
+            title: "Xerar Ligazón de Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Título da Reunión",
+            description: "Descrición (Opcional)",
+            startDate: "Data de Inicio",
+            startTime: "Hora de Inicio",
+            duration: "Duración (minutos)",
+            attendeeEmails: "Emails dos Participantes",
+            attendeeEmailHelp: "Emails separados por comas para os participantes da reunión",
+            note: "Nota: Isto creará un evento de calendario no teu Google Calendar cun enlace de Google Meet. Necesitarás iniciar sesión na túa conta de Google.",
+            success: "Ligazón de Google Meet Xerada con Éxito!",
+            copy: "Copiar ao portapapeis",
+            copied: "Ligazón copiada ao portapapeis!",
+            instructions:
+                "Comparte esta ligazón cos participantes para unirse á reunión. O evento de calendario foi engadido ao teu Google Calendar.",
+            generating: "Xerando...",
+            generate: "Xerar Ligazón de Meet",
         },
         common: {
             export: "A exportación pode ser unha operación longa. ¿Estás seguro de que queres exportar os rexistros?",
@@ -1125,6 +1177,7 @@ const galegoTranslation: TranslationType = {
             channel: {
                 online: "En Liña",
                 kiosk: "Quiosco",
+                early_voting: "Votación anticipada",
             },
             message: {
                 delete: "¿Estás seguro de que queres eliminar este elemento?",
@@ -1226,6 +1279,12 @@ const galegoTranslation: TranslationType = {
                 "semi-open-list": "Lista Semi Aberta",
                 "invalid-vote": "Voto Nulo",
                 "blank-vote": "Voto en Branco",
+            },
+            invalidVotePosition: {
+                label: "Posición do Voto Nulo",
+                null: "Ningunha (Por defecto)",
+                top: "Arriba",
+                bottom: "Abaixo",
             },
             error: {},
             createCandidateSuccess: "Candidato creado",
@@ -1332,12 +1391,17 @@ const galegoTranslation: TranslationType = {
                     ok: "Si, Crear Cerimonia de Chaves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que queres Crear a Cerimonia de Chaves?",
+                    automaticCeremonyTitle:
+                        "¿Estás seguro de que queres crear unha cerimonia de chaves automática?",
                     description:
                         "Estás a piques de Crear a Cerimonia de Chaves. Esta acción notificará aos Fiduciarios para participar na creación e distribución das Chaves do Evento Electoral.",
+                    automaticCeremonyDescription:
+                        "Estás a piques de crear unha cerimonia de chaves automática. Isto non notificará aos fideicomisarios para que participen.",
                 },
                 filterTrustees: "Filtrar Autoridades",
                 errorPermisionLabels:
                     "Non se pode crear a cerimonia de chaves: falta unha ou máis etiquetas de permisos.",
+                automaticCeremonyToggle: "Ceremonia automática",
             },
             ceremonyStep: {
                 cancel: "Cancelar Cerimonia de Chaves",
@@ -1557,6 +1621,8 @@ const galegoTranslation: TranslationType = {
                         "Estás a piques de cancelar a cerimonia de escrutinio. Esta acción non se pode desfacer.",
                     ceremony:
                         "Todos os fiduciarios requiridos verificaron os seus fragmentos de chave. Todo está listo para comezar a recibir resultados. ¿Queres iniciar o Escrutinio?",
+                    startAutomatedTallyMessage:
+                        "Seleccione 'Start Tally' para executar o proceso de reconto e mostrar os resultados, ou 'Close' para cancelar.",
                 },
             },
             table: {
@@ -1591,6 +1657,14 @@ const galegoTranslation: TranslationType = {
                 blank_votes_percent: "Porcentaxe de Votos en Branco",
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",
+                weight: "Peso",
+            },
+            chart: {
+                votesForCandidates: "Votos polos Candidatos",
+                blankVotes: "Votos en Branco",
+                invalidVotes: "Votos Inválidos",
+                totalVoters: "Total de Votantes",
+                nonVoters: "Non Votantes",
             },
         },
         publish: {
@@ -1610,9 +1684,17 @@ const galegoTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Xerar Informe de Inicialización",
                 startVotingPeriod: "Iniciar Votación",
+                startKioskVoting: "Iniciar Votación en Quiosco",
+                startOnlineVoting: "Iniciar Votación en Liña",
+                startEarlyVoting: "Iniciar Votación Anticipada",
                 stopVotingPeriod: "Detener Votación",
+                stopOnlineVoting: "Detener Votación en Liña",
+                stopEarlyVoting: "Detener Votación Anticipada",
                 stopKioskVotingPeriod: "Detener Votación en Quiosco",
                 pauseVotingPeriod: "Pausar Votación",
+                pauseKioskVoting: "Pausar Votación en Quiosco",
+                pauseOnlineVoting: "Pausar Votación en Liña",
+                pauseEarlyVoting: "Pausar Votación Anticipada",
                 generate: "Rexenerar",
                 publish: "Publicar Cambios",
                 back: "Atrás",
@@ -1703,10 +1785,6 @@ const galegoTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Credenciais",
                 BALLOT_RECEIPT: "Recibo da Papeleta",
-                PARTICIPATION_REPORT: "Informe de Participación",
-                ELECTORAL_RESULTS: "Resultados Electorais",
-                OTP: "OTP",
-                TALLY_REPORT: "Informe de Escrutinio",
             },
             email: {
                 subject: "Asunto",
@@ -1863,38 +1941,12 @@ const galegoTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Credenciales",
-                BALLOT_RECEIPT: "Recibo de Voto",
-                VOTE_RECEIPT: "Recibo de Voto",
-                PARTICIPATION_REPORT: "Informe de Participación",
-                ELECTORAL_RESULTS: "Resultados Electorales",
-                OTP: "OTP",
-                TALLY_REPORT: "Informe de Cómputo",
-                MANUAL_VERIFICATION: "Verificar manualmente al votante",
-                STATISTICAL_REPORT: "Informe Estadístico",
                 INITIALIZATION_REPORT: "Informe de Inicialización",
-                STATUS: "Informe de Estado",
-                TRANSMISSION_REPORT: "Informes de Transmisión",
-                AUDIT_LOGS: "Registros de Auditoría",
-                ACTIVITY_LOGS: "Registros de Actividades",
-                OVCS_INFORMATION: "Información de OVCS",
-                OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
-                OVCS_STATISTICS: "Monitoreo de Votación en el Extranjero - Estadísticas OVCS",
-                OV_WHO_VOTED: "Usuarios OV Que Votaron",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Lista de OV que se preinscribieron pero fueron rechazados",
-                LIST_OF_OVERSEAS_VOTERS: "Lista de Votantes en el Extranjero",
-                OV_TURNOUT_PERCENTAGE: "Participación de Votantes en el Extranjero",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Participación de Votantes en el Extranjero - por Estado a Bordo y Sexo",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Participación de Votantes en el Extranjero - por Estado a Bordo, Sexo y con Porcentaje",
-                OV_PRE_ENROLLED_APPROVED: "Lista de OV que se Preinscribieron (Aprobados)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Lista de OV que se Preinscribieron pero requieren Validación Manual",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Lista de OV que aún no se han Preinscrito",
-                OV_WITH_VOTING_STATUS: "Lista de Votantes en el Extranjero con Estado de Votación",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Número de OV que aún no se han Preinscrito",
+                ELECTORAL_RESULTS: "Resultados Electorales",
                 BALLOT_IMAGES: "Imágenes de Boletas",
+                BALLOT_RECEIPT: "Recibo de Voto",
+                ACTIVITY_LOGS: "Registros de Actividades",
+                MANUAL_VERIFICATION: "Verificación Manual",
             },
             method: {
                 email: "Correo",

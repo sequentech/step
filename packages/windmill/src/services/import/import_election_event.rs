@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -33,8 +33,9 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
+use sequent_core::services::keycloak::{
+    get_client_credentials, get_event_realm, replace_realm_ids, KeycloakAdminClient,
+};
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::AreaContest;
@@ -195,18 +196,20 @@ pub async fn upsert_b3_and_elog(
 
 #[instrument(err)]
 pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
-    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
-        "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
-    ));
+    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH")
+        .with_context(|| "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set")?;
     let realm_config = fs::read_to_string(&realm_config_path)
-        .expect(&format!("Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}"));
-
+        .with_context(|| "Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}")?;
     deserialize_str(&realm_config)
         .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
 }
 
 #[instrument(skip(realm))]
-pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepresentation {
+pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
+    // set a specific client secret for a specific client id by env config
+    let client_id = env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
+    let client_secret =
+        env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
     // we remove secrets and certs so that keycloak regenerates them
     // remove client secrets
     let mut realm_copy = realm.clone();
@@ -215,7 +218,11 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepres
             .iter()
             .map(|client| {
                 let mut client_copy = client.clone();
-                client_copy.secret = None;
+                if client.client_id == Some(client_id.clone()) {
+                    client_copy.secret = Some(client_secret.clone());
+                } else {
+                    client_copy.secret = None;
+                }
                 client_copy
             })
             .collect()
@@ -247,7 +254,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> RealmRepres
         }
         realm_copy.components = Some(newcomponents);
     }
-    realm_copy
+    Ok(realm_copy)
 }
 
 #[instrument(err, skip(keycloak_event_realm))]
@@ -262,7 +269,7 @@ pub async fn upsert_keycloak_realm(
         let realm = read_default_election_event_realm()?;
         realm
     };
-    realm = remove_keycloak_realm_secrets(&realm);
+    realm = remove_keycloak_realm_secrets(&realm)?;
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
@@ -341,6 +348,23 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
+/// Replaces UUIDs in the import data while preserving specific IDs that should remain unchanged.
+///
+/// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
+/// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
+/// (like tenant_id and optionally election_event_id). It also automatically preserves UUIDs
+/// referenced in Keycloak authenticator configurations.
+///
+/// # Arguments
+/// * `data_str` - The original JSON string representation of the import data
+/// * `original_data` - The parsed ImportElectionEventSchema structure
+/// * `id_opt` - Optional election event ID to use. If None, a new UUID will be generated
+/// * `tenant_id` - The tenant ID to use (may differ from the original)
+///
+/// # Returns
+/// A tuple containing:
+/// * The modified ImportElectionEventSchema with replaced UUIDs
+/// * A HashMap mapping old UUIDs to their new replacements
 #[instrument(err, skip(data_str, original_data))]
 pub fn replace_ids(
     data_str: &str,
@@ -348,37 +372,29 @@ pub fn replace_ids(
     id_opt: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
-    let mut keep: Vec<String> = vec![];
-    keep.push(original_data.tenant_id.clone().to_string());
-    if id_opt.is_some() {
-        keep.push(original_data.election_event.id.clone());
-    }
-    // find other ids to maintain
-    if let Some(realm) = original_data.keycloak_event_realm.clone() {
-        if let Some(authenticator_configs) = realm.authenticator_config.clone() {
-            for authenticator_config in authenticator_configs {
-                let Some(config) = authenticator_config.config.clone() else {
-                    continue;
-                };
-                for (_key, value) in config {
-                    if Uuid::parse_str(&value).is_ok() {
-                        keep.push(value.clone());
-                    }
-                }
-            }
-        }
-    }
+    // Prepare tenant_id replacement - always replace to ensure consistency
+    let tenant_id_replacement = Some((original_data.tenant_id.to_string(), tenant_id.clone()));
 
-    let (mut new_data, replacement_map) = replace_uuids(data_str, keep);
+    // Prepare election_event_id replacement if a specific one was provided
+    let election_event_id_replacement = id_opt
+        .as_ref()
+        .map(|new_id| (original_data.election_event.id.clone(), new_id.clone()));
 
-    if let Some(id) = id_opt {
-        new_data = new_data.replace(&original_data.election_event.id, &id);
-    }
-    if original_data.tenant_id.to_string() != tenant_id {
-        new_data = new_data.replace(&original_data.tenant_id.to_string(), &tenant_id);
-    }
+    // Use replace_realm_ids which handles:
+    // - Preserving UUIDs in Keycloak authenticator configurations
+    // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
+    // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
+    let (new_data, replacement_map) = replace_realm_ids(
+        data_str,
+        vec![], // Empty keep list - replace_realm_ids will populate it automatically
+        tenant_id_replacement,
+        election_event_id_replacement,
+    )?;
 
+    // Parse the modified JSON string back into the structured format
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+
+    // Return both the modified schema and the UUID replacement mapping
     Ok((data, replacement_map))
 }
 

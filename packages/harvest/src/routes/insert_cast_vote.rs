@@ -1,6 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -62,7 +60,7 @@ pub async fn insert_cast_vote(
                 &claims.hasura_claims.tenant_id,
                 &claims.hasura_claims.user_id,
                 &area_id,
-                &voting_channel,
+                voting_channel,
                 &claims.auth_time,
                 &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
@@ -208,6 +206,13 @@ pub async fn insert_cast_vote(
                     Status::BadRequest,
                     ErrorCode::DeserializeContestsFailed.to_string().as_str(),
                     ErrorCode::DeserializeContestsFailed,
+                )
+            }
+            CastVoteError::DeserializeAreaPresentationFailed(_) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    ErrorCode::DeserializeAreaPresentationFailed.to_string().as_str(),
+                    ErrorCode::DeserializeAreaPresentationFailed,
                 )
             }
             CastVoteError::SerializeVoterIdFailed(_) => {

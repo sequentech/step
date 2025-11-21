@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::anyhow;
@@ -19,7 +18,7 @@ pub struct TotalAggregate {
 }
 
 // Enumeration for the valid order directions
-#[derive(Debug, Deserialize, EnumString, Display)]
+#[derive(Debug, Deserialize, EnumString, Display, Clone)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum OrderDirection {
