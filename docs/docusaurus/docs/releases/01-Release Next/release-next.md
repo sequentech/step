@@ -381,3 +381,10 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+
+## ✨ Tally sheets input support
+
+`TALLY SHEETS` tab has been moved to election level. The table supports new actions
+ like viewing the versions for each ballot box and approving/disapproving them.
+New permission roles have been created: `tally-sheet-view`, `tally-sheet-create` and `tally-sheet-review`.
+If they are not present they must be created in Realm Roles and assigned in Groups > Admin > Role Mapping.
