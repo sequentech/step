@@ -1495,34 +1495,6 @@ impl Contest {
             .map(|candidate| candidate.id.clone())
             .collect()
     }
-
-    /// Checks whether the ballot is valid for this Contest or not.
-    /// - Candidate ids of the selection must be present in the contest.
-    /// - For instant-runoff, the preference order must be valid, without gaps.
-    pub fn is_valid_ballot(
-        &self,
-        decoded_contest: &DecodedVoteContest,
-    ) -> bool {
-        // Check all candidate ids are asociated with this contest
-        let candidate_ids: String =
-            self.candidates.iter().map(|c| c.id.clone()).collect();
-        let contains_all = decoded_contest
-            .choices
-            .iter()
-            .all(|choice| candidate_ids.contains(&choice.id));
-        if !contains_all {
-            return false;
-        }
-        if self.get_counting_algorithm().is_preferential() {
-            // Check that there are no gaps in the preference order
-            match decoded_contest.validate_preferencial_order() {
-                Ok(_) => (),
-                Err(PreferencialOrderErrorType::PreferenceOrderWithGaps) => (), /* Not considered invalid */
-                Err(_) => return false,
-            }
-        }
-        true
-    }
 }
 
 #[allow(non_camel_case_types)]
