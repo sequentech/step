@@ -33,7 +33,7 @@ import {
 import {styled} from "@mui/material/styles"
 import DownloadIcon from "@mui/icons-material/Download"
 import VideoCallIcon from "@mui/icons-material/VideoCall"
-import React, {useContext, useEffect, useState} from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
@@ -199,94 +199,89 @@ export const EditElectionEventDataForm: React.FC = () => {
         record?.presentation?.language_conf?.enabled_language_codes,
     ])
 
-    const parseValues = (
-        incoming: Sequent_Backend_Election_Event_Extended,
-        languageSettings: Array<string>
-    ): Sequent_Backend_Election_Event_Extended => {
-        const temp = {...incoming}
+    const parseValues = useCallback(
+        (
+            incoming: Sequent_Backend_Election_Event_Extended,
+            languageSettings: Array<string>
+        ): Sequent_Backend_Election_Event_Extended => {
+            const temp = {...incoming}
 
-        // languages
-        temp.enabled_languages = {}
+            temp.presentation = {...(incoming.presentation || {})}
 
-        if (!incoming.presentation) {
-            temp.presentation = {}
-        }
-        const incomingLangConf = (incoming?.presentation as IElectionEventPresentation | undefined)
-            ?.language_conf
+            // languages
+            temp.enabled_languages = {}
 
-        if (
-            incomingLangConf?.enabled_language_codes &&
-            incomingLangConf?.enabled_language_codes.length > 0
-        ) {
-            // if presentation has lang then set from event
-            for (const setting of languageSettings) {
-                const enabled_item: {[key: string]: boolean} = {}
+            const incomingLangConf = (
+                incoming?.presentation as IElectionEventPresentation | undefined
+            )?.language_conf
 
-                const isInEnabled =
-                    incomingLangConf?.enabled_language_codes?.find(
-                        (item: string) => setting === item
-                    ) ?? false
-
-                enabled_item[setting] = !!isInEnabled
-
-                temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
-            }
-        } else {
-            // if presentation has no lang then use always the default settings
-            temp.enabled_languages = {...temp.enabled_languages}
-            for (const item of languageSettings) {
-                temp.enabled_languages[item] = false
-            }
-        }
-
-        // set english first lang always
-        if (temp.enabled_languages) {
-            const en = {en: temp.enabled_languages["en"]}
-            delete temp.enabled_languages.en
-            const rest = temp.enabled_languages
-            temp.enabled_languages = {...en, ...rest}
-        }
-        // voting channels
-        const all_channels = {...incoming?.voting_channels}
-
-        // delete incoming.voting_channels
-        temp.voting_channels = {}
-
-        for (const setting in votingSettings) {
-            const enabled_item: any = {}
-            enabled_item[setting] =
-                setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-        }
-        if (!temp.presentation) {
-            temp.presentation = {}
-        }
-
-        temp.presentation.elections_order =
-            temp?.presentation.elections_order || ElectionsOrder.ALPHABETICAL
-
-        if (
-            !(temp.presentation as IElectionEventPresentation | undefined)
-                ?.voting_portal_countdown_policy
-        ) {
-            temp.presentation.voting_portal_countdown_policy = {
-                policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
-            }
-        }
-        if (!temp.presentation.custom_urls) {
-            temp.presentation.custom_urls = {}
-        }
-        if (!customFilters) {
             if (
-                temp?.presentation?.custom_filters &&
-                temp?.presentation?.custom_filters.length > 0
+                incomingLangConf?.enabled_language_codes &&
+                incomingLangConf?.enabled_language_codes.length > 0
             ) {
-                setCustomFilters(temp.presentation.custom_filters)
-            }
-        }
+                // if presentation has lang then set from event
+                for (const setting of languageSettings) {
+                    const enabled_item: {[key: string]: boolean} = {}
 
-        return temp
-    }
+                    const isInEnabled =
+                        incomingLangConf?.enabled_language_codes?.find(
+                            (item: string) => setting === item
+                        ) ?? false
+
+                    enabled_item[setting] = !!isInEnabled
+
+                    temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
+                }
+            } else {
+                // if presentation has no lang then use always the default settings
+                temp.enabled_languages = {...temp.enabled_languages}
+                for (const item of languageSettings) {
+                    temp.enabled_languages[item] = false
+                }
+            }
+
+            // Force English first
+            if (temp.enabled_languages.en !== undefined) {
+                const {en, ...rest} = temp.enabled_languages
+                temp.enabled_languages = {en, ...rest}
+            }
+
+            // delete incoming.voting_channels
+            temp.voting_channels = {}
+            const defaultChannels: TVotingSetting = {
+                online: true,
+                kiosk: false,
+                early_voting: false,
+            }
+            for (const channel of Object.keys(defaultChannels)) {
+                temp.voting_channels[channel] =
+                    incoming.voting_channels?.[channel] ?? defaultChannels[channel]
+            }
+
+            temp.presentation.elections_order ??= ElectionsOrder.ALPHABETICAL
+
+            if (!temp.presentation.voting_portal_countdown_policy) {
+                temp.presentation.voting_portal_countdown_policy = {
+                    policy: EVotingPortalCountdownPolicy.NO_COUNTDOWN,
+                }
+            }
+
+            temp.presentation.custom_urls ??= {}
+
+            return temp
+        },
+        [votingSettings]
+    )
+
+    useEffect(() => {
+        if (
+            record?.presentation?.custom_filters &&
+            record.presentation.custom_filters.length > 0 &&
+            !customFilters
+        ) {
+            setCustomFilters(record.presentation.custom_filters)
+        }
+    }, [record?.presentation?.custom_filters, customFilters])
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
@@ -347,30 +342,25 @@ export const EditElectionEventDataForm: React.FC = () => {
         return channelNodes
     }
 
-    const renderTabs = (
-        parsedValue: Sequent_Backend_Election_Event_Extended,
-        type: string = "general"
-    ) => {
-        let tabNodes = []
-        for (const lang in parsedValue?.enabled_languages) {
-            if (parsedValue?.enabled_languages[lang]) {
-                tabNodes.push(
-                    <Tab key={lang} label={String(t(`common.language.${lang}`))} id={lang}></Tab>
-                )
+    const renderTabs = useCallback(
+        (parsedValue: Sequent_Backend_Election_Event_Extended, type: string = "general") => {
+            let tabNodes = []
+            for (const lang in parsedValue?.enabled_languages) {
+                if (parsedValue?.enabled_languages[lang]) {
+                    tabNodes.push(
+                        <Tab
+                            key={lang}
+                            label={String(t(`common.language.${lang}`))}
+                            id={lang}
+                        ></Tab>
+                    )
+                }
             }
-        }
 
-        // reset actived tab to first tab if only one
-        if (tabNodes.length === 1) {
-            if (type === "materials") {
-                setValueMaterials(0)
-            } else {
-                setValue(0)
-            }
-        }
-
-        return tabNodes
-    }
+            return tabNodes
+        },
+        [t]
+    )
 
     const renderTabContent = (parsedValue: Sequent_Backend_Election_Event_Extended) => {
         let tabNodes = []
@@ -480,85 +470,6 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
-    const handleUpdateCustomUrls = async (
-        presentation: IElectionEventPresentation,
-        recordId: string
-    ) => {
-        try {
-            const urlEntries = [
-                {
-                    key: "login",
-                    origin: `https://${customUrlsValues.login}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
-                    redirect_to: getAuthUrl(
-                        globalSettings.VOTING_PORTAL_URL,
-                        tenantId ?? "",
-                        recordId,
-                        "login"
-                    ),
-                    dns_prefix: customUrlsValues.login,
-                },
-                {
-                    key: "enrollment",
-                    origin: `https://${customUrlsValues.enrollment}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
-                    redirect_to: getAuthUrl(
-                        globalSettings.VOTING_PORTAL_URL,
-                        tenantId ?? "",
-                        recordId,
-                        "enroll"
-                    ),
-                    dns_prefix: customUrlsValues.enrollment,
-                },
-                {
-                    key: "saml",
-                    origin: `https://${customUrlsValues.saml}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
-                    redirect_to: `${globalSettings.KEYCLOAK_URL}realms/tenant-${tenantId}-event-${recordId}/broker/simplesamlphp/endpoint`,
-                    dns_prefix: customUrlsValues.saml,
-                },
-            ]
-            setIsCustomUrlLoading(true)
-            setIsCustomizeUrl(true)
-            const [loginResponse, enrollmentResponse, samlResponse] = await Promise.all(
-                urlEntries.map((item) =>
-                    manageCustomUrls({
-                        variables: {
-                            origin: item.origin,
-                            redirect_to: item.redirect_to ?? "",
-                            dns_prefix: item.dns_prefix,
-                            election_id: recordId,
-                            key: item.key,
-                        },
-                    })
-                )
-            )
-            setCustomLoginRes(loginResponse)
-            setCustomEnrollmentRes(enrollmentResponse)
-            setCustomSamlRes(samlResponse)
-        } catch (err: any) {
-            console.error(err)
-        } finally {
-            setIsCustomUrlLoading(false)
-        }
-    }
-
-    const handleUpdateVoterAuthentication = async (
-        presentation: IElectionEventPresentation,
-        recordId: string
-    ) => {
-        try {
-            const data = manageVoterAuthentication({
-                variables: {
-                    electionEventId: recordId,
-                    enrollment: voterAuthentication.enrollment,
-                    otp: voterAuthentication.otp,
-                },
-            })
-        } catch (err: any) {
-            console.error(err)
-        } finally {
-            setIsCustomUrlLoading(false)
-        }
-    }
-
     const sortedElections = (elections ?? []).sort((a, b) => {
         let presentationA = a.presentation as IElectionPresentation | undefined
         let presentationB = b.presentation as IElectionPresentation | undefined
@@ -566,6 +477,24 @@ export const EditElectionEventDataForm: React.FC = () => {
         let sortOrderB = presentationB?.sort_order ?? -1
         return sortOrderA - sortOrderB
     })
+
+    const parsedValue = useMemo(
+        () => parseValues(record as Sequent_Backend_Election_Event_Extended, languageSettings),
+        [record, languageSettings, parseValues]
+    )
+
+    const defaultValues = useMemo(() => ({electionsOrder: sortedElections}), [sortedElections])
+
+    useEffect(() => {
+        const enabledCount = Object.values(parsedValue?.enabled_languages ?? {}).filter(
+            Boolean
+        ).length
+
+        if (enabledCount === 1) {
+            setValue(0)
+            setValueMaterials(0)
+        }
+    }, [parsedValue?.enabled_languages, setValue, setValueMaterials])
 
     const decodedBallotsStateChoices = () => {
         return Object.values(EElectionEventDecodedBallots).map((value) => ({
@@ -680,6 +609,96 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
         return buttons
     }
+
+    const handleUpdateCustomUrls = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            const urlEntries = [
+                {
+                    key: "login",
+                    origin: `https://${customUrlsValues.login}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "login"
+                    ),
+                    dns_prefix: customUrlsValues.login,
+                },
+                {
+                    key: "enrollment",
+                    origin: `https://${customUrlsValues.enrollment}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
+                    redirect_to: getAuthUrl(
+                        globalSettings.VOTING_PORTAL_URL,
+                        tenantId ?? "",
+                        recordId,
+                        "enroll"
+                    ),
+                    dns_prefix: customUrlsValues.enrollment,
+                },
+                {
+                    key: "saml",
+                    origin: `https://${customUrlsValues.saml}.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`,
+                    redirect_to: `${globalSettings.KEYCLOAK_URL}realms/tenant-${tenantId}-event-${recordId}/broker/simplesamlphp/endpoint`,
+                    dns_prefix: customUrlsValues.saml,
+                },
+            ]
+            setIsCustomUrlLoading(true)
+            setIsCustomizeUrl(true)
+            const [loginResponse, enrollmentResponse, samlResponse] = await Promise.all(
+                urlEntries.map((item) =>
+                    manageCustomUrls({
+                        variables: {
+                            origin: item.origin,
+                            redirect_to: item.redirect_to ?? "",
+                            dns_prefix: item.dns_prefix,
+                            election_id: recordId,
+                            key: item.key,
+                        },
+                    })
+                )
+            )
+            setCustomLoginRes(loginResponse)
+            setCustomEnrollmentRes(enrollmentResponse)
+            setCustomSamlRes(samlResponse)
+        } catch (err: any) {
+            console.error(err)
+        } finally {
+            setIsCustomUrlLoading(false)
+        }
+    }
+    const handleUpdateVoterAuthentication = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            const data = manageVoterAuthentication({
+                variables: {
+                    electionEventId: recordId,
+                    enrollment: voterAuthentication.enrollment,
+                    otp: voterAuthentication.otp,
+                },
+            })
+        } catch (err: any) {
+            console.error(err)
+        } finally {
+            setIsCustomUrlLoading(false)
+        }
+    }
+
+    const onSave = async () => {
+        await handleUpdateCustomUrls(
+            parsedValue.presentation as IElectionEventPresentation,
+            record?.id
+        )
+        await handleUpdateVoterAuthentication(
+            parsedValue.presentation as IElectionEventPresentation,
+            record?.id
+        )
+        setActivateSave(false)
+    }
     return (
         <>
             <Box
@@ -700,643 +719,557 @@ export const EditElectionEventDataForm: React.FC = () => {
                     extraActions={extraActionsButtons()}
                 />
             </Box>
-            <RecordContext.Consumer>
-                {(incoming) => {
-                    const parsedValue = parseValues(
-                        incoming as Sequent_Backend_Election_Event_Extended,
-                        languageSettings
-                    )
-                    const onSave = async () => {
-                        await handleUpdateCustomUrls(
-                            parsedValue.presentation as IElectionEventPresentation,
-                            record?.id
+            <SimpleForm
+                defaultValues={defaultValues}
+                validate={formValidator}
+                record={parsedValue}
+                toolbar={
+                    <Toolbar>
+                        {canEdit && (
+                            <SaveButton
+                                onClick={() => {
+                                    onSave()
+                                }}
+                                type="button"
+                                alwaysEnable={activateSave}
+                            />
+                        )}
+                    </Toolbar>
+                }
+            >
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-general"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-general"
+                                ? ""
+                                : "election-event-data-general"
                         )
-                        await handleUpdateVoterAuthentication(
-                            parsedValue.presentation as IElectionEventPresentation,
-                            record?.id
-                        )
-                        setActivateSave(false)
                     }
-                    return (
-                        <SimpleForm
-                            defaultValues={{electionsOrder: sortedElections}}
-                            validate={formValidator}
-                            record={parsedValue}
-                            toolbar={
-                                <Toolbar>
-                                    {canEdit && (
-                                        <SaveButton
-                                            onClick={() => {
-                                                onSave()
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.general")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Tabs value={value} onChange={handleChange}>
+                            {renderTabs(parsedValue)}
+                        </Tabs>
+                        {renderTabContent(parsedValue)}
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-language"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-language"
+                                ? ""
+                                : "election-event-data-language"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-language" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.language")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <ElectionStyles.AccordionContainer>
+                            <ElectionStyles.AccordionWrapper>
+                                {renderLangs(parsedValue)}
+                                {renderDefaultLangs(parsedValue)}
+                            </ElectionStyles.AccordionWrapper>
+                        </ElectionStyles.AccordionContainer>
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-ballot-style"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-ballot-style"
+                                ? ""
+                                : "election-event-data-ballot-style"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-ballot-style" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.ballotDesign")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <BooleanInput
+                            disabled={!canEdit}
+                            source={"presentation.skip_election_list"}
+                            label={String(t(`electionEventScreen.field.skipElectionList`))}
+                        />
+                        <BooleanInput
+                            disabled={!canEdit}
+                            source={"presentation.show_user_profile"}
+                            label={String(t(`electionEventScreen.field.showUserProfile`))}
+                        />
+                        <SelectInput
+                            source="presentation.elections_order"
+                            choices={orderAnswerChoices()}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source="presentation.show_cast_vote_logs"
+                            choices={showCastVoteLogsChoices()}
+                            validate={required()}
+                            defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
+                            label={String(
+                                t("electionEventScreen.field.showCastVoteLogs.policyLabel")
+                            )}
+                        />
+                        <FormDataConsumer>
+                            {({formData, ...rest}) => {
+                                return (
+                                    formData?.presentation as IElectionEventPresentation | undefined
+                                )?.elections_order === ElectionsOrder.CUSTOM ? (
+                                    <ElectionRows>
+                                        <Typography
+                                            variant="body1"
+                                            component="span"
+                                            sx={{
+                                                padding: "0.5rem 1rem",
+                                                fontWeight: "bold",
+                                                margin: 0,
+                                                display: {xs: "none", sm: "block"},
                                             }}
-                                            type="button"
-                                            alwaysEnable={activateSave}
-                                        />
-                                    )}
-                                </Toolbar>
+                                        >
+                                            {t("electionEventScreen.edit.reorder")}
+                                        </Typography>
+                                        <CustomOrderInput source="electionsOrder" />
+                                        <Box sx={{width: "100%", height: "180px"}}></Box>
+                                    </ElectionRows>
+                                ) : null
+                            }}
+                        </FormDataConsumer>
+                        <TextInput
+                            resettable={true}
+                            source={"presentation.logo_url"}
+                            label={String(t("electionEventScreen.field.logoUrl"))}
+                        />
+                        <TextInput
+                            resettable={true}
+                            source={"presentation.redirect_finish_url"}
+                            label={String(t("electionEventScreen.field.redirectFinishUrl"))}
+                        />
+                        <TextInput
+                            resettable={true}
+                            multiline={true}
+                            source={"presentation.css"}
+                            label={String(t("electionEventScreen.field.css"))}
+                        />
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-allowed"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-allowed"
+                                ? ""
+                                : "election-event-data-allowed"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.allowed")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Grid container spacing={4}>
+                            <Grid size={{xs: 12, md: 6}}>{renderVotingChannels(parsedValue)}</Grid>
+                        </Grid>
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-custom-urls"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-custom-urls"
+                                ? ""
+                                : "election-event-data-custom-urls"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-custom-urls" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.customUrls")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <CustomUrlsStyle.InputWrapper>
+                            <CustomUrlsStyle.InputLabel>Login:</CustomUrlsStyle.InputLabel>
+                            <CustomUrlsStyle.InputLabelWrapper>
+                                <p>https://</p>
+                                <TextInput
+                                    variant="standard"
+                                    helperText={false}
+                                    sx={{width: "300px"}}
+                                    source={`presentation.custom_urls.login`}
+                                    label={""}
+                                    onChange={(e) =>
+                                        setCustomUrlsValues({
+                                            ...customUrlsValues,
+                                            login: e.target.value,
+                                        })
+                                    }
+                                />
+                                <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                {isCustomUrlLoading ? (
+                                    <WizardStyles.DownloadProgress size={18} />
+                                ) : (
+                                    isCustomizeUrl &&
+                                    (customLoginRes?.data?.set_custom_urls?.success ? (
+                                        <StatusChip status="SUCCESS" />
+                                    ) : (
+                                        <StatusChip status="ERROR" />
+                                    ))
+                                )}
+                            </CustomUrlsStyle.InputLabelWrapper>
+                            {customLoginRes && !customLoginRes?.data?.set_custom_urls?.success && (
+                                <CustomUrlsStyle.ErrorText>
+                                    {customLoginRes?.data?.set_custom_urls?.message}
+                                </CustomUrlsStyle.ErrorText>
+                            )}
+                        </CustomUrlsStyle.InputWrapper>
+                        <CustomUrlsStyle.InputWrapper>
+                            <CustomUrlsStyle.InputLabel>Enrollment:</CustomUrlsStyle.InputLabel>
+                            <CustomUrlsStyle.InputLabelWrapper>
+                                <p>https://</p>
+                                <TextInput
+                                    variant="standard"
+                                    helperText={false}
+                                    sx={{width: "300px"}}
+                                    source={`presentation.custom_urls.enrollment`}
+                                    label={""}
+                                    onChange={(e) =>
+                                        setCustomUrlsValues({
+                                            ...customUrlsValues,
+                                            enrollment: e.target.value,
+                                        })
+                                    }
+                                />
+                                <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                {isCustomUrlLoading ? (
+                                    <WizardStyles.DownloadProgress size={18} />
+                                ) : (
+                                    isCustomizeUrl &&
+                                    (customEnrollmentRes?.data?.set_custom_urls?.success ? (
+                                        <StatusChip status="SUCCESS" />
+                                    ) : (
+                                        <StatusChip status="ERROR" />
+                                    ))
+                                )}
+                            </CustomUrlsStyle.InputLabelWrapper>
+                            {customEnrollmentRes &&
+                                !customEnrollmentRes?.data?.set_custom_urls?.success && (
+                                    <CustomUrlsStyle.ErrorText>
+                                        {customEnrollmentRes?.data?.set_custom_urls?.message}
+                                    </CustomUrlsStyle.ErrorText>
+                                )}
+                        </CustomUrlsStyle.InputWrapper>
+                        <CustomUrlsStyle.InputWrapper>
+                            <CustomUrlsStyle.InputLabel>SAML:</CustomUrlsStyle.InputLabel>
+                            <CustomUrlsStyle.InputLabelWrapper>
+                                <p>https://</p>
+                                <TextInput
+                                    variant="standard"
+                                    helperText={false}
+                                    sx={{width: "300px"}}
+                                    source={`presentation.custom_urls.saml`}
+                                    label={""}
+                                    onChange={(e) =>
+                                        setCustomUrlsValues({
+                                            ...customUrlsValues,
+                                            saml: e.target.value,
+                                        })
+                                    }
+                                />
+                                <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
+                                {isCustomUrlLoading ? (
+                                    <WizardStyles.DownloadProgress size={18} />
+                                ) : (
+                                    isCustomizeUrl &&
+                                    (customSamlRes?.data?.set_custom_urls?.success ? (
+                                        <StatusChip status="SUCCESS" />
+                                    ) : (
+                                        <StatusChip status="ERROR" />
+                                    ))
+                                )}
+                            </CustomUrlsStyle.InputLabelWrapper>
+                            {customSamlRes && !customSamlRes?.data?.set_custom_urls?.success && (
+                                <CustomUrlsStyle.ErrorText>
+                                    {customSamlRes?.data?.set_custom_urls?.message}
+                                </CustomUrlsStyle.ErrorText>
+                            )}
+                        </CustomUrlsStyle.InputWrapper>
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-materials"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-materials"
+                                ? ""
+                                : "election-event-data-materials"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-materials" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.materials")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <BooleanInput
+                            disabled={!canEdit}
+                            source={`presentation.materials.activated`}
+                            label={String(t(`electionEventScreen.field.materialActivated`))}
+                        />
+                        <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
+                            {renderTabs(parsedValue, "materials")}
+                        </Tabs>
+                        {renderTabContentMaterials(parsedValue)}
+                        <Box>
+                            <ListSupportMaterials electionEventId={parsedValue?.id} />
+                        </Box>
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "voting-portal-countdown-policy"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "voting-portal-countdown-policy"
+                                ? ""
+                                : "voting-portal-countdown-policy"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="voting-portal-countdown-policy" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.advancedConfigurations")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <SelectInput
+                            source={"presentation.contest_encryption_policy"}
+                            choices={contestEncryptionPolicyChoices()}
+                            label={String(
+                                t("electionEventScreen.field.contestEncryptionPolicy.policyLabel")
+                            )}
+                            defaultValue={EElectionEventContestEncryptionPolicy.SINGLE_CONTEST}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.locked_down"}
+                            choices={lockdownStateChoices()}
+                            label={String(t("electionEventScreen.field.lockdownState.policyLabel"))}
+                            defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.decoded_ballot_inclusion_policy"}
+                            choices={decodedBallotsStateChoices()}
+                            label={String(
+                                t("electionEventScreen.field.decodedBallots.policyLabel")
+                            )}
+                            defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.ceremonies_policy"}
+                            choices={ceremonyPolicyOptions()}
+                            label={String(
+                                t("electionEventScreen.field.ceremoniesPolicy.policyLabel")
+                            )}
+                            defaultValue={EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.weighted_voting_policy"}
+                            choices={weightedVotingPolicyOptions()}
+                            label={"Weighted Voting Policy"}
+                            defaultValue={
+                                EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
                             }
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <Typography
+                            variant="body1"
+                            component="span"
+                            sx={{
+                                fontWeight: "bold",
+                                margin: 0,
+                                display: {xs: "none", sm: "block"},
+                            }}
                         >
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-general"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "election-event-data-general"
-                                            ? ""
-                                            : "election-event-data-general"
-                                    )
+                            {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
+                        </Typography>
+                        <SelectInput
+                            source={`presentation.voting_portal_countdown_policy.policy`}
+                            choices={votingPortalCountDownPolicies()}
+                            label={String(
+                                t("electionEventScreen.field.countDownPolicyOptions.policyLabel")
+                            )}
+                            defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.voter_signing_policy"}
+                            choices={voterSigningPolicyChoices()}
+                            label={String(
+                                t("electionEventScreen.field.voterSigningPolicy.policyLabel")
+                            )}
+                            defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                justifyContent: "flex-end",
+                                alignItems: "center",
+                                gap: "16px",
+                            }}
+                        >
+                            <ManagedNumberInput
+                                source={
+                                    "presentation.voting_portal_countdown_policy.countdown_anticipation_secs"
                                 }
-                            >
-                                <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.general")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Tabs value={value} onChange={handleChange}>
-                                        {renderTabs(parsedValue)}
-                                    </Tabs>
-                                    {renderTabContent(parsedValue)}
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-language"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "election-event-data-language"
-                                            ? ""
-                                            : "election-event-data-language"
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
                                     )
+                                )}
+                                defaultValue={defaultSecondsForCountdown}
+                                sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                isDisabled={(selectedPolicy) =>
+                                    selectedPolicy === EVotingPortalCountdownPolicy.NO_COUNTDOWN
                                 }
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-language" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.language")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <ElectionStyles.AccordionContainer>
-                                        <ElectionStyles.AccordionWrapper>
-                                            {renderLangs(parsedValue)}
-                                            {renderDefaultLangs(parsedValue)}
-                                        </ElectionStyles.AccordionWrapper>
-                                    </ElectionStyles.AccordionContainer>
-                                </AccordionDetails>
-                            </Accordion>
+                            />
 
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-ballot-style"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "election-event-data-ballot-style"
-                                            ? ""
-                                            : "election-event-data-ballot-style"
+                            <ManagedNumberInput
+                                source={
+                                    "presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"
+                                }
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
                                     )
+                                )}
+                                defaultValue={defaultSecondsForAlert}
+                                sourceToWatch="presentation.voting_portal_countdown_policy.policy"
+                                isDisabled={(selectedPolicy) =>
+                                    selectedPolicy !==
+                                    EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
                                 }
+                            />
+                        </Box>
+                        <Box>
+                            <Typography
+                                variant="body1"
+                                component="span"
+                                sx={{
+                                    padding: "1rem 0rem",
+                                    fontWeight: "bold",
+                                    margin: 0,
+                                    display: {xs: "none", sm: "block"},
+                                }}
                             >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-ballot-style" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.ballotDesign")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <BooleanInput
-                                        disabled={!canEdit}
-                                        source={"presentation.skip_election_list"}
-                                        label={String(
-                                            t(`electionEventScreen.field.skipElectionList`)
-                                        )}
-                                    />
-                                    <BooleanInput
-                                        disabled={!canEdit}
-                                        source={"presentation.show_user_profile"}
-                                        label={String(
-                                            t(`electionEventScreen.field.showUserProfile`)
-                                        )}
-                                    />
-                                    <SelectInput
-                                        source="presentation.elections_order"
-                                        choices={orderAnswerChoices()}
-                                        validate={required()}
-                                    />
-                                    <SelectInput
-                                        source="presentation.show_cast_vote_logs"
-                                        choices={showCastVoteLogsChoices()}
-                                        validate={required()}
-                                        defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.showCastVoteLogs.policyLabel"
-                                            )
-                                        )}
-                                    />
-                                    <FormDataConsumer>
-                                        {({formData, ...rest}) => {
-                                            return (
-                                                formData?.presentation as
-                                                    | IElectionEventPresentation
-                                                    | undefined
-                                            )?.elections_order === ElectionsOrder.CUSTOM ? (
-                                                <ElectionRows>
-                                                    <Typography
-                                                        variant="body1"
-                                                        component="span"
-                                                        sx={{
-                                                            padding: "0.5rem 1rem",
-                                                            fontWeight: "bold",
-                                                            margin: 0,
-                                                            display: {xs: "none", sm: "block"},
-                                                        }}
-                                                    >
-                                                        {t("electionEventScreen.edit.reorder")}
-                                                    </Typography>
-                                                    <CustomOrderInput source="electionsOrder" />
-                                                    <Box
-                                                        sx={{width: "100%", height: "180px"}}
-                                                    ></Box>
-                                                </ElectionRows>
-                                            ) : null
-                                        }}
-                                    </FormDataConsumer>
-                                    <TextInput
-                                        resettable={true}
-                                        source={"presentation.logo_url"}
-                                        label={String(t("electionEventScreen.field.logoUrl"))}
-                                    />
-                                    <TextInput
-                                        resettable={true}
-                                        source={"presentation.redirect_finish_url"}
-                                        label={String(
-                                            t("electionEventScreen.field.redirectFinishUrl")
-                                        )}
-                                    />
-                                    <TextInput
-                                        resettable={true}
-                                        multiline={true}
-                                        source={"presentation.css"}
-                                        label={String(t("electionEventScreen.field.css"))}
-                                    />
-                                </AccordionDetails>
-                            </Accordion>
+                                {t("electionEventScreen.edit.custom_filters")}
+                            </Typography>
 
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-allowed"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "election-event-data-allowed"
-                                            ? ""
-                                            : "election-event-data-allowed"
-                                    )
+                            <JsonEditor
+                                data={customFilters ?? []}
+                                onUpdate={(data) =>
+                                    updateCustomFilters(parsedValue, data as UpdateFunctionProps)
                                 }
+                            />
+                        </Box>
+                        <Box>
+                            <Typography
+                                variant="body1"
+                                component="span"
+                                sx={{
+                                    padding: "1rem 0rem",
+                                    fontWeight: "bold",
+                                    margin: 0,
+                                    display: {xs: "none", sm: "block"},
+                                }}
                             >
-                                <AccordionSummary
-                                    expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.allowed")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <Grid container spacing={4}>
-                                        <Grid size={{xs: 12, md: 6}}>
-                                            {renderVotingChannels(parsedValue)}
-                                        </Grid>
-                                    </Grid>
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-custom-urls"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "election-event-data-custom-urls"
-                                            ? ""
-                                            : "election-event-data-custom-urls"
-                                    )
-                                }
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-custom-urls" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.customUrls")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <CustomUrlsStyle.InputWrapper>
-                                        <CustomUrlsStyle.InputLabel>
-                                            Login:
-                                        </CustomUrlsStyle.InputLabel>
-                                        <CustomUrlsStyle.InputLabelWrapper>
-                                            <p>https://</p>
-                                            <TextInput
-                                                variant="standard"
-                                                helperText={false}
-                                                sx={{width: "300px"}}
-                                                source={`presentation.custom_urls.login`}
-                                                label={""}
-                                                onChange={(e) =>
-                                                    setCustomUrlsValues({
-                                                        ...customUrlsValues,
-                                                        login: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
-                                            {isCustomUrlLoading ? (
-                                                <WizardStyles.DownloadProgress size={18} />
-                                            ) : (
-                                                isCustomizeUrl &&
-                                                (customLoginRes?.data?.set_custom_urls?.success ? (
-                                                    <StatusChip status="SUCCESS" />
-                                                ) : (
-                                                    <StatusChip status="ERROR" />
-                                                ))
-                                            )}
-                                        </CustomUrlsStyle.InputLabelWrapper>
-                                        {customLoginRes &&
-                                            !customLoginRes?.data?.set_custom_urls?.success && (
-                                                <CustomUrlsStyle.ErrorText>
-                                                    {customLoginRes?.data?.set_custom_urls?.message}
-                                                </CustomUrlsStyle.ErrorText>
-                                            )}
-                                    </CustomUrlsStyle.InputWrapper>
-                                    <CustomUrlsStyle.InputWrapper>
-                                        <CustomUrlsStyle.InputLabel>
-                                            Enrollment:
-                                        </CustomUrlsStyle.InputLabel>
-                                        <CustomUrlsStyle.InputLabelWrapper>
-                                            <p>https://</p>
-                                            <TextInput
-                                                variant="standard"
-                                                helperText={false}
-                                                sx={{width: "300px"}}
-                                                source={`presentation.custom_urls.enrollment`}
-                                                label={""}
-                                                onChange={(e) =>
-                                                    setCustomUrlsValues({
-                                                        ...customUrlsValues,
-                                                        enrollment: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
-                                            {isCustomUrlLoading ? (
-                                                <WizardStyles.DownloadProgress size={18} />
-                                            ) : (
-                                                isCustomizeUrl &&
-                                                (customEnrollmentRes?.data?.set_custom_urls
-                                                    ?.success ? (
-                                                    <StatusChip status="SUCCESS" />
-                                                ) : (
-                                                    <StatusChip status="ERROR" />
-                                                ))
-                                            )}
-                                        </CustomUrlsStyle.InputLabelWrapper>
-                                        {customEnrollmentRes &&
-                                            !customEnrollmentRes?.data?.set_custom_urls
-                                                ?.success && (
-                                                <CustomUrlsStyle.ErrorText>
-                                                    {
-                                                        customEnrollmentRes?.data?.set_custom_urls
-                                                            ?.message
-                                                    }
-                                                </CustomUrlsStyle.ErrorText>
-                                            )}
-                                    </CustomUrlsStyle.InputWrapper>
-                                    <CustomUrlsStyle.InputWrapper>
-                                        <CustomUrlsStyle.InputLabel>
-                                            SAML:
-                                        </CustomUrlsStyle.InputLabel>
-                                        <CustomUrlsStyle.InputLabelWrapper>
-                                            <p>https://</p>
-                                            <TextInput
-                                                variant="standard"
-                                                helperText={false}
-                                                sx={{width: "300px"}}
-                                                source={`presentation.custom_urls.saml`}
-                                                label={""}
-                                                onChange={(e) =>
-                                                    setCustomUrlsValues({
-                                                        ...customUrlsValues,
-                                                        saml: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                            <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
-                                            {isCustomUrlLoading ? (
-                                                <WizardStyles.DownloadProgress size={18} />
-                                            ) : (
-                                                isCustomizeUrl &&
-                                                (customSamlRes?.data?.set_custom_urls?.success ? (
-                                                    <StatusChip status="SUCCESS" />
-                                                ) : (
-                                                    <StatusChip status="ERROR" />
-                                                ))
-                                            )}
-                                        </CustomUrlsStyle.InputLabelWrapper>
-                                        {customSamlRes &&
-                                            !customSamlRes?.data?.set_custom_urls?.success && (
-                                                <CustomUrlsStyle.ErrorText>
-                                                    {customSamlRes?.data?.set_custom_urls?.message}
-                                                </CustomUrlsStyle.ErrorText>
-                                            )}
-                                    </CustomUrlsStyle.InputWrapper>
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "election-event-data-materials"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "election-event-data-materials"
-                                            ? ""
-                                            : "election-event-data-materials"
-                                    )
-                                }
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="election-event-data-materials" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.materials")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <BooleanInput
-                                        disabled={!canEdit}
-                                        source={`presentation.materials.activated`}
-                                        label={String(
-                                            t(`electionEventScreen.field.materialActivated`)
-                                        )}
-                                    />
-                                    <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
-                                        {renderTabs(parsedValue, "materials")}
-                                    </Tabs>
-                                    {renderTabContentMaterials(parsedValue)}
-                                    <Box>
-                                        <ListSupportMaterials electionEventId={parsedValue?.id} />
-                                    </Box>
-                                </AccordionDetails>
-                            </Accordion>
-
-                            <Accordion
-                                sx={{width: "100%"}}
-                                expanded={expanded === "voting-portal-countdown-policy"}
-                                onChange={() =>
-                                    setExpanded((prev) =>
-                                        prev === "voting-portal-countdown-policy"
-                                            ? ""
-                                            : "voting-portal-countdown-policy"
-                                    )
-                                }
-                            >
-                                <AccordionSummary
-                                    expandIcon={
-                                        <ExpandMoreIcon id="voting-portal-countdown-policy" />
-                                    }
-                                >
-                                    <ElectionHeaderStyles.Wrapper>
-                                        <ElectionHeaderStyles.Title>
-                                            {t("electionEventScreen.edit.advancedConfigurations")}
-                                        </ElectionHeaderStyles.Title>
-                                    </ElectionHeaderStyles.Wrapper>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                    <SelectInput
-                                        source={"presentation.contest_encryption_policy"}
-                                        choices={contestEncryptionPolicyChoices()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.contestEncryptionPolicy.policyLabel"
-                                            )
-                                        )}
-                                        defaultValue={
-                                            EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
-                                        }
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <SelectInput
-                                        source={"presentation.locked_down"}
-                                        choices={lockdownStateChoices()}
-                                        label={String(
-                                            t("electionEventScreen.field.lockdownState.policyLabel")
-                                        )}
-                                        defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <SelectInput
-                                        source={"presentation.decoded_ballot_inclusion_policy"}
-                                        choices={decodedBallotsStateChoices()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.decodedBallots.policyLabel"
-                                            )
-                                        )}
-                                        defaultValue={EElectionEventDecodedBallots.NOT_INCLUDED}
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <SelectInput
-                                        source={"presentation.ceremonies_policy"}
-                                        choices={ceremonyPolicyOptions()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.ceremoniesPolicy.policyLabel"
-                                            )
-                                        )}
-                                        defaultValue={
-                                            EElectionEventCeremoniesPolicy.MANUAL_CEREMONIES
-                                        }
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <SelectInput
-                                        source={"presentation.weighted_voting_policy"}
-                                        choices={weightedVotingPolicyOptions()}
-                                        label={"Weighted Voting Policy"}
-                                        defaultValue={
-                                            EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
-                                        }
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t(
-                                            "electionEventScreen.field.countDownPolicyOptions.sectionTitle"
-                                        )}
-                                    </Typography>
-                                    <SelectInput
-                                        source={`presentation.voting_portal_countdown_policy.policy`}
-                                        choices={votingPortalCountDownPolicies()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.countDownPolicyOptions.policyLabel"
-                                            )
-                                        )}
-                                        defaultValue={EVotingPortalCountdownPolicy.NO_COUNTDOWN}
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <SelectInput
-                                        source={"presentation.voter_signing_policy"}
-                                        choices={voterSigningPolicyChoices()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.voterSigningPolicy.policyLabel"
-                                            )
-                                        )}
-                                        defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexDirection: "row",
-                                            justifyContent: "flex-end",
-                                            alignItems: "center",
-                                            gap: "16px",
-                                        }}
-                                    >
-                                        <ManagedNumberInput
-                                            source={
-                                                "presentation.voting_portal_countdown_policy.countdown_anticipation_secs"
-                                            }
-                                            label={String(
-                                                t(
-                                                    "electionEventScreen.field.countDownPolicyOptions.coundownSecondsLabel"
-                                                )
-                                            )}
-                                            defaultValue={defaultSecondsForCountdown}
-                                            sourceToWatch="presentation.voting_portal_countdown_policy.policy"
-                                            isDisabled={(selectedPolicy) =>
-                                                selectedPolicy ===
-                                                EVotingPortalCountdownPolicy.NO_COUNTDOWN
-                                            }
-                                        />
-
-                                        <ManagedNumberInput
-                                            source={
-                                                "presentation.voting_portal_countdown_policy.countdown_alert_anticipation_secs"
-                                            }
-                                            label={String(
-                                                t(
-                                                    "electionEventScreen.field.countDownPolicyOptions.alertSecondsLabel"
-                                                )
-                                            )}
-                                            defaultValue={defaultSecondsForAlert}
-                                            sourceToWatch="presentation.voting_portal_countdown_policy.policy"
-                                            isDisabled={(selectedPolicy) =>
-                                                selectedPolicy !==
-                                                EVotingPortalCountdownPolicy.COUNTDOWN_WITH_ALERT
-                                            }
-                                        />
-                                    </Box>
-                                    <Box>
-                                        <Typography
-                                            variant="body1"
-                                            component="span"
-                                            sx={{
-                                                padding: "1rem 0rem",
-                                                fontWeight: "bold",
-                                                margin: 0,
-                                                display: {xs: "none", sm: "block"},
-                                            }}
-                                        >
-                                            {t("electionEventScreen.edit.custom_filters")}
-                                        </Typography>
-
-                                        <JsonEditor
-                                            data={customFilters ?? []}
-                                            onUpdate={(data) =>
-                                                updateCustomFilters(
-                                                    parsedValue,
-                                                    data as UpdateFunctionProps
-                                                )
-                                            }
-                                        />
-                                    </Box>
-                                    <Box>
-                                        <Typography
-                                            variant="body1"
-                                            component="span"
-                                            sx={{
-                                                padding: "1rem 0rem",
-                                                fontWeight: "bold",
-                                                margin: 0,
-                                                display: {xs: "none", sm: "block"},
-                                            }}
-                                        >
-                                            {t("electionEventScreen.edit.voter_authentication")}
-                                        </Typography>
-                                        <SelectInput
-                                            label={String(
-                                                t(
-                                                    `electionEventScreen.field.enrollment.policyLabel`
-                                                )
-                                            )}
-                                            source="presentation.enrollment"
-                                            choices={enrollmentChoices()}
-                                            onChange={(value) => handleEnrollmentChange(value)}
-                                        />
-                                        <SelectInput
-                                            label={String(
-                                                t(`electionEventScreen.field.otp.policyLabel`)
-                                            )}
-                                            source="presentation.otp"
-                                            choices={otpChoices()}
-                                            onChange={(value) => handleOtpChange(value)}
-                                        />
-                                    </Box>
-                                </AccordionDetails>
-                            </Accordion>
-                        </SimpleForm>
-                    )
-                }}
-            </RecordContext.Consumer>
+                                {t("electionEventScreen.edit.voter_authentication")}
+                            </Typography>
+                            <SelectInput
+                                label={String(
+                                    t(`electionEventScreen.field.enrollment.policyLabel`)
+                                )}
+                                source="presentation.enrollment"
+                                choices={enrollmentChoices()}
+                                onChange={(value) => handleEnrollmentChange(value)}
+                            />
+                            <SelectInput
+                                label={String(t(`electionEventScreen.field.otp.policyLabel`))}
+                                source="presentation.otp"
+                                choices={otpChoices()}
+                                onChange={(value) => handleOtpChange(value)}
+                            />
+                        </Box>
+                    </AccordionDetails>
+                </Accordion>
+            </SimpleForm>
 
             <ImportDataDrawer
                 open={openDrawer}
@@ -1386,10 +1319,4 @@ export const EditElectionEventDataForm: React.FC = () => {
             )}
         </>
     )
-}
-function useCallBack(
-    arg0: (presentation: IElectionEventPresentation, recordId: string) => Promise<void>,
-    arg1: never[]
-) {
-    throw new Error("Function not implemented.")
 }
