@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,6 +12,7 @@ pub use headless_chrome::types::{PrintToPdfOptions, TransferMode};
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use reqwest;
 use serde_json::json;
+use sha256;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
@@ -630,6 +630,8 @@ pub fn html_to_pdf(
         header_template: None,
         footer_template: None,
         prefer_css_page_size: None,
+        generate_document_outline: None,
+        generate_tagged_pdf: None,
         transfer_mode: None,
     });
 

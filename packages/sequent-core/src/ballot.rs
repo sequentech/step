@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
@@ -6,16 +6,14 @@
 #[cfg(feature = "default_features")]
 pub use crate::auditable_ballot::*;
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::ceremonies::CeremoniesPolicy;
 use crate::types::hasura::core::{self, Area, ElectionEvent};
-#[cfg(feature = "default_features")]
-use crate::types::scheduled_event::EventProcessors;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_path_to_error::Error;
-use std::hash::Hash;
 use std::ops::Deref;
 use std::{collections::HashMap, default::Default};
 use strum_macros::{Display, EnumString, IntoStaticStr};
@@ -606,6 +604,7 @@ pub struct ElectionEventPresentation {
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    pub ceremonies_policy: Option<CeremoniesPolicy>,
 }
 
 impl ElectionEvent {

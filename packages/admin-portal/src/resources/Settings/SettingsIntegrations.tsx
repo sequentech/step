@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -111,12 +111,12 @@ export const SettingsIntegrations: React.FC<void> = () => {
                 multiline={true}
                 maxRows={6}
                 source={"settings.gapi_key"}
-                label={t("integrationsScreen.common.gapiKey")}
+                label={String(t("integrationsScreen.common.gapiKey"))}
                 onChange={handleGapiKeyChange}
             />
             <TextInput
                 source={"settings.gapi_email"}
-                label={t("integrationsScreen.common.gapiEmail")}
+                label={String(t("integrationsScreen.common.gapiEmail"))}
                 onChange={handleGapiEmailChange}
             />
         </SimpleForm>

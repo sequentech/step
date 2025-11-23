@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -11,7 +11,10 @@ use strand::serialization::StrandDeserialize;
 use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
+#[cfg(feature = "default_features")]
+pub use crate::auditable_ballot::*;
 use crate::ballot::*;
+
 use crate::ballot_codec::multi_ballot::BallotChoices;
 use crate::ballot_codec::multi_ballot::ContestChoices;
 use crate::ballot_codec::PlaintextCodec;
@@ -262,9 +265,14 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         contests: AuditableBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
-    let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot)?;
+    let hashable_ballot: HashableBallot =
+        HashableBallot::try_from(&signed_hashable_ballot)?;
     auditable_ballot.ballot_hash = hash_ballot(&hashable_ballot)?;
 
     Ok(auditable_ballot)
@@ -361,6 +369,8 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
         contests: AuditableMultiBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
     let hashable_ballot = HashableMultiBallot::try_from(&auditable_ballot)?;
