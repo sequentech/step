@@ -102,6 +102,9 @@ in
     
     # AI. Note, requires allowUnfree: true in devenv.yaml
     claude-code
+
+    # for plugins
+    cargo-component
   ];
 
   # https://devenv.sh/scripts/
@@ -115,10 +118,6 @@ in
     set +a
 
     export RUST_SRC_PATH=${rustStable}/bin/rustc
-
-    if ! command -v cargo-component >/dev/null; then
-    RUSTUP_TOOLCHAIN=nightly cargo install cargo-component
-    fi
   '';
 
 
