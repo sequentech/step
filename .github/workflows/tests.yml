@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,6 +13,7 @@ jobs:
   run-tests:
     name: Run Rust tests
     runs-on:
+      - env=infra-euw1
       - runs-on=${{ github.run_id }}
       - runner=2cpu-linux-x64
       - image=ubuntu24-full-x64
@@ -39,7 +40,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: 1.90.0
           components: rustfmt
           target: x86_64-unknown-linux-musl
 

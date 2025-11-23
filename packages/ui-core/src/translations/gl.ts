@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -64,7 +64,9 @@ const galegoTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Desenvolvido por",
+        footer: {
+            poweredBy: "Desenvolvido por <sequent />",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Non hai suficientes opcións para descifrar",

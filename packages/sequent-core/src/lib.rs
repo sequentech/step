@@ -1,7 +1,6 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-#![feature(int_roundings)]
 #[macro_use]
 extern crate quick_error;
 extern crate cfg_if;
@@ -36,6 +35,9 @@ pub mod plugins_wit;
 pub mod serialization;
 #[cfg(feature = "default_features")]
 pub mod services;
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
+
 #[cfg(feature = "default_features")]
 pub mod util;
 

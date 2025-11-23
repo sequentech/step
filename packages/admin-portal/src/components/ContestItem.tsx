@@ -1,14 +1,10 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
-import {useQuery} from "@apollo/client"
-import styled from "@emotion/styled"
-import {Chip, IconButton} from "@mui/material"
-import {adminTheme} from "@sequentech/ui-essentials"
-import React, {useEffect} from "react"
-import {Identifier, RaRecord, useGetList, useGetOne, useRecordContext} from "react-admin"
+import {Chip} from "@mui/material"
+import React from "react"
+import {Identifier, RaRecord, useGetOne} from "react-admin"
 
 /*  
         In the component where you want to use the actions column:

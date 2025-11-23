@@ -8,7 +8,7 @@ let
 
   pkgs' = pkgs.extend rustOverlay;
 
-  rustNightly = pkgs'.rust-bin.nightly.latest.default.override {
+  rustStable = pkgs'.rust-bin.stable.latest.default.override {
     targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2"];
     extensions = [ "rust-src" "rust-analyzer-preview" ];
   };
@@ -32,7 +32,7 @@ in
   packages = with pkgs; [
 
     # Binary Rust
-    rustNightly
+    rustStable
 
     # AWS
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
@@ -43,8 +43,9 @@ in
     openssl
     glibc
     openssh
-    postgresql_15
+    postgresql_18
     python3
+    openssh
 
     # immudb
     go
@@ -85,6 +86,9 @@ in
 
     # rust dependencies
     cargo-watch
+    cargo-license
+    cargo-audit
+
     wasm-pack
     wasm-bindgen-cli
 
@@ -95,6 +99,12 @@ in
     yq
 
     minio-client
+    
+    # AI. Note, requires allowUnfree: true in devenv.yaml
+    claude-code
+
+    # for plugins
+    cargo-component
   ];
 
   # https://devenv.sh/scripts/
@@ -107,11 +117,7 @@ in
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
 
-    export RUST_SRC_PATH=${rustNightly}/bin/rustc
-
-    if ! command -v cargo-component >/dev/null; then
-    RUSTUP_TOOLCHAIN=nightly cargo install cargo-component
-    fi
+    export RUST_SRC_PATH=${rustStable}/bin/rustc
   '';
 
 
@@ -122,8 +128,8 @@ in
     };
   };
 
-  # https://devenv.sh/pre-commit-hooks/
-  pre-commit.hooks = {
+  # https://devenv.sh/git-hooks/
+  git-hooks.hooks = {
     clippy.enable = false;
     rustfmt.enable = false;
     reuse = {

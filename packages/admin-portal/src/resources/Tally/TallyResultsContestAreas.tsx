@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
@@ -96,7 +96,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     }, [contestId, contestAreas])
 
     interface TabPanelProps {
-        children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
+        children?: React.ReactNode
         index: number
         value: number | null
     }
@@ -124,16 +124,29 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     }
 
     let documents: IResultDocumentsData | null = useMemo(() => {
-        const documents =
-            !!contestId &&
-            !!selectedArea &&
-            !!resultsContests &&
-            resultsContests[0]?.contest_id === contestId &&
-            resultsContests[0]?.area_id === selectedArea &&
-            (resultsContests[0]?.documents as IResultDocuments | null)
-        return documents
+        let parsedDocuments: IResultDocuments | null = null
+        try {
+            const rawDocuments =
+                !!contestId &&
+                !!selectedArea &&
+                !!resultsContests &&
+                resultsContests[0]?.contest_id === contestId &&
+                resultsContests[0]?.area_id === selectedArea &&
+                (resultsContests[0]?.documents as IResultDocuments | null)
+            if (rawDocuments) {
+                // Check if the documents are already an object.
+                // If they are a string, parse them.
+                parsedDocuments =
+                    typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+            }
+        } catch (e) {
+            console.error("Failed to parse documents JSON string:", e)
+            return null // Return null if parsing fails
+        }
+
+        return parsedDocuments
             ? {
-                  documents,
+                  documents: parsedDocuments,
                   name: contest?.name ?? "contest",
                   class_type: "contest-area",
               }
@@ -165,7 +178,10 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     {t("electionEventScreen.stats.areas")}.{" "}
                 </Typography>
                 <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
-                    <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
+                    <Tab
+                        label={String(t("tally.common.global"))}
+                        onClick={() => tabGlobalClicked()}
+                    />
                     {areasData?.map((area, index) => {
                         return (
                             <Tab

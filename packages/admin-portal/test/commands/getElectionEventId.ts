@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,7 +7,7 @@ export const getElectionEventId = async function (browser) {
         return result.value
     })
 
-    const electionEventIdMatch = currentUrl.match(/sequent_backend_election_event\/([^\/]+)/)
+    const electionEventIdMatch = currentUrl.match(/sequent_backend_election_event\/([^/]+)/)
     if (electionEventIdMatch) {
         const electionEventId = electionEventIdMatch[1]
         return electionEventId

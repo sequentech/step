@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -163,4 +163,29 @@ pub enum TallyType {
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct TallySessionDocuments {
     pub sqlite: Option<String>,
+    pub xlsx: Option<String>,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum CeremoniesPolicy {
+    #[default]
+    #[strum(serialize = "manual-ceremonies")]
+    #[serde(rename = "manual-ceremonies")]
+    MANUAL_CEREMONIES,
+    #[strum(serialize = "automated-ceremonies")]
+    #[serde(rename = "automated-ceremonies")]
+    AUTOMATED_CEREMONIES,
 }

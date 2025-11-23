@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -353,9 +353,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
       AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
@@ -411,6 +410,7 @@ services:
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
+
     depends_on:
       immudb:
         condition: service_healthy
@@ -457,83 +457,6 @@ services:
   #       VAULT_TOKEN: ${VAULT_TOKEN}
 
   # Create collection in immudb
-  immudb-log-audit-init:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
-    platform: linux/amd64
-    container_name: immudb-log-audit-init
-    command: >
-      create sql pgaudit_hasura
-      --parser pgauditjsonlog
-      --log-level debug
-      --immudb-user ${IMMUDB_USER}
-      --immudb-password ${IMMUDB_PASSWORD}
-      --immudb-host ${IMMUDB_HOST}
-      --immudb-port ${IMMUDB_PORT}
-      --immudb-database ${IMMUDB_LOGS_DB}
-    depends_on:
-      - postgres
-      - immudb
-
-  # Send audit logs to immudb
-  immudb-log-audit:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
-    platform: linux/amd64
-    container_name: immudb-log-audit
-    command: >
-      tail file pgaudit_hasura "/logs/*.json"
-      --follow
-      --parser pgauditjsonlog
-      --file-registry-dir=/data
-      --log-level debug
-      --immudb-user ${IMMUDB_USER}
-      --immudb-password ${IMMUDB_PASSWORD}
-      --immudb-host ${IMMUDB_HOST}
-      --immudb-port ${IMMUDB_PORT}
-      --immudb-database ${IMMUDB_LOGS_DB}
-    environment:
-      IMMUDB_LOG_AUDIT_PROBE_ADDR: ${IMMUDB_LOG_AUDIT_PROBE_ADDR}
-      IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH: ${IMMUDB_LOG_AUDIT_PROBE_LIVE_PATH}
-
-  # Create collection in immudb
-  immudb-log-audit-init-keycloak:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
-    platform: linux/amd64
-    container_name: immudb-log-audit-init-keycloak
-    command: >
-      create sql pgaudit_keycloak
-      --parser pgauditjsonlog
-      --log-level debug
-      --immudb-user ${IMMUDB_USER}
-      --immudb-password ${IMMUDB_PASSWORD}
-      --immudb-host ${IMMUDB_HOST}
-      --immudb-port ${IMMUDB_PORT}
-      --immudb-database ${IMMUDB_LOGS_DB}
-    depends_on:
-      - postgres
-      - immudb
-      - immudb-log-audit-init
-
-  # Send audit logs to immudb
-  immudb-log-audit-keycloak:
-    profiles: ["full", "base"]
-    image: ghcr.io/sequentech/step/immudb-log-audit:latest
-    platform: linux/amd64
-    container_name: immudb-log-audit-keycloak
-    command: >
-      tail file pgaudit_keycloak "/logs/*.json"
-      --follow
-      --parser pgauditjsonlog
-      --file-registry-dir=/data
-      --log-level debug
-      --immudb-user ${IMMUDB_USER}
-      --immudb-password ${IMMUDB_PASSWORD}
-      --immudb-host ${IMMUDB_HOST}
-      --immudb-port ${IMMUDB_PORT}
-      --immudb-database ${IMMUDB_LOGS_DB}
-
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
@@ -602,9 +525,8 @@ services:
       AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
 
       SECRETS_BACKEND: ${SECRETS_BACKEND}
+      MASTER_SECRET: ${MASTER_SECRET}
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
-      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
-      VAULT_TOKEN: ${VAULT_TOKEN}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
       KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
