@@ -53,4 +53,5 @@ pub mod wasm;
 pub mod plugins;
 pub mod std_temp_path;
 
+#[cfg(feature = "signatures")]
 pub mod password;
