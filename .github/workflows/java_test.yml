@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: self-hosted
+    runs-on: gcp-selfhosted-ubuntu24
 
     steps:
     - uses: actions/checkout@v2
