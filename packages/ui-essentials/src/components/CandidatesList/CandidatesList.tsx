@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
@@ -6,7 +6,6 @@ import React, {PropsWithChildren} from "react"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {Checkbox} from "@mui/material"
-import emotionStyled from "@emotion/styled"
 
 const ListContainer = styled(Box)<{isactive: string}>`
     backgroundcolor: ${({theme}) => theme.palette.lightBackground};
@@ -30,7 +29,7 @@ const ListHeader = styled(Box)`
     flex-direction: row;
 `
 
-const ListChildrenContainer = emotionStyled.ul`
+const ListChildrenContainer = styled("ul")`
     flex-grow: 2;
     list-style: none;
     margin: 12px 0;

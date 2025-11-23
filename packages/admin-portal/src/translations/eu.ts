@@ -915,9 +915,6 @@ const basqueTranslation: TranslationType = {
                 "report-delete": "Ezabatu Txostena",
                 "report-generate": "Sortu Txostena",
                 "report-preview": "Aurreikusi Txostena",
-                "monitoring-dashboard-view-election-event":
-                    "Hauteskunde Gertaera Monitorizazio Panela Ikusi",
-                "monitoring-dashboard-view-election": "Hauteskunde Monitorizazio Panela Ikusi",
                 "monitor-authenticated-voters": "Monitorizatu Autentifikatutako Bozkatzaileak",
                 "monitor-all-approve-disapprove-voters":
                     "Irakurri Monitorizazio Onartu Ezarri Bozkatzaileak",
@@ -1042,7 +1039,6 @@ const basqueTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                VOTE_RECEIPT: "Boto Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
@@ -1779,10 +1775,6 @@ const basqueTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Kredentzialak",
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                PARTICIPATION_REPORT: "Parte-hartze Txostena",
-                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
-                OTP: "OTP",
-                TALLY_REPORT: "Zenbaketa Txostena",
             },
             email: {
                 subject: "Gaia",
@@ -1919,38 +1911,12 @@ const basqueTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Kredentzialak",
-                BALLOT_RECEIPT: "Bozketa Jasoagiria",
-                VOTE_RECEIPT: "Boto Jasoagiriak",
-                PARTICIPATION_REPORT: "Parte-hartze Txostena",
-                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
-                OTP: "OTP",
-                TALLY_REPORT: "Zenbaketa Txostena",
-                MANUAL_VERIFICATION: "Eskuz egiaztatu bozkatzailea",
-                STATISTICAL_REPORT: "Txosten Estatistikoa",
                 INITIALIZATION_REPORT: "Hasierako Txostena",
-                STATUS: "Egoera Txostena",
-                TRANSMISSION_REPORT: "Transmisio Txostenak",
-                AUDIT_LOGS: "Auditoria Egunkariak",
-                ACTIVITY_LOGS: "Jarduera Egunkariak",
-                OVCS_INFORMATION: "OVCS Informazioa",
-                OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
-                OVCS_STATISTICS: "Atzerriko Bozketa Monitorizazioa - OVCS Estatistikak",
-                OV_WHO_VOTED: "Bozkatu duten AB Erabiltzaileak",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Aurre-matrikulatu baina Ezarri diren ABen zerrenda",
-                LIST_OF_OVERSEAS_VOTERS: "Atzerriko Bozkatzaileen Zerrenda",
-                VOTERS_TURNOUT_PERCENTAGE: "Bozkatzaileen Parte-hartzea",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera eta Sexuaren arabera",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Atzerriko Bozkatzaileen Parte-hartzea - Kanpoko Egoera, Sexu eta Ehunekoarekin",
-                OV_PRE_ENROLLED_APPROVED: "Aurre-matrikulatu diren ABen zerrenda (Onartua)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Aurre-matrikulatu baina Eskuzko Baliozkotzearen menpean dauden ABen zerrenda",
-                OV_WITH_VOTING_STATUS: "Bozketa Egoerarekin Atzerriko Bozkatzaileen zerrenda",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Oraindik Aurre-matrikulatu ez diren ABen zerrenda",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Oraindik Aurre-matrikulatu ez diren AB kopurua",
+                ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 BALLOT_IMAGES: "Bozketa Irudiak",
+                BALLOT_RECEIPT: "Bozketa Jasoagiria",
+                ACTIVITY_LOGS: "Jarduera Egunkariak",
+                MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
             },
             method: {
                 email: "Emaila",

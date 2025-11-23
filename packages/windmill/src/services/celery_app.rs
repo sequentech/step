@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
@@ -254,13 +254,13 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_users,
             export_users,
             import_election_event,
-            generate_manual_verification_report,
             scheduled_events,
             manage_election_event_date,
             manage_election_event_enrollment,
             manage_election_event_lockdown,
             manage_election_init_report,
             manage_election_voting_period_end,
+            generate_manual_verification_report,
             manage_election_allow_tally,
             manage_election_date,
             export_election_event,
@@ -290,7 +290,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             create_keys::NAME => &Queue::Short.queue_name(&slug),
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
             process_board::NAME => &Queue::Beat.queue_name(&slug),
-            generate_manual_verification_report::NAME => &Queue::Reports.queue_name(&slug),
             render_report::NAME => &Queue::Reports.queue_name(&slug),
             create_ballot_receipt::NAME => &Queue::Reports.queue_name(&slug),
             generate_report::NAME => &Queue::Reports.queue_name(&slug),
@@ -320,6 +319,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             manage_election_event_lockdown::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_init_report::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_voting_period_end::NAME => &Queue::Beat.queue_name(&slug),
+            generate_manual_verification_report::NAME => &Queue::Reports.queue_name(&slug),
             manage_election_allow_tally::NAME => &Queue::Beat.queue_name(&slug),
             create_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),
             send_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
@@ -78,6 +78,15 @@ pub async fn generate_ballot_publication(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     if let Some(election_event_presentation) = election_event.presentation {
+        info!(
+            "election_event_presentation {:?}",
+            election_event_presentation
+        );
+        let maybe_err = deserialize_value::<ElectionEventPresentation>(
+            election_event_presentation.clone(),
+        );
+        info!("presentation err {:?}", maybe_err);
+
         if deserialize_value::<ElectionEventPresentation>(
             election_event_presentation,
         )
