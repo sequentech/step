@@ -24,14 +24,15 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use futures::try_join;
-use sequent_core::ballot::verify_ballot_signature;
+use sequent_core::auditable_ballot::{
+    verify_ballot_signature, HashableBallot, HashableBallotContest, SignedHashableBallot,
+};
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::{
     AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
     VotingPeriodDates, VotingStatus, VotingStatusChannel,
 };
-use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::encrypt::hash_ballot_sha512;
 use sequent_core::encrypt::hash_multi_ballot_sha512;
 use sequent_core::encrypt::DEFAULT_PLAINTEXT_LABEL;

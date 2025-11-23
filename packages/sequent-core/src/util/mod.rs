@@ -4,8 +4,10 @@
 pub mod convert_vec;
 pub mod date;
 pub mod date_time;
+#[cfg(feature = "default_features")]
 pub mod integrity_check;
 pub mod mime;
+#[cfg(feature = "default_features")]
 pub mod normalize_vote;
 #[cfg(feature = "reports")]
 pub mod temp_path;
@@ -22,6 +24,7 @@ pub mod float;
 
 #[cfg(feature = "reports")]
 pub mod path;
+#[cfg(feature = "default_features")]
 pub mod voting_screen;
 
 #[cfg(any(feature = "probe", feature = "reports"))]

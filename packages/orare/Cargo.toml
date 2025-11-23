@@ -32,7 +32,7 @@ clap = { version = "4.5", features = ["derive"] }
 
 # Dependencies used in the lambda_runtime proc macro
 anyhow = "1.0"
-sequent-core = { path = "../sequent-core", features = ["reports", "log", "areas"] }
+sequent-core = { path = "../sequent-core", features = ["reports", "log", "areas", "default_features"] }
 
 [features]
 default = []

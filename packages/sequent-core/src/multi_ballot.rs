@@ -4,6 +4,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "default_features")]
+pub use crate::auditable_ballot::{
+    get_ballot_bytes_for_signing, SignedContent,
+};
+
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
@@ -11,8 +16,6 @@ use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 
-use crate::ballot::get_ballot_bytes_for_signing;
-use crate::ballot::SignedContent;
 use crate::ballot::TYPES_VERSION;
 use crate::ballot::{BallotStyle, ReplicationChoice};
 use base64::engine::general_purpose;

@@ -11,7 +11,10 @@ use strand::serialization::StrandDeserialize;
 use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
+#[cfg(feature = "default_features")]
+pub use crate::auditable_ballot::*;
 use crate::ballot::*;
+
 use crate::ballot_codec::multi_ballot::BallotChoices;
 use crate::ballot_codec::multi_ballot::ContestChoices;
 use crate::ballot_codec::PlaintextCodec;

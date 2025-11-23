@@ -3,4 +3,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod core;
+#[cfg(feature = "default_features")]
 pub mod extra;

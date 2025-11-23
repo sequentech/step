@@ -1,0 +1,28 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package plugins-manager:common;
+
+interface types {
+    record plugin-route {
+        path: string,
+        handler: string,
+        process-as-task: bool,
+    }
+
+    record manifest {
+        plugin-name: string,
+        hooks: list<string>,
+        routes: list<plugin-route>,
+        tasks: list<string>,
+    }
+}
+
+interface plugin-common {
+    use types.{manifest,plugin-route};
+    get-manifest: func() -> manifest;
+}
+
+world plugin {
+    export plugin-common;
+}
