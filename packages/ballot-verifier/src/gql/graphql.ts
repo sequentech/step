@@ -760,6 +760,11 @@ export enum PgAuditTable {
     PgauditKeycloak = "pgaudit_keycloak",
 }
 
+export type PluginsRouteOutput = {
+    __typename?: "PluginsRouteOutput"
+    data?: Maybe<Scalars["jsonb"]["output"]>
+}
+
 export type PrepareBallotPublicationPreviewOutput = {
     __typename?: "PrepareBallotPublicationPreviewOutput"
     document_id: Scalars["String"]["output"]
@@ -1051,6 +1056,7 @@ export type Mutation_Root = {
     ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>
     /** Verify User Registration Application */
     VerifyApplication: Scalars["String"]["output"]
+    call_plugin_route: PluginsRouteOutput
     /** check private key */
     check_private_key?: Maybe<CheckPrivateKeyOutput>
     /** create scheduled event */
@@ -1715,6 +1721,12 @@ export type Mutation_RootApplicationChangeStatusArgs = {
 /** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
     body: ApplicationVerifyBody
+}
+
+/** mutation root */
+export type Mutation_RootCall_Plugin_RouteArgs = {
+    data: Scalars["jsonb"]["input"]
+    path: Scalars["String"]["input"]
 }
 
 /** mutation root */

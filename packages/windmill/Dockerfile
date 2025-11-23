@@ -57,6 +57,8 @@ RUN case "${TARGETARCH}" in \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
     && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 
+RUN rustup toolchain install nightly && rustup default nightly
+
 # java -jar ecies-tool.jar create-keys public.pem private.pem
 
 WORKDIR /app/windmill

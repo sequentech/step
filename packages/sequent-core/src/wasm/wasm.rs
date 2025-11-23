@@ -1,11 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#[cfg(feature = "default_features")]
+pub use crate::auditable_ballot::*;
 use crate::ballot::*;
-use crate::ballot::{
-    sign_hashable_ballot_with_ephemeral_voter_signing_key,
-    verify_ballot_signature,
-};
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;

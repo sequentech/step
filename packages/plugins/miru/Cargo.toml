@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+[package]
+name = "miru"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+sequent-core = { path = "../../sequent-core", default-features = false, features = ["signatures"] }
+
+serde_json = "1.0.105"
+serde = "1.0.152"
+wit-bindgen-rt = "0.43.0"
+wit-bindgen = "0.43.0"
+reqwest = { version="0.12.5", features = ["multipart", "blocking", "json"] }
+anyhow = "1.0.75"
+chrono = "0.4.31"
+strum = "0.25"
+strum_macros = "0.25"
+tracing = "0.1"
+rand = "0.8.5"
+flate2 = "1.0.28"
+tar = "0.4.40"
+uuid = { version = "1.5.0", features = ["v4"]}
+lzma-rs = "0.3.0"
+zip = { version = "2.1.6", default-features = false, features = ["deflate"] }
+walkdir = "2.3"
+
+[package.metadata.component]
+package = "plugins-manager:miru"
+
+[package.metadata.component.target]
+path = "./wit/world.wit"
+
+[package.metadata.component.target.dependencies]
+"plugins-manager:transactions-manager" = { path = "../../sequent-core/src/plugins_wit/transaction/transaction-world.wit" }
+"plugins-manager:common" = { path = "../../sequent-core/src/plugins_wit/plugin/plugin-world.wit" }
+"plugins-manager:jwt" = { path = "../../sequent-core/src/plugins_wit/jwt/jwt-world.wit" }
+"plugins-manager:documents-manager" = { path = "../../sequent-core/src/plugins_wit/documents/documents-world.wit" }
