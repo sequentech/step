@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -207,7 +207,7 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 source="area_id"
                 choices={sourceAreas}
                 optionText={(area) => area.name}
-                label={t("publish.preview.publicationAreas")}
+                label={String(t("publish.preview.publicationAreas"))}
                 fullWidth={true}
                 debounce={100}
                 onChange={(res) => setAreaId(res)}
@@ -222,12 +222,12 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                         <SaveButton
                             disabled={!areaId}
                             icon={<Preview />}
-                            label={t("publish.preview.action")}
+                            label={String(t("publish.preview.action"))}
                         />
                         <Button
                             disabled={!areaId}
                             startIcon={<ContentCopy />}
-                            label={t("publish.preview.copy")}
+                            label={String(t("publish.preview.copy"))}
                             onClick={onCopyPreviewLinkClick}
                         />
                     </>

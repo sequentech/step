@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -500,7 +500,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 <FormDialog
                     open={open}
                     onClose={handleCloseEditDrawer}
-                    title={t("publish.dialog.title")}
+                    title={String(t("publish.dialog.title"))}
                 >
                     <EditPreview
                         publicationId={ballotPublicationId}
