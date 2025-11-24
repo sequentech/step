@@ -3,9 +3,181 @@ id: release-next
 title: Release Notes next
 ---
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+
+## 🐞 Fixes after dependency updates
+
+- Fixed voters import, which was broken after updating Keycloak from 24 to 26.
+- Removed faulty MinIO certificate management from devcontainer (only affects developers).
+- Show IP Addresses again, fix editing Voters and Areas.
+- Fixed rendering issue when editing Election Events.
+- Fixed running Storybook.
+
+- Issue: [#9132](https://github.com/sequentech/meta/issues/9132)
+
+## 🔧 Publicly Open Source Preparations
+
+This release transitions the Sequent Voting Platform from an on-request
+permisioned open-source repository to a no-requirements, publicly-available
+open-source repository. These changes include license compliance updates,
+removal of client-specific integrations, improved documentation, and various
+code modernization efforts.
+
+- Issue: [#9060](https://github.com/sequentech/meta/issues/9060)
+
+### License Compliance (REUSE 4.0)
+All files now have proper SPDX license headers standardized to AGPL-3.0-only
+with copyright assigned to `Sequent Tech Inc <legal@sequentech.io>`. The license
+headers and copyright year have been unified across the codebase - the project
+was already open source. The project has migrated from `.reuse/dep5` to 
+`REUSE.toml` for improved license management compliance with the REUSE 4.0 
+specification.
+
+**New Features:**
+- Contributor License Agreement (CLA) system with automated GitHub workflow
+- Comprehensive third-party dependency documentation with OSI-approved licenses
+- New contributing guide and developer documentation
+- Updated README for open-source audience
+
+### Removed Features & Integrations
+
+The following features and integrations have been moved to our private
+repository in `beyound`:
+
+1. **Inetum Integration** - All Inetum-specific authentication code has been
+   removed, including Keycloak extensions and custom authenticators.
+
+2. **Datafix Integration** - All Datafix integration documentation and API
+   endpoints have been removed.
+
+3. **Monitoring Dashboard** - The monitoring dashboard was not a supported
+   feature so for the time being and pending a redesign, we have removed it.
+
+### Terminology Changes
+
+**"Vote Receipts" → "Ballot Images"**
+
+Throughout the codebase, user interface, and documentation, the terminology has
+been updated from "vote receipts" to "ballot images" for clearer communication.
+While template file names have been retained for backward compatibility, all
+internal references have been updated.
+
+### Admin Portal Changes
+
+- **ESLint Migration:** Migrated from legacy ESLint configuration to new flat
+  config format
+- **Configuration Modernization:** Renamed config files from `.js` to `.cjs` for
+  better CommonJS compatibility
+- **UI Improvements:** Fixed sticky toolbar issues and restored widget
+  background colors
+- **Dependency Updates:** Updated all npm packages and rebuilt WASM packages
+
+### Migration Required
+
+#### Remove some Permissions
+
+The following Keycloak permissions must be manually removed from all tenant
+realms:
+
+- `monitoring-dashboard-view-election-event`
+- `monitoring-dashboard-view-election`
+
+**Steps:**
+1. Log in to the Keycloak Admin Console
+2. Select the tenant realm (e.g., `dev`)
+3. Navigate to `Realm Roles`
+4. Search for and delete the roles:
+   - `monitoring-dashboard-view-election-event`
+   - `monitoring-dashboard-view-election`
+5. If these roles were assigned to any groups or users, remove those assignments
+   first
+
+## 📖 Third-Party Libraries Reference Documentation
+
+Added comprehensive developer documentation for managing Rust versions and
+third-party dependencies. Standardized on Rust stable 1.90.0 across all
+environments (Nix, GitHub Actions, Dockerfiles). Created automated tooling for
+dependency reporting and security audits, including scripts for generating
+dependency lists with licenses and descriptions. Updated all Rust crates, npm
+packages, and Maven dependencies to their latest compatible versions.
+
+- Issue: https://github.com/sequentech/meta/issues/7996
+
+## ✨ Move voter signature to the voting portal
+
+The voting portal will sign the ballot using an ephemeral key. The ballot will 
+now include this voter signature and the voter public key for verification. This 
+signature is verified while the ballot is cast and it's checked as well in the 
+ballot verifier.
+
+- Issue: [#5518](https://github.com/sequentech/meta/issues/5518)
+
+## 🐞 Windmill > Can't create Ballot Images on ARM
+
+The correct version of java jvm for the container architecture is installed instead 
+of just defaulting to installing x86-x64 version.
+
+- Issue: [#8621](https://github.com/sequentech/meta/issues/8621)
+
+## 🐞 Voter log errors
+
+Username is different for voter logs generated by keycloak and by windmill (one
+is the username and the other the email address).
+
+- Issue: [#8097](https://github.com/sequentech/meta/issues/8097)
+
+## 🐞 Admin Portal > Sidebar: Can't select active events tab if all Events are archived
+
+If all existing Election Events are archived and you click on the "Active" tab
+of the Admin Portal sidebar, it goes back to the Archived tab automatically.
+
+- Issue: [#8876](https://github.com/sequentech/meta/issues/8876)
+
+## 🐞 Default Invalid vote policy mismatch
+
+The default Invalid Vote Policy was different in the backend and the front-end.
+As a result, the UI displayed the policy as `warn-explicit-and-implicit`, even
+though the actual default (when not predefined) was `allowed`.
+
+- Issue: [#8855](https://github.com/sequentech/meta/issues/8855)
+
+## ✨ Automatic Launch of E2E tests for environments and during release process
+
+Modified e2e github action to enable triggering it manually, including the
+arguments for the load test. This also adds a script to generate voters for
+load testing purposes, including the hash of the password.
+
+- Issue: [#7004](https://github.com/sequentech/meta/issues/7004)
+
+## ✨ Voting Portal > Nightwatch voting with no revotes
+
+The Nightwatch-based vote-casting load tests now include an anti-double-voting
+mechanism to prevent voter reuse across parallel test instances and sequential
+iterations. When enabled (the default), each voter is used only once per test
+run by tracking used voters in a shared file (`used_voters.txt`).
+
+New parameters:
+- `--disable-voter-tracking`: Disables the anti-double-voting mechanism to allow
+  voter reuse (only use if the election allows revoting).
+- `--previous-voters-file <path>`: Imports a list of previously used voters to
+  exclude them from the current run, enabling chained test runs or distributed
+  load testing across multiple machines.
+- `--keep-parallel-files`: Updated to also preserve the `used_voters.txt`
+  tracking file for inspection.
+- `--voter-min-index <N>` (default: `1`): The ids for the voters will be selected between 
+  `voter-min-index` and `voter-min-index + number-of-voters - 1`.
+- `--candidates-pattern <regex>`: Filters candidates during voting by name using a regular
+  expression. Supports JavaScript regex format like `/^(?!.*text).*$/` to exclude
+  candidates containing specific text.
+
+This prevents test failures when the election does not allow revoting, as the
+system will automatically retry with a different voter when a collision is
+detected.
+
+- Issue: [#8624](https://github.com/sequentech/meta/issues/8624)
+
 
 ## 🐞 Can't see Election Lists
 

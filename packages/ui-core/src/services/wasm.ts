@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -26,9 +26,13 @@ import {
     test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
+    sign_hashable_ballot_with_ephemeral_voter_signing_key_js,
+    sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js,
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
+    verify_ballot_signature_js,
+    verify_multi_ballot_signature_js,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -42,6 +46,7 @@ import {
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    ISignedContent,
 } from ".."
 
 export type {
@@ -188,6 +193,40 @@ export const encryptMultiBallotSelection = (
     }
 }
 
+export const signHashableBallot = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableSingleBallot
+): ISignedContent => {
+    try {
+        return sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const signHashableMultiBallot = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableMultiBallot
+): ISignedContent => {
+    try {
+        return sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 /*
  * Encodes and decodes the contest selection.
  * The result is getting the ballot selection back from sequent-core,
@@ -269,6 +308,34 @@ export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
     } catch (error) {
         console.log(error)
         return null
+    }
+}
+
+export const verifyBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableSingleBallot
+): boolean | null => {
+    try {
+        let isVerified: boolean = verify_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyMultiBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableMultiBallot
+): boolean | null => {
+    try {
+        let isVerified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 
