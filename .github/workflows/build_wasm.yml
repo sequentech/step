@@ -24,6 +24,9 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      - name: Install Yarn
+        run: npm install -g yarn@1
+
       - name: Check that hashes in yarn.lock are updated with the last build in the repo
         working-directory: packages
         run: |
