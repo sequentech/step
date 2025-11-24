@@ -71,6 +71,11 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+
     - name: Install release-it
       run: npm install --global release-it@19.0.3
 
