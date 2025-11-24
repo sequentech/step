@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -117,7 +117,7 @@ export const PublishList: React.FC<TPublishList> = ({
             {canPublishCreate && canReadPublish && (
                 <>
                     <Button onClick={handlePublish} className="publish-add-button">
-                        <IconButton icon={faPlus} fontSize="24px" />
+                        <IconButton icon={faPlus as any} fontSize="24px" />
                         {t("publish.empty.action")}
                     </Button>
                     <Typography variant="body1" paragraph>
@@ -187,7 +187,7 @@ export const PublishList: React.FC<TPublishList> = ({
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
                     <TextField source="created_at" />
-                    <WrapperField label={t("common.label.actions")}>
+                    <WrapperField label={String(t("common.label.actions"))}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>

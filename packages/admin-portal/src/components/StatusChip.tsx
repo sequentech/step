@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {statusColor} from "@/resources/Tally/constants"
 import {Chip} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
@@ -13,7 +13,7 @@ interface TrusteeItemsProps {
     status: string
 }
 
-const StyledChips = styled.div`
+const StyledChips = styled("div")`
     display: flex;
     padding: 1px 7px;
     flex-direction: row;
