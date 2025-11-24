@@ -6,6 +6,13 @@ title: Release Notes next
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all placed in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
 
 ## 🐞 Fixes after dependency updates
 
@@ -391,12 +398,4 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
-
-🐞 Tally > Election aliases not used
-
-Use election alias in all placed in tally results.
-Fix showing 'event' or 'election' instead of the actual election event or election
- name/alias.
-
-- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
 
