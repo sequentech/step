@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,7 +7,7 @@
 
   # input
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
-  inputs.nixpkgs.url = "nixpkgs/nixos-24.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-25.05";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.flake-compat = {
     url = "github:edolstra/flake-compat";
@@ -28,7 +28,7 @@
           configureRustTargets = targets : pkgs
             .rust-bin
             .nightly
-            ."2024-07-31"
+            ."2025-01-29"
             .default
             .override {
                 extensions = [ "rust-src" ];
@@ -102,7 +102,18 @@
             nativeBuildInputs =
               defaultPackage.nativeBuildInputs;
             buildInputs =
-              with pkgs; [ bash reuse cargo-deny ack wasm-pack ];
+              with pkgs; [
+                # Your existing tools
+                bash
+                reuse
+                cargo-deny
+                ack
+                wasm-pack
+
+                # Add these two lines for browser testing
+                firefox
+                geckodriver
+              ];
           };
         }
     );

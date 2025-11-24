@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, PropsWithChildren, createContext} from "react"
@@ -29,7 +29,7 @@ interface ApolloContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
     role: string
 }
 

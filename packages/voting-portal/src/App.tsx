@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -72,8 +71,8 @@ const HeaderWithContext: React.FC = () => {
         presentation?.logo_url === undefined
             ? BlankLogoImg
             : presentation?.logo_url === null
-            ? SequentLogo
-            : presentation?.logo_url
+              ? SequentLogo
+              : presentation?.logo_url
 
     return (
         <Header
