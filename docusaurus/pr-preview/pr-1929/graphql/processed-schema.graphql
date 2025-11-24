@@ -18099,6 +18099,10 @@ enum tally_sheet_constraint {
   unique or primary key constraint on columns "id", "tenant_id", "election_event_id"
   """
   tally_sheet_pkey
+  """
+  unique or primary key constraint on columns "election_id", "contest_id", "area_id", "channel", "tenant_id", "version", "election_event_id"
+  """
+  tally_sheet_uniq_version
 }
 
 """
