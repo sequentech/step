@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
@@ -8,6 +8,7 @@ use csv::Writer;
 use fake::faker::name::raw::{FirstName, LastName};
 use fake::locales::EN;
 use fake::Fake;
+use rand::seq::IndexedRandom;
 use rand::seq::SliceRandom;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -341,7 +342,7 @@ impl GenerateVoters {
                     "middleName" => String::new(),
                     "dateOfBirth" => dob_str.clone(),
                     "sex" => {
-                        if *[true, false].choose(&mut rand::thread_rng()).unwrap() {
+                        if *[true, false].choose(&mut rand::rng()).unwrap() {
                             "M".to_string()
                         } else {
                             "F".to_string()

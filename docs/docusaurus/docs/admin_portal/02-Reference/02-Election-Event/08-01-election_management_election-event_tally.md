@@ -4,7 +4,7 @@ title: Tally Ceremony
 ---
 
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
@@ -81,6 +81,8 @@ For each Contest, display:
 - **Number of Votes**: Count of valid votes for that candidate/option.
 - **Percentage of Votes**: Proportion relative to total valid votes.
 - **Ranking / Position**: Placement among candidates by vote count.
+
+> Note: According to the Election Event Weighted Voting Policy, if the policy is set to ‘Weighted Voting for Areas’, the tally will be calculated using the weights assigned to each area during the last publication prior to the tally.
 
 ## Summary
 By following this guide, administrators ensure the tally ceremony is conducted securely, transparently, and accurately. Key fragments are verified by trustees, encrypted ballots are decrypted correctly, and results are reviewed with full auditing capabilities. This maintains the integrity and trustworthiness vital for credible elections.

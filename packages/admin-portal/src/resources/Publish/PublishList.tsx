@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -30,7 +30,7 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import {ResetFilters} from "@/components/ResetFilters"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
-import {IElectionPresentation, IElectionStatus} from "@sequentech/ui-core"
+import {IElectionPresentation, IElectionStatus, IChannelButtonInfo} from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
 
 const OMIT_FIELDS: string[] = []
@@ -48,7 +48,9 @@ type TPublishList = {
     electionEventId: number | string | undefined
     canRead: boolean
     canWrite: boolean
-    kioskModeEnabled: boolean
+    kioskModeEnabled: IChannelButtonInfo
+    onlineModeEnabled: IChannelButtonInfo
+    earlyVotingEnabled: IChannelButtonInfo
     changingStatus: boolean
     publishType: EPublishType.Election | EPublishType.Event
     onGenerate: () => void
@@ -65,6 +67,8 @@ export const PublishList: React.FC<TPublishList> = ({
     electionId,
     electionEventId,
     kioskModeEnabled,
+    onlineModeEnabled,
+    earlyVotingEnabled,
     changingStatus,
     onGenerate = () => null,
     onChangeStatus = () => null,
@@ -113,7 +117,7 @@ export const PublishList: React.FC<TPublishList> = ({
             {canPublishCreate && canReadPublish && (
                 <>
                     <Button onClick={handlePublish} className="publish-add-button">
-                        <IconButton icon={faPlus} fontSize="24px" />
+                        <IconButton icon={faPlus as any} fontSize="24px" />
                         {t("publish.empty.action")}
                     </Button>
                     <Typography variant="body1" paragraph>
@@ -152,6 +156,8 @@ export const PublishList: React.FC<TPublishList> = ({
                         electionPresentation={electionPresentation}
                         changingStatus={changingStatus}
                         kioskModeEnabled={kioskModeEnabled}
+                        onlineModeEnabled={onlineModeEnabled}
+                        earlyVotingEnabled={earlyVotingEnabled}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         type={EPublishActionsType.List}
@@ -181,7 +187,7 @@ export const PublishList: React.FC<TPublishList> = ({
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
                     <TextField source="created_at" />
-                    <WrapperField label={t("common.label.actions")}>
+                    <WrapperField label={String(t("common.label.actions"))}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>

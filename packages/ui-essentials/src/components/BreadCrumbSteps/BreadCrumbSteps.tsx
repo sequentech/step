@@ -1,11 +1,10 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import styledEmotion from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 
 export enum BreadCrumbStepsVariant {
@@ -66,7 +65,7 @@ interface StepLabelProps {
     isselected: string
 }
 
-const StepLabel = styledEmotion(Box)<StepLabelProps>`
+const StepLabel = styled(Box)<StepLabelProps>`
     color: ${({isselected, theme}) =>
         isselected === "true"
             ? theme.palette.customGrey.contrastText

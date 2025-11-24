@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,14 +15,16 @@ use std::str::FromStr;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm::{decrypt, encrypt, gen_key, EncryptionData, SymmetricKey};
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 use tokio;
 use tokio::sync::OnceCell;
 use tracing::{info, instrument};
 
 const MASTER_SECRET_KEY_NAME: &str = "master_secret";
 
-#[derive(EnumString)]
+const LOWER_AWS_SECRETS_MANAGER: &str = "awssecretsmanager";
+
+#[derive(EnumString, Display, Debug)]
 pub enum VaultManagerType {
     HashiCorpVault,
     AwsSecretManager,
@@ -80,7 +82,12 @@ pub trait Vault: Send {
 
 #[instrument(err)]
 pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
-    let vault_name = std::env::var("SECRETS_BACKEND").unwrap_or("EnvVarMasterSecret".to_string());
+    let mut vault_name = std::env::var("SECRETS_BACKEND")
+        .unwrap_or(VaultManagerType::EnvVarMasterSecret.to_string());
+
+    if LOWER_AWS_SECRETS_MANAGER.to_string() == vault_name.to_lowercase() {
+        vault_name = VaultManagerType::AwsSecretManager.to_string();
+    }
 
     info!("Vault: vault_name={vault_name}");
 

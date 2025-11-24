@@ -4,12 +4,13 @@ title: Locating a Ballot
 ---
 
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 It is possible to verify that your ballot has been correctly submitted.
-In the Voting Portal landing page /election-chooser click on the button "Locate Your Ballot".
+In the Voting Portal's landing page `/election-chooser` click on the button 
+"Locate Your Ballot" to go to `/ballot-locator`.
 
 ## Tabs in the Ballot Locator
 
@@ -19,10 +20,13 @@ Enter the ballot ID and hit the button to Locate your ballot.
 
 ### LOGS
 
-To enable this tab the admin has to enable the policy in Admin Portal at Election Event level, 
-Data > Ballot Design > Show Cast Vote Logs Tab.
+The immutable logs of the type `CastVote` are displayed in the Logs tab. 
+To see the immutable logs, it's policy must be enabled in the Admin Portal at 
+Election Event level: Data > Ballot Design > Show Cast Vote Logs Tab.
 
-To see the immutable logs of the type `CastVote` click on the LOGS tab.
-If you search for you ballot ID, your username should appear along with the ballot
- ID and timestamp of the ballot.
-You can see the ballot IDs from other users but its usernames will remain anonymous.
+Enter the ballot ID to confirm you ballot is in the logs.
+
+The table shows the user name, the ballot ID, timestamp of the ballot and message.
+The immutable log's message contains the user's signature among other things. It's 
+content is in Json format and you can press the copy button to visualize it better 
+on an editor.

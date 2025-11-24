@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
@@ -34,6 +34,9 @@ export interface AnswersListProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
+    explicitBlank: boolean
+    setExplicitBlank: (value: boolean) => void
+    setIsTouched: (value: boolean) => void
 }
 
 const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
@@ -67,6 +70,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     selectedChoicesSum,
     setSelectedChoicesSum,
     disableSelect,
+    explicitBlank,
+    setExplicitBlank,
+    setIsTouched,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
@@ -176,6 +182,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
                                 iconCheckboxPolicy={iconCheckboxPolicy}
+                                explicitBlank={explicitBlank}
+                                setExplicitBlank={setExplicitBlank}
+                                setIsTouched={setIsTouched}
                             />
                         ))}
                     </>
@@ -201,6 +210,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
+                        explicitBlank={explicitBlank}
+                        setExplicitBlank={setExplicitBlank}
+                        setIsTouched={setIsTouched}
                     />
                 ))}
         </CandidatesList>
