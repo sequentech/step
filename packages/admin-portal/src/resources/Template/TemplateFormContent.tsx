@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState, useMemo} from "react"
@@ -192,17 +192,17 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                     <FormStyles.TextInput
                         source="template.alias"
                         validate={required()}
-                        label={t("template.form.alias")}
+                        label={String(t("template.form.alias"))}
                     />
 
                     <FormStyles.TextInput
                         source="template.name"
                         validate={required()}
-                        label={t("template.form.name")}
+                        label={String(t("template.form.name"))}
                     />
                     <SelectInput
                         source="type"
-                        label={t("template.form.type")}
+                        label={String(t("template.form.type"))}
                         validate={required()}
                         onChange={selectTemplateType}
                         choices={templateTypeChoices()}
@@ -222,7 +222,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                     <BooleanInput
                         key={method}
                         source={`template.selected_methods.${method}`}
-                        label={t(`template.method.${method.toLowerCase()}`)}
+                        label={String(t(`template.method.${method.toLowerCase()}`))}
                     />
                 ))}
             </FormGroup>
@@ -269,7 +269,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                         minRows={4}
                                         multiline={true}
                                         source="template.sms.message"
-                                        label={t("template.form.smsMessage")}
+                                        label={String(t("template.form.smsMessage"))}
                                     />
                                 </AccordionDetails>
                             </Accordion>

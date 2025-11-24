@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal[@sequentech.io>](https://github.com/sequentech.io>)
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,7 +10,7 @@ import {
     selectFirstBallotStyle,
     showDemo,
 } from "../../store/ballotStyles/ballotStylesSlice"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {SystemProps} from "@mui/system"
 import {useParams} from "react-router-dom"

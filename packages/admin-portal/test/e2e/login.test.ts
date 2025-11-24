@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -11,7 +11,6 @@ interface LoginThis {
     submitButton: string
 }
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("login", function (this: ExtendDescribeThis<LoginThis>) {
     before(function (this: ExtendDescribeThis<LoginThis>, browser) {
         browser.login()
