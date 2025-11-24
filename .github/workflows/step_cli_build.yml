@@ -7,17 +7,13 @@ name: Build Step CLI Binary
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
   release:
     types: [published]
 
 jobs:
   build-cli:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
     env:
       CARGO_TARGET_DIR: rust-local-target
       RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
