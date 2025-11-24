@@ -91,8 +91,8 @@ export const sequent_backend_tally_sheet: Sequent_Backend_Tally_Sheet = {
     reviewed_at: undefined,
     reviewed_by_user_id: "",
     tenant_id: "",
-    version: undefined,
-    status: undefined,
+    version: 0,
+    status: "",
 }
 
 export const sequent_backend_tally_session_execution: Sequent_Backend_Tally_Session_Execution = {

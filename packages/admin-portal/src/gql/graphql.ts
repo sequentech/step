@@ -4151,6 +4151,7 @@ export type Mutation_RootUpdate_Sequent_Backend_Tally_SheetArgs = {
   _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_At_Path_Input>;
   _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_Elem_Input>;
   _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Tally_Sheet_Inc_Input>;
   _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Prepend_Input>;
   _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Set_Input>;
   where: Sequent_Backend_Tally_Sheet_Bool_Exp;
@@ -4163,6 +4164,7 @@ export type Mutation_RootUpdate_Sequent_Backend_Tally_Sheet_By_PkArgs = {
   _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_At_Path_Input>;
   _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_Elem_Input>;
   _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Tally_Sheet_Inc_Input>;
   _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Prepend_Input>;
   _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Set_Input>;
   pk_columns: Sequent_Backend_Tally_Sheet_Pk_Columns_Input;
@@ -17569,9 +17571,11 @@ export type Sequent_Backend_Tally_Sheet = {
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at: Scalars['timestamptz']['output'];
-  published_at?: Maybe<Scalars['timestamptz']['output']>;
-  published_by_user_id?: Maybe<Scalars['String']['output']>;
+  reviewed_at?: Maybe<Scalars['timestamptz']['output']>;
+  reviewed_by_user_id?: Maybe<Scalars['String']['output']>;
+  status: Scalars['String']['output'];
   tenant_id: Scalars['uuid']['output'];
+  version: Scalars['Int']['output'];
 };
 
 
@@ -17602,9 +17606,17 @@ export type Sequent_Backend_Tally_Sheet_Aggregate = {
 /** aggregate fields of "sequent_backend.tally_sheet" */
 export type Sequent_Backend_Tally_Sheet_Aggregate_Fields = {
   __typename?: 'sequent_backend_tally_sheet_aggregate_fields';
+  avg?: Maybe<Sequent_Backend_Tally_Sheet_Avg_Fields>;
   count: Scalars['Int']['output'];
   max?: Maybe<Sequent_Backend_Tally_Sheet_Max_Fields>;
   min?: Maybe<Sequent_Backend_Tally_Sheet_Min_Fields>;
+  stddev?: Maybe<Sequent_Backend_Tally_Sheet_Stddev_Fields>;
+  stddev_pop?: Maybe<Sequent_Backend_Tally_Sheet_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Sequent_Backend_Tally_Sheet_Stddev_Samp_Fields>;
+  sum?: Maybe<Sequent_Backend_Tally_Sheet_Sum_Fields>;
+  var_pop?: Maybe<Sequent_Backend_Tally_Sheet_Var_Pop_Fields>;
+  var_samp?: Maybe<Sequent_Backend_Tally_Sheet_Var_Samp_Fields>;
+  variance?: Maybe<Sequent_Backend_Tally_Sheet_Variance_Fields>;
 };
 
 
@@ -17619,6 +17631,12 @@ export type Sequent_Backend_Tally_Sheet_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   content?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Tally_Sheet_Avg_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_avg_fields';
+  version?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.tally_sheet". All fields are combined with a logical 'AND'. */
@@ -17639,9 +17657,11 @@ export type Sequent_Backend_Tally_Sheet_Bool_Exp = {
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  published_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  published_by_user_id?: InputMaybe<String_Comparison_Exp>;
+  reviewed_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  reviewed_by_user_id?: InputMaybe<String_Comparison_Exp>;
+  status?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  version?: InputMaybe<Int_Comparison_Exp>;
 };
 
 /** unique or primary key constraints on table "sequent_backend.tally_sheet" */
@@ -17671,6 +17691,11 @@ export type Sequent_Backend_Tally_Sheet_Delete_Key_Input = {
   labels?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** input type for incrementing numeric columns in table "sequent_backend.tally_sheet" */
+export type Sequent_Backend_Tally_Sheet_Inc_Input = {
+  version?: InputMaybe<Scalars['Int']['input']>;
+};
+
 /** input type for inserting data into table "sequent_backend.tally_sheet" */
 export type Sequent_Backend_Tally_Sheet_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
@@ -17686,9 +17711,11 @@ export type Sequent_Backend_Tally_Sheet_Insert_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  published_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  published_by_user_id?: InputMaybe<Scalars['String']['input']>;
+  reviewed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  reviewed_by_user_id?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  version?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** aggregate max on columns */
@@ -17704,9 +17731,11 @@ export type Sequent_Backend_Tally_Sheet_Max_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  published_at?: Maybe<Scalars['timestamptz']['output']>;
-  published_by_user_id?: Maybe<Scalars['String']['output']>;
+  reviewed_at?: Maybe<Scalars['timestamptz']['output']>;
+  reviewed_by_user_id?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
+  version?: Maybe<Scalars['Int']['output']>;
 };
 
 /** aggregate min on columns */
@@ -17722,9 +17751,11 @@ export type Sequent_Backend_Tally_Sheet_Min_Fields = {
   election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  published_at?: Maybe<Scalars['timestamptz']['output']>;
-  published_by_user_id?: Maybe<Scalars['String']['output']>;
+  reviewed_at?: Maybe<Scalars['timestamptz']['output']>;
+  reviewed_by_user_id?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
+  version?: Maybe<Scalars['Int']['output']>;
 };
 
 /** response of any mutation on the table "sequent_backend.tally_sheet" */
@@ -17758,9 +17789,11 @@ export type Sequent_Backend_Tally_Sheet_Order_By = {
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  published_at?: InputMaybe<Order_By>;
-  published_by_user_id?: InputMaybe<Order_By>;
+  reviewed_at?: InputMaybe<Order_By>;
+  reviewed_by_user_id?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
+  version?: InputMaybe<Order_By>;
 };
 
 /** primary key columns input for table: sequent_backend.tally_sheet */
@@ -17806,11 +17839,15 @@ export enum Sequent_Backend_Tally_Sheet_Select_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
-  PublishedAt = 'published_at',
+  ReviewedAt = 'reviewed_at',
   /** column name */
-  PublishedByUserId = 'published_by_user_id',
+  ReviewedByUserId = 'reviewed_by_user_id',
   /** column name */
-  TenantId = 'tenant_id'
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  Version = 'version'
 }
 
 /** input type for updating data in table "sequent_backend.tally_sheet" */
@@ -17828,9 +17865,29 @@ export type Sequent_Backend_Tally_Sheet_Set_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  published_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  published_by_user_id?: InputMaybe<Scalars['String']['input']>;
+  reviewed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  reviewed_by_user_id?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  version?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Tally_Sheet_Stddev_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_stddev_fields';
+  version?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Tally_Sheet_Stddev_Pop_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_stddev_pop_fields';
+  version?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Tally_Sheet_Stddev_Samp_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_stddev_samp_fields';
+  version?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_tally_sheet" */
@@ -17856,9 +17913,17 @@ export type Sequent_Backend_Tally_Sheet_Stream_Cursor_Value_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  published_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  published_by_user_id?: InputMaybe<Scalars['String']['input']>;
+  reviewed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  reviewed_by_user_id?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  version?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Tally_Sheet_Sum_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_sum_fields';
+  version?: Maybe<Scalars['Int']['output']>;
 };
 
 /** update columns of table "sequent_backend.tally_sheet" */
@@ -17890,11 +17955,15 @@ export enum Sequent_Backend_Tally_Sheet_Update_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
-  PublishedAt = 'published_at',
+  ReviewedAt = 'reviewed_at',
   /** column name */
-  PublishedByUserId = 'published_by_user_id',
+  ReviewedByUserId = 'reviewed_by_user_id',
   /** column name */
-  TenantId = 'tenant_id'
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  Version = 'version'
 }
 
 export type Sequent_Backend_Tally_Sheet_Updates = {
@@ -17906,12 +17975,32 @@ export type Sequent_Backend_Tally_Sheet_Updates = {
   _delete_elem?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_Elem_Input>;
   /** delete key/value pair or string element. key/value pairs are matched based on their key value */
   _delete_key?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_Key_Input>;
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Sequent_Backend_Tally_Sheet_Inc_Input>;
   /** prepend existing jsonb value of filtered columns with new jsonb value */
   _prepend?: InputMaybe<Sequent_Backend_Tally_Sheet_Prepend_Input>;
   /** sets the columns of the filtered rows to the given values */
   _set?: InputMaybe<Sequent_Backend_Tally_Sheet_Set_Input>;
   /** filter the rows which have to be updated */
   where: Sequent_Backend_Tally_Sheet_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Tally_Sheet_Var_Pop_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_var_pop_fields';
+  version?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Tally_Sheet_Var_Samp_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_var_samp_fields';
+  version?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Tally_Sheet_Variance_Fields = {
+  __typename?: 'sequent_backend_tally_sheet_variance_fields';
+  version?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.tasks_execution" */
