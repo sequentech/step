@@ -215,7 +215,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                 <WizardStyles.BackButton
                     color="info"
                     onClick={goBack}
-                    className="keys-start-back-button"
+                    className="ts-versions-back-button"
                 >
                     <ArrowBackIosIcon />
                     {t("common.label.back")}

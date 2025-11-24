@@ -344,7 +344,6 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     }, [candidates, tallySheet])
 
     const recalculateTotals = () => {
-        console.log("recalculateTotals")
         let newResults = {...results}
         let totalValidVotes = newResults.total_valid_votes ?? 0
         let totalBlankVotes = newResults.total_blank_votes ?? 0
@@ -363,20 +362,14 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
             setCensusError(false)
         }
 
-        let allCanditateResultsEntered = true
         let canditatesVotesSum = 0
         for (const candidateResult of candidatesResults) {
-            if (!candidateResult.total_votes) {
-                allCanditateResultsEntered = false
-                break
-            }
-            canditatesVotesSum += candidateResult.total_votes
+            canditatesVotesSum += candidateResult.total_votes ?? 0
         }
+        console.log(canditatesVotesSum + totalBlankVotes)
+        console.log(totalValidVotes)
 
-        if (
-            allCanditateResultsEntered &&
-            canditatesVotesSum + totalBlankVotes !== totalValidVotes
-        ) {
+        if (canditatesVotesSum + totalBlankVotes !== totalValidVotes) {
             disableNextButton = true
             setTotalValidError(true)
         } else {

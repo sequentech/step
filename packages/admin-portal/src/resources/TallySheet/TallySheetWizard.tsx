@@ -23,6 +23,7 @@ import {useMutation} from "@apollo/client"
 import {CREATE_NEW_TALLY_SHEET} from "@/queries/createNewTallySheet"
 import {ADD_TALLY_SHEET_VERSION} from "@/queries/addTallySheetVersion"
 import {IPermissions} from "@/types/keycloak"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 export const WizardSteps = {
     List: -1,
@@ -242,27 +243,30 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         </>
                     )}
 
-                <TallyStyles.StyledFooter>
-                    <CancelButton className="list-actions" onClick={handleBack}>
-                        {t("tallysheet.common.cancel")}
-                    </CancelButton>
-                    {page !== WizardSteps.View && (
-                        <NextButton
-                            color="primary"
-                            onClick={handleNext}
-                            disabled={isButtonDisabled}
-                        >
-                            <>
-                                {page === WizardSteps.Edit
-                                    ? t("tallysheet.common.confirm")
-                                    : page === WizardSteps.Confirm
-                                      ? t("tallysheet.common.save")
-                                      : t("tallysheet.common.next")}
-                                <ChevronRightIcon />
-                            </>
-                        </NextButton>
-                    )}
-                </TallyStyles.StyledFooter>
+                <WizardStyles.Toolbar>
+                    <WizardStyles.BackButton
+                        color="info"
+                        onClick={handleBack}
+                        className="tsw-back-button"
+                    >
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
+                    </WizardStyles.BackButton>
+
+                    <WizardStyles.NextButton
+                        color="primary"
+                        disabled={isButtonDisabled}
+                        onClick={handleNext}
+                        className="tsw-next-button"
+                    >
+                        {page === WizardSteps.Edit
+                            ? t("tallysheet.common.confirm")
+                            : page === WizardSteps.Confirm
+                              ? t("tallysheet.common.save")
+                              : t("tallysheet.common.next")}
+                        <ChevronRightIcon />
+                    </WizardStyles.NextButton>
+                </WizardStyles.Toolbar>
             </WizardStyles.WizardWrapper>
         </>
     )
