@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,7 +7,7 @@ import React, {useCallback, useContext, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
 import {FetchDocumentQuery} from "@/gql/graphql"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {theme} from "@sequentech/ui-essentials"
 import {downloadUrl} from "@sequentech/ui-core"
 import {EExportFormat, IResultDocuments} from "@/types/results"
@@ -53,7 +53,7 @@ const PerformDownload: React.FC<PerformDownloadProps> = ({
     return <CircularProgress />
 }
 
-export const ExportButton = styled.div`
+export const ExportButton = styled("div")`
     cursor: pointer;
     margin-left: 10px;
     margin-right: 10px;
@@ -126,11 +126,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         setAnchorEl(event.currentTarget)
     }
 
-    // const handleClose = () => {
-    //     setAnchorEl(null)
-    // }
-
     const handleClose = useCallback(() => {
+        console.log("closing menu")
         setAnchorEl(null)
     }, [])
 
@@ -148,20 +145,12 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         }
 
         console.log("handleExport setPerformDownload")
-        if (format === EExportFormat.RECEIPTS_PDF) {
-            setPerformDownload({
-                id: documentId,
-                kind: EExportFormat.PDF,
-                name: `vote_receipts.pdf`,
-            })
-        } else {
-            let extension = format.replace("_", ".") // for converting tar_gz to tar.gz
-            setPerformDownload({
-                id: documentId,
-                kind: format,
-                name: `report.${extension}`,
-            })
-        }
+        let extension = format.replace("_", ".") // for converting tar_gz to tar.gz
+        setPerformDownload({
+            id: documentId,
+            kind: format,
+            name: `report.${extension}`,
+        })
     }
 
     const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
@@ -281,6 +270,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                 name={documents.name}
                                                 electionEventId={electionEventId}
                                                 tallySessionId={tallySessionId}
+                                                handleClose={handleClose}
                                             />
                                         ) : null}
                                     </React.Fragment>
@@ -306,13 +296,6 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             <GenerateReport
                                 handleClose={handleClose}
                                 reportType={ETemplateType.BALLOT_IMAGES}
-                                electionEventId={electionEventId}
-                                electionId={electionId}
-                                tallySessionId={tallySessionId}
-                            />
-                            <GenerateReport
-                                handleClose={handleClose}
-                                reportType={ETemplateType.VOTE_RECEIPT}
                                 electionEventId={electionEventId}
                                 electionId={electionId}
                                 tallySessionId={tallySessionId}

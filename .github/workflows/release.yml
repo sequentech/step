@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -250,14 +250,14 @@ jobs:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
 
-  build-and-push-root-account:
-    if: ${{ github.event.inputs.infra_only == 'false' }}
-    uses: ./.github/workflows/reusable_build_push_root.yml
-    needs: release
-    secrets: inherit
-    with:
-      tag: ${{ needs.release.outputs.VERSION }}
-      push: true
+  # build-and-push-root-account:
+  #   if: ${{ github.event.inputs.infra_only == 'false' }}
+  #   uses: ./.github/workflows/reusable_build_push_root.yml
+  #   needs: release
+  #   secrets: inherit
+  #   with:
+  #     tag: ${{ needs.release.outputs.VERSION }}
+  #     push: true
 
   trigger-beyond-release:
     needs: [release]

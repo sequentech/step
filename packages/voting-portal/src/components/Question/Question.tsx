@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
@@ -16,7 +16,6 @@ import {
 } from "@sequentech/ui-core"
 import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
-import emotionStyled from "@emotion/styled"
 import Typography from "@mui/material/Typography"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
@@ -79,12 +78,12 @@ const CandidateListsWrapper = styled(Box)`
     }
 `
 
-const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
+const CandidatesSingleWrapper = styled("ul")<{columnCount: number}>`
     list-style: none;
     padding-inline-start: 0;
     column-gap: 0;
     margin: 0;
-    
+
     @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
         column-count: ${(data) => data.columnCount};
     }
@@ -94,12 +93,12 @@ const CandidatesSingleWrapper = emotionStyled.ul<{columnCount: number}>`
     }
 `
 
-const InvalidBlankWrapper = emotionStyled.ul<{columnCount: number}>`
+const InvalidBlankWrapper = styled("ul")<{columnCount: number}>`
     list-style: none;
     padding-inline-start: 0;
     column-gap: 0;
     margin: 0;
-    
+
     @media (min-width: ${({theme}) => theme.breakpoints.values.lg}px) {
         column-count: ${(data) => data.columnCount};
     }
@@ -107,7 +106,6 @@ const InvalidBlankWrapper = emotionStyled.ul<{columnCount: number}>`
     li + li {
         margin-top: 12px;
     }
-
 `
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
@@ -141,10 +139,27 @@ export const Question: React.FC<IQuestionProps> = ({
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
-    let [invalidBottomCandidates, invalidTopCandidates] = splitList(
+
+    // do the shuffling
+    const candidatesOrderType = question.presentation?.candidates_order
+
+    let [invalidBottomCandidatesUnsorted, invalidTopCandidatesUnsorted] = splitList(
         invalidOrBlankCandidates,
         checkPositionIsTop
     )
+
+    // Sort invalid/blank candidates within their top/bottom blocks
+    let invalidBottomCandidates = sortCandidatesInContest(
+        invalidBottomCandidatesUnsorted,
+        candidatesOrderType,
+        true
+    )
+    let invalidTopCandidates = sortCandidatesInContest(
+        invalidTopCandidatesUnsorted,
+        candidatesOrderType,
+        true
+    )
+
     let hasWriteIns = checkAllowWriteIns(question) && !!question.candidates.find(checkIsWriteIn)
 
     useEffect(() => {
@@ -174,8 +189,6 @@ export const Question: React.FC<IQuestionProps> = ({
         }
     }, [selectedChoicesSum])
 
-    // do the shuffling
-    const candidatesOrderType = question.presentation?.candidates_order
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
     if (null === categoriesMapOrder) {
@@ -282,7 +295,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         ))}
                     </InvalidBlankWrapper>
                 ) : null}
-                {categoriesMapOrder?.length ? (
+                {!!categoriesMapOrder && Object.keys(categoriesMapOrder)?.length ? (
                     <CandidateListsWrapper className="candidates-lists-container">
                         {Object.entries(categoriesMapOrder).map(
                             ([categoryName, category], categoryIndex) => (

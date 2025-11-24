@@ -1,12 +1,14 @@
 use std::collections::{HashMap, HashSet};
 use std::num::TryFromIntError;
 
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::bigint;
 use super::{vec, RawBallotContest};
-use crate::ballot::{BallotStyle, Candidate, Contest, EUnderVotePolicy};
+use crate::ballot::{
+    AreaPresentation, BallotStyle, Candidate, Contest, EUnderVotePolicy,
+};
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
     check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
@@ -1188,12 +1190,14 @@ mod tests {
             // Set this
             public_key: None,
             area_id: s(),
+            area_presentation: Some(AreaPresentation::default()),
             contests,
             election_event_presentation: None,
             election_presentation: None,
             election_dates: None,
             election_event_annotations: None,
             election_annotations: None,
+            area_annotations: None,
         }
     }
 

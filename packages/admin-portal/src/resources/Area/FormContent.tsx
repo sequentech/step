@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
-import {UpsertAreaMutation} from "@/gql/graphql"
+import {EarlyVotingPolicy, UpsertAreaMutation} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {UPSERT_AREA} from "@/queries/UpsertArea"
@@ -18,12 +18,17 @@ import {
     TextInput,
     AutocompleteArrayInput,
     ReferenceArrayInput,
+    NumberInput,
+    BooleanInput,
 } from "react-admin"
 import {useTranslation} from "react-i18next"
 import {UpsertAreaProps} from "./UpsertArea"
 import SelectArea from "@/components/area/SelectArea"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {Checkbox, FormControlLabel} from "@mui/material"
+import {styled} from "@mui/material/styles"
+import {EEarlyVotingPolicy, IAreaPresentation} from "@sequentech/ui-core"
 
 /**
  * FormContent component for creating or updating an Area entity.
@@ -45,7 +50,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
  * - Supports contest selection with autocomplete and filtering.
  */
 export const FormContent: React.FC<UpsertAreaProps> = (props) => {
-    const {record, id, electionEventId, close} = props
+    const {record, id, electionEventId, close, area_presentation, weightedVotingForAreas} = props
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -72,6 +77,16 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
         ],
     })
 
+    const getAllowEarlyVotingDefaultValue = () => {
+        return area_presentation
+            ? area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
+            : false
+    }
+
+    const isEarlyVotingChannelEnabled = () => {
+        return record?.voting_channels?.early_voting == true
+    }
+
     const {data: areas} = useQuery(GET_AREAS_EXTENDED, {
         variables: {
             electionEventId,
@@ -80,7 +95,6 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
     })
     const parseValues = (incoming: any) => {
         const temp = {...incoming}
-
         temp.area_contest_ids = areas?.sequent_backend_area_contest?.map(
             (area: any) => area.contest.id
         )
@@ -97,12 +111,12 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     return
                 }
             }
+
             const {data} = await upsertArea({
                 variables: {
                     id: values.id,
                     name: values.name,
                     description: values.description,
-                    presentation: values.presentation,
                     tenantId: tenantId,
                     electionEventId,
                     parentId: values.parent_id,
@@ -110,6 +124,9 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                     annotations: values.annotations,
                     labels: values.labels,
                     type: values.type,
+                    allow_early_voting: values.allow_early_voting_boolean
+                        ? EarlyVotingPolicy.AllowEarlyVoting
+                        : EarlyVotingPolicy.NoEarlyVoting,
                 },
             })
             refresh()
@@ -153,7 +170,7 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                         <TextInput source="description" />
 
                         <ReferenceArrayInput
-                            label={t("areas.sequent_backend_area_contest")}
+                            label={String(t("areas.sequent_backend_area_contest"))}
                             reference="sequent_backend_contest"
                             source="area_contest_ids"
                             filter={{
@@ -192,6 +209,21 @@ export const FormContent: React.FC<UpsertAreaProps> = (props) => {
                                 />
                             </>
                         ) : null}
+                        {weightedVotingForAreas && (
+                            <NumberInput
+                                label="Weight"
+                                source="annotations.weight"
+                                format={(value) => Math.floor(value)}
+                                min={1}
+                                defaultValue={1}
+                            />
+                        )}
+                        <BooleanInput
+                            source="allow_early_voting_boolean"
+                            defaultValue={getAllowEarlyVotingDefaultValue()}
+                            label={String(t("areas.formImputs.allowEarlyVoting"))}
+                            disabled={!isEarlyVotingChannelEnabled()}
+                        />
                     </SimpleForm>
                 )
             }}

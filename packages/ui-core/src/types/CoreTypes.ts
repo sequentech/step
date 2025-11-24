@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {TranslationDict} from "../services/translate"
 import {IElectionEventPresentation} from "./ElectionEventPresentation"
 import {IContestPresentation} from "./ContestPresentation"
+import {IAreaPresentation} from "./AreaPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
 
@@ -29,6 +30,12 @@ export enum EVotingStatus {
 export interface IVotingChannelsConfig {
     kiosk: boolean
     online: boolean
+    early_voting: boolean
+}
+
+export interface IChannelButtonInfo {
+    status: EVotingStatus
+    is_channel_enabled: boolean
 }
 
 export interface IPeriodDates {
@@ -43,14 +50,18 @@ export interface IPeriodDates {
 export interface IElectionEventStatus {
     is_published?: boolean
     voting_status: EVotingStatus
+    kiosk_voting_status: EVotingStatus
+    early_voting_status: EVotingStatus
 }
 
 export interface IElectionStatus {
     is_published?: boolean
     voting_status: EVotingStatus
     kiosk_voting_status: EVotingStatus
+    early_voting_status: EVotingStatus
     voting_period_dates: IPeriodDates
     kiosk_voting_period_dates: IPeriodDates
+    early_voting_period_dates: IPeriodDates
 }
 
 export interface IElectionEventStatistics {
@@ -125,6 +136,7 @@ export interface IBallotStyle {
     description?: string
     public_key?: IPublicKeyConfig
     area_id: string
+    area_presentation?: IAreaPresentation
     contests: Array<IContest>
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
@@ -141,6 +153,8 @@ export interface IAuditableBallot {
     issue_date: string
     config: IBallotStyle
     ballot_hash: string
+    voter_signing_pk?: string
+    voter_ballot_signature?: string
 }
 export interface IAuditableSingleBallot extends IAuditableBallot {
     contests: Array<string>
@@ -153,13 +167,20 @@ export interface IHashableBallot {
     version: number
     issue_date: string
     config: string
+    voter_signing_pk?: string
+    voter_ballot_signature?: string
 }
-export interface IHashableSingleBallot {
+export interface IHashableSingleBallot extends IHashableBallot {
     contests: Array<string>
 }
 
-export interface IHashableMultiBallot {
+export interface IHashableMultiBallot extends IHashableBallot {
     contests: string
+}
+
+export interface ISignedContent {
+    public_key: string
+    signature: string
 }
 
 export enum EInvalidPlaintextErrorType {
@@ -216,8 +237,14 @@ export interface IExtensionErrorInternalError {
     message?: string | null
 }
 
+export interface IExtensionErrorInternalResponse {
+    body?: string | null
+    status?: number | null
+}
+
 export interface IExtensionErrorInternal {
     error?: IExtensionErrorInternalError | null
+    response?: IExtensionErrorInternalResponse | null
 }
 
 export interface IExtensionError {
