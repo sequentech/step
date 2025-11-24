@@ -36,7 +36,7 @@ type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
 interface GeneralInformationChartsProps {
     results: Sequent_Backend_Election_Extended[]
     selectedElectionId?: string
-    aliasRenderer: (item: any) => any
+    aliasRenderer: (item: any) => string
 }
 
 const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
