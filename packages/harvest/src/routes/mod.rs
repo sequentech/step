@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod api_datafix;
@@ -11,9 +10,7 @@ pub mod create_ballot_receipt;
 pub mod custom_urls;
 pub mod delete_election_event;
 pub mod election_dates;
-pub mod election_event_monitoring;
 pub mod election_event_stats;
-pub mod election_monitoring;
 pub mod election_stats;
 pub mod elections;
 pub mod electoral_log;
@@ -39,7 +36,6 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod limit_access_by_countries;
-pub mod manual_verification_pdf;
 pub mod miru_plugin;
 pub mod permissions;
 pub mod reports;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023-2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ import {useTenantStore} from "../../../providers/TenantContextProvider"
 import {IPermissions} from "../../../types/keycloak"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import {useTranslation} from "react-i18next"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {CreateTenant} from "@/resources/Tenant/CreateTenant"
 
 const SelectTenants: React.FC = () => {
@@ -52,7 +52,10 @@ const SelectTenants: React.FC = () => {
                         {data.slug}
                     </SingleDataContainer>
                     {showAddTenant ? (
-                        <StyledIcon icon={faPlusCircle} onClick={() => setIsNewTenantOpen(true)} />
+                        <StyledIcon
+                            icon={faPlusCircle as any}
+                            onClick={() => setIsNewTenantOpen(true)}
+                        />
                     ) : null}
                 </>
             )}

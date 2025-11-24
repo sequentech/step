@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
@@ -117,7 +117,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     }, [electionData, sortedContests])
 
     interface TabPanelProps {
-        children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
+        children?: React.ReactNode | Iterable<React.ReactNode>
         index: number
         value: number | null
     }

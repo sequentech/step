@@ -1,54 +1,44 @@
 <!--
-SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 # voting-portal
-Voting portal for the next generation.
 
-# 1. Compile the Ui Core library
+Voter-facing interface for the Sequent Voting Platform. Provides a secure,
+accessible, and user-friendly voting experience with end-to-end verifiability.
 
-The ballot verifier uses the common UI librarry [ui-core] as a github submodule.
-If you're using devcontainers it should already be checked in, otherwise run:
+## Features
 
-```bash
-git submodule update --init
-```
+- Secure ballot casting with cryptographic guarantees
+- Multi-language support
+- Accessibility compliance (WCAG 2.1)
+- Ballot verification and audit capabilities
+- Responsive design for desktop and mobile devices
 
-Then you need to compile ui-essentials:
+## Development
 
-```bash
-cd ui-core
-yarn
-yarn build
-```
-
-# 2. Compile the Ui library
-
-The ballot verifier uses the common UI librarry [ui-essentials] as a github submodule.
-If you're using devcontainers it should already be checked in, otherwise run:
+From the monorepo root in a Dev Container:
 
 ```bash
-git submodule update --init
+cd packages/
+yarn && yarn build:ui-core && yarn build:ui-essentials  # first time only
+yarn start:voting-portal
 ```
 
-Then you need to compile ui-essentials:
+The voting portal will be available at http://127.0.0.1:3000/
 
-```bash
-cd ui-essentials
-yarn
-yarn build
-```
+## Architecture
 
-# 3. Use sequent-core
+Built with React and TypeScript, integrating with:
+- **Hasura GraphQL API** for data operations
+- **Keycloak** for voter authentication
+- **ui-essentials** for shared UI components
+- **sequent-core** (compiled to WASM) for client-side ballot encryption and verification
 
-The voting portal uses [sequent-core] as a npm package. You need to compile it in another
-place and then copy it to `rust/sequent-core-0.1.0.tgz `. Note that if its version
-is changed you may need to update its hash in `voting-portal/yarn.lock` (use 
-`sha1sum rust/sequent-core-0.1.0.tgz` to get the hash, or `shasum` instead of `sha1sum` if
-you're in Mac Os X.
+## Documentation
 
-# 4. Run it
-
-Just run `yarn` and then `yarn start`.
+For detailed documentation, see:
+- [Voting Portal Guide](https://docs.sequentech.io/docusaurus/main/docs/voting_portal/voting_portal)
+- [Developer Documentation](https://docs.sequentech.io/docusaurus/main/docs/developers/Voting-Portal/developers_voting-portal)
