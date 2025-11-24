@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {FC, ReactElement, useContext} from "react"
@@ -38,7 +38,7 @@ const Notifications: FC<notificationsProps> = ({electionEventId}) => {
             </Typography>
             <ResourceListStyles.EmptyButtonList className="voter-add-button">
                 <Button onClick={() => console.log("test")}>
-                    <ResourceListStyles.CreateIcon icon={faPlus} />
+                    <ResourceListStyles.CreateIcon icon={faPlus as any} />
                     {t(`eventsScreen.empty.button`)}
                 </Button>
             </ResourceListStyles.EmptyButtonList>
@@ -131,9 +131,9 @@ const Notifications: FC<notificationsProps> = ({electionEventId}) => {
             {/* <Dialog
                 variant="warning"
                 open={isDeleteModalOpen}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
