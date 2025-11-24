@@ -42,7 +42,12 @@ jobs:
       - name: Install system dependencies
         run: |
             sudo apt-get update
-            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev chromium-browser
+            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+
+      - name: Install Chrome
+        run: |
+            wget -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y ./chrome.deb
 
       - name: Run tests
         env:
