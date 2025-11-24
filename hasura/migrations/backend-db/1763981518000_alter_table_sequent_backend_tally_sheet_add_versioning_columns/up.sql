@@ -1,10 +1,10 @@
 
-alter table "sequent_backend"."tally_sheet" drop column "published_at";
+alter table "sequent_backend"."tally_sheet" drop column if exists "published_at";
 
 alter table "sequent_backend"."tally_sheet" add column "reviewed_at" timestamptz
  null;
 
-alter table "sequent_backend"."tally_sheet" drop column "published_by_user_id";
+alter table "sequent_backend"."tally_sheet" drop column if exists "published_by_user_id";
 
 alter table "sequent_backend"."tally_sheet" add column "reviewed_by_user_id" text
  null;
