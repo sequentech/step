@@ -67,6 +67,9 @@ jobs:
           ls -lah docs/
           cp -r docs ../../docusaurus/build/graphql
 
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
+
       - name: Publish (PR)
         uses: rossjrw/pr-preview-action@v1
         if: github.event_name == 'pull_request'
