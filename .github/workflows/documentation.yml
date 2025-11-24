@@ -39,9 +39,6 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 22.x
-
-      - name: Install Yarn
-        run: npm install -g yarn@1
           
       - name: Set BASE_URL and Build Docusaurus Preview
         id: build_docusaurus
