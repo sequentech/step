@@ -60,6 +60,7 @@ The admin portal is a React-based web application for administrative functions.
 | graphql | ^16.8.1 | MIT | A Query Language and Runtime which can target any service. |
 | i18next | ^25.5.2 | MIT | i18next internationalization framework |
 | i18next-browser-languagedetector | ^8.2.0 | MIT | language detector used in browser environment for i18next |
+| idb | 7.1.1 | ISC | A small wrapper that makes IndexedDB usable |
 | intl-tel-input | ^24.5.0 | MIT | A JavaScript plugin for entering and validating international telephone numbers |
 | jotai | ^2.6.0 | MIT | 👻 Primitive and flexible state management for React |
 | json-edit-react | ^1.17.1 | MIT | React component for editing or viewing JSON/object data |
@@ -142,8 +143,7 @@ The ballot verifier is a React-based application for verifying ballot integrity 
 | react-dom | 19.1.1 | MIT | React package for working with the DOM. |
 | react-i18next | 15.7.3 | MIT | Internationalization for react done right. Using the i18next i18n ecosystem. |
 | react-redux | 8.1.2 | MIT | Official React bindings for Redux |
-| react-router-dom | 7.9.1 | MIT | Declarative routing for React web applications |
-| react-scripts | 5.0.1 | MIT | Configuration and scripts for Create React App. |
+| react-router | 7.9.5 | MIT | Declarative routing for React |
 | web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
 
 ## Braid

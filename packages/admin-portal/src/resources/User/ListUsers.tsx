@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -1030,6 +1029,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         omit={listFields.omitFields}
                         isOpenSideBar={isOpenSidebar}
                         bulkActionButtons={<BulkActions />}
+                        rowClick={false}
                     >
                         <TextField source="id" sx={{display: "block", width: "280px"}} />
                         <BooleanField

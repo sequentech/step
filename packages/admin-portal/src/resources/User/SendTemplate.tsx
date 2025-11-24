@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -35,7 +35,7 @@ import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
 import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ITemplateMethod, ETemplateType, IEmail, ISendTemplateBody} from "@/types/templates"
+import {ITemplateMethod, IEmail, ISendTemplateBody} from "@/types/templates"
 import {useLocation} from "react-router"
 
 export enum AudienceSelection {
@@ -48,7 +48,6 @@ export enum AudienceSelection {
 interface ITemplatePayload {
     audience_selection: AudienceSelection
     audience_voter_ids?: Array<Identifier>
-    type: ETemplateType
     communication_method: ITemplateMethod
     schedule_now: boolean
     schedule_date?: Date
@@ -67,7 +66,6 @@ interface ITemplate {
         selection: AudienceSelection
         voter_ids?: Array<Identifier> | undefined
     }
-    type: ETemplateType
     communication_method: ITemplateMethod
     alias?: string
     schedule: {
@@ -120,7 +118,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             selection: audienceSelection ?? AudienceSelection.SELECTED,
             voter_ids: ids ?? undefined,
         },
-        type: ETemplateType.BALLOT_RECEIPT,
         communication_method: ITemplateMethod.EMAIL,
         schedule: {
             now: true,
@@ -148,7 +145,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         return {
             audience_selection: formData.audience.selection,
             audience_voter_ids: formData.audience.voter_ids,
-            type: formData.type,
             communication_method: formData.communication_method,
             schedule_now: formData.schedule.now,
             schedule_date: formData.schedule.date,
@@ -214,28 +210,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
         // filter receipts by communication method
         const selectedReceipts = receipts
-            ?.filter(
-                (receipt) => receipt.communication_method === value && receipt.type === selectedType
-            )
-            .map((receipt) => receipt.template)
-
-        setSelectedList(selectedReceipts ?? null)
-    }
-
-    const handleSelectTypeChange = async (e: any) => {
-        const {value} = e.target
-        var newTemplate = {...template}
-        newTemplate.type = value
-        setTemplate(newTemplate)
-
-        setSelectedType(value)
-
-        // filter receipts by communication method
-        const selectedReceipts = receipts
-            ?.filter(
-                (receipt) =>
-                    receipt.type === value && receipt.communication_method === selectedMethod
-            )
+            ?.filter((receipt) => receipt.communication_method === value)
             .map((receipt) => receipt.template)
 
         setSelectedList(selectedReceipts ?? null)
@@ -252,9 +227,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
         const selectedReceipt = receipts?.filter(
             (receipt) =>
-                receipt.type === selectedType &&
-                receipt.communication_method === selectedMethod &&
-                receipt.template.alias === value
+                receipt.communication_method === selectedMethod && receipt.template.alias === value
         )
 
         if (selectedReceipt && selectedReceipt.length > 0) {
@@ -315,7 +288,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     // communication templates
 
     const [selectedMethod, setSelectedMethod] = useState<ITemplateMethod>(ITemplateMethod.EMAIL)
-    const [selectedType, setSelectedType] = useState<ETemplateType>(ETemplateType.BALLOT_RECEIPT)
     const [selectedList, setSelectedList] = useState<ISendTemplateBody[] | null>(null)
     /*const [selectedReceipt, setSelectedReceipt] = useState<IEmail | string>({
         subject: "",
@@ -330,16 +302,13 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     })
 
     useEffect(() => {
-        // filter receipts by communication method and sert email by default
+        // filter receipts by communication method
         const selectedReceipts = receipts
-            ?.filter(
-                (receipt) =>
-                    receipt.type === selectedType && receipt.communication_method === selectedMethod
-            )
+            ?.filter((receipt) => receipt.communication_method === selectedMethod)
             .map((receipt) => receipt.template)
 
         setSelectedList(selectedReceipts ?? null)
-    }, [selectedMethod, selectedType, receipts])
+    }, [selectedMethod, receipts])
 
     //const possibleLanguages = ["en", "es"]
     //const renderLangs = () => {
@@ -493,22 +462,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 .map((key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.communicationMethod.${key}`)}
-                                    </MenuItem>
-                                ))}
-                        </FormStyles.Select>
-                        <Typography variant="body2" sx={{margin: "0"}}>
-                            {t("sendCommunication.type")}
-                        </Typography>{" "}
-                        <FormStyles.Select
-                            name="voters.selection"
-                            value={template.type}
-                            onChange={handleSelectTypeChange}
-                        >
-                            {Object.values(ETemplateType)
-                                .filter((type) => type !== ETemplateType.MANUAL_VERIFICATION)
-                                .map((key) => (
-                                    <MenuItem key={key} value={key}>
-                                        {t(`sendCommunication.communicationType.${key}`)}
                                     </MenuItem>
                                 ))}
                         </FormStyles.Select>
