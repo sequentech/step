@@ -15,4 +15,8 @@ mc admin accesskey create myminio/ "$MINIO_ROOT_USER" \
 echo "Uploading public-assets folder..."
 mc cp --recursive /scripts/public-assets/ myminio/public/public-assets/
 
+mc stat myminio/public/certs.json
+echo "Uploading certs.json..."
+mc cp /scripts/certs.json myminio/public/certs.json
+
 exit 0
