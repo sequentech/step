@@ -92,10 +92,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: 1.90.0
           components: rustfmt
-          target: x86_64-unknown-linux-musl
+          targets: x86_64-unknown-linux-musl
 
       - name: Check Rust code formatting
         run: cd packages/ && cargo fmt -- --check
