@@ -141,7 +141,17 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const addAction = (id: Identifier) => {
         localStorage.removeItem("tallySheetData")
-        doAction(WizardSteps.Edit, id)
+        const selected = sheetsDescVersions?.find((s) => {
+            return s.id === id
+        })
+        const latestVersion = sheetsDescVersions?.find((s) => {
+            return (
+                s.area_id === selected?.area_id &&
+                s.contest_id === selected?.contest_id &&
+                s.channel === selected?.channel
+            )
+        })
+        doAction(WizardSteps.Edit, latestVersion?.id)
     }
 
     const versionsTableAction = (id: Identifier) => {
