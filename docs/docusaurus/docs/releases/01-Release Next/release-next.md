@@ -7,6 +7,16 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Fixes after dependency updates
+
+- Fixed voters import, which was broken after updating Keycloak from 24 to 26.
+- Removed faulty MinIO certificate management from devcontainer (only affects developers).
+- Show IP Addresses again, fix editing Voters and Areas.
+- Fixed rendering issue when editing Election Events.
+- Fixed running Storybook.
+
+- Issue: [#9132](https://github.com/sequentech/meta/issues/9132)
+
 ## 🔧 Publicly Open Source Preparations
 
 This release transitions the Sequent Voting Platform from an on-request
