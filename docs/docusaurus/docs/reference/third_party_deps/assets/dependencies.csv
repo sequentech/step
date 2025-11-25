@@ -306,8 +306,9 @@ strand,rug,~1.23,LGPL-3.0+,"Arbitrary-precision integers, rational, floating-poi
 strand,ed25519-dalek,=2.1,BSD-3-Clause,"Fast and efficient ed25519 EdDSA key generations, signing, and verification in pure Rust."
 strand,ecdsa,0.16,Apache-2.0 OR MIT,"Pure Rust implementation of the Elliptic Curve Digital Signature Algorithm (ECDSA) as specified in FIPS 186-4 (Digital Signature Standard), providing RFC6979 deterministic signatures as well as support for added entropy"
 strand,p384,0.13,Apache-2.0 OR MIT,"Pure Rust implementation of the NIST P-384 (a.k.a. secp384r1) elliptic curve as defined in SP 800-186 with support for ECDH, ECDSA signing/verification, and general purpose curve arithmetic support."
-strand,x509-parser,0.15.1,MIT OR Apache-2.0,Parser for the X.509 v3 format (RFC 5280 certificates)
-strand,rcgen,0.11.3,MIT OR Apache-2.0,Rust X.509 certificate generator
+strand,x509-parser,0.17.0,MIT OR Apache-2.0,Parser for the X.509 v3 format (RFC 5280 certificates)
+strand,rcgen,=0.14.3,MIT OR Apache-2.0,Rust X.509 certificate generator
+strand,rustls-pki-types,=1.13.0,MIT OR Apache-2.0,Shared types for the rustls PKI ecosystem
 strand,chacha20poly1305,0.10,Apache-2.0 OR MIT,"Pure Rust implementation of the ChaCha20Poly1305 Authenticated Encryption with Additional Data Cipher (RFC 8439) with optional architecture-specific hardware acceleration. Also contains implementations of the XChaCha20Poly1305 extended nonce variant of ChaCha20Poly1305, and the reduced-round ChaCha8Poly1305 and ChaCha12Poly1305 lightweight variants."
 strand,generic-array,=0.14,MIT,Generic types implementing functionality of arrays
 strand,sha2,0.10,MIT OR Apache-2.0,"Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512."
