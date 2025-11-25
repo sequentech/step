@@ -22,6 +22,12 @@ if the user existed, leaking the information that the user did exist.
 - Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
 ## 🐞 Fixes after dependency updates
 
+Update ring dependency.
+
+- Issue: [#9132](https://github.com/sequentech/meta/issues/9132)
+- 
+## 🐞 Fixes after dependency updates
+
 - Fixed voters import, which was broken after updating Keycloak from 24 to 26.
 - Removed faulty MinIO certificate management from devcontainer (only affects developers).
 - Show IP Addresses again, fix editing Voters and Areas.
