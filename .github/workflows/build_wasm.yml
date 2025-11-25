@@ -7,7 +7,7 @@ name: Build Sequent Core WASM Target
 on:
   pull_request:
   push:
-    branches: [ 'main' ]
+    branches: [ 'main', 'feat/use-arc-runner-java-test' ]
   release:
     types: [published]
 

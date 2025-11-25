@@ -22,6 +22,7 @@ on:
     branches:
       - main
       - release/*
+      - feat/use-arc-runner-java-test
 
 permissions:
   contents: write
