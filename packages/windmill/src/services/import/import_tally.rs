@@ -94,8 +94,8 @@ fn remap_result_documents(
             .as_ref()
             .map(|id| replacement_map.get(id).cloned())
             .unwrap_or(None),
-        vote_receipts_pdf: doc
-            .vote_receipts_pdf
+        tar_gz_pdfs: doc
+            .tar_gz_pdfs
             .as_ref()
             .map(|id| replacement_map.get(id).cloned())
             .unwrap_or(None),
