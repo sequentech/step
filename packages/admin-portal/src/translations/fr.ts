@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -84,6 +84,9 @@ const frenchTranslation: TranslationType = {
                 CREATE_TENANT: "Créer un locataire",
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
+                DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
+                PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
+                EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -102,11 +105,24 @@ const frenchTranslation: TranslationType = {
                 deleteError: "Erreur lors de la suppression de la Zone",
             },
             createAreaSuccess: "Zone créée",
+            updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
             sequent_backend_area_contest: "Questions de la Zone",
             empty: {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",
+            },
+            formImputs: {
+                allowEarlyVoting: "Autoriser le Vote Anticipé",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Clé de Compte de Service Google Calendar",
+                gapiEmail: "Email d'Authentification Google Calendar",
+            },
+            errors: {
+                invalidGapiKey: "Format de Clé de Compte de Service Google Calendar invalide",
             },
         },
         lookAndFeelScreen: {
@@ -146,6 +162,7 @@ const frenchTranslation: TranslationType = {
                 templates: "MODÈLES",
                 languages: "LANGUES",
                 localization: "LOCALISATION",
+                integrations: "INTÉGRATIONS",
                 lookAndFeel: "PERSONNALISATION DE L'APPARENCE",
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
@@ -282,12 +299,24 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                showCastVoteLogs: {
+                    policyLabel: "Afficher les logs de vote",
+                    options: {
+                        "show-logs-tab": "Afficher l'onglet des logs de vote",
+                        "hide-logs-tab": "Ne pas afficher l'onglet des logs de vote",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "État de Confinement",
                     options: {
                         "locked-down": "Confiné",
                         "not-locked-down": "Non Confiné",
                     },
+                },
+                decodedBallots: {
+                    policyLabel:
+                        "Inclure les bulletins décodés dans la base de données de résultats",
+                    options: {"included": "Inclure", "not-included": "Ne pas inclure"},
                 },
                 contestEncryptionPolicy: {
                     options: {
@@ -324,6 +353,20 @@ const frenchTranslation: TranslationType = {
                     options: {
                         enabled: "Activé",
                         disabled: "Désactivé",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Politique des cérémonies de clés/décompte",
+                    options: {
+                        "automated-ceremonies": "Autoriser les cérémonies automatiques",
+                        "manual-ceremonies": "Cérémonies manuelles",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Politique de Vote Pondéré",
+                    options: {
+                        "areas-weighted-voting": "Vote Pondéré par Zones",
+                        "disabled-weighted-voting": "Vote Pondéré Désactivé",
                     },
                 },
             },
@@ -536,6 +579,12 @@ const frenchTranslation: TranslationType = {
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Confirmation de sécurité HTML",
+            },
+            securityConfirmationPolicy: {
+                label: "Politique de la case à cocher de confirmation de sécurité",
+                none: "Aucun",
+                mandatory: "Obligatoire",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -576,6 +625,13 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Politique de titre de l'écran d'accueil",
+                options: {
+                    "election": "Titre de l'élection",
+                    "election-event": "Titre de l'événement électoral",
                 },
             },
         },
@@ -866,10 +922,6 @@ const frenchTranslation: TranslationType = {
                 "report-delete": "Supprimer un Rapport",
                 "report-generate": "Générer un Rapport",
                 "report-preview": "Aperçu du Rapport",
-                "monitoring-dashboard-view-election-event":
-                    "Vue du Tableau de Bord de Suivi des Élections",
-                "monitoring-dashboard-view-election":
-                    "Vue du Tableau de Bord de Suivi des Événements Électoraux",
                 "monitor-authenticated-voters": "Surveillance des Électeurs Authentifiés",
                 "monitor-all-approve-disapprove-voters":
                     "Lire la Surveillance des Électeurs Approuvés et Refusés",
@@ -929,6 +981,7 @@ const frenchTranslation: TranslationType = {
                 "voter-email-tlf-edit": "Modifier les champs e-mail/téléphone des électeurs",
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
+                "google-meet-link": "Générer un Lien Google Meet",
             },
         },
         generalSettingsScreen: {
@@ -994,10 +1047,11 @@ const frenchTranslation: TranslationType = {
                 decryptFileTitle: "Déchiffrer le fichier",
                 decryptInstructions:
                     "1. '-in' : Le chemin vers le fichier chiffré. \n2. '-out' : Le chemin où le fichier déchiffré sera enregistré. \n3. '-pass' : Le mot de passe utilisé pour chiffrer le fichier. \n",
+                encryptSuccess: "Configuration du chiffrement du rapport réussie",
+                encryptError: "Erreur lors de la configuration du chiffrement du rapport",
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
-                VOTE_RECEIPT: "Reçu de Vote",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
@@ -1054,6 +1108,26 @@ const frenchTranslation: TranslationType = {
                 preview: "Aperçu",
             },
         },
+        googleMeet: {
+            title: "Générer un Lien Google Meet",
+            generateButton: "Google Meet",
+            meetingTitle: "Titre de la Réunion",
+            description: "Description (Optionnel)",
+            startDate: "Date de Début",
+            startTime: "Heure de Début",
+            duration: "Durée (minutes)",
+            attendeeEmails: "Emails des Participants",
+            attendeeEmailHelp:
+                "Emails séparés par des virgules pour les participants de la réunion",
+            note: "Note : Cela créera un événement de calendrier dans votre Google Calendar avec un lien Google Meet. Vous devrez vous connecter à votre compte Google.",
+            success: "Lien Google Meet Généré avec Succès !",
+            copy: "Copier dans le presse-papiers",
+            copied: "Lien copié dans le presse-papiers !",
+            instructions:
+                "Partagez ce lien avec les participants pour rejoindre la réunion. L'événement de calendrier a été ajouté à votre Google Calendar.",
+            generating: "Génération...",
+            generate: "Générer le Lien Meet",
+        },
         common: {
             export: "L'exportation peut être un processus long. Êtes-vous sûr de vouloir exporter ?",
             resources: {
@@ -1092,6 +1166,11 @@ const frenchTranslation: TranslationType = {
                 kind: "Type de fichier",
                 filter: "Filtres personnalisés",
                 approve: "Approuver",
+                continue: "Continuer",
+                logout: "Déconnexion",
+                selectTenant: "Sélectionner un locataire",
+                processing: "Traitement en cours...",
+                tenantName: "Nom du locataire",
             },
             language: {
                 es: "Espagnol",
@@ -1101,13 +1180,16 @@ const frenchTranslation: TranslationType = {
                 tl: "Tagalog",
                 gl: "Galego",
                 nl: "Néerlandais",
+                eu: "Euskera",
             },
             channel: {
                 online: "En ligne",
                 kiosk: "Kiosque",
+                early_voting: "Vote anticipé",
             },
             message: {
                 delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
+                continueOrLogout: "Voulez-vous continuer ou vous déconnecter ?",
             },
         },
         createResource: {
@@ -1206,6 +1288,12 @@ const frenchTranslation: TranslationType = {
                 "semi-open-list": "Liste Semi-ouverte",
                 "invalid-vote": "Vote Inválido",
                 "blank-vote": "Vote Blanc",
+            },
+            invalidVotePosition: {
+                label: "Position du Vote Invalide",
+                null: "Aucune (Par défaut)",
+                top: "Haut",
+                bottom: "Bas",
             },
             error: {},
             createCandidateSuccess: "Candidat créé",
@@ -1315,10 +1403,17 @@ const frenchTranslation: TranslationType = {
                     ok: "Oui, Créer une Cérémonie de Clés",
                     cancel: "Annuler",
                     title: "Êtes-vous sûr de vouloir Créer une Cérémonie de Clés ?",
+                    automaticCeremonyTitle:
+                        "Êtes-vous sûr de vouloir créer une cérémonie de clés automatique ?",
                     description:
                         "Vous êtes sur le point de Créer une Cérémonie de Clés. Cette action notifiera aux Autorités de participer à la création et distribution des Clés de l'Événement Électoral.",
+                    automaticCeremonyDescription:
+                        "Vous êtes sur le point de créer une cérémonie de clés automatique. Cela n'informera pas les fiduciaires de leur participation.",
                 },
                 filterTrustees: "Filtre des Autorités",
+                errorPermisionLabels:
+                    "Impossible de créer la cérémonie de clés : une ou plusieurs étiquettes d’autorisations sont manquantes.",
+                automaticCeremonyToggle: "Cérémonie automatique",
             },
             ceremonyStep: {
                 cancel: "Annuler la Cérémonie de Clés",
@@ -1539,6 +1634,8 @@ const frenchTranslation: TranslationType = {
                         "Vous êtes sur le point d'annuler la cérémonie de comptage. Cette action ne peut pas être annulée.",
                     ceremony:
                         "Tous les trustees requis ont vérifié leurs fragments de clé. Tout est prêt pour commencer à recevoir les résultats. Voulez-vous commencer le Comptage ?",
+                    startAutomatedTallyMessage:
+                        "Sélectionnez 'Start Tally' pour lancer le processus de décompte et afficher les résultats, ou 'Close' pour annuler.",
                 },
             },
             table: {
@@ -1573,6 +1670,14 @@ const frenchTranslation: TranslationType = {
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
+                weight: "Poids",
+            },
+            chart: {
+                votesForCandidates: "Votes pour les Candidats",
+                blankVotes: "Votes Blancs",
+                invalidVotes: "Votes Invalides",
+                totalVoters: "Total des Électeurs",
+                nonVoters: "Non-Électeurs",
             },
         },
         publish: {
@@ -1592,9 +1697,17 @@ const frenchTranslation: TranslationType = {
             action: {
                 generateInitializationReport: "Générer le Rapport d'Initialisation",
                 startVotingPeriod: "Commencer la période de vote",
+                startKioskVoting: "Commencer Vote au Kiosque",
+                startOnlineVoting: "Commencer Vote en Ligne",
+                startEarlyVoting: "Commencer Vote Anticipé",
                 stopVotingPeriod: "Arrêter la période de vote",
+                stopOnlineVoting: "Arrêter le Vote en Ligne",
+                stopEarlyVoting: "Arrêter le Vote Anticipé",
                 stopKioskVotingPeriod: "Arrêter le Vote au Kiosque",
                 pauseVotingPeriod: "Mettre en pause la période de vote",
+                pauseKioskVoting: "Mettre en pause le Vote au Kiosque",
+                pauseOnlineVoting: "Mettre en pause le Vote en Ligne",
+                pauseEarlyVoting: "Mettre en pause le Vote Anticipé",
                 generate: "régénérer",
                 publish: "Publier Changements",
                 back: "Arrière",
@@ -1685,10 +1798,6 @@ const frenchTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
-                PARTICIPATION_REPORT: "Rapport de Participation",
-                ELECTORAL_RESULTS: "Résultats Électoraux",
-                OTP: "OTP",
-                TALLY_REPORT: "Rapport de comptage",
             },
             email: {
                 subject: "Sujet",
@@ -1825,37 +1934,12 @@ const frenchTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Identifiants",
-                BALLOT_RECEIPT: "Reçu de Vote",
-                VOTE_RECEIPT: "Reçu de Vote",
-                PARTICIPATION_REPORT: "Rapport de Participation",
-                ELECTORAL_RESULTS: "Résultats Électoraux",
-                OTP: "OTP",
-                TALLY_REPORT: "Rapport de Dépouillement",
-                MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
-                STATISTICAL_REPORT: "Rapport Statistique",
                 INITIALIZATION_REPORT: "Rapport d'Initialisation",
-                STATUS: "Rapport de Statut",
-                TRANSMISSION_REPORT: "Rapports de Transmission",
-                AUDIT_LOGS: "Journaux d'Audit",
-                ACTIVITY_LOGS: "Journaux d'Activité",
-                OVCS_INFORMATION: "Informations OVCS",
-                OVCS_EVENTS: "Surveillance du Vote à l'Étranger - Événements OVCS",
-                OVCS_STATISTICS: "Surveillance du Vote à l'Étranger - Statistiques OVCS",
-                OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
-                LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                OV_TURNOUT_PERCENTAGE: "Participation des Électeurs à l'Étranger",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
-                OV_PRE_ENROLLED_APPROVED: "Liste des OV qui se sont Préinscrits (Approuvés)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Liste des OV qui ne sont pas encore Préinscrits",
-                OV_WITH_VOTING_STATUS: "Liste des Électeurs à l'Étranger avec Statut de Vote",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre d'OV qui ne sont pas encore Préinscrits",
+                ELECTORAL_RESULTS: "Résultats Électoraux",
                 BALLOT_IMAGES: "Images des Bulletins",
+                BALLOT_RECEIPT: "Reçu de Vote",
+                ACTIVITY_LOGS: "Journaux d'Activité",
+                MANUAL_VERIFICATION: "Vérification Manuelle",
             },
             method: {
                 email: "Email",
@@ -1885,6 +1969,10 @@ const frenchTranslation: TranslationType = {
             fields: {
                 isHidden: "Caché",
                 publicUrl: "Lien public",
+            },
+            empty: {
+                header: "Pas encore de matériel de support",
+                action: "Générer du matériel de support",
             },
         },
         widget: {

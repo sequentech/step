@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
@@ -19,6 +19,7 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Typography} from "@mui/material"
 import {SettingsTrustees} from "@/resources/Settings/SettingsTrustees"
 import {SettingsLookAndFeel} from "@/resources/Settings/SettingsLookAndFeel"
+import {SettingsIntegrations} from "@/resources/Settings/SettingsIntegrations"
 import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
@@ -48,8 +49,8 @@ export const SettingsScreen: React.FC = () => {
             className="settings-box"
         >
             <HeaderTitle
-                title={t("electionTypeScreen.common.settingTitle")}
-                subtitle={t("electionTypeScreen.common.settingSubtitle")}
+                title={String(t("electionTypeScreen.common.settingTitle"))}
+                subtitle={String(t("electionTypeScreen.common.settingSubtitle"))}
             />
 
             <Tabs
@@ -88,6 +89,12 @@ export const SettingsScreen: React.FC = () => {
                         label: t("electionTypeScreen.tabs.localization"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsLocalization} />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.integrations"),
+                        component: () => (
+                            <Resource name="sequent_backend_tenant" list={SettingsIntegrations} />
                         ),
                     },
                     {

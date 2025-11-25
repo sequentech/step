@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -159,7 +159,7 @@ export const TemplateList: React.FC = () => {
 
     const CreateButton = () => (
         <Button onClick={handleCreateDrawer}>
-            <IconButton icon={faPlus} fontSize="24px" />
+            <IconButton icon={faPlus as any} fontSize="24px" />
             {t("template.action.createOne")}
         </Button>
     )
@@ -205,7 +205,10 @@ export const TemplateList: React.FC = () => {
 
                     <ResourceListStyles.EmptyButtonList>
                         <CreateButton />
-                        <ReactAdminButton onClick={handleImport} label={t("common.label.import")}>
+                        <ReactAdminButton
+                            onClick={handleImport}
+                            label={String(t("common.label.import"))}
+                        >
                             <UploadIcon />
                         </ReactAdminButton>
                     </ResourceListStyles.EmptyButtonList>
@@ -232,7 +235,10 @@ export const TemplateList: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={t("template.title")} subtitle={t("template.subtitle")} />
+            <ElectionHeader
+                title={String(t("template.title"))}
+                subtitle={String(t("template.subtitle"))}
+            />
 
             <List
                 resource="sequent_backend_template"
@@ -284,9 +290,9 @@ export const TemplateList: React.FC = () => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
@@ -299,10 +305,10 @@ export const TemplateList: React.FC = () => {
             <Dialog
                 variant="info"
                 open={openExport}
-                ok={t("common.label.export")}
+                ok={String(t("common.label.export"))}
                 okEnabled={() => !exporting}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.export")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.export"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmExportAction()

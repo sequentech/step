@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, useContext, useMemo} from "react"
@@ -188,6 +188,31 @@ export const HomeScreen: React.FC<IProps> = ({
         let ballotHash = isMultiContest
             ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
+
+        if (
+            auditableBallot?.voter_ballot_signature !== undefined &&
+            auditableBallot?.voter_signing_pk !== undefined
+        ) {
+            try {
+                let _signatureVerificationResult = isMultiContest
+                    ? ballotService.verifyMultiBallotSignature(
+                          ballotHash,
+                          ballotStyle.election_id,
+                          auditableBallot as IAuditableMultiBallot
+                      )
+                    : ballotService.verifyBallotSignature(
+                          ballotHash,
+                          ballotStyle.election_id,
+                          auditableBallot as IAuditableSingleBallot
+                      )
+            } catch (error) {
+                console.log(error)
+                setShowError(true)
+                setConfirmationBallot(null)
+                return
+            }
+        }
+
         setConfirmationBallot({
             ballot_hash: ballotHash,
             election_config: ballotStyle,

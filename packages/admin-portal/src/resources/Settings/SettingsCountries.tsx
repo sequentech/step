@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {LimitAccessByCountriesMutation} from "@/gql/graphql"
@@ -30,8 +30,10 @@ export const SettingsCountries: React.FC<void> = () => {
         redirect: false,
         undoable: false,
     })
-    const [selectedVotingCountries, setSelectedVotingCountries] = useState([])
-    const [selectedEnrollmentCountries, setSelectedEnrollmentCountries] = useState([])
+    const [selectedVotingCountries, setSelectedVotingCountries] = useState<Array<string>>([])
+    const [selectedEnrollmentCountries, setSelectedEnrollmentCountries] = useState<Array<string>>(
+        []
+    )
 
     useEffect(() => {
         if (record && record?.settings) {

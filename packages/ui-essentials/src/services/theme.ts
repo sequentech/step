@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -11,7 +11,9 @@ import {
 import {LinkProps} from "@mui/material/Link"
 import LinkBehavior from "../components/LinkBehavior/LinkBehavior"
 import {Theme as MUITheme} from "@mui/material"
-import {TypographyOptions} from "@mui/material/styles/createTypography"
+
+// Typography options type for React 19 / MUI 5 compatibility
+type TypographyOptions = any // Using any due to MUI type incompatibilities with React 19
 
 // Re-declare the emotion theme to have the properties of the MaterialUiTheme
 // See: https://github.com/emotion-js/emotion/discussions/2291#discussioncomment-491185
@@ -169,9 +171,9 @@ let MuiButton: Components["MuiButton"] = {
                 color: palette.white,
             },
 
-            "border-radius": "0",
+            "borderRadius": "0",
             [`@media (min-width: ${breakpoints.values!.sm!}px)`]: {
-                "border-radius": "4px",
+                borderRadius: "4px",
             },
         },
     },
@@ -379,21 +381,20 @@ let MuiButton: Components["MuiButton"] = {
         {
             props: {variant: "actionbar"},
             style: {
-                "background-color": "transparent",
+                "backgroundColor": "transparent",
                 "color": palette.brandColor,
                 "border": `1px solid ${palette.brandColor}`,
-                "border-radius": "0",
+                "borderRadius": "0",
                 "fontWeight": "500",
-                "font-size": "14px",
-                "font-style": "normal",
-                "text-transform": "uppercase",
+                "fontSize": "14px",
+                "fontStyle": "normal",
+                "textTransform": "uppercase",
                 "padding": "6px 12px",
                 "height": "35px",
                 "&:hover": {
                     "border": `1px solid ${palette.brandColor}`,
                     "color": palette.white,
-                    "background-color": palette.brandColor,
-                    "box-shadow": "none",
+                    "backgroundColor": palette.brandColor,
                     "*": {
                         filter: "none",
                     },

@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 
-const StyledContainer = styled.div`
+const StyledContainer = styled("div")`
     position: absolute;
     top: 0;
     left: 0;
@@ -19,7 +19,7 @@ const StyledContainer = styled.div`
     border-bottom: ${({theme}) => `2px solid ${theme.palette.brandColor}`} !important;
 `
 
-const StyledBar = styled.div`
+const StyledBar = styled("div")`
     height: 100%;
     background: ${({theme}) => theme.palette.blue.light} !important;
     transition: width 1s linear;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -86,7 +86,7 @@ const GetPublicURL: React.FC<GetPublicURLProps> = ({electionEventId}) => {
             <TextField
                 contentEditable={false}
                 value={url}
-                label={t("materials.fields.publicUrl")}
+                label={String(t("materials.fields.publicUrl"))}
             />
         </>
     )
@@ -116,7 +116,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
 
     useEffect(() => {
         if (record) {
-            console.log("record :>> ", record)
             setRenderUI(true)
         }
     }, [record])
@@ -173,7 +172,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                 component: () => (
                     <>
                         <TextField
-                            label={t("electionEventScreen.field.materialTitle")}
+                            label={String(t("electionEventScreen.field.materialTitle"))}
                             size="small"
                             value={valueMaterials?.title_i18n[lang] || ""}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -184,7 +183,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                             }
                         />
                         <TextField
-                            label={t("electionEventScreen.field.materialSubTitle")}
+                            label={String(t("electionEventScreen.field.materialSubTitle"))}
                             size="small"
                             value={valueMaterials?.subtitle_i18n[lang] || ""}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -222,8 +221,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -247,8 +244,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
     }
 
     const transform = (data: Sequent_Backend_Support_Material_Extended) => {
-        console.log("data :>> ", data)
-
         data.data = {...valueMaterials}
         if (imageType) {
             data.kind = imageType
@@ -258,7 +253,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
 
     const formValidator = (values: any): any => {
         const errors: {[key: string]: string} = {}
-        if (!valueMaterials?.title_i18n.en) {
+        if (!valueMaterials?.title_i18n?.en) {
             errors.data = t("materials.error.title")
         }
         return errors
@@ -287,8 +282,6 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                             const parsedValue = parseValues(
                                 incoming as Sequent_Backend_Support_Material_Extended
                             )
-                            console.log("parsedValue edit :>> ", parsedValue)
-
                             return (
                                 <SimpleForm
                                     validate={formValidator}
@@ -307,7 +300,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
                                     <Tabs elements={renderTabs(parsedValue)} />
                                     <BooleanInput
                                         source="is_hidden"
-                                        label={t("materials.fields.isHidden")}
+                                        label={String(t("materials.fields.isHidden"))}
                                     />
                                     {electionEventId ? (
                                         <GetPublicURL electionEventId={electionEventId} />

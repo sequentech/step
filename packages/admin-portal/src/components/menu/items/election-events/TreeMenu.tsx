@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -526,7 +526,9 @@ function TreeMenuItem({
                 )}
                 {isOpenSidebar && (
                     <MenuStyles.StyledSideBarNavLink
-                        multiline={treeResourceNames[0] === "sequent_backend_election"}
+                        multiline={
+                            treeResourceNames[0] === "sequent_backend_election" ? "true" : undefined
+                        } // Fix here
                         onClick={() => onClick(true)}
                         title={name}
                         className={({isActive}) =>

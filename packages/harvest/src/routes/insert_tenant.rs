@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -74,7 +74,7 @@ pub async fn insert_tenant(
         .send_task(tasks::insert_tenant::insert_tenant::new(
             id.clone(),
             body.slug.clone(),
-            task_execution.clone(),
+            Some(task_execution.clone()),
         ))
         .await;
 

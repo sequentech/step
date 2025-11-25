@@ -6,6 +6,7 @@
         "/workspaces/step/packages/Cargo.toml",
         "./packages/sequent-core/Cargo.toml"
     ],
+    "editor.rulers": [80],
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
     "docker.containers.label": "ContainerName",

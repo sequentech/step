@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,8 +10,10 @@ use crate::{postgres::document::get_document, services::documents::get_document_
 use anyhow::{anyhow, Error as AnyhowError, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
+
 use std::io::Seek;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -81,7 +83,7 @@ pub async fn import_templates(
         templates.push(Template {
             alias: template_alias.to_string(),
             tenant_id: tenant_id_parsed,
-            template: serde_json::from_str(template_content).unwrap_or_default(),
+            template: deserialize_str(template_content).unwrap_or_default(),
             created_by: created_by.to_string(),
             labels: Some(serde_json::Value::String(labels.to_string())),
             annotations: Some(serde_json::Value::String(annotations.to_string())),
