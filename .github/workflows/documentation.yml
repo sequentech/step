@@ -22,6 +22,7 @@ on:
     branches:
       - main
       - release/*
+      - feat/use-arc-runner-java-test
 
 permissions:
   contents: write
@@ -30,11 +31,7 @@ permissions:
 
 jobs:
   build:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
     steps:
       - uses: actions/checkout@v4
 
@@ -66,6 +63,9 @@ jobs:
           yarn generate-full-docs
           ls -lah docs/
           cp -r docs ../../docusaurus/build/graphql
+
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
 
       - name: Publish (PR)
         uses: rossjrw/pr-preview-action@v1
