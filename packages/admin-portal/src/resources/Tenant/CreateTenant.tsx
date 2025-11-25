@@ -55,7 +55,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
     }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
 
     const onSubmit: SubmitHandler<FieldValues> = async ({slug}) => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.CREATE_TEMANT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.CREATE_TEMANT, undefined)
         try {
             let {data, errors} = await createTenant({
                 variables: {

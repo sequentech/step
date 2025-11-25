@@ -98,7 +98,7 @@ export const TemplateList: React.FC = () => {
     }
 
     const confirmExportAction = async () => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TEMPLATES)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TEMPLATES, undefined)
         try {
             setExporting(true)
             setOpenExport(false)
@@ -166,7 +166,7 @@ export const TemplateList: React.FC = () => {
 
     const handleImportTemplates = async (documentId: string, sha256: string) => {
         setOpenImportDrawer(false)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TEMPLATES)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.IMPORT_TEMPLATES, undefined)
         try {
             const {data, errors} = await ImportTemplate({
                 variables: {
