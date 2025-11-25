@@ -355,7 +355,7 @@ export const TallyCeremony: React.FC = () => {
 
     const isAutomatedCeremony =
         currentKeysCeremony?.settings?.policy ===
-            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+        EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
     useEffect(() => {
         if (tallySession?.is_execution_completed && !isTallyCompleted) {
