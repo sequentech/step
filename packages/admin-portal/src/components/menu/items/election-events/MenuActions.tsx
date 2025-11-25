@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,7 +15,7 @@ import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
 import {getNavLinkCreate, mapAddResource, mapImportResource} from "./TreeMenu"
 import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {divContainer} from "@/components/styles/Menu"
 import {useMutation} from "@apollo/client"
 import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
@@ -59,6 +59,15 @@ interface Props {
     anchorEl: HTMLParagraphElement | null
     reloadTree: () => void
 }
+
+const StyledIconContainer = styled("p")`
+    ${divContainer}
+    cursor: pointer
+`
+
+const StyledAddCircleIcon = styled(AddCircleIcon)`
+    color: ${adminTheme.palette.brandColor};
+`
 
 export default function MenuAction({
     isArchivedTab,
@@ -186,7 +195,7 @@ export default function MenuAction({
     }
 
     const deleteElectionEventAction = async (payload: ActionPayload) => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.DELETE_ELECTION_EVENT)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.DELETE_ELECTION_EVENT, undefined)
         try {
             const {data, errors} = await delete_election_event({
                 variables: {
@@ -264,15 +273,6 @@ export default function MenuAction({
 
     const openActionMenu = Boolean(anchorEl)
     const idActionMenu = openActionMenu ? "action-menu" : undefined
-
-    const StyledIconContainer = styled.p`
-        ${divContainer}
-        cursor: pointer
-    `
-
-    const StyledAddCircleIcon = styled(AddCircleIcon)`
-        color: ${adminTheme.palette.brandColor};
-    `
 
     /**
      * Permissions
@@ -455,8 +455,8 @@ export default function MenuAction({
                         ? t("common.label.archive")
                         : t("common.label.unarchive")
                 }
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmArchiveAction()
@@ -472,9 +472,9 @@ export default function MenuAction({
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

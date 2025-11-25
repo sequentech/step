@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023-2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -19,11 +19,9 @@
 		"immudb:3325",
 		"rabbitmq:5672",
 		"rabbitmq:15672",
-		"b3:50051"
+		"b3:50051",
+		"simplesamlphp:8083"
 	],
-
-
-
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
@@ -35,6 +33,12 @@
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	},
+
+	// Mount claude code config from developer folder (if existing) to ensure
+	// config and credentials work well
+    "mounts": [
+      "source=${localEnv:HOME}/.config/claude,target=/home/vscode/.config/claude,type=bind,consistency=cached"
+    ],
 
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 

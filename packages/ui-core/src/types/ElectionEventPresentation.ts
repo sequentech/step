@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -75,6 +75,10 @@ export enum EElectionEventCeremoniesPolicy {
     AUTOMATED_CEREMONIES = "automated-ceremonies",
 }
 
+export enum EElectionEventWeightedVotingPolicy {
+    AREAS_WEIGHTED_VOTING = "areas-weighted-voting",
+    DISABLED_WEIGHTED_VOTING = "disabled-weighted-voting",
+}
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -88,10 +92,12 @@ export interface IElectionEventPresentation {
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
     keys_ceremony_policy?: KeysCeremonyPolicy
-    locked_down: EElectionEventLockedDown
-    contest_encryption_policy: EElectionEventContestEncryptionPolicy
-    publish_policy: EElectionEventPublishPolicy
-    enrollment: EElectionEventEnrollment
-    otp: EElectionEventOTP
-    ceremonies_policy: EElectionEventCeremoniesPolicy
+    locked_down?: EElectionEventLockedDown
+    contest_encryption_policy?: EElectionEventContestEncryptionPolicy
+    publish_policy?: EElectionEventPublishPolicy
+    enrollment?: EElectionEventEnrollment
+    otp?: EElectionEventOTP
+    ceremonies_policy?: EElectionEventCeremoniesPolicy
+    weighted_voting_policy?: EElectionEventWeightedVotingPolicy
+    voter_signing_policy?: EVoterSigningPolicy
 }

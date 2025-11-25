@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -106,7 +106,7 @@ pub fn find_results_event_sqlite(
 }
 
 #[instrument(err, skip_all)]
-pub async fn update_results_event_documents_sqlite(
+pub fn update_results_event_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     results_event_id: &str,

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -69,6 +69,10 @@ jobs:
             context: packages
             file: packages/Dockerfile.immudb
 
+          - service: loadtesting
+            context: .
+            file: packages/loadtesting/Dockerfile
+
           # - service: mock_server
           #   context: packages/e2e/src/mock_server
           #   file: packages/e2e/src/mock_server/Dockerfile.prod
@@ -104,7 +108,7 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build & Push to ECR
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}

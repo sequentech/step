@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -37,6 +37,7 @@ use windmill::services::export::export_users::{
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
+use windmill::services::users::list_users_has_voted;
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
@@ -335,6 +336,31 @@ pub async fn get_users(
         has_voted: input.has_voted,
         authorized_to_election_alias: input.authorized_to_election_alias,
     };
+
+    if input.has_voted.is_some() {
+        let (users, count) = list_users_has_voted(
+            &hasura_transaction,
+            &keycloak_transaction,
+            filter,
+            &input.tenant_id,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error listing users that has_voted {:?}", e),
+            )
+        })?;
+
+        return Ok(Json(DataList {
+            items: users,
+            total: TotalAggregate {
+                aggregate: Aggregate {
+                    count: count as i64,
+                },
+            },
+        }));
+    }
 
     let (users, count) = match input.show_votes_info.unwrap_or(false) {
         true =>

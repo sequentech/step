@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const catalanTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Tornar",
+            showMore: "Mostra'n més",
+            showLess: "Mostra'n menys",
         },
         breadcrumbSteps: {
             electionList: "Llista de Votacions",
@@ -16,7 +18,7 @@ const catalanTranslation: TranslationType = {
             audit: "Auditar",
         },
         footer: {
-            poweredBy: "Funciona amb <sequent />",
+            poweredBy: "Funciona amb <1></1>",
         },
         votingScreen: {
             backButton: "Enrere",
@@ -35,6 +37,14 @@ const catalanTranslation: TranslationType = {
                 ok: "Tornar i revisar",
                 continue: "Continuar",
                 cancel: "Cancel·lar",
+            },
+            warningDialog: {
+                title: "Revisa la teva papereta",
+                content:
+                    "La teva papereta conté seleccions que poden necessitar la teva atenció (com ara seleccionar menys opcions de les permeses). La teva papereta és vàlida i es comptarà tal com s'ha enviat.",
+                ok: "Torna i revisa",
+                continue: "Continua",
+                cancel: "Cancel·la",
             },
         },
         startScreen: {
@@ -363,6 +373,7 @@ const catalanTranslation: TranslationType = {
                 statement_timestamp: "Marca de temps",
                 username: "Usuari",
                 ballot_id: "ID de la Papereta",
+                message: "Missatge",
             },
         },
     },

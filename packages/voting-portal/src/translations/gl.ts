@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
 import {TranslationType} from "./en"
@@ -8,6 +8,8 @@ const galegoTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Volver",
+            showMore: "Mostrar Máis",
+            showLess: "Mostrar Menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Papeletas",
@@ -17,7 +19,7 @@ const galegoTranslation: TranslationType = {
             audit: "Auditoría",
         },
         footer: {
-            poweredBy: "Desenvolvido por <sequent />",
+            poweredBy: "Desenvolvido por <1></1>",
         },
         votingScreen: {
             backButton: "Volver",
@@ -34,6 +36,14 @@ const galegoTranslation: TranslationType = {
                 content:
                     "Algunhas das túas respostas farán que a papeleta sexa inválida ou quede en branco en unha ou máis preguntas.",
                 ok: "Volver e revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
+            warningDialog: {
+                title: "Revisa a túa papeleta",
+                content:
+                    "A túa papeleta contén seleccións que poden necesitar a túa atención (como seleccionar menos opcións das permitidas). A túa papeleta é válida e contarase tal como se enviou.",
+                ok: "Voltar e revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
@@ -362,6 +372,7 @@ const galegoTranslation: TranslationType = {
                 statement_timestamp: "Marca de tempo",
                 username: "Nome de usuario",
                 ballot_id: "ID da papeleta",
+                message: "Mensaxe",
             },
         },
     },

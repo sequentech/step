@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const spanishTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Regresar",
+            showMore: "Mostrar más",
+            showLess: "Mostrar menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -16,7 +18,7 @@ const spanishTranslation: TranslationType = {
             audit: "Auditar",
         },
         footer: {
-            poweredBy: "Funciona con <sequent />",
+            poweredBy: "Funciona con <1></1>",
         },
         votingScreen: {
             backButton: "Atrás",
@@ -32,6 +34,14 @@ const spanishTranslation: TranslationType = {
                 title: "Voto inválido o en blanco",
                 content:
                     "Algunas de sus respuestas harán que la papeleta en una o más preguntas sea inválida o en blanco.",
+                ok: "Volver y revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
+            warningDialog: {
+                title: "Revisa tu papeleta",
+                content:
+                    "Tu papeleta contiene selecciones que pueden necesitar tu atención (como seleccionar menos opciones de las permitidas). Tu papeleta es válida y se contará tal como se ha enviado.",
                 ok: "Volver y revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
@@ -364,6 +374,7 @@ const spanishTranslation: TranslationType = {
                 statement_timestamp: "Marca de tiempo",
                 username: "Usuario",
                 ballot_id: "ID de Papeleta",
+                message: "Mensaje",
             },
         },
     },
