@@ -7,6 +7,14 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Username is shown after an attempted login with a valid username
+
+When the Keycloak login flow used the step `Username Password Form - Allowing password expiration`,
+the email was being shown at the top of the login page after a failed login
+if the user existed, leaking the information that the user did exist.
+
+- Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
+
 ## 🐞 Fixes after dependency updates
 
 Update ring dependency.
