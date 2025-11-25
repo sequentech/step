@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -28,4 +28,4 @@ COPY ./.cargo ./.cargo
 # build projects
 
 WORKDIR /app/braid
-RUN cargo build --release --locked --frozen --offline
+RUN cargo +nightly build --release --locked --frozen --offline

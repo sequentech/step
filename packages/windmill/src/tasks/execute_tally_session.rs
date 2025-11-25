@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
@@ -699,7 +699,7 @@ async fn map_plaintext_data(
             .collect(),
     };
 
-    let mut rng = StdRng::from_entropy();
+    let mut rng = StdRng::from_os_rng();
     available_trustees.shuffle(&mut rng);
 
     let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();

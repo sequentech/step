@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -107,7 +107,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 resettable={true}
                 source={"annotations.logo_url"}
                 defaultValue={logoUrl}
-                label={t("lookAndFeelScreen.common.logoUrl")}
+                label={String(t("lookAndFeelScreen.common.logoUrl"))}
                 onBlur={(event) => setLogoUrl(event.target.value)}
             />
             <TextInput
@@ -115,7 +115,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 multiline={true}
                 source={"annotations.css"}
                 defaultValue={cssContent}
-                label={t("lookAndFeelScreen.common.css")}
+                label={String(t("lookAndFeelScreen.common.css"))}
                 onBlur={(event) => setCssContent(event.target.value)}
             />
             <TextInput
@@ -123,7 +123,7 @@ export const SettingsLookAndFeel: React.FC<void> = () => {
                 multiline={true}
                 source={"settings.help_links"}
                 defaultValue={JSON.stringify(helpLinks, null, 2)}
-                label={t("lookAndFeelScreen.common.helpLinks")}
+                label={String(t("lookAndFeelScreen.common.helpLinks"))}
                 onBlur={handleHelpLinksChange}
             />
         </SimpleForm>

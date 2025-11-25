@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -201,8 +201,13 @@ pub async fn update_tally_ceremony(
                     election_status.allow_tally == AllowTallyStatus::ALLOWED
                         || (election_status.allow_tally
                             == AllowTallyStatus::REQUIRES_VOTING_PERIOD_END
-                            && election_status.voting_status
-                                == VotingStatus::CLOSED)
+                            && (election_status.voting_status.is_closed()
+                                && election_status
+                                    .kiosk_voting_status
+                                    .is_closed_or_never_started()
+                                && election_status
+                                    .early_voting_status
+                                    .is_closed_or_never_started()))
                 }
                 TallyType::INITIALIZATION_REPORT => {
                     election_status.init_report == InitReport::ALLOWED

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -44,7 +44,7 @@ const FormDialog: React.FC<GenericDialogProps> = ({open, onClose, title, childre
                     {title}
                 </Box>
                 <IconButton
-                    icon={faTimesCircle}
+                    icon={faTimesCircle as any}
                     variant="primary"
                     onClick={() => onClose()}
                     className="dialog-icon-close"

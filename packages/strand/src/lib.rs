@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -57,7 +57,7 @@
 //! ## building
 //!
 //! ```cargo build```
-//! 
+//!
 //! ### Build with parallelism
 //!
 //! Uses rayon's parallel collections for compute intensive operations
@@ -66,7 +66,7 @@
 //! ## unit tests
 //!
 //! ```cargo test```
-//! 
+//!
 //! because strand is a cryptographic library with compute intensive functionality, you may want to
 //! run the tests in release mode
 //! ```cargo test --release```
