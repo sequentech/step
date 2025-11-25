@@ -108,10 +108,15 @@ pub async fn get_replaced_id(
     index: i32,
     replacement_map: &HashMap<String, String>,
 ) -> Result<String> {
-    let id: String = record
+    let record_id = record
         .get(index as usize)
-        .ok_or_else(|| anyhow!("Missing column {index}"))
-        .and_then(|s| deserialize_str(s).map_err(|e| anyhow!("Invalid JSON: {:?}", e)))?;
+        .ok_or_else(|| anyhow!("Missing column {index}"))?;
+
+    let id = if record_id.starts_with("\"") {
+        deserialize_str::<String>(record_id).map_err(|e| anyhow!("Invalid JSON: {:?}", e))?
+    } else {
+        record_id.to_string()
+    };
     let new_id = replacement_map
         .get(&id)
         .ok_or(anyhow!("Can't find id:{id} in replacement map"))?
@@ -168,10 +173,12 @@ pub async fn get_string_or_null_item(
         .get(index)
         .map(str::trim)
         .map(|s| {
-            if s == "null" {
+            if s == "null" || s == "" {
                 Ok(None)
-            } else {
+            } else if s.starts_with("\"") {
                 deserialize_str::<String>(s).map(Some)
+            } else {
+                Ok(Some(s.to_string()))
             }
         })
         .transpose()
@@ -345,7 +352,7 @@ async fn process_tally_session_file(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err)]
 pub async fn process_tally_session_record(
     tenant_id: &str,
     election_event_id: &str,
@@ -487,7 +494,7 @@ async fn process_tally_session_contest_file(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err)]
 async fn process_tally_session_execution_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -514,17 +521,20 @@ async fn process_tally_session_execution_file(
             .parse::<i32>()
             .map_err(|err| anyhow!("Error at process current_message_id {:?}", err))?;
 
+        info!("record: {:?}", record);
+
         let tally_session_id: String = get_replaced_id(&record, 8, &replacement_map).await?;
 
         let session_ids = record
             .get(9)
             .map(str::trim)
-            .filter(|s| *s != "null" && *s != "\"null\"")
+            .filter(|s| *s != "null" && *s != "\"null\"" && *s != "")
             .map(|s| deserialize_str::<Vec<i32>>(s))
             .transpose()
             .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
 
         let status = get_opt_json_value_item(&record, 10).await?;
+        let documents = get_opt_json_value_item(&record, 12).await?;
 
         let results_event_id: Option<String> = get_string_or_null_item(&record, 11).await?;
 
@@ -555,7 +565,7 @@ async fn process_tally_session_execution_file(
             session_ids,
             status,
             results_event_id: new_results_event_id,
-            documents: None,
+            documents,
         };
 
         tally_session_executions.push(tally_session_execution);
