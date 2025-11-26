@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -25,6 +25,7 @@ import {
     ApolloWrapper,
     defaultApolloContextValues,
 } from "./providers/ApolloContextProvider"
+import {DatabaseProvider} from "./providers/DatabaseProvider"
 import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
 import {BrowserRouter as Router} from "react-router-dom"
 
@@ -36,35 +37,37 @@ root.render(
     <React.StrictMode>
         <Router>
             <SettingsWrapper>
-                <AuthContextProvider>
-                    <TenantContextProvider>
-                        <NewResourceContextProvider>
-                            <ElectionEventContextProvider>
-                                <ElectionContextProvider>
-                                    <ContestContextProvider>
-                                        <CandidateContextProvider>
-                                            <ElectionEventTallyContextProvider>
-                                                <PublishContextProvider>
-                                                    <ThemeProvider theme={fullAdminTheme}>
+                <ThemeProvider theme={fullAdminTheme}>
+                    <AuthContextProvider>
+                        <TenantContextProvider>
+                            <NewResourceContextProvider>
+                                <ElectionEventContextProvider>
+                                    <ElectionContextProvider>
+                                        <ContestContextProvider>
+                                            <CandidateContextProvider>
+                                                <ElectionEventTallyContextProvider>
+                                                    <PublishContextProvider>
                                                         <ApolloContextProvider
                                                             role={defaultApolloContextValues.role}
                                                         >
                                                             <ApolloWrapper>
-                                                                <WidgetsContextProvider>
-                                                                    <App />
-                                                                </WidgetsContextProvider>
+                                                                <DatabaseProvider>
+                                                                    <WidgetsContextProvider>
+                                                                        <App />
+                                                                    </WidgetsContextProvider>
+                                                                </DatabaseProvider>
                                                             </ApolloWrapper>
                                                         </ApolloContextProvider>
-                                                    </ThemeProvider>
-                                                </PublishContextProvider>
-                                            </ElectionEventTallyContextProvider>
-                                        </CandidateContextProvider>
-                                    </ContestContextProvider>
-                                </ElectionContextProvider>
-                            </ElectionEventContextProvider>
-                        </NewResourceContextProvider>
-                    </TenantContextProvider>
-                </AuthContextProvider>
+                                                    </PublishContextProvider>
+                                                </ElectionEventTallyContextProvider>
+                                            </CandidateContextProvider>
+                                        </ContestContextProvider>
+                                    </ElectionContextProvider>
+                                </ElectionEventContextProvider>
+                            </NewResourceContextProvider>
+                        </TenantContextProvider>
+                    </AuthContextProvider>
+                </ThemeProvider>
             </SettingsWrapper>
         </Router>
     </React.StrictMode>

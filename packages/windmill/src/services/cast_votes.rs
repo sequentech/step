@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
@@ -11,12 +10,17 @@ use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use futures::TryStreamExt;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use tokio::fs::File;
+use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tokio_util::io::StreamReader;
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -63,59 +67,51 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
-    limit: i64,
-    offset: i64,
-) -> Result<Vec<CastVote>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
-    let areas_statement = hasura_transaction
-        .prepare(
-            r#"
+    election_id: &str,
+    output_file: &PathBuf,
+) -> Result<()> {
+    // COPY does not support parameters so we have to add them using format
+    let areas_statement = format!(
+        r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
-                        id,
-                        tenant_id,
-                        election_id,
-                        area_id,
-                        created_at,
-                        last_updated_at,
-                        content,
-                        cast_ballot_signature,
                         voter_id_string,
-                        election_event_id,
-                        ballot_id
+                        content
                     FROM "sequent_backend".cast_vote
                     WHERE
-                        tenant_id = $1 AND
-                        election_event_id = $2 AND
-                        area_id = $3
-                    ORDER BY election_id, voter_id_string, created_at DESC
-                    LIMIT $4 OFFSET $5
-                "#,
-        )
-        .await?;
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &areas_statement,
-            &[
-                &tenant_uuid,
-                &election_event_uuid,
-                &area_uuid,
-                &limit,
-                &offset,
-            ],
-        )
-        .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
-    let cast_votes = rows
-        .into_iter()
-        .map(|row| -> Result<CastVote> { row.try_into() })
-        .collect::<Result<Vec<CastVote>>>()?;
+                        tenant_id = '{tenant_id}' AND
+                        election_event_id = '{election_event_id}' AND
+                        area_id = '{area_id}' AND
+                        election_id = '{election_id}'
+                    ORDER BY voter_id_string
+                "#
+    );
 
-    Ok(cast_votes)
+    let tokio_temp_file = File::create(output_file)
+        .await
+        .expect("Could not create/open temporary file for tokio");
+
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+    let mut writer = BufWriter::new(tokio_temp_file);
+
+    debug!("copy_out_query: {copy_out_query}");
+
+    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
+
+    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
+        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
+    };
+    let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
+
+    let async_reader = StreamReader::new(io_error_stream);
+    tokio::pin!(async_reader);
+
+    let bytes_copied = copy(&mut async_reader, &mut writer).await?;
+
+    info!("ballot bytes_copied: {bytes_copied}");
+
+    writer.flush().await?;
+
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -416,18 +412,6 @@ pub async fn get_users_with_vote_info(
         user.votes_info = Some(votes_info);
     }
 
-    // filter by has_voted, if needed - keep only users with at least one vote
-    if let Some(has_voted) = filter_by_has_voted {
-        users.retain(|user| {
-            let info_count = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
-            if has_voted {
-                info_count > 0
-            } else {
-                info_count == 0
-            }
-        });
-    }
-
     Ok(users)
 }
 
@@ -707,41 +691,4 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
-}
-
-/// Returns the private signing key for the given voter.
-///
-/// The private key is generated and a log post
-/// is published with the corresponding public key
-/// (with StatementType::AdminPublicKey).
-///
-/// There is a possibility that the private key is created
-/// but the notification fails. This is logged in
-/// electorallog::post_voter_pk
-#[instrument(err)]
-pub async fn get_voter_signing_key(
-    hasura_transaction: &Transaction<'_>,
-    elog_database: &str,
-    tenant_id: &str,
-    event_id: &str,
-    user_id: &str,
-    area_id: &str,
-) -> Result<StrandSignatureSk> {
-    info!("Generating private signing key for voter {}", user_id);
-    let sk = StrandSignatureSk::gen()?;
-    let pk = StrandSignaturePk::from_sk(&sk)?;
-    let pk = pk.to_der_b64_string()?;
-
-    ElectoralLog::post_voter_pk(
-        hasura_transaction,
-        elog_database,
-        tenant_id,
-        event_id,
-        user_id,
-        &pk,
-        area_id,
-    )
-    .await?;
-
-    Ok(sk)
 }

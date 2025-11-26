@@ -1,13 +1,13 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useEffect} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import AddIcon from "@mui/icons-material/Add"
 
-import {Box, Button, Drawer, Typography} from "@mui/material"
+import {Box, Button, Drawer, Icon, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
@@ -103,8 +103,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     ]
 
     const CreateButton = () => (
-        <Button onClick={handleOpenCreateDrawer}>
-            <IconButton icon={faPlus} fontSize="24px" />
+        <Button onClick={handleOpenCreateDrawer} startIcon={<AddIcon sx={{fontSize: "24px"}} />}>
             {t("electionTypeScreen.common.createNew")}
         </Button>
     )
@@ -177,9 +176,9 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useEffect} from "react"
@@ -135,7 +135,7 @@ export const SettingsTrustees: React.FC<void> = () => {
 
     const CreateButton = () => (
         <Button onClick={handleOpenCreateDrawer}>
-            <IconButton icon={faPlus} fontSize="24px" />
+            <IconButton icon={faPlus as any} fontSize="24px" />
             {t("trusteesSettingsScreen.common.createNew")}
         </Button>
     )
@@ -168,7 +168,7 @@ export const SettingsTrustees: React.FC<void> = () => {
     }
 
     const doExport = async () => {
-        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TRUSTEES)
+        const currWidget: WidgetProps = addWidget(ETasksExecution.EXPORT_TRUSTEES, undefined)
         setLoadingExport(true)
         const generatedPassword = generateRandomPassword()
         setPassword(generatedPassword)
@@ -252,9 +252,9 @@ export const SettingsTrustees: React.FC<void> = () => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
@@ -273,7 +273,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                         onDownload={() => {
                             setExportDocumentId(null)
                         }}
-                        onSucess={() => undefined}
+                        onSuccess={() => undefined}
                     />
                 </>
             )}

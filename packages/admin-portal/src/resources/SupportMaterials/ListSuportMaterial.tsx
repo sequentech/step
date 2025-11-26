@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect} from "react"
@@ -15,9 +15,10 @@ import {
     FunctionField,
     useRefresh,
     BooleanField,
+    // Button,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Drawer} from "@mui/material"
+import {Drawer, IconButton, Typography, Button} from "@mui/material"
 import {EditSupportMaterial} from "./EditSuportMaterial"
 import {CreateSupportMaterial} from "./CreateSupportMaterial"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
@@ -33,6 +34,10 @@ import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
 import ImageIcon from "@mui/icons-material/Image"
 import {ResetFilters} from "@/components/ResetFilters"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {IconButton as IconButtonSequent} from "@sequentech/ui-essentials"
+import {useSuportMaterialPermissions} from "./useSuporMaterialPermissions"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -62,8 +67,15 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
-    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
+    const [openCreate, setOpenCreate] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<string | undefined>(undefined)
+
+    const {
+        canReadSuportMaterial,
+        canWriteSuportMaterial,
+        canCreateSuportMaterial,
+        canDeleteSuportMaterial,
+    } = useSuportMaterialPermissions()
 
     useEffect(() => {
         if (recordId) {
@@ -72,8 +84,11 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
     }, [recordId])
 
     const handleCloseCreateDrawer = () => {
-        setRecordId(undefined)
-        setOpenDrawer(false)
+        setOpenCreate(false)
+    }
+
+    const handleCreateDrawer = () => {
+        setOpenCreate(true)
     }
 
     const handleCloseEditDrawer = () => {
@@ -95,7 +110,7 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
 
     const confirmDeleteAction = () => {
         deleteOne(
-            "sequent_backend_area",
+            "sequent_backend_support_material",
             {id: deleteId},
             {
                 onSuccess() {
@@ -107,9 +122,28 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
+        {icon: <EditIcon />, action: editAction, showAction: () => canWriteSuportMaterial},
+        {icon: <DeleteIcon />, action: deleteAction, showAction: () => canDeleteSuportMaterial},
     ]
+
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t("materials.empty.header")}
+            </Typography>
+            {/* {canPublishCreate && canReadPublish && ( */}
+            <>
+                <Button onClick={handleCreateDrawer} className="publish-add-button">
+                    <IconButtonSequent icon={faPlus as any} fontSize="24px" />
+                    {t("materials.empty.action")}
+                </Button>
+                <Typography variant="body1" paragraph>
+                    {t("common.resources.noResult.askCreate")}
+                </Typography>
+            </>
+            {/* )} */}
+        </ResourceListStyles.EmptyBox>
+    )
 
     return (
         <>
@@ -121,17 +155,18 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                         withExport={false}
                         withFilter={false}
                         withColumns={false}
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
+                        open={openCreate}
+                        setOpen={setOpenCreate}
                         Component={
                             <CreateSupportMaterial
                                 record={record}
                                 close={handleCloseCreateDrawer}
                             />
                         }
+                        withComponent={canCreateSuportMaterial}
                     />
                 }
-                empty={false}
+                empty={<Empty />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
@@ -139,28 +174,28 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
                 }}
                 filters={Filters}
             >
-                <ResetFilters />
+                {/* <ResetFilters /> */}
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <BooleanField
                         source={"is_hidden"}
-                        label={t("materials.fields.isHidden")}
+                        label={String(t("materials.fields.isHidden"))}
                         sortable={false}
                     />
                     <TextField
                         source={`data.title_i18n[${i18n.language}]`}
-                        label={t("common.label.title")}
+                        label={String(t("common.label.title"))}
                         sortable={false}
                     />
                     <TextField
                         source={`data.subtitle_i18n[${i18n.language}]`}
-                        label={t("common.label.subtitle")}
+                        label={String(t("common.label.subtitle"))}
                         sortable={false}
                     />
-                    {/* <TextField source={"kind"} label={t("common.label.kind")} sortable={false} /> */}
+                    {/* <TextField source={"kind"} label={String(t("common.label.kind"))} sortable={false} /> */}
 
                     <FunctionField
-                        label={t("common.label.kind")}
+                        label={String(t("common.label.kind"))}
                         render={(record: any) => {
                             return record.kind.includes("image") ? (
                                 <ImageIcon sx={{fontSize: "36px"}} />
@@ -181,6 +216,16 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             </List>
             <Drawer
                 anchor="right"
+                open={openCreate}
+                onClose={handleCloseCreateDrawer}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <CreateSupportMaterial record={record} close={handleCloseCreateDrawer} />
+            </Drawer>
+            <Drawer
+                anchor="right"
                 open={open}
                 onClose={handleCloseEditDrawer}
                 PaperProps={{
@@ -196,9 +241,9 @@ export const ListSupportMaterials: React.FC<ListAreaProps> = (props) => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

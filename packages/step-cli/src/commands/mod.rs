@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -16,6 +16,7 @@ pub mod create_election_event;
 pub mod create_electoral_logs;
 pub mod create_voter;
 pub mod duplicate_votes;
+pub mod export_cast_votes;
 pub mod generate_voters;
 pub mod hash_passwords;
 pub mod import_election_event;

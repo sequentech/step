@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
@@ -136,7 +136,7 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
 
                                         {/* {trustees ? (
                                             <CheckboxGroupInput
-                                                label={t("electionEventScreen.tally.trustees")}
+                                                label={String(t("electionEventScreen.tally.trustees"))}
                                                 source="trustee_ids"
                                                 choices={trustees}
                                                 optionText="name"
@@ -147,7 +147,9 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
 
                                         {elections ? (
                                             <CheckboxGroupInput
-                                                label={t("electionEventScreen.tally.elections")}
+                                                label={String(
+                                                    t("electionEventScreen.tally.elections")
+                                                )}
                                                 source="election_ids"
                                                 choices={elections}
                                                 optionText="name"
