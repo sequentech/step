@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -61,8 +61,7 @@ pub async fn get_ballot_publication_by_id(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2 AND
-                id = $3 AND
-                deleted_at IS NULL;
+                id = $3;
             "#,
         )
         .await?;

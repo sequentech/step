@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, TextField, Typography} from "@mui/material"
@@ -10,15 +10,25 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked"
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked"
 import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
-import emotionStyled from "@emotion/styled"
 import {useTranslation} from "react-i18next"
 import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+
+// Type wrapper for MUI icons to work with React 19
+const RadioButtonUncheckedIconFixed: React.FC<any> = (props) => {
+    const Icon = RadioButtonUncheckedIcon as any
+    return <Icon {...props} />
+}
+
+const RadioButtonCheckedIconFixed: React.FC<any> = (props) => {
+    const Icon = RadioButtonCheckedIcon as any
+    return <Icon {...props} />
+}
 
 const UnselectableTypography = styled(Typography)`
     user-select: none;
 `
 
-const BorderBox = emotionStyled.li<{
+const BorderBox = styled("li")<{
     isactive: string
     hascategory: string
     isinvalidvote: string
@@ -31,10 +41,10 @@ const BorderBox = emotionStyled.li<{
                 : theme.palette.customGrey.light};
     ${({hascategory, isinvalidvote, theme}) =>
         hascategory === "true"
-            ? `background-color: ${theme.palette.white};`
+            ? `backgroundColor: ${theme.palette.white};`
             : isinvalidvote === "true"
-            ? `background-color: ${theme.palette.lightBackground};`
-            : ""}
+              ? `backgroundColor: ${theme.palette.lightBackground};`
+              : ""}
     border-radius: 10px;
     break-inside: avoid;
     padding: 8px;
@@ -49,23 +59,23 @@ const BorderBox = emotionStyled.li<{
         isactive === "true"
             ? hascategory === "true"
                 ? `
-                    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                    boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     &:hover {
                         cursor: pointer;
-                        box-shadow: unset;
+                        boxShadow: unset;
                         border-color: ${theme.palette.customGrey.light};
                     }
                     &:active {
-                        background-color: #eee;
+                        backgroundColor: #eee;
                     }
                 `
                 : `
                     &:hover {
                         cursor: pointer;
-                        box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                        boxShadow: 0 5px 5px rgba(0, 0, 0, 0.5);
                     }
                     &:active {
-                        background-color: #eee;
+                        backgroundColor: #eee;
                     }
                 `
             : ""}
@@ -79,7 +89,7 @@ const ImageBox = styled(Box)`
     flex-shrink: 0;
 `
 
-const StyledLink = emotionStyled.a`
+const StyledLink = styled("a")`
     text-decoration: underline;
     font-weight: normal;
     &:hover {
@@ -107,6 +117,7 @@ export interface CandidateProps extends PropsWithChildren {
     isInvalidWriteIn?: boolean
     index?: number
     shouldDisable?: boolean
+    className?: string
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -126,6 +137,7 @@ const Candidate: React.FC<CandidateProps> = ({
     children,
     shouldDisable,
     index,
+    className,
 }) => {
     const {t} = useTranslation()
     const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
@@ -156,7 +168,7 @@ const Candidate: React.FC<CandidateProps> = ({
             isinvalidvote={String(!!isInvalidVote)}
             isdisabled={String(!!shouldDisable)}
             onClick={onClick}
-            className="candidate-item"
+            className={`candidate-item ${className}`}
         >
             <ImageBox className="image-box">{children}</ImageBox>
             <Box flexGrow={2}>
@@ -213,8 +225,8 @@ const Candidate: React.FC<CandidateProps> = ({
                             "className": "candidate-input",
                             "aria-label": isString(title) ? title : "",
                         }}
-                        icon={<RadioButtonUncheckedIcon />}
-                        checkedIcon={<RadioButtonCheckedIcon />}
+                        icon={<RadioButtonUncheckedIconFixed />}
+                        checkedIcon={<RadioButtonCheckedIconFixed />}
                         disabled={shouldDisable}
                         checked={checked}
                         onChange={handleChange}

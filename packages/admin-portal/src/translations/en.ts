@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -80,6 +80,9 @@ const englishTranslation = {
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
+                DELETE_ELECTION_EVENT: "Delete Election Event",
+                PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
+                EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -98,11 +101,24 @@ const englishTranslation = {
                 deleteError: "Error deleting area",
             },
             createAreaSuccess: "Area created",
+            updateAreaSuccess: "Area updated",
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
             empty: {
                 header: "No Areas yet.",
                 action: "Create Area",
+            },
+            formImputs: {
+                allowEarlyVoting: "Allow Early Voting",
+            },
+        },
+        integrationsScreen: {
+            common: {
+                gapiKey: "Google Calendar Service Account Key",
+                gapiEmail: "Google Calendar Authentication Email",
+            },
+            errors: {
+                invalidGapiKey: "Invalid Google Calendar Service Account Key format",
             },
         },
         lookAndFeelScreen: {
@@ -142,6 +158,7 @@ const englishTranslation = {
                 templates: "TEMPLATES",
                 languages: "LANGUAGES",
                 localization: "LOCALIZATION",
+                integrations: "Integrations",
                 lookAndFeel: "Look & Feel",
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
@@ -278,11 +295,25 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                showCastVoteLogs: {
+                    policyLabel: "Show Cast Vote Logs Tab",
+                    options: {
+                        "show-logs-tab": "Show Cast Vote Logs Tab",
+                        "hide-logs-tab": "Hide Cast Vote Logs Tab",
+                    },
+                },
                 lockdownState: {
                     policyLabel: "Lockdown Status",
                     options: {
                         "locked-down": "Locked Down",
                         "not-locked-down": "Not Locked Down",
+                    },
+                },
+                decodedBallots: {
+                    policyLabel: "Include decoded ballots to results database",
+                    options: {
+                        "included": "Include",
+                        "not-included": "Don't include",
                     },
                 },
                 contestEncryptionPolicy: {
@@ -318,6 +349,20 @@ const englishTranslation = {
                     options: {
                         enabled: "Enabled",
                         disabled: "Disabled",
+                    },
+                },
+                ceremoniesPolicy: {
+                    policyLabel: "Keys/Tally Ceremonies Policy",
+                    options: {
+                        "automated-ceremonies": "Allow Automatic Ceremonies",
+                        "manual-ceremonies": "Manual Ceremonies",
+                    },
+                },
+                weightedVotingPolicy: {
+                    policyLabel: "Weighted Voting Policy",
+                    options: {
+                        "areas-weighted-voting": "Weighted Voting for Areas",
+                        "disabled-weighted-voting": "Disabled Weighted Voting",
                     },
                 },
             },
@@ -528,6 +573,12 @@ const englishTranslation = {
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
+                securityConfirmationHtml: "Security Confirmation Html",
+            },
+            securityConfirmationPolicy: {
+                label: "Security Confirmation Checkbox Policy",
+                none: "None",
+                mandatory: "Mandatory",
             },
             error: {
                 fileError: "Error uploading file",
@@ -568,6 +619,13 @@ const englishTranslation = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            startScreenTitlePolicy: {
+                label: "Start Screen Title Policy",
+                options: {
+                    "election": "Election title",
+                    "election-event": "Election event title",
                 },
             },
         },
@@ -854,9 +912,6 @@ const englishTranslation = {
                 "report-delete": "Delete Report",
                 "report-generate": "Generate Report",
                 "report-preview": "Preview Report",
-                "monitoring-dashboard-view-election-event":
-                    "Election Event Monitoring Dashboard View",
-                "monitoring-dashboard-view-election": "Election Monitoring Dashboard View",
                 "monitor-authenticated-voters": "Monitoring Authenticated Voters",
                 "monitor-all-approve-disapprove-voters":
                     "Read Monitoring Approve Disapprove Voters",
@@ -908,6 +963,7 @@ const englishTranslation = {
                 "voter-email-tlf-edit": "Edit voters email/phone fields",
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
                 "transmission-report-generate": "Generate Transmission Report",
+                "google-meet-link": "Generate google meet link",
             },
         },
         generalSettingsScreen: {
@@ -972,10 +1028,11 @@ const englishTranslation = {
                 incorectPassword: "Incorrect password",
                 decryptFileTitle: "How to decrypt the file",
                 decryptInstructions: `1. '-in' :The path to the encrypted file. \n2. '-out' :The path where the decrypted file will be saved. \n3. '-pass' :The password used to encrypt the file. \n`,
+                encryptSuccess: "Successfully set up report encryption",
+                encryptError: "Error setting up report encryption",
             },
             reportType: {
                 BALLOT_RECEIPT: "Ballot Receipt",
-                VOTE_RECEIPT: "Vote Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
                 STATISTICAL_REPORT: "Statistical Report",
@@ -1031,6 +1088,25 @@ const englishTranslation = {
                 preview: "Preview",
             },
         },
+        googleMeet: {
+            title: "Generate Google Meet Link",
+            generateButton: "Google Meet",
+            meetingTitle: "Meeting Title",
+            description: "Description (Optional)",
+            startDate: "Start Date",
+            startTime: "Start Time",
+            duration: "Duration (minutes)",
+            attendeeEmails: "Attendee Emails",
+            attendeeEmailHelp: "Comma-separated emails for meeting participants",
+            note: "Note: This will create a calendar event in your Google Calendar with a Google Meet link. You'll need to sign in to your Google account.",
+            success: "Google Meet Link Generated Successfully!",
+            copy: "Copy to clipboard",
+            copied: "Link copied to clipboard!",
+            instructions:
+                "Share this link with participants to join the meeting. The calendar event has been added to your Google Calendar.",
+            generating: "Generating...",
+            generate: "Generate Meet Link",
+        },
         common: {
             export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
@@ -1069,6 +1145,11 @@ const englishTranslation = {
                 kind: "File type",
                 filter: "Custom Filters",
                 approve: "Approve",
+                continue: "Continue",
+                logout: "Logout",
+                selectTenant: "Select Tenant",
+                processing: "Processing...",
+                tenantName: "Tenant Name",
             },
             language: {
                 es: "Spanish",
@@ -1078,13 +1159,16 @@ const englishTranslation = {
                 tl: "Tagalog",
                 gl: "Galician",
                 nl: "Dutch",
+                eu: "Euskera",
             },
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
+                early_voting: "Early voting",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
+                continueOrLogout: "Do you want to stay connected to this tenant or logout?",
             },
         },
         createResource: {
@@ -1182,6 +1266,12 @@ const englishTranslation = {
                 "semi-open-list": "Semi Open List",
                 "invalid-vote": "Invalid Vote",
                 "blank-vote": "Blank Vote",
+            },
+            invalidVotePosition: {
+                label: "Invalid Vote Position",
+                null: "None (Default)",
+                top: "Top",
+                bottom: "Bottom",
             },
             error: {},
             createCandidateSuccess: "Candidate created",
@@ -1288,10 +1378,17 @@ const englishTranslation = {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
                     title: "Are you sure you want to Create Keys Ceremony?",
+                    automaticCeremonyTitle:
+                        "Are you sure you want to Create Automatic Keys Ceremony?",
                     description:
                         "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    automaticCeremonyDescription:
+                        "You are about to Create an Automatic Keys Ceremony. This will not notify the Trustees to participate.",
                 },
                 filterTrustees: "Filter Trustees",
+                errorPermisionLabels:
+                    "Cannot create keys ceremony: one or more permission labels are missing.",
+                automaticCeremonyToggle: "Automatic Ceremony",
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
@@ -1509,6 +1606,8 @@ const englishTranslation = {
                         "You are about to cancel the tally ceremony. This action is not undoable.",
                     ceremony:
                         "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                    startAutomatedTallyMessage:
+                        "Select Start Tally to run tally process and display results, or Close to cancel.",
                 },
             },
             table: {
@@ -1543,6 +1642,14 @@ const englishTranslation = {
                 blank_votes_percent: "Blank Votes Percent",
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
+                weight: "Weight",
+            },
+            chart: {
+                votesForCandidates: "Votes For Candidates",
+                blankVotes: "Blank Votes",
+                invalidVotes: "Invalid Votes",
+                totalVoters: "Total Voters",
+                nonVoters: "Non Voters",
             },
         },
         publish: {
@@ -1562,9 +1669,17 @@ const englishTranslation = {
             action: {
                 generateInitializationReport: "Generate Initialization Report",
                 startVotingPeriod: "Start Voting",
+                startKioskVoting: "Start Kiosk Voting",
+                startOnlineVoting: "Start Online Voting",
+                startEarlyVoting: "Start Early Voting",
                 stopVotingPeriod: "Stop Voting",
+                stopOnlineVoting: "Stop Online Voting",
+                stopEarlyVoting: "Stop Early Voting",
                 stopKioskVotingPeriod: "Stop Kiosk Voting",
                 pauseVotingPeriod: "Pause Voting",
+                pauseKioskVoting: "Pause Kiosk Voting",
+                pauseOnlineVoting: "Pause Online Voting",
+                pauseEarlyVoting: "Pause Early Voting",
                 generate: "Regenerate",
                 publish: "Publish Changes",
                 back: "Back",
@@ -1654,10 +1769,6 @@ const englishTranslation = {
             communicationType: {
                 CREDENTIALS: "Credentials",
                 BALLOT_RECEIPT: "Ballot Receipt",
-                PARTICIPATION_REPORT: "Participation Report",
-                ELECTORAL_RESULTS: "Electoral Results",
-                OTP: "OTP",
-                TALLY_REPORT: "Tally Report",
             },
             email: {
                 subject: "Subject",
@@ -1794,37 +1905,12 @@ const englishTranslation = {
             },
             type: {
                 CREDENTIALS: "Credentials",
-                BALLOT_RECEIPT: "Ballot Receipt",
-                VOTE_RECEIPT: "Vote Receipts",
-                PARTICIPATION_REPORT: "Participation Report",
-                ELECTORAL_RESULTS: "Electoral Results",
-                OTP: "OTP",
-                TALLY_REPORT: "Tally Report",
-                MANUAL_VERIFICATION: "Manually verify voter",
-                STATISTICAL_REPORT: "Statistical Report",
                 INITIALIZATION_REPORT: "Initialization Report",
-                STATUS: "Status Report",
-                TRANSMISSION_REPORT: "Transmission Reports",
-                AUDIT_LOGS: "Audit Logs",
-                ACTIVITY_LOGS: "Activity Logs",
-                OVCS_INFORMATION: "OVCS Information",
-                OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
-                OVCS_STATISTICS: "Overseas Voting Monitoring - OVCS Statistics",
-                OV_WHO_VOTED: "OV Users Who Voted",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "List of OV who Pre-enrolled but Disapproved",
-                LIST_OF_OVERSEAS_VOTERS: "List of Overseas Voters",
-                OV_TURNOUT_PERCENTAGE: "Overseas Voters Turnout",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Overseas Voters’ Turnout - per Aboard Status and Sex",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Overseas Voters’ Turnout - per Aboard Status, Sex and with Percentage",
-                OV_PRE_ENROLLED_APPROVED: "List of OV who Pre-enrolled (Approved)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "List of OV who Pre-enrolled but subject for Manual Validation",
-                OV_WITH_VOTING_STATUS: "List of Overseas Voters with Voting Status",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "List of OV who have not yet Pre-enrolled",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "No. of OV who have not yet Pre-enrolled",
+                ELECTORAL_RESULTS: "Electoral Results",
                 BALLOT_IMAGES: "Ballot Images",
+                BALLOT_RECEIPT: "Ballot Receipt",
+                ACTIVITY_LOGS: "Activity Logs",
+                MANUAL_VERIFICATION: "Manual Verification",
             },
             method: {
                 email: "Email",
@@ -1854,6 +1940,10 @@ const englishTranslation = {
             fields: {
                 isHidden: "Is Hidden",
                 publicUrl: "Public URL",
+            },
+            empty: {
+                header: "No support material yet",
+                action: "Generate support material  ",
             },
         },
         widget: {

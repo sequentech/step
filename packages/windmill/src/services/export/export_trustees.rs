@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::export_election_event::generate_encrypted_zip;
@@ -40,6 +40,7 @@ pub async fn read_trustees_config_base(
     let secret_prefix: String = match vault_type {
         VaultManagerType::HashiCorpVault => "".to_string(),
         VaultManagerType::AwsSecretManager => "secrets/".to_string(),
+        VaultManagerType::EnvVarMasterSecret => "".to_string(),
     };
 
     for trustee in trustees {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
@@ -98,7 +98,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     }, [electionData, contests])
 
     interface TabPanelProps {
-        children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
+        children?: React.ReactNode | Iterable<React.ReactNode>
         index: number
         value: number | null
     }
@@ -127,19 +127,34 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     )
 
     let documents: IResultDocumentsData | null = useMemo(() => {
-        const documents =
-            !!contestId &&
-            !!resultsContests &&
-            resultsContests[0]?.contest_id === contestId &&
-            (resultsContests[0]?.documents as IResultDocuments | null)
-        return documents
+        let parsedDocuments: IResultDocuments | null = null
+        try {
+            const rawDocuments =
+                !!contestId &&
+                !!resultsContests &&
+                resultsContests[0]?.contest_id === contestId &&
+                resultsContests[0]?.documents
+
+            if (rawDocuments) {
+                // Check if the documents are already an object.
+                // If they are a string, parse them.
+                parsedDocuments =
+                    typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+            }
+        } catch (e) {
+            console.error("Failed to parse documents JSON string:", e)
+            return null // Return null if parsing fails
+        }
+
+        return parsedDocuments
             ? {
-                  documents,
+                  documents: parsedDocuments,
                   name: contestName ?? "contest",
                   class_type: "contest",
               }
             : null
-    }, [contestId, resultsContests, resultsContests?.[0]?.documents, contestName])
+    }, [contestId, resultsContests, contestName])
+
     const aliasRenderer = useAliasRenderer()
 
     return (

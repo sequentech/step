@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::{
@@ -20,6 +20,7 @@ use chrono::{DateTime, Local};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::{
     services::date::ISO8601,
     types::{
@@ -44,7 +45,7 @@ async fn process_uuids(
     match ids {
         None => Ok(None),
         Some(ids) => {
-            let parsed: Vec<String> = serde_json::from_str::<Vec<String>>(ids)
+            let parsed: Vec<String> = deserialize_str::<Vec<String>>(ids)
                 .map_err(|e| anyhow!("Failed to parse UUID array as JSON: {:?}", e))?;
 
             let new_ids: Vec<String> = parsed
@@ -93,8 +94,8 @@ fn remap_result_documents(
             .as_ref()
             .map(|id| replacement_map.get(id).cloned())
             .unwrap_or(None),
-        vote_receipts_pdf: doc
-            .vote_receipts_pdf
+        tar_gz_pdfs: doc
+            .tar_gz_pdfs
             .as_ref()
             .map(|id| replacement_map.get(id).cloned())
             .unwrap_or(None),
@@ -107,10 +108,15 @@ pub async fn get_replaced_id(
     index: i32,
     replacement_map: &HashMap<String, String>,
 ) -> Result<String> {
-    let id: String = record
+    let record_id = record
         .get(index as usize)
-        .ok_or_else(|| anyhow!("Missing column {index}"))
-        .and_then(|s| serde_json::from_str(s).map_err(|e| anyhow!("Invalid JSON: {:?}", e)))?;
+        .ok_or_else(|| anyhow!("Missing column {index}"))?;
+
+    let id = if record_id.starts_with("\"") {
+        deserialize_str::<String>(record_id).map_err(|e| anyhow!("Invalid JSON: {:?}", e))?
+    } else {
+        record_id.to_string()
+    };
     let new_id = replacement_map
         .get(&id)
         .ok_or(anyhow!("Can't find id:{id} in replacement map"))?
@@ -136,7 +142,7 @@ pub async fn get_opt_json_value_item(record: &StringRecord, index: usize) -> Res
     let item = record
         .get(index)
         .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
+        .map(deserialize_str)
         .transpose()
         .map_err(|err| anyhow!("Error process json column {index} {:?}", err))?;
     Ok(item)
@@ -167,10 +173,12 @@ pub async fn get_string_or_null_item(
         .get(index)
         .map(str::trim)
         .map(|s| {
-            if s == "null" {
+            if s == "null" || s == "" {
                 Ok(None)
+            } else if s.starts_with("\"") {
+                deserialize_str::<String>(s).map(Some)
             } else {
-                serde_json::from_str::<String>(s).map(Some)
+                Ok(Some(s.to_string()))
             }
         })
         .transpose()
@@ -220,7 +228,7 @@ async fn process_event_results_file(
             .get(8)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
         let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
@@ -282,7 +290,7 @@ async fn process_results_election_file(
             .get(13)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
         let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
@@ -344,7 +352,7 @@ async fn process_tally_session_file(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err)]
 pub async fn process_tally_session_record(
     tenant_id: &str,
     election_event_id: &str,
@@ -380,7 +388,7 @@ pub async fn process_tally_session_record(
     let configuration = record
         .get(13)
         .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
+        .map(deserialize_str)
         .transpose()
         .map_err(|err| anyhow!("Error at process configuration {:?}", err))?;
 
@@ -389,7 +397,7 @@ pub async fn process_tally_session_record(
     let permission_label = record
         .get(15)
         .filter(|s| !s.is_empty())
-        .map(serde_json::from_str)
+        .map(deserialize_str)
         .transpose()
         .map_err(|err| anyhow!("Error at process permission_label {:?}", err))?;
 
@@ -486,7 +494,7 @@ async fn process_tally_session_contest_file(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
+#[instrument(err)]
 async fn process_tally_session_execution_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -513,17 +521,20 @@ async fn process_tally_session_execution_file(
             .parse::<i32>()
             .map_err(|err| anyhow!("Error at process current_message_id {:?}", err))?;
 
+        info!("record: {:?}", record);
+
         let tally_session_id: String = get_replaced_id(&record, 8, &replacement_map).await?;
 
         let session_ids = record
             .get(9)
             .map(str::trim)
-            .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str::<Vec<i32>>(s))
+            .filter(|s| *s != "null" && *s != "\"null\"" && *s != "")
+            .map(|s| deserialize_str::<Vec<i32>>(s))
             .transpose()
             .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
 
         let status = get_opt_json_value_item(&record, 10).await?;
+        let documents = get_opt_json_value_item(&record, 12).await?;
 
         let results_event_id: Option<String> = get_string_or_null_item(&record, 11).await?;
 
@@ -554,6 +565,7 @@ async fn process_tally_session_execution_file(
             session_ids,
             status,
             results_event_id: new_results_event_id,
+            documents,
         };
 
         tally_session_executions.push(tally_session_execution);
@@ -593,7 +605,7 @@ async fn process_results_election_area_file(
             .get(8)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
         let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
@@ -687,7 +699,7 @@ async fn process_results_contest_candidate_file(
             .get(15)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
         let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
@@ -768,7 +780,7 @@ pub async fn process_results_contest_record(
         .get(26)
         .map(str::trim)
         .filter(|s| *s != "null" && *s != "\"null\"")
-        .map(|s| serde_json::from_str(s))
+        .map(|s| deserialize_str(s))
         .transpose()
         .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
     let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
@@ -852,7 +864,7 @@ async fn process_results_area_contest_file(
             .get(24)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
         let documents_with_new_ids = remap_result_documents(documents, &replacement_map);
@@ -931,7 +943,7 @@ async fn process_results_area_contest_candidate_file(
             .get(16)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| serde_json::from_str(s))
+            .map(|s| deserialize_str(s))
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
         let documents_with_new_ids = remap_result_documents(documents, &replacement_map);

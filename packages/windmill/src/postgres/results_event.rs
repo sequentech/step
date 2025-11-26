@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
@@ -145,16 +145,18 @@ pub async fn insert_results_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    results_id: &str,
 ) -> Result<ResultsEvent> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO
                     sequent_backend.results_event
-                (tenant_id, election_event_id)
+                (id, tenant_id, election_event_id)
                 VALUES(
                     $1,
-                    $2
+                    $2,
+                    $3
                 )
                 RETURNING
                     *;
@@ -165,6 +167,7 @@ pub async fn insert_results_event(
         .query(
             &statement,
             &[
+                &Uuid::parse_str(results_id)?,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
             ],

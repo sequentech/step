@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -16,6 +16,7 @@ pub enum Error {
     IO(std::io::Error),
     JsonParse(serde_json::Error),
     UnexpectedError(String),
+    Anyhow(anyhow::Error),
 }
 
 impl core::fmt::Display for Error {
@@ -33,6 +34,12 @@ impl From<std::io::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(val: serde_json::Error) -> Self {
         Self::JsonParse(val)
+    }
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(err: anyhow::Error) -> Self {
+        Error::Anyhow(err)
     }
 }
 

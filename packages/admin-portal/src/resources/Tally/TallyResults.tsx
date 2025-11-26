@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, memo, useMemo} from "react"
@@ -12,7 +12,7 @@ import {
 } from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
-import {ReactI18NextChild, useTranslation} from "react-i18next"
+import {useTranslation} from "react-i18next"
 import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {IResultDocuments} from "@/types/results"
 import {useAtomValue} from "jotai"
@@ -97,7 +97,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         }, [elections])
 
         interface TabPanelProps {
-            children?: ReactI18NextChild | Iterable<ReactI18NextChild>
+            children?: React.ReactNode | Iterable<React.ReactNode>
             index: number
             value: number | null
         }
@@ -118,16 +118,29 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         }
 
         let documents: IResultDocumentsData | null = useMemo(() => {
-            const documents =
-                !!resultsEventId &&
-                !!electionId &&
-                !!resultsElection &&
-                resultsElection?.[0]?.results_event_id === resultsEventId &&
-                resultsElection?.[0]?.election_id === electionId &&
-                (resultsElection[0]?.documents as IResultDocuments | null)
-            return documents
+            let parsedDocuments: IResultDocuments | null = null
+            try {
+                const rawDocuments =
+                    !!resultsEventId &&
+                    !!electionId &&
+                    !!resultsElection &&
+                    resultsElection?.[0]?.results_event_id === resultsEventId &&
+                    resultsElection?.[0]?.election_id === electionId &&
+                    (resultsElection[0]?.documents as IResultDocuments | null)
+                if (rawDocuments) {
+                    // Check if the documents are already an object.
+                    // If they are a string, parse them.
+                    parsedDocuments =
+                        typeof rawDocuments === "string" ? JSON.parse(rawDocuments) : rawDocuments
+                }
+            } catch (e) {
+                console.error("Failed to parse documents JSON string:", e)
+                return null // Return null if parsing fails
+            }
+
+            return parsedDocuments
                 ? {
-                      documents,
+                      documents: parsedDocuments,
                       name: resultsElection?.[0]?.name ?? "election",
                       class_type: "election",
                   }
