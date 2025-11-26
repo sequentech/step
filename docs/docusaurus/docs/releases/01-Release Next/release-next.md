@@ -13,6 +13,26 @@ Modify the tally export translations to show the format before the document name
 
 - Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
   
+## 🐞 Tally > State not cleared when switching events
+
+Fix tally state is not cleared when switching election events on the tally tab.
+
+- Issue: [#8674](https://github.com/sequentech/meta/issues/8674)
+  
+## 🐞 Username is shown after an attempted login with a valid username
+
+When the Keycloak login flow used the step `Username Password Form - Allowing password expiration`,
+the email was being shown at the top of the login page after a failed login
+if the user existed, leaking the information that the user did exist.
+
+- Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
+
+## 🐞 Fixes after dependency updates
+
+Update ring dependency.
+
+- Issue: [#9132](https://github.com/sequentech/meta/issues/9132)
+- 
 ## 🐞 Fixes after dependency updates
 
 - Fixed voters import, which was broken after updating Keycloak from 24 to 26.
