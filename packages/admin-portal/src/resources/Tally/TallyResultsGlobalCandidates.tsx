@@ -361,7 +361,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             alignItems: "flex-start",
                         }}
                     >
-                        fsgfg
                         <Box sx={{flex: {xs: "1 1 auto", lg: "0 0 auto"}, mt: 2}}>
                             <ParticipationSummaryChart
                                 result={general?.[0]}

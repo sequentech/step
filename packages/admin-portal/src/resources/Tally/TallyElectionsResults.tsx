@@ -171,8 +171,10 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         [tallyData?.sequent_backend_results_election]
     )
 
-    const isExistRightTallyData = useMemo(() => {
-        return tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
+    const isTallyDataMatchCurrentResults = useMemo(() => {
+        return !!tallyData?.sequent_backend_results_event.find(
+            (event) => event.id === resultsEventId
+        )
     }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
     useEffect(() => {
@@ -202,10 +204,10 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             }
             setIsLoading(false)
         }
-        if (isExistRightTallyData && (!elections?.length || !results?.length)) {
+        if (isTallyDataMatchCurrentResults && (!elections?.length || !results?.length)) {
             setIsLoading(false)
         }
-    }, [results, elections, selectedElectionId, isExistRightTallyData])
+    }, [results, elections, selectedElectionId, isTallyDataMatchCurrentResults])
 
     const columns: GridColDef[] = [
         {
@@ -295,7 +297,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         />
                     </Box>
                 </Box>
-            ) : isLoading || !isExistRightTallyData ? (
+            ) : isLoading || !isTallyDataMatchCurrentResults ? (
                 <LoadingResults />
             ) : (
                 <NoItem />

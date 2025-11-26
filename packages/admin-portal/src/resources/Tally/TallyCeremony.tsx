@@ -957,7 +957,7 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
 
-                            {/* <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} /> */}
+                            <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
 
                             <Accordion
                                 sx={{width: "100%"}}
@@ -1059,7 +1059,7 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
 
-                            {/* <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} /> */}
+                            <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
 
                             <Accordion
                                 sx={{width: "100%"}}
