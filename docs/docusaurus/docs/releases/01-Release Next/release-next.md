@@ -7,7 +7,13 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-🐞 Tally > State not cleared when switching events
+## ✨ Don't build/push images on main
+
+Don't build/push images on main.
+
+- Issue: [#9291](https://github.com/sequentech/meta/issues/9291)
+
+## 🐞 Tally > State not cleared when switching events
 
 Fix tally state is not cleared when switching election events on the tally tab.
 
