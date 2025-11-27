@@ -506,6 +506,13 @@ export const TallyCeremony: React.FC = () => {
         )
     }, [elections, currentKeysCeremony, shouldSkipCeremony, selectedElections])
 
+    // This useEffect clears the keysCeremonyId when the election is unencrypted ***
+    useEffect(() => {
+        if (isUnencryptedElection) {
+            setKeysCeremonyId(undefined)
+        }
+    }, [isUnencryptedElection])
+
     useEffect(() => {
         if (page === WizardSteps.Start && creatingType !== ETallyType.INITIALIZATION_REPORT) {
             let is_published = elections?.every(
@@ -515,16 +522,34 @@ export const TallyCeremony: React.FC = () => {
             let newIsButtonDisabled =
                 (page === WizardSteps.Start && selectedElections?.length === 0 ? true : false) ||
                 !is_published
-            let isAutomaticCeremonyTallyNotAllowed = shouldSkipCeremony && !isAutomaticTallyAllowed
 
-            setIsButtonDisabled(newIsButtonDisabled || isAutomaticCeremonyTallyNotAllowed)
+            // This is the key change:
+            // Check for automatic ceremony *only* if it's an AUTOMATED ceremony.
+            // If it's PLAINTEXT (isUnencryptedElection = true), this check will be false,
+            // allowing the button to be enabled without a key.
+            let isAutomaticCeremonyTallyNotAllowed = isAutomatedCeremony && !isAutomaticTallyAllowed
+
+            const isDisabled = newIsButtonDisabled || isAutomaticCeremonyTallyNotAllowed
+            setIsButtonDisabled(isDisabled)
+
             if (isAutomaticCeremonyTallyNotAllowed) {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.ceremonyDisabled"))
             } else if (newIsButtonDisabled) {
                 setNextDisabledReason(t("electionEventScreen.tally.notify.startDisabled"))
+            } else {
+                setNextDisabledReason(null) // Clear reason if enabled
             }
         }
-    }, [selectedElections, shouldSkipCeremony, isAutomaticTallyAllowed])
+    }, [
+        page,
+        creatingType,
+        elections,
+        selectedElections,
+        isAutomaticTallyAllowed,
+        isAutomatedCeremony,
+        isUnencryptedElection,
+        t,
+    ])
 
     const isInitAllowed = useMemo(() => {
         return (
@@ -911,6 +936,7 @@ export const TallyCeremony: React.FC = () => {
                                     value={keysCeremonyId ?? ""}
                                     label={t("tally.keysCeremonyTitle")}
                                     placeholder={t("tally.keysCeremonyTitle")}
+                                    disabled={isUnencryptedElection}
                                     onChange={(props) => {
                                         if (!props?.target?.value) {
                                             return

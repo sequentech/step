@@ -125,13 +125,24 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
         .flatten()
 }
 
+// ##################################################
+// ## FUNCTION MODIFIED (from previous step)
+// ##################################################
 #[instrument(skip(transaction), err)]
 pub async fn find_keys_ceremony(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     elections: &Vec<Election>,
-) -> Result<KeysCeremony> {
+    contest_encryption_policy: &ContestEncryptionPolicy, // <-- ADDED PARAM
+) -> Result<Option<KeysCeremony>> {
+    // <-- CHANGED RETURN TYPE
+
+    // If plaintext, it's valid to have no keys ceremony.
+    if *contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT {
+        return Ok(None);
+    }
+
     let keys_ceremonies_set: HashSet<String> = elections
         .clone()
         .into_iter()
@@ -165,7 +176,7 @@ pub async fn find_keys_ceremony(
         return Err(anyhow!("Invalid keys ceremony"));
     }
 
-    Ok(keys_ceremony)
+    Ok(Some(keys_ceremony)) // <-- CHANGED RETURN
 }
 
 #[instrument]
@@ -274,6 +285,9 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
+// ##################################################
+// ## FUNCTION MODIFIED
+// ##################################################
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -296,7 +310,7 @@ pub async fn create_tally_ceremony(
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let mut final_configuration = configuration.clone().unwrap_or_default();
-    final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
+    final_configuration.contest_encryption_policy = Some(contest_encryption_policy.clone());
     final_configuration.decoded_ballots_inclusion_policy = Some(decoded_ballots_inclusion_policy);
     let contests: Vec<Contest> = all_contests
         .into_iter()
@@ -383,24 +397,61 @@ pub async fn create_tally_ceremony(
         .map(|val| val.clone())
         .collect();
 
-    let keys_ceremony =
-        find_keys_ceremony(transaction, &tenant_id, &election_event_id, &elections).await?;
-    let keys_ceremony_status = keys_ceremony.status()?;
-    let keys_ceremony_id = keys_ceremony.id.clone();
-    let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
-    let tally_session_id: String = Uuid::new_v4().to_string();
+    // Pass the policy to find_keys_ceremony
+    let keys_ceremony_opt = find_keys_ceremony(
+        transaction,
+        &tenant_id,
+        &election_event_id,
+        &elections,
+        &contest_encryption_policy,
+    )
+    .await?;
 
+    let tally_session_id: String = Uuid::new_v4().to_string();
     let annotations: Value = json!({
         "executer_username": username,
         "executer_user_id": user_id,
     });
 
-    let keys_ceremony_policy = keys_ceremony.policy();
+    // Handle both encrypted (Some) and plaintext (None) cases
+    let (keys_ceremony_id_opt, threshold, initial_status, tally_execution_status) = // <-- Renamed
+        if let Some(keys_ceremony) = keys_ceremony_opt {
+            // ENCRYPTED: Standard logic
+            let keys_ceremony_status = keys_ceremony.status()?;
+            let keys_ceremony_policy = keys_ceremony.policy();
+            let tally_execution_status = match keys_ceremony_policy {
+                CeremoniesPolicy::AUTOMATED_CEREMONIES => TallyExecutionStatus::IN_PROGRESS,
+                _ => TallyExecutionStatus::STARTED,
+            };
 
-    let tally_execution_status = match keys_ceremony_policy {
-        CeremoniesPolicy::AUTOMATED_CEREMONIES => TallyExecutionStatus::IN_PROGRESS,
-        _ => TallyExecutionStatus::STARTED,
-    };
+            (
+                Some(keys_ceremony.id.clone()), // <-- Now Option<String>
+                keys_ceremony.threshold as i32,
+                generate_initial_tally_status(&election_ids, &keys_ceremony_status),
+                tally_execution_status,
+            )
+        } else {
+            // PLAINTEXT: No keys ceremony, use defaults
+            (
+                None, // <-- Now None
+                0,                       // No threshold
+                TallyCeremonyStatus {    // Create status manually with no trustees
+                    stop_date: None,
+                    logs: generate_tally_initial_log(&election_ids),
+                    trustees: vec![], // No trustees
+                    elections_status: election_ids
+                        .iter()
+                        .map(|election_id| TallyElection {
+                            election_id: election_id.clone(),
+                            status: TallyElectionStatus::WAITING,
+                            progress: 0.0,
+                        })
+                        .collect(),
+                },
+                TallyExecutionStatus::IN_PROGRESS, // Plaintext can start immediately
+            )
+        };
+    // --- END OF MODIFIED LOGIC ---
 
     let _tally_session = insert_tally_session(
         transaction,
@@ -409,9 +460,9 @@ pub async fn create_tally_ceremony(
         election_ids.clone(),
         area_ids.clone(),
         &tally_session_id,
-        &keys_ceremony_id,
+        &keys_ceremony_id_opt, // <-- Changed to Option<&str>
         tally_execution_status,
-        keys_ceremony.threshold as i32,
+        threshold,
         Some(final_configuration.clone()),
         &tally_type,
         annotations,
@@ -533,6 +584,7 @@ pub async fn update_tally_ceremony(
     if tally_session.threshold > num_connected_trustees as i64
         && new_execution_status != TallyExecutionStatus::CANCELLED
     {
+        // For plaintext, threshold will be 0, so this check will pass
         return Err(anyhow!(
             "Insufficient number of connected trustees {}. Required threshold {}.",
             num_connected_trustees,
@@ -590,6 +642,9 @@ pub async fn update_tally_ceremony(
     Ok(())
 }
 
+// ##################################################
+// ## FUNCTION MODIFIED
+// ##################################################
 #[instrument(err, skip(transaction))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
@@ -641,14 +696,23 @@ pub async fn set_private_key(
         return Err(anyhow!("Unexpected status {}", current_status.to_string()));
     }
 
+    // --- LOGIC MODIFIED HERE ---
     // get the keys ceremonies for this election event
+    // We must unwrap keys_ceremony_id, which is now Option<String>
+    let Some(keys_ceremony_id_str) = &tally_session.keys_ceremony_id else {
+        // A plaintext tally (None) would have no trustees, so it should
+        // fail the trustee check later. This is a safeguard.
+        return Err(anyhow!("Tally session has no keys ceremony associated"));
+    };
+
     let keys_ceremony = get_keys_ceremony_by_id(
         transaction,
         &tenant_id,
         &election_event_id,
-        &tally_session.keys_ceremony_id,
+        keys_ceremony_id_str, // Use the unwrapped &str
     )
     .await?;
+    // --- END OF MODIFIED LOGIC ---
 
     let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
@@ -659,6 +723,7 @@ pub async fn set_private_key(
         .find(|trustee| trustee.name == trustee_name);
 
     let Some(found_trustee) = found_trustee_opt else {
+        // This will correctly fail for plaintext tallies as trustees: vec![]
         return Err(anyhow!(
             "Trustee not part of the keys ceremony or has invalid state"
         ));

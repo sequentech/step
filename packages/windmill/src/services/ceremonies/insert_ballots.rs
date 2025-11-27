@@ -12,10 +12,16 @@ use crate::services::join::merge_join_csv;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
+use crate::services::public_keys;
 use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
 use b3::messages::newtypes::TrusteeSet;
+use b3::messages::newtypes::PublicKeyHash;
+use b3::messages::artifact::DkgPublicKey;
+use b3::messages::statement::StatementType;
+use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
 use base64::{
     alphabet,
     engine::{self, general_purpose},
@@ -116,8 +122,41 @@ pub async fn insert_ballots_messages(
     let mut board_client = get_b3_pgsql_client().await?;
     let board_messages =
         Arc::new(get_board_messages::<RistrettoCtx>(board_name, &mut board_client).await?);
+
+    if contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT {
+        let configuration_exists = check_configuration_exists(board_name).await?;
+
+        if !configuration_exists {
+            // create config/keys for board
+            public_keys::create_keys(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                board_name,
+                vec!["MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs=".to_string(),"MCowBQYDK2VwAyEA50mtZzCBnubUwMhRkKyGomrUCBGgvEsbu79D3Cckjbc=".to_string()],
+                2,
+            )
+            .await?;
+        }
+    };
+
     let configuration = get_configuration(&board_messages)?;
-    let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
+    let public_key_hash = if contest_encryption_policy != ContestEncryptionPolicy::PLAINTEXT { 
+        get_public_key_hash::<RistrettoCtx>(&board_messages)? 
+    } else { 
+        // let found_config = board_messages
+        // .iter()
+        // .find(|message| StatementType::Configuration == message.statement.get_kind())
+        // .ok_or(anyhow!("Can't find configuration message"))?;
+        // let public_key_bytes = found_config
+        // .artifact
+        // .clone()
+        // .ok_or(anyhow!("Configuration message artifact missing"))?;
+        // let dkgpk = DkgPublicKey::<RistrettoCtx>::strand_deserialize(&public_key_bytes)?;
+        // let pk_bytes = dkgpk.strand_serialize()?;
+        let pk_h = [0u8; 64];
+        PublicKeyHash(strand::util::to_u8_array(&pk_h)?)
+    };
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
@@ -329,7 +368,23 @@ pub async fn insert_ballots_messages(
                     let batch = tally_session_contest.session_id.clone() as BatchNumber;
 
                     if contest_encryption_policy_clone == ContestEncryptionPolicy::PLAINTEXT {
-                        todo!()
+                        let plaintexts = ballot_contents
+                            .into_iter()
+                            .map(BallotContent::try_into_plaintext)
+                            .collect::<Result<Vec<_>>>()?;
+
+                        add_plaintext_ballots_to_board(
+                            &protocol_manager_arc_clone,
+                            &mut board,
+                            &board_name_clone,
+                            &board_messages_clone,
+                            &configuration_clone,
+                            public_key_hash_clone,
+                            selected_trustees_clone,
+                            plaintexts,
+                            batch,
+                        )
+                        .await?;
                     } else {
                         let ciphertexts = ballot_contents
                             .into_iter()

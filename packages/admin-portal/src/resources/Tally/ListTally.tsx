@@ -461,10 +461,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     filter={{
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEventRecord?.id || undefined,
-                        keys_ceremony_id: {
-                            format: "hasura-raw-query",
-                            value: {_in: keysCeremonyIds},
-                        },
+                        keys_ceremony_id: isUnencryptedPolicy 
+                            ? undefined 
+                            : {
+                                format: "hasura-raw-query",
+                                value: {_in: keysCeremonyIds},
+                            },
                     }}
                     storeKey={false}
                     filters={Filters}

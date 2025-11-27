@@ -92,6 +92,7 @@ use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
+use crate::services::election_event_board::get_election_event_board;
 
 #[instrument(skip_all, err)]
 fn get_ballot_styles(ballot_styles: &Vec<BallotStyleHasura>) -> Result<Vec<BallotStyle>> {
@@ -510,14 +511,25 @@ pub async fn upsert_ballots_messages(
         .into_iter()
         .map(|tally_session_contest| tally_session_contest.session_id.clone() as i64)
         .collect();
-    let existing_ballots_batches: Vec<i64> = messages
+    let existing_ballots_batches: Vec<i64> = if contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT { 
+        messages
+        .iter()
+        .filter(|message| {
+            expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
+                && StatementType::Plaintexts == message.statement.get_kind()
+        })
+        .map(|message| message.statement.get_batch_number() as i64)
+        .collect()
+    } else { 
+        messages
         .iter()
         .filter(|message| {
             expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
                 && StatementType::Ballots == message.statement.get_kind()
         })
         .map(|message| message.statement.get_batch_number() as i64)
-        .collect();
+        .collect()
+    };
     event!(
         Level::INFO,
         "existing_ballots_batches: '{:?}'",
@@ -621,7 +633,7 @@ async fn map_plaintext_data(
     election_event_id: String,
     tally_session_id: String,
     ceremony_status: TallyCeremonyStatus,
-    keys_ceremony: &KeysCeremony,
+    keys_ceremony: &Option<KeysCeremony>,
     tally_session: TallySession,
     tally_session_execution: TallySessionExecution,
     tally_session_contest: Vec<TallySessionContest>,
@@ -653,13 +665,21 @@ async fn map_plaintext_data(
     };
 
     // get name of bulletin board
-    let (bulletin_board, _) = get_keys_ceremony_board(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        keys_ceremony,
-    )
-    .await?;
+    let bulletin_board = if let Some(keys_ceremony) = keys_ceremony {
+        let (bulletin_board, _) = get_keys_ceremony_board(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            keys_ceremony,
+        )
+        .await?;
+
+        bulletin_board
+    } else {
+        // get board name
+        get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?
+    };
 
     // let tally_session = &tally_session_data.sequent_backend_tally_session[0];
     let tally_session_created_at_timestamp_secs =
@@ -679,7 +699,7 @@ async fn map_plaintext_data(
         .await
         .with_context(|| "error listing existing keys ceremonies")?;
 
-    if keys_ceremonies.is_empty() {
+    if keys_ceremonies.is_empty() && election_event.get_contest_encryption_policy() != ContestEncryptionPolicy::PLAINTEXT {
         event!(
             Level::INFO,
             "Election Event {} has no keys ceremony",
@@ -688,44 +708,50 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
-    let keys_ceremony_policy = keys_ceremony.policy();
+    let trustee_names = if let Some(keys_ceremony) = keys_ceremony {
+        let keys_ceremony_policy = keys_ceremony.policy();
 
-    let threshold = keys_ceremonies[0].threshold as usize;
-    let mut available_trustees: Vec<String> = match keys_ceremony_policy {
-        CeremoniesPolicy::MANUAL_CEREMONIES => ceremony_status
-            .trustees
-            .into_iter()
-            .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
-            .map(|trustee| trustee.name.clone())
-            .collect(),
-        CeremoniesPolicy::AUTOMATED_CEREMONIES => ceremony_status
-            .trustees
-            .into_iter()
-            .map(|trustee| trustee.name.clone())
-            .collect(),
-    };
+        let threshold = keys_ceremonies[0].threshold as usize;
+        let mut available_trustees: Vec<String> = match keys_ceremony_policy {
+            CeremoniesPolicy::MANUAL_CEREMONIES => ceremony_status
+                .trustees
+                .into_iter()
+                .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
+                .map(|trustee| trustee.name.clone())
+                .collect(),
+            CeremoniesPolicy::AUTOMATED_CEREMONIES => ceremony_status
+                .trustees
+                .into_iter()
+                .map(|trustee| trustee.name.clone())
+                .collect(),
+        };
 
-    let mut rng = StdRng::from_entropy();
-    available_trustees.shuffle(&mut rng);
+        let mut rng = StdRng::from_entropy();
+        available_trustees.shuffle(&mut rng);
 
-    let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
+        let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
 
-    if trustee_names.len() < threshold {
+        if trustee_names.len() < threshold {
+            event!(
+                Level::INFO,
+                "Election Event {} has {} connected trustees but threshold is {}",
+                election_event_id.clone(),
+                trustee_names.len(),
+                threshold
+            );
+            return Ok(None);
+        }
         event!(
             Level::INFO,
-            "Election Event {} has {} connected trustees but threshold is {}",
+            "Election Event {}. Selected trustees {:#?}",
             election_event_id.clone(),
-            trustee_names.len(),
-            threshold
+            trustee_names
         );
-        return Ok(None);
-    }
-    event!(
-        Level::INFO,
-        "Election Event {}. Selected trustees {:#?}",
-        election_event_id.clone(),
+
         trustee_names
-    );
+    } else {
+        Vec::new()
+    };
 
     if execution_status != TallyExecutionStatus::IN_PROGRESS {
         event!(
@@ -1021,13 +1047,22 @@ pub async fn execute_tally_session_wrapped(
         return Ok(());
     };
 
-    let keys_ceremony = get_keys_ceremony_by_id(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session.keys_ceremony_id,
-    )
-    .await?;
+    let keys_ceremony = if let Some(ref keys_ceremony_id) = tally_session.keys_ceremony_id {
+        Some(
+            get_keys_ceremony_by_id(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &tally_session
+                    .keys_ceremony_id
+                    .clone()
+                    .ok_or_else(|| anyhow!("Tally session has no id"))?,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
 
     let tally_type_enum = tally_type
         .map(|val: String| TallyType::try_from(val.as_str()).unwrap_or_default())

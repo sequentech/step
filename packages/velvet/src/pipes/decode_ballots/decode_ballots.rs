@@ -44,6 +44,8 @@ impl DecodeBallots {
         for line in reader.lines() {
             let line = line?;
 
+            println!("decode_ballots line: {line}");
+
             let plaintext = BigUint::from_str(&line);
 
             if let Err(error) = &plaintext {

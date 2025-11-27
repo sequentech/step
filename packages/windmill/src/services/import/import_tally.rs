@@ -364,7 +364,7 @@ pub async fn process_tally_session_record(
         election_ids,
         area_ids,
         is_execution_completed,
-        keys_ceremony_id,
+        keys_ceremony_id: Some(keys_ceremony_id),
         execution_status,
         threshold,
         configuration,
