@@ -36,3 +36,4 @@ pub mod tasks_execution;
 pub mod template;
 pub mod tenant;
 pub mod trustee;
+pub mod trustee_commitment;

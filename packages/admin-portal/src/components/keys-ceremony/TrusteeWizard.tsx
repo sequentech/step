@@ -4,6 +4,7 @@
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
@@ -16,8 +17,10 @@ import {StartStep} from "@/components/keys-ceremony/StartStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 import {useTranslation} from "react-i18next"
 import {DownloadStep} from "./DownloadStep"
+import {WasmDownloadStep} from "./WasmDownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
+import {WasmCheckStep} from "./WasmCheckStep"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 
 export const isTrusteeParticipating = (
@@ -65,6 +68,8 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     goBack,
 }) => {
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
+    const useWasmKeys = globalSettings.TRUSTEE_WASM_KEYS_ENABLED
     const authContext = useContext(AuthContext)
     const trusteeParticipating =
         currentCeremony && isTrusteeParticipating(currentCeremony, authContext)
@@ -146,20 +151,38 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                 <StartStep goNext={() => setCurrentStep(WizardStep.Download)} goBack={goBack} />
             )}
             {currentStep === WizardStep.Download && (
-                <DownloadStep
-                    currentCeremony={currentCeremony}
-                    electionEvent={electionEvent}
-                    goBack={() => setCurrentStep(WizardStep.Start)}
-                    goNext={() => setCurrentStep(WizardStep.Check)}
-                />
+                (useWasmKeys ? (
+                    <WasmDownloadStep
+                        currentCeremony={currentCeremony}
+                        electionEvent={electionEvent}
+                        goBack={() => setCurrentStep(WizardStep.Start)}
+                        goNext={() => setCurrentStep(WizardStep.Check)}
+                    />
+                ) : (
+                    <DownloadStep
+                        currentCeremony={currentCeremony}
+                        electionEvent={electionEvent}
+                        goBack={() => setCurrentStep(WizardStep.Start)}
+                        goNext={() => setCurrentStep(WizardStep.Check)}
+                    />
+                ))
             )}
             {currentStep === WizardStep.Check && (
-                <CheckStep
-                    currentCeremony={currentCeremony}
-                    electionEvent={electionEvent}
-                    goBack={() => setCurrentStep(WizardStep.Download)}
-                    goNext={() => setCurrentStep(WizardStep.Success)}
-                />
+                (useWasmKeys ? (
+                    <WasmCheckStep
+                        currentCeremony={currentCeremony}
+                        electionEvent={electionEvent}
+                        goBack={() => setCurrentStep(WizardStep.Download)}
+                        goNext={() => setCurrentStep(WizardStep.Success)}
+                    />
+                ) : (
+                    <CheckStep
+                        currentCeremony={currentCeremony}
+                        electionEvent={electionEvent}
+                        goBack={() => setCurrentStep(WizardStep.Download)}
+                        goNext={() => setCurrentStep(WizardStep.Success)}
+                    />
+                ))
             )}
             {currentStep === WizardStep.Success && (
                 <CeremonyStep

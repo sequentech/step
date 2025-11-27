@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+use serde::{Deserialize, Serialize};
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -21,6 +22,26 @@ use strand::{context::Ctx, elgamal::Ciphertext};
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Configuration<C: Ctx> {
+
+/// Metadata describing a large protocol artifact stored out-of-band in S3/Minio rather than inline in B3.
+/// This is intended for use by higher-level services (Harvest, browser trustees) when referencing
+/// ballots, mixes, decryption factors, plaintexts, etc., that live in object storage.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtifactEnvelope {
+    /// S3 bucket name where the artifact is stored.
+    pub bucket: String,
+    /// Object key within the bucket.
+    pub key: String,
+    /// Hex-encoded SHA-256 hash of the artifact contents.
+    pub sha256_hex: String,
+    /// Size of the artifact in bytes.
+    pub size: u64,
+    /// MIME type of the artifact (e.g. application/octet-stream).
+    pub content_type: String,
+    /// Logical kind of artifact (e.g. BALLOTS, MIX, DECRYPTION_FACTORS, PLAINTEXTS).
+    pub kind: String,
+}
+
     pub id: u128,
     pub protocol_manager: StrandSignaturePk,
     pub trustees: Vec<StrandSignaturePk>,

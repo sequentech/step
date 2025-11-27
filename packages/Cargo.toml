@@ -21,6 +21,7 @@ members = [
     "e2e/src/mock_server",
     "e2e",
     "orare",
+    "braid-wasm",
     "orare/doc_renderer"
 ]
 
