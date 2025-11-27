@@ -57,6 +57,7 @@
     firefox
 
     # to build the rug backend in strand/braid
+    wasm-pack
     gcc
     m4
 
