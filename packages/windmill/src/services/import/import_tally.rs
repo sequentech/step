@@ -20,7 +20,9 @@ use chrono::{DateTime, Local};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::{
+    serialization::deserialize_with_path::deserialize_str, types::ceremonies::TallySessionDocuments,
+};
 use sequent_core::{
     services::date::ISO8601,
     types::{
@@ -96,6 +98,25 @@ fn remap_result_documents(
             .unwrap_or(None),
         tar_gz_pdfs: doc
             .tar_gz_pdfs
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+    })
+}
+
+#[instrument(skip_all)]
+fn remap_tally_session_documents(
+    original: Option<TallySessionDocuments>,
+    replacement_map: &HashMap<String, String>,
+) -> Option<TallySessionDocuments> {
+    original.map(|doc| TallySessionDocuments {
+        sqlite: doc
+            .sqlite
+            .as_ref()
+            .map(|id| replacement_map.get(id).cloned())
+            .unwrap_or(None),
+        xlsx: doc
+            .xlsx
             .as_ref()
             .map(|id| replacement_map.get(id).cloned())
             .unwrap_or(None),
@@ -509,6 +530,9 @@ async fn process_tally_session_execution_file(
 
     for result in rdr.records() {
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+
+        println!("RECORD::: {:?}", &record);
+
         let created_at = get_opt_date(&record, 3).await?;
         let last_updated_at = get_opt_date(&record, 4).await?;
 
@@ -534,9 +558,20 @@ async fn process_tally_session_execution_file(
             .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
 
         let status = get_opt_json_value_item(&record, 10).await?;
-        let documents = get_opt_json_value_item(&record, 12).await?;
-
         let results_event_id: Option<String> = get_string_or_null_item(&record, 11).await?;
+
+        let documents = record
+            .get(12)
+            .map(str::trim)
+            .filter(|s| *s != "null" && *s != "\"null\"" && *s != "")
+            .map(|s| deserialize_str(s))
+            .transpose()
+            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        let documents_with_new_ids: Option<TallySessionDocuments> =
+            remap_tally_session_documents(documents, &replacement_map);
+        let documents_with_new_ids_json: Option<Value> = documents_with_new_ids
+            .map(|docs| serde_json::to_value(&docs))
+            .transpose()?;
 
         let new_results_event_id = match results_event_id {
             Some(results_event_id) => Some(
@@ -565,7 +600,7 @@ async fn process_tally_session_execution_file(
             session_ids,
             status,
             results_event_id: new_results_event_id,
-            documents,
+            documents: documents_with_new_ids_json,
         };
 
         tally_session_executions.push(tally_session_execution);
