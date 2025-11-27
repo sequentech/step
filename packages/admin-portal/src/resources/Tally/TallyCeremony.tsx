@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
@@ -129,6 +129,7 @@ export const TallyCeremony: React.FC = () => {
     const [openModal, setOpenModal] = useState(false)
     const [confirmSendMiruModal, setConfirmSendMiruModal] = useState(false)
     const [openCeremonyModal, setOpenCeremonyModal] = useState(false)
+    const [nextStartTransition, setNextStartTransition] = useState(false)
     const [transmissionLoading, setTransmissionLoading] = useState<boolean>(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [pristine, setPristine] = useState<boolean>(true)
@@ -354,7 +355,7 @@ export const TallyCeremony: React.FC = () => {
     }, [tally, keysCeremonyId])
 
     const isAutomatedCeremony =
-        electionEvent.presentation?.ceremonies_policy ===
+        electionEvent?.presentation?.ceremonies_policy ===
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         currentKeysCeremony?.settings?.policy ===
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
@@ -934,7 +935,7 @@ export const TallyCeremony: React.FC = () => {
                                 <Select
                                     id="keys-ceremony-for-tally"
                                     value={keysCeremonyId ?? ""}
-                                    label={t("tally.keysCeremonyTitle")}
+                                    label={String(t("tally.keysCeremonyTitle"))}
                                     placeholder={t("tally.keysCeremonyTitle")}
                                     disabled={isUnencryptedElection}
                                     onChange={(props) => {
@@ -1012,9 +1013,11 @@ export const TallyCeremony: React.FC = () => {
                                             ),
                                             color: theme.palette.background.default,
                                         }}
-                                        label={t("keysGeneration.ceremonyStep.executionStatus", {
-                                            status: tally?.execution_status,
-                                        })}
+                                        label={String(
+                                            t("keysGeneration.ceremonyStep.executionStatus", {
+                                                status: tally?.execution_status,
+                                            })
+                                        )}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
@@ -1112,9 +1115,11 @@ export const TallyCeremony: React.FC = () => {
                                             ),
                                             color: theme.palette.background.default,
                                         }}
-                                        label={t("keysGeneration.ceremonyStep.executionStatus", {
-                                            status: tally?.execution_status,
-                                        })}
+                                        label={String(
+                                            t("keysGeneration.ceremonyStep.executionStatus", {
+                                                status: tally?.execution_status,
+                                            })
+                                        )}
                                     />
                                 </AccordionSummary>
                                 <WizardStyles.AccordionDetails>
@@ -1254,10 +1259,10 @@ export const TallyCeremony: React.FC = () => {
                                                 : t("tally.common.ceremony")
                                             : t("tally.common.initialization")
                                         : page === WizardSteps.Ceremony
-                                        ? t("tally.common.start")
-                                        : page === WizardSteps.Tally
-                                        ? t("tally.common.results")
-                                        : t("tally.common.next")}
+                                          ? t("tally.common.start")
+                                          : page === WizardSteps.Tally
+                                            ? t("tally.common.results")
+                                            : t("tally.common.next")}
                                     {isConfirming ? (
                                         <StyledCircularProgress
                                             key="progress-tally-next"
@@ -1284,8 +1289,8 @@ export const TallyCeremony: React.FC = () => {
                 key="tally-create-dialog"
                 variant="info"
                 open={openModal}
-                ok={t("tally.common.dialog.ok")}
-                cancel={t("tally.common.dialog.cancel")}
+                ok={String(t("tally.common.dialog.ok"))}
+                cancel={String(t("tally.common.dialog.cancel"))}
                 title={
                     shouldSkipCeremony
                         ? t("tally.common.dialog.tallyTitle")
@@ -1313,9 +1318,9 @@ export const TallyCeremony: React.FC = () => {
                 key="tally-start-dialog"
                 variant="info"
                 open={openCeremonyModal}
-                ok={t("tally.common.dialog.okTally")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.tallyTitle")}
+                ok={String(t("tally.common.dialog.okTally"))}
+                cancel={String(t("tally.common.dialog.cancel"))}
+                title={String(t("tally.common.dialog.tallyTitle"))}
                 handleClose={(result: boolean) => {
                     setOpenCeremonyModal(false)
                     // isButtonDisabled should be true at this point, set in handleNext
@@ -1329,6 +1334,7 @@ export const TallyCeremony: React.FC = () => {
                         // enables the button again because the user cancelled the dialog
                         // so the user can try again.
                     }
+                    setNextStartTransition(false)
                 }}
             >
                 {t("tally.common.dialog.ceremony")}

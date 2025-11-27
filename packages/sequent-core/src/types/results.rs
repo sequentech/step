@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
@@ -15,7 +15,6 @@ pub enum ResultDocumentType {
     Html,
     TarGz,
     TarGzOriginal,
-    VoteReceiptsPdf,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
@@ -26,7 +25,6 @@ pub struct ResultDocuments {
     pub tar_gz: Option<String>,
     pub tar_gz_original: Option<String>,
     pub tar_gz_pdfs: Option<String>,
-    pub vote_receipts_pdf: Option<String>,
 }
 
 impl ResultDocuments {
@@ -40,9 +38,6 @@ impl ResultDocuments {
             ResultDocumentType::Html => self.html.clone(),
             ResultDocumentType::TarGz => self.tar_gz.clone(),
             ResultDocumentType::TarGzOriginal => self.tar_gz_original.clone(),
-            ResultDocumentType::VoteReceiptsPdf => {
-                self.vote_receipts_pdf.clone()
-            }
         }
     }
 }

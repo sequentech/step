@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,7 +6,6 @@ import {NightwatchAPI} from "nightwatch"
 import {createElectionEvent} from "../commands/election-event/create"
 import {pause} from ".."
 
-// eslint-disable-next-line jest/valid-describe-callback
 describe("keys trustee 1 tests", function () {
     before(function (browser) {
         // login

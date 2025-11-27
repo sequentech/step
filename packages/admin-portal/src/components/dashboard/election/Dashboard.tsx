@@ -1,11 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext} from "react"
 import {Box, CircularProgress} from "@mui/material"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {Stats} from "./Stats"
 import {VotesPerDay} from "../charts/VotesPerDay"
 import {daysBefore, formatDate, getToday} from "../charts/Charts"
@@ -17,9 +16,9 @@ import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
 import {IElectionStatistics} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {ListIpAddress} from "@/resources/ElectionEvent/ListIpAddress"
 
 const Container = styled(Box)`
     display: flex;
@@ -111,12 +110,7 @@ export default function DashboardElection() {
                         height={cardHeight}
                     />
                 </Container>
-                {showIpAdresses && record?.id && (
-                    <ListIpAddress
-                        electionEventId={record?.election_event_id}
-                        electionId={record?.id}
-                    />
-                )}
+                {showIpAdresses && record?.id && <ListIpAddress />}
             </Box>
         </Box>
     )
