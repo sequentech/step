@@ -7,7 +7,6 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<<<<<<< HEAD
 ## 🐞 Tally > State not cleared when switching events
 
 Fix tally state is not cleared when switching election events on the tally tab.
@@ -21,7 +20,6 @@ the email was being shown at the top of the login page after a failed login
 if the user existed, leaking the information that the user did exist.
 
 - Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
-=======
 ## 🔧 Publicly Open Source Preparations
 
 This release transitions the Sequent Voting Platform from an on-request
@@ -98,7 +96,6 @@ realms:
    - `monitoring-dashboard-view-election`
 5. If these roles were assigned to any groups or users, remove those assignments
    first
->>>>>>> 261ad8fe6 (✨ Publicly Open Source Preparations (#2149))
 
 ## 📖 Third-Party Libraries Reference Documentation
 
