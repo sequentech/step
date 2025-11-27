@@ -44,3 +44,9 @@ console_error_panic_hook = "0.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Ensure ring is built with the JS RNG backend for wasm, matching sequent-core,
+# so that rcgen (pulled via strand) sees a SystemRandom that implements
+# SecureRandom on wasm32-unknown-unknown.
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }

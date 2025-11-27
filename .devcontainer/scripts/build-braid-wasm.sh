@@ -7,7 +7,11 @@ set -euo pipefail
 
 # Match sequent-core build environment tweaks for wasm/ring
 export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="-O3 -ffunction-sections -fdata-sections -fno-exceptions";
+# If CFLAGS_wasm32_unknown_unknown is already provided by the dev shell (with
+# proper clang resource/include paths), do not overwrite it; otherwise, fall
+# back to a minimal optimisation-only setting.
+: "${CFLAGS_wasm32_unknown_unknown:=-O3 -ffunction-sections -fdata-sections -fno-exceptions}"
+export CFLAGS_wasm32_unknown_unknown
 
 TARGET_DIR=/workspaces/step/packages/braid-wasm
 cd "$TARGET_DIR"

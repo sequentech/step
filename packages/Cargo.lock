@@ -1520,6 +1520,7 @@ dependencies = [
  "js-sys",
  "pbkdf2",
  "rand 0.8.5",
+ "ring",
  "serde",
  "serde-wasm-bindgen",
  "sha2",
