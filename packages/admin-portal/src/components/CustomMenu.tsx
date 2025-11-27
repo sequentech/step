@@ -126,36 +126,35 @@ export const CustomMenu = () => {
     const showSettings = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.SETTINGS_MENU
+        IPermissions.SETTINGS_MENU,
     )
     const showTemplates = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        IPermissions.TEMPLATES_MENU
+        IPermissions.TEMPLATES_MENU,
+    )
+    const showTrustees = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TRUSTEE_CEREMONY,
     )
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
-        let replacedUrl = url.replace("${PUBLIC_BUCKET_URL}", globalSettings.PUBLIC_BUCKET_URL)
+        const replacedUrl = url.replace("${PUBLIC_BUCKET_URL}", globalSettings.PUBLIC_BUCKET_URL)
         window.open(replacedUrl, "_blank", "noopener,noreferrer")
     }
 
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
-        (route) => location.pathname.search(route) > -1
+        (route) => location.pathname.search(route) > -1,
     )
 
-    /**
-     * If route in TREE_RESOURCE_NAMES is active
-     * and the user is either at the root
-     * or a path with an empty third segment,
-     * they are redirected to the root path (`/`).
-     * This might be used to enforce navigation rules during an active election event
-     */
     useEffect(() => {
         if (
             isElectionEventActive &&
             (location.pathname.split("/").length <= 2 ||
-                (location.pathname.split("/").length > 2 && location.pathname.split("/")[2] === ""))
+                (location.pathname.split("/").length > 2 &&
+                    location.pathname.split("/")[2] === ""))
         ) {
             navigate("/")
         }
@@ -176,6 +175,7 @@ export const CustomMenu = () => {
                             leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
+
                     {tenant && showSettings && (
                         <StyledItem
                             to="/settings"
@@ -183,6 +183,15 @@ export const CustomMenu = () => {
                             leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
+
+                    {tenant && showTrustees && (
+                        <StyledItem
+                            to="/trustees"
+                            primaryText={open ? t("sideMenu.trusteesLogs") : null}
+                            leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                        />
+                    )}
+
                     {tenant && showTemplates && (
                         <StyledItem
                             to="/sequent_backend_template"
@@ -190,12 +199,11 @@ export const CustomMenu = () => {
                             leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
+
                     {tenant?.settings?.help_links?.length > 0 && (
                         <StyledHelpItem
                             disableElevation
-                            onClick={(e: React.MouseEvent<HTMLElement>) =>
-                                setAnchorEl(e.currentTarget)
-                            }
+                            onClick={(e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget)}
                         >
                             <StyledHelpItemContentWrapper>
                                 <HelpIcon sx={{color: adminTheme.palette.brandColor}} />
@@ -203,6 +211,7 @@ export const CustomMenu = () => {
                             </StyledHelpItemContentWrapper>
                         </StyledHelpItem>
                     )}
+
                     {tenant?.settings?.help_links?.length > 0 && (
                         <MMenu
                             id="menu-sidebar"
@@ -219,27 +228,25 @@ export const CustomMenu = () => {
                             open={Boolean(anchorEl)}
                             onClose={() => setAnchorEl(null)}
                         >
-                            {tenant?.settings?.help_links?.map((i: any) => {
-                                return (
-                                    <MenuItem
-                                        key={i.url}
-                                        className="menu-sidebar-item"
-                                        onClick={() => openInNewTab(i.url)}
+                            {tenant?.settings?.help_links?.map((i: any) => (
+                                <MenuItem
+                                    key={i.url}
+                                    className="menu-sidebar-item"
+                                    onClick={() => openInNewTab(i.url)}
+                                >
+                                    <Box
+                                        sx={{
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            overflow: "hidden",
+                                        }}
                                     >
-                                        <Box
-                                            sx={{
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap",
-                                                overflow: "hidden",
-                                            }}
-                                        >
-                                            <span className="help-menu-item" title={i.title}>
-                                                {i.i18n?.[i18n.language]?.title ?? i.title}
-                                            </span>
-                                        </Box>
-                                    </MenuItem>
-                                )
-                            })}
+                                        <span className="help-menu-item" title={i.title}>
+                                            {i.i18n?.[i18n.language]?.title ?? i.title}
+                                        </span>
+                                    </Box>
+                                </MenuItem>
+                            ))}
                         </MMenu>
                     )}
                 </MenuWrapper>

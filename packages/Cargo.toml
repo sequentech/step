@@ -22,6 +22,8 @@ members = [
     "e2e",
     "orare",
     "braid-wasm",
+    "braid-core",
+    "b3-messages",
     "orare/doc_renderer"
 ]
 

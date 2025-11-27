@@ -18,6 +18,11 @@ use wasm_bindgen::prelude::*;
 use zeroize::Zeroize;
 
 use js_sys::Uint8Array;
+use strand::backend::ristretto::RistrettoCtx as MyCtx;
+use braid_core::trustee2::Trustee;
+use braid_core::board::LocalBoard;
+use b3_messages::messages::message::GrpcB3Message;
+
 
 #[wasm_bindgen]
 extern "C" {
@@ -493,4 +498,114 @@ pub fn recompute_key_commitment_js(
 
     serde_wasm_bindgen::to_value(&commitment)
         .map_err(|e| JsValue::from_str(&format!("Error serializing KeyCommitment: {e}")))
+}
+
+/// Internal trustee identifier used as an opaque handle in JS.
+type TrusteeId = u32;
+
+thread_local! {
+    static TRUSTEES: RefCell<HashMap<TrusteeId, TrusteeState>> = RefCell::new(HashMap::new());
+    static NEXT_TRUSTEE_ID: RefCell<TrusteeId> = RefCell::new(1);
+}
+
+struct TrusteeState {
+    trustee: Trustee<MyCtx>,
+}
+
+fn store_trustee(t: Trustee<MyCtx>) -> TrusteeId {
+    TRUSTEES.with(|cell| {
+        NEXT_TRUSTEE_ID.with(|next_cell| {
+            let mut map = cell.borrow_mut();
+            let mut next = next_cell.borrow_mut();
+            let id = *next;
+            *next = next.saturating_add(1).max(1);
+            map.insert(id, TrusteeState { trustee: t });
+            id
+        })
+    })
+}
+
+fn with_trustee<F, R>(id: TrusteeId, f: F) -> Result<R, String>
+where
+    F: FnOnce(&mut Trustee<MyCtx>) -> Result<R, String>,
+{
+    TRUSTEES.with(|cell| {
+        let mut map = cell.borrow_mut();
+        match map.get_mut(&id) {
+            Some(state) => f(&mut state.trustee),
+            None => Err(format!("Unknown trustee_id {id}")),
+        }
+    })
+}
+
+/// JS-exposed wrapper to initialise an in-memory Trustee engine for the given
+/// board and trustee name, reusing an existing signing key identified by
+/// `signing_key_id`.
+#[wasm_bindgen]
+pub fn init_trustee_js(
+    board_name: String,
+    trustee_name: String,
+    signing_key_id: KeyId,
+) -> Result<TrusteeId, JsValue> {
+    let sk = with_key(signing_key_id, |sk| Ok(sk.clone()))
+        .map_err(|e| JsValue::from_str(&e))?;
+
+    let local_board = LocalBoard::<MyCtx>::new(None, None)
+        .map_err(|e| JsValue::from_str(&format!("Error creating LocalBoard: {e}")))?;
+
+    let trustee = Trustee::new(
+        trustee_name,
+        board_name,
+        sk,
+        None,
+        local_board,
+        None,
+        None,
+    )
+    .map_err(|e| JsValue::from_str(&format!("Error creating Trustee: {e}")))?;
+
+    Ok(store_trustee(trustee))
+}
+
+/// Result of a single trustee step, to be consumed by TS.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrusteeStepResult {
+    pub outgoing_messages_b64: Vec<String>,
+    pub last_message_id: i64,
+    pub added_messages: usize,
+}
+
+/// Run a single trustee step over a batch of messages encoded with Borsh.
+#[wasm_bindgen]
+pub fn trustee_step_js(
+    trustee_id: TrusteeId,
+    messages_borsh: &Uint8Array,
+) -> Result<JsValue, JsValue> {
+    let mut bytes = vec![0u8; messages_borsh.length() as usize];
+    messages_borsh.copy_to(&mut bytes);
+
+    let incoming: Vec<GrpcB3Message> = borsh::from_slice(&bytes)
+        .map_err(|e| JsValue::from_str(&format!("Error deserializing messages: {e}")))?;
+
+    let core_result = with_trustee(trustee_id, |t| {
+        t.step(&incoming)
+            .map_err(|e| format!("Error in trustee step: {e}"))
+    })
+    .map_err(|e| JsValue::from_str(&e))?;
+
+    let mut outgoing_b64 = Vec::new();
+    for msg in core_result.messages {
+        let msg_bytes = borsh::to_vec(&msg)
+            .map_err(|e| JsValue::from_str(&format!("Error serializing outgoing message: {e}")))?;
+        outgoing_b64.push(base64::encode(msg_bytes));
+    }
+
+    let result = TrusteeStepResult {
+        outgoing_messages_b64: outgoing_b64,
+        last_message_id: core_result.last_external_id,
+        added_messages: core_result.added_messages,
+    };
+
+    serde_wasm_bindgen::to_value(&result)
+        .map_err(|e| JsValue::from_str(&format!("Error serializing TrusteeStepResult: {e}")))
 }

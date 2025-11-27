@@ -41,6 +41,16 @@ export interface IBraidWasmModule {
         artifact: any,
         publicKeyB64: string,
     ) => any
+    // New trustee engine exports
+    init_trustee_js: (
+        boardName: string,
+        trusteeName: string,
+        signingKeyId: number,
+    ) => number
+    trustee_step_js: (
+        trusteeId: number,
+        messagesBorsh: Uint8Array,
+    ) => TrusteeStepResult
 }
 
 export interface KeyCommitment {
@@ -85,6 +95,12 @@ export interface BoardSignedMessage {
     artifact?: ArtifactEnvelope
     signature_b64: string
     public_key_b64: string
+}
+
+export interface TrusteeStepResult {
+    outgoing_messages_b64: string[]
+    last_message_id: number
+    added_messages: number
 }
 
 export class TrusteeWasmService {
@@ -227,5 +243,24 @@ export class TrusteeWasmService {
         ) as BoardSignedMessage
 
         return raw
+    }
+
+    // New helpers for running the full trustee engine in the browser.
+
+    /**
+     * Initialise a wasm-backed Trustee engine for this election/board.
+     * The signingKeyId is the in-memory handle returned by importKeyFile or
+     * generateKeypair.
+     */
+    initTrustee(boardName: string, trusteeName: string, signingKeyId: number): number {
+        return this.wasm.init_trustee_js(boardName, trusteeName, signingKeyId)
+    }
+
+    /**
+     * Run a single trustee step over a Borsh-encoded batch of GrpcB3Message
+     * objects provided by the backend.
+     */
+    runTrusteeStep(trusteeId: number, messagesBorsh: Uint8Array): TrusteeStepResult {
+        return this.wasm.trustee_step_js(trusteeId, messagesBorsh)
     }
 }

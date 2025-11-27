@@ -59,6 +59,7 @@ import {TemplateList} from "./resources/Template/TemplateList"
 import {TemplateCreate} from "./resources/Template/TemplateCreate"
 import ListReports from "./resources/Reports/ListReports"
 import {SelectTenant} from "./screens/SelectTenant"
+import {TrusteesLogsScreen} from "./screens/TrusteesLogsScreen"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
@@ -151,6 +152,7 @@ const App: React.FC<AppProps> = () => {
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/messages" element={<Messages />} />
+                    <Route path="/trustees" element={<TrusteesLogsScreen />} />
                     <Route path="/settings/*" element={<SettingsScreen />} />
                 </CustomRoutes>
 

@@ -1256,6 +1256,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "b3-messages"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "borsh",
+ "hex",
+ "serde",
+ "strand",
+ "strum 0.27.2",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1508,12 +1520,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "braid-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "b3-messages",
+ "base64 0.22.1",
+ "crepe",
+ "hex",
+ "log",
+ "serde",
+ "strand",
+ "strum 0.27.2",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "braid-wasm"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
+ "b3-messages",
  "base64 0.22.1",
+ "braid-core",
  "console_error_panic_hook",
  "getrandom 0.2.16",
  "hex",

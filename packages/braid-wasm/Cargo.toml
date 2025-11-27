@@ -29,6 +29,8 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 js-sys = "0.3"
 aes-gcm = "0.10"
 strand = { path = "../strand", features = ["wasm"] }
+braid-core  = { path = "../braid-core" }
+b3-messages = { path = "../b3-messages" }
 rand = "0.8"
 pbkdf2 = "0.12"
 sha2 = "0.10"
