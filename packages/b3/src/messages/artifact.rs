@@ -20,12 +20,10 @@ use strand::signature::StrandSignaturePk;
 use strand::symm;
 use strand::{context::Ctx, elgamal::Ciphertext};
 
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct Configuration<C: Ctx> {
-
-/// Metadata describing a large protocol artifact stored out-of-band in S3/Minio rather than inline in B3.
-/// This is intended for use by higher-level services (Harvest, browser trustees) when referencing
-/// ballots, mixes, decryption factors, plaintexts, etc., that live in object storage.
+/// Metadata describing a large protocol artifact stored out-of-band in S3/Minio
+/// rather than inline in B3. This is intended for use by higher-level services
+/// (Harvest, browser trustees) when referencing ballots, mixes, decryption
+/// factors, plaintexts, etc., that live in object storage.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactEnvelope {
     /// S3 bucket name where the artifact is stored.
@@ -42,6 +40,8 @@ pub struct ArtifactEnvelope {
     pub kind: String,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub struct Configuration<C: Ctx> {
     pub id: u128,
     pub protocol_manager: StrandSignaturePk,
     pub trustees: Vec<StrandSignaturePk>,
@@ -97,7 +97,6 @@ impl<C: Ctx> Configuration<C> {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
 pub struct Channel<C: Ctx> {
     // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
     pub channel_pk: C::E,

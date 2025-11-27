@@ -188,7 +188,7 @@ export const WasmDownloadStep: React.FC<WasmDownloadStepProps> = ({
                     )}
                 </WizardStyles.MainContent>
 
-                <WizardStyles.NavigationButtons>
+                <WizardStyles.Toolbar>
                     <WizardStyles.BackButton
                         onClick={goBack}
                         startIcon={<ArrowBackIosIcon />}
@@ -206,57 +206,62 @@ export const WasmDownloadStep: React.FC<WasmDownloadStepProps> = ({
                     >
                         {t("common.next")}
                     </WizardStyles.NextButton>
-                </WizardStyles.NavigationButtons>
+                </WizardStyles.Toolbar>
             </WizardStyles.ContentBox>
 
             <Dialog
-                title={t("keysGeneration.downloadStep.confirmdDialog.title")}
-                cancelLabel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
-                okLabel={t("keysGeneration.downloadStep.confirmdDialog.confirm")}
+                variant="info"
                 open={openConfirmationModal}
+                ok={String(t("keysGeneration.downloadStep.confirmdDialog.ok"))}
+                cancel={String(t("keysGeneration.downloadStep.confirmdDialog.cancel"))}
+                title={String(t("keysGeneration.downloadStep.confirmdDialog.title"))}
                 okEnabled={() => firstCheckbox && secondCheckbox}
-                handleClose={result => {
-                    if (result && firstCheckbox && secondCheckbox) {
-                        setOpenConfirmationModal(false)
-                        goNext()
-                    } else if (result) {
-                        notify(
-                            t("keysGeneration.downloadStep.confirmdDialog.confirmError"),
-                            {type: "error"}
-                        )
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        if (firstCheckbox && secondCheckbox) {
+                            goNext()
+                            setOpenConfirmationModal(false)
+                        } else {
+                            notify(t("keysGeneration.downloadStep.confirmdDialog.confirmError"), {
+                                type: "error",
+                            })
+                        }
                     } else {
-                        setOpenConfirmationModal(false)
                         setCheckboxState({
                             firstCheckbox: false,
                             secondCheckbox: false,
                         })
+                        setOpenConfirmationModal(false)
                     }
                 }}
             >
+                <Typography variant="body1">
+                    {t("keysGeneration.downloadStep.confirmdDialog.description")}
+                </Typography>
                 <FormGroup>
                     <FormControlLabel
                         control={
                             <Checkbox
+                                key="firstCheckbox"
                                 checked={firstCheckbox}
                                 onChange={handleCheckboxChange}
                                 name="firstCheckbox"
-                                color="primary"
                                 className="keys-download-first-checkbox"
                             />
                         }
-                        label={t("keysGeneration.downloadStep.confirmdDialog.firstCopy")}
+                        label={String(t("keysGeneration.downloadStep.confirmdDialog.firstCopy"))}
                     />
                     <FormControlLabel
                         control={
                             <Checkbox
+                                key="secondCheckbox"
                                 checked={secondCheckbox}
                                 onChange={handleCheckboxChange}
                                 name="secondCheckbox"
-                                color="primary"
                                 className="keys-download-second-checkbox"
                             />
                         }
-                        label={t("keysGeneration.downloadStep.confirmdDialog.secondCopy")}
+                        label={String(t("keysGeneration.downloadStep.confirmdDialog.secondCopy"))}
                     />
                 </FormGroup>
             </Dialog>
