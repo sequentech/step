@@ -262,3 +262,21 @@ export const InvalidVote: Story = {
         },
     },
 }
+
+export const PreferentialVote: Story = {
+    args: {
+        children: <Image src={CandidateImg} duration={100} />,
+        title: "Micky Mouse",
+        description: "Candidate Description",
+        isSelectable: true,
+        checked: true,
+        url: "https://google.com",
+        isPreferentialVote: true,
+        totalCandidates: 10,
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}

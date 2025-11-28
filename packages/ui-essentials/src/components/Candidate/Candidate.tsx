@@ -182,6 +182,8 @@ const Candidate: React.FC<CandidateProps> = ({
         return `${num}${t("candidate.preferential.ordinals.other")}`
     }
 
+    const scrollablePreferentialVote = totalCandidates > 4
+
     return (
         <BorderBox
             isSelectable={!!isSelectable}
@@ -251,6 +253,15 @@ const Candidate: React.FC<CandidateProps> = ({
                             return getOrdinalSuffix(value)
                         }
                         return t("candidate.preferential.position")
+                    }}
+                    MenuProps={{
+                        PaperProps: {
+                            style: {
+                                maxHeight: 200,
+                                overflowY: scrollablePreferentialVote ? "auto" : "visible",
+                            },
+                        },
+                        autoFocus: false,
                     }}
                     sx={{
                         "minWidth": 120,
