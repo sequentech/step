@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
@@ -692,41 +691,4 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
-}
-
-/// Returns the private signing key for the given voter.
-///
-/// The private key is generated and a log post
-/// is published with the corresponding public key
-/// (with StatementType::AdminPublicKey).
-///
-/// There is a possibility that the private key is created
-/// but the notification fails. This is logged in
-/// electorallog::post_voter_pk
-#[instrument(err)]
-pub async fn get_voter_signing_key(
-    hasura_transaction: &Transaction<'_>,
-    elog_database: &str,
-    tenant_id: &str,
-    event_id: &str,
-    user_id: &str,
-    area_id: &str,
-) -> Result<StrandSignatureSk> {
-    info!("Generating private signing key for voter {}", user_id);
-    let sk = StrandSignatureSk::gen()?;
-    let pk = StrandSignaturePk::from_sk(&sk)?;
-    let pk = pk.to_der_b64_string()?;
-
-    ElectoralLog::post_voter_pk(
-        hasura_transaction,
-        elog_database,
-        tenant_id,
-        event_id,
-        user_id,
-        &pk,
-        area_id,
-    )
-    .await?;
-
-    Ok(sk)
 }

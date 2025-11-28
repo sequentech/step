@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {IVotingPortalCountdownPolicy} from "./CoreTypes"
-import {ILanguageConf} from "./LanguageConf"
+import { IVotingPortalCountdownPolicy } from "./CoreTypes"
+import { ILanguageConf } from "./LanguageConf"
 
 export interface IElectionEventMaterials {
     activated?: boolean
@@ -98,12 +98,13 @@ export interface IElectionEventPresentation {
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
     keys_ceremony_policy?: KeysCeremonyPolicy
-    locked_down: EElectionEventLockedDown
-    contest_encryption_policy: EElectionEventContestEncryptionPolicy
-    publish_policy: EElectionEventPublishPolicy
-    enrollment: EElectionEventEnrollment
-    otp: EElectionEventOTP
-    ceremonies_policy: EElectionEventCeremoniesPolicy
-    weighted_voting_policy: EElectionEventWeightedVotingPolicy
+    locked_down?: EElectionEventLockedDown
+    contest_encryption_policy?: EElectionEventContestEncryptionPolicy
+    publish_policy?: EElectionEventPublishPolicy
+    enrollment?: EElectionEventEnrollment
+    otp?: EElectionEventOTP
+    ceremonies_policy?: EElectionEventCeremoniesPolicy
+    weighted_voting_policy?: EElectionEventWeightedVotingPolicy
+    voter_signing_policy?: EVoterSigningPolicy
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
 }

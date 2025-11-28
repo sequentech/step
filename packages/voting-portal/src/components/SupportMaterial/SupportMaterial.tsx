@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -9,7 +9,7 @@ import {useTranslation} from "react-i18next"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {GET_DOCUMENT} from "../../queries/GetDocument"
-import {useQuery} from "@apollo/client"
+import {useQuery} from "@apollo/client/react"
 import VideoFileIcon from "@mui/icons-material/VideoFile"
 import AudioFileIcon from "@mui/icons-material/AudioFile"
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf"
