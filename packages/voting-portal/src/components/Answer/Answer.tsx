@@ -41,7 +41,7 @@ export interface IAnswerProps {
     index: number
     ballotStyle: IBallotStyle
     hasCategory?: boolean
-    isActive: boolean
+    isSelectable: boolean
     iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     isReview: boolean
     isInvalidVote?: boolean
@@ -62,7 +62,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     contestId,
     ballotStyle,
     hasCategory,
-    isActive,
+    isSelectable,
     iconCheckboxPolicy,
     isReview,
     isInvalidVote: isInvalidVoteInput,
@@ -141,7 +141,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const handlePreferentialChange = (position: number | null) => {
-        if (!isActive || isReview) {
+        if (!isSelectable || isReview) {
             return
         }
         setIsTouched(true)
@@ -161,7 +161,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         )
     }
     const setChecked = (value: boolean) => {
-        if (!isActive || isReview || isPreferentialVote) {
+        if (!isSelectable || isReview || isPreferentialVote) {
             return
         }
         setIsTouched(true)
@@ -213,7 +213,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const allowWriteIns = question && checkAllowWriteIns(question)
 
     const setWriteInText = (writeInText: string): void => {
-        if (!isWriteIn || !allowWriteIns || !isActive || isReview) {
+        if (!isWriteIn || !allowWriteIns || !isSelectable || isReview) {
             return
         }
         let cleanedText = normalizeWriteInText(writeInText)
@@ -245,7 +245,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             totalCandidates={totalCandidates}
             title={translate(answer, "name", i18n.language)}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
-            isActive={isActive}
+            isSelectable={isSelectable}
             checked={isChecked()}
             setChecked={setChecked}
             url={infoUrl}
