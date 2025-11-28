@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { IVotingPortalCountdownPolicy } from "./CoreTypes"
-import { ILanguageConf } from "./LanguageConf"
+import {IVotingPortalCountdownPolicy} from "./CoreTypes"
+import {ILanguageConf} from "./LanguageConf"
 
 export interface IElectionEventMaterials {
     activated?: boolean

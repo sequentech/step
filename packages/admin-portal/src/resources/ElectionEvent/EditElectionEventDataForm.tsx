@@ -30,17 +30,17 @@ import {
     Box,
     Typography,
 } from "@mui/material"
-import { styled } from "@mui/material/styles"
+import {styled} from "@mui/material/styles"
 import DownloadIcon from "@mui/icons-material/Download"
 import VideoCallIcon from "@mui/icons-material/VideoCall"
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react"
+import React, {useCallback, useContext, useEffect, useMemo, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import { ETemplateType } from "@/types/templates"
-import { useTranslation } from "react-i18next"
-import { CustomTabPanel } from "@/components/CustomTabPanel"
-import { ElectionHeaderStyles } from "@/components/styles/ElectionHeaderStyles"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { IPermissions } from "@/types/keycloak"
+import {ETemplateType} from "@/types/templates"
+import {useTranslation} from "react-i18next"
+import {CustomTabPanel} from "@/components/CustomTabPanel"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 import {
     ElectionsOrder,
     IElectionEventPresentation,
@@ -58,11 +58,11 @@ import {
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
 } from "@sequentech/ui-core"
-import { ListActions } from "@/components/ListActions"
-import { ImportDataDrawer } from "@/components/election-event/import-data/ImportDataDrawer"
-import { ListSupportMaterials } from "../SupportMaterials/ListSuportMaterial"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { TVotingSetting } from "@/types/settings"
+import {ListActions} from "@/components/ListActions"
+import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
+import {ListSupportMaterials} from "../SupportMaterials/ListSuportMaterial"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {TVotingSetting} from "@/types/settings"
 import {
     ImportCandidatesMutation,
     Sequent_Backend_Election,
@@ -70,28 +70,28 @@ import {
     SetCustomUrlsMutation,
     Sequent_Backend_Template,
 } from "@/gql/graphql"
-import { ElectionStyles } from "@/components/styles/ElectionStyles"
-import { FetchResult, useMutation } from "@apollo/client"
-import { IMPORT_CANDIDTATES } from "@/queries/ImportCandidates"
+import {ElectionStyles} from "@/components/styles/ElectionStyles"
+import {FetchResult, useMutation} from "@apollo/client"
+import {IMPORT_CANDIDTATES} from "@/queries/ImportCandidates"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
-import { convertToNumber } from "@/lib/helpers"
-import { ExportElectionEventDrawer } from "../../components/election-event/export-data/ExportElectionEventDrawer"
-import { ManagedNumberInput } from "@/components/managed-inputs/ManagedNumberInput"
-import { ETasksExecution } from "@/types/tasksExecution"
-import { useWidgetStore } from "@/providers/WidgetsContextProvider"
-import { SettingsContext } from "@/providers/SettingsContextProvider"
-import { SET_CUSTOM_URLS } from "@/queries/SetCustomUrls"
-import { getAuthUrl } from "@/services/UrlGeneration"
-import { WizardStyles } from "@/components/styles/WizardStyles"
-import { CustomUrlsStyle } from "@/components/styles/CustomUrlsStyle"
-import { StatusChip } from "@/components/StatusChip"
-import { JsonEditor, UpdateFunction } from "json-edit-react"
-import { CustomFilter } from "@/types/filters"
-import { SET_VOTER_AOTHENTICATION } from "@/queries/SetVoterAuthentication"
-import { GoogleMeetLinkGenerator } from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
+import {convertToNumber} from "@/lib/helpers"
+import {ExportElectionEventDrawer} from "../../components/election-event/export-data/ExportElectionEventDrawer"
+import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput"
+import {ETasksExecution} from "@/types/tasksExecution"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {SET_CUSTOM_URLS} from "@/queries/SetCustomUrls"
+import {getAuthUrl} from "@/services/UrlGeneration"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
+import {StatusChip} from "@/components/StatusChip"
+import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {CustomFilter} from "@/types/filters"
+import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
+import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
-    enabled_languages?: { [key: string]: boolean }
+    enabled_languages?: {[key: string]: boolean}
     defaultLanguage?: string
     electionsOrder?: Array<Sequent_Backend_Election>
 } & Sequent_Backend_Election_Event
@@ -106,11 +106,11 @@ const ElectionRows = styled("div")`
 `
 
 export const EditElectionEventDataForm: React.FC = () => {
-    const { t } = useTranslation()
+    const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    const { globalSettings } = useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
 
@@ -139,7 +139,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
-    const [customUrlsValues, setCustomUrlsValues] = useState({ login: "", enrollment: "", saml: "" })
+    const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [customEnrollmentRes, setCustomEnrollmentRes] =
         useState<FetchResult<SetCustomUrlsMutation>>()
@@ -162,13 +162,13 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const [manageVoterAuthentication] = useMutation<SetCustomUrlsMutation>(SET_VOTER_AOTHENTICATION)
 
-    const { record: tenant } = useEditController({
+    const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
         redirect: false,
         undoable: false,
     })
-    const { data: elections } = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         filter: {
             tenant_id: record?.tenant_id,
             election_event_id: record?.id,
@@ -205,9 +205,9 @@ export const EditElectionEventDataForm: React.FC = () => {
             incoming: Sequent_Backend_Election_Event_Extended,
             languageSettings: Array<string>
         ): Sequent_Backend_Election_Event_Extended => {
-            const temp = { ...incoming }
+            const temp = {...incoming}
 
-            temp.presentation = { ...(incoming.presentation || {}) }
+            temp.presentation = {...(incoming.presentation || {})}
 
             // languages
             temp.enabled_languages = {}
@@ -222,7 +222,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             ) {
                 // if presentation has lang then set from event
                 for (const setting of languageSettings) {
-                    const enabled_item: { [key: string]: boolean } = {}
+                    const enabled_item: {[key: string]: boolean} = {}
 
                     const isInEnabled =
                         incomingLangConf?.enabled_language_codes?.find(
@@ -231,11 +231,11 @@ export const EditElectionEventDataForm: React.FC = () => {
 
                     enabled_item[setting] = !!isInEnabled
 
-                    temp.enabled_languages = { ...temp.enabled_languages, ...enabled_item }
+                    temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
                 }
             } else {
                 // if presentation has no lang then use always the default settings
-                temp.enabled_languages = { ...temp.enabled_languages }
+                temp.enabled_languages = {...temp.enabled_languages}
                 for (const item of languageSettings) {
                     temp.enabled_languages[item] = false
                 }
@@ -243,8 +243,8 @@ export const EditElectionEventDataForm: React.FC = () => {
 
             // Force English first
             if (temp.enabled_languages.en !== undefined) {
-                const { en, ...rest } = temp.enabled_languages
-                temp.enabled_languages = { en, ...rest }
+                const {en, ...rest} = temp.enabled_languages
+                temp.enabled_languages = {en, ...rest}
             }
 
             // delete incoming.voting_channels
@@ -293,7 +293,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const formValidator = (values: any): any => {
-        const errors: any = { dates: {} }
+        const errors: any = {dates: {}}
         return errors
     }
 
@@ -370,7 +370,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             if (parsedValue?.enabled_languages[lang]) {
                 tabNodes.push(
                     <CustomTabPanel key={lang} value={value} index={index}>
-                        <div style={{ marginTop: "16px" }}>
+                        <div style={{marginTop: "16px"}}>
                             <TextInput
                                 disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].name`}
@@ -402,7 +402,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             if (parsedValue?.enabled_languages[lang]) {
                 tabNodes.push(
                     <CustomTabPanel key={lang} value={valueMaterials} index={index}>
-                        <div style={{ marginTop: "16px" }}>
+                        <div style={{marginTop: "16px"}}>
                             <TextInput
                                 disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].materialsTitle`}
@@ -450,7 +450,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         setOpenImportCandidates(false)
         const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES, undefined)
         try {
-            let { data, errors } = await importCandidates({
+            let {data, errors} = await importCandidates({
                 variables: {
                     documentId,
                     electionEventId: record?.id,
@@ -460,13 +460,13 @@ export const EditElectionEventDataForm: React.FC = () => {
 
             if (errors) {
                 console.log(errors)
-                notify("Error importing candidates", { type: "error" })
+                notify("Error importing candidates", {type: "error"})
                 updateWidgetFail(currWidget.identifier)
                 return
             }
             setWidgetTaskId(currWidget.identifier, data?.import_candidates?.task_execution.id)
         } catch (err) {
-            notify("Error importing candidates", { type: "error" })
+            notify("Error importing candidates", {type: "error"})
             updateWidgetFail(currWidget.identifier)
         }
     }
@@ -484,7 +484,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         [record, languageSettings, parseValues]
     )
 
-    const defaultValues = useMemo(() => ({ electionsOrder: sortedElections }), [sortedElections])
+    const defaultValues = useMemo(() => ({electionsOrder: sortedElections}), [sortedElections])
 
     useEffect(() => {
         const enabledCount = Object.values(parsedValue?.enabled_languages ?? {}).filter(
@@ -571,7 +571,7 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const updateCustomFilters = (
         values: Sequent_Backend_Election_Event_Extended,
-        { newData }: UpdateFunctionProps
+        {newData}: UpdateFunctionProps
     ) => {
         values.presentation.custom_filters = newData
         setCustomFilters(newData as CustomFilter[])
@@ -746,7 +746,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 }
             >
                 <Accordion
-                    sx={{ width: "100%" }}
+                    sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-general"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -774,7 +774,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 </Accordion>
 
                 <Accordion
-                    sx={{ width: "100%" }}
+                    sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-language"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -804,7 +804,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 </Accordion>
 
                 <Accordion
-                    sx={{ width: "100%" }}
+                    sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-ballot-style"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -849,7 +849,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             )}
                         />
                         <FormDataConsumer>
-                            {({ formData, ...rest }) => {
+                            {({formData, ...rest}) => {
                                 return (
                                     formData?.presentation as IElectionEventPresentation | undefined
                                 )?.elections_order === ElectionsOrder.CUSTOM ? (
@@ -861,13 +861,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                                                 padding: "0.5rem 1rem",
                                                 fontWeight: "bold",
                                                 margin: 0,
-                                                display: { xs: "none", sm: "block" },
+                                                display: {xs: "none", sm: "block"},
                                             }}
                                         >
                                             {t("electionEventScreen.edit.reorder")}
                                         </Typography>
                                         <CustomOrderInput source="electionsOrder" />
-                                        <Box sx={{ width: "100%", height: "180px" }}></Box>
+                                        <Box sx={{width: "100%", height: "180px"}}></Box>
                                     </ElectionRows>
                                 ) : null
                             }}
@@ -892,7 +892,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 </Accordion>
 
                 <Accordion
-                    sx={{ width: "100%" }}
+                    sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-allowed"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -913,13 +913,13 @@ export const EditElectionEventDataForm: React.FC = () => {
                     </AccordionSummary>
                     <AccordionDetails>
                         <Grid container spacing={4}>
-                            <Grid size={{ xs: 12, md: 6 }}>{renderVotingChannels(parsedValue)}</Grid>
+                            <Grid size={{xs: 12, md: 6}}>{renderVotingChannels(parsedValue)}</Grid>
                         </Grid>
                     </AccordionDetails>
                 </Accordion>
 
                 <Accordion
-                    sx={{ width: "100%" }}
+                    sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-custom-urls"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -946,7 +946,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 <TextInput
                                     variant="standard"
                                     helperText={false}
-                                    sx={{ width: "300px" }}
+                                    sx={{width: "300px"}}
                                     source={`presentation.custom_urls.login`}
                                     label={""}
                                     onChange={(e) =>
@@ -981,7 +981,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 <TextInput
                                     variant="standard"
                                     helperText={false}
-                                    sx={{ width: "300px" }}
+                                    sx={{width: "300px"}}
                                     source={`presentation.custom_urls.enrollment`}
                                     label={""}
                                     onChange={(e) =>
@@ -1017,7 +1017,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 <TextInput
                                     variant="standard"
                                     helperText={false}
-                                    sx={{ width: "300px" }}
+                                    sx={{width: "300px"}}
                                     source={`presentation.custom_urls.saml`}
                                     label={""}
                                     onChange={(e) =>
@@ -1049,7 +1049,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 </Accordion>
 
                 <Accordion
-                    sx={{ width: "100%" }}
+                    sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-materials"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -1085,7 +1085,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 </Accordion>
 
                 <Accordion
-                    sx={{ width: "100%" }}
+                    sx={{width: "100%"}}
                     expanded={expanded === "voting-portal-countdown-policy"}
                     onChange={() =>
                         setExpanded((prev) =>
@@ -1167,7 +1167,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             sx={{
                                 fontWeight: "bold",
                                 margin: 0,
-                                display: { xs: "none", sm: "block" },
+                                display: {xs: "none", sm: "block"},
                             }}
                         >
                             {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
@@ -1242,7 +1242,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     padding: "1rem 0rem",
                                     fontWeight: "bold",
                                     margin: 0,
-                                    display: { xs: "none", sm: "block" },
+                                    display: {xs: "none", sm: "block"},
                                 }}
                             >
                                 {t("electionEventScreen.edit.custom_filters")}
@@ -1263,7 +1263,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     padding: "1rem 0rem",
                                     fontWeight: "bold",
                                     margin: 0,
-                                    display: { xs: "none", sm: "block" },
+                                    display: {xs: "none", sm: "block"},
                                 }}
                             >
                                 {t("electionEventScreen.edit.voter_authentication")}
@@ -1293,7 +1293,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 title="electionEventScreen.import.eetitle"
                 subtitle="electionEventScreen.import.eesubtitle"
                 paragraph="electionEventScreen.import.electionEventParagraph"
-                doImport={async () => { }}
+                doImport={async () => {}}
                 errors={null}
             />
 
