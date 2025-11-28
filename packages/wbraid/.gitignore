@@ -1,0 +1,30 @@
+# Database file
+wbraid.db
+wbraid.db-shm
+wbraid.db-wal
+
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+
+# WASM build output
+crates/client/pkg/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local

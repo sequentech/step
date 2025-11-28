@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+/target
+resources/test/git_bb.json
+/.metals
+result
+/.vscode
+/tla
+/demo
+Cargo.lock
+*.pdf
+*.ps1
+*.cmd
+trustee.toml
+pm.toml
+config.bin
+message_store
+.env

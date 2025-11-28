@@ -1,0 +1,52 @@
+[package]
+name = "wbraid-client"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wbraid-shared = { path = "../shared" }
+braid = { path = "../braid", default-features = false, features = ["wasm-core"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+
+# WASM bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# Web APIs
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "console",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Headers",
+    "IdbFactory",
+    "IdbDatabase",
+    "IdbObjectStore",
+    "IdbTransaction",
+    "IdbRequest",
+    "IdbTransactionMode",
+    "IdbCursorWithValue",
+] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json"] }
+
+# IndexedDB
+indexed_db_futures = "0.5"
+
+# Utilities
+getrandom = { version = "0.2", features = ["js"] }
+console_error_panic_hook = "0.1"
+serde-wasm-bindgen = "0.6"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

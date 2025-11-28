@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2022 Eduardo Robles <edu@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+# Codecov repository config file
+# https://docs.codecov.com/docs/codecov-yaml#repository-yaml
+comment:
+  # only post a comment on a PR if the code coverage changes
+  # https://docs.codecov.com/docs/codecovyml-reference#comment
+  require_changes: true
