@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b3::{
+use b4::{
     HttpB3Message,
     messages::{message::Message, statement::StatementType},
 };
@@ -42,11 +42,22 @@ impl VectorBoard {
     pub fn add(&mut self, message: Message) {
         let last_id: i64 = self.messages.len() as i64;
         let m = message.strand_serialize().unwrap();
-        self.messages.push(HttpB3Message {
-            id: last_id,
-            message: m,
-            version: "".to_string(),
-        });
+        
+        // Extract metadata from message
+        let sender_pk = message.sender.pk.to_der_b64_string().unwrap();
+        let statement_kind = message.statement.get_kind().to_string();
+        let batch: i32 = message.statement.get_batch_number().try_into().unwrap();
+        let mix_number: i32 = message.statement.get_mix_number().try_into().unwrap();
+        
+        self.messages.push(HttpB3Message::new(
+            last_id,
+            m,
+            "".to_string(),
+            sender_pk,
+            statement_kind,
+            batch,
+            mix_number,
+        ));
     }
 
     pub fn get(&self, last_message: i64) -> Vec<HttpB3Message> {

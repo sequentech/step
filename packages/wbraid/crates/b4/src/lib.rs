@@ -4,17 +4,7 @@
 
 pub mod messages;
 
-#[cfg(feature = "client")]
-pub mod client;
-
-#[cfg(feature = "native")]
-pub mod grpc;
-
-// Re-export HTTP message types for convenience (available in all builds)
-pub use messages::http_message::{HttpB3Message, HttpBoardMessages};
-
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
 use crate::messages::newtypes::Timestamp;
 
 pub fn timestamp() -> Timestamp {
@@ -42,3 +32,6 @@ pub(crate) fn timestamp_from_system_time(system_time: &SystemTime) -> Timestamp 
 pub fn get_schema_version() -> String {
     "1".to_string()
 }
+
+// Re-export HTTP message types for convenience
+pub use messages::http_message::{HttpB3Message, HttpBoardMessages};

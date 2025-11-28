@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use braid::protocol::board::grpc_m::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
+use braid::protocol::board::http::{HttpB3, HttpB3BoardParams, HttpB3Index};
 use braid::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
@@ -94,12 +94,12 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     braid::util::ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
 
-        let b3index = GrpcB3Index::new(&args.b3_url);
+        let b3index = HttpB3Index::new(&args.b3_url);
 
         let boards_result = b3index.get_boards().await;
         let boards: Vec<String> = match boards_result {
@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
                 Some(store_root.join(board_name)),
                 None,
             );
-            let board = GrpcB3BoardParams::new(&args.b3_url);
+            let board = HttpB3BoardParams::new(&args.b3_url).await;
 
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);

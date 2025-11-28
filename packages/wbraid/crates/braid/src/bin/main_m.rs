@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 
-use braid::protocol::board::grpc_m::GrpcB3Index;
+use braid::protocol::board::http::HttpB3Index;
 use clap::Parser;
 use std::collections::HashSet;
 use std::fs;
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
 /// Chunking
 ///
 /// Multiplexed requests will be chunked. Truncated responses from the bulletin board will be followed
-/// up. Chunking is controlled by the value b3::grpc::MAX_MESSAGE_SIZE.
+/// up. Chunking is controlled by the value b4::grpc::MAX_MESSAGE_SIZE.
 ///
 /// Example run command
 ///
@@ -146,10 +146,10 @@ async fn run(args: &Cli) -> Result<()> {
     );
 
     let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
-    let mut master = SessionMaster::new(&args.b3_url, factory, args.session_workers)?;
+    let mut master = SessionMaster::new(&args.b3_url, factory, args.session_workers).await?;
 
     loop {
-        let b3index = GrpcB3Index::new(&args.b3_url);
+        let b3index = HttpB3Index::new(&args.b3_url);
         let boards_result = b3index.get_boards().await;
 
         let Ok(mut boards) = boards_result else {

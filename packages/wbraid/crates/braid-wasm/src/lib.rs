@@ -36,7 +36,13 @@ impl Client {
         let size = data.len();
         
         // Phase 1: Initiate message upload
-        let response = self.bb_client.initiate_message(size).await?;
+        let response = self.bb_client.initiate_message(
+            size,
+            "unknown".to_string(),
+            "Unknown".to_string(),
+            0,
+            0,
+        ).await?;
         let message_id = response.message_id.clone();
 
         // Phase 2: Upload data
@@ -46,11 +52,25 @@ impl Client {
                 s3::upload_to_s3(upload_url, &data).await?;
                 
                 // Phase 3: Confirm S3 upload (no data in request)
-                self.bb_client.confirm_message(&message_id, None).await?;
+                self.bb_client.confirm_message(
+                    &message_id,
+                    None,
+                    "unknown".to_string(),
+                    "Unknown".to_string(),
+                    0,
+                    0,
+                ).await?;
             }
         } else {
             // Small message - send inline data in confirm request
-            self.bb_client.confirm_message(&message_id, Some(data.clone())).await?;
+            self.bb_client.confirm_message(
+                &message_id,
+                Some(data.clone()),
+                "unknown".to_string(),
+                "Unknown".to_string(),
+                0,
+                0,
+            ).await?;
         }
 
         // Cache locally
@@ -73,6 +93,10 @@ impl Client {
                 timestamp: 0, // Would need to store this
                 size: cached_data.len(),
                 content_type: wbraid_shared::ContentType::Inline { data: cached_data },
+                sender_pk: "unknown".to_string(),
+                statement_kind: "Unknown".to_string(),
+                batch: 0,
+                mix_number: 0,
             };
             return Ok(serde_wasm_bindgen::to_value(&message)?);
         }

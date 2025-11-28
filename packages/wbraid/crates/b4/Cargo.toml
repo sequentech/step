@@ -1,14 +1,22 @@
 [package]
-name = "wbraid-service"
+name = "b4"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 wbraid-shared = { path = "../shared" }
+strand = { path = "../strand" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+# Message types dependencies
+borsh = { version = "1.5", features = ["derive"] }
+strum = { version = "0.27", features = ["derive"] }
+hex = "0.4"
+base64 = "0.22"
+log = "0.4"
 
 # Web framework
 axum = "0.7"

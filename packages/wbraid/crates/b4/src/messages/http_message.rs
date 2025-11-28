@@ -17,14 +17,26 @@ pub struct HttpB3Message {
     pub message: Vec<u8>,
     /// Schema version for compatibility checking
     pub version: String,
+    /// Sender public key (base64-encoded DER SPKI)
+    pub sender_pk: String,
+    /// Statement kind (e.g., "Configuration", "PublicKey", "PublicKeySigned")
+    pub statement_kind: String,
+    /// Batch number
+    pub batch: i32,
+    /// Mix number
+    pub mix_number: i32,
 }
 
 impl HttpB3Message {
-    pub fn new(id: i64, message: Vec<u8>, version: String) -> Self {
+    pub fn new(id: i64, message: Vec<u8>, version: String, sender_pk: String, statement_kind: String, batch: i32, mix_number: i32) -> Self {
         HttpB3Message {
             id,
             message,
             version,
+            sender_pk,
+            statement_kind,
+            batch,
+            mix_number,
         }
     }
 }

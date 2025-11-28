@@ -1,0 +1,1 @@
+Invoke-RestMethod -Uri "http://localhost:3000/boards" -Method Post -ContentType "application/json" -Body '{"name":"protocoltest"}' | ConvertTo-Json

@@ -4,17 +4,18 @@
 
 use anyhow::Result;
 
-use b3::{HttpB3Message, HttpBoardMessages};
+use b4::{HttpB3Message, HttpBoardMessages};
 
-use b3::client::grpc::B3Client;
-use b3::messages::message::Message;
+use b4::client::grpc::B3Client;
+use b4::messages::message::Message;
+use strand::serialization::StrandDeserialize;
 
 use super::BoardFactory;
 
 /// A large upper bound on grpc message size.
 ///
 /// In practice, message size is constrained by the
-/// smaller value b3::grpc::MAX_MESSAGE_SIZE
+/// smaller value b4::grpc::MAX_MESSAGE_SIZE
 /// that determines chunking behaviour.
 const MAX_MESSAGE_SIZE: usize = 10 * 1024 * 1024 * 1024;
 
@@ -27,20 +28,20 @@ const GRPC_TIMEOUT: u64 = 5 * 60;
 /// the bulletin board. This client implements both
 /// the standard client functions (super::Board) as
 /// well as their multiplexing versions (super::BoardMulti)
-pub struct GrpcB3 {
+pub struct HttpB3 {
     client: B3Client,
 }
-impl GrpcB3 {
-    /// Constructs a GrpcB3 that will query the target url.
-    pub fn new(url: &str) -> GrpcB3 {
+impl HttpB3 {
+    /// Constructs a HttpB3 that will query the target url.
+    pub fn new(url: &str) -> HttpB3 {
         let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
-        GrpcB3 { client }
+        HttpB3 { client }
     }
 }
 
-impl super::BoardMulti for GrpcB3 {
-    type Factory = GrpcB3BoardParams;
+impl super::BoardMulti for HttpB3 {
+    type Factory = HttpB3BoardParams;
 
     async fn get_messages_multi(
         &self,
@@ -54,10 +55,18 @@ impl super::BoardMulti for GrpcB3 {
             .map(|bm| HttpBoardMessages {
                 board: bm.board,
                 messages: bm.messages.into_iter()
-                    .map(|gm| HttpB3Message {
-                        id: gm.id,
-                        message: gm.message,
-                        version: gm.version,
+                    .filter_map(|gm| {
+                        // Deserialize to extract metadata
+                        let msg = Message::strand_deserialize(&gm.message).ok()?;
+                        Some(HttpB3Message::new(
+                            gm.id,
+                            gm.message,
+                            gm.version,
+                            msg.sender.pk.to_der_b64_string().ok()?,
+                            msg.statement.get_kind().to_string(),
+                            msg.statement.get_batch_number().try_into().ok()?,
+                            msg.statement.get_mix_number().try_into().ok()?,
+                        ))
                     })
                     .collect(),
             })
@@ -73,8 +82,8 @@ impl super::BoardMulti for GrpcB3 {
     }
 }
 
-impl super::Board for GrpcB3 {
-    type Factory = GrpcB3BoardParams;
+impl super::Board for HttpB3 {
+    type Factory = HttpB3BoardParams;
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
         let messages = self.client.get_messages(board, last_id).await?;
 
@@ -82,10 +91,18 @@ impl super::Board for GrpcB3 {
         
         // Convert gRPC messages to HTTP messages
         let http_messages = messages.messages.into_iter()
-            .map(|gm| HttpB3Message {
-                id: gm.id,
-                message: gm.message,
-                version: gm.version,
+            .filter_map(|gm| {
+                // Deserialize to extract metadata
+                let msg = Message::strand_deserialize(&gm.message).ok()?;
+                Some(HttpB3Message::new(
+                    gm.id,
+                    gm.message,
+                    gm.version,
+                    msg.sender.pk.to_der_b64_string().ok()?,
+                    msg.statement.get_kind().to_string(),
+                    msg.statement.get_batch_number().try_into().ok()?,
+                    msg.statement.get_mix_number().try_into().ok()?,
+                ))
             })
             .collect();
 
@@ -105,15 +122,15 @@ impl super::Board for GrpcB3 {
 /// The bulletin board index lists all active and
 /// archived boards for which the protocol must be
 /// or has been run.
-pub struct GrpcB3Index {
+pub struct HttpB3Index {
     client: B3Client,
 }
-impl GrpcB3Index {
-    /// Constructs a GrpcB3Index that will query the target url.
-    pub fn new(url: &str) -> GrpcB3Index {
+impl HttpB3Index {
+    /// Constructs a HttpB3Index that will query the target url.
+    pub fn new(url: &str) -> HttpB3Index {
         let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
-        GrpcB3Index { client }
+        HttpB3Index { client }
     }
 
     /// Returns the list of active boards from the index.
@@ -133,7 +150,7 @@ impl GrpcB3Index {
     /// Whether the board name is valid, as defined in
     /// b3.
     fn is_board_name_valid(name: &str) -> bool {
-        if b3::grpc::validate_board_name(name).is_ok() {
+        if b4::grpc::validate_board_name(name).is_ok() {
             true
         } else {
             tracing::warn!("Received an invalid board name: {}", name);
@@ -142,37 +159,37 @@ impl GrpcB3Index {
     }
 }
 
-/// The parameters necessary to construct a GrpcB3 client.
+/// The parameters necessary to construct a HttpB3 client.
 ///
-/// This object serves as a GrpcB3 client factory,
+/// This object serves as a HttpB3 client factory,
 /// implementing BoardFactory and BoardFactoryMulti.
-pub struct GrpcB3BoardParams {
+pub struct HttpB3BoardParams {
     pub url: String,
 }
-impl GrpcB3BoardParams {
-    pub fn new(url: &str) -> GrpcB3BoardParams {
-        GrpcB3BoardParams {
+impl HttpB3BoardParams {
+    pub fn new(url: &str) -> HttpB3BoardParams {
+        HttpB3BoardParams {
             url: url.to_string(),
         }
     }
 }
 
-impl BoardFactory<GrpcB3> for GrpcB3BoardParams {
-    fn get_board(&self) -> GrpcB3 {
-        GrpcB3::new(&self.url)
+impl BoardFactory<HttpB3> for HttpB3BoardParams {
+    fn get_board(&self) -> HttpB3 {
+        HttpB3::new(&self.url)
     }
 }
-impl super::BoardFactoryMulti<GrpcB3> for GrpcB3BoardParams {
-    fn get_board(&self) -> GrpcB3 {
-        GrpcB3::new(&self.url)
+impl super::BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
+    fn get_board(&self) -> HttpB3 {
+        HttpB3::new(&self.url)
     }
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
 
-    use b3::grpc::B3Client;
-    use b3::grpc::GetMessagesRequest;
+    use b4::grpc::B3Client;
+    use b4::grpc::GetMessagesRequest;
     use serial_test::serial;
 
     #[tokio::test]

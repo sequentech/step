@@ -18,15 +18,15 @@ use crate::protocol::board::LocalBoard;
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
-use b3::HttpB3Message;
-use b3::messages::artifact::Channel;
-use b3::messages::artifact::Configuration;
-use b3::messages::artifact::DkgPublicKey;
-use b3::messages::artifact::Shares;
-use b3::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
-use b3::messages::message::Message;
-use b3::messages::newtypes::*;
-use b3::messages::statement::StatementType;
+use b4::HttpB3Message;
+use b4::messages::artifact::Channel;
+use b4::messages::artifact::Configuration;
+use b4::messages::artifact::DkgPublicKey;
+use b4::messages::artifact::Shares;
+use b4::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use b4::messages::message::Message;
+use b4::messages::newtypes::*;
+use b4::messages::statement::StatementType;
 use std::path::PathBuf;
 use strand::util::StrandError;
 
@@ -761,7 +761,7 @@ impl<C: Ctx> Trustee<C> {
 }
 
 /// Trustees can sign Messages
-impl<C: Ctx> b3::messages::message::Signer for Trustee<C> {
+impl<C: Ctx> b4::messages::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }

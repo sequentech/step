@@ -8,7 +8,7 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::protocol::board::grpc_m::GrpcB3;
+use braid::protocol::board::http::{HttpB3, HttpB3BoardParams};
 use braid::protocol::trustee::Trustee;
 use braid::verify::verifier::Verifier;
 
@@ -59,7 +59,8 @@ async fn main() -> Result<()> {
         None,
         None,
     );
-    let board = GrpcB3::new(&args.server_url);
+    let board_params = HttpB3BoardParams::new(&args.server_url).await;
+    let board = board_params.create_board(&args.board, None);
     let mut session = Verifier::new(trustee, board, &args.board);
     session.run().await?;
 

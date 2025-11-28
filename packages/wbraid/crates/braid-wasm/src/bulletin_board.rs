@@ -18,9 +18,22 @@ impl BulletinBoardClient {
         }
     }
 
-    pub async fn initiate_message(&self, size: usize) -> Result<InitiateMessageResponse, JsValue> {
+    pub async fn initiate_message(
+        &self,
+        size: usize,
+        sender_pk: String,
+        statement_kind: String,
+        batch: i32,
+        mix_number: i32,
+    ) -> Result<InitiateMessageResponse, JsValue> {
         let url = format!("{}/messages/initiate", self.base_url);
-        let request = InitiateMessageRequest { size };
+        let request = InitiateMessageRequest {
+            size,
+            sender_pk,
+            statement_kind,
+            batch,
+            mix_number,
+        };
 
         let response = self
             .client
@@ -40,9 +53,19 @@ impl BulletinBoardClient {
         &self,
         message_id: &str,
         data: Option<Vec<u8>>,
+        sender_pk: String,
+        statement_kind: String,
+        batch: i32,
+        mix_number: i32,
     ) -> Result<ConfirmMessageResponse, JsValue> {
         let url = format!("{}/messages/{}/confirm", self.base_url, message_id);
-        let request = ConfirmMessageRequest { data };
+        let request = ConfirmMessageRequest {
+            data,
+            sender_pk,
+            statement_kind,
+            batch,
+            mix_number,
+        };
 
         let response = self
             .client

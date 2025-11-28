@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/service", "crates/client", "crates/shared", "crates/braid", "crates/b3", "crates/strand"]
+members = ["crates/b4", "crates/braid-wasm", "crates/shared", "crates/braid", "crates/strand"]
 resolver = "2"
 
 [workspace.dependencies]

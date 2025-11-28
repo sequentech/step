@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 
-use board_messages::grpc::GrpcB3Message;
+use board_messages::grpc::HttpB3Message;
 use rusqlite::params;
 use rusqlite::Connection;
 use std::io::Write;
 use std::path::PathBuf;
 use tracing::{info, warn};
 
-use b3::messages::message::Message;
+use b4::messages::message::Message;
 use board_messages::grpc::client::B3Client;
 
 use strand::serialization::StrandDeserialize;
@@ -19,8 +19,8 @@ const MAX_MESSAGE_SIZE: usize = 1024 * 1024 * 1024;
 const GRPC_TIMEOUT: u64 = 5 * 60;
 const RETRIEVE_ALL_PERIOD: u64 = 5 * 60;
 
-impl super::Board for GrpcB3 {
-    type Factory = GrpcB3BoardParams;
+impl super::Board for HttpB3 {
+    type Factory = HttpB3BoardParams;
 
     async fn get_messages(&mut self, last_id: Option<i64>) -> Result<Vec<(Message, i64)>> {
         let messages = if self.store_root.is_some() {
@@ -54,14 +54,14 @@ impl super::Board for GrpcB3 {
     }
 }
 
-pub struct GrpcB3Index {
+pub struct HttpB3Index {
     client: B3Client,
 }
-impl GrpcB3Index {
-    pub fn new(url: &str) -> GrpcB3Index {
+impl HttpB3Index {
+    pub fn new(url: &str) -> HttpB3Index {
         let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
-        GrpcB3Index { client }
+        HttpB3Index { client }
     }
 
     pub async fn get_boards(&self) -> Result<Vec<String>> {
@@ -72,17 +72,17 @@ impl GrpcB3Index {
     }
 }
 
-pub struct GrpcB3 {
+pub struct HttpB3 {
     client: B3Client,
     pub(crate) board_name: String,
     store_root: Option<PathBuf>,
     step_counter: u64,
 }
-impl GrpcB3 {
-    pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3 {
+impl HttpB3 {
+    pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> HttpB3 {
         let client = B3Client::new(url, MAX_MESSAGE_SIZE, GRPC_TIMEOUT);
 
-        GrpcB3 {
+        HttpB3 {
             client,
             board_name: board_name.to_string(),
             store_root,
@@ -186,7 +186,7 @@ impl GrpcB3 {
     }
 
     // Returns all messages whose id > last_id.
-    async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<GrpcB3Message>> {
+    async fn get_remote_messages(&mut self, last_id: i64) -> Result<Vec<HttpB3Message>> {
         let messages = self.client.get_messages(&self.board_name, last_id).await?;
 
         let messages = messages.into_inner();
@@ -195,14 +195,14 @@ impl GrpcB3 {
     }
 }
 
-pub struct GrpcB3BoardParams {
+pub struct HttpB3BoardParams {
     url: String,
     board_name: String,
     store_root: Option<PathBuf>,
 }
-impl GrpcB3BoardParams {
-    pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> GrpcB3BoardParams {
-        GrpcB3BoardParams {
+impl HttpB3BoardParams {
+    pub fn new(url: &str, board_name: &str, store_root: Option<PathBuf>) -> HttpB3BoardParams {
+        HttpB3BoardParams {
             url: url.to_string(),
             board_name: board_name.to_string(),
             store_root,
@@ -210,9 +210,9 @@ impl GrpcB3BoardParams {
     }
 }
 
-impl super::BoardFactory<GrpcB3> for GrpcB3BoardParams {
-    async fn get_board(&self) -> Result<GrpcB3> {
-        Ok(GrpcB3::new(
+impl super::BoardFactory<HttpB3> for HttpB3BoardParams {
+    async fn get_board(&self) -> Result<HttpB3> {
+        Ok(HttpB3::new(
             &self.url,
             &self.board_name,
             self.store_root.clone(),

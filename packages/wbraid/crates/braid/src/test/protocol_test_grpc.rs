@@ -16,19 +16,19 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use b3::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
-use b3::messages::message::Message;
-use b3::messages::newtypes::PublicKeyHash;
-use b3::messages::newtypes::MAX_TRUSTEES;
-use b3::messages::newtypes::NULL_TRUSTEE;
-use b3::messages::statement::StatementType;
-use b3::messages::protocol_manager::ProtocolManager;
-use b3::client::pgsql::B3MessageRow;
-use b3::client::pgsql::PgsqlConnectionParams;
-use b3::client::pgsql::{self, PgsqlB3Client};
+use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
+use b4::messages::message::Message;
+use b4::messages::newtypes::PublicKeyHash;
+use b4::messages::newtypes::MAX_TRUSTEES;
+use b4::messages::newtypes::NULL_TRUSTEE;
+use b4::messages::statement::StatementType;
+use b4::messages::protocol_manager::ProtocolManager;
+use b4::client::pgsql::B3MessageRow;
+use b4::client::pgsql::PgsqlConnectionParams;
+use b4::client::pgsql::{self, PgsqlB3Client};
 
-use crate::protocol::board::grpc_m::GrpcB3;
-use crate::protocol::board::grpc_m::GrpcB3BoardParams;
+use crate::protocol::board::http::HttpB3;
+use crate::protocol::board::http::HttpB3BoardParams;
 
 use crate::protocol::session::Session;
 use crate::protocol::trustee::Trustee;
@@ -95,8 +95,8 @@ async fn run_protocol_test_grpc<C: Ctx + 'static>(
     let pks: Vec<StrandSignaturePk> = test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
     for t in test.trustees.into_iter() {
-        let board_params = GrpcB3BoardParams::new(B3_URL);
-        let session: Session<C, GrpcB3> = Session::new(TEST_BOARD, t, board_params);
+        let board_params = HttpB3BoardParams::new(B3_URL);
+        let session: Session<C, HttpB3> = Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }
 

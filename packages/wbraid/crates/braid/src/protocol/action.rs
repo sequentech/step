@@ -13,9 +13,9 @@ pub(self) use strand::context::Exponent;
 pub(self) use crate::protocol::datalog::NULL_HASH;
 pub(self) use crate::protocol::trustee::Trustee;
 pub(self) use crate::util::{ProtocolContext, ProtocolError};
-pub(self) use b3::messages::artifact::{DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares};
-pub(self) use b3::messages::message::Message;
-pub(self) use b3::messages::newtypes::*;
+pub(self) use b4::messages::artifact::{DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares};
+pub(self) use b4::messages::message::Message;
+pub(self) use b4::messages::newtypes::*;
 
 // Used by submodules
 use crate::util::dbg_hash;

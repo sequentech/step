@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/// Used to retrieve and post protocol messages to the board (gRPC).
+/// HTTP client for bulletin board using Service API
 #[cfg(feature = "native")]
-pub mod grpc_m;
+pub mod http;
 /// A LocalBoard is a trustee's view of a bulletin board.
 #[cfg(feature = "native")]
 pub mod local;
@@ -20,8 +20,8 @@ pub use local::LocalBoard;
 pub use wasm::WasmLocalBoard as LocalBoard;
 
 use anyhow::Result;
-use b3::messages::message::Message;
-use b3::HttpB3Message;
+use b4::messages::message::Message;
+use b4::HttpB3Message;
 
 /// Defines the interface with a bulletin board.
 ///
@@ -82,7 +82,7 @@ pub trait BoardMulti: Sized {
     fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> impl std::future::Future<Output = Result<(Vec<b3::HttpBoardMessages>, bool)>> + Send;
+    ) -> impl std::future::Future<Output = Result<(Vec<b4::HttpBoardMessages>, bool)>> + Send;
 
     fn insert_messages_multi(
         &self,

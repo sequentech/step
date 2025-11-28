@@ -11,11 +11,11 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use strand::context::Ctx;
 use strand::hash::Hash;
-use b3::messages::artifact::*;
-use b3::messages::message::{Message, VerifiedMessage};
-use b3::messages::statement::{Statement, StatementType};
-use b3::messages::newtypes::*;
-use b3::HttpB3Message;
+use b4::messages::artifact::*;
+use b4::messages::message::{Message, VerifiedMessage};
+use b4::messages::statement::{Statement, StatementType};
+use b4::messages::newtypes::*;
+use b4::HttpB3Message;
 use crate::util::ProtocolError;
 
 /// A WASM-compatible local board that mirrors the structure of LocalBoard

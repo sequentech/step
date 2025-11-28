@@ -7,7 +7,7 @@
 use super::*;
 use crate::protocol::datalog;
 use anyhow::Result;
-use b3::messages::artifact::Channel;
+use b4::messages::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 

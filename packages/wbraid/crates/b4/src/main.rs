@@ -38,10 +38,15 @@ async fn main() -> Result<()> {
         .allow_headers(Any);
 
     let app = Router::new()
-        .route("/messages/initiate", post(handlers::initiate_message))
-        .route("/messages/:id/confirm", post(handlers::confirm_message))
-        .route("/messages", get(handlers::list_messages))
-        .route("/messages/:id", get(handlers::get_message))
+        // Board management
+        .route("/boards", post(handlers::create_board))
+        .route("/boards", get(handlers::list_boards))
+        .route("/boards/:board", get(handlers::get_board))
+        // Message operations (board-specific)
+        .route("/boards/:board/messages/initiate", post(handlers::initiate_message))
+        .route("/boards/:board/messages/:id/confirm", post(handlers::confirm_message))
+        .route("/boards/:board/messages", get(handlers::list_messages))
+        .route("/boards/:board/messages/:id", get(handlers::get_message))
         .layer(cors)
         .with_state(state);
 

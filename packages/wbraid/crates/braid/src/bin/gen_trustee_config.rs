@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use base64::engine::general_purpose;
 use base64::Engine;
 use braid::protocol::trustee::TrusteeConfig;

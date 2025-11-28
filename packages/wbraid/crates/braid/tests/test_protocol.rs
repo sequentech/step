@@ -23,33 +23,12 @@ fn test_protocol_memory() {
         }
     }
 }
-/*
-#[tokio::test]
-#[ignore]
-async fn test_protocol_pgsql() {
-    braid::util::init_log(true);
-    let ctx = RistrettoCtx;
-
-    braid::test::protocol_test_pgsql::run(1000, 1, ctx).await;
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "rug")] {
-            let ctx = RugCtx::<RUGP2048>::default();
-            braid::test::protocol_test_pgsql::run(100, 1, ctx).await;
-        }
-    }
-} */
 
 #[tokio::test]
 #[ignore]
-async fn test_protocol_grpc() {
+async fn test_protocol_http() {
     braid::util::init_log(true);
     let ctx = RistrettoCtx;
 
-    braid::test::protocol_test_grpc::run(1000, 1, ctx).await;
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "rug")] {
-            let ctx = RugCtx::<RUGP2048>::default();
-            braid::test::protocol_test_pgsql::run(100, 1, ctx).await;
-        }
-    }
+    braid::test::protocol_test_http::run(1000, 1, ctx).await;
 }
