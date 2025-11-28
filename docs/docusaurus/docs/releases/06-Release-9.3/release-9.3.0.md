@@ -1,9 +1,9 @@
 ---
-id: release-next
-title: Release Notes next
+id: release-9.3.0
+title: Release Notes 9.3.0
 ---
 <!--
--- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
