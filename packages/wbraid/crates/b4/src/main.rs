@@ -47,9 +47,11 @@ async fn main() -> Result<()> {
         .route("/boards/:board/messages/:id/confirm", post(handlers::confirm_message))
         .route("/boards/:board/messages", get(handlers::list_messages))
         .route("/boards/:board/messages/:id", get(handlers::get_message))
-        // Multi-board operations
+        // Multi-board operations (GET)
         .route("/boards/messages/multi/get", post(handlers::get_messages_multi))
-        .route("/boards/messages/multi/put", post(handlers::put_messages_multi))
+        // Multi-board operations (PUT - S3 two-step flow)
+        .route("/boards/messages/multi/initiate", post(handlers::initiate_messages_multi))
+        .route("/boards/messages/multi/confirm", post(handlers::confirm_messages_multi))
         .layer(cors)
         .with_state(state);
 

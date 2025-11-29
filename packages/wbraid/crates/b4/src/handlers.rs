@@ -10,7 +10,8 @@ use wbraid_shared::{
     ContentType, GetMessageResponse, ListMessagesResponse, Message,
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest, ConfirmMessageResponse,
     GetMessagesMultiRequest, GetMessagesMultiResponse, BoardMessagesResponse,
-    PutMessagesMultiRequest, PutMessagesMultiResponse,
+    InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
+    ConfirmMessagesMultiRequest, ConfirmMessagesMultiResponse,
     MAX_INLINE_MESSAGE_SIZE,
 };
 
@@ -122,12 +123,14 @@ pub async fn initiate_message(
         // Large message - generate S3 upload URL
         let s3_key = format!("{}/messages/{}", board_name, message_id);
         
+        tracing::debug!("[S3] Generating upload URL for s3://{}/{}", state.bucket_name, s3_key);
         let upload_url = s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to generate upload URL: {}", e);
+                tracing::error!("[S3] Failed to generate upload URL: {}", e);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
+        tracing::debug!("[S3] Generated upload URL for board '{}' message {}", board_name, message_id);
 
         Ok(Json(InitiateMessageResponse {
             message_id,
@@ -204,6 +207,7 @@ pub async fn confirm_message(
         let s3_key = format!("{}/messages/{}", board_name, id);
         
         // Get object metadata from S3 to determine size
+        tracing::debug!("[S3] HEAD s3://{}/{}", state.bucket_name, s3_key);
         let size = match state.s3_client
             .head_object()
             .bucket(&state.bucket_name)
@@ -211,9 +215,13 @@ pub async fn confirm_message(
             .send()
             .await
         {
-            Ok(output) => output.content_length().unwrap_or(0) as usize,
+            Ok(output) => {
+                let size = output.content_length().unwrap_or(0) as usize;
+                tracing::debug!("[S3] Object found: {} bytes", size);
+                size
+            },
             Err(e) => {
-                tracing::error!("Failed to get S3 object metadata: {}", e);
+                tracing::error!("[S3] Failed to HEAD object: {}", e);
                 return Err(StatusCode::BAD_REQUEST);
             }
         };
@@ -273,12 +281,15 @@ pub async fn get_message(
 
     let download_url = match &message.content_type {
         ContentType::S3 { key } => {
-            Some(s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Failed to generate download URL: {}", e);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?)
+            {
+                tracing::debug!("[S3] Generating download URL for s3://{}/{}", state.bucket_name, key);
+                Some(s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("[S3] Failed to generate download URL: {}", e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?)
+            }
         }
         ContentType::Inline { .. } => None,
     };
@@ -361,88 +372,220 @@ pub async fn get_messages_multi(
     Ok(Json(GetMessagesMultiResponse { boards }))
 }
 
-pub async fn put_messages_multi(
+
+// Multi-board S3 two-step flow handlers
+
+pub async fn initiate_messages_multi(
     State(state): State<AppState>,
-    Json(req): Json<PutMessagesMultiRequest>,
-) -> Result<Json<PutMessagesMultiResponse>, StatusCode> {
-    use b4::messages::message::Message as B4Message;
-    use strand::serialization::StrandDeserialize;
+    Json(req): Json<InitiateMessagesMultiRequest>,
+) -> Result<Json<InitiateMessagesMultiResponse>, StatusCode> {
+    use wbraid_shared::{BoardInitiateResponse, MessageUploadInfo};
     
-    let total_messages: usize = req.requests.iter().map(|r| r.messages.len()).sum();
-    let board_count = req.requests.len();
-    tracing::info!(
-        "[MULTI-PUT] {} boards, {} total messages in single request",
-        board_count,
-        total_messages
-    );
+    let mut board_responses = Vec::new();
     
     for board_req in req.requests {
-        tracing::info!(
-            "  -> Board '{}': processing {} messages",
-            board_req.board,
-            board_req.messages.len()
-        );
+        let board_name = &board_req.board;
         
         // Validate board exists
-        db::get_board(&state.db, &board_req.board)
+        db::get_board(&state.db, board_name)
             .await
             .map_err(|e| {
-                tracing::error!("Failed to check board: {}", e);
+                tracing::error!("Failed to check board '{}': {}", board_name, e);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?
             .ok_or_else(|| {
-                tracing::error!("Board not found: {}", board_req.board);
+                tracing::error!("Board not found: {}", board_name);
                 StatusCode::NOT_FOUND
             })?;
         
-        let mut s3_count = 0;
-        let mut inline_count = 0;
+        let mut uploads = Vec::new();
         
-        for message_bytes in board_req.messages {
-            // Deserialize the B4 Message
-            let message = B4Message::strand_deserialize(&message_bytes)
-                .map_err(|e| {
-                    tracing::error!("Failed to deserialize message: {}", e);
-                    StatusCode::BAD_REQUEST
-                })?;
+        for msg_meta in board_req.messages {
+            let message_id = Uuid::new_v4().to_string();
+            let size = msg_meta.size;
             
-            // Extract metadata
-            let sender_pk = message.sender.pk.to_der_b64_string()
-                .map_err(|e| {
-                    tracing::error!("Failed to encode sender pk: {}", e);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
-            let statement_kind = message.statement.get_kind().to_string();
-            let batch: i32 = message.statement.get_batch_number().try_into()
-                .map_err(|_| StatusCode::BAD_REQUEST)?;
-            let mix_number: i32 = message.statement.get_mix_number().try_into()
-                .map_err(|_| StatusCode::BAD_REQUEST)?;
-            
-            let timestamp = Utc::now().timestamp();
-            let version = "1".to_string();
-            let size = message_bytes.len();
-            
-            // Determine if inline or S3
             if size > MAX_INLINE_MESSAGE_SIZE {
-                // S3 upload
-                let message_id = Uuid::new_v4().to_string();
-                let s3_key = format!("{}/messages/{}", board_req.board, message_id);
+                // Large message - generate S3 upload URL
+                let s3_key = format!("{}/messages/{}", board_name, message_id);
                 
-                // Upload to S3
-                state.s3_client
-                    .put_object()
+                tracing::debug!("[S3] Generating upload URL for s3://{}/{}", state.bucket_name, s3_key);
+                let upload_url = s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("[S3] Failed to generate upload URL for board '{}': {}", board_name, e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?;
+                tracing::debug!("[S3] Generated upload URL for board '{}'", board_name);
+                
+                uploads.push(MessageUploadInfo {
+                    message_id,
+                    upload_url: Some(upload_url),
+                    should_upload: true,
+                });
+            } else {
+                // Small message - client should send data in confirm request
+                uploads.push(MessageUploadInfo {
+                    message_id,
+                    upload_url: None,
+                    should_upload: false,
+                });
+            }
+        }
+        
+        board_responses.push(BoardInitiateResponse {
+            board: board_name.clone(),
+            uploads,
+        });
+    }
+    
+    tracing::info!("[MULTI-INITIATE] Prepared {} boards for upload", board_responses.len());
+    
+    Ok(Json(InitiateMessagesMultiResponse {
+        boards: board_responses,
+    }))
+}
+
+pub async fn confirm_messages_multi(
+    State(state): State<AppState>,
+    Json(req): Json<ConfirmMessagesMultiRequest>,
+) -> Result<Json<ConfirmMessagesMultiResponse>, StatusCode> {
+    use wbraid_shared::ConfirmMessagesMultiResponse;
+    
+    let board_count = req.requests.len();
+    tracing::info!("[MULTI-CONFIRM] Confirming messages for {} boards", board_count);
+    
+    for board_req in req.requests {
+        let board_name = &board_req.board;
+        
+        // Validate board exists
+        db::get_board(&state.db, board_name)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check board '{}': {}", board_name, e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .ok_or_else(|| {
+                tracing::error!("Board not found: {}", board_name);
+                StatusCode::NOT_FOUND
+            })?;
+        
+        let timestamp = Utc::now().timestamp();
+        let version = "1".to_string();
+        
+        let mut inline_count = 0;
+        let mut s3_count = 0;
+        let confirmation_count = board_req.confirmations.len();
+        
+        for confirmation in board_req.confirmations {
+            let message_id = &confirmation.message_id;
+            
+            if let Some(data) = confirmation.data {
+                // Inline message - extract metadata from message data
+                inline_count += 1;
+                let size = data.len();
+                
+                // Deserialize to extract metadata
+                use strand::serialization::StrandDeserialize;
+                use b4::messages::message::Message as B4Message;
+                
+                let parsed_msg = B4Message::strand_deserialize(&data)
+                    .map_err(|e| {
+                        tracing::error!("Failed to deserialize message for board '{}': {}", board_name, e);
+                        StatusCode::BAD_REQUEST
+                    })?;
+                
+                let sender_pk = parsed_msg.sender.pk.to_der_b64_string()
+                    .map_err(|e| {
+                        tracing::error!("Failed to encode sender_pk for board '{}': {}", board_name, e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?;
+                let statement_kind = format!("{:?}", parsed_msg.statement.get_kind());
+                let batch: i32 = parsed_msg.statement.get_batch_number().try_into()
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let mix_number: i32 = parsed_msg.statement.get_mix_number().try_into()
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                
+                let content_type = ContentType::Inline { data: data.clone() };
+                
+                let msg = Message {
+                    id: message_id.clone(),
+                    timestamp,
+                    size,
+                    content_type,
+                    sender_pk: sender_pk.clone(),
+                    statement_kind: statement_kind.clone(),
+                    batch,
+                    mix_number,
+                };
+                
+                db::insert_message(
+                    &state.db,
+                    board_name,
+                    &msg,
+                    Some(data.as_slice()),
+                    None,
+                    &version,
+                    &sender_pk,
+                    &statement_kind,
+                    batch,
+                    mix_number,
+                )
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("Failed to insert inline message for board '{}': {}", board_name, e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?;
+            } else {
+                // S3 message - download to extract metadata
+                s3_count += 1;
+                let s3_key = format!("{}/messages/{}", board_name, message_id);
+                
+                // Download message from S3 to extract metadata
+                tracing::debug!("[S3] GET s3://{}/{} (multi-board confirm)", state.bucket_name, s3_key);
+                let obj = state.s3_client
+                    .get_object()
                     .bucket(&state.bucket_name)
                     .key(&s3_key)
-                    .body(message_bytes.clone().into())
                     .send()
                     .await
                     .map_err(|e| {
-                        tracing::error!("Failed to upload to S3: {}", e);
+                        tracing::error!("[S3] Failed to GET object for board '{}': {}", board_name, e);
+                        StatusCode::BAD_REQUEST
+                    })?;
+                
+                let bytes = obj.body.collect().await
+                    .map_err(|e| {
+                        tracing::error!("[S3] Failed to read object body for board '{}': {}", board_name, e);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
+                let data = bytes.to_vec();
+                let size = data.len();
+                tracing::debug!("[S3] Downloaded {} bytes from s3://{}/{}", size, state.bucket_name, s3_key);
+                
+                // Deserialize to extract metadata
+                use strand::serialization::StrandDeserialize;
+                use b4::messages::message::Message as B4Message;
+                
+                let parsed_msg = B4Message::strand_deserialize(&data)
+                    .map_err(|e| {
+                        tracing::error!("Failed to deserialize S3 message for board '{}': {}", board_name, e);
+                        StatusCode::BAD_REQUEST
+                    })?;
+                
+                let sender_pk = parsed_msg.sender.pk.to_der_b64_string()
+                    .map_err(|e| {
+                        tracing::error!("Failed to encode sender_pk for board '{}': {}", board_name, e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?;
+                let statement_kind = format!("{:?}", parsed_msg.statement.get_kind());
+                let batch: i32 = parsed_msg.statement.get_batch_number().try_into()
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
+                let mix_number: i32 = parsed_msg.statement.get_mix_number().try_into()
+                    .map_err(|_| StatusCode::BAD_REQUEST)?;
                 
                 let content_type = ContentType::S3 { key: s3_key.clone() };
-                let msg = wbraid_shared::Message {
+                
+                let msg = Message {
                     id: message_id.clone(),
                     timestamp,
                     size,
@@ -455,10 +598,10 @@ pub async fn put_messages_multi(
                 
                 db::insert_message(
                     &state.db,
-                    &board_req.board,
+                    board_name,
                     &msg,
                     None,
-                    Some(s3_key.as_str()),
+                    Some(&s3_key),
                     &version,
                     &sender_pk,
                     &statement_kind,
@@ -467,59 +610,23 @@ pub async fn put_messages_multi(
                 )
                     .await
                     .map_err(|e| {
-                        tracing::error!("Failed to insert S3 message: {}", e);
+                        tracing::error!("Failed to insert S3 message for board '{}': {}", board_name, e);
                         StatusCode::INTERNAL_SERVER_ERROR
                     })?;
-                
-                s3_count += 1;
-            } else {
-                // Inline storage
-                let message_id = Uuid::new_v4().to_string();
-                let content_type = ContentType::Inline { data: message_bytes.clone() };
-                
-                let msg = wbraid_shared::Message {
-                    id: message_id.clone(),
-                    timestamp,
-                    size,
-                    content_type,
-                    sender_pk: sender_pk.clone(),
-                    statement_kind: statement_kind.clone(),
-                    batch,
-                    mix_number,
-                };
-                
-                db::insert_message(
-                    &state.db,
-                    &board_req.board,
-                    &msg,
-                    Some(message_bytes.as_slice()),
-                    None,
-                    &version,
-                    &sender_pk,
-                    &statement_kind,
-                    batch,
-                    mix_number,
-                )
-                    .await
-                    .map_err(|e| {
-                        tracing::error!("Failed to insert inline message: {}", e);
-                        StatusCode::INTERNAL_SERVER_ERROR
-                    })?;
-                
-                inline_count += 1;
             }
         }
         
         tracing::info!(
-            "     Board '{}': stored {} messages (inline: {}, S3: {})",
-            board_req.board,
-            inline_count + s3_count,
+            "  -> Board '{}': confirmed {} messages (inline: {}, S3: {})",
+            board_name,
+            confirmation_count,
             inline_count,
             s3_count
         );
     }
     
-    tracing::info!("[MULTI-PUT] Complete: {} boards processed", board_count);
-    Ok(Json(PutMessagesMultiResponse { success: true }))
+    tracing::info!("[MULTI-CONFIRM] Complete: {} boards processed", board_count);
+    
+    Ok(Json(ConfirmMessagesMultiResponse { success: true }))
 }
 

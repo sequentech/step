@@ -493,44 +493,143 @@ impl super::BoardMulti for HttpB3 {
     }
 
     async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
-        use wbraid_shared::{PutMessagesMultiRequest, BoardPutRequest};
+        use wbraid_shared::{
+            InitiateMessagesMultiRequest, BoardInitiateRequest, MessageMetadata,
+            ConfirmMessagesMultiRequest, BoardConfirmRequest, MessageConfirmation,
+        };
         use strand::serialization::StrandSerialize;
         
-        // Build the multi-board put request
-        let mut put_requests = Vec::new();
-        
-        for (board_name, messages) in requests {
-            if !messages.is_empty() {
-                let serialized_messages: Result<Vec<Vec<u8>>> = messages
-                    .iter()
-                    .map(|msg| msg.strand_serialize().map_err(|e| anyhow::anyhow!("{}", e)))
-                    .collect();
-                
-                put_requests.push(BoardPutRequest {
-                    board: board_name,
-                    messages: serialized_messages?,
-                });
-            }
-        }
-        
-        if put_requests.is_empty() {
+        if requests.is_empty() {
             return Ok(());
         }
         
-        let multi_req = PutMessagesMultiRequest {
-            requests: put_requests,
+        // Phase 1: Initiate multi-board upload - get S3 URLs for all messages
+        let mut initiate_requests = Vec::new();
+        let mut messages_by_board: std::collections::HashMap<String, Vec<Message>> = std::collections::HashMap::new();
+        
+        for (board_name, messages) in requests {
+            if messages.is_empty() {
+                continue;
+            }
+            
+            let mut metadata_list = Vec::new();
+            for message in &messages {
+                let sender_pk = message.sender.pk.to_der_b64_string()?;
+                let statement_kind = message.statement.get_kind().to_string();
+                let batch: i32 = message.statement.get_batch_number().try_into()?;
+                let mix_number: i32 = message.statement.get_mix_number().try_into()?;
+                let message_bytes = message.strand_serialize()?;
+                
+                metadata_list.push(MessageMetadata {
+                    size: message_bytes.len(),
+                    sender_pk,
+                    statement_kind,
+                    batch,
+                    mix_number,
+                });
+            }
+            
+            initiate_requests.push(BoardInitiateRequest {
+                board: board_name.clone(),
+                messages: metadata_list,
+            });
+            
+            messages_by_board.insert(board_name, messages);
+        }
+        
+        let initiate_req = InitiateMessagesMultiRequest {
+            requests: initiate_requests,
         };
         
-        // Make single HTTP POST request for all boards
-        let url = format!("{}/boards/messages/multi/put", self.base_url);
+        let url = format!("{}/boards/messages/multi/initiate", self.base_url);
         let response = self.client
             .post(&url)
-            .json(&multi_req)
+            .json(&initiate_req)
             .send()
             .await?;
         
         if !response.status().is_success() {
-            anyhow::bail!("Failed to put messages multi: HTTP {}", response.status());
+            anyhow::bail!("Failed to initiate multi-board upload: HTTP {}", response.status());
+        }
+        
+        let initiate_response: wbraid_shared::InitiateMessagesMultiResponse = response.json().await?;
+        
+        // Phase 2: Upload messages (to S3 or prepare inline data)
+        let mut confirm_requests = Vec::new();
+        
+        for board_response in initiate_response.boards {
+            let board_name = &board_response.board;
+            let messages = messages_by_board.get(board_name)
+                .ok_or_else(|| anyhow::anyhow!("Missing messages for board {}", board_name))?;
+            
+            if messages.len() != board_response.uploads.len() {
+                anyhow::bail!(
+                    "Mismatch in message count for board {}: sent {}, got {} upload slots",
+                    board_name,
+                    messages.len(),
+                    board_response.uploads.len()
+                );
+            }
+            
+            let mut confirmations = Vec::new();
+            
+            for (message, upload_info) in messages.iter().zip(board_response.uploads.iter()) {
+                let message_bytes = message.strand_serialize()?;
+                
+                if upload_info.should_upload {
+                    // Large message - upload to S3
+                    if let Some(upload_url) = &upload_info.upload_url {
+                        let s3_response = self.client
+                            .put(upload_url)
+                            .body(message_bytes)
+                            .send()
+                            .await?;
+                        
+                        if !s3_response.status().is_success() {
+                            anyhow::bail!(
+                                "Failed to upload to S3 for board {}: HTTP {}",
+                                board_name,
+                                s3_response.status()
+                            );
+                        }
+                        
+                        // S3 message - no inline data in confirmation
+                        confirmations.push(MessageConfirmation {
+                            message_id: upload_info.message_id.clone(),
+                            data: None,
+                        });
+                    } else {
+                        anyhow::bail!("Server indicated upload needed but provided no URL");
+                    }
+                } else {
+                    // Small message - send inline in confirmation
+                    confirmations.push(MessageConfirmation {
+                        message_id: upload_info.message_id.clone(),
+                        data: Some(message_bytes),
+                    });
+                }
+            }
+            
+            confirm_requests.push(BoardConfirmRequest {
+                board: board_name.clone(),
+                confirmations,
+            });
+        }
+        
+        // Phase 3: Confirm all uploads
+        let confirm_req = ConfirmMessagesMultiRequest {
+            requests: confirm_requests,
+        };
+        
+        let url = format!("{}/boards/messages/multi/confirm", self.base_url);
+        let response = self.client
+            .post(&url)
+            .json(&confirm_req)
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to confirm multi-board upload: HTTP {}", response.status());
         }
         
         Ok(())

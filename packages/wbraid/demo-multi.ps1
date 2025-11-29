@@ -275,7 +275,7 @@ Write-Host "     Press ANY KEY to skip wait once DKG completes on all boards" -F
 Write-Host ""
 
 # Interruptible wait - user can press any key to continue
-$waitSeconds = 45
+$waitSeconds = 180
 $elapsed = 0
 while ($elapsed -lt $waitSeconds) {
     if ([Console]::KeyAvailable) {
@@ -307,6 +307,8 @@ cargo run --bin demo_tool --release -- post-ballots `
     --board-name $firstBoardName `
     --board-count $NumBoards `
     --ciphertexts $NumBallots `
+    --num-trustees $NumTrustees `
+    --threshold $Threshold `
     2>&1 | Out-Null
 
 if ($LASTEXITCODE -ne 0) {

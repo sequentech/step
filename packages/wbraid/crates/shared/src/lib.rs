@@ -111,7 +111,7 @@ pub struct ListMessagesResponse {
     pub messages: Vec<Message>,
 }
 
-// Multi-board request/response types
+// Multi-board request/response types (GET)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BoardMessageRequest {
     pub board: String,
@@ -135,19 +135,69 @@ pub struct GetMessagesMultiResponse {
     pub boards: Vec<BoardMessagesResponse>,
 }
 
+// Multi-board request/response types (PUT with S3 two-step flow)
+
+// Step 1: Initiate multi-board upload
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BoardPutRequest {
+pub struct MessageMetadata {
+    pub size: usize,
+    pub sender_pk: String,
+    pub statement_kind: String,
+    pub batch: i32,
+    pub mix_number: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardInitiateRequest {
     pub board: String,
-    pub messages: Vec<Vec<u8>>, // Serialized Message structs
+    pub messages: Vec<MessageMetadata>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PutMessagesMultiRequest {
-    pub requests: Vec<BoardPutRequest>,
+pub struct InitiateMessagesMultiRequest {
+    pub requests: Vec<BoardInitiateRequest>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PutMessagesMultiResponse {
+pub struct MessageUploadInfo {
+    pub message_id: String,
+    pub upload_url: Option<String>, // S3 pre-signed URL (None for inline messages)
+    pub should_upload: bool,         // true if client should upload to S3
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardInitiateResponse {
+    pub board: String,
+    pub uploads: Vec<MessageUploadInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InitiateMessagesMultiResponse {
+    pub boards: Vec<BoardInitiateResponse>,
+}
+
+// Step 2: Client uploads to S3 (no API call, direct S3 PUT)
+
+// Step 3: Confirm multi-board upload completion
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageConfirmation {
+    pub message_id: String,
+    pub data: Option<Vec<u8>>, // Only for inline messages (when should_upload was false)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardConfirmRequest {
+    pub board: String,
+    pub confirmations: Vec<MessageConfirmation>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfirmMessagesMultiRequest {
+    pub requests: Vec<BoardConfirmRequest>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfirmMessagesMultiResponse {
     pub success: bool,
 }
 
