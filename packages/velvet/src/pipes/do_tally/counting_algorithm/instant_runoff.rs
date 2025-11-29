@@ -8,6 +8,9 @@ use crate::pipes::do_tally::{
     counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
+use rand::prelude::IndexedRandom;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use rayon::vec;
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
@@ -247,7 +250,7 @@ impl RunoffStatus {
         self.rounds.last().cloned()
     }
 
-    #[instrument(skip_all)]
+    #[instrument]
     pub fn filter_candidates_by_number_of_wins(
         &self,
         candidates_wins: &CandidatesOutcomes,
@@ -287,7 +290,7 @@ impl RunoffStatus {
     /// Tries to reduce the candidates to eliminate by the look back rule.
     /// Returns a list of candidates to eliminate.
     /// When the list is reduced to 1 candidate, returns only that candidate, but if there is a tie, returns the latest reduced list.
-    #[instrument(skip_all)]
+    #[instrument]
     pub fn find_single_candidate_to_eliminate(
         &self,
         candidates_to_eliminate: &Vec<String>,
@@ -317,9 +320,48 @@ impl RunoffStatus {
         round_possible_losers
     }
 
+    pub fn determine_winner_by_lot(
+        &mut self,
+        candidates_to_eliminate: &Vec<String>,
+    ) -> Option<(CandidateReference, Vec<CandidateReference>)> {
+        // FULL TIE: All active candidates have the same (lowest) number of votes
+        // No meaningful elimination possible → winner decided by lot (random)
+        let mut rng = thread_rng();
+        let Some(winner_id) = candidates_to_eliminate.choose(&mut rng) else {
+            return None;
+        };
+        let winner_name = self.get_candidate_name(winner_id).unwrap_or_default();
+        info!(
+            "IRV full tie detected among {} candidates. Selecting winner by lot: {} ({})",
+            candidates_to_eliminate.len(),
+            winner_name,
+            winner_id
+        );
+
+        let winner = CandidateReference {
+            id: winner_id.to_string(),
+            name: winner_name.clone(),
+        };
+        // Mark all others as eliminated, keep only the random winner active
+        let mut eliminated = Vec::new();
+        for candidate_id in candidates_to_eliminate {
+            if candidate_id == winner_id {
+                continue;
+            }
+            self.candidates_status
+                .set_candidate_to_eliminated(candidate_id);
+            eliminated.push(CandidateReference {
+                id: candidate_id.to_string(),
+                name: self.get_candidate_name(candidate_id).unwrap_or_default(),
+            });
+        }
+        // Winner remains active, will be detected in next round or immediately
+        return Some((winner, eliminated));
+    }
+
     /// Returns which candidates were eliminated.
     /// Returns None if cannot do the eliminations because a tie was found.
-    #[instrument(skip_all)]
+    #[instrument]
     pub fn do_round_eliminations(
         &mut self,
         candidates_wins: &CandidatesOutcomes,
@@ -420,7 +462,7 @@ impl RunoffStatus {
 
         // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
-        if max_wins > act_ballots / 2 {
+        if 2 * max_wins > act_ballots {
             let winner_id = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
@@ -444,7 +486,16 @@ impl RunoffStatus {
                 let eliminated_candidates =
                     self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate);
                 let continue_next_round = eliminated_candidates.is_some();
-                round.eliminated_candidates = eliminated_candidates;
+                if let Some(eliminated_candidates) = eliminated_candidates {
+                    round.eliminated_candidates = Some(eliminated_candidates);
+                } else {
+                    if let Some((winner, eliminated_candidates)) =
+                        self.determine_winner_by_lot(&candidates_to_eliminate)
+                    {
+                        round.winner = Some(winner);
+                        round.eliminated_candidates = Some(eliminated_candidates);
+                    };
+                };
                 continue_next_round
             }
         };
@@ -455,6 +506,11 @@ impl RunoffStatus {
         round = self.fill_candidate_wins_names(&round);
         self.rounds.push(round);
         self.round_count += 1;
+
+        println!(
+            "FF: iteration, continue_next_round? {}",
+            continue_next_round
+        );
         return continue_next_round;
     }
 
@@ -485,8 +541,10 @@ impl RunoffStatus {
     #[instrument(skip_all)]
     pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
         let mut iterations = 0;
+        println!("FF: starting iterations. max_rounds {}", self.max_rounds);
         while self.run_next_round(ballots_status) && iterations < self.max_rounds {
             iterations += 1;
+            println!("FF: new iteration  {}", iterations);
         }
         self.name_references = self.order_name_references_by_result();
     }
