@@ -21,6 +21,11 @@ pub struct BoardResponse {
     pub status: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct BoardsListResponse {
+    pub boards: Vec<BoardResponse>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CreateBoardRequest {
     pub name: String,
@@ -71,7 +76,7 @@ pub async fn get_board(
 
 pub async fn list_boards(
     State(state): State<AppState>,
-) -> Result<Json<Vec<BoardResponse>>, StatusCode> {
+) -> Result<Json<BoardsListResponse>, StatusCode> {
     let boards = db::list_boards(&state.db)
         .await
         .map_err(|e| {
@@ -79,14 +84,16 @@ pub async fn list_boards(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(Json(boards
-        .into_iter()
-        .map(|b| BoardResponse {
-            name: b.name,
-            created_at: b.created_at,
-            status: b.status,
-        })
-        .collect()))
+    Ok(Json(BoardsListResponse {
+        boards: boards
+            .into_iter()
+            .map(|b| BoardResponse {
+                name: b.name,
+                created_at: b.created_at,
+                status: b.status,
+            })
+            .collect(),
+    }))
 }
 
 pub async fn initiate_message(

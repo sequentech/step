@@ -1,7 +1,7 @@
 # Database file
-wbraid.db
-wbraid.db-shm
-wbraid.db-wal
+b4.db
+b4.db-shm
+b4.db-wal
 
 # Rust
 target/

@@ -12,10 +12,10 @@ pub struct Board {
 }
 
 pub async fn init_db() -> Result<SqlitePool> {
-    // Use DATABASE_URL env var if set, otherwise default to wbraid.db in current directory
+    // Use DATABASE_URL env var if set, otherwise default to b4.db in current directory
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
         let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        path.push("wbraid.db");
+        path.push("b4.db");
         // Add mode=rwc to create the file if it doesn't exist
         format!("sqlite:{}?mode=rwc", path.display())
     });
@@ -33,7 +33,13 @@ pub async fn init_db() -> Result<SqlitePool> {
         CREATE TABLE IF NOT EXISTS boards (
             name TEXT PRIMARY KEY,
             created_at INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'active'
+            status TEXT NOT NULL DEFAULT 'active',
+            cfg_id TEXT,
+            threshold_no INTEGER,
+            trustees_no INTEGER,
+            last_message_kind TEXT,
+            message_count INTEGER DEFAULT 0,
+            batch_count INTEGER DEFAULT 0
         )
         "#,
     )
@@ -310,3 +316,72 @@ pub async fn get_messages_after(
 
     Ok((messages, truncated))
 }
+
+/// Update board metadata when Configuration is posted (similar to b3's update_index)
+pub async fn update_board_config_metadata(
+    pool: &SqlitePool,
+    board_name: &str,
+    cfg_id: &str,
+    threshold_no: i32,
+    trustees_no: i32,
+) -> Result<()> {
+    validate_board_name(board_name)?;
+    
+    sqlx::query(
+        r#"UPDATE boards 
+           SET cfg_id = ?, threshold_no = ?, trustees_no = ?
+           WHERE name = ?"#
+    )
+    .bind(cfg_id)
+    .bind(threshold_no)
+    .bind(trustees_no)
+    .bind(board_name)
+    .execute(pool)
+    .await?;
+    
+    Ok(())
+}
+
+/// Increment message count and update last_message_kind for a board
+pub async fn increment_board_message_count(
+    pool: &SqlitePool,
+    board_name: &str,
+    statement_kind: &str,
+) -> Result<()> {
+    validate_board_name(board_name)?;
+    
+    sqlx::query(
+        r#"UPDATE boards 
+           SET message_count = message_count + 1,
+               last_message_kind = ?
+           WHERE name = ?"#
+    )
+    .bind(statement_kind)
+    .bind(board_name)
+    .execute(pool)
+    .await?;
+    
+    Ok(())
+}
+
+/// Update batch count for a board
+pub async fn update_board_batch_count(
+    pool: &SqlitePool,
+    board_name: &str,
+    batch_count: i32,
+) -> Result<()> {
+    validate_board_name(board_name)?;
+    
+    sqlx::query(
+        r#"UPDATE boards 
+           SET batch_count = ?
+           WHERE name = ?"#
+    )
+    .bind(batch_count)
+    .bind(board_name)
+    .execute(pool)
+    .await?;
+    
+    Ok(())
+}
+

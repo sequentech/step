@@ -6,15 +6,19 @@ $env:S3_BUCKET_NAME="wbraid-messages"
 $env:AWS_FORCE_PATH_STYLE="true"
 $env:RUST_LOG="b4=info"
 
+# Set database URL to workspace root b4.db
+$workspaceRoot = Get-Location
+$env:DATABASE_URL="sqlite:$workspaceRoot\b4.db?mode=rwc"
+
 # Save current directory
 $originalDir = Get-Location
 
 try {
-    del .\crates\b4\wbraid.db -Force -ErrorAction SilentlyContinue
+    # Clean up old database in crates/b4 if it exists
+    del .\crates\b4\b4.db -Force -ErrorAction SilentlyContinue
     
-    # Run the service
-    cd crates/b4
-    cargo run
+    # Run the service from workspace root (not crates/b4)
+    cargo run --bin b4 --release
 }
 finally {
     # Always return to original directory

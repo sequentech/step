@@ -31,7 +31,7 @@ use strand::context::Ctx;
 ///
 /// SessionM's belong to a SessionSet, which
 /// is the unit of both session concurrency and multiplexing
-/// (see also SessionSet::run and main_m::run).
+/// (see also SessionSet::run and main_concurrent::run).
 /// SessionSets will create and drop SessionM's as necessary
 /// according to updates to the bulletin board index.
 pub struct SessionM<C: Ctx + 'static> {

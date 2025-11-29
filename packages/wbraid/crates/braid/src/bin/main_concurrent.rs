@@ -101,7 +101,7 @@ fn main() -> Result<()> {
 ///
 /// Example run command
 ///
-/// cargo run --release --bin main_m -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml
+/// cargo run --release --bin main_concurrent -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml
 ///
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {

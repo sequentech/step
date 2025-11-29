@@ -3,6 +3,18 @@ name = "b4"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "b4"
+path = "src/main.rs"
+
+[[bin]]
+name = "monitor"
+path = "src/monitor.rs"
+required-features = ["monitor"]
+
+[features]
+monitor = ["dep:cursive", "dep:clap"]
+
 [dependencies]
 wbraid-shared = { path = "../shared" }
 strand = { path = "../strand" }
@@ -17,6 +29,7 @@ strum = { version = "0.27", features = ["derive"] }
 hex = "0.4"
 base64 = "0.22"
 log = "0.4"
+cfg-if = "1.0"
 
 # Web framework
 axum = "0.7"
@@ -35,3 +48,7 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 chrono = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Monitor tool dependencies (optional)
+cursive = { version = "0.21", optional = true }
+clap = { version = "4.5", features = ["derive"], optional = true }

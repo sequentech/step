@@ -116,7 +116,7 @@ struct Cli {
 /// DropDb: Drops the entire SQLite database file.
 ///
 /// All database operations execute on the database specified by the DATABASE_URL env var
-/// or the --database-url argument (defaults to ./wbraid.db).
+/// or the --database-url argument (defaults to ./b4.db).
 #[derive(clap::ValueEnum, Clone)]
 enum Command {
     GenConfigs,
@@ -359,7 +359,7 @@ async fn init<C: Ctx>(
     let version = "1";
     
     // Extract metadata for database
-    let sender_pk = hex::encode(message.sender.pk.to_der()?);
+    let sender_pk = message.sender.pk.to_der_b64_string()?;
     let statement_kind = format!("{:?}", message.statement.get_kind());
     
     // Store inline in SQLite (no S3 for demo_tool)
@@ -374,6 +374,24 @@ async fn init<C: Ctx>(
     .bind(version)
     .bind(&sender_pk)
     .bind(&statement_kind)
+    .execute(pool)
+    .await?;
+    
+    // Update board metadata with configuration info (similar to b3's update_index)
+    sqlx::query(
+        r#"UPDATE boards 
+           SET cfg_id = ?, 
+               threshold_no = ?, 
+               trustees_no = ?,
+               message_count = message_count + 1,
+               last_message_kind = ?
+           WHERE name = ?"#
+    )
+    .bind(configuration.id.to_string())
+    .bind(configuration.threshold as i32)
+    .bind(configuration.trustees.len() as i32)
+    .bind(&statement_kind)
+    .bind(board_name)
     .execute(pool)
     .await?;
     
@@ -401,14 +419,14 @@ async fn post_ballots<C: Ctx>(
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<C>)?;
     let sender_pk_obj = StrandSignaturePk::from_sk(&pm.signing_key)?;
-    let sender_pk_hex = hex::encode(sender_pk_obj.to_der()?);
+    let sender_pk_b64 = sender_pk_obj.to_der_b64_string()?;
     
     // Check if ballots already exist
     let existing: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM messages WHERE board_name = ? AND statement_kind = 'Ballots' AND sender_pk = ?"
     )
     .bind(board_name)
-    .bind(&sender_pk_hex)
+    .bind(&sender_pk_b64)
     .fetch_one(pool)
     .await?;
     
@@ -424,18 +442,42 @@ async fn post_ballots<C: Ctx>(
         .map_err(|e| anyhow!("Could not read configuration {e:?}"))?;
 
     let trustee_pk = configuration.trustees.get(0).unwrap();
-    let trustee_pk_hex = hex::encode(trustee_pk.to_der()?);
+    let trustee_pk_b64 = trustee_pk.to_der_b64_string()?;
+    
+    info!("Looking for PublicKey from trustee: {}", trustee_pk_b64);
     
     // Get the public key message
-    let pk_row: Option<(Vec<u8>,)> = sqlx::query_as(
-        "SELECT inline_data FROM messages WHERE board_name = ? AND statement_kind = 'PublicKey' AND sender_pk = ? LIMIT 1"
+    let pk_row: Option<(String, Option<Vec<u8>>, Option<String>)> = sqlx::query_as(
+        "SELECT content_type, inline_data, s3_key FROM messages WHERE board_name = ? AND statement_kind = 'PublicKey' AND sender_pk = ? LIMIT 1"
     )
     .bind(board_name)
-    .bind(&trustee_pk_hex)
+    .bind(&trustee_pk_b64)
     .fetch_optional(pool)
     .await?;
+    
+    info!("PublicKey query result: {:?}", pk_row.is_some());
 
-    if let Some((pk_data,)) = pk_row {
+    if let Some((content_type, inline_data, s3_key)) = pk_row {
+        let pk_data = match content_type.as_str() {
+            "inline" => {
+                inline_data.ok_or_else(|| anyhow!("Inline PublicKey message has no data"))?
+            }
+            "s3" => {
+                let key = s3_key.ok_or_else(|| anyhow!("S3 PublicKey message has no key"))?;
+                let obj = s3_client
+                    .get_object()
+                    .bucket(bucket)
+                    .key(&key)
+                    .send()
+                    .await?;
+                let bytes = obj.body.collect().await?;
+                bytes.to_vec()
+            }
+            _ => {
+                return Err(anyhow!("Unknown content type for PublicKey: {}", content_type));
+            }
+        };
+        
         let message = Message::strand_deserialize(&pk_data)?;
         let bytes = message.artifact.unwrap();
         let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
@@ -474,7 +516,7 @@ async fn post_ballots<C: Ctx>(
             let message_bytes = message.strand_serialize()?;
             let timestamp = chrono::Utc::now().timestamp();
             let version = "1";
-            let sender_pk = hex::encode(message.sender.pk.to_der()?);
+            let sender_pk = message.sender.pk.to_der_b64_string()?;
             let statement_kind = format!("{:?}", message.statement.get_kind());
             
             sqlx::query(
@@ -492,6 +534,21 @@ async fn post_ballots<C: Ctx>(
             .execute(pool)
             .await?;
         }
+        
+        // Update board batch_count (similar to b3's approach)
+        sqlx::query(
+            r#"UPDATE boards 
+               SET batch_count = ?,
+                   message_count = message_count + ?,
+                   last_message_kind = ?
+               WHERE name = ?"#
+        )
+        .bind(batches as i32)
+        .bind(batches as i32)  // Added one message per batch
+        .bind("Ballots")
+        .bind(board_name)
+        .execute(pool)
+        .await?;
     } else {
         return Err(anyhow!(
             "Could not find public key or configuration artifact(s)"
@@ -503,14 +560,48 @@ async fn post_ballots<C: Ctx>(
 
 #[instrument(skip(pool))]
 async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<()> {
-    let rows: Vec<(Vec<u8>,)> = sqlx::query_as(
-        "SELECT inline_data FROM messages WHERE board_name = ? ORDER BY id ASC"
+    let rows: Vec<(String, Option<Vec<u8>>, Option<String>)> = sqlx::query_as(
+        "SELECT content_type, inline_data, s3_key FROM messages WHERE board_name = ? ORDER BY id ASC"
     )
     .bind(board_name)
     .fetch_all(pool)
     .await?;
 
-    for (message_data,) in rows {
+    // Get S3 client for downloading S3-stored messages
+    let s3_config = aws_sdk_s3::Config::builder()
+        .behavior_version_latest()
+        .region(aws_sdk_s3::config::Region::new(
+            std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string())
+        ))
+        .endpoint_url(
+            std::env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:4566".to_string())
+        )
+        .force_path_style(true)
+        .build();
+    let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
+    let bucket_name = std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+
+    for (content_type, inline_data, s3_key) in rows {
+        let message_data = match content_type.as_str() {
+            "inline" => {
+                inline_data.ok_or_else(|| anyhow!("Inline message has no data"))?
+            }
+            "s3" => {
+                let key = s3_key.ok_or_else(|| anyhow!("S3 message has no key"))?;
+                let obj = s3_client
+                    .get_object()
+                    .bucket(&bucket_name)
+                    .key(&key)
+                    .send()
+                    .await?;
+                let bytes = obj.body.collect().await?;
+                bytes.to_vec()
+            }
+            _ => {
+                return Err(anyhow!("Unknown content type: {}", content_type));
+            }
+        };
+
         let message = Message::strand_deserialize(&message_data)?;
         info!("message: {:?}", message);
     }
@@ -563,7 +654,7 @@ async fn init_clients(database_url: &Option<String>) -> Result<(SqlitePool, S3Cl
     let db_url = database_url.clone().or_else(|| env::var("DATABASE_URL").ok())
         .unwrap_or_else(|| {
             let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            path.push("wbraid.db");
+            path.push("b4.db");
             format!("sqlite:{}?mode=rwc", path.display())
         });
     
@@ -606,8 +697,14 @@ async fn init_clients(database_url: &Option<String>) -> Result<(SqlitePool, S3Cl
     ).execute(&pool).await?;
     
     // Initialize S3 client
-    let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let s3_config = aws_sdk_s3::config::Builder::from(&config)
+    let s3_config = aws_sdk_s3::Config::builder()
+        .behavior_version_latest()
+        .region(aws_sdk_s3::config::Region::new(
+            env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string())
+        ))
+        .endpoint_url(
+            env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:4566".to_string())
+        )
         .force_path_style(true)
         .build();
     let s3_client = S3Client::from_conf(s3_config);
@@ -645,7 +742,7 @@ async fn drop_database(database_url: &Option<String>) -> Result<()> {
     let db_path = database_url.clone().or_else(|| env::var("DATABASE_URL").ok())
         .unwrap_or_else(|| {
             let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            path.push("wbraid.db");
+            path.push("b4.db");
             path.display().to_string()
         });
     

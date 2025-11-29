@@ -145,7 +145,7 @@ async fn main() -> Result<()> {
             session_map.insert(board_name.clone(), session);
         }
 
-        // This code is sequential, see main_m for an alternative implementation
+        // This code is sequential, see main_concurrent for an alternative implementation
         for s in session_map.values_mut() {
             let board_name = s.board_name.clone();
 

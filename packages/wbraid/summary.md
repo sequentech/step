@@ -36,7 +36,7 @@ The bulletin board architecture has been completely migrated from the old b3 (gR
    - `src/s3.rs`: S3 client initialization and pre-signed URL generation
    - `src/handlers.rs`: HTTP endpoint handlers (boards, messages, uploads)
    - `src/state.rs`: Application state (DB pool + S3 client)
-   - `wbraid.db`: SQLite database file (auto-created)
+   - `b4.db`: SQLite database file (auto-created)
    - Database schema: `boards` table and `messages` table with inline/S3 content types
 
 3. **Braid Updates** (in `crates/braid/`):
@@ -56,13 +56,13 @@ The bulletin board architecture has been completely migrated from the old b3 (gR
 
 4. **Binary Updates**:
    - `src/bin/main.rs`: Single trustee, uses `HttpB3BoardParams::new().await` ✅
-   - `src/bin/main_m.rs`: Session master, uses async `SessionMaster::new().await` ✅
+   - `src/bin/main_concurrent.rs`: Session master, uses async `SessionMaster::new().await` ✅
    - `src/bin/verify.rs`: Verifier, uses `HttpB3BoardParams` and `board_params.create_board()` ✅
    - `src/bin/demo_tool.rs`: **MIGRATED** from PostgreSQL to SQLite + inline storage ✅
      - All commands working: GenConfigs, InitProtocol, PostBallots, ListMessages, ListBoards, DropDb
      - Uses direct SQLite queries via sqlx (no PostgreSQL dependencies)
      - Stores all message data inline in SQLite BLOB column (no S3 for simplicity)
-     - Environment-based config: Uses `DATABASE_URL` or defaults to `./wbraid.db`
+     - Environment-based config: Uses `DATABASE_URL` or defaults to `./b4.db`
 
 5. **S3 Integration**:
    - b4 server handles small messages inline (stored in SQLite)
@@ -74,7 +74,7 @@ The bulletin board architecture has been completely migrated from the old b3 (gR
 6. **Testing**:
    - ✅ Protocol test passing: `test_protocol_http` - Full DKG + encryption + mixing + decryption cycle
    - ✅ HTTP API test script: `test-multiboard.ps1` - Board creation, message posting, retrieval
-   - ✅ Main binaries compile: `main`, `main_m`, `verify`
+   - ✅ Main binaries compile: `main`, `main_concurrent`, `verify`
    - ✅ demo_tool compiles and ready for multi-process integration testing
    - ⚠️ Multi-process demo_tool testing: Not yet executed (next step)
    - ⚠️ Verifier binary: Not yet tested in real scenario (ready to test)
@@ -113,27 +113,39 @@ Completed: Trustees = 5, Threshold = 3, Ciphertexts = 1000
    - [ ] Confirm full protocol execution across processes
    - **Goal**: Validate that separate process communication works correctly
 
-2. **Verifier Binary Testing**:
+2. **Monitor Tool Testing**:
+   - [ ] Drop existing database to test with new schema (demo_tool drop-db)
+   - [ ] Run complete demo protocol (gen-configs → init → trustees → ballots)
+   - [ ] Launch monitor binary during protocol execution
+   - [ ] Verify board metadata displays correctly (trustees_no, threshold_no)
+   - [ ] Verify message_count increments properly
+   - [ ] Verify batch_count updates when ballots are posted
+   - [ ] Verify last_message_kind updates throughout protocol phases
+   - [ ] Confirm progress bars show DKG and tally phases correctly
+   - **Goal**: Validate board metadata tracking and monitor visualization
+   - **Note**: Monitor was migrated from b3's INDEX table approach to b4's boards table
+
+3. **Verifier Binary Testing**:
    - [ ] Run verifier against a completed protocol execution
    - [ ] Verify it correctly validates all signatures
    - [ ] Confirm it detects invalid data (negative test)
    - [ ] Test ballot inclusion verification (when implemented)
 
-3. **S3 Large Message Testing**:
+4. **S3 Large Message Testing**:
    - [ ] Test with messages > MAX_INLINE_MESSAGE_SIZE
    - [ ] Verify S3 upload flow with pre-signed URLs
    - [ ] Verify S3 download flow with pre-signed URLs
    - [ ] Confirm LocalStack S3 compatibility
    - **Note**: Currently MAX_INLINE_MESSAGE_SIZE = 0 (all S3), may need adjustment
 
-4. **Error Handling & Edge Cases**:
+5. **Error Handling & Edge Cases**:
    - [ ] Test board creation failures
    - [ ] Test message posting with invalid data
    - [ ] Test S3 connectivity failures
    - [ ] Test SQLite database corruption scenarios
    - [ ] Validate error messages are user-friendly
 
-5. **Performance Testing**:
+6. **Performance Testing**:
    - [ ] Benchmark HTTP vs old gRPC performance
    - [ ] Test with larger message counts (10k+ ciphertexts)
    - [ ] Profile S3 upload/download performance
@@ -332,7 +344,7 @@ Completed: Trustees = 5, Threshold = 3, Ciphertexts = 1000
 - [x] Create b4 HTTP server (SQLite + S3)
 - [x] Update SessionMaster for async board_params
 - [x] Update Verifier to use HttpB3
-- [x] Migrate main, main_m, verify binaries
+- [x] Migrate main, main_concurrent, verify binaries
 - [x] Migrate demo_tool from PostgreSQL to SQLite
 - [x] Remove grpc_m module
 - [x] Remove protocol_test_grpc.rs
@@ -357,7 +369,7 @@ Completed: Trustees = 5, Threshold = 3, Ciphertexts = 1000
 ### Recent Progress (November 28, 2025)
 - **Major Milestone**: Complete b3 → b4 migration achieved
 - Protocol test (`test_protocol_http`) passing with full DKG/encryption/decryption cycle
-- All main binaries (main, main_m, verify) building successfully
+- All main binaries (main, main_concurrent, verify) building successfully
 - demo_tool migrated and ready for multi-process integration testing
 - HTTP+S3 architecture fully functional and validated
 

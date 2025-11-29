@@ -3,19 +3,19 @@
 Write-Host "Cleaning up WBraid POC..." -ForegroundColor Yellow
 
 # Remove SQLite database
-if (Test-Path "crates/service/wbraid.db") {
-    Remove-Item "crates/service/wbraid.db" -Force
-    Write-Host "✓ Removed wbraid.db" -ForegroundColor Green
+if (Test-Path "crates/service/b4.db") {
+    Remove-Item "crates/service/b4.db" -Force
+    Write-Host "✓ Removed b4.db" -ForegroundColor Green
 }
 
-if (Test-Path "crates/service/wbraid.db-shm") {
-    Remove-Item "crates/service/wbraid.db-shm" -Force
-    Write-Host "✓ Removed wbraid.db-shm" -ForegroundColor Green
+if (Test-Path "crates/service/b4.db-shm") {
+    Remove-Item "crates/service/b4.db-shm" -Force
+    Write-Host "✓ Removed b4.db-shm" -ForegroundColor Green
 }
 
-if (Test-Path "crates/service/wbraid.db-wal") {
-    Remove-Item "crates/service/wbraid.db-wal" -Force
-    Write-Host "✓ Removed wbraid.db-wal" -ForegroundColor Green
+if (Test-Path "crates/service/b4.db-wal") {
+    Remove-Item "crates/service/b4.db-wal" -Force
+    Write-Host "✓ Removed b4.db-wal" -ForegroundColor Green
 }
 
 # Remove WASM build artifacts
