@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "braid-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Build for wasm32-unknown-unknown target
+wasm = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen"]
+# Extra helpers/tests for wasm
+wasmtest = ["wasm"]
+
+debug_logs = []
+
+[dependencies]
+# WASM/JS bridge
+wasm-bindgen = { version = "=0.2.100", features = ["serde-serialize"], optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+
+# Crypto and key handling
+js-sys = "0.3"
+aes-gcm = "0.10"
+strand = { path = "../strand", features = ["wasm"] }
+braid-core  = { path = "../braid-core" }
+b3-messages = { path = "../b3-messages" }
+rand = "0.8"
+pbkdf2 = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+hex = "0.4"
+zeroize = "1.8"
+getrandom = { version = "=0.2", features = ["js"] }
+
+# Errors & panic hooks
+thiserror = "2.0"
+anyhow = "1.0"
+console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Ensure ring is built with the JS RNG backend for wasm, matching sequent-core,
+# so that rcgen (pulled via strand) sees a SystemRandom that implements
+# SecureRandom on wasm32-unknown-unknown.
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }

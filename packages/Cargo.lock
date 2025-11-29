@@ -39,6 +39,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "aes-gcm"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "831010a0f742e1209b3bcea8fab6a8e149051ba6099432c8cb2cc117dec3ead1"
+dependencies = [
+ "aead",
+ "aes",
+ "cipher",
+ "ctr",
+ "ghash",
+ "subtle",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1242,6 +1256,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "b3-messages"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "borsh",
+ "hex",
+ "serde",
+ "strand",
+ "strum 0.27.2",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1491,6 +1517,48 @@ dependencies = [
  "tracing-wasm",
  "wasm-bindgen",
  "wasm-bindgen-rayon",
+]
+
+[[package]]
+name = "braid-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "b3-messages",
+ "base64 0.22.1",
+ "crepe",
+ "hex",
+ "log",
+ "serde",
+ "strand",
+ "strum 0.27.2",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "braid-wasm"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "b3-messages",
+ "base64 0.22.1",
+ "braid-core",
+ "console_error_panic_hook",
+ "getrandom 0.2.16",
+ "hex",
+ "js-sys",
+ "pbkdf2",
+ "rand 0.8.5",
+ "ring",
+ "serde",
+ "serde-wasm-bindgen",
+ "sha2",
+ "strand",
+ "thiserror 2.0.17",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "zeroize",
 ]
 
 [[package]]
@@ -2368,6 +2436,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "704a3c26996a80471189265814dbc2c257598b96b8a7feae2d31ace646bb9782"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "ctr"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0369ee1ad671834580515889b80f2ea915f23b8be8d0daa4bbaf2ac5c7590835"
+dependencies = [
+ "cipher",
 ]
 
 [[package]]
@@ -3534,6 +3611,16 @@ dependencies = [
  "r-efi",
  "wasip2",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "ghash"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0d8a4362ccb29cb0b265253fb0a2728f592895ee6854fd9bc13f2ffda266ff1"
+dependencies = [
+ "opaque-debug",
+ "polyval",
 ]
 
 [[package]]
@@ -6325,6 +6412,18 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8159bd90725d2df49889a078b54f4f79e87f1f8a8444194cdca81d38f5393abf"
 dependencies = [
+ "cpufeatures",
+ "opaque-debug",
+ "universal-hash",
+]
+
+[[package]]
+name = "polyval"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d1fe60d06143b2430aa532c94cfe9e29783047f06c0d7fd359a9a51b729fa25"
+dependencies = [
+ "cfg-if",
  "cpufeatures",
  "opaque-debug",
  "universal-hash",

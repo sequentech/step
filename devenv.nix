@@ -56,9 +56,13 @@
     geckodriver
     firefox
 
-    # to build the rug backend in strand/braid
+    # to build the rug backend in strand/braid and wasm tooling
+    wasm-pack
     gcc
     m4
+    llvmPackages_19.clang-unwrapped
+    llvmPackages_19.llvm
+    llvmPackages_19.libclang
 
     # count line numbers
     scc
@@ -88,6 +92,19 @@
     source .devcontainer/.env
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
+
+    # Configure clang for wasm (similar to sequent-core devShell) so that
+    # C code for wasm32-unknown-unknown (e.g. ring) can find standard headers
+    export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+    CLANG_MAJOR_VERSION=19
+    CLANG_RESOURCE_DIR=${pkgs.llvmPackages_19.clang-unwrapped}/lib/clang/$CLANG_MAJOR_VERSION
+    LIBCLANG_INCLUDE=${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include
+
+    # Provide include paths and resource-dir for wasm32 C compilation.
+    # Keep optimisation flags used in build scripts.
+    export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR -O3 -ffunction-sections -fdata-sections -fno-exceptions"
+    export CPPFLAGS="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
+
     set +a
   '';
 
