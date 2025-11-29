@@ -277,10 +277,10 @@ impl SessionSet {
                 let board = self.board_params.get_board();
                 let responses = board.get_messages_multi(&requests).await;
 
-                // Chunking: if the bulletin board returns truncated = true it means there
-                // are more messages pending that were cut off to not exceed configured message
-                // size limit
-                let Ok((responses, truncated)) = responses else {
+                // Pagination: if the bulletin board returns has_more = true it means there
+                // are more messages available that exceeded the per-request limit.
+                // We update stores but skip protocol step to fetch remaining messages first.
+                let Ok((responses, has_more)) = responses else {
                     error!(
                         "Error retrieving messages for {} requests: {} (set {})",
                         requests.len(),
@@ -301,13 +301,13 @@ impl SessionSet {
                     let empty = vec![];
                     let messages = km_map.get(k).unwrap_or(&empty);
 
-                    // Chunking: we do not want to execute the trustee step when messages are pending; this
-                    // avoids executing superfluous work. This also improves core utilization.
-                    if truncated {
-                        warn!("Received truncated messages, updating only..");
+                    // Pagination: we do not want to execute the trustee step when messages are pending; this
+                    // avoids executing superfluous work and ensures we have the complete message history.
+                    if has_more {
+                        warn!("More messages available, updating store only..");
                         if let Err(err) = s.update_store(messages) {
                             error!(
-                                "Error updating store: {} (returned messages truncated)",
+                                "Error updating store: {} (has_more=true)",
                                 err
                             );
                         }

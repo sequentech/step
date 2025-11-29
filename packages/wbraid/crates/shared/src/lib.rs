@@ -111,6 +111,46 @@ pub struct ListMessagesResponse {
     pub messages: Vec<Message>,
 }
 
+// Multi-board request/response types
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardMessageRequest {
+    pub board: String,
+    pub last_id: i64,
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetMessagesMultiRequest {
+    pub requests: Vec<BoardMessageRequest>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardMessagesResponse {
+    pub board: String,
+    pub messages: Vec<Message>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetMessagesMultiResponse {
+    pub boards: Vec<BoardMessagesResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardPutRequest {
+    pub board: String,
+    pub messages: Vec<Vec<u8>>, // Serialized Message structs
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PutMessagesMultiRequest {
+    pub requests: Vec<BoardPutRequest>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PutMessagesMultiResponse {
+    pub success: bool,
+}
+
 // B3 message types (extracted from b3 crate for shared use across native and WASM)
 pub mod b3_messages;
 

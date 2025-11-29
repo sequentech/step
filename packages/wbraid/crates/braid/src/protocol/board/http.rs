@@ -176,45 +176,79 @@ impl HttpB3 {
         if init_resp.should_upload {
             // Large message - upload to S3
             if let Some(upload_url) = &init_resp.upload_url {
-                self.client
+                let s3_response = self
+                    .client
                     .put(upload_url)
                     .body(message_bytes.clone())
                     .send()
                     .await?;
+
+                if !s3_response.status().is_success() {
+                    anyhow::bail!("Failed to upload to S3: HTTP {}", s3_response.status());
+                }
+
+                // Phase 3: Confirm (no data for S3 messages)
+                let confirm_url = format!(
+                    "{}/boards/{}/messages/{}/confirm",
+                    self.base_url, board, init_resp.message_id
+                );
+                let confirm_req = ConfirmMessageRequest {
+                    data: None,
+                    sender_pk: sender_pk.clone(),
+                    statement_kind: statement_kind.clone(),
+                    batch,
+                    mix_number,
+                };
+
+                let confirm_response = self
+                    .client
+                    .post(&confirm_url)
+                    .json(&confirm_req)
+                    .send()
+                    .await?;
+
+                if !confirm_response.status().is_success() {
+                    anyhow::bail!(
+                        "Failed to confirm S3 message: HTTP {}",
+                        confirm_response.status()
+                    );
+                }
+            } else {
+                anyhow::bail!("Server indicated upload needed but provided no URL");
+            }
+        } else {
+            // Small message - send inline
+            let confirm_url = format!(
+                "{}/boards/{}/messages/{}/confirm",
+                self.base_url, board, init_resp.message_id
+            );
+            let confirm_req = ConfirmMessageRequest {
+                data: Some(message_bytes),
+                sender_pk,
+                statement_kind,
+                batch,
+                mix_number,
+            };
+
+            let confirm_response = self
+                .client
+                .post(&confirm_url)
+                .json(&confirm_req)
+                .send()
+                .await?;
+
+            if !confirm_response.status().is_success() {
+                anyhow::bail!(
+                    "Failed to confirm inline message: HTTP {}",
+                    confirm_response.status()
+                );
             }
         }
 
-        // Phase 3: Confirm message
-        let confirm_url = format!(
-            "{}/boards/{}/messages/{}/confirm",
-            self.base_url, board, init_resp.message_id
+        info!(
+            "Inserted message to board {}, ID: {}, size: {} bytes",
+            board, init_resp.message_id, size
         );
-
-        let confirm_req = ConfirmMessageRequest {
-            data: if !init_resp.should_upload {
-                Some(message_bytes)
-            } else {
-                None
-            },
-            sender_pk,
-            statement_kind,
-            batch,
-            mix_number,
-        };
-
-        let confirm_response = self
-            .client
-            .post(&confirm_url)
-            .json(&confirm_req)
-            .send()
-            .await?;
-
-        if !confirm_response.status().is_success() {
-            anyhow::bail!(
-                "Failed to confirm message: HTTP {}",
-                confirm_response.status()
-            );
-        }
 
         Ok(())
     }
@@ -282,121 +316,8 @@ impl super::Board for HttpB3 {
 
     async fn insert_messages(&mut self, board: &str, messages: Vec<Message>) -> Result<()> {
         for message in messages {
-            // Extract metadata from message
-            let sender_pk = message.sender.pk.to_der_b64_string()?;
-            let statement_kind = message.statement.get_kind().to_string();
-            let batch: i32 = message.statement.get_batch_number().try_into()?;
-            let mix_number: i32 = message.statement.get_mix_number().try_into()?;
-            
-            // Serialize the message
-            let message_bytes = message.strand_serialize()?;
-            let size = message_bytes.len();
-
-            // Phase 1: Initiate message
-            let initiate_url = format!("{}/boards/{}/messages/initiate", self.base_url, board);
-            let initiate_req = InitiateMessageRequest {
-                size,
-                sender_pk: sender_pk.clone(),
-                statement_kind: statement_kind.clone(),
-                batch,
-                mix_number,
-            };
-
-            let initiate_response = self
-                .client
-                .post(&initiate_url)
-                .json(&initiate_req)
-                .send()
-                .await?;
-
-            if !initiate_response.status().is_success() {
-                anyhow::bail!(
-                    "Failed to initiate message: HTTP {}",
-                    initiate_response.status()
-                );
-            }
-
-            let init_resp: InitiateMessageResponse = initiate_response.json().await?;
-
-            // Phase 2: Upload data (to S3 if large, inline if small)
-            if init_resp.should_upload {
-                // Large message - upload to S3
-                if let Some(upload_url) = &init_resp.upload_url {
-                    let s3_response = self
-                        .client
-                        .put(upload_url)
-                        .body(message_bytes.clone())
-                        .send()
-                        .await?;
-
-                    if !s3_response.status().is_success() {
-                        anyhow::bail!("Failed to upload to S3: HTTP {}", s3_response.status());
-                    }
-
-                    // Phase 3: Confirm (no data for S3 messages)
-                    let confirm_url = format!(
-                        "{}/boards/{}/messages/{}/confirm",
-                        self.base_url, board, init_resp.message_id
-                    );
-                    let confirm_req = ConfirmMessageRequest {
-                        data: None,
-                        sender_pk: sender_pk.clone(),
-                        statement_kind: statement_kind.clone(),
-                        batch,
-                        mix_number,
-                    };
-
-                    let confirm_response = self
-                        .client
-                        .post(&confirm_url)
-                        .json(&confirm_req)
-                        .send()
-                        .await?;
-
-                    if !confirm_response.status().is_success() {
-                        anyhow::bail!(
-                            "Failed to confirm S3 message: HTTP {}",
-                            confirm_response.status()
-                        );
-                    }
-                } else {
-                    anyhow::bail!("Server indicated upload needed but provided no URL");
-                }
-            } else {
-                // Small message - send inline
-                let confirm_url = format!(
-                    "{}/boards/{}/messages/{}/confirm",
-                    self.base_url, board, init_resp.message_id
-                );
-                let confirm_req = ConfirmMessageRequest {
-                    data: Some(message_bytes),
-                    sender_pk,
-                    statement_kind,
-                    batch,
-                    mix_number,
-                };
-
-                let confirm_response = self
-                    .client
-                    .post(&confirm_url)
-                    .json(&confirm_req)
-                    .send()
-                    .await?;
-
-                if !confirm_response.status().is_success() {
-                    anyhow::bail!(
-                        "Failed to confirm inline message: HTTP {}",
-                        confirm_response.status()
-                    );
-                }
-            }
-
-            info!(
-                "Inserted message to board {}, ID: {}, size: {} bytes",
-                board, init_resp.message_id, size
-            );
+            self.post_message_to_board(board, &message).await?;
         }
-
         Ok(())
     }
 }
@@ -492,35 +413,126 @@ impl super::BoardMulti for HttpB3 {
         &self,
         requests: &Vec<(String, i64)>,
     ) -> Result<(Vec<b4::HttpBoardMessages>, bool)> {
-        let mut all_boards = Vec::new();
+        use wbraid_shared::{GetMessagesMultiRequest, BoardMessageRequest};
         
-        for (board_name, last_id) in requests {
-            let url = format!("{}/boards/{}/messages?last_id={}", 
-                self.base_url, board_name, last_id);
+        const DEFAULT_LIMIT: i64 = 100;
+        
+        // Build the multi-board request
+        let multi_req = GetMessagesMultiRequest {
+            requests: requests
+                .iter()
+                .map(|(board, last_id)| BoardMessageRequest {
+                    board: board.clone(),
+                    last_id: *last_id,
+                    limit: Some(DEFAULT_LIMIT),
+                })
+                .collect(),
+        };
+        
+        // Make single HTTP POST request for all boards
+        let url = format!("{}/boards/messages/multi/get", self.base_url);
+        let response = self.client
+            .post(&url)
+            .json(&multi_req)
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to get messages multi: HTTP {}", response.status());
+        }
+        
+        let multi_response: wbraid_shared::GetMessagesMultiResponse = response.json().await?;
+        
+        // Check if any board hit the limit (indicating more messages available)
+        let has_more = multi_response.boards.iter()
+            .any(|board_resp| board_resp.messages.len() >= DEFAULT_LIMIT as usize);
+        
+        // Process each board's messages
+        let mut all_boards = Vec::new();
+        for board_resp in multi_response.boards {
+            let mut http_messages = Vec::new();
             
-            let response = self.client.get(&url).send().await?;
-            let list_response: ListMessagesResponse = response.json().await?;
-            
-            let messages = self.process_message_rows(list_response.messages).await?;
+            for msg in board_resp.messages {
+                let message_bytes = match msg.content_type {
+                    wbraid_shared::ContentType::Inline { data } => data,
+                    wbraid_shared::ContentType::S3 { key } => {
+                        // Download from S3
+                        let obj = self
+                            .s3_client
+                            .get_object()
+                            .bucket(&self.bucket_name)
+                            .key(&key)
+                            .send()
+                            .await?;
+                        
+                        let bytes = obj.body.collect().await?;
+                        bytes.to_vec()
+                    }
+                };
+                
+                let id: i64 = msg.id.parse()?;
+                
+                http_messages.push(HttpB3Message::new(
+                    id,
+                    message_bytes,
+                    "1".to_string(),
+                    msg.sender_pk,
+                    msg.statement_kind,
+                    msg.batch,
+                    msg.mix_number,
+                ));
+            }
             
             all_boards.push(b4::HttpBoardMessages {
-                board: board_name.clone(),
-                messages,
+                board: board_resp.board,
+                messages: http_messages,
             });
         }
         
-        // For HTTP, we don't have server-side truncation like gRPC
-        Ok((all_boards, false))
+        Ok((all_boards, has_more))
     }
 
     async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
+        use wbraid_shared::{PutMessagesMultiRequest, BoardPutRequest};
+        use strand::serialization::StrandSerialize;
+        
+        // Build the multi-board put request
+        let mut put_requests = Vec::new();
+        
         for (board_name, messages) in requests {
             if !messages.is_empty() {
-                for message in messages {
-                    self.post_message_to_board(&board_name, &message).await?;
-                }
+                let serialized_messages: Result<Vec<Vec<u8>>> = messages
+                    .iter()
+                    .map(|msg| msg.strand_serialize().map_err(|e| anyhow::anyhow!("{}", e)))
+                    .collect();
+                
+                put_requests.push(BoardPutRequest {
+                    board: board_name,
+                    messages: serialized_messages?,
+                });
             }
         }
+        
+        if put_requests.is_empty() {
+            return Ok(());
+        }
+        
+        let multi_req = PutMessagesMultiRequest {
+            requests: put_requests,
+        };
+        
+        // Make single HTTP POST request for all boards
+        let url = format!("{}/boards/messages/multi/put", self.base_url);
+        let response = self.client
+            .post(&url)
+            .json(&multi_req)
+            .send()
+            .await?;
+        
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to put messages multi: HTTP {}", response.status());
+        }
+        
         Ok(())
     }
 }

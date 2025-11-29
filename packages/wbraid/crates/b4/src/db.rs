@@ -192,7 +192,43 @@ pub async fn insert_message(
     .execute(pool)
     .await?;
 
-    Ok(result.last_insert_rowid())
+    let message_id = result.last_insert_rowid();
+
+    // Update board statistics (similar to b3's insert() function)
+    // We don't care if these fail - they are statistics for monitoring
+    let _ = update_board_statistics(pool, board_name, statement_kind).await;
+
+    Ok(message_id)
+}
+
+/// Update board statistics after message insertion (like b3's INDEX table updates)
+/// This is best-effort - failures are logged but don't fail the insertion
+async fn update_board_statistics(
+    pool: &SqlitePool,
+    board_name: &str,
+    statement_kind: &str,
+) -> Result<()> {
+    // Count batches if this is a Ballots message
+    let batch_increment = if statement_kind == "Ballots" { 1 } else { 0 };
+
+    // Update statistics in a single query
+    sqlx::query(
+        r#"
+        UPDATE boards 
+        SET last_message_kind = ?,
+            message_count = (SELECT COUNT(*) FROM messages WHERE board_name = ?),
+            batch_count = batch_count + ?
+        WHERE name = ?
+        "#,
+    )
+    .bind(statement_kind)
+    .bind(board_name)
+    .bind(batch_increment)
+    .bind(board_name)
+    .execute(pool)
+    .await?;
+
+    Ok(())
 }
 
 pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result<Option<Message>> {
@@ -318,6 +354,7 @@ pub async fn get_messages_after(
 }
 
 /// Update board metadata when Configuration is posted (similar to b3's update_index)
+/// This is called separately from insert_message because it needs to parse the Configuration artifact
 pub async fn update_board_config_metadata(
     pool: &SqlitePool,
     board_name: &str,
@@ -335,49 +372,6 @@ pub async fn update_board_config_metadata(
     .bind(cfg_id)
     .bind(threshold_no)
     .bind(trustees_no)
-    .bind(board_name)
-    .execute(pool)
-    .await?;
-    
-    Ok(())
-}
-
-/// Increment message count and update last_message_kind for a board
-pub async fn increment_board_message_count(
-    pool: &SqlitePool,
-    board_name: &str,
-    statement_kind: &str,
-) -> Result<()> {
-    validate_board_name(board_name)?;
-    
-    sqlx::query(
-        r#"UPDATE boards 
-           SET message_count = message_count + 1,
-               last_message_kind = ?
-           WHERE name = ?"#
-    )
-    .bind(statement_kind)
-    .bind(board_name)
-    .execute(pool)
-    .await?;
-    
-    Ok(())
-}
-
-/// Update batch count for a board
-pub async fn update_board_batch_count(
-    pool: &SqlitePool,
-    board_name: &str,
-    batch_count: i32,
-) -> Result<()> {
-    validate_board_name(board_name)?;
-    
-    sqlx::query(
-        r#"UPDATE boards 
-           SET batch_count = ?
-           WHERE name = ?"#
-    )
-    .bind(batch_count)
     .bind(board_name)
     .execute(pool)
     .await?;

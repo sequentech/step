@@ -47,6 +47,9 @@ async fn main() -> Result<()> {
         .route("/boards/:board/messages/:id/confirm", post(handlers::confirm_message))
         .route("/boards/:board/messages", get(handlers::list_messages))
         .route("/boards/:board/messages/:id", get(handlers::get_message))
+        // Multi-board operations
+        .route("/boards/messages/multi/get", post(handlers::get_messages_multi))
+        .route("/boards/messages/multi/put", post(handlers::put_messages_multi))
         .layer(cors)
         .with_state(state);
 
