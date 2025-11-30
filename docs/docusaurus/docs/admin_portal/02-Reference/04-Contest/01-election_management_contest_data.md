@@ -38,9 +38,18 @@ Configure fundamental details and multilingual names for this contest.
 
 ---
 
-## Ballot Voting System (WIP)
-Placeholder for selecting or configuring the voting system/mechanism used by this contest.  
-(Currently under development; details to be added once multiple voting systems support is available.)
+## Ballot Voting System
+Voting System configuration will affect the tally and the Voting portal interface (e.g. whether the system is preferential or not).
+
+### Counting Algorithm
+- **Plurality at Large**
+  - Voters select up to a specified number of candidates. Candidates with the most votes win.
+  - Best suited for non-preferential elections where voters choose their top choices without ranking.
+- **Instant Runoff or IRV**
+  - Preferential voting system where voters rank candidates in order of preference.
+  - Candidates with the fewest first-choice votes are eliminated and their votes redistributed until winners are determined.
+  - When selecting IRV, set Max votes parameter (in Ballot Design) to at least the number of candidates available to rank.
+
 
 ---
 
@@ -100,6 +109,15 @@ When voter selection is invalid (e.g., null vote or too many selections):
 - **Warn**: Warning during ballot and review phases.
 - **Warn Implicit and Explicit**: Warning for explicitly invalid (null/spoiled) and implicitly invalid (e.g., too many).
 - **Not Allowed**: Cannot submit if invalid options selected.
+
+##### Preferential systems (e.g. Instant Runoff)
+
+###### What is considered Implicit invalid error?
+- **Duplicated Position**: Whether casting the vote is allowed or not depends on the policy. Either case ranking 2 candidates
+  with the same position will invalidate the vote.
+
+###### What will cause an alert but it´s still valid?
+- **Preference order with gaps**: Missing one of the positions in between, e.g. 1,2,4,5.
 
 #### Blank Vote Policy
 When voter selects blank vote option:

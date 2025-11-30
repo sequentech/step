@@ -319,6 +319,8 @@ const basqueTranslation: TranslationType = {
                 overVoteDisabled:
                     "Gehienezkora heldu: Gehienezko {{numSelected}} aukera hautatu dituzu. Zure hautaketa aldatzeko, mesedez ezgaitu beste aukera bat lehenik.",
                 blankVote: "Boto Zuria: 0 aukera hautatu",
+                preferenceOrderWithGaps: "Lehentasunaren ordenak hutsune bat edo gehiago ditu.",
+                duplicatedPosition: "Posizio bera hautatu da bi kandidatu edo gehiagorentzat.",
             },
             explicit: {
                 notAllowed:

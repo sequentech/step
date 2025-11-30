@@ -1305,6 +1305,7 @@ const basqueTranslation: TranslationType = {
             options: {
                 "non-preferential": "Ez Lehentasuna",
                 "plurality-at-large": "Pluralitatea Orokorrean",
+                "instant-runoff": "Berehalako Bigarren Itzulia",
                 "random": "Ausazkoa",
                 "custom": "Pertsonalizatua",
                 "alphabetical": "Alfabetikoa",
@@ -1652,6 +1653,12 @@ const basqueTranslation: TranslationType = {
                 number_of_votes: "Boto Kopurua",
                 winning_position: "Irabazle posizioa",
                 weight: "Pisua",
+                preferential: {
+                    candidate: "Hautagaia",
+                    winner: "Irabazlea",
+                    eliminated: "Baztertua",
+                    round: "Txanda",
+                },
             },
             chart: {
                 votesForCandidates: "Hautagaientzako Botoak",

@@ -293,8 +293,10 @@ pub fn get_config() -> Result<Config> {
 
 #[instrument]
 pub fn get_config_mcballots() -> Result<Config> {
-    let ballot_images_pipe_config = PipeConfigBallotImages::new();
-    let mcballot_images_pipe_config = PipeConfigBallotImages::mcballot();
+    let mut ballot_images_pipe_config = PipeConfigBallotImages::new();
+    ballot_images_pipe_config.enable_pdfs = false;
+    let mut mcballot_images_pipe_config = PipeConfigBallotImages::mcballot();
+    mcballot_images_pipe_config.enable_pdfs = false;
     let database_pipe_config = PipeConfigGenerateDatabase {
         include_decoded_ballots: true,
         tenant_id: Uuid::new_v4().to_string(),
