@@ -507,10 +507,6 @@ impl RunoffStatus {
         self.rounds.push(round);
         self.round_count += 1;
 
-        println!(
-            "FF: iteration, continue_next_round? {}",
-            continue_next_round
-        );
         return continue_next_round;
     }
 
@@ -541,10 +537,8 @@ impl RunoffStatus {
     #[instrument(skip_all)]
     pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
         let mut iterations = 0;
-        println!("FF: starting iterations. max_rounds {}", self.max_rounds);
         while self.run_next_round(ballots_status) && iterations < self.max_rounds {
             iterations += 1;
-            println!("FF: new iteration  {}", iterations);
         }
         self.name_references = self.order_name_references_by_result();
     }
