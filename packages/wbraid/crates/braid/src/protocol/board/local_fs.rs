@@ -948,13 +948,13 @@ impl<C: Ctx> LocalBoard<C> {
     ///
     pub(crate) fn max_messages(&self) -> usize {
         let Some(cfg) = &self.configuration else {
-            return 0;
+            return 1;
         };
 
         let mut sei = StatementEntryIdentifier {
             kind: StatementType::Ballots,
             signer_position: PROTOCOL_MANAGER_INDEX,
-            batch: 1,
+            batch: 0,
             mix_number: 0,
         };
 
@@ -969,15 +969,10 @@ impl<C: Ctx> LocalBoard<C> {
         let t = cfg.threshold;
 
         let dkg = 1 + (5 * n);
-        if sei.batch == 0 {
-            return dkg;
-        }
 
         let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
 
-        dkg + ((sei.batch as usize - 1) * per_batch_tally)
-
-        // self.statements.len() == max
+        dkg + ((sei.batch as usize) * per_batch_tally)
     }
 
     ///////////////////////////////////////////////////////////////////////////

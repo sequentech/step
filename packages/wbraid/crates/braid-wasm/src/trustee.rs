@@ -173,7 +173,7 @@ impl WasmTrustee {
         let board_name = self.board_name.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
         
-        let url = format!("{}/boards/{}/messages?after_id={}", self.b4_url, board_name, last_id);
+        let url = format!("{}/boards/{}/messages?last_id={}", self.b4_url, board_name, last_id);
         
         let mut opts = RequestInit::new();
         opts.set_method("GET");

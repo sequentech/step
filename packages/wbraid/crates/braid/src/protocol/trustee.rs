@@ -683,15 +683,6 @@ impl<C: Ctx> Trustee<C> {
 
     ///////////////////////////////////////////////////////////////////////////
 
-    /// Whether the protocol run is complete.
-    ///
-    /// A run is completed when all expected messages have
-    /// been posted (modulo batch count)
-    #[allow(dead_code)]
-    pub(crate) fn is_finished(&self) -> bool {
-        self.local_board.max_messages() == self.local_board.statements.len()
-    }
-
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
         // FIXME validate (called by sign cfg Action)
         true
@@ -772,8 +763,9 @@ impl<C: Ctx> Trustee<C> {
     }
 
     /// Get current number of statements in the local board
+    /// Adds 1 to account for the configuration message which bootstraps the protocol
     pub fn get_current_messages(&self) -> usize {
-        self.local_board.statements.len()
+        self.local_board.statements.len() + 1
     }
 
     /// Get maximum expected number of messages for this protocol
