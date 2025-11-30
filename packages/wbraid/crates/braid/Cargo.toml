@@ -90,6 +90,7 @@ native = [
     "dep:sqlx",
     "dep:tokio",
     "dep:b4",
+    "b4/native",
     "dep:wbraid-shared",
     "dep:colored",
     "dep:clap",
@@ -114,7 +115,8 @@ wasm-core = [
     "dep:tracing-wasm",
     "dep:reqwest",
     "dep:indexed_db_futures",
-    "dep:b4"
+    "dep:b4",
+    "b4/wasm-core",
 ]
 
 # Cryptography backend options (strand features)

@@ -2,7 +2,7 @@
 # This requires nightly Rust and proper linker flags for SharedArrayBuffer
 # Based on: https://github.com/huggingface/xet-core/issues/554
 
-cd crates/client
+cd crates/braid-wasm
 
 Write-Host "Building WASM with atomics support..." -ForegroundColor Green
 

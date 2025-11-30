@@ -7,17 +7,19 @@
 pub mod http;
 /// A LocalBoard is a trustee's view of a bulletin board.
 #[cfg(feature = "native")]
-pub mod local;
+pub mod local_fs;
 /// WASM-compatible local board with IndexedDB storage
 #[cfg(feature = "wasm-core")]
-pub mod wasm;
+pub mod local_wasm;
+
+pub mod local;
 
 // Re-export the appropriate LocalBoard implementation
 // When both features are enabled (e.g., in tests), prefer native
 #[cfg(feature = "native")]
-pub use local::LocalBoard;
+pub use local_fs::LocalBoard;
 #[cfg(all(feature = "wasm-core", not(feature = "native")))]
-pub use wasm::WasmLocalBoard as LocalBoard;
+pub use local_wasm::WasmLocalBoard as LocalBoard;
 
 use anyhow::Result;
 use b4::messages::message::Message;

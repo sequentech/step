@@ -22,7 +22,8 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::{ArtifactEntryIdentifier, StatementEntryIdentifier};
+use crate::protocol::board::local_fs::{ArtifactEntryIdentifier};
+use crate::protocol::board::local::{StatementEntryIdentifier};
 use b4::messages::artifact::Ballots;
 use b4::messages::artifact::Configuration;
 use b4::messages::message::Message;

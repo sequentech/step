@@ -17,6 +17,8 @@ use b4::messages::statement::{Statement, StatementType};
 use b4::messages::newtypes::*;
 use b4::HttpB3Message;
 use crate::util::ProtocolError;
+use crate::protocol::board::local::{StatementEntryIdentifier};
+use crate::protocol::board::local::BoardEntry;
 
 /// A WASM-compatible local board that mirrors the structure of LocalBoard
 /// but uses browser storage (IndexedDB) instead of SQLite.
@@ -154,19 +156,8 @@ impl<C: Ctx> WasmLocalBoard<C> {
         None
     }
 
-    pub(crate) fn get_statement_entries(&self) -> Vec<StatementEntry> {
+    pub(crate) fn get_statement_entries(&self) -> Vec<BoardEntry> {
         vec![]
     }
-}
-
-// Placeholder types to match LocalBoard interface
-pub struct StatementEntry {
-    pub key: StatementEntryIdentifier,
-    pub value: (Hash, Statement),
-}
-
-pub struct StatementEntryIdentifier {
-    pub kind: StatementType,
-    pub signer_position: TrusteePosition,
 }
 
