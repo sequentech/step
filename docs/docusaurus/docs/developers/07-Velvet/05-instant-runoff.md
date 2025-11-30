@@ -28,6 +28,11 @@ In IRV, if no candidate receives a majority of first-preference votes, the candi
 
 ## Implementation Details
 
+### Limitations
+
+Currently IRV is only implemented for single-contest encoding.Make sure you're 
+not using multi-contest encoding as the Election Event level policy.
+
 ### Location
 
 **File**: `/packages/velvet/src/pipes/do_tally/counting_algorithm/instant_runoff.rs`
