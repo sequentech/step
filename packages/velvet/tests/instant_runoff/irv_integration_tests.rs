@@ -867,8 +867,8 @@ fn test_tie_in_final_round() {
     // 2. There are 2 active candidates in the last round
     // 3. eliminated_candidates is None (indicating a tie)
     assert!(
-        last_round.winner.is_none(),
-        "There should be no winner in a tie scenario"
+        last_round.winner.is_some(),
+        "There should be a winner in a tie scenario, by lot"
     );
 
     assert_eq!(
@@ -877,8 +877,8 @@ fn test_tie_in_final_round() {
     );
 
     assert!(
-        last_round.eliminated_candidates.is_none(),
-        "eliminated_candidates should be None in a tie"
+        last_round.eliminated_candidates.is_some(),
+        "eliminated_candidates should be Some in a tie"
     );
 
     // Verify that both remaining candidates have equal votes in the last round
