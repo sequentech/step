@@ -8,7 +8,7 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::protocol::board::http::{HttpB3, HttpB3BoardParams};
+use braid::protocol::board::http::HttpB3BoardParams;
 use braid::protocol::trustee::Trustee;
 use braid::verify::verifier::Verifier;
 
@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
     let _store_root = std::env::current_dir().unwrap().join("message_store");
 
     info!("Connecting to board '{}'..", args.board);
+    
     let trustee: Trustee<RistrettoCtx> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),

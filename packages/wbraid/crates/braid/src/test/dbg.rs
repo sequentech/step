@@ -22,7 +22,7 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local_fs::{ArtifactEntryIdentifier};
+use crate::protocol::board::local::{ArtifactEntryIdentifier};
 use crate::protocol::board::local::{StatementEntryIdentifier};
 use b4::messages::artifact::Ballots;
 use b4::messages::artifact::Configuration;
@@ -465,7 +465,7 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let ballot_batch = Ballots::new(ballots);
     let message = Message::ballots_msg(
         &context.cfg,
-        batch,
+        batch as u64,
         &ballot_batch,
         context.selected_trustees,
         PublicKeyHash(pk_h),

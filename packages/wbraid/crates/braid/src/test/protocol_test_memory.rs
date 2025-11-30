@@ -118,7 +118,7 @@ fn run_protocol_test<C: Ctx + 'static>(
 
         let message = Message::ballots_msg(
             &test.cfg,
-            i + 1,
+            (i + 1) as u64,
             &ballot_batch,
             selected_trustees,
             PublicKeyHash(crate::util::hash_from_vec(&pk_h).unwrap()),
@@ -138,7 +138,7 @@ fn run_protocol_test<C: Ctx + 'static>(
 
         let decryptor = selected_trustees[0] - 1;
         let plaintexts: Vec<Plaintexts<C>> = (0..batches)
-            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash(b + 1, decryptor))
+            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash((b + 1) as u64, decryptor))
             .map(|p| Plaintexts::<C>(p.0.clone()))
             .collect();
 

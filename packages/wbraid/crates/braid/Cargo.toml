@@ -121,9 +121,7 @@ wasm-core = [
 
 # Cryptography backend options (strand features)
 # wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-fips_core = ["strand/fips_core"]
-fips_full = ["strand/fips_full"]
-rug = ["strand/rug"]
+wasm = ["wasm-core"]
 
 # Memory profiling (native only)
 jemalloc = ["dep:tikv-jemalloc-ctl", "dep:tikv-jemallocator"]

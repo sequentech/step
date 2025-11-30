@@ -21,7 +21,7 @@ bench = false
 rayon = ["dep:rayon"]
 wasmrayon = ["rayon", "wasm", "dep:wasm-bindgen-rayon"]
 wasmtest = ["wasm", "dep:web-sys"]
-wasm = ["wasm-bindgen", "serde-wasm-bindgen"] # Use curve25519-dalek backend only for WASM
+wasm = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "dep:web-sys"]
 num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
 malachite = ["dep:malachite"]
 openssl_core = ["dep:openssl", "dep:rand_core"]
@@ -69,7 +69,7 @@ rand_chacha = "0.9"
 wasm-bindgen-rayon = {version = "1.3", features = ["no-bundler"], optional = true}
 wasm-bindgen = {version = "=0.2.100", optional = true}
 serde-wasm-bindgen = {version = "0.6", optional = true}
-web-sys = { version = "0.3", features = ['Performance'], optional = true }
+web-sys = { version = "0.3", features = ['Performance', 'console'], optional = true }
 
 # RNG, ecdsa, sha512, shake256, aes-gcm
 # OpenSSL needs to be configured to operate in FIPS mode

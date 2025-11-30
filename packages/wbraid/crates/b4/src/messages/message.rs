@@ -349,7 +349,7 @@ impl Message {
         // If the cfg_h field matches the artifact, the artifact must be Configuration
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
-            if trustee != PROTOCOL_MANAGER_INDEX {
+            if trustee != PROTOCOL_MANAGER_INDEX as usize {
                 return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
 
@@ -365,7 +365,7 @@ impl Message {
             assert!(kind != StatementType::Configuration);
 
             if kind == StatementType::Ballots {
-                if trustee != PROTOCOL_MANAGER_INDEX {
+                if trustee != PROTOCOL_MANAGER_INDEX as usize {
                     return Err(anyhow!("Ballots must be signed by protocol manager"));
                 }
             }

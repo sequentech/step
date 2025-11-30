@@ -118,7 +118,7 @@ impl SessionFactory {
     pub fn create_session(&self, board_name: &str) -> Result<SessionM<RistrettoCtx>> {
         info!("* Creating new session for board '{}'..", board_name);
 
-        let trustee: Trustee<RistrettoCtx> = Trustee::new(
+        let trustee = Trustee::new(
             self.trustee_name.clone(),
             board_name.to_string(),
             self.signing_key.clone(),

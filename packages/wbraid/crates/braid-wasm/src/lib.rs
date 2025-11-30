@@ -1,17 +1,22 @@
 mod bulletin_board;
 mod local_storage;
 mod s3;
+pub mod trustee;  // Make module public so wasm-bindgen can see it
 
 use wasm_bindgen::prelude::*;
 use wbraid_shared::Message;
 
 pub use bulletin_board::BulletinBoardClient;
 pub use local_storage::LocalStorage;
+pub use trustee::WasmTrustee;
 
-/// Initialize the WASM module
+/// Initialize the WASM module with console logging
 #[wasm_bindgen(start)]
 pub fn init() {
     console_error_panic_hook::set_once();
+    
+    // Set up tracing to output to browser console
+    tracing_wasm::set_as_global_default();
 }
 
 /// Main client that coordinates bulletin board, S3, and local storage

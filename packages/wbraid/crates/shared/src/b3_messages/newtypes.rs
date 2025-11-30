@@ -136,7 +136,7 @@ pub type TrusteeSet = [usize; MAX_TRUSTEES];
 // position of the mixing trustee, since active trustees are set by the ballots artifact)
 pub type MixNumber = usize;
 
-pub type BatchNumber = usize;
+pub type BatchNumber = u64;
 // Seconds elapsed since the std::time::UNIX_EPOCH
 pub type Timestamp = u64;
 

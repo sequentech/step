@@ -42,6 +42,12 @@ pub struct BoardEntry {
     pub value: (Hash, Statement),
 }
 
+/// Key used to store artifacts in the artifact map
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct ArtifactEntryIdentifier {
+    pub statement_entry: StatementEntryIdentifier,
+}
+
 /// Abstraction for local board storage (native: SQLite/filesystem, wasm: IndexedDB)
 pub trait LocalBoardStorage<C: Ctx> {
     /// Add a message to the board (statement + optional artifact)

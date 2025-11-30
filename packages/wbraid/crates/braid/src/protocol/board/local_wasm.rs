@@ -2,162 +2,492 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! WASM-compatible local board implementation with stub methods
+//! WASM-compatible local board implementation
 //!
-//! This is a placeholder implementation that allows the Trustee to compile
-//! in WASM builds. In the future, this will use IndexedDB for storage.
+//! This is an in-memory implementation for WASM that mirrors the store=None
+//! behavior from local_fs.rs. In the future, IndexedDB can be added for persistence.
 
+use anyhow::Result;
+use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use strand::context::Ctx;
 use strand::hash::Hash;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use b4::messages::artifact::*;
 use b4::messages::message::{Message, VerifiedMessage};
 use b4::messages::statement::{Statement, StatementType};
 use b4::messages::newtypes::*;
 use b4::HttpB3Message;
-use crate::util::ProtocolError;
-use crate::protocol::board::local::{StatementEntryIdentifier};
-use crate::protocol::board::local::BoardEntry;
+use crate::util::{ProtocolContext, ProtocolError};
+use crate::protocol::board::local::{BoardEntry, StatementEntryIdentifier, ArtifactEntryIdentifier};
 
-/// A WASM-compatible local board that mirrors the structure of LocalBoard
-/// but uses browser storage (IndexedDB) instead of SQLite.
-pub struct WasmLocalBoard<C: Ctx> {
+/// A WASM-compatible local board with in-memory storage only (store=None behavior).
+/// 
+/// All artifacts are stored in artifacts_memory HashMap.
+/// This mirrors the testing mode of the native LocalBoard.
+pub struct LocalBoard<C: Ctx> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
-    pub(crate) statements: HashMap<String, (Hash, Statement)>,
+    pub(crate) statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
     pub(crate) store: Option<PathBuf>,
-    artifacts_memory: HashMap<String, (Hash, Vec<u8>)>,
+    pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
 }
 
-impl<C: Ctx> WasmLocalBoard<C> {
+impl<C: Ctx> LocalBoard<C> {
+    /// Construct an empty LocalBoard with in-memory storage only
     pub(crate) fn new(_store: Option<PathBuf>, _blob_store: Option<PathBuf>) -> Self {
-        WasmLocalBoard {
+        tracing::info!("WASM LocalBoard: in-memory only (no store)");
+        
+        LocalBoard {
             configuration: None,
             cfg_hash: None,
             statements: HashMap::new(),
-            store: None,
+            store: None, // Always None for WASM
             artifacts_memory: HashMap::new(),
         }
     }
 
-    // Stub implementations - these will be implemented properly later
-    
-    pub(crate) fn store_and_return_messages(
+    ///////////////////////////////////////////////////////////////////////////
+    // Add messages to LocalBoard
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// Adds a message to the board.
+    pub(crate) fn add(
         &mut self,
-        _messages: &Vec<HttpB3Message>,
-        _last_message_id: i64,
-        _ignore_existing: bool,
-    ) -> Result<Vec<(Message, i64)>, ProtocolError> {
-        Ok(vec![])
-    }
-
-    pub(crate) fn update_store(
-        &self,
-        _messages: &Vec<HttpB3Message>,
-        _ignore_existing: bool,
+        message: VerifiedMessage,
+        _store_id: i64,
     ) -> Result<(), ProtocolError> {
-        Ok(())
+        if message.statement.get_kind() == StatementType::Configuration {
+            self.add_bootstrap(message)
+        } else {
+            self.add_message(message)
+        }
     }
 
-    pub(crate) fn get_last_external_id(&self) -> Option<i64> {
-        Some(-1)
+    /// Bootstraps the board with a configuration message
+    fn add_bootstrap(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
+        let cfg_hash = message.statement.get_cfg_h();
+
+        if self.configuration.is_none() {
+            let artifact_bytes =
+                &message
+                    .artifact
+                    .ok_or(ProtocolError::BootstrapError(format!(
+                        "Missing artifact in configuration message"
+                    )))?;
+
+            let configuration = Configuration::<C>::strand_deserialize(artifact_bytes);
+
+            if let Ok(configuration) = configuration {
+                self.configuration = Some(configuration);
+                self.cfg_hash = Some(cfg_hash);
+
+                return Ok(());
+            } else {
+                error!(
+                    "Failed deserializing configuration {:?}, ignored",
+                    configuration
+                );
+                return Err(configuration
+                    .add_context("Bootstrapping, deserializing configuration")
+                    .err()
+                    .expect("impossible"));
+            }
+        }
+
+        let message_hash = self
+            .cfg_hash
+            .expect("unexpected: cfg_hash always exists when cfg exists");
+
+        if message_hash == cfg_hash {
+            warn!("Configuration received when identical present, ignored");
+            Ok(())
+        } else {
+            Err(ProtocolError::BoardOverwriteAttempt(format!(
+                "Configuration"
+            )))
+        }
+    }
+
+    /// Adds a non-bootstrap message to the board.
+    fn add_message(
+        &mut self,
+        message: VerifiedMessage,
+    ) -> Result<(), ProtocolError> {
+        let bytes = message.statement.strand_serialize()?;
+        let statement_hash = strand::hash::hash(&bytes)?;
+
+        let statement_identifier =
+            self.get_statement_entry_identifier(&message.statement, message.signer_position);
+        let statement_entry = self.statements.get(&statement_identifier);
+
+        if let Some((existing_hash, _)) = statement_entry {
+            if statement_hash == existing_hash {
+                debug!(
+                    "Statement identifier already exists (identical): {:?}",
+                    statement_identifier
+                );
+                Ok(())
+            } else {
+                Err(ProtocolError::BoardOverwriteAttempt(format!(
+                    "Statement identifier already exists (overwrite): {:?}, message was {:?}",
+                    statement_identifier, message
+                )))
+            }
+        } else {
+            debug!(
+                "Statement identifier is new: {:?}",
+                statement_identifier.kind
+            );
+
+            // The statement is new, we check the artifact
+            if let Some(artifact) = message.artifact {
+                let artifact_identifier = self.get_artifact_entry_identifier(&statement_identifier);
+                let artifact_hash = strand::hash::hash_to_array(&artifact)?;
+
+                let artifact_entry = self.artifacts_memory.get(&artifact_identifier);
+
+                if let Some((existing_hash, _)) = artifact_entry {
+                    if artifact_hash == *existing_hash {
+                        warn!("Artifact identical, ignored");
+                        Ok(())
+                    } else {
+                        Err(ProtocolError::BoardOverwriteAttempt(format!(
+                            "Artifact {}",
+                            statement_identifier.kind
+                        )))
+                    }
+                } else {
+                    debug!(
+                        "Artifact identifier is new: {:?}",
+                        artifact_identifier.statement_entry.kind
+                    );
+
+                    // Both statement and artifact are new, insert into memory
+                    self.statements.insert(
+                        statement_identifier,
+                        (
+                            crate::util::hash_from_vec(&statement_hash)?,
+                            message.statement,
+                        ),
+                    );
+
+                    self.artifacts_memory
+                        .insert(artifact_identifier, (artifact_hash, artifact));
+
+                    debug!("Artifact inserted into memory");
+
+                    Ok(())
+                }
+            } else {
+                // Only a statement was sent, insert
+                self.statements.insert(
+                    statement_identifier,
+                    (
+                        crate::util::hash_from_vec(&statement_hash)?,
+                        message.statement,
+                    ),
+                );
+                debug!("Pure statement inserted");
+                Ok(())
+            }
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Raw accessors for Trustee
+    ///////////////////////////////////////////////////////////////////////////
+
+    pub(crate) fn get_cfg_hash(&self) -> Option<Hash> {
+        self.cfg_hash
     }
 
     pub(crate) fn get_configuration_raw(&self) -> Option<Configuration<C>> {
         self.configuration.clone()
     }
 
-    pub(crate) fn get_cfg_hash(&self) -> Option<Hash> {
-        self.cfg_hash.clone()
+    pub(crate) fn get_statement_entries(&self) -> Vec<BoardEntry> {
+        self
+            .statements
+            .iter()
+            .map(|(k, v)| BoardEntry {
+                key: k.clone(),
+                value: v.clone(),
+            })
+            .collect()
     }
 
-    pub(crate) fn max_messages(&self) -> usize {
-        0
-    }
+    ///////////////////////////////////////////////////////////////////////////
+    // Artifact accessors for Actions (forwarded from Trustee)
+    ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn add(&mut self, _message: VerifiedMessage, _id: i64) -> Result<(), ProtocolError> {
-        Ok(())
-    }
-
-    pub(crate) fn get_configuration(&self, _hash: &ConfigurationHash) -> Option<&Configuration<C>> {
-        self.configuration.as_ref()
+    pub(crate) fn get_configuration(
+        &self,
+        configuration_h: &ConfigurationHash,
+    ) -> Option<&Configuration<C>> {
+        if let Some(h) = self.cfg_hash {
+            if let Some(cfg) = &self.configuration {
+                if h == configuration_h.0 {
+                    return Some(cfg);
+                } else {
+                    warn!("Configuration hash mismatch");
+                }
+            }
+        }
+        warn!("Was unable to retrieve configuration");
+        None
     }
 
     pub(crate) fn get_channel(
         &self,
-        _hash: &ChannelHash,
-        _signer_position: TrusteePosition,
+        channel_h: &ChannelHash,
+        signer_position: TrusteePosition,
     ) -> Result<Channel<C>, ProtocolError> {
-        Err(ProtocolError::WasmNotImplemented)
+        let bytes = self.get_dkg_artifact(StatementType::Channel, channel_h.0, signer_position)?;
+        Ok(Channel::<C>::strand_deserialize(&bytes)?)
     }
 
     pub(crate) fn get_shares(
         &self,
-        _hash: &SharesHash,
-        _signer_position: TrusteePosition,
+        shares_h: &SharesHash,
+        signer_position: TrusteePosition,
     ) -> Result<Shares<C>, ProtocolError> {
-        Err(ProtocolError::WasmNotImplemented)
+        let bytes = self.get_dkg_artifact(StatementType::Shares, shares_h.0, signer_position)?;
+        Ok(Shares::strand_deserialize(&bytes)?)
     }
 
     pub(crate) fn get_dkg_public_key(
         &self,
-        _hash: &PublicKeyHash,
-        _signer_position: TrusteePosition,
+        pk_h: &PublicKeyHash,
+        signer_position: TrusteePosition,
     ) -> Result<DkgPublicKey<C>, ProtocolError> {
-        Err(ProtocolError::WasmNotImplemented)
+        let bytes = self.get_dkg_artifact(StatementType::PublicKey, pk_h.0, signer_position)?;
+        Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
     }
 
     pub(crate) fn get_ballots(
         &self,
-        _hash: &CiphertextsHash,
-        _batch: BatchNumber,
-        _signer_position: TrusteePosition,
+        b_h: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
     ) -> Result<Ballots<C>, ProtocolError> {
-        Err(ProtocolError::WasmNotImplemented)
+        let bytes = self.get_artifact(StatementType::Ballots, b_h.0, signer_position, batch)?;
+        Ok(Ballots::<C>::strand_deserialize(&bytes)?)
     }
 
     pub(crate) fn get_mix(
         &self,
-        _hash: &CiphertextsHash,
-        _batch: BatchNumber,
-        _signer_position: TrusteePosition,
+        m_h: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
     ) -> Result<Mix<C>, ProtocolError> {
-        Err(ProtocolError::WasmNotImplemented)
+        let bytes = self.get_artifact(StatementType::Mix, m_h.0, signer_position, batch)?;
+        Ok(Mix::<C>::strand_deserialize(&bytes)?)
     }
 
     pub(crate) fn get_decryption_factors(
         &self,
-        _hash: &DecryptionFactorsHash,
-        _batch: BatchNumber,
-        _signer_position: TrusteePosition,
+        d_h: &DecryptionFactorsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
     ) -> Result<DecryptionFactors<C>, ProtocolError> {
-        Err(ProtocolError::WasmNotImplemented)
+        let bytes = self.get_artifact(
+            StatementType::DecryptionFactors,
+            d_h.0,
+            signer_position,
+            batch,
+        )?;
+        Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
     }
 
     pub(crate) fn get_plaintexts(
         &self,
-        _hash: &PlaintextsHash,
-        _batch: BatchNumber,
-        _signer_position: TrusteePosition,
+        p_h: &PlaintextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
     ) -> Result<Plaintexts<C>, ProtocolError> {
-        Err(ProtocolError::WasmNotImplemented)
+        let bytes = self.get_artifact(StatementType::Plaintexts, p_h.0, signer_position, batch)?;
+        Ok(Plaintexts::<C>::strand_deserialize(&bytes)?)
     }
 
-    pub(crate) fn get_dkg_public_key_nohash(&self, _signer_position: TrusteePosition) -> Option<DkgPublicKey<C>> {
-        None
+    ///////////////////////////////////////////////////////////////////////////
+    // Artifact retrieval (in-memory only)
+    //////////////////////////////////////////////////////////////////////////
+
+    fn get_dkg_artifact(
+        &self,
+        kind: StatementType,
+        hash: Hash,
+        signer_position: TrusteePosition,
+    ) -> Result<&Vec<u8>, ProtocolError> {
+        self.get_artifact(kind, hash, signer_position, 0)
+    }
+
+    fn get_artifact(
+        &self,
+        kind: StatementType,
+        hash: Hash,
+        signer_position: TrusteePosition,
+        batch: BatchNumber,
+    ) -> Result<&Vec<u8>, ProtocolError> {
+        let aei = self.get_artifact_entry_identifier_ext(kind.clone(), signer_position, batch, 0);
+
+        let entry = self
+            .artifacts_memory
+            .get(&aei)
+            .ok_or(ProtocolError::MissingArtifact(kind.clone()))?;
+
+        if hash != entry.0 {
+            return Err(ProtocolError::MismatchedArtifactHash(kind));
+        }
+
+        Ok(&entry.1)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // LocalBoard key construction
+    ///////////////////////////////////////////////////////////////////////////
+
+    pub(crate) fn get_statement_entry_identifier(
+        &self,
+        statement: &Statement,
+        signer_position: usize,
+    ) -> StatementEntryIdentifier {
+        let (kind, _, batch, mix_number, _) = statement.get_data();
+
+        StatementEntryIdentifier {
+            kind,
+            signer_position,
+            batch,
+            mix_number,
+        }
+    }
+
+    pub(crate) fn get_artifact_entry_identifier(
+        &self,
+        statement_entry: &StatementEntryIdentifier,
+    ) -> ArtifactEntryIdentifier {
+        self.get_artifact_entry_identifier_ext(
+            statement_entry.kind.clone(),
+            statement_entry.signer_position,
+            statement_entry.batch,
+            statement_entry.mix_number,
+        )
+    }
+
+    pub(crate) fn get_artifact_entry_identifier_ext(
+        &self,
+        statement_type: StatementType,
+        signer_position: usize,
+        batch: BatchNumber,
+        mix_number: usize,
+    ) -> ArtifactEntryIdentifier {
+        let sti = StatementEntryIdentifier {
+            kind: statement_type,
+            signer_position,
+            batch,
+            mix_number,
+        };
+        ArtifactEntryIdentifier {
+            statement_entry: sti,
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Additional methods required by Trustee
+    ///////////////////////////////////////////////////////////////////////////
+
+    pub(crate) fn max_messages(&self) -> usize {
+        let Some(cfg) = &self.configuration else {
+            return 0;
+        };
+
+        let mut sei = StatementEntryIdentifier {
+            kind: StatementType::Ballots,
+            signer_position: PROTOCOL_MANAGER_INDEX,
+            batch: 1,
+            mix_number: 0,
+        };
+
+        loop {
+            if self.statements.get(&sei).is_none() {
+                break;
+            }
+            sei.batch = sei.batch + 1;
+        }
+
+        let n = cfg.trustees.len();
+        let t = cfg.threshold;
+
+        let dkg = 1 + (5 * n);
+        if sei.batch == 0 {
+            return dkg;
+        }
+
+        let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
+
+        dkg + ((sei.batch as usize - 1) * per_batch_tally)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Testing functions (used by tests and dbg)
+    ///////////////////////////////////////////////////////////////////////////
+
+    pub(crate) fn get_dkg_public_key_nohash(
+        &self,
+        signer_position: TrusteePosition,
+    ) -> Option<DkgPublicKey<C>> {
+        let aei =
+            self.get_artifact_entry_identifier_ext(StatementType::PublicKey, signer_position, 0, 0);
+        let entry = self.artifacts_memory.get(&aei)?;
+
+        DkgPublicKey::<C>::strand_deserialize(&entry.1).ok()
     }
 
     pub(crate) fn get_plaintexts_nohash(
         &self,
-        _batch: BatchNumber,
-        _signer_position: TrusteePosition,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
     ) -> Option<Plaintexts<C>> {
-        None
+        let aei = self.get_artifact_entry_identifier_ext(
+            StatementType::Plaintexts,
+            signer_position,
+            batch,
+            0,
+        );
+        let entry = self.artifacts_memory.get(&aei)?;
+
+        Plaintexts::<C>::strand_deserialize(&entry.1).ok()
     }
 
-    pub(crate) fn get_statement_entries(&self) -> Vec<BoardEntry> {
-        vec![]
+    ///////////////////////////////////////////////////////////////////////////
+    // Store methods (not needed for WASM in-memory, but required by Trustee)
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// Not used in WASM (no persistent store), returns empty vec
+    pub(crate) fn store_and_return_messages(
+        &mut self,
+        _messages: &Vec<HttpB3Message>,
+        _last_message_id: i64,
+        _ignore_existing: bool,
+    ) -> anyhow::Result<Vec<(Message, i64)>> {
+        // WASM has no store - messages should be processed directly via step()
+        Ok(vec![])
+    }
+
+    /// Not used in WASM (no persistent store)
+    pub(crate) fn update_store(
+        &self,
+        _messages: &Vec<HttpB3Message>,
+        _ignore_existing: bool,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    /// Not used in WASM (no persistent store), returns -1
+    pub(crate) fn get_last_external_id(&mut self) -> anyhow::Result<i64> {
+        Ok(-1)
     }
 }
 

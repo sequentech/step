@@ -2,6 +2,7 @@
 use crate::protocol::board::local::LocalBoardStorage;
 use crate::protocol::board::local::StatementEntryIdentifier;
 use crate::protocol::board::local::BoardEntry;
+use crate::protocol::board::local::ArtifactEntryIdentifier;
 
 // LocalBoardStorage trait implementation for LocalBoard
 impl<C: Ctx> LocalBoardStorage<C> for LocalBoard<C> {
@@ -974,7 +975,7 @@ impl<C: Ctx> LocalBoard<C> {
 
         let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
 
-        dkg + ((sei.batch - 1) * per_batch_tally)
+        dkg + ((sei.batch as usize - 1) * per_batch_tally)
 
         // self.statements.len() == max
     }
@@ -1044,14 +1045,8 @@ impl<'a, T> ArtifactRef<'a, T> {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Artifact keys
+// Message store row structure
 ///////////////////////////////////////////////////////////////////////////
-
-/// Key used to store artifacts in the artifact map
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct ArtifactEntryIdentifier {
-    pub statement_entry: StatementEntryIdentifier,
-}
 
 /// A row of the message store
 struct SqliteStoreMessageRow {

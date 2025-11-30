@@ -4,14 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
+name = "braid_wasm"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 wbraid-shared = { path = "../shared" }
 braid = { path = "../braid", default-features = false, features = ["wasm-core"] }
+strand = { path = "../strand" }
+b4 = { path = "../b4" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
+base64 = "0.22"
 
 # WASM bindings
 wasm-bindgen = "0.2"
@@ -47,6 +51,7 @@ indexed_db_futures = "0.5"
 getrandom = { version = "0.2", features = ["js"] }
 console_error_panic_hook = "0.1"
 serde-wasm-bindgen = "0.6"
+tracing-wasm = "0.2"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

@@ -503,7 +503,7 @@ async fn post_ballots<C: Ctx>(
         for i in 0..batches {
             let message = b4::messages::message::Message::ballots_msg(
                 &configuration,
-                i as usize,
+                i as u64,
                 &ballot_batch,
                 selected_trustees,
                 PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),

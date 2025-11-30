@@ -25,7 +25,7 @@ if ($buildResult -ne 0) {
 
 # Run wasm-bindgen to generate JS bindings
 Write-Host "Generating JS bindings with wasm-bindgen..." -ForegroundColor Cyan
-wasm-bindgen ../../target/wasm32-unknown-unknown/release/wbraid_client.wasm --out-dir pkg --target web
+wasm-bindgen ../../target/wasm32-unknown-unknown/release/braid_wasm.wasm --out-dir pkg --target web
 
 $bindgenResult = $LASTEXITCODE
 
@@ -40,4 +40,4 @@ if ($bindgenResult -ne 0) {
     exit 1
 }
 
-Write-Host "Build complete! WASM bundle ready in crates/client/pkg/" -ForegroundColor Green
+Write-Host "Build complete! WASM bundle ready in crates/braid-wasm/pkg/" -ForegroundColor Green

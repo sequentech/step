@@ -7,6 +7,7 @@ pub mod messages;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::messages::newtypes::Timestamp;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn timestamp() -> Timestamp {
     let start = SystemTime::now();
     let since_the_epoch = start
@@ -14,6 +15,12 @@ pub fn timestamp() -> Timestamp {
         .expect("Impossible with respect to UNIX_EPOCH");
 
     since_the_epoch.as_secs()
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn timestamp() -> Timestamp {
+    // Use JavaScript Date.now() for WASM (returns milliseconds since epoch)
+    (js_sys::Date::now() / 1000.0) as u64
 }
 
 pub(crate) fn system_time_from_timestamp(seconds: Timestamp) -> Option<SystemTime> {

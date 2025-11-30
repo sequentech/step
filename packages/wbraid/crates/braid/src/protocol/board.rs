@@ -19,7 +19,7 @@ pub mod local;
 #[cfg(feature = "native")]
 pub use local_fs::LocalBoard;
 #[cfg(all(feature = "wasm-core", not(feature = "native")))]
-pub use local_wasm::WasmLocalBoard as LocalBoard;
+pub use local_wasm::LocalBoard;
 
 use anyhow::Result;
 use b4::messages::message::Message;

@@ -40,6 +40,7 @@ use std::sync::{Arc, Mutex};
 // use std::time::Instant;
 
 use crate::context::{Ctx, Element, Exponent};
+use crate::debug_log;
 use crate::elgamal::{Ciphertext, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
@@ -192,6 +193,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: Vec<usize>,
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
+        debug_log!("Shuffler::gen_proof: label {:?}", label);
+        
         // let now = Instant::now(); println!("gen_commitments..");
         let (cs, rs) = self.gen_commitments(&perm, &generators, &self.ctx);
         // println!("gen_commitments {}", now.elapsed().as_millis());
@@ -442,6 +445,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         generators: Vec<C::E>,
         label: &[u8],
     ) -> Result<bool, StrandError> {
+        debug_log!("Shuffler::gen_proof: label {:?}", label);
         let ctx = &self.ctx;
 
         #[allow(non_snake_case)]
@@ -702,9 +706,10 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()
             .map(|i| {
+                let i_u64 = i as u64;
                 let next = [
                     ("prefix", &prefix_hash[0..]),
-                    ("counter", &i.to_le_bytes()[0..]),
+                    ("counter", &i_u64.to_le_bytes()[0..]),
                 ];
                 /*let next = ChallengeInput::from_bytes(vec![
                     ("prefix", prefix_hash.clone()),

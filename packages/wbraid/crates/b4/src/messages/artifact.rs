@@ -59,7 +59,7 @@ impl<C: Ctx> Configuration<C> {
 
     pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {
         if trustee_pk == &self.protocol_manager {
-            Some(PROTOCOL_MANAGER_INDEX)
+            Some(PROTOCOL_MANAGER_INDEX as usize)
         } else {
             self.trustees.iter().position(|t| t == trustee_pk)
         }
@@ -69,7 +69,9 @@ impl<C: Ctx> Configuration<C> {
         let mut ret = vec![];
         ret.extend(self.id.to_le_bytes());
         ret.extend(batch.to_le_bytes());
-        ret.extend(suffix.len().to_le_bytes());
+        // platform-independent value (cannot use usize as it may differ)
+        let suffix_len = suffix.len() as u64;
+        ret.extend(suffix_len.to_le_bytes());
         ret.extend(suffix.as_bytes());
 
         ret

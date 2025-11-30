@@ -201,7 +201,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
 
         let message = Message::ballots_msg(
             &test.cfg,
-            i + 1,
+            (i + 1) as u64,
             &ballot_batch,
             selected_trustees,
             PublicKeyHash(crate::util::hash_from_vec(&pk_h).unwrap()),
@@ -280,7 +280,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     for (_, message) in plaintexts_out {
         let batch = message.statement.get_batch_number();
         let plaintexts = Plaintexts::<C>::strand_deserialize(&message.artifact.unwrap()).unwrap();
-        let expected: HashSet<C::P> = HashSet::from_iter(plaintexts_in[batch - 1].clone());
+        let expected: HashSet<C::P> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
         let actual: HashSet<C::P> = HashSet::from_iter(plaintexts.0.clone().0);
         info!("expected {} actual {}", expected.len(), actual.len());
 
