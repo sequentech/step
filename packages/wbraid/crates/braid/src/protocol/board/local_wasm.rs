@@ -4,10 +4,38 @@
 
 //! WASM-compatible local board implementation
 //!
-//! This is an in-memory implementation for WASM that mirrors the store=None
-//! behavior from local_fs.rs. In the future, IndexedDB can be added for persistence.
+//! # Current Status: In-Memory Only
+//!
+//! This implementation currently provides in-memory storage only. IndexedDB persistence
+//! is prepared but not yet integrated due to async/sync impedance mismatch.
+//!
+//! # Future: IndexedDB Persistence (Requires Async Refactor)
+//!
+//! To implement secure persistent storage in WASM, we need:
+//!
+//! ## Security Requirements:
+//! - **Append-only**: Messages assigned auto-incrementing local IDs, cannot be deleted
+//! - **Tamper-resistant**: Uniqueness constraints prevent duplicate messages
+//! - **Replay protection**: Track last_local_board_id persistently
+//! - **Locally-controlled ordering**: Local IDs determine order, not bulletin board
+//!
+//! ## IndexedDB Schema (Prepared):
+//! - **messages** object store with auto-increment key (local_id)
+//! - **Indexes**:
+//!   - `external_id` (unique) - bulletin board's ID for optimization
+//!   - `message_key` (unique) - composite key: sender_pk + kind + batch + mix_number
+//!
+//! ## Implementation Blocker:
+//! IndexedDB is inherently async, but the LocalBoardStorage trait requires sync methods.
+//! Options:
+//! 1. Make Trustee::step() async in WASM (requires braid-wasm refactor)
+//! 2. Use wasm-bindgen-futures with a custom executor (complex, may block UI)
+//! 3. Hybrid: cache in memory, persist async in background (eventual consistency issues)
+//!
+//! **Recommended**: Option 1 - make WASM trustee async throughout.
+//! This is the cleanest approach but requires refactoring braid-wasm::Trustee.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -22,10 +50,10 @@ use b4::HttpB3Message;
 use crate::util::{ProtocolContext, ProtocolError};
 use crate::protocol::board::local::{BoardEntry, StatementEntryIdentifier, ArtifactEntryIdentifier};
 
-/// A WASM-compatible local board with in-memory storage only (store=None behavior).
+/// A WASM-compatible local board - currently in-memory only.
 /// 
-/// All artifacts are stored in artifacts_memory HashMap.
-/// This mirrors the testing mode of the native LocalBoard.
+/// NOTE: Persistent IndexedDB storage is architecturally ready but requires
+/// making the Trustee async in WASM. See module documentation for details.
 pub struct LocalBoard<C: Ctx> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
@@ -38,13 +66,13 @@ pub struct LocalBoard<C: Ctx> {
 impl<C: Ctx> LocalBoard<C> {
     /// Construct an empty LocalBoard with in-memory storage only
     pub(crate) fn new(_store: Option<PathBuf>, _blob_store: Option<PathBuf>) -> Self {
-        tracing::info!("WASM LocalBoard: in-memory only (no store)");
+        tracing::info!("WASM LocalBoard: in-memory only (IndexedDB persistence requires async refactor)");
         
         LocalBoard {
             configuration: None,
             cfg_hash: None,
             statements: HashMap::new(),
-            store: None, // Always None for WASM
+            store: None, // Persistence disabled until async refactor
             artifacts_memory: HashMap::new(),
         }
     }
@@ -462,31 +490,48 @@ impl<C: Ctx> LocalBoard<C> {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Store methods (not needed for WASM in-memory, but required by Trustee)
+    ///////////////////////////////////////////////////////////////////////////
+    // Store methods - Currently stubs, pending async refactor for IndexedDB
     ///////////////////////////////////////////////////////////////////////////
 
-    /// Not used in WASM (no persistent store), returns empty vec
+    /// Not yet implemented: IndexedDB persistence requires async refactor
+    ///
+    /// TODO: Once Trustee::step() is async in WASM, implement:
+    /// - Open IndexedDB for this board
+    /// - Store messages with auto-increment local_id
+    /// - Query messages WHERE local_id > last_local_board_id ORDER BY local_id ASC
+    /// - Return Vec<(Message, local_id)>
     pub(crate) fn store_and_return_messages(
         &mut self,
         _messages: &Vec<HttpB3Message>,
         _last_local_board_id: i64,
         _ignore_existing: bool,
-    ) -> anyhow::Result<Vec<(Message, i64)>> {
-        // WASM has no store - messages should be processed directly via step()
+    ) -> Result<Vec<(Message, i64)>> {
+        // WASM has no persistence yet - messages processed directly via step()
         Ok(vec![])
     }
 
-    /// Not used in WASM (no persistent store)
+    /// Not yet implemented: IndexedDB persistence requires async refactor
+    ///
+    /// TODO: Once async, implement:
+    /// - Deserialize messages to extract metadata
+    /// - Store in IndexedDB with uniqueness constraints
+    /// - Use ignore_existing to handle duplicates during full refresh
     pub(crate) fn update_store(
         &self,
         _messages: &Vec<HttpB3Message>,
         _ignore_existing: bool,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         Ok(())
     }
 
-    /// Not used in WASM (no persistent store), returns -1
-    pub(crate) fn get_last_external_id(&mut self) -> anyhow::Result<i64> {
+    /// Not yet implemented: IndexedDB persistence requires async refactor
+    ///
+    /// TODO: Once async, implement:
+    /// - Query IndexedDB for MAX(external_id)
+    /// - Return max or -1 if empty
+    /// Note: This is OPTIMIZATION ONLY, has no security implications
+    pub(crate) fn get_last_external_id(&mut self) -> Result<i64> {
         Ok(-1)
     }
 }
