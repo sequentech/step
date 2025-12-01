@@ -186,11 +186,9 @@ impl Ctx for RistrettoCtx {
         Digest::update(&mut hasher, bytes);
 
         ScalarS(Scalar::from_hash(hasher))*/
-        // crate::debug_log!("***************** hash_to_exp: challenge hash bytes input: {:?}", bytes);
 
         let bytes = crate::hash::hash_to_array(bytes)?;
         let scalar = Scalar::from_bytes_mod_order_wide(&bytes);
-        // crate::debug_log!("*****************hash_to_exp: scalar value: {:?}", scalar);
         
         Ok(ScalarS(scalar))
     }

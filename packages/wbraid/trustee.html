@@ -272,21 +272,7 @@
             <div id="init-status"></div>
         </div>
 
-        <!-- Board Selection Panel -->
-        <div class="panel">
-            <h2>📋 Board Selection</h2>
-            <button id="fetch-boards-btn" disabled>Fetch Available Boards</button>
-            <div id="boards-status"></div>
-            <div id="boards-list" class="board-list hidden"></div>
-            <div class="button-group">
-                <input type="text" id="manual-board" placeholder="Or enter board name manually">
-                <button id="connect-board-btn" disabled class="secondary">Connect</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid">
-        <!-- Protocol Execution Panel -->
+        <!-- Protocol Execution Panel (moved from bottom-left) -->
         <div class="panel">
             <h2>▶️ Protocol Execution</h2>
             <div class="button-group">
@@ -301,7 +287,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Last Action</div>
-                    <div class="stat-value" id="last-step-result" style="font-size: 16px;">-</div>
+                    <div class="stat-value" id="last-step-result" style="font-size: 14px;">-</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Board</div>
@@ -310,6 +296,28 @@
             </div>
             <div class="progress">
                 <div class="progress-bar" id="progress-bar" style="width: 0%">0%</div>
+            </div>
+            
+            <!-- Board Contents -->
+            <details style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📜 Local Board Contents (<span id="board-count">0</span> statements)</summary>
+                <div id="board-contents" style="margin-top: 12px; font-size: 12px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;">
+                    <em style="color: #95a5a6;">No statements yet</em>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- Board Selection Panel (moved from top-right) -->
+        <div class="panel">
+            <h2>📋 Board Selection</h2>
+            <button id="fetch-boards-btn" disabled>Fetch Available Boards</button>
+            <div id="boards-status"></div>
+            <div id="boards-list" class="board-list hidden"></div>
+            <div class="button-group">
+                <input type="text" id="manual-board" placeholder="Or enter board name manually">
+                <button id="connect-board-btn" disabled class="secondary">Connect</button>
             </div>
         </div>
 
@@ -380,6 +388,40 @@
             const progressBar = document.getElementById('progress-bar');
             progressBar.style.width = progress + '%';
             progressBar.textContent = progress + '%';
+        }
+
+        async function updateBoardContents() {
+            if (!trustee) return;
+            try {
+                const summary = await trustee.get_board_summary();
+                const boardCount = document.getElementById('board-count');
+                const boardContents = document.getElementById('board-contents');
+                
+                boardCount.textContent = summary.length;
+                
+                if (summary.length === 0) {
+                    boardContents.innerHTML = '<em style="color: #95a5a6;">No statements yet</em>';
+                } else {
+                    // Group by statement type
+                    const grouped = {};
+                    summary.forEach(s => {
+                        if (!grouped[s.kind]) grouped[s.kind] = [];
+                        grouped[s.kind].push(s);
+                    });
+                    
+                    const html = Object.entries(grouped).map(([kind, stmts]) => {
+                        const signers = stmts.map(s => s.signer === 4294967295 ? 'PM' : `T${s.signer}`).join(', ');
+                        return `<div style="padding: 4px 0; border-bottom: 1px solid #ecf0f1;">
+                            <span style="color: #3498db; font-weight: 600;">${kind}</span>
+                            <span style="color: #7f8c8d; margin-left: 8px;">(${signers})</span>
+                        </div>`;
+                    }).join('');
+                    
+                    boardContents.innerHTML = html;
+                }
+            } catch (err) {
+                console.error('Failed to update board contents:', err);
+            }
         }
 
         // Initialize WASM
@@ -542,9 +584,17 @@
                 const state = await trustee.get_state();
                 
                 updateState(state);
+                await updateBoardContents();
                 
-                const action = result.added ? `Added ${result.added}` : 
-                              result.posted ? `Posted ${result.posted}` : 'None';
+                // Display actions or message counts
+                let action;
+                if (result.actions && result.actions.length > 0) {
+                    action = result.actions.join(', ');
+                } else if (result.added > 0 || result.posted > 0) {
+                    action = `${result.added} added, ${result.posted} posted`;
+                } else {
+                    action = 'Idle';
+                }
                 document.getElementById('last-step-result').textContent = action;
                 
                 showStatus('step-status', 
@@ -587,9 +637,17 @@
                         const state = await trustee.get_state();
                         
                         updateState(state);
+                        await updateBoardContents();
                         
-                        const action = result.added ? `Added ${result.added}` : 
-                                      result.posted ? `Posted ${result.posted}` : 'None';
+                        // Display actions or message counts
+                        let action;
+                        if (result.actions && result.actions.length > 0) {
+                            action = result.actions.join(', ');
+                        } else if (result.added > 0 || result.posted > 0) {
+                            action = `${result.added} added, ${result.posted} posted`;
+                        } else {
+                            action = 'Idle';
+                        }
                         document.getElementById('last-step-result').textContent = action;
                         
                         showStatus('step-status', 

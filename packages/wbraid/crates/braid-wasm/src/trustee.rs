@@ -8,7 +8,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 use serde::{Deserialize, Serialize};
-use base64::{Engine as _, engine::general_purpose};
 
 use braid::protocol::trustee::{Trustee, TrusteeConfig};
 use strand::backend::ristretto::RistrettoCtx;
@@ -17,7 +16,7 @@ use strand::symm;
 use b4::HttpB3Message;
 use wbraid_shared::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
-    Message as HttpB4Message, ListMessagesResponse, ContentType,
+    ListMessagesResponse, ContentType,
 };
 
 /// WASM-specific configuration that includes session properties
@@ -175,7 +174,7 @@ impl WasmTrustee {
         
         let url = format!("{}/boards/{}/messages?last_id={}", self.b4_url, board_name, last_id);
         
-        let mut opts = RequestInit::new();
+        let opts = RequestInit::new();
         opts.set_method("GET");
         opts.set_mode(RequestMode::Cors);
         
@@ -352,7 +351,7 @@ impl WasmTrustee {
             let body = serde_json::to_string(&initiate_req)
                 .map_err(|e| JsValue::from_str(&format!("JSON error: {}", e)))?;
             
-            let mut opts = RequestInit::new();
+            let opts = RequestInit::new();
             opts.set_method("POST");
             opts.set_mode(RequestMode::Cors);
             opts.set_body(&JsValue::from_str(&body));
@@ -392,7 +391,7 @@ impl WasmTrustee {
                     message_bytes.len()
                 )));
                 
-                let mut opts2 = RequestInit::new();
+                let opts2 = RequestInit::new();
                 opts2.set_method("PUT");
                 opts2.set_mode(RequestMode::Cors);
                 
@@ -428,7 +427,7 @@ impl WasmTrustee {
                 let confirm_json = serde_json::to_string(&confirm_req)
                     .map_err(|e| JsValue::from_str(&format!("Failed to serialize confirm: {}", e)))?;
                 
-                let mut opts3 = RequestInit::new();
+                let opts3 = RequestInit::new();
                 opts3.set_method("POST");
                 opts3.set_mode(RequestMode::Cors);
                 opts3.set_body(&JsValue::from_str(&confirm_json));
@@ -465,7 +464,7 @@ impl WasmTrustee {
                 let confirm_json = serde_json::to_string(&confirm_req)
                     .map_err(|e| JsValue::from_str(&format!("Failed to serialize confirm: {}", e)))?;
                 
-                let mut opts3 = RequestInit::new();
+                let opts3 = RequestInit::new();
                 opts3.set_method("POST");
                 opts3.set_mode(RequestMode::Cors);
                 opts3.set_body(&JsValue::from_str(&confirm_json));
@@ -521,18 +520,23 @@ impl WasmTrustee {
         web_sys::console::log_1(&JsValue::from_str(&format!("Received {} messages", messages.len())));
         
         // Process through trustee
-        let (num_posted, num_added, messages_to_post) = {
+        let (num_posted, num_added, messages_to_post, action_strings) = {
             let trustee = self.trustee.as_mut()
                 .ok_or_else(|| JsValue::from_str("Trustee disappeared"))?;
                 
-            let step_result = trustee.step_public(&messages)
+            let step_result = trustee.step(&messages)
                 .map_err(|e| {
                     let error_msg = format!("Step failed: {:?}", e);
                     web_sys::console::error_1(&JsValue::from_str(&error_msg));
                     JsValue::from_str(&error_msg)
                 })?;
             
-            (step_result.messages.len(), step_result.added_messages as usize, step_result.messages)
+            // Convert actions to strings using Display trait
+            let actions: Vec<String> = step_result.actions.iter()
+                .map(|a| format!("{}", a))
+                .collect();
+            
+            (step_result.messages.len(), step_result.added_messages as usize, step_result.messages, actions)
         };
         
         if num_posted > 0 {
@@ -546,11 +550,13 @@ impl WasmTrustee {
         struct StepInfo {
             posted: usize,
             added: usize,
+            actions: Vec<String>,
         }
         
         serde_wasm_bindgen::to_value(&StepInfo {
             posted: num_posted,
             added: num_added,
+            actions: action_strings,
         }).map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 
@@ -562,12 +568,12 @@ impl WasmTrustee {
         let board_name = self.board_name.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
         
-        // Access trustee internals for state
+        // Access trustee fields directly
         let state = TrusteeState {
             board_name: board_name.clone(),
-            current_messages: trustee.get_current_messages(),
-            max_messages: trustee.get_max_messages(),
-            last_message_id: trustee.get_last_message_id(),
+            current_messages: trustee.local_board.statements.len() + 1,  // +1 for config
+            max_messages: trustee.local_board.max_messages(),
+            last_message_id: trustee.last_message_id,
         };
         
         serde_wasm_bindgen::to_value(&state)
@@ -591,4 +597,35 @@ impl WasmTrustee {
     pub fn b4_url(&self) -> String {
         self.b4_url.clone()
     }
+
+    /// Get board summary - list of statements in local board
+    pub fn get_board_summary(&self) -> Result<JsValue, JsValue> {
+        use braid::protocol::board::local::BoardEntry;
+        
+        let trustee = self.trustee.as_ref()
+            .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
+        
+        #[derive(Serialize)]
+        struct StatementInfo {
+            kind: String,
+            signer: usize,
+            batch: u64,
+            mix: usize,
+        }
+        
+        let entries: Vec<BoardEntry> = trustee.local_board.get_statement_entries();
+        let summary: Vec<StatementInfo> = entries
+            .iter()
+            .map(|e| StatementInfo {
+                kind: e.key.kind.to_string(),
+                signer: e.key.signer_position,
+                batch: e.key.batch,
+                mix: e.key.mix_number,
+            })
+            .collect();
+        
+        serde_wasm_bindgen::to_value(&summary)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
 }
+

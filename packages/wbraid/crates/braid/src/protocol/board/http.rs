@@ -11,8 +11,6 @@ use b4::messages::message::Message;
 use b4::HttpB3Message;
 use strand::serialization::StrandSerialize;
 
-const MAX_INLINE_MESSAGE_SIZE: usize = 1024 * 1024; // 1MB
-
 #[derive(Debug, Serialize)]
 struct InitiateMessageRequest {
     size: usize,
@@ -71,27 +69,21 @@ enum ContentTypeDto {
 pub struct HttpB3 {
     client: reqwest::Client,
     base_url: String,
-    board_name: String,
     s3_client: aws_sdk_s3::Client,
     bucket_name: String,
-    store_root: Option<PathBuf>,
 }
 
 impl HttpB3 {
     pub async fn new(
         base_url: &str,
-        board_name: &str,
         s3_client: aws_sdk_s3::Client,
         bucket_name: &str,
-        store_root: Option<PathBuf>,
     ) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
-            board_name: board_name.to_string(),
             s3_client,
             bucket_name: bucket_name.to_string(),
-            store_root,
         }
     }
 
@@ -371,10 +363,8 @@ impl HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            board_name: board_name.to_string(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
-            store_root,
         }
     }
 }
@@ -385,10 +375,8 @@ impl super::BoardFactory<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            board_name: String::new(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
-            store_root: None,
         }
     }
 }
@@ -398,10 +386,8 @@ impl super::BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            board_name: String::new(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
-            store_root: None,
         }
     }
 }

@@ -40,7 +40,6 @@ use std::sync::{Arc, Mutex};
 // use std::time::Instant;
 
 use crate::context::{Ctx, Element, Exponent};
-use crate::debug_log;
 use crate::elgamal::{Ciphertext, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
@@ -193,7 +192,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: Vec<usize>,
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
-        debug_log!("Shuffler::gen_proof: label {:?}", label);
         
         // let now = Instant::now(); println!("gen_commitments..");
         let (cs, rs) = self.gen_commitments(&perm, &generators, &self.ctx);
@@ -445,7 +443,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         generators: Vec<C::E>,
         label: &[u8],
     ) -> Result<bool, StrandError> {
-        debug_log!("Shuffler::gen_proof: label {:?}", label);
         let ctx = &self.ctx;
 
         #[allow(non_snake_case)]

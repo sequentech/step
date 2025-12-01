@@ -70,14 +70,16 @@ pub struct Trustee<C: Ctx> {
     pub(crate) board_name: String,
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
-    pub(crate) local_board: LocalBoard<C>,
+    // Public for external crates (e.g., braid-wasm) to access board state
+    pub local_board: LocalBoard<C>,
     // FIXME consider moving this into LocalBoard. This field would be
     // updated in LocalBoard when calling add, instead of being returned to
     // the calling Trustee
     // This is the last message id that was updated to the LocalBoard's memory
     // it is used when updating the LocalBoard's memory from the message store.
     // See self::store_and_return_messages.
-    pub(crate) last_message_id: i64,
+    // Public for external crates (e.g., braid-wasm) to track message ID
+    pub last_message_id: i64,
     pub(crate) step_counter: i64,
     pub(crate) max_concurrent_actions: Option<usize>,
 }
@@ -136,7 +138,7 @@ impl<C: Ctx> Trustee<C> {
     /// The protocol main loop is reactive: it will not advance until the necessary
     /// messages are present in the board.
     #[instrument(name = "Trustee::step", skip(messages, self), level="trace")]
-    pub(crate) fn step(
+    pub fn step(
         &mut self,
         messages: &Vec<HttpB3Message>,
     ) -> Result<StepResult, ProtocolError> {
@@ -696,43 +698,18 @@ impl<C: Ctx> Trustee<C> {
         Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
     }
 
-    cfg_if::cfg_if! {
-        if #[cfg(any(feature = "fips_full", feature = "fips_core"))] {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
-                let identifier: String = self.get_pk()?.to_der_b64_string()?;
-                // 0 is a dummy batch value
-                let aad = cfg.label(0, format!("encrypted by {}", identifier));
-                let bytes: &[u8] = &sk.strand_serialize()?;
-                let ed = symm::encrypt(self.encryption_key, bytes, &aad)?;
+    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
+        let bytes: &[u8] = &sk.strand_serialize()?;
+        let ed = symm::encrypt(self.encryption_key, bytes)?;
 
-                Ok(ed)
-            }
+        Ok(ed)
+    }
 
-            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
-                let identifier: String = self.get_pk()?.to_der_b64_string()?;
-                // 0 is a dummy batch value
-                let aad = cfg.label(0, format!("encrypted by {}", identifier));
-                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?;
-                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
+    pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
+        let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
+        let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
-                Ok(ret)
-            }
-        }
-        else {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
-                let bytes: &[u8] = &sk.strand_serialize()?;
-                let ed = symm::encrypt(self.encryption_key, bytes)?;
-
-                Ok(ed)
-            }
-
-            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
-                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
-                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
-
-                Ok(ret)
-            }
-        }
+        Ok(ret)
     }
 
     /// Convenience function used by tests and dbg
@@ -751,32 +728,6 @@ impl<C: Ctx> Trustee<C> {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Public API for WASM and external use
-    ///////////////////////////////////////////////////////////////////////////
-
-    /// Public step method for WASM
-    pub fn step_public(
-        &mut self,
-        messages: &Vec<HttpB3Message>,
-    ) -> Result<StepResult, ProtocolError> {
-        self.step(messages)
-    }
-
-    /// Get current number of statements in the local board
-    /// Adds 1 to account for the configuration message which bootstraps the protocol
-    pub fn get_current_messages(&self) -> usize {
-        self.local_board.statements.len() + 1
-    }
-
-    /// Get maximum expected number of messages for this protocol
-    pub fn get_max_messages(&self) -> usize {
-        self.local_board.max_messages()
-    }
-
-    /// Get the last message ID seen by the board
-    pub fn get_last_message_id(&self) -> i64 {
-        self.last_message_id
-    }
 }
 
 /// Trustees can sign Messages
@@ -855,7 +806,7 @@ impl TrusteeConfig {
 /// statistics about the step execution.
 pub struct StepResult {
     pub messages: Vec<Message>,
-    pub(crate) actions: HashSet<Action>,
+    pub actions: HashSet<Action>,
     pub added_messages: i64,
     pub last_id: i64,
 }

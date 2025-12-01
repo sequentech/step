@@ -1,7 +1,7 @@
 mod bulletin_board;
 mod local_storage;
 mod s3;
-pub mod trustee;  // Make module public so wasm-bindgen can see it
+pub mod trustee;
 
 use wasm_bindgen::prelude::*;
 use wbraid_shared::Message;

@@ -29,7 +29,8 @@ use crate::protocol::board::local::{BoardEntry, StatementEntryIdentifier, Artifa
 pub struct LocalBoard<C: Ctx> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
-    pub(crate) statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
+    // Public for external crates (e.g., braid-wasm) to access statement count
+    pub statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
     pub(crate) store: Option<PathBuf>,
     pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
 }
@@ -207,7 +208,8 @@ impl<C: Ctx> LocalBoard<C> {
         self.configuration.clone()
     }
 
-    pub(crate) fn get_statement_entries(&self) -> Vec<BoardEntry> {
+    // Public for external crates (e.g., braid-wasm) to get board summary
+    pub fn get_statement_entries(&self) -> Vec<BoardEntry> {
         self
             .statements
             .iter()
@@ -398,7 +400,8 @@ impl<C: Ctx> LocalBoard<C> {
     // Additional methods required by Trustee
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn max_messages(&self) -> usize {
+    // Public for external crates (e.g., braid-wasm) to track protocol progress
+    pub fn max_messages(&self) -> usize {
         let Some(cfg) = &self.configuration else {
             return 1;
         };
