@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use wbraid_shared::{
+use b4::api_types::{
     GetMessageResponse, ListMessagesResponse, 
     InitiateMessageRequest, InitiateMessageResponse,
     ConfirmMessageRequest, ConfirmMessageResponse,

@@ -4,7 +4,7 @@ mod s3;
 pub mod trustee;
 
 use wasm_bindgen::prelude::*;
-use wbraid_shared::Message;
+use b4::api_types::Message;
 
 pub use bulletin_board::BulletinBoardClient;
 pub use local_storage::LocalStorage;
@@ -101,7 +101,7 @@ impl Client {
                 id: message_id.clone(),
                 timestamp: 0, // Would need to store this
                 size: cached_data.len(),
-                content_type: wbraid_shared::ContentType::Inline { data: cached_data },
+                content_type: b4::api_types::ContentType::Inline { data: cached_data },
                 sender_pk: "unknown".to_string(),
                 statement_kind: "Unknown".to_string(),
                 batch: 0,
@@ -118,7 +118,7 @@ impl Client {
             s3::download_from_s3(download_url).await?
         } else {
             match &response.message.content_type {
-                wbraid_shared::ContentType::Inline { data } => data.clone(),
+                b4::api_types::ContentType::Inline { data } => data.clone(),
                 _ => Vec::new(),
             }
         };

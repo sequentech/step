@@ -14,12 +14,11 @@ required-features = ["monitor"]
 
 [features]
 monitor = ["dep:cursive", "dep:clap"]
-wasm-core = ["dep:strand", "strand/wasm", "dep:js-sys"]
-native = ["dep:tokio", "dep:strand", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
+wasm-core = ["strand/wasm", "dep:js-sys"]
+native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
 
 [dependencies]
-wbraid-shared = { path = "../shared" }
-strand = { path = "../strand", optional = true }
+strand = { path = "../strand" }
 tokio = { workspace = true, optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }

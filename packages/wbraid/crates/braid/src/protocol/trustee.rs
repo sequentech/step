@@ -252,13 +252,13 @@ impl<C: Ctx> Trustee<C> {
         Ok(external_last_id)
     }
 
-    /// Updates the LocalBoard, inserting new messages into the the statements and
+    /// Updates the LocalBoard, inserting new messages into the statements and
     /// artifact maps.
     ///
     /// Takes a vector of (message, message_id) pairs as input, returns a pair
     /// of (updated messages count, last message id added)
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
-    fn update_local_board(
+    pub fn update_local_board(
         &mut self,
         messages: Vec<(Message, i64)>,
     ) -> Result<(i64, i64), ProtocolError> {

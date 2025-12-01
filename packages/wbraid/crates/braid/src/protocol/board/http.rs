@@ -399,7 +399,7 @@ impl super::BoardMulti for HttpB3 {
         &self,
         requests: &Vec<(String, i64)>,
     ) -> Result<(Vec<b4::HttpBoardMessages>, bool)> {
-        use wbraid_shared::{GetMessagesMultiRequest, BoardMessageRequest};
+        use b4::api_types::{GetMessagesMultiRequest, BoardMessageRequest};
         
         const DEFAULT_LIMIT: i64 = 100;
         
@@ -427,7 +427,7 @@ impl super::BoardMulti for HttpB3 {
             anyhow::bail!("Failed to get messages multi: HTTP {}", response.status());
         }
         
-        let multi_response: wbraid_shared::GetMessagesMultiResponse = response.json().await?;
+        let multi_response: b4::api_types::GetMessagesMultiResponse = response.json().await?;
         
         // Check if any board hit the limit (indicating more messages available)
         let has_more = multi_response.boards.iter()
@@ -440,8 +440,8 @@ impl super::BoardMulti for HttpB3 {
             
             for msg in board_resp.messages {
                 let message_bytes = match msg.content_type {
-                    wbraid_shared::ContentType::Inline { data } => data,
-                    wbraid_shared::ContentType::S3 { key } => {
+                    b4::api_types::ContentType::Inline { data } => data,
+                    b4::api_types::ContentType::S3 { key } => {
                         // Download from S3
                         let obj = self
                             .s3_client
@@ -479,7 +479,7 @@ impl super::BoardMulti for HttpB3 {
     }
 
     async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
-        use wbraid_shared::{
+        use b4::api_types::{
             InitiateMessagesMultiRequest, BoardInitiateRequest, MessageMetadata,
             ConfirmMessagesMultiRequest, BoardConfirmRequest, MessageConfirmation,
         };
@@ -538,7 +538,7 @@ impl super::BoardMulti for HttpB3 {
             anyhow::bail!("Failed to initiate multi-board upload: HTTP {}", response.status());
         }
         
-        let initiate_response: wbraid_shared::InitiateMessagesMultiResponse = response.json().await?;
+        let initiate_response: b4::api_types::InitiateMessagesMultiResponse = response.json().await?;
         
         // Phase 2: Upload messages (to S3 or prepare inline data)
         let mut confirm_requests = Vec::new();

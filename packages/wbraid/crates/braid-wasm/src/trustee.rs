@@ -10,11 +10,12 @@ use web_sys::{Request, RequestInit, RequestMode, Response};
 use serde::{Deserialize, Serialize};
 
 use braid::protocol::trustee::{Trustee, TrusteeConfig};
+use braid::protocol::board::local::LocalBoardStorage;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
 use b4::HttpB3Message;
-use wbraid_shared::{
+use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     ListMessagesResponse, ContentType,
 };
@@ -119,6 +120,83 @@ impl WasmTrustee {
         )));
         
         Ok(())
+    }
+
+    /// Connect to a board and perform initial synchronization
+    /// 
+    /// This should be called after init_session() to fetch existing messages
+    /// from the remote board and update the local board state, without executing
+    /// any protocol steps. This allows the UI to display the current board state
+    /// before the user starts stepping through the protocol.
+    /// 
+    /// Returns the number of messages fetched and added to the local board.
+    pub async fn connect_to_board(&mut self) -> Result<JsValue, JsValue> {
+        // Ensure we have a session
+        let trustee = self.trustee.as_mut()
+            .ok_or_else(|| JsValue::from_str("Session not initialized. Call init_session() first"))?;
+        
+        web_sys::console::log_1(&JsValue::from_str("Connecting to board and fetching existing messages..."));
+        
+        // Get last external ID (should be 0 for a fresh connection)
+        let last_id = trustee.get_last_external_id()
+            .map_err(|e| JsValue::from_str(&format!("Failed to get last ID: {:?}", e)))?;
+        
+        web_sys::console::log_1(&JsValue::from_str(&format!("Fetching messages after ID {}", last_id)));
+        
+        // Fetch messages from B4
+        let messages = self.fetch_messages(last_id).await?;
+        
+        web_sys::console::log_1(&JsValue::from_str(&format!("Received {} messages from board", messages.len())));
+        
+        // Update the local board without executing actions
+        let (added_messages, last_message_id) = {
+            let trustee = self.trustee.as_mut()
+                .ok_or_else(|| JsValue::from_str("Trustee disappeared"))?;
+            
+            // Convert HttpB3Message to (Message, i64) pairs
+            let parsed_messages: Result<Vec<_>, JsValue> = messages.iter()
+                .map(|m| {
+                    use strand::serialization::StrandDeserialize;
+                    use b4::messages::message::Message;
+                    
+                    let message = Message::strand_deserialize(&m.message)
+                        .map_err(|e| JsValue::from_str(&format!("Failed to deserialize message: {:?}", e)))?;
+                    Ok((message, m.id))
+                })
+                .collect();
+            
+            let parsed_messages = parsed_messages?;
+            
+            // Update local board (this is what step() does internally)
+            trustee.update_local_board(parsed_messages)
+                .map_err(|e| JsValue::from_str(&format!("Failed to update local board: {:?}", e)))?
+        };
+        
+        // Update the last_message_id in trustee
+        if added_messages > 0 {
+            let trustee = self.trustee.as_mut()
+                .ok_or_else(|| JsValue::from_str("Trustee disappeared"))?;
+            trustee.last_message_id = last_message_id;
+            
+            web_sys::console::log_1(&JsValue::from_str(&format!(
+                "✓ Connected to board: {} messages added, last_message_id = {}",
+                added_messages, last_message_id
+            )));
+        } else {
+            web_sys::console::log_1(&JsValue::from_str("✓ Connected to board: no new messages"));
+        }
+        
+        #[derive(Serialize)]
+        struct ConnectInfo {
+            added: i64,
+            last_message_id: i64,
+        }
+        
+        serde_wasm_bindgen::to_value(&ConnectInfo {
+            added: added_messages,
+            last_message_id,
+        })
+        .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 
     /// Fetch list of available boards from B4
@@ -571,7 +649,7 @@ impl WasmTrustee {
         // Access trustee fields directly
         let state = TrusteeState {
             board_name: board_name.clone(),
-            current_messages: trustee.local_board.statements.len() + 1,  // +1 for config
+            current_messages: trustee.local_board.get_statement_entries().len() + 1,  // +1 for config
             max_messages: trustee.local_board.max_messages(),
             last_message_id: trustee.last_message_id,
         };

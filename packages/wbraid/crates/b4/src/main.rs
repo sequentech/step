@@ -1,8 +1,3 @@
-mod db;
-mod handlers;
-mod s3;
-mod state;
-
 use anyhow::Result;
 use axum::{
     routing::{get, post},
@@ -11,7 +6,7 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use state::AppState;
+use b4::{db, handlers, s3, state::AppState};
 
 #[tokio::main]
 async fn main() -> Result<()> {

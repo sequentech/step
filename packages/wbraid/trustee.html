@@ -299,11 +299,27 @@
             </div>
             
             <!-- Board Contents -->
-            <details style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+            <details id="board-contents-details" style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
                 <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📜 Local Board Contents (<span id="board-count">0</span> statements)</summary>
                 <div id="board-contents" style="margin-top: 12px; font-size: 12px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;">
                     <em style="color: #95a5a6;">No statements yet</em>
                 </div>
+            </details>
+            
+            <!-- Action History (collapsible, initially collapsed) -->
+            <details id="action-history-details" style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📊 Action History (<span id="action-count">0</span> actions)</summary>
+                <div id="action-history" style="margin-top: 12px; font-size: 12px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;">
+                    <em style="color: #95a5a6;">No actions yet</em>
+                </div>
+                <button id="clear-history-btn" class="secondary" style="margin-top: 12px; width: 100%; font-size: 12px; padding: 6px;">Clear History</button>
+            </details>
+            
+            <!-- Console Output (collapsible, initially collapsed) -->
+            <details style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">💻 Console Output</summary>
+                <div id="console" style="margin-top: 12px;"></div>
+                <button id="clear-console-btn" class="secondary" style="margin-top: 12px; width: 100%;">Clear Console</button>
             </details>
         </div>
     </div>
@@ -320,13 +336,6 @@
                 <button id="connect-board-btn" disabled class="secondary">Connect</button>
             </div>
         </div>
-
-        <!-- Console Output Panel -->
-        <div class="panel">
-            <h2>💻 Console Output</h2>
-            <div id="console"></div>
-            <button id="clear-console-btn" class="secondary" style="margin-top: 12px; width: 100%;">Clear Console</button>
-        </div>
     </div>
 
     <script type="module">
@@ -337,6 +346,56 @@
 
         let trustee = null;
         let autoInterval = null;
+        let actionHistory = [];
+        const MAX_ACTION_HISTORY = 100;
+
+        // Add action to history
+        function addActionToHistory(action, stepInfo = {}) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = {
+                timestamp,
+                action,
+                added: stepInfo.added || 0,
+                posted: stepInfo.posted || 0
+            };
+            
+            actionHistory.unshift(entry); // Add to beginning
+            
+            // Limit history size
+            if (actionHistory.length > MAX_ACTION_HISTORY) {
+                actionHistory = actionHistory.slice(0, MAX_ACTION_HISTORY);
+            }
+            
+            updateActionHistoryDisplay();
+        }
+        
+        // Update action history display
+        function updateActionHistoryDisplay() {
+            const historyEl = document.getElementById('action-history');
+            const countEl = document.getElementById('action-count');
+            const detailsEl = document.getElementById('action-history-details');
+            
+            countEl.textContent = actionHistory.length;
+            
+            if (actionHistory.length === 0) {
+                historyEl.innerHTML = '<em style="color: #95a5a6;">No actions yet</em>';
+                detailsEl.removeAttribute('open');
+            } else {
+                const html = actionHistory.map(entry => {
+                    let details = '';
+                    if (entry.added > 0 || entry.posted > 0) {
+                        details = ` <span style="color: #7f8c8d;">(${entry.added} added, ${entry.posted} posted)</span>`;
+                    }
+                    return `<div style="padding: 4px 0; border-bottom: 1px solid #ecf0f1;">
+                        <span style="color: #95a5a6; font-size: 11px;">[${entry.timestamp}]</span>
+                        <span style="color: #2c3e50; margin-left: 4px;">${entry.action}</span>${details}
+                    </div>`;
+                }).join('');
+                
+                historyEl.innerHTML = html;
+                detailsEl.setAttribute('open', ''); // Auto-expand when there's content
+            }
+        }
 
         // Console logging with max entries limit
         const consoleEl = document.getElementById('console');
@@ -396,11 +455,14 @@
                 const summary = await trustee.get_board_summary();
                 const boardCount = document.getElementById('board-count');
                 const boardContents = document.getElementById('board-contents');
+                const boardDetailsEl = document.getElementById('board-contents-details');
                 
                 boardCount.textContent = summary.length;
                 
                 if (summary.length === 0) {
                     boardContents.innerHTML = '<em style="color: #95a5a6;">No statements yet</em>';
+                    // Keep collapsed when empty
+                    boardDetailsEl.removeAttribute('open');
                 } else {
                     // Group by statement type
                     const grouped = {};
@@ -418,6 +480,8 @@
                     }).join('');
                     
                     boardContents.innerHTML = html;
+                    // Auto-expand when there's content
+                    boardDetailsEl.setAttribute('open', '');
                 }
             } catch (err) {
                 console.error('Failed to update board contents:', err);
@@ -550,17 +614,27 @@
                 }
 
                 showStatus('boards-status', `Connecting to board '${boardName}'...`, 'info');
+                
+                // Initialize the session (creates the trustee object)
                 await trustee.init_session(boardName);
+                
+                // Perform initial sync: fetch existing messages and update local board
+                showStatus('boards-status', `Syncing with board '${boardName}'...`, 'info');
+                const syncResult = await trustee.connect_to_board();
+                console.log(`Initial sync complete: ${syncResult.added} messages added`);
                 
                 document.getElementById('step-btn').disabled = false;
                 document.getElementById('auto-btn').disabled = false;
                 
-                showStatus('boards-status', `Connected to board '${boardName}'!`, 'success');
+                showStatus('boards-status', `✓ Connected to '${boardName}' (${syncResult.added} messages synced)`, 'success');
                 console.log(`Connected to board: ${boardName}`);
                 
-                // Get initial state
+                // Get initial state and update UI
                 const state = await trustee.get_state();
                 updateState(state);
+                
+                // Update local board contents display
+                await updateBoardContents();
             } catch (err) {
                 showStatus('boards-status', `Error: ${err}`, 'error');
                 console.error('Connect board error:', err);
@@ -598,6 +672,11 @@
                     action = 'Idle';
                 }
                 document.getElementById('last-step-result').textContent = action;
+                
+                // Add to action history (skip idle actions)
+                if (action !== 'Idle') {
+                    addActionToHistory(action, { added: result.added || 0, posted: result.posted || 0 });
+                }
                 
                 showStatus('step-status', 
                     `Step complete: ${result.added || 0} added, ${result.posted || 0} posted`, 
@@ -652,6 +731,11 @@
                         }
                         document.getElementById('last-step-result').textContent = action;
                         
+                        // Add to action history (skip idle actions)
+                        if (action !== 'Idle') {
+                            addActionToHistory(action, { added: result.added || 0, posted: result.posted || 0 });
+                        }
+                        
                         showStatus('step-status', 
                             `Auto step: ${result.added || 0} added, ${result.posted || 0} posted`, 
                             'success');
@@ -681,6 +765,13 @@
         // Clear console
         document.getElementById('clear-console-btn').addEventListener('click', () => {
             consoleEl.innerHTML = '';
+        });
+        
+        // Clear action history
+        document.getElementById('clear-history-btn').addEventListener('click', () => {
+            actionHistory = [];
+            updateActionHistoryDisplay();
+            console.log('Action history cleared');
         });
 
         // Initialize on load

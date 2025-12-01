@@ -8,10 +8,9 @@ name = "braid_wasm"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wbraid-shared = { path = "../shared" }
 braid = { path = "../braid", default-features = false, features = ["wasm-core"] }
 strand = { path = "../strand", features=["rayon", "wasm", "wasmrayon"] }
-b4 = { path = "../b4" }
+b4 = { path = "../b4", default-features = false, features = ["wasm-core"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

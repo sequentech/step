@@ -18,7 +18,6 @@ getrandom = { version = "=0.3.4", features = ["wasm_js"] }
 
 strand = { path="../strand", optional = true }
 b4 = { path="../b4", optional = true }
-wbraid-shared = { path="../shared", optional = true }
 crepe = "0.1"
 strum = { version = "0.27", features = ["derive"] }
 
@@ -90,7 +89,6 @@ native = [
     "dep:tokio",
     "dep:b4",
     "b4/native",
-    "dep:wbraid-shared",
     "dep:colored",
     "dep:clap",
     "dep:tracing-subscriber",

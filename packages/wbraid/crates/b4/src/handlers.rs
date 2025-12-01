@@ -6,7 +6,7 @@ use axum::{
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use wbraid_shared::{
+use crate::api_types::{
     ContentType, GetMessageResponse, ListMessagesResponse, Message,
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest, ConfirmMessageResponse,
     GetMessagesMultiRequest, GetMessagesMultiResponse, BoardMessagesResponse,
@@ -379,7 +379,7 @@ pub async fn initiate_messages_multi(
     State(state): State<AppState>,
     Json(req): Json<InitiateMessagesMultiRequest>,
 ) -> Result<Json<InitiateMessagesMultiResponse>, StatusCode> {
-    use wbraid_shared::{BoardInitiateResponse, MessageUploadInfo};
+    use crate::api_types::{BoardInitiateResponse, MessageUploadInfo};
     
     let mut board_responses = Vec::new();
     
@@ -449,7 +449,7 @@ pub async fn confirm_messages_multi(
     State(state): State<AppState>,
     Json(req): Json<ConfirmMessagesMultiRequest>,
 ) -> Result<Json<ConfirmMessagesMultiResponse>, StatusCode> {
-    use wbraid_shared::ConfirmMessagesMultiResponse;
+    use crate::api_types::ConfirmMessagesMultiResponse;
     
     let board_count = req.requests.len();
     tracing::info!("[MULTI-CONFIRM] Confirming messages for {} boards", board_count);
@@ -486,7 +486,7 @@ pub async fn confirm_messages_multi(
                 
                 // Deserialize to extract metadata
                 use strand::serialization::StrandDeserialize;
-                use b4::messages::message::Message as B4Message;
+                use crate::messages::message::Message as B4Message;
                 
                 let parsed_msg = B4Message::strand_deserialize(&data)
                     .map_err(|e| {
@@ -564,7 +564,7 @@ pub async fn confirm_messages_multi(
                 
                 // Deserialize to extract metadata
                 use strand::serialization::StrandDeserialize;
-                use b4::messages::message::Message as B4Message;
+                use crate::messages::message::Message as B4Message;
                 
                 let parsed_msg = B4Message::strand_deserialize(&data)
                     .map_err(|e| {

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
-use wbraid_shared::Message;
+use crate::api_types::Message;
 use std::env;
 use std::path::PathBuf;
 
@@ -168,8 +168,8 @@ pub async fn insert_message(
     validate_board_name(board_name)?;
     
     let content_type = match &message.content_type {
-        wbraid_shared::ContentType::Inline { .. } => "inline",
-        wbraid_shared::ContentType::S3 { .. } => "s3",
+        crate::api_types::ContentType::Inline { .. } => "inline",
+        crate::api_types::ContentType::S3 { .. } => "s3",
     };
 
     let result = sqlx::query(
@@ -244,13 +244,13 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
 
     Ok(row.map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
         let content_type = match content_type.as_str() {
-            "inline" => wbraid_shared::ContentType::Inline {
+            "inline" => crate::api_types::ContentType::Inline {
                 data: inline_data.unwrap_or_default(),
             },
-            "s3" => wbraid_shared::ContentType::S3 {
+            "s3" => crate::api_types::ContentType::S3 {
                 key: s3_key.unwrap_or_default(),
             },
-            _ => wbraid_shared::ContentType::Inline { data: vec![] },
+            _ => crate::api_types::ContentType::Inline { data: vec![] },
         };
 
         Message {
@@ -280,13 +280,13 @@ pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Me
         .into_iter()
         .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
             let content_type = match content_type.as_str() {
-                "inline" => wbraid_shared::ContentType::Inline {
+                "inline" => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
                 },
-                "s3" => wbraid_shared::ContentType::S3 {
+                "s3" => crate::api_types::ContentType::S3 {
                     key: s3_key.unwrap_or_default(),
                 },
-                _ => wbraid_shared::ContentType::Inline { data: vec![] },
+                _ => crate::api_types::ContentType::Inline { data: vec![] },
             };
 
             Message {
@@ -328,13 +328,13 @@ pub async fn get_messages_after(
         .take(limit as usize)
         .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
             let content_type = match content_type.as_str() {
-                "inline" => wbraid_shared::ContentType::Inline {
+                "inline" => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
                 },
-                "s3" => wbraid_shared::ContentType::S3 {
+                "s3" => crate::api_types::ContentType::S3 {
                     key: s3_key.unwrap_or_default(),
                 },
-                _ => wbraid_shared::ContentType::Inline { data: vec![] },
+                _ => crate::api_types::ContentType::Inline { data: vec![] },
             };
 
             Message {

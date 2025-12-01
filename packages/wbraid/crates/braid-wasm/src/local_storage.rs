@@ -1,6 +1,6 @@
 use indexed_db_futures::prelude::*;
 use wasm_bindgen::prelude::*;
-use wbraid_shared::Message;
+use b4::api_types::Message;
 
 const DB_VERSION: u32 = 1;
 const METADATA_STORE: &str = "message_metadata";
