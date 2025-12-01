@@ -11,8 +11,8 @@ import {
 } from "../../gql/graphql"
 import {Box, Tabs, Tab, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
-import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
-import {TallyResultsCandidates} from "./TallyResultsCandidates"
+import {TallyResultsSectionGlobal} from "./TallyResultsSectionGlobal"
+import {TallyResultsSectionArea} from "./TallyResultsSectionArea"
 import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
@@ -20,6 +20,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -31,7 +32,7 @@ interface TallyResultsContestAreasProps {
     tallySessionId: string | null
 }
 
-export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
+export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (props) => {
     const {
         areas,
         contestId,
@@ -205,23 +206,25 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             </Box>
 
             <CustomTabPanel index={0} value={value}>
-                <TallyResultsGlobalCandidates
+                <TallyResultsSectionGlobal
                     electionEventId={contest?.election_event_id}
                     tenantId={contest?.tenant_id}
                     electionId={contest?.election_id}
                     contestId={contest?.id}
                     resultsEventId={resultsEventId}
+                    counting_algorithm={contest?.counting_algorithm as ICountingAlgorithm}
                 />
             </CustomTabPanel>
             {areasData?.map((area, index) => (
                 <CustomTabPanel key={index} index={index + 1} value={value}>
-                    <TallyResultsCandidates
+                    <TallyResultsSectionArea
                         electionEventId={contest?.election_event_id}
                         tenantId={contest?.tenant_id}
                         electionId={contest?.election_id}
                         contestId={contest?.id}
                         areaId={selectedArea}
                         resultsEventId={resultsEventId}
+                        counting_algorithm={contest?.counting_algorithm as ICountingAlgorithm}
                     />
                 </CustomTabPanel>
             ))}

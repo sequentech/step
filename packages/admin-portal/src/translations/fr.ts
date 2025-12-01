@@ -1324,6 +1324,7 @@ const frenchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sans Préférence",
                 "plurality-at-large": "Pluralité Générale",
+                "instant-runoff": "Vote à Second Tour Instantané",
                 "random": "Aléatoire",
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
@@ -1675,6 +1676,12 @@ const frenchTranslation: TranslationType = {
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
                 weight: "Poids",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Gagnant",
+                    eliminated: "Éliminé",
+                    round: "Tour",
+                },
             },
             chart: {
                 votesForCandidates: "Votes pour les Candidats",
