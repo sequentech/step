@@ -29,3 +29,9 @@ Then at the tally level if a voter is a delegate with N weight, we'll insert the
 ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
+
+## ✨ Reports > Add pagination to the electoral results report
+
+Added pagination to the electoral results reports in the footer.
+
+- Issue: [#9535](https://github.com/sequentech/meta/issues/9535)
