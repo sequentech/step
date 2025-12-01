@@ -366,6 +366,13 @@ const frenchTranslation: TranslationType = {
                         "disabled-weighted-voting": "Vote Pondéré Désactivé",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Politique de vote délégué",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
+                    },
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -1317,6 +1324,7 @@ const frenchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sans Préférence",
                 "plurality-at-large": "Pluralité Générale",
+                "instant-runoff": "Vote à Second Tour Instantané",
                 "random": "Aléatoire",
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
@@ -1668,6 +1676,12 @@ const frenchTranslation: TranslationType = {
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
                 weight: "Poids",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Gagnant",
+                    eliminated: "Éliminé",
+                    round: "Tour",
+                },
             },
             chart: {
                 votesForCandidates: "Votes pour les Candidats",

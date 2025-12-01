@@ -442,8 +442,9 @@ Strand provides cryptographic protocols and zero-knowledge proof capabilities.
 | rand | =0.8 | MIT OR Apache-2.0 | Random number generators and other randomness functionality. |
 | rand_core | 0.9 | MIT OR Apache-2.0 | Core random number generator traits and tools for implementation. |
 | rayon | 1.5 | MIT OR Apache-2.0 | Simple work-stealing parallelism for Rust |
-| rcgen | 0.11.3 | MIT OR Apache-2.0 | Rust X.509 certificate generator |
+| rcgen | =0.14.3 | MIT OR Apache-2.0 | Rust X.509 certificate generator |
 | rug | ~1.23 | LGPL-3.0+ | Arbitrary-precision integers, rational, floating-point and complex numbers based on GMP, MPFR and MPC. |
+| rustls-pki-types | =1.13.0 | MIT OR Apache-2.0 | Shared types for the rustls PKI ecosystem |
 | serde | 1.0.215 | MIT OR Apache-2.0 | A generic serialization/deserialization framework |
 | serde-wasm-bindgen | 0.6 | MIT | Native Serde adapter for wasm-bindgen |
 | sha2 | 0.10 | MIT OR Apache-2.0 | Pure Rust implementation of the SHA-2 hash function family including SHA-224, SHA-256, SHA-384, and SHA-512. |
@@ -452,7 +453,7 @@ Strand provides cryptographic protocols and zero-knowledge proof capabilities.
 | wasm-bindgen | =0.2.100 | MIT OR Apache-2.0 | Easy support for interacting between JS and Rust. |
 | wasm-bindgen-rayon | 1.3 | Apache-2.0 | Adapter for using Rayon-based concurrency on the Web |
 | web-sys | 0.3 | MIT OR Apache-2.0 | Bindings for all Web APIs, a procedurally generated crate from WebIDL |
-| x509-parser | 0.15.1 | MIT OR Apache-2.0 | Parser for the X.509 v3 format (RFC 5280 certificates) |
+| x509-parser | 0.17.0 | MIT OR Apache-2.0 | Parser for the X.509 v3 format (RFC 5280 certificates) |
 
 ## UI Core
 

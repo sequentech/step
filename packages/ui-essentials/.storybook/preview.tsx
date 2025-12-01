@@ -8,7 +8,7 @@ import {ThemeProvider} from "@mui/material"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 import {I18nextProvider} from "react-i18next"
 import LanguageSetter from "../src/components/LanguageSetter/LanguageSetter"
-import i18n, {initializeLanguages} from "../src/services/i18n"
+import {i18n, initializeLanguages} from "@sequentech/ui-core"
 import {withRouter} from "storybook-addon-remix-react-router"
 
 initializeLanguages({})

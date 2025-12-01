@@ -365,6 +365,13 @@ const tagalogTranslation: TranslationType = {
                         "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Patakaran sa Delegadong Pagboto",
+                    options: {
+                        enabled: "Pinagana",
+                        disabled: "Hindi pinagana",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",
@@ -1310,6 +1317,7 @@ const tagalogTranslation: TranslationType = {
             options: {
                 "non-preferential": "Walang Preferensyal",
                 "plurality-at-large": "Pluralidad sa Lahat",
+                "instant-runoff": "Instant Runoff",
                 "random": "Random",
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
@@ -1658,6 +1666,12 @@ const tagalogTranslation: TranslationType = {
                 number_of_votes: "Bilang ng mga boto",
                 winning_position: "Panalong posisyon",
                 weight: "Timbang",
+                preferential: {
+                    candidate: "Kandidato",
+                    winner: "Nanalo",
+                    eliminated: "Naalis",
+                    round: "Ikot",
+                },
             },
             chart: {
                 votesForCandidates: "Mga Boto para sa mga Kandidato",
