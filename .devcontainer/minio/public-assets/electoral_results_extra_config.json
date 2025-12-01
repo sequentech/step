@@ -1,7 +1,7 @@
 {
   "pdf_options": {
     "landscape": null,
-    "display_header_footer": null,
+    "display_header_footer": true,
     "print_background": true,
     "scale": null,
     "paper_width": null,
