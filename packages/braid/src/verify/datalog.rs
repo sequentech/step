@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::protocol::datalog::{hashes_add, hashes_init};
 use crate::protocol::predicate::Predicate;
-use b3::messages::newtypes::*;
+use b4::messages::newtypes::*;
 use crepe::crepe;
 use std::collections::HashSet;
 

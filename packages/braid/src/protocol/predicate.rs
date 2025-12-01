@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,9 +10,9 @@ use strum::Display;
 use strand::context::Ctx;
 use strand::signature::StrandSignaturePk;
 
-use b3::messages::artifact::Configuration;
-use b3::messages::newtypes::*;
-use b3::messages::statement::Statement;
+use b4::messages::artifact::Configuration;
+use b4::messages::newtypes::*;
+use b4::messages::statement::Statement;
 
 use crate::util::ProtocolError;
 

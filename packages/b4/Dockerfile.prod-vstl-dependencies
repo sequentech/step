@@ -1,22 +1,23 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.90.0-slim-bookworm as builder
+FROM rust:1.90.0-slim-bookworm
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
     protobuf-compiler \
     libprotobuf-dev \
     m4 \
     make \
+    pkg-config \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 
-# copy projects
 #TODO: Copy only necessary files
-WORKDIR /app
 COPY ./braid/Cargo.toml ./braid/Cargo.toml
 COPY ./b3/Cargo.toml ./b3/Cargo.toml
 COPY ./electoral-log/Cargo.toml ./electoral-log/Cargo.toml
@@ -75,7 +76,5 @@ RUN mkdir -p ./orare/src \
 RUN mkdir -p ./orare/doc_renderer/src \
     && echo "// dummy file" > ./orare/doc_renderer/src/lib.rs
 
-# build projects
-
-WORKDIR /app/braid
+WORKDIR /app/b3
 RUN cargo fetch --locked

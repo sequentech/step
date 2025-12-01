@@ -1,12 +1,12 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM braid-dependencies
+FROM b3-dependencies
 
-# copy projects
-#TODO: Copy only necessary files
 WORKDIR /app
+
+#TODO: Copy only necessary files
 COPY ./braid ./braid
 COPY ./b3 ./b3
 COPY ./electoral-log ./electoral-log
@@ -25,7 +25,6 @@ COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
-# build projects
-
-WORKDIR /app/braid
-RUN cargo +nightly build --release --locked --frozen --offline
+WORKDIR /app/b3
+#RUN cargo vendor
+RUN cargo build --features=server --release --locked --frozen --offline

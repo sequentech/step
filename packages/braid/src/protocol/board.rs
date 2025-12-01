@@ -1,15 +1,29 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/// Used to retrieve and post protocol messages to the board.
-pub mod grpc_m;
+/// HTTP client for bulletin board using Service API
+#[cfg(feature = "native")]
+pub mod http;
 /// A LocalBoard is a trustee's view of a bulletin board.
+#[cfg(feature = "native")]
+pub mod local_fs;
+/// WASM-compatible local board with IndexedDB storage
+#[cfg(feature = "wasm-core")]
+pub mod local_wasm;
+
 pub mod local;
 
+// Re-export the appropriate LocalBoard implementation
+// When both features are enabled (e.g., in tests), prefer native
+#[cfg(feature = "native")]
+pub use local_fs::LocalBoard;
+#[cfg(all(feature = "wasm-core", not(feature = "native")))]
+pub use local_wasm::LocalBoard;
+
 use anyhow::Result;
-use b3::grpc::BoardMessages;
-use b3::{grpc::GrpcB3Message, messages::message::Message};
+use b4::messages::message::Message;
+use b4::HttpB3Message;
 
 /// Defines the interface with a bulletin board.
 ///
@@ -34,7 +48,7 @@ pub trait Board: Sized {
         &mut self,
         board: &str,
         last_id: i64,
-    ) -> impl std::future::Future<Output = Result<Vec<GrpcB3Message>>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>> + Send;
 
     /// Posts a messages to the given board of the bulletin board.
     fn insert_messages(
@@ -64,13 +78,13 @@ pub trait BoardFactory<B: Board>: Sized {
 pub trait BoardMulti: Sized {
     type Factory: BoardFactoryMulti<Self>;
 
-    /// Returns a list of BoardMessages for the given requests.
+    /// Returns a list of HttpBoardMessages for the given requests.
     ///
-    /// BoardMessages are a list of messages for one board,
+    /// HttpBoardMessages are a list of messages for one board.
     fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> impl std::future::Future<Output = Result<(Vec<BoardMessages>, bool)>> + Send;
+    ) -> impl std::future::Future<Output = Result<(Vec<b4::HttpBoardMessages>, bool)>> + Send;
 
     fn insert_messages_multi(
         &self,

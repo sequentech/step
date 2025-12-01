@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -14,59 +14,56 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 rand = "0.9"
-getrandom = { version = "=0.3.4" }
+getrandom = { version = "=0.3.4", features = ["wasm_js"] }
 
-strand = { path="../strand", features=["rayon"] }
-b3 = { path="../b3", features = ["client"] }
-# borsh = { version = "=1.5.1", features = ["derive"] }
+strand = { path="../strand", optional = true }
+b4 = { path="../b4", optional = true }
 crepe = "0.1"
 strum = { version = "0.27", features = ["derive"] }
-rayon = { version = "1.5" }
 
-# grpc client
-tonic = "0.13"
+# Native-only dependencies
+rayon = { version = "1.5", optional = true }
+tonic = { version = "0.13", optional = true }
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"], optional = true }
+tokio = { version = "1.40", optional = true }
+aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
+aws-sdk-s3 = { version = "1.52", optional = true }
+chrono = { version = "0.4", optional = true }
 
-# trustee local store
-rusqlite = { version = "0.32", features = ["bundled"] }
+# WASM-only dependencies  
+wasm-bindgen = {version = "=0.2", optional = true}
+tracing-wasm = {version="0.2", optional = true}
+indexed_db_futures = { version = "0.5", optional = true }
 
-# only needed for verifier
+# Shared optional dependencies (used in both native and WASM but with different features)
+reqwest = { version = "0.12", optional = true, default-features = false, features = ["json", "rustls-tls"] }
+
+# Shared dependencies (used in both native and WASM)
 serde_json = "1.0"
-colored = "3.0"
-
-# daemon
-clap = { version = "4.0", features = ["derive"] }
-tokio = { version = "1.40" }
-# uuid = { version = "1.2", features = ["v4"] }
-rustc-hash = "2.0"
-
-# logging
+hex = "0.4"
+base64 = "0.22"
+serde = "1.0"
 log = "0.4"
 tracing = "0.1"
 tracing-log = "0.2"
 tracing-attributes = "0.1"
-tracing-subscriber = "0.3"
-tracing-tree = "0.4"
-
+rustc-hash = "2.0"
 cfg-if = "1.0"
-# config = {version = "0.13.1" }
-hex = "0.4"
-base64 = "0.22"
-serde = "1.0"
-toml = "0.8"
+
+# Native-only shared dependencies
+colored = { version = "3.0", optional = true }
+clap = { version = "4.0", features = ["derive"], optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
+tracing-tree = { version = "0.4", optional = true }
+toml = { version = "0.8", optional = true }
 anyhow = "1.0"
 thiserror = "2.0"
-
-# wasm
-wasm-bindgen-rayon = {version = "1.0", features = ["no-bundler"], optional = true}
-wasm-bindgen = {version = "=0.2", optional = true}
-tracing-wasm = {version="0.2", optional = true}
-
-# dbg
-reedline-repl-rs = { version = "1.0" }
-ascii_table = { version = "4.0" }
+reedline-repl-rs = { version = "1.0", optional = true }
+ascii_table = { version = "4.0", optional = true }
 async-trait = "0.1"
 
-# profile memory
+# profile memory (native only)
 tikv-jemallocator = {version = "0.6", optional = true }
 tikv-jemalloc-ctl = { version = "0.6", features = ["stats"], optional = true }
 
@@ -78,8 +75,50 @@ serial_test = "3.2"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+# Default feature for native builds (server mode)
+default = ["native"]
+
+# Native build with gRPC, filesystem, SQLite  
+native = [
+    "dep:strand",
+    "strand/rayon", 
+    "dep:rayon",
+    "dep:tonic",
+    "dep:rusqlite",
+    "dep:sqlx",
+    "dep:tokio",
+    "dep:b4",
+    "b4/native",
+    "dep:colored",
+    "dep:clap",
+    "dep:tracing-subscriber",
+    "dep:tracing-tree",
+    "dep:toml",
+    "dep:reedline-repl-rs",
+    "dep:ascii_table",
+    "dep:aws-config",
+    "dep:aws-sdk-s3",
+    "dep:reqwest",
+    "dep:chrono"
+]
+
+# WASM build with HTTP bulletin board and IndexedDB
+wasm-core = [
+    "dep:strand",
+    "strand/wasm",
+    "strand/wasmrayon",
+    "dep:wasm-bindgen",
+    "dep:rayon",
+    "dep:tracing-wasm",
+    "dep:reqwest",
+    "dep:indexed_db_futures",
+    "dep:b4",
+    "b4/wasm-core",
+]
+
+# Cryptography backend options (strand features)
 # wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-fips_core = ["strand/fips_core"]
-fips_full = ["strand/fips_full"]
-rug = ["strand/rug"]
+wasm = ["wasm-core"]
+
+# Memory profiling (native only)
 jemalloc = ["dep:tikv-jemalloc-ctl", "dep:tikv-jemallocator"]

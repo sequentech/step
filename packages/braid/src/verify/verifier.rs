@@ -1,6 +1,6 @@
 #![allow(non_camel_case_types)]
 
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,14 +10,14 @@ use serde::Serialize;
 use strum::Display;
 use tracing::info;
 
-use b3::messages::artifact::Configuration;
-use b3::messages::message::Message;
-use b3::messages::message::VerifiedMessage;
-use b3::messages::newtypes::*;
-use b3::messages::statement::StatementType;
+use b4::messages::artifact::Configuration;
+use b4::messages::message::Message;
+use b4::messages::message::VerifiedMessage;
+use b4::messages::newtypes::*;
+use b4::messages::statement::StatementType;
 
-use crate::protocol::board::grpc_m::GrpcB3;
-use crate::protocol::board::Board;
+// use crate::protocol::board::http::HttpB3;
+use crate::protocol::board::{Board, http::HttpB3};
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 
@@ -115,11 +115,12 @@ enum Check {
 
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
-    board: GrpcB3,
+    board: HttpB3,
     board_name: String,
 }
+
 impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: GrpcB3, board_name: &str) -> Verifier<C> {
+    pub fn new(trustee: Trustee<C>, board: HttpB3, board_name: &str) -> Verifier<C> {
         Verifier {
             trustee,
             board,

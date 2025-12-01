@@ -1,16 +1,16 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::protocol::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
-use b3::messages::artifact::{DkgPublicKey, Plaintexts};
-use b3::messages::message::Message;
+use b4::messages::artifact::{DkgPublicKey, Plaintexts};
+use b4::messages::message::Message;
 use log::{error, info};
 use std::sync::{Arc, Mutex};
 use strand::context::Ctx;
 
-use b3::messages::newtypes::{BatchNumber, TrusteePosition};
+use b4::messages::newtypes::{BatchNumber, TrusteePosition};
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
 #[derive(Debug)]

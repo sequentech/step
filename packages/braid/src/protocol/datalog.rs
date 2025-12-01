@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -9,7 +9,7 @@ use crate::protocol::action::Action;
 pub(self) use crate::protocol::predicate::*;
 
 pub(self) use crate::util::ProtocolError;
-pub(self) use b3::messages::newtypes::*;
+pub(self) use b4::messages::newtypes::*;
 pub(self) use strand::hash::Hash;
 
 /// Marks a value in a THashes array as empty.

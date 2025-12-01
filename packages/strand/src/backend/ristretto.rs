@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! # Examples
@@ -188,7 +188,9 @@ impl Ctx for RistrettoCtx {
         ScalarS(Scalar::from_hash(hasher))*/
 
         let bytes = crate::hash::hash_to_array(bytes)?;
-        Ok(ScalarS(Scalar::from_bytes_mod_order_wide(&bytes)))
+        let scalar = Scalar::from_bytes_mod_order_wide(&bytes);
+        
+        Ok(ScalarS(scalar))
     }
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322
     // see https://github.com/hdevalence/ristretto255-data-encoding/blob/master/src/main.rs

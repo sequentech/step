@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -17,12 +17,12 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use b3::messages::artifact::{Ballots, Configuration, Plaintexts};
-use b3::messages::message::Message;
-use b3::messages::newtypes::PublicKeyHash;
-use b3::messages::newtypes::MAX_TRUSTEES;
-use b3::messages::newtypes::NULL_TRUSTEE;
-use b3::messages::protocol_manager::ProtocolManager;
+use b4::messages::artifact::{Ballots, Configuration, Plaintexts};
+use b4::messages::message::Message;
+use b4::messages::newtypes::PublicKeyHash;
+use b4::messages::newtypes::MAX_TRUSTEES;
+use b4::messages::newtypes::NULL_TRUSTEE;
+use b4::messages::protocol_manager::ProtocolManager;
 
 use crate::protocol::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
@@ -61,8 +61,6 @@ fn run_protocol_test<C: Ctx + 'static>(
     batches: usize,
     threshold: &[usize],
 ) -> Result<()> {
-    info!("{}", strand::info_string());
-
     let remote = test.remote.clone();
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
@@ -118,7 +116,7 @@ fn run_protocol_test<C: Ctx + 'static>(
 
         let message = Message::ballots_msg(
             &test.cfg,
-            i + 1,
+            (i + 1) as u64,
             &ballot_batch,
             selected_trustees,
             PublicKeyHash(crate::util::hash_from_vec(&pk_h).unwrap()),
@@ -138,7 +136,7 @@ fn run_protocol_test<C: Ctx + 'static>(
 
         let decryptor = selected_trustees[0] - 1;
         let plaintexts: Vec<Plaintexts<C>> = (0..batches)
-            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash(b + 1, decryptor))
+            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash((b + 1) as u64, decryptor))
             .map(|p| Plaintexts::<C>(p.0.clone()))
             .collect();
 

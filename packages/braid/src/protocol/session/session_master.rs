@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,10 +15,10 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 
-use b3::grpc::GrpcB3Message;
+use b4::HttpB3Message;
 use strand::backend::ristretto::RistrettoCtx;
 
-use crate::protocol::board::grpc_m::GrpcB3BoardParams;
+use crate::protocol::board::http::HttpB3BoardParams;
 use crate::protocol::board::{BoardFactoryMulti, BoardMulti};
 use crate::protocol::session::session_m::{SessionFactory, SessionM};
 
@@ -35,9 +35,10 @@ const SESSION_RESET_PERIOD: i64 = 20 * 60;
 /// channels.
 pub struct SessionMaster {
     session_sets: Vec<SessionSetHandle>,
-    b3_url: String,
+    board_params: HttpB3BoardParams,
     session_factory: SessionFactory,
 }
+
 impl SessionMaster {
     /// Constructs a SessionMaster.
     ///
@@ -45,13 +46,15 @@ impl SessionMaster {
     /// start the requested number of SessionSets and the channels
     /// used to update them.
     ///
-    pub fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
+    pub async fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
+        let board_params = HttpB3BoardParams::new(b3_url).await;
+        
         let mut session_sets = vec![];
         let mut runners = vec![];
         for i in 0..size {
             let (s, r): (Sender<SessionSetMessage>, Receiver<SessionSetMessage>) =
                 tokio::sync::mpsc::channel(1);
-            let session_set = SessionSet::new(&i.to_string(), &session_factory, &b3_url, r)?;
+            let session_set = SessionSet::new(&i.to_string(), &session_factory, &board_params, r)?;
             runners.push(session_set);
 
             let handle = SessionSetHandle::new(s);
@@ -64,7 +67,7 @@ impl SessionMaster {
         });
 
         Ok(SessionMaster {
-            b3_url: b3_url.to_string(),
+            board_params,
             session_factory,
             session_sets,
         })
@@ -106,7 +109,7 @@ impl SessionMaster {
                 let session_set = SessionSet::new(
                     &format!("rebuilt {}", i),
                     &self.session_factory,
-                    &self.b3_url,
+                    &self.board_params,
                     r,
                 )?;
                 h.sender = s;
@@ -130,7 +133,7 @@ impl SessionMaster {
 pub struct SessionSet {
     name: String,
     session_factory: SessionFactory,
-    b3_url: String,
+    board_params: HttpB3BoardParams,
     inbox: Receiver<SessionSetMessage>,
 }
 impl SessionSet {
@@ -138,13 +141,13 @@ impl SessionSet {
     pub fn new(
         name: &str,
         session_factory: &SessionFactory,
-        b3_url: &str,
+        board_params: &HttpB3BoardParams,
         inbox: mpsc::Receiver<SessionSetMessage>,
     ) -> Result<Self> {
         Ok(SessionSet {
             name: name.to_string(),
             session_factory: session_factory.clone(),
-            b3_url: b3_url.to_string(),
+            board_params: board_params.clone(),
             inbox,
         })
     }
@@ -271,14 +274,13 @@ impl SessionSet {
                     std::process::exit(0);
                 }*/
 
-                let board = GrpcB3BoardParams::new(&self.b3_url);
-                let board = board.get_board();
+                let board = self.board_params.get_board();
                 let responses = board.get_messages_multi(&requests).await;
 
-                // Chunking: if the bulletin board returns truncated = true it means there
-                // are more messages pending that were cut off to not exceed configured message
-                // size limit
-                let Ok((responses, truncated)) = responses else {
+                // Pagination: if the bulletin board returns has_more = true it means there
+                // are more messages available that exceeded the per-request limit.
+                // We update stores but skip protocol step to fetch remaining messages first.
+                let Ok((responses, has_more)) = responses else {
                     error!(
                         "Error retrieving messages for {} requests: {} (set {})",
                         requests.len(),
@@ -293,19 +295,19 @@ impl SessionSet {
                 let mut total_bytes: u32 = 0;
 
                 let tuples = responses.into_iter().map(|km| (km.board, km.messages));
-                let km_map: HashMap<String, Vec<GrpcB3Message>> = HashMap::from_iter(tuples);
+                let km_map: HashMap<String, Vec<HttpB3Message>> = HashMap::from_iter(tuples);
 
                 for (k, s) in session_map.iter_mut() {
                     let empty = vec![];
                     let messages = km_map.get(k).unwrap_or(&empty);
 
-                    // Chunking: we do not want to execute the trustee step when messages are pending; this
-                    // avoids executing superfluous work. This also improves core utilization.
-                    if truncated {
-                        warn!("Received truncated messages, updating only..");
+                    // Pagination: we do not want to execute the trustee step when messages are pending; this
+                    // avoids executing superfluous work and ensures we have the complete message history.
+                    if has_more {
+                        warn!("More messages available, updating store only..");
                         if let Err(err) = s.update_store(messages) {
                             error!(
-                                "Error updating store: {} (returned messages truncated)",
+                                "Error updating store: {} (has_more=true)",
                                 err
                             );
                         }

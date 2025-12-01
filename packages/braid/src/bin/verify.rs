@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -8,7 +8,7 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::protocol::board::grpc_m::GrpcB3;
+use braid::protocol::board::http::HttpB3BoardParams;
 use braid::protocol::trustee::Trustee;
 use braid::verify::verifier::Verifier;
 
@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
     let _store_root = std::env::current_dir().unwrap().join("message_store");
 
     info!("Connecting to board '{}'..", args.board);
+    
     let trustee: Trustee<RistrettoCtx> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
@@ -59,7 +60,8 @@ async fn main() -> Result<()> {
         None,
         None,
     );
-    let board = GrpcB3::new(&args.server_url);
+    let board_params = HttpB3BoardParams::new(&args.server_url).await;
+    let board = board_params.create_board(&args.board, None);
     let mut session = Verifier::new(trustee, board, &args.board);
     session.run().await?;
 

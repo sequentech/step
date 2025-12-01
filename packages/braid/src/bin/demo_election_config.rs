@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,8 +12,8 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
-use b3::messages::artifact::Configuration;
-use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b4::messages::artifact::Configuration;
+use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid::protocol::trustee::TrusteeConfig;
 
 const CONFIG: &str = "config.bin";

@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use b3::grpc::GrpcB3Message;
-use b3::messages::message::Message;
+use b4::HttpB3Message;
+use b4::messages::message::Message;
 use std::path::PathBuf;
 use strand::signature::StrandSignatureSk;
 use strand::symm::SymmetricKey;
@@ -31,7 +31,7 @@ use strand::context::Ctx;
 ///
 /// SessionM's belong to a SessionSet, which
 /// is the unit of both session concurrency and multiplexing
-/// (see also SessionSet::run and main_m::run).
+/// (see also SessionSet::run and main_concurrent::run).
 /// SessionSets will create and drop SessionM's as necessary
 /// according to updates to the bulletin board index.
 pub struct SessionM<C: Ctx + 'static> {
@@ -55,7 +55,7 @@ impl<C: Ctx> SessionM<C> {
     /// call is still required because there may be messages in the
     /// message_store whose required Actions have not yet executed,
     /// leading to a possible protocol hang.
-    pub fn step(&mut self, messages: &Vec<GrpcB3Message>) -> Result<Vec<Message>, ProtocolError> {
+    pub fn step(&mut self, messages: &Vec<HttpB3Message>) -> Result<Vec<Message>, ProtocolError> {
         // NOTE: we must call step even if there are no new remote messages
         // because there may be actions pending in the trustees LocalBoard.
         let step_result = self.trustee.step(messages)?;
@@ -76,7 +76,7 @@ impl<C: Ctx> SessionM<C> {
     /// Used when the remote bulletin board returns a truncated response
     /// indicating that a further request must be made before inferring any
     /// new Actions.
-    pub(crate) fn update_store(&self, messages: &Vec<GrpcB3Message>) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &Vec<HttpB3Message>) -> Result<(), ProtocolError> {
         self.trustee.update_store(messages)
     }
 }
@@ -118,7 +118,7 @@ impl SessionFactory {
     pub fn create_session(&self, board_name: &str) -> Result<SessionM<RistrettoCtx>> {
         info!("* Creating new session for board '{}'..", board_name);
 
-        let trustee: Trustee<RistrettoCtx> = Trustee::new(
+        let trustee = Trustee::new(
             self.trustee_name.clone(),
             board_name.to_string(),
             self.signing_key.clone(),

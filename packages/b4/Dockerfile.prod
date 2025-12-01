@@ -1,21 +1,16 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.90.0-slim-bookworm as builder
+FROM rust:1.90.0-slim-bookworm AS builder
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends debian-archive-keyring \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        protobuf-compiler \
-        libprotobuf-dev \
-        m4 \
-        make \
-        unzip \
-        curl \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -42,8 +37,8 @@ COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
 # build projects
-WORKDIR /app/braid
-RUN cargo build --release --locked
+WORKDIR /app/b3
+RUN cargo build --features=server --release --locked
 
 
 
@@ -70,14 +65,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/main /usr/bin/trustee
-COPY --from=builder /app/target/release/verify /usr/bin/verify
-COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/
-COPY --from=builder /app/target/release/main /usr/bin/trustee
-COPY --from=builder /app/braid/scripts/*.sh /usr/bin/
-RUN mkdir -p /opt/braid/
+COPY --from=builder /app/target/release/server /usr/bin/b3
 
 # init index db
 RUN mkdir /tmp/cache
 
-CMD ["/usr/bin/trustee.sh"]
+ENTRYPOINT ["/usr/bin/b3"]

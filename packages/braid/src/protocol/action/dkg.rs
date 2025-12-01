@@ -1,13 +1,13 @@
 #![allow(clippy::too_many_arguments)]
 
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::*;
 use crate::protocol::datalog;
 use anyhow::Result;
-use b3::messages::artifact::Channel;
+use b4::messages::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 

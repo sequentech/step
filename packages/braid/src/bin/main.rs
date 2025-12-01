@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use braid::protocol::board::grpc_m::{GrpcB3, GrpcB3BoardParams, GrpcB3Index};
+use braid::protocol::board::http::{HttpB3, HttpB3BoardParams, HttpB3Index};
 use braid::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
@@ -80,8 +80,6 @@ async fn main() -> Result<()> {
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
 
-    info!("{}", strand::info_string());
-
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
     let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?;
 
@@ -94,12 +92,12 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     braid::util::ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, GrpcB3>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
 
-        let b3index = GrpcB3Index::new(&args.b3_url);
+        let b3index = HttpB3Index::new(&args.b3_url);
 
         let boards_result = b3index.get_boards().await;
         let boards: Vec<String> = match boards_result {
@@ -131,7 +129,7 @@ async fn main() -> Result<()> {
                 board_name.clone()
             );
 
-            let trustee: Trustee<RistrettoCtx> = Trustee::new(
+            let trustee = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 board_name.to_string(),
                 sk.clone(),
@@ -139,13 +137,13 @@ async fn main() -> Result<()> {
                 Some(store_root.join(board_name)),
                 None,
             );
-            let board = GrpcB3BoardParams::new(&args.b3_url);
+            let board = HttpB3BoardParams::new(&args.b3_url).await;
 
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);
         }
 
-        // This code is sequential, see main_m for an alternative implementation
+        // This code is sequential, see main_concurrent for an alternative implementation
         for s in session_map.values_mut() {
             let board_name = s.board_name.clone();
 

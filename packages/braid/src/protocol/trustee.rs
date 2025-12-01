@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -14,19 +14,19 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::LocalBoard;
+use crate::protocol::board::LocalBoard;
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
-use b3::grpc::GrpcB3Message;
-use b3::messages::artifact::Channel;
-use b3::messages::artifact::Configuration;
-use b3::messages::artifact::DkgPublicKey;
-use b3::messages::artifact::Shares;
-use b3::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
-use b3::messages::message::Message;
-use b3::messages::newtypes::*;
-use b3::messages::statement::StatementType;
+use b4::HttpB3Message;
+use b4::messages::artifact::Channel;
+use b4::messages::artifact::Configuration;
+use b4::messages::artifact::DkgPublicKey;
+use b4::messages::artifact::Shares;
+use b4::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use b4::messages::message::Message;
+use b4::messages::newtypes::*;
+use b4::messages::statement::StatementType;
 use std::path::PathBuf;
 use strand::util::StrandError;
 
@@ -40,6 +40,8 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// session. Runs the main loop for the trustee's participation in the session.
 /// Contains a LocalBoard, a view of the bulletin board.
 ///
+/// # Protocol Flow
+///
 /// 1) Receive remote messages from the bulletin board
 /// 2) Update LocalBoard with Statements and Artifacts
 /// 3) Derive Predicates from Statements on LocalBoard
@@ -49,6 +51,41 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// 6) Return resulting Messages for subsequent posting on RemoteBoard
 ///
 /// Does not post the messages itself.
+///
+/// # Security Model: Message ID Tracking
+///
+/// The trustee uses two distinct ID tracking systems for messages:
+///
+/// ## 1. Local Board ID (last_local_board_id) - SECURITY CRITICAL
+///
+/// - **Source**: SQLite AUTOINCREMENT PRIMARY KEY - controlled locally by the trustee's database
+/// - **Purpose**: Tracks which messages have been loaded into the in-memory local board (Rust HashMaps)
+/// - **Security Property**: Because this ID is assigned by the local SQLite database using AUTOINCREMENT,
+///   the insertion order is immutable and locally controlled
+/// - **Usage**: `WHERE id > ?1 ORDER BY id ASC` ensures messages are loaded into memory in the exact
+///   order they were first stored locally
+/// - **Critical Guarantee**: The bulletin board CANNOT manipulate this ordering - it's determined by
+///   when messages first hit the local persistent store
+///
+/// ## 2. External ID (from get_last_external_id()) - OPTIMIZATION ONLY
+///
+/// - **Source**: The bulletin board's own ID system (stored in external_id column)
+/// - **Purpose**: Optimization - tells the bulletin board "give me messages with ID > X" to avoid re-fetching
+/// - **Security Property**: NONE - this is purely for efficiency, not security
+/// - **Usage**: Returned by get_last_external_id() to request only new messages from the remote board
+/// - **No Security Impact**: Even if the bulletin board lies about IDs or reorders them, the local
+///   AUTOINCREMENT id ensures correct processing order
+///
+/// ## The Security Guarantee
+///
+/// The key insight is that the local database is the source of truth for message ordering:
+///
+/// 1. Fetch messages from bulletin board (using external_id for efficiency)
+/// 2. Store them in local SQLite - each gets a new AUTOINCREMENT id on first insert
+/// 3. `UNIQUE(sender_pk, statement_kind, batch, mix_number)` prevents duplicates
+/// 4. Later cycles load messages from store into memory using `id > last_local_board_id ORDER BY id ASC`
+///
+/// This ensures append-only, locally-determined ordering regardless of bulletin board behavior.
 ///
 /// The signing_key_sk is used to sign signatures
 /// which are verified by the signing_key_pk
@@ -70,14 +107,17 @@ pub struct Trustee<C: Ctx> {
     pub(crate) board_name: String,
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
-    pub(crate) local_board: LocalBoard<C>,
-    // FIXME consider moving this into LocalBoard. This field would be
-    // updated in LocalBoard when calling add, instead of being returned to
-    // the calling Trustee
-    // This is the last message id that was updated to the LocalBoard's memory
-    // it is used when updating the LocalBoard's memory from the message store.
-    // See self::store_and_return_messages.
-    pub(crate) last_message_id: i64,
+    // Public for external crates (e.g., braid-wasm) to access board state
+    pub local_board: LocalBoard<C>,
+    /// Tracks the last locally-controlled store ID loaded into the in-memory board.
+    /// This is NOT the bulletin board's external ID - it's our local SQLite AUTOINCREMENT ID.
+    /// The local database controls message ordering, preventing the bulletin board from
+    /// manipulating history by reordering or prepending messages.
+    /// See the "Security Model: Message ID Tracking" section in the Trustee struct documentation.
+    ///
+    /// FIXME: Consider moving this into LocalBoard. This field would be updated in
+    /// LocalBoard when calling add, instead of being returned to the calling Trustee.
+    pub last_local_board_id: i64,
     pub(crate) step_counter: i64,
     pub(crate) max_concurrent_actions: Option<usize>,
 }
@@ -118,7 +158,7 @@ impl<C: Ctx> Trustee<C> {
             signing_key,
             encryption_key,
             local_board,
-            last_message_id: -1,
+            last_local_board_id: -1,
             step_counter: 0,
             max_concurrent_actions,
         }
@@ -135,15 +175,18 @@ impl<C: Ctx> Trustee<C> {
     ///
     /// The protocol main loop is reactive: it will not advance until the necessary
     /// messages are present in the board.
-    #[instrument(name = "Trustee::step", skip(messages, self), level="trace"in)]
-    pub(crate) fn step(
+    #[instrument(name = "Trustee::step", skip(remote_messages, self), level="trace")]
+    pub fn step(
         &mut self,
-        messages: &Vec<GrpcB3Message>,
+        remote_messages: &Vec<HttpB3Message>,
     ) -> Result<StepResult, ProtocolError> {
-        let messages = if self.local_board.store.is_some() {
-            self.store_and_return_messages(messages)?
+        // Parse remote messages and assign local IDs (if store exists) or use external IDs (if no store)
+        let parsed_messages = if self.local_board.store.is_some() {
+            // SECURITY: Store messages and get them back with locally-controlled IDs from our database
+            self.store_and_return_messages(remote_messages)?
         } else {
-            let ms: Result<Vec<(Message, i64)>, StrandError> = messages
+            // No persistent store: use external bulletin board IDs (no security concern without persistence)
+            let ms: Result<Vec<(Message, i64)>, StrandError> = remote_messages
                 .iter()
                 .map(|m| {
                     let message = Message::strand_deserialize(&m.message)?;
@@ -155,11 +198,12 @@ impl<C: Ctx> Trustee<C> {
             ms?
         };
 
-        let (added_messages, last_id) = self.update_local_board(messages)?;
+        // Update the in-memory board with parsed messages. Returns (count, last_local_id)
+        let (added_messages, last_local_id) = self.update_local_board(parsed_messages)?;
         if added_messages > 0 {
             let max_messages = self.local_board.max_messages();
-            info!("Setting last id {} (/{})", last_id, max_messages);
-            self.last_message_id = last_id;
+            info!("Setting last local board id {} (/{})!", last_local_id, max_messages);
+            self.last_local_board_id = last_local_id;
         }
 
         trace!("Update added {} messages", added_messages);
@@ -178,7 +222,7 @@ impl<C: Ctx> Trustee<C> {
             );
         }
 
-        let ret = StepResult::new(messages, actions, added_messages, last_id);
+        let ret = StepResult::new(messages, actions, added_messages, last_local_id);
 
         Ok(ret)
     }
@@ -191,18 +235,19 @@ impl<C: Ctx> Trustee<C> {
     ///
     /// Called as part of the normal step update sequence
     /// 1) Retrieve remote messages
-    /// 2) Store them in the message store
-    /// 3) Update the LocalBoard statements and artifacts
+    /// 2) Store them in the message store (assigning locally-controlled IDs)
+    /// 3) Return messages with local_id > last_local_board_id for loading into memory
     ///
-    /// The messages not yet in the board are selected with id > self.last_message_id
+    /// SECURITY: Messages are selected by locally-controlled store ID (AUTOINCREMENT),
+    /// ensuring the bulletin board cannot manipulate message ordering.
     pub(crate) fn store_and_return_messages(
         &mut self,
-        messages: &Vec<GrpcB3Message>,
+        messages: &Vec<HttpB3Message>,
     ) -> Result<Vec<(Message, i64)>, ProtocolError> {
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
 
         self.local_board
-            .store_and_return_messages(&messages, self.last_message_id, ignore_existing)
+            .store_and_return_messages(&messages, self.last_local_board_id, ignore_existing)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
     }
 
@@ -211,16 +256,21 @@ impl<C: Ctx> Trustee<C> {
     /// Used when the remote bulletin board returns a truncated response
     /// indicating that a further request must be made before inferring any
     /// new Actions.
-    pub(crate) fn update_store(&self, messages: &Vec<GrpcB3Message>) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &Vec<HttpB3Message>) -> Result<(), ProtocolError> {
         self.local_board
             .update_store(messages, false)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
     }
 
-    /// Returns the largest id stored in the local message store
+    /// Returns the largest external_id stored in the local message store
     ///
-    /// The session will requests messages for id > last_external_id from
-    /// the bulletin board.
+    /// OPTIMIZATION ONLY: This is used to request messages from the bulletin board
+    /// with external_id > last_external_id, avoiding redundant fetches.
+    ///
+    /// SECURITY: This external ID has NO security implications. The bulletin board
+    /// controls these IDs, but our local AUTOINCREMENT IDs control message ordering.
+    /// Even if the bulletin board lies about or reorders external IDs, our local
+    /// store ensures append-only, locally-determined ordering.
     ///
     /// Every RETRIEVE_ALL_MESSAGES_PERIOD a full refresh will be triggered,
     /// where all messages will be requested from the bulletin board.
@@ -243,20 +293,23 @@ impl<C: Ctx> Trustee<C> {
             if self.local_board.store.is_some() {
                 self.local_board.get_last_external_id().unwrap_or(-1)
             } else {
-                self.last_message_id
+                self.last_local_board_id
             }
         };
 
         Ok(external_last_id)
     }
 
-    /// Updates the LocalBoard, inserting new messages into the the statements and
+    /// Updates the LocalBoard, inserting new messages into the statements and
     /// artifact maps.
     ///
-    /// Takes a vector of (message, message_id) pairs as input, returns a pair
-    /// of (updated messages count, last message id added)
+    /// Takes a vector of (message, local_id) pairs as input, returns a pair
+    /// of (updated messages count, last local_id added to board).
+    ///
+    /// SECURITY: The local_id values are locally-controlled (from our SQLite AUTOINCREMENT)
+    /// and determine the order messages are processed, not the bulletin board's external IDs.
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
-    fn update_local_board(
+    pub fn update_local_board(
         &mut self,
         messages: Vec<(Message, i64)>,
     ) -> Result<(i64, i64), ProtocolError> {
@@ -495,8 +548,29 @@ impl<C: Ctx> Trustee<C> {
         };
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
+        #[cfg(feature = "native")]
         let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
             .into_par_iter()
+            .map(|a| {
+                info!("Running action {:?}..", a);
+                let m = if !verifying_mode {
+                    a.run(self)
+                } else {
+                    a.run_for_verifier(self)
+                };
+
+                if m.is_err() {
+                    error!("Action {:?} returned error {:?} (propagating)", a, m);
+                    m.add_context(&format!("When executing Action {:?}", a))
+                } else {
+                    m
+                }
+            })
+            .collect();
+
+        #[cfg(not(feature = "native"))]
+        let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
+            .into_iter()
             .map(|a| {
                 info!("Running action {:?}..", a);
                 let m = if !verifying_mode {
@@ -662,15 +736,6 @@ impl<C: Ctx> Trustee<C> {
 
     ///////////////////////////////////////////////////////////////////////////
 
-    /// Whether the protocol run is complete.
-    ///
-    /// A run is completed when all expected messages have
-    /// been posted (modulo batch count)
-    #[allow(dead_code)]
-    pub(crate) fn is_finished(&self) -> bool {
-        self.local_board.max_messages() == self.local_board.statements.len()
-    }
-
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
         // FIXME validate (called by sign cfg Action)
         true
@@ -684,43 +749,18 @@ impl<C: Ctx> Trustee<C> {
         Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
     }
 
-    cfg_if::cfg_if! {
-        if #[cfg(any(feature = "fips_full", feature = "fips_core"))] {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
-                let identifier: String = self.get_pk()?.to_der_b64_string()?;
-                // 0 is a dummy batch value
-                let aad = cfg.label(0, format!("encrypted by {}", identifier));
-                let bytes: &[u8] = &sk.strand_serialize()?;
-                let ed = symm::encrypt(self.encryption_key, bytes, &aad)?;
+    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
+        let bytes: &[u8] = &sk.strand_serialize()?;
+        let ed = symm::encrypt(self.encryption_key, bytes)?;
 
-                Ok(ed)
-            }
+        Ok(ed)
+    }
 
-            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
-                let identifier: String = self.get_pk()?.to_der_b64_string()?;
-                // 0 is a dummy batch value
-                let aad = cfg.label(0, format!("encrypted by {}", identifier));
-                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?;
-                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
+    pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
+        let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
+        let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
-                Ok(ret)
-            }
-        }
-        else {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
-                let bytes: &[u8] = &sk.strand_serialize()?;
-                let ed = symm::encrypt(self.encryption_key, bytes)?;
-
-                Ok(ed)
-            }
-
-            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
-                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
-                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
-
-                Ok(ret)
-            }
-        }
+        Ok(ret)
     }
 
     /// Convenience function used by tests and dbg
@@ -737,10 +777,12 @@ impl<C: Ctx> Trustee<C> {
         self.local_board
             .get_plaintexts_nohash(batch, signer_position)
     }
+
+    ///////////////////////////////////////////////////////////////////////////
 }
 
 /// Trustees can sign Messages
-impl<C: Ctx> b3::messages::message::Signer for Trustee<C> {
+impl<C: Ctx> b4::messages::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
@@ -811,26 +853,26 @@ impl TrusteeConfig {
 
 /// The result of running one step of the protocol loop.
 ///
-/// Except for testing and debugging, only a step
-/// only returns the generated messages.
+/// Contains the messages generated by the trustee as well as
+/// statistics about the step execution.
 pub struct StepResult {
-    pub(crate) messages: Vec<Message>,
-    pub(crate) actions: HashSet<Action>,
-    pub(crate) _added_messages: i64,
-    pub(crate) _last_id: i64,
+    pub messages: Vec<Message>,
+    pub actions: HashSet<Action>,
+    pub added_messages: i64,
+    pub last_id: i64,
 }
 impl StepResult {
     fn new(
         messages: Vec<Message>,
         actions: HashSet<Action>,
-        _added_messages: i64,
-        _last_id: i64,
+        added_messages: i64,
+        last_id: i64,
     ) -> Self {
         StepResult {
             messages,
             actions,
-            _added_messages,
-            _last_id,
+            added_messages,
+            last_id,
         }
     }
 }

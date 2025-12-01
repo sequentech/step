@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
-use b3::messages::artifact::Shares;
-use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
-use b3::messages::message::Message;
-use b3::messages::newtypes::BatchNumber;
-use b3::messages::newtypes::PublicKeyHash;
-use b3::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use b3::messages::statement::StatementType;
+use b4::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
+use b4::messages::artifact::Shares;
+use b4::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
+use b4::messages::message::Message;
+use b4::messages::newtypes::BatchNumber;
+use b4::messages::newtypes::PublicKeyHash;
+use b4::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
+use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b4::messages::statement::StatementType;
 use deadpool_postgres::Transaction;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -25,7 +25,7 @@ use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
-use b3::client::pgsql::B3MessageRow;
+use b4::client::pgsql::B3MessageRow;
 use electoral_log::BoardClient;
 use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -22,17 +22,18 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::{ArtifactEntryIdentifier, StatementEntryIdentifier};
-use b3::messages::artifact::Ballots;
-use b3::messages::artifact::Configuration;
-use b3::messages::message::Message;
-use b3::messages::newtypes::PublicKeyHash;
-use b3::messages::newtypes::NULL_TRUSTEE;
-use b3::messages::protocol_manager::ProtocolManager;
+use crate::protocol::board::local::{ArtifactEntryIdentifier};
+use crate::protocol::board::local::{StatementEntryIdentifier};
+use b4::messages::artifact::Ballots;
+use b4::messages::artifact::Configuration;
+use b4::messages::message::Message;
+use b4::messages::newtypes::PublicKeyHash;
+use b4::messages::newtypes::NULL_TRUSTEE;
+use b4::messages::protocol_manager::ProtocolManager;
 
 use crate::protocol::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
-use b3::messages::newtypes::MAX_TRUSTEES;
+use b4::messages::newtypes::MAX_TRUSTEES;
 
 /// Runs a simple interactive ncurses terminal to simulate or
 /// debug a protocol execution.
@@ -464,7 +465,7 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let ballot_batch = Ballots::new(ballots);
     let message = Message::ballots_msg(
         &context.cfg,
-        batch,
+        batch as u64,
         &ballot_batch,
         context.selected_trustees,
         PublicKeyHash(pk_h),
