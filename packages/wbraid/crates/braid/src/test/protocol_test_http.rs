@@ -81,8 +81,6 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     batches: usize,
     threshold: &[usize],
 ) -> Result<()> {
-    info!("{}", strand::info_string());
-
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
 

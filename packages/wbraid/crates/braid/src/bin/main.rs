@@ -80,8 +80,6 @@ async fn main() -> Result<()> {
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
 
-    info!("{}", strand::info_string());
-
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
     let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?;
 

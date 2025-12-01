@@ -128,8 +128,6 @@ You can run multiple browser trustees simultaneously:
 3. All connect to the same B4 server
 4. Watch them coordinate the protocol together
 
-This is a **novel implementation** - mixnet protocols typically run on servers, not in browsers!
-
 ## Development Notes
 
 ### Current Status
