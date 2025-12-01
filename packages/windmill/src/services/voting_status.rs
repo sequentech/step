@@ -1,7 +1,6 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::update_election_event_status;
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::election_event_board::get_election_event_board;

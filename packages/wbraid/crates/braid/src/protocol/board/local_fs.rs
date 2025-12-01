@@ -1,8 +1,32 @@
 
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::protocol::board::local::LocalBoardStorage;
 use crate::protocol::board::local::StatementEntryIdentifier;
 use crate::protocol::board::local::BoardEntry;
 use crate::protocol::board::local::ArtifactEntryIdentifier;
+use anyhow::Result;
+use b4::HttpB3Message;
+use log::{debug, error, warn};
+use rusqlite::{params, Connection};
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::{Read, Write};
+use std::path::PathBuf;
+use std::time::Instant;
+
+use strand::context::Ctx;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
+
+use b4::messages::artifact::*;
+use b4::messages::message::{Message, VerifiedMessage};
+use b4::messages::statement::{Statement, StatementType};
+
+use crate::util::{ProtocolContext, ProtocolError};
+use b4::messages::newtypes::*;
+use strand::hash::Hash;
 
 // LocalBoardStorage trait implementation for LocalBoard
 impl<C: Ctx> LocalBoardStorage<C> for LocalBoard<C> {
@@ -79,30 +103,7 @@ impl<C: Ctx> LocalBoardStorage<C> for LocalBoard<C> {
         self.get_plaintexts_nohash(batch, signer_position)
     }
 }
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
-use b4::HttpB3Message;
-use log::{debug, error, warn};
-use rusqlite::{params, Connection};
-use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::time::Instant;
-
-use strand::context::Ctx;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-
-use b4::messages::artifact::*;
-use b4::messages::message::{Message, VerifiedMessage};
-use b4::messages::statement::{Statement, StatementType};
-
-use crate::util::{ProtocolContext, ProtocolError};
-use b4::messages::newtypes::*;
-use strand::hash::Hash;
 
 ///////////////////////////////////////////////////////////////////////////
 // LocalBoard

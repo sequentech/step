@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -145,20 +145,12 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
         }
 
         console.log("handleExport setPerformDownload")
-        if (format === EExportFormat.RECEIPTS_PDF) {
-            setPerformDownload({
-                id: documentId,
-                kind: EExportFormat.PDF,
-                name: `vote_receipts.pdf`,
-            })
-        } else {
-            let extension = format.replace("_", ".") // for converting tar_gz to tar.gz
-            setPerformDownload({
-                id: documentId,
-                kind: format,
-                name: `report.${extension}`,
-            })
-        }
+        let extension = format.replace("_", ".") // for converting tar_gz to tar.gz
+        setPerformDownload({
+            id: documentId,
+            kind: format,
+            name: `report.${extension}`,
+        })
     }
 
     const isExportFormatDisabled = (documents: IResultDocuments, format: EExportFormat): boolean =>
@@ -304,13 +296,6 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             <GenerateReport
                                 handleClose={handleClose}
                                 reportType={ETemplateType.BALLOT_IMAGES}
-                                electionEventId={electionEventId}
-                                electionId={electionId}
-                                tallySessionId={tallySessionId}
-                            />
-                            <GenerateReport
-                                handleClose={handleClose}
-                                reportType={ETemplateType.VOTE_RECEIPT}
                                 electionEventId={electionEventId}
                                 electionId={electionId}
                                 tallySessionId={tallySessionId}

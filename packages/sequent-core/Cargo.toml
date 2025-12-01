@@ -1,5 +1,4 @@
-# SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
-# SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 [package]
@@ -146,3 +145,6 @@ lambda_openwhisk = []
 lambda_aws_lambda = []
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
