@@ -172,14 +172,14 @@ impl WasmTrustee {
                 .map_err(|e| JsValue::from_str(&format!("Failed to update local board: {:?}", e)))?
         };
         
-        // Update the last_message_id in trustee
+        // Update the last_local_board_id in trustee
         if added_messages > 0 {
             let trustee = self.trustee.as_mut()
                 .ok_or_else(|| JsValue::from_str("Trustee disappeared"))?;
-            trustee.last_message_id = last_message_id;
+            trustee.last_local_board_id = last_message_id;
             
             web_sys::console::log_1(&JsValue::from_str(&format!(
-                "✓ Connected to board: {} messages added, last_message_id = {}",
+                "✓ Connected to board: {} messages added, last_local_board_id = {}",
                 added_messages, last_message_id
             )));
         } else {
@@ -651,7 +651,7 @@ impl WasmTrustee {
             board_name: board_name.clone(),
             current_messages: trustee.local_board.get_statement_entries().len() + 1,  // +1 for config
             max_messages: trustee.local_board.max_messages(),
-            last_message_id: trustee.last_message_id,
+            last_message_id: trustee.last_local_board_id,
         };
         
         serde_wasm_bindgen::to_value(&state)

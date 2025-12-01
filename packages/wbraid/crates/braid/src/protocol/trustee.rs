@@ -40,6 +40,8 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// session. Runs the main loop for the trustee's participation in the session.
 /// Contains a LocalBoard, a view of the bulletin board.
 ///
+/// # Protocol Flow
+///
 /// 1) Receive remote messages from the bulletin board
 /// 2) Update LocalBoard with Statements and Artifacts
 /// 3) Derive Predicates from Statements on LocalBoard
@@ -49,6 +51,41 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// 6) Return resulting Messages for subsequent posting on RemoteBoard
 ///
 /// Does not post the messages itself.
+///
+/// # Security Model: Message ID Tracking
+///
+/// The trustee uses two distinct ID tracking systems for messages:
+///
+/// ## 1. Local Board ID (last_local_board_id) - SECURITY CRITICAL
+///
+/// - **Source**: SQLite AUTOINCREMENT PRIMARY KEY - controlled locally by the trustee's database
+/// - **Purpose**: Tracks which messages have been loaded into the in-memory local board (Rust HashMaps)
+/// - **Security Property**: Because this ID is assigned by the local SQLite database using AUTOINCREMENT,
+///   the insertion order is immutable and locally controlled
+/// - **Usage**: `WHERE id > ?1 ORDER BY id ASC` ensures messages are loaded into memory in the exact
+///   order they were first stored locally
+/// - **Critical Guarantee**: The bulletin board CANNOT manipulate this ordering - it's determined by
+///   when messages first hit the local persistent store
+///
+/// ## 2. External ID (from get_last_external_id()) - OPTIMIZATION ONLY
+///
+/// - **Source**: The bulletin board's own ID system (stored in external_id column)
+/// - **Purpose**: Optimization - tells the bulletin board "give me messages with ID > X" to avoid re-fetching
+/// - **Security Property**: NONE - this is purely for efficiency, not security
+/// - **Usage**: Returned by get_last_external_id() to request only new messages from the remote board
+/// - **No Security Impact**: Even if the bulletin board lies about IDs or reorders them, the local
+///   AUTOINCREMENT id ensures correct processing order
+///
+/// ## The Security Guarantee
+///
+/// The key insight is that the local database is the source of truth for message ordering:
+///
+/// 1. Fetch messages from bulletin board (using external_id for efficiency)
+/// 2. Store them in local SQLite - each gets a new AUTOINCREMENT id on first insert
+/// 3. `UNIQUE(sender_pk, statement_kind, batch, mix_number)` prevents duplicates
+/// 4. Later cycles load messages from store into memory using `id > last_local_board_id ORDER BY id ASC`
+///
+/// This ensures append-only, locally-determined ordering regardless of bulletin board behavior.
 ///
 /// The signing_key_sk is used to sign signatures
 /// which are verified by the signing_key_pk
@@ -72,14 +109,15 @@ pub struct Trustee<C: Ctx> {
     pub(crate) encryption_key: symm::SymmetricKey,
     // Public for external crates (e.g., braid-wasm) to access board state
     pub local_board: LocalBoard<C>,
-    // FIXME consider moving this into LocalBoard. This field would be
-    // updated in LocalBoard when calling add, instead of being returned to
-    // the calling Trustee
-    // This is the last message id that was updated to the LocalBoard's memory
-    // it is used when updating the LocalBoard's memory from the message store.
-    // See self::store_and_return_messages.
-    // Public for external crates (e.g., braid-wasm) to track message ID
-    pub last_message_id: i64,
+    /// Tracks the last locally-controlled store ID loaded into the in-memory board.
+    /// This is NOT the bulletin board's external ID - it's our local SQLite AUTOINCREMENT ID.
+    /// The local database controls message ordering, preventing the bulletin board from
+    /// manipulating history by reordering or prepending messages.
+    /// See the "Security Model: Message ID Tracking" section in the Trustee struct documentation.
+    ///
+    /// FIXME: Consider moving this into LocalBoard. This field would be updated in
+    /// LocalBoard when calling add, instead of being returned to the calling Trustee.
+    pub last_local_board_id: i64,
     pub(crate) step_counter: i64,
     pub(crate) max_concurrent_actions: Option<usize>,
 }
@@ -120,7 +158,7 @@ impl<C: Ctx> Trustee<C> {
             signing_key,
             encryption_key,
             local_board,
-            last_message_id: -1,
+            last_local_board_id: -1,
             step_counter: 0,
             max_concurrent_actions,
         }
@@ -137,15 +175,18 @@ impl<C: Ctx> Trustee<C> {
     ///
     /// The protocol main loop is reactive: it will not advance until the necessary
     /// messages are present in the board.
-    #[instrument(name = "Trustee::step", skip(messages, self), level="trace")]
+    #[instrument(name = "Trustee::step", skip(remote_messages, self), level="trace")]
     pub fn step(
         &mut self,
-        messages: &Vec<HttpB3Message>,
+        remote_messages: &Vec<HttpB3Message>,
     ) -> Result<StepResult, ProtocolError> {
-        let messages = if self.local_board.store.is_some() {
-            self.store_and_return_messages(messages)?
+        // Parse remote messages and assign local IDs (if store exists) or use external IDs (if no store)
+        let parsed_messages = if self.local_board.store.is_some() {
+            // SECURITY: Store messages and get them back with locally-controlled IDs from our database
+            self.store_and_return_messages(remote_messages)?
         } else {
-            let ms: Result<Vec<(Message, i64)>, StrandError> = messages
+            // No persistent store: use external bulletin board IDs (no security concern without persistence)
+            let ms: Result<Vec<(Message, i64)>, StrandError> = remote_messages
                 .iter()
                 .map(|m| {
                     let message = Message::strand_deserialize(&m.message)?;
@@ -157,11 +198,12 @@ impl<C: Ctx> Trustee<C> {
             ms?
         };
 
-        let (added_messages, last_id) = self.update_local_board(messages)?;
+        // Update the in-memory board with parsed messages. Returns (count, last_local_id)
+        let (added_messages, last_local_id) = self.update_local_board(parsed_messages)?;
         if added_messages > 0 {
             let max_messages = self.local_board.max_messages();
-            info!("Setting last id {} (/{})", last_id, max_messages);
-            self.last_message_id = last_id;
+            info!("Setting last local board id {} (/{})!", last_local_id, max_messages);
+            self.last_local_board_id = last_local_id;
         }
 
         trace!("Update added {} messages", added_messages);
@@ -180,7 +222,7 @@ impl<C: Ctx> Trustee<C> {
             );
         }
 
-        let ret = StepResult::new(messages, actions, added_messages, last_id);
+        let ret = StepResult::new(messages, actions, added_messages, last_local_id);
 
         Ok(ret)
     }
@@ -193,10 +235,11 @@ impl<C: Ctx> Trustee<C> {
     ///
     /// Called as part of the normal step update sequence
     /// 1) Retrieve remote messages
-    /// 2) Store them in the message store
-    /// 3) Update the LocalBoard statements and artifacts
+    /// 2) Store them in the message store (assigning locally-controlled IDs)
+    /// 3) Return messages with local_id > last_local_board_id for loading into memory
     ///
-    /// The messages not yet in the board are selected with id > self.last_message_id
+    /// SECURITY: Messages are selected by locally-controlled store ID (AUTOINCREMENT),
+    /// ensuring the bulletin board cannot manipulate message ordering.
     pub(crate) fn store_and_return_messages(
         &mut self,
         messages: &Vec<HttpB3Message>,
@@ -204,7 +247,7 @@ impl<C: Ctx> Trustee<C> {
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
 
         self.local_board
-            .store_and_return_messages(&messages, self.last_message_id, ignore_existing)
+            .store_and_return_messages(&messages, self.last_local_board_id, ignore_existing)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
     }
 
@@ -219,10 +262,15 @@ impl<C: Ctx> Trustee<C> {
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
     }
 
-    /// Returns the largest id stored in the local message store
+    /// Returns the largest external_id stored in the local message store
     ///
-    /// The session will requests messages for id > last_external_id from
-    /// the bulletin board.
+    /// OPTIMIZATION ONLY: This is used to request messages from the bulletin board
+    /// with external_id > last_external_id, avoiding redundant fetches.
+    ///
+    /// SECURITY: This external ID has NO security implications. The bulletin board
+    /// controls these IDs, but our local AUTOINCREMENT IDs control message ordering.
+    /// Even if the bulletin board lies about or reorders external IDs, our local
+    /// store ensures append-only, locally-determined ordering.
     ///
     /// Every RETRIEVE_ALL_MESSAGES_PERIOD a full refresh will be triggered,
     /// where all messages will be requested from the bulletin board.
@@ -245,7 +293,7 @@ impl<C: Ctx> Trustee<C> {
             if self.local_board.store.is_some() {
                 self.local_board.get_last_external_id().unwrap_or(-1)
             } else {
-                self.last_message_id
+                self.last_local_board_id
             }
         };
 
@@ -255,8 +303,11 @@ impl<C: Ctx> Trustee<C> {
     /// Updates the LocalBoard, inserting new messages into the statements and
     /// artifact maps.
     ///
-    /// Takes a vector of (message, message_id) pairs as input, returns a pair
-    /// of (updated messages count, last message id added)
+    /// Takes a vector of (message, local_id) pairs as input, returns a pair
+    /// of (updated messages count, last local_id added to board).
+    ///
+    /// SECURITY: The local_id values are locally-controlled (from our SQLite AUTOINCREMENT)
+    /// and determine the order messages are processed, not the bulletin board's external IDs.
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     pub fn update_local_board(
         &mut self,

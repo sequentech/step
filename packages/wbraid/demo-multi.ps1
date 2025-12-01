@@ -410,18 +410,6 @@ if ($allComplete) {
     Write-Info "Check the monitor window for current status"
 }
 
-# Step 11: Database statistics check
-Write-Step "Checking database statistics"
-
-Write-Info "Verifying board metadata in database..."
-
-# Use demo_tool or direct SQL query to check statistics
-foreach ($boardName in $boardNames) {
-    Write-Info "  $boardName statistics:"
-    # This would require adding a stats command to demo_tool, or we just verify via monitor
-    Write-Host "    Check monitor window for real-time stats" -ForegroundColor Gray
-}
-
 # Final summary
 Write-Step "Test Summary"
 

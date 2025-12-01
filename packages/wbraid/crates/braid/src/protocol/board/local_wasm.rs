@@ -469,7 +469,7 @@ impl<C: Ctx> LocalBoard<C> {
     pub(crate) fn store_and_return_messages(
         &mut self,
         _messages: &Vec<HttpB3Message>,
-        _last_message_id: i64,
+        _last_local_board_id: i64,
         _ignore_existing: bool,
     ) -> anyhow::Result<Vec<(Message, i64)>> {
         // WASM has no store - messages should be processed directly via step()

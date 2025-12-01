@@ -89,10 +89,11 @@ pub trait LocalBoardStorage<C: Ctx> {
     /// Update store with remote messages
     fn update_store(&self, messages: &Vec<HttpB3Message>, ignore_existing: bool) -> Result<()>;
 
-    /// Store and return new messages
-    fn store_and_return_messages(&mut self, messages: &Vec<HttpB3Message>, last_message_id: i64, ignore_existing: bool) -> Result<Vec<(Message, i64)>>;
+    /// Store and return new messages with local_id > last_local_board_id
+    /// SECURITY: Returns messages with locally-controlled IDs from our store's AUTOINCREMENT
+    fn store_and_return_messages(&mut self, messages: &Vec<HttpB3Message>, last_local_board_id: i64, ignore_existing: bool) -> Result<Vec<(Message, i64)>>;
 
-    /// Get last external message id
+    /// Get last external message id (OPTIMIZATION ONLY - no security implications)
     fn get_last_external_id(&mut self) -> Result<i64>;
 
     /// Max messages for protocol
