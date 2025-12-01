@@ -25,6 +25,16 @@ const basqueTranslation: TranslationType = {
             moreInformationLink: "Informazio gehiago",
             writeInsPlaceholder: "Idatzi hautagaia hemen",
             blankVote: "Boto zuria",
+            preferential: {
+                position: "Posizioa",
+                none: "Bat ere ez",
+                ordinals: {
+                    first: ".",
+                    second: ".",
+                    third: ".",
+                    other: ".",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Txartel Egiaztatzailea",
