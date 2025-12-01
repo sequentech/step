@@ -365,6 +365,13 @@ const tagalogTranslation: TranslationType = {
                         "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Patakaran sa Delegadong Pagboto",
+                    options: {
+                        enabled: "Pinagana",
+                        disabled: "Hindi pinagana",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",

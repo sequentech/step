@@ -20,3 +20,12 @@ Support for Instant-runoff elections. Adaptations and implementations were added
 - Document in election management at contest level.
 
 - Issue: [#8214](https://github.com/sequentech/meta/issues/8214)
+
+## ✨ Delegate voting with imports
+
+Implemented a simple version of delegate voting. Voters can delegate their vote 
+on other voters, and initially the state of delegation will be imported. 
+Then at the tally level if a voter is a delegate with N weight, we'll insert the 
+ballot N times.
+
+- Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
