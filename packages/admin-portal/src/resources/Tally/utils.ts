@@ -50,7 +50,7 @@ export function convertSequentContestToIContest(contest: Sequent_Backend_Contest
         description: safeExtract(contest.description),
         alias: safeExtract(contest.alias),
         voting_type: safeExtract(contest.voting_type),
-        counting_algorithm: safeExtract(contest.counting_algorithm),
+        counting_algorithm: safeExtract(contest.counting_algorithm) as ICountingAlgorithm,
         created_at: safeExtract(contest.created_at),
         candidates: convertedCandidates,
         presentation: contest.presentation ? JSON.parse(contest.presentation) : undefined,
