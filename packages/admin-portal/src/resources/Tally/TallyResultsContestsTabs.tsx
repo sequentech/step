@@ -7,7 +7,7 @@ import {Identifier, RaRecord, useGetList} from "react-admin"
 import {Sequent_Backend_Contest, Sequent_Backend_Results_Contest} from "../../gql/graphql"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
-import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
+import {TallyResultsAreasTabs} from "./TallyResultsAreasTabs"
 import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IResultDocuments} from "@/types/results"
@@ -25,7 +25,7 @@ interface TallyResultsContestProps {
     tallySessionId: string | null
 }
 
-export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
+export const TallyResultsContestsTabs: React.FC<TallyResultsContestProps> = (props) => {
     const {areas, electionId, electionEventId, tenantId, resultsEventId, tallySessionId} = props
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
@@ -193,7 +193,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
             {contestsData?.map((contest, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
-                    <TallyResultsContestAreas
+                    <TallyResultsAreasTabs
                         areas={areasData}
                         contestId={contestId || null}
                         electionId={contest?.election_id}

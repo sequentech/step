@@ -60,7 +60,8 @@ import {
     ECandidatesIconCheckboxPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
-import {ICountingAlgorithm, IVotingType} from "./constants"
+import {IVotingType} from "./constants"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
@@ -348,13 +349,6 @@ export const ContestDataForm: React.FC = () => {
             }
         }
     }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
-
-    const votingTypesChoices = (): Array<EnumChoice<IVotingType>> => {
-        return Object.values(IVotingType).map((value) => ({
-            id: value,
-            name: t(`contestScreen.options.${value.toLowerCase()}`),
-        }))
-    }
 
     const countingAlgorithmChoices = (): Array<EnumChoice<ICountingAlgorithm>> => {
         return Object.values(ICountingAlgorithm).map((value) => ({
@@ -649,11 +643,6 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput
-                                    source="voting_type"
-                                    choices={votingTypesChoices()}
-                                    validate={required()}
-                                />
                                 <SelectInput
                                     source="counting_algorithm"
                                     choices={countingAlgorithmChoices()}

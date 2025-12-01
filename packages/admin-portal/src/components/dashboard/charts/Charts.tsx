@@ -45,7 +45,9 @@ interface ExpandIconProps {
     expanded: boolean
 }
 
-export const ExpandIcon = styled(IconButton)<ExpandIconProps>`
+export const ExpandIcon = styled(IconButton, {
+    shouldForwardProp: (prop) => prop !== "expanded",
+})<ExpandIconProps>`
     transform: ${(props) => (props.expanded ? "rotate(180deg)" : "rotate(0deg)")};
     transition: transform 0.3s;
     padding: 4px;
