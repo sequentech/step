@@ -366,6 +366,13 @@ const catalanTranslation: TranslationType = {
                         "disabled-weighted-voting": "Votació Ponderada Desactivada",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Votació Delegada",
+                    options: {
+                        enabled: "Activada",
+                        disabled: "Desactivada",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
@@ -1320,6 +1327,7 @@ const catalanTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sense Preferència",
                 "plurality-at-large": "Majoria Plural",
+                "instant-runoff": "Segona Volta Instantània",
                 "random": "Aleatòries",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
@@ -1667,6 +1675,12 @@ const catalanTranslation: TranslationType = {
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
                 weight: "Pes",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Guanyador",
+                    eliminated: "Eliminat",
+                    round: "Ronda",
+                },
             },
             chart: {
                 votesForCandidates: "Vots per Candidats",

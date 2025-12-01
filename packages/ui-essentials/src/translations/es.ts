@@ -25,6 +25,16 @@ const spanishTranslation: TranslationType = {
             moreInformationLink: "Más información",
             writeInsPlaceholder: "Teclee aquí el candidato por escrito",
             blankVote: "Voto en blanco",
+            preferential: {
+                position: "Posición",
+                none: "Ninguna",
+                ordinals: {
+                    first: "º",
+                    second: "º",
+                    third: "º",
+                    other: "º",
+                },
+            },
         },
         homeScreen: {
             title: "Verificador de Voto Sequent",

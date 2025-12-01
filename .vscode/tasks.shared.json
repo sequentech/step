@@ -252,7 +252,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal",
+                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:admin-portal && yarn start:admin-portal",
             ],
             "presentation": {
                 "echo": true,

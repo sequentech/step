@@ -364,6 +364,13 @@ const dutchTranslation: TranslationType = {
                         "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Gedelegeerd stembeleid",
+                    options: {
+                        enabled: "Ingeschakeld",
+                        disabled: "Uitgeschakeld",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",
@@ -1307,6 +1314,7 @@ const dutchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Niet-preferentieel",
                 "plurality-at-large": "Meerderheidsstelsel (meervoudig)",
+                "instant-runoff": "Instant-runoff stemmen",
                 "random": "Willekeurig",
                 "custom": "Aangepast",
                 "alphabetical": "Alfabetisch",
@@ -1653,6 +1661,12 @@ const dutchTranslation: TranslationType = {
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
                 weight: "Gewicht",
+                preferential: {
+                    candidate: "Kandidaat",
+                    winner: "Winnaar",
+                    eliminated: "Geëlimineerd",
+                    round: "Ronde",
+                },
             },
             chart: {
                 votesForCandidates: "Stemmen voor Kandidaten",
