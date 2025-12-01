@@ -366,6 +366,13 @@ const galegoTranslation: TranslationType = {
                         "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Voto Delegado",
+                    options: {
+                        enabled: "Activado",
+                        disabled: "Desactivado",
+                    },
+                },
             },
             error: {
                 endDate: "A data de fin debe ser posterior á data de inicio",

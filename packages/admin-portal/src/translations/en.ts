@@ -365,6 +365,13 @@ const englishTranslation = {
                         "disabled-weighted-voting": "Disabled Weighted Voting",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Delegated Voting Policy",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",

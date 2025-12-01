@@ -56,6 +56,7 @@ import {
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventWeightedVotingPolicy,
+    EElectionEventDelegatedVotingPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -556,6 +557,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EElectionEventWeightedVotingPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.weightedVotingPolicy.options.${value}`),
+        }))
+    }
+
+    const delegatedVotingPolicyOptions = () => {
+        return Object.values(EElectionEventDelegatedVotingPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.delegatedVotingPolicy.options.${value}`),
         }))
     }
 
@@ -1142,6 +1150,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                             defaultValue={
                                 EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
                             }
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.delegated_voting_policy"}
+                            choices={delegatedVotingPolicyOptions()}
+                            label={"Delegated Voting Policy"}
+                            defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}
                         />

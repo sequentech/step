@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
 
 ## ✨ Instant-runoff Voting (IRV/RCV) System support
 
@@ -21,9 +27,11 @@ Support for Instant-runoff elections. Adaptations and implementations were added
 
 - Issue: [#8214](https://github.com/sequentech/meta/issues/8214)
 
-## 🐞 Tally > Contests are not in order when using multi-contest encoding
+## ✨ Delegate voting with imports
 
-Sort contest shows on tally results tabs based on the contest-order 
- field in the election presentation.
+Implemented a simple version of delegate voting. Voters can delegate their vote 
+on other voters, and initially the state of delegation will be imported. 
+Then at the tally level if a voter is a delegate with N weight, we'll insert the 
+ballot N times.
 
-- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
+- Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
