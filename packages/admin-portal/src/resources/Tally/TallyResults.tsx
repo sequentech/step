@@ -40,6 +40,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const tallyData = useAtomValue(tallyQueryData)
 
         const {canExportCeremony} = useKeysPermissions()
+        const aliasRenderer = useAliasRenderer()
 
         const areas: Array<RaRecord<Identifier>> | undefined = useMemo(
             () => tallyData?.sequent_backend_area?.map((area): RaRecord<Identifier> => area),
@@ -117,6 +118,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
+        const currentElection = useMemo(() => {
+            return elections?.find((election) => election.id === electionId)
+        }, [elections, electionId])
+
         let documents: IResultDocumentsData | null = useMemo(() => {
             const documents =
                 !!resultsEventId &&
@@ -128,11 +133,11 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             return documents
                 ? {
                       documents,
-                      name: resultsElection?.[0]?.name ?? "election",
+                      name: aliasRenderer(currentElection) ?? "election",
                       class_type: "election",
                   }
                 : null
-        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, resultsElection?.[0]?.name])
+        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, currentElection])
 
         let areasDocuments: IResultDocumentsData[] | null = useMemo(
             () =>
@@ -156,8 +161,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 null,
             [resultsEventId, resultsElectionArea]
         )
-
-        const aliasRenderer = useAliasRenderer()
 
         const documentsList: IResultDocumentsData[] | null = useMemo(() => {
             if (documents && areasDocuments) {
@@ -200,7 +203,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                         <ExportElectionMenu
                             documentsList={documentsList}
                             electionEventId={data?.election_event_id}
-                            itemName={resultsElection?.[0]?.name ?? "election"}
+                            itemName={aliasRenderer(currentElection) ?? "election"}
                             tallyType={data?.tally_type}
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}

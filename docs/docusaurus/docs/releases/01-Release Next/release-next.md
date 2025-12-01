@@ -7,7 +7,15 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-🐞 Tally > State not cleared when switching events
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all placed in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
+  
+## 🐞 Tally > State not cleared when switching events
 
 Fix tally state is not cleared when switching election events on the tally tab.
 

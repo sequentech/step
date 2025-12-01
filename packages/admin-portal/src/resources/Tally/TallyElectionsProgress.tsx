@@ -15,6 +15,7 @@ import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
 import {formatPercentOne} from "@sequentech/ui-core"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 type Sequent_Backend_Election_Extended = Sequent_Backend_Election & {
     rowId: number
@@ -35,6 +36,7 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     allElections,
 }) => {
     const {t} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
 
     const elections = useMemo(() => {
         return (
@@ -68,6 +70,9 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) => {
+                return aliasRenderer(props.row)
+            },
         },
         {
             field: "status",
