@@ -214,6 +214,7 @@ pub async fn insert_ballots_messages(
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
 
+                    // Add the index where the username of the delegated vote is if the election has delegation enabled.
                     let delegate_count_index = if is_delegated { Some(1) } else { None };
 
                     let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
