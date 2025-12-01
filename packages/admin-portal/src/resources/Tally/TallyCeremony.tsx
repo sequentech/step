@@ -144,7 +144,7 @@ export const TallyCeremony: React.FC = () => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
-    const allowTallyCeremonyCreation = useRef<boolean>(true)
+    const allowTallyCeremonyCreation = useRef<boolean>(false)
     const [CreateTallyCeremonyMutation] =
         useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] =
@@ -484,6 +484,11 @@ export const TallyCeremony: React.FC = () => {
                     )
             }
 
+            useMemo(() => {
+                allowTallyCeremonyCreation.current =
+                    tally?.execution_status === undefined && page === WizardSteps.Start
+            }, [tally, page])
+
             // If there are no selected elections, or if there is an election that is not published,
             // or if the initialization report is either not allowed or already generated when allowed,
             // then `newStatus` will be `true`, and the button will be disabled.
@@ -519,7 +524,7 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
-    const confirmStartAction = async () => {
+    const createCeremonyAction = async () => {
         try {
             setIsTallyElectionListDisabled(true)
             const {data, errors} = await CreateTallyCeremonyMutation({
@@ -1143,7 +1148,7 @@ export const TallyCeremony: React.FC = () => {
                     if (result) {
                         if (allowTallyCeremonyCreation.current) {
                             allowTallyCeremonyCreation.current = false
-                            confirmStartAction() // Creates the ceremony
+                            createCeremonyAction() // Creates the ceremony
                         }
                     } else {
                         setIsButtonDisabled(false)
