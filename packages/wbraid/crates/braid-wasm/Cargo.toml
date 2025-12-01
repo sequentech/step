@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 wbraid-shared = { path = "../shared" }
 braid = { path = "../braid", default-features = false, features = ["wasm-core"] }
-strand = { path = "../strand" }
+strand = { path = "../strand", features=["rayon", "wasm", "wasmrayon"] }
 b4 = { path = "../b4" }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -20,6 +20,7 @@ base64 = "0.22"
 # WASM bindings
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+wasm-bindgen-rayon = { version = "1.3", features = ["no-bundler"] }  # Match strand version
 js-sys = "0.3"
 
 # Web APIs

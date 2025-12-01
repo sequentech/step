@@ -135,6 +135,9 @@ let response = self.bb_client.initiate_message(
             0,
         ).await?;
 
+2.6 The shared crate seems unnecessary we should be reusing structs from b4, not creating
+duplicates on the receiving end
+
 3. **Verifier Binary Testing**:
    - [ ] Run verifier against a completed protocol execution
    - [ ] Verify it correctly validates all signatures

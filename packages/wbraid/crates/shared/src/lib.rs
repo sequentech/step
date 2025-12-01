@@ -201,6 +201,3 @@ pub struct ConfirmMessagesMultiResponse {
     pub success: bool,
 }
 
-// B3 message types (extracted from b3 crate for shared use across native and WASM)
-// pub mod b3_messages;
-

@@ -333,7 +333,7 @@
         // Dynamic import with timestamp to force cache refresh
         const timestamp = new Date().getTime();
         console.log('Loading WASM with cache-busting timestamp:', timestamp);
-        const { default: init, WasmTrustee } = await import(`./crates/braid-wasm/pkg/braid_wasm.js?v=${timestamp}`);
+        const { default: init, initThreadPool, WasmTrustee } = await import(`./crates/braid-wasm/pkg/braid_wasm.js?v=${timestamp}`);
 
         let trustee = null;
         let autoInterval = null;
@@ -427,8 +427,10 @@
         // Initialize WASM
         async function initializeWasm() {
             try {
-                // Modern wasm-bindgen expects an object or no arguments (will fetch automatically)
-                await init();
+                // Use modern object-based API for wasm-bindgen
+                await init({});  // Pass empty object for modern API
+                console.log("Initializing thread pool with concurrency:", navigator.hardwareConcurrency);
+                await initThreadPool(navigator.hardwareConcurrency);
                 console.log('WASM module initialized successfully');
             } catch (err) {
                 console.error('Failed to initialize WASM:', err);

@@ -175,7 +175,8 @@
             
             // Initialize WASM module with shared memory
             await init({ memory });
-            // await initSync({ memory });
+            console.log("Initializing thread pool...");
+            await initThreadPool(navigator.hardwareConcurrency);
             
             client = new Client(SERVICE_URL);
             showStatus('postStatus', 'Client initialized successfully', 'success');

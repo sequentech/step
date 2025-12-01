@@ -19,6 +19,10 @@ pub fn init() {
     tracing_wasm::set_as_global_default();
 }
 
+// Re-export wasm-bindgen-rayon's initThreadPool for browser usage
+// This provides parallel computation support via Web Workers
+pub use wasm_bindgen_rayon::init_thread_pool as initThreadPool;
+
 /// Main client that coordinates bulletin board, S3, and local storage
 #[wasm_bindgen]
 pub struct Client {
