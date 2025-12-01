@@ -1298,6 +1298,7 @@ const englishTranslation = {
             options: {
                 "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
+                "instant-runoff": "Instant Runoff",
                 "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
@@ -1643,6 +1644,12 @@ const englishTranslation = {
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
                 weight: "Weight",
+                preferential: {
+                    candidate: "Candidate",
+                    winner: "Winner",
+                    eliminated: "Eliminated",
+                    round: "Round",
+                },
             },
             chart: {
                 votesForCandidates: "Votes For Candidates",

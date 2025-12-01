@@ -5,6 +5,7 @@
 use sequent_core::ballot::{
     Contest, ContestPresentation, EOverVotePolicy, EUnderVotePolicy, InvalidVotePolicy,
 };
+use sequent_core::types::ceremonies::CountingAlgType;
 use uuid::Uuid;
 
 use super::candidates;
@@ -31,7 +32,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         min_votes: (0),
         winning_candidates_num: (1),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
@@ -93,7 +94,7 @@ pub fn get_contest_min_max_votes(
         min_votes: (min_votes as i64),
         winning_candidates_num: (1),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),

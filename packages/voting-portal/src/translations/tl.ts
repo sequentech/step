@@ -319,6 +319,10 @@ const tagalogTranslation: TranslationType = {
                 overVoteDisabled:
                     "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
                 blankVote: "Blank Vote: Walang pinili",
+                preferenceOrderWithGaps:
+                    "Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
+                duplicatedPosition:
+                    "Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
             },
             explicit: {
                 notAllowed:

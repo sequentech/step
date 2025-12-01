@@ -189,3 +189,117 @@ pub enum CeremoniesPolicy {
     #[serde(rename = "automated-ceremonies")]
     AUTOMATED_CEREMONIES,
 }
+
+#[derive(
+    Debug,
+    Display,
+    EnumString,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
+pub enum TallyOperation {
+    #[strum(serialize = "process-ballots-all")]
+    ProcessBallotsAll, /* Process ballots to calculate Candidate Results
+                        * and participation
+                        * statistics */
+    #[strum(serialize = "aggregate-results")]
+    AggregateResults, /* Aggregate results that have been processed in
+                       * every area */
+    #[strum(serialize = "skip-candidate-results")]
+    SkipCandidateResults, /* Needs the ballots to calculate participation
+                           * statistics but without the Candidate Results */
+}
+
+#[derive(Debug, Display)]
+pub enum ScopeOperation {
+    Area(TallyOperation),
+    Contest(TallyOperation),
+}
+
+#[derive(
+    Eq,
+    PartialEq,
+    Debug,
+    EnumString,
+    Display,
+    Default,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    Clone,
+    Copy,
+)]
+pub enum CountingAlgType {
+    #[strum(serialize = "plurality-at-large")]
+    #[serde(rename = "plurality-at-large")]
+    #[default]
+    PluralityAtLarge,
+    #[strum(serialize = "instant-runoff")]
+    #[serde(rename = "instant-runoff")]
+    InstantRunoff,
+    #[strum(serialize = "borda-nauru")]
+    #[serde(rename = "borda-nauru")]
+    BordaNauru,
+    #[strum(serialize = "borda")]
+    #[serde(rename = "borda")]
+    Borda,
+    #[strum(serialize = "borda-mas-madrid")]
+    #[serde(rename = "borda-mas-madrid")]
+    BordaMasMadrid,
+    #[strum(serialize = "pairwise-beta")]
+    #[serde(rename = "pairwise-beta")]
+    PairwiseBeta,
+    #[strum(serialize = "desborda3")]
+    #[serde(rename = "desborda3")]
+    Desborda3,
+    #[strum(serialize = "desborda2")]
+    #[serde(rename = "desborda2")]
+    Desborda2,
+    #[strum(serialize = "desborda")]
+    #[serde(rename = "desborda")]
+    Desborda,
+    #[strum(serialize = "cumulative")]
+    #[serde(rename = "cumulative")]
+    Cumulative,
+}
+
+impl CountingAlgType {
+    /// Returns true if the counting algorithm is preferential (ranked-choice).
+    pub fn is_preferential(&self) -> bool {
+        matches!(
+            self,
+            CountingAlgType::InstantRunoff
+                | CountingAlgType::Borda
+                | CountingAlgType::BordaNauru
+                | CountingAlgType::BordaMasMadrid
+                | CountingAlgType::PairwiseBeta
+                | CountingAlgType::Desborda
+                | CountingAlgType::Desborda2
+                | CountingAlgType::Desborda3
+        )
+    }
+
+    pub fn get_default_tally_operation_for_contest(&self) -> TallyOperation {
+        if self.is_preferential() {
+            TallyOperation::ProcessBallotsAll
+        } else {
+            TallyOperation::AggregateResults
+        }
+    }
+
+    pub fn get_default_tally_operation_for_area(&self) -> TallyOperation {
+        if self.is_preferential() {
+            TallyOperation::SkipCandidateResults
+        } else {
+            TallyOperation::ProcessBallotsAll
+        }
+    }
+}
