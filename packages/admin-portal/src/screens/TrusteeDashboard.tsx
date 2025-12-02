@@ -180,7 +180,9 @@ export const TrusteeDashboard = () => {
     try {
       const s = await trustee.get_state()
       setState(s)
-    } catch {}
+    } catch (e) {
+      console.log(e)
+    }
   }
 
   const updateBoard = async () => {

@@ -176,9 +176,6 @@ mod random;
 mod signatures;
 /// Symmetric encryption frontend.
 mod symmetric;
-
-#[cfg(feature = "wasm")]
-pub mod wasm;
 /*
  /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
 pub use signatures::dalek as signature;

@@ -83,6 +83,13 @@ module.exports = function (env, argv) {
             },
             extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
+        ignoreWarnings: [
+            // Silence the wasm-bindgen-rayon dynamic importScripts warning
+            {
+            module: /workerHelpers\.no-bundler\.js/,
+            message: /Critical dependency: the request of a dependency is an expression/,
+            },
+        ],
         plugins: [
             new InterpolateHtmlPlugin({
                 PUBLIC_URL: "", // Provide replacements for variables
