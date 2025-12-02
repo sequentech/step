@@ -7,7 +7,13 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-🐞 Tally > State not cleared when switching events
+## 🐞 Keys Ceremony > State not cleared when switching Election Events
+
+Clear keys ceremony state when switching events.
+
+- Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Tally > State not cleared when switching events
 
 Fix tally state is not cleared when switching election events on the tally tab.
 
