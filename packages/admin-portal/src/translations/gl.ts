@@ -366,6 +366,13 @@ const galegoTranslation: TranslationType = {
                         "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
                 },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Voto Delegado",
+                    options: {
+                        enabled: "Activado",
+                        disabled: "Desactivado",
+                    },
+                },
             },
             error: {
                 endDate: "A data de fin debe ser posterior á data de inicio",
@@ -1310,6 +1317,7 @@ const galegoTranslation: TranslationType = {
             options: {
                 "non-preferential": "Non Preferencial",
                 "plurality-at-large": "Pluralidade en Xeral",
+                "instant-runoff": "Segunda Volta Instantánea",
                 "random": "Aleatorio",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
@@ -1657,6 +1665,12 @@ const galegoTranslation: TranslationType = {
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",
                 weight: "Peso",
+                preferential: {
+                    candidate: "Candidato",
+                    winner: "Gañador",
+                    eliminated: "Eliminado",
+                    round: "Rolda",
+                },
             },
             chart: {
                 votesForCandidates: "Votos polos Candidatos",

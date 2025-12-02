@@ -5,11 +5,15 @@
 use super::tally;
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
+    do_tally::counting_algorithm::utils::{
+        get_area_tally_operation, get_area_weight, get_contest_tally_operation,
+    },
     error::{Error, Result},
     pipe_inputs::{PipeInputs, PREFIX_TALLY_SHEET},
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
+
 use crate::utils::HasId;
 use rayon::prelude::*;
 use sequent_core::{
@@ -17,6 +21,7 @@ use sequent_core::{
     ballot_style,
     services::area_tree::TreeNodeArea,
     sqlite::election_event,
+    types::ceremonies::{ScopeOperation, TallyOperation},
     types::hasura::core::TallySheet,
     types::tally_sheets::VotingChannel,
     util::path::{get_folder_name, list_subfolders},
@@ -27,6 +32,7 @@ use sequent_core::{
 };
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::cmp;
 use std::sync::Arc;
 use std::{
@@ -34,7 +40,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, Level, Value as TracingValue};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -101,22 +107,6 @@ impl DoTally {
     }
 }
 
-#[instrument]
-pub fn get_area_weight(ballot_styles: Vec<BallotStyle>, area_id: Uuid) -> Weight {
-    let area_ballot_style: Option<&BallotStyle> = ballot_styles
-        .iter()
-        .find(|bs| bs.area_id == area_id.to_string());
-
-    area_ballot_style
-        .map(|bs| {
-            bs.area_annotations
-                .as_ref()
-                .map(|area_annotations| area_annotations.get_weight())
-        })
-        .flatten()
-        .unwrap_or_default()
-}
-
 impl Pipe for DoTally {
     #[instrument(err, skip_all, name = "DoTally::exec")]
     fn exec(&self) -> Result<()> {
@@ -147,7 +137,8 @@ impl Pipe for DoTally {
                     // These are specific to the contest and need to be cloned for use in area processing.
                     let election_id_for_contest = contest_input.election_id.clone();
                     let contest_id_for_contest = contest_input.id.clone();
-                    let contest_object_for_contest = contest_input.contest.clone();
+                    let contest_object = contest_input.contest.clone();
+                    let contest_op = get_contest_tally_operation(&contest_object);
 
                     // --- Start of logic for a single contest ---
                     let _areas_info: Vec<TreeNodeArea> = contest_input // Renamed, original `areas` was unused after info
@@ -193,7 +184,6 @@ impl Pipe for DoTally {
                             let area_id = area_input.id.clone();
                             let election_id = election_id_for_contest.clone();
                             let contest_id = contest_id_for_contest.clone();
-                            let contest_object = contest_object_for_contest.clone();
 
                             let base_input_path = PipeInputs::build_path(
                                 &input_dir,
@@ -227,6 +217,12 @@ impl Pipe for DoTally {
                                 .filter(|child| child.id != area_input.id.to_string())
                                 .count();
 
+                            let area_op = get_area_tally_operation(
+                                &election_input.ballot_styles,
+                                contest_object.get_counting_algorithm(),
+                                &area_input.id,
+                            );
+
                             if num_children_areas > 0usize {
                                 let base_aggregate_path = base_output_path
                                     .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -256,8 +252,8 @@ impl Pipe for DoTally {
                                             })?;
 
                                         let child_area_weight = get_area_weight(
-                                            election_input.ballot_styles.clone(),
-                                            child_area_id,
+                                            &election_input.ballot_styles,
+                                            &child_area_id,
                                         );
 
                                         Ok((
@@ -275,6 +271,7 @@ impl Pipe for DoTally {
 
                                 let counting_algorithm = tally::create_tally(
                                     &contest_object,
+                                    ScopeOperation::Area(area_op), // The operation of the parent area is used in the aggregate of its children, this makes sense so that each child has the same data available
                                     children_area_paths,
                                     census_size,
                                     auditable_votes_size,
@@ -291,14 +288,13 @@ impl Pipe for DoTally {
                                 serde_json::to_writer_pretty(file, &res)?; // Using pretty for readability
                             }
 
-                            let area_weight = get_area_weight(
-                                election_input.ballot_styles.clone(),
-                                area_input.id,
-                            );
+                            let area_weight =
+                                get_area_weight(&election_input.ballot_styles, &area_input.id);
 
                             // Create area tally
                             let counting_algorithm_area = tally::create_tally(
                                 &contest_object,
+                                ScopeOperation::Area(area_op),
                                 vec![(decoded_ballots_file.clone(), area_weight)],
                                 area_input.census,
                                 area_input.auditable_votes,
@@ -374,7 +370,7 @@ impl Pipe for DoTally {
                             }
                             // Return data needed for final aggregation for the contest
                             Ok((
-                                decoded_ballots_file,
+                                (decoded_ballots_file, area_weight),
                                 area_input.census,
                                 area_input.auditable_votes,
                                 area_specific_tally_sheet_results,
@@ -386,7 +382,7 @@ impl Pipe for DoTally {
                     let collected_area_outputs = area_processing_results?; // Propagate error if any area failed
 
                     // Aggregate results from parallel area processing
-                    let mut contest_ballot_files: Vec<PathBuf> = vec![];
+                    let mut contest_ballot_files: Vec<(PathBuf, Weight)> = vec![];
                     let mut sum_census: u64 = 0;
                     let mut sum_auditable_votes: u64 = 0;
                     let mut tally_sheet_results_for_contest: Vec<(ContestResult, TallySheet)> =
@@ -430,8 +426,9 @@ impl Pipe for DoTally {
 
                     // Create final contest tally
                     let final_counting_algorithm = tally::create_tally(
-                        &contest_object_for_contest,
-                        vec![],
+                        &contest_object,
+                        ScopeOperation::Contest(contest_op),
+                        contest_ballot_files,
                         sum_census,
                         sum_auditable_votes,
                         final_only_sheet_results,
@@ -455,7 +452,7 @@ impl Pipe for DoTally {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
 pub struct InvalidVotes {
     pub explicit: u64,
     pub implicit: u64,
@@ -472,7 +469,7 @@ impl InvalidVotes {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
 pub struct ExtendedMetricsContest {
     // Voted more candidates than the allowed amount per contest
     pub over_votes: u64,
@@ -531,6 +528,7 @@ pub struct ContestResult {
     pub percentage_invalid_votes_implicit: f64,
     pub candidate_result: Vec<CandidateResult>,
     pub extended_metrics: Option<ExtendedMetricsContest>,
+    pub process_results: Option<Value>, // The results from the counting algorithm process
 }
 
 impl ContestResult {

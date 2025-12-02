@@ -26,6 +26,16 @@ const galegoTranslation: TranslationType = {
             moreInformationLink: "Máis información",
             writeInsPlaceholder: "Escribe aquí o candidato escrito",
             blankVote: "Voto en Branco",
+            preferential: {
+                position: "Posición",
+                none: "Ningún",
+                ordinals: {
+                    first: "º",
+                    second: "º",
+                    third: "º",
+                    other: "º",
+                },
+            },
         },
         homeScreen: {
             title: "Verificador de Papeletas Sequent",

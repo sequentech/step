@@ -1,18 +1,25 @@
 ---
-id: release-next
-title: Release Notes next
+id: release-9.3.0
+title: Release Notes 9.3.0
 ---
 <!--
--- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 ## 🐞 Tally > "No Results" while loading the results
+
 1. Fix Tally results show "No results" while loading for it.
 2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
 
 - Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
   
+## ✨ Don't build/push images on main
+
+Don't build/push images on main.
+
+- Issue: [#9291](https://github.com/sequentech/meta/issues/9291)
+
 ## 🐞 Tally > State not cleared when switching events
 
 Fix tally state is not cleared when switching election events on the tally tab.

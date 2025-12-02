@@ -114,13 +114,13 @@ mod tests {
         assert_eq!(
             normalize_vote_contest(
                 &decoded_contest,
-                contest.get_counting_algorithm().as_str(),
+                contest.get_counting_algorithm(),
                 false,
                 &invalid_candidate_ids
             ),
             normalize_vote_contest(
                 &decoded_plaintext,
-                contest.get_counting_algorithm().as_str(),
+                contest.get_counting_algorithm(),
                 false,
                 &invalid_candidate_ids
             )
@@ -209,13 +209,13 @@ mod tests {
                 assert_eq!(
                     normalize_vote_contest(
                         &decoded_ballot,
-                        fixture.contest.get_counting_algorithm().as_str(),
+                        fixture.contest.get_counting_algorithm(),
                         false,
                         &invalid_candidate_ids
                     ),
                     normalize_vote_contest(
                         &fixture.plaintext,
-                        fixture.contest.get_counting_algorithm().as_str(),
+                        fixture.contest.get_counting_algorithm(),
                         false,
                         &invalid_candidate_ids
                     )
