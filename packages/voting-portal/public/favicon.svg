@@ -1,15 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.dev/svgjs" width="1000" height="1000"><g clip-path="url(#SvgjsClipPath1058)"><rect width="1000" height="1000" fill="#0f054c"></rect><g transform="matrix(8.333333333333334,0,0,8.333333333333334,150,237.5)"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.dev/svgjs" width="84" height="63"><svg width="84" height="63" viewBox="0 0 84 63" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="84" height="63" fill="#0F054C"></rect>
-<g clip-path="url(#clip0_984_12337)">
-<path d="M62.782 29.4C67.3107 29.4 70.982 25.7287 70.982 21.2C70.982 16.6713 67.3107 13 62.782 13C58.2532 13 54.582 16.6713 54.582 21.2C54.582 25.7287 58.2532 29.4 62.782 29.4Z" fill="white"></path>
-<path d="M21.2 29.4C25.7287 29.4 29.4 25.7287 29.4 21.2C29.4 16.6713 25.7287 13 21.2 13C16.6713 13 13 16.6713 13 21.2C13 25.7287 16.6713 29.4 21.2 29.4Z" fill="white"></path>
-<path d="M21.2 49.2501C25.7287 49.2501 29.4 45.5788 29.4 41.0501C29.4 36.5213 25.7287 32.8501 21.2 32.8501C16.6713 32.8501 13 36.5213 13 41.0501C13 45.5788 16.6713 49.2501 21.2 49.2501Z" fill="white"></path>
-<path d="M41.9891 49.2501C46.5178 49.2501 50.1891 45.5788 50.1891 41.0501C50.1891 36.5214 46.5178 32.8501 41.9891 32.8501C37.4603 32.8501 33.7891 36.5214 33.7891 41.0501C33.7891 45.5788 37.4603 49.2501 41.9891 49.2501Z" fill="white"></path>
-<path d="M41.9891 29.4C46.5178 29.4 50.1891 25.7287 50.1891 21.2C50.1891 16.6713 46.5178 13 41.9891 13C37.4603 13 33.7891 16.6713 33.7891 21.2C33.7891 25.7287 37.4603 29.4 41.9891 29.4Z" fill="#43E3A1"></path>
-</g>
-<defs>
-<clipPath id="clip0_984_12337">
-<rect width="58" height="37" fill="white" transform="translate(13 13)"></rect>
-</clipPath>
-<clipPath id="SvgjsClipPath1058"><rect width="1000" height="1000" x="0" y="0" rx="350" ry="350"></rect></clipPath></defs>
-</svg></svg></g></g></svg>
+;<svg
+    xmlns="http://www.w3.org/2000/svg"
+    version="1.1"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:svgjs="http://svgjs.dev/svgjs"
+    width="1000"
+    height="1000"
+>
+    <g clip-path="url(#SvgjsClipPath1058)">
+        <rect width="1000" height="1000" fill="#0f054c"></rect>
+        <g transform="matrix(8.333333333333334,0,0,8.333333333333334,150,237.5)">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                version="1.1"
+                xmlns:xlink="http://www.w3.org/1999/xlink"
+                xmlns:svgjs="http://svgjs.dev/svgjs"
+                width="84"
+                height="63"
+            >
+                <svg
+                    width="84"
+                    height="63"
+                    viewBox="0 0 84 63"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <rect width="84" height="63" fill="#0F054C"></rect>
+                    <g clip-path="url(#clip0_984_12337)">
+                        <path
+                            d="M62.782 29.4C67.3107 29.4 70.982 25.7287 70.982 21.2C70.982 16.6713 67.3107 13 62.782 13C58.2532 13 54.582 16.6713 54.582 21.2C54.582 25.7287 58.2532 29.4 62.782 29.4Z"
+                            fill="white"
+                        ></path>
+                        <path
+                            d="M21.2 29.4C25.7287 29.4 29.4 25.7287 29.4 21.2C29.4 16.6713 25.7287 13 21.2 13C16.6713 13 13 16.6713 13 21.2C13 25.7287 16.6713 29.4 21.2 29.4Z"
+                            fill="white"
+                        ></path>
+                        <path
+                            d="M21.2 49.2501C25.7287 49.2501 29.4 45.5788 29.4 41.0501C29.4 36.5213 25.7287 32.8501 21.2 32.8501C16.6713 32.8501 13 36.5213 13 41.0501C13 45.5788 16.6713 49.2501 21.2 49.2501Z"
+                            fill="white"
+                        ></path>
+                        <path
+                            d="M41.9891 49.2501C46.5178 49.2501 50.1891 45.5788 50.1891 41.0501C50.1891 36.5214 46.5178 32.8501 41.9891 32.8501C37.4603 32.8501 33.7891 36.5214 33.7891 41.0501C33.7891 45.5788 37.4603 49.2501 41.9891 49.2501Z"
+                            fill="white"
+                        ></path>
+                        <path
+                            d="M41.9891 29.4C46.5178 29.4 50.1891 25.7287 50.1891 21.2C50.1891 16.6713 46.5178 13 41.9891 13C37.4603 13 33.7891 16.6713 33.7891 21.2C33.7891 25.7287 37.4603 29.4 41.9891 29.4Z"
+                            fill="#43E3A1"
+                        ></path>
+                    </g>
+                    <defs>
+                        <clipPath id="clip0_984_12337">
+                            <rect
+                                width="58"
+                                height="37"
+                                fill="white"
+                                transform="translate(13 13)"
+                            ></rect>
+                        </clipPath>
+                        <clipPath id="SvgjsClipPath1058">
+                            <rect width="1000" height="1000" x="0" y="0" rx="350" ry="350"></rect>
+                        </clipPath>
+                    </defs>
+                </svg>
+            </svg>
+        </g>
+    </g>
+</svg>

@@ -1,7 +1,7 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useState} from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
     stringToHtml,
@@ -41,7 +41,7 @@ export interface IAnswerProps {
     index: number
     ballotStyle: IBallotStyle
     hasCategory?: boolean
-    isActive: boolean
+    isSelectable: boolean
     iconCheckboxPolicy?: ECandidatesIconCheckboxPolicy
     isReview: boolean
     isInvalidVote?: boolean
@@ -62,7 +62,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     contestId,
     ballotStyle,
     hasCategory,
-    isActive,
+    isSelectable,
     iconCheckboxPolicy,
     isReview,
     isInvalidVote: isInvalidVoteInput,
@@ -77,6 +77,12 @@ export const Answer: React.FC<IAnswerProps> = ({
     setExplicitBlank,
     setIsTouched,
 }) => {
+    const {isPreferential} = provideBallotService()
+    const isPreferentialVote = useMemo(() => {
+        if (!contest.counting_algorithm) return false
+        return isPreferential(contest.counting_algorithm)
+    }, [contest.counting_algorithm])
+    const totalCandidates = contest.candidates.length
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, answer.id)
     )
@@ -94,6 +100,12 @@ export const Answer: React.FC<IAnswerProps> = ({
         () => isInvalidVoteInput ?? checkIsInvalidVote(answer),
         [isInvalidVoteInput, answer]
     )
+    const [selectedPosition, setSelectedPosition] = useState<number | null>(null)
+
+    useEffect(() => {
+        const sel = selectionState?.selected ?? -1
+        setSelectedPosition(sel + 1) // Selected positions in the UI start at 1, not 0. And 0 means no selection
+    }, [selectionState])
 
     const isChecked = (): boolean => {
         if (isInvalidVote) {
@@ -127,8 +139,29 @@ export const Answer: React.FC<IAnswerProps> = ({
             })
         )
     }
+
+    const handlePreferentialChange = (position: number | null) => {
+        if (!isSelectable || isReview) {
+            return
+        }
+        setIsTouched(true)
+        setSelectedPosition(position)
+        let cleanedText =
+            selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
+        dispatch(
+            setBallotSelectionVoteChoice({
+                ballotStyle,
+                contestId,
+                voteChoice: {
+                    id: answer.id,
+                    selected: position ? position - 1 : -1,
+                    write_in_text: cleanedText,
+                },
+            })
+        )
+    }
     const setChecked = (value: boolean) => {
-        if (!isActive || isReview) {
+        if (!isSelectable || isReview || isPreferentialVote) {
             return
         }
         setIsTouched(true)
@@ -180,7 +213,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const allowWriteIns = question && checkAllowWriteIns(question)
 
     const setWriteInText = (writeInText: string): void => {
-        if (!isWriteIn || !allowWriteIns || !isActive || isReview) {
+        if (!isWriteIn || !allowWriteIns || !isSelectable || isReview) {
             return
         }
         let cleanedText = normalizeWriteInText(writeInText)
@@ -208,9 +241,11 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     return (
         <Candidate
+            isPreferentialVote={isPreferentialVote}
+            totalCandidates={totalCandidates}
             title={translate(answer, "name", i18n.language)}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
-            isActive={isActive}
+            isSelectable={isSelectable}
             checked={isChecked()}
             setChecked={setChecked}
             url={infoUrl}
@@ -222,6 +257,8 @@ export const Answer: React.FC<IAnswerProps> = ({
             isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
             shouldDisable={shouldDisable}
             iconCheckboxPolicy={iconCheckboxPolicy}
+            selectedPosition={selectedPosition}
+            handlePreferentialChange={handlePreferentialChange}
         >
             {imageUrl ? (
                 <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />

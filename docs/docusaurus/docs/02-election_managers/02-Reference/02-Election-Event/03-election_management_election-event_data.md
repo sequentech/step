@@ -4,7 +4,7 @@ title: Data
 ---
 
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
@@ -119,3 +119,5 @@ Configure advanced system behaviors for this Election Event.
 - **Weighted Voting Policy**:
   - **Weighted Voting for Areas**: Enable weighted voting for areas.
   - **Disabled Weighted Voting**: Disable weighted voting.
+- **Delegate Voting Policy**:
+  - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.

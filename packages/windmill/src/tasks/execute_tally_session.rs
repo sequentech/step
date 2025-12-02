@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
@@ -499,6 +499,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+    let delegated_voting_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_delegated_voting_policy();
     let expected_batch_ids: Vec<i64> = tally_session_contests
         .clone()
         .into_iter()
@@ -541,6 +546,7 @@ pub async fn upsert_ballots_messages(
             trustee_names,
             missing_ballots_batches.clone(),
             contest_encryption_policy,
+            delegated_voting_policy,
         )
         .await?
     } else {
@@ -699,7 +705,7 @@ async fn map_plaintext_data(
             .collect(),
     };
 
-    let mut rng = StdRng::from_entropy();
+    let mut rng = StdRng::from_os_rng();
     available_trustees.shuffle(&mut rng);
 
     let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
