@@ -28,6 +28,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -57,6 +58,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const tallyData = useAtomValue(tallyQueryData)
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
+    const [isLoading, setIsLoading] = useState(true)
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
@@ -71,9 +73,10 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             tallyData?.sequent_backend_results_contest?.filter(
                 (resultsContest) =>
                     contestId === resultsContest.contest_id &&
-                    electionId === resultsContest.election_id
+                    electionId === resultsContest.election_id &&
+                    resultsEventId === resultsContest.results_event_id
             ),
-        [tallyData?.sequent_backend_results_contest, contestId, electionId]
+        [tallyData?.sequent_backend_results_contest, contestId, electionId, resultsEventId]
     )
 
     const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
@@ -81,10 +84,17 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             tallyData?.sequent_backend_results_contest_candidate?.filter(
                 (resultsContestCandidate) =>
                     contestId === resultsContestCandidate.contest_id &&
-                    electionId === resultsContestCandidate.election_id
+                    electionId === resultsContestCandidate.election_id &&
+                    resultsEventId === resultsContestCandidate.results_event_id
             ),
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
+
+    const isTallyDataMatchCurrentResults = useMemo(() => {
+        return tallyData?.sequent_backend_results_event?.find(
+            (event) => event.id === resultsEventId
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
     useEffect(() => {
         if (results && candidates) {
@@ -106,8 +116,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             )
 
             setResultsData(temp)
+            setIsLoading(false)
         }
-    }, [results, candidates])
+        if (isTallyDataMatchCurrentResults && (!candidates?.length || !results?.length)) {
+            setIsLoading(false)
+        }
+    }, [results, candidates, isTallyDataMatchCurrentResults])
 
     const columns: GridColDef[] = [
         {
@@ -276,6 +290,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                         </TableBody>
                     </Table>
                 </TableContainer>
+            ) : !isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
             ) : (
                 <NoItem />
             )}
@@ -284,7 +300,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 {t("tally.table.candidates")}
             </Typography>
 
-            {resultsData.length ? (
+            {general && general.length && resultsData.length ? (
                 <DataGrid
                     rows={resultsData}
                     columns={columns}
@@ -301,6 +317,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     pageSizeOptions={[10, 20, 50, 100]}
                     disableRowSelectionOnClick
                 />
+            ) : isLoading || !isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
             ) : (
                 <NoItem />
             )}
