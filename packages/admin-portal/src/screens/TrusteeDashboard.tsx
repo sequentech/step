@@ -64,7 +64,7 @@ export const TrusteeDashboard = () => {
     signing_key_sk: '',
     signing_key_pk: '',
     encryption_key: '',
-    b4_url: 'http://127.0.0.1:3000',
+    b4_url: 'http://127.0.0.1:50051',
   })
 
   const [initialized, setInitialized] = useState(false)

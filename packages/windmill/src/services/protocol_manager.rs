@@ -426,11 +426,11 @@ pub async fn get_board_client() -> Result<BoardClient> {
 
 #[instrument(err)]
 pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
-    let username = env::var("B3_PG_USER").context("B3_PG_USER must be set")?;
-    let password = env::var("B3_PG_PASSWORD").context("B3_PG_PASSWORD must be set")?;
-    let host = env::var("B3_PG_HOST").context("B3_PG_HOST must be set")?;
-    let port = env::var("B3_PG_PORT").context("B3_PG_PORT must be set")?;
-    let database = env::var("B3_PG_DATABASE").context("B3_PG_DATABASE must be set")?;
+    let username = env::var("B4_PG_USER").context("B4_PG_USER must be set")?;
+    let password = env::var("B4_PG_PASSWORD").context("B4_PG_PASSWORD must be set")?;
+    let host = env::var("B4_PG_HOST").context("B4_PG_HOST must be set")?;
+    let port = env::var("B4_PG_PORT").context("B4_PG_PORT must be set")?;
+    let database = env::var("B4_PG_DATABASE").context("B4_PG_DATABASE must be set")?;
 
     let port: u32 = port.parse::<u32>()?;
 
