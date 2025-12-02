@@ -275,7 +275,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         }
     }
 
-    const isExistRightTallyData = useMemo(() => {
+    const isTallyDataMatchCurrentResults = useMemo(() => {
         return tallyData?.sequent_backend_results_event?.find(
             (event) => event.id === resultsEventId
         )
@@ -303,10 +303,10 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             setResultsData(temp)
             setIsLoading(false)
         }
-        if (isExistRightTallyData && (!candidates?.length || !results?.length)) {
+        if (isTallyDataMatchCurrentResults && (!candidates?.length || !results?.length)) {
             setIsLoading(false)
         }
-    }, [results, candidates, isExistRightTallyData])
+    }, [results, candidates, isTallyDataMatchCurrentResults])
 
     const columns: GridColDef[] = [
         {
@@ -533,7 +533,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             </TableContainer>
                         </Box>
                     </Box>
-                ) : !isExistRightTallyData ? (
+                ) : !isTallyDataMatchCurrentResults ? (
                     <LoadingResults />
                 ) : (
                     <NoItem />
@@ -577,7 +577,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             />
                         </Box>
                     </Box>
-                ) : isLoading || !isExistRightTallyData ? (
+                ) : isLoading || !isTallyDataMatchCurrentResults ? (
                     <LoadingResults />
                 ) : (
                     <NoItem />
