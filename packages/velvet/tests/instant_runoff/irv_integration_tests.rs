@@ -663,8 +663,8 @@ fn test_all_ballot_candidates_unselected() {
 
     let last_round = last_round.unwrap_or_default();
     assert!(
-        last_round.winner.is_none(),
-        "There should be no winner when all ballots are invalid"
+        last_round.winner.is_some(),
+        "There should be one winner picked ramdonly"
     );
     let all_zero = last_round
         .candidates_wins
