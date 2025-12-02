@@ -1,23 +1,22 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use axum::{
     routing::{get, post},
     Router,
 };
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
+use tracing::info;
 use b4::{db, handlers, s3, state::AppState};
+use sequent_core::util::init_log::init_log;
+use dotenv::dotenv;
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "wbraid_service=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    dotenv().ok();
+    init_log(true);
 
+    let B4_BIND =  env::var("B4_BIND").context("B4_BIND must be set")?;
     // Initialize database
     let db = db::init_db().await?;
 
@@ -65,7 +64,7 @@ async fn main() -> Result<()> {
         .layer(cors)
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+    let listener = tokio::net::TcpListener::bind(B4_BIND).await?;
     tracing::info!(
         "Bulletin board service listening on {}",
         listener.local_addr()?

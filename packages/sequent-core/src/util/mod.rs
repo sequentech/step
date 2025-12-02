@@ -7,10 +7,10 @@ pub mod date_time;
 pub mod integrity_check;
 pub mod mime;
 pub mod normalize_vote;
-#[cfg(feature = "reports")]
+#[cfg(any(feature = "reports", feature = "s3"))]
 pub mod temp_path;
 
-#[cfg(feature = "reports")]
+#[cfg(any(feature = "reports", feature = "s3"))]
 pub mod aws;
 
 #[cfg(feature = "log")]

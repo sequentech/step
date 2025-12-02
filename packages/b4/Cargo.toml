@@ -16,7 +16,7 @@ required-features = ["monitor"]
 client = ["dep:tokio-postgres", "dep:bb8-postgres", "native"]
 monitor = ["dep:cursive", "dep:clap"]
 wasm-core = ["strand/wasm", "dep:js-sys"]
-native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
+native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http", "dep:sequent-core", "dep:dotenv"]
 
 [dependencies]
 strand = { path = "../strand" }
@@ -26,6 +26,8 @@ bb8-postgres = { version = "0.9", optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sequent-core = { path="../sequent-core", features = ["log", "s3", "probe"], optional = true }
+dotenv = { version = "0.15", optional = true } 
 
 # Message types dependencies
 borsh = { version = "1.5", features = ["derive"] }

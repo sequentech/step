@@ -19,7 +19,7 @@
 		"immudb:3325",
 		"rabbitmq:5672",
 		"rabbitmq:15672",
-		"b3:50051",
+		"b4:50051",
 		"simplesamlphp:8083"
 	],
 

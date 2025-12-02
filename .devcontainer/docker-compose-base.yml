@@ -521,7 +521,7 @@ services:
     build:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
-    entrypoint: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
+    #entrypoint: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
     environment:
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}

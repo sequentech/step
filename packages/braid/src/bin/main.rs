@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
-                error!("Error listing board names: '{}' ({})", error, args.b3_url);
+                error!("Error listing board names: {:?}' ({})", error, args.b3_url);
                 sleep(Duration::from_millis(1000)).await;
                 continue;
             }

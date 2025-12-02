@@ -13,7 +13,7 @@ use axum::{
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
+use tracing::info;
 use crate::{db, s3, state::AppState};
 
 #[derive(Debug, Serialize)]
@@ -77,6 +77,7 @@ pub async fn get_board(
 pub async fn list_boards(
     State(state): State<AppState>,
 ) -> Result<Json<BoardsListResponse>, StatusCode> {
+    info!("list_boards");
     let boards = db::list_boards(&state.db).await.map_err(|e| {
         tracing::error!("Failed to list boards: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
