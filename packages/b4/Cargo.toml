@@ -16,7 +16,7 @@ required-features = ["monitor"]
 client = ["dep:tokio-postgres", "dep:bb8-postgres", "native"]
 monitor = ["dep:cursive", "dep:clap"]
 wasm-core = ["strand/wasm", "dep:js-sys"]
-native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http", "dep:sequent-core", "dep:dotenv"]
+native = ["dep:tokio", "dep:sqlx", "dep:axum", "dep:tower", "dep:tower-http", "dep:sequent-core", "dep:dotenv"]
 
 [dependencies]
 strand = { path = "../strand" }
@@ -44,10 +44,6 @@ tower-http = { version = "0.6", features = ["cors"], optional = true }
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"], optional = true }
-
-# S3
-aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
-aws-sdk-s3 = { version = "1.52", optional = true }
 
 # Utilities
 uuid = { version = "1.10", features = ["v4", "serde"] }

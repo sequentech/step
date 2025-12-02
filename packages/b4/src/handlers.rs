@@ -5,16 +5,17 @@ use crate::api_types::{
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
 };
+use crate::{db, state::AppState};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
 use chrono::Utc;
+use sequent_core::services::s3::get_private_bucket;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use tracing::info;
-use crate::{db, s3, state::AppState};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
 pub struct BoardResponse {
@@ -119,17 +120,26 @@ pub async fn initiate_message(
         // Large message - generate S3 upload URL
         let s3_key = format!("{}/messages/{}", board_name, message_id);
 
+        let s3_bucket = get_private_bucket().map_err(|e| {
+            tracing::error!("Failed to check private bucket: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
         tracing::debug!(
             "[S3] Generating upload URL for s3://{}/{}",
-            state.bucket_name,
+            s3_bucket,
             s3_key
         );
-        let upload_url = s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
-            .await
-            .map_err(|e| {
-                tracing::error!("[S3] Failed to generate upload URL: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
+
+        let upload_url = sequent_core::services::s3::get_upload_url(
+            s3_key, true,  // is_public
+            false, // is_local
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!("[S3] Failed to generate upload URL: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
         tracing::debug!(
             "[S3] Generated upload URL for board '{}' message {}",
             board_name,
@@ -208,19 +218,15 @@ pub async fn confirm_message(
     } else {
         // S3 message - verify upload and get size
         let s3_key = format!("{}/messages/{}", board_name, id);
+        let s3_bucket = get_private_bucket().map_err(|e| {
+            tracing::error!("Failed to check private bucket: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
         // Get object metadata from S3 to determine size
-        tracing::debug!("[S3] HEAD s3://{}/{}", state.bucket_name, s3_key);
-        let size = match state
-            .s3_client
-            .head_object()
-            .bucket(&state.bucket_name)
-            .key(&s3_key)
-            .send()
-            .await
-        {
-            Ok(output) => {
-                let size = output.content_length().unwrap_or(0) as usize;
+        tracing::debug!("[S3] HEAD s3://{}/{}", s3_bucket, s3_key);
+        let size = match sequent_core::services::s3::get_object_size(&s3_bucket, &s3_key).await {
+            Ok(size) => {
                 tracing::debug!("[S3] Object found: {} bytes", size);
                 size
             }
@@ -286,13 +292,17 @@ pub async fn get_message(
 
     let download_url = match &message.content_type {
         ContentType::S3 { key } => {
+            let s3_bucket = get_private_bucket().map_err(|e| {
+                tracing::error!("Failed to check private bucket: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
             tracing::debug!(
                 "[S3] Generating download URL for s3://{}/{}",
-                state.bucket_name,
+                s3_bucket,
                 key
             );
             Some(
-                s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
+                sequent_core::services::s3::get_document_url(key.clone(), s3_bucket)
                     .await
                     .map_err(|e| {
                         tracing::error!("[S3] Failed to generate download URL: {}", e);
@@ -424,23 +434,29 @@ pub async fn initiate_messages_multi(
             if size > MAX_INLINE_MESSAGE_SIZE {
                 // Large message - generate S3 upload URL
                 let s3_key = format!("{}/messages/{}", board_name, message_id);
+                let s3_bucket = get_private_bucket().map_err(|e| {
+                    tracing::error!("Failed to check private bucket: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
 
                 tracing::debug!(
                     "[S3] Generating upload URL for s3://{}/{}",
-                    state.bucket_name,
+                    s3_bucket,
                     s3_key
                 );
-                let upload_url =
-                    s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
-                        .await
-                        .map_err(|e| {
-                            tracing::error!(
-                                "[S3] Failed to generate upload URL for board '{}': {}",
-                                board_name,
-                                e
-                            );
-                            StatusCode::INTERNAL_SERVER_ERROR
-                        })?;
+                let upload_url = sequent_core::services::s3::get_upload_url(
+                    s3_key, false, //is_public
+                    false, //is_local
+                )
+                .await
+                .map_err(|e| {
+                    tracing::error!(
+                        "[S3] Failed to generate upload URL for board '{}': {}",
+                        board_name,
+                        e
+                    );
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
                 tracing::debug!("[S3] Generated upload URL for board '{}'", board_name);
 
                 uploads.push(MessageUploadInfo {
@@ -587,43 +603,33 @@ pub async fn confirm_messages_multi(
                 // S3 message - download to extract metadata
                 s3_count += 1;
                 let s3_key = format!("{}/messages/{}", board_name, message_id);
+                let s3_bucket = get_private_bucket().map_err(|e| {
+                    tracing::error!("Failed to check private bucket: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
 
                 // Download message from S3 to extract metadata
                 tracing::debug!(
                     "[S3] GET s3://{}/{} (multi-board confirm)",
-                    state.bucket_name,
+                    s3_bucket,
                     s3_key
                 );
-                let obj = state
-                    .s3_client
-                    .get_object()
-                    .bucket(&state.bucket_name)
-                    .key(&s3_key)
-                    .send()
-                    .await
-                    .map_err(|e| {
-                        tracing::error!(
-                            "[S3] Failed to GET object for board '{}': {}",
-                            board_name,
-                            e
-                        );
-                        StatusCode::BAD_REQUEST
-                    })?;
-
-                let bytes = obj.body.collect().await.map_err(|e| {
-                    tracing::error!(
-                        "[S3] Failed to read object body for board '{}': {}",
-                        board_name,
-                        e
-                    );
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
-                let data = bytes.to_vec();
+                let data =
+                    sequent_core::services::s3::get_file_from_s3(s3_bucket.clone(), s3_key.clone())
+                        .await
+                        .map_err(|e| {
+                            tracing::error!(
+                                "[S3] Failed to GET object for board '{}': {}",
+                                board_name,
+                                e
+                            );
+                            StatusCode::BAD_REQUEST
+                        })?;
                 let size = data.len();
                 tracing::debug!(
                     "[S3] Downloaded {} bytes from s3://{}/{}",
                     size,
-                    state.bucket_name,
+                    s3_bucket,
                     s3_key
                 );
 

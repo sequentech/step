@@ -3,27 +3,24 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use tower_http::cors::{Any, CorsLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tracing::info;
-use b4::{db, handlers, s3, state::AppState};
-use sequent_core::util::init_log::init_log;
+use b4::{db, handlers, state::AppState};
 use dotenv::dotenv;
+use sequent_core::util::init_log::init_log;
 use std::env;
+use tower_http::cors::{Any, CorsLayer};
+use tracing::info;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
 
-    let B4_BIND =  env::var("B4_BIND").context("B4_BIND must be set")?;
+    let B4_BIND = env::var("B4_BIND").context("B4_BIND must be set")?;
     // Initialize database
     let db = db::init_db().await?;
 
-    // Initialize S3 client
-    let s3_client = s3::init_s3_client().await;
-
-    let state = AppState::new(db, s3_client);
+    let state = AppState::new(db);
 
     // Configure CORS
     let cors = CorsLayer::new()
