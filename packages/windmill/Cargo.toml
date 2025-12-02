@@ -77,7 +77,7 @@ aws-sdk-secretsmanager = "1.66"
 
 wrap-map-err = { path = "../wrap-map-err" }
 immudb-rs = { path="../immudb-rs" }
-b4 = { path="../b4" }
+b4 = { path="../b4", features = ["client"] }
 electoral-log = { path="../electoral-log" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "sqlite"] }

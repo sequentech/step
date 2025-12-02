@@ -13,6 +13,7 @@ path = "src/monitor.rs"
 required-features = ["monitor"]
 
 [features]
+client = ["dep:tokio-postgres", "dep:bb8-postgres", "native"]
 monitor = ["dep:cursive", "dep:clap"]
 wasm-core = ["strand/wasm", "dep:js-sys"]
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
@@ -20,6 +21,8 @@ native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum
 [dependencies]
 strand = { path = "../strand" }
 tokio = { workspace = true, optional = true }
+tokio-postgres = { version = "0.7", optional = true }
+bb8-postgres = { version = "0.9", optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

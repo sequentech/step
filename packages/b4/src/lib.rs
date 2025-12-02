@@ -14,6 +14,8 @@ pub mod handlers;
 pub mod s3;
 #[cfg(feature = "native")]
 pub mod state;
+#[cfg(feature = "client")]
+pub mod client;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::messages::newtypes::Timestamp;
