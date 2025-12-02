@@ -67,11 +67,11 @@ services:
     volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
-      - b3_db_logs:/b3_logs
+      - b4_db_logs:/b4_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b3_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -531,7 +531,7 @@ services:
         B3_URL: ${B3_URL}
     depends_on:
       - immudb
-      - b3
+      - b4
 
   trustee2:
     profiles: ["full"]
@@ -835,17 +835,17 @@ services:
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
 
-  postgres-b3:
+  postgres-b4:
     profiles: ["full", "base"]
-    image: sequentech.local/postgresql-b3
-    container_name: postgres-b3
+    image: sequentech.local/postgresql-b4
+    container_name: postgres-b4
     build:
-      context: ./postgresql-b3
+      context: ./postgresql-b4
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
-      - b3_db_data:/var/lib/postgresql
-      - b3_db_logs:/logs
+      - b4_db_data:/var/lib/postgresql
+      - b4_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
       POSTGRES_PASSWORD: ${B3_PG_PASSWORD}
@@ -859,7 +859,7 @@ services:
     depends_on:
       - postgres-volume-init
 
-  b3:
+  b4:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
@@ -874,7 +874,7 @@ services:
       - devcontainer
     depends_on:
       #- devcontainer
-      - postgres-b3
+      - postgres-b4
     working_dir: /workspaces/step/packages/b4
     entrypoint: [
       "cargo",
@@ -885,9 +885,9 @@ services:
       "--ignore",
       "rust-local-target/",
       "--features",
-      "\"server sqlcopy\"",
+      "\"native monitor\"",
       "-x",
-      "run --bin server -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
+      "run --bin b4 --release -- --host $B3_PG_HOST --port $B3_PG_PORT --username $B3_PG_USER --password $B3_PG_PASSWORD --database $B3_PG_DATABASE --bind $B3_BIND",
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
@@ -915,5 +915,5 @@ volumes:
   trustee2_data:
   trustee3_data:
   protocol_manager_data:
-  b3_db_logs:
-  b3_db_data:
+  b4_db_logs:
+  b4_db_data:

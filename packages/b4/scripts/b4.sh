@@ -26,7 +26,7 @@ trap cleanup EXIT
 # --- Script logic ---
 
 # Remove old DB inside crates/b4 if it exists
-rm -f "./crates/b4/b4.db"
+rm -f "./b4/b4.db"
 
 # Run service from workspace root
 cargo run --bin b4 --release
