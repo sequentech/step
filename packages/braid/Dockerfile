@@ -8,7 +8,7 @@ FROM rust:1.90.0-slim-bookworm
 WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./strand ./strand
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
