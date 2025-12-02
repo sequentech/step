@@ -179,7 +179,7 @@ mod symmetric;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
-
+/*
  /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
 pub use signatures::dalek as signature;
 /// Random number generation backed by [rand](https://crates.io/crates/rand).
@@ -188,8 +188,8 @@ pub use random::rand as rng;
 pub use hashing::rustcrypto as hash;
 /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
 pub use symmetric::rustcrypto as symm;
+*/
 
-/* 
 cfg_if::cfg_if! {
     if #[cfg(feature = "wasm")] {
         /// Webassembly API.
@@ -213,7 +213,7 @@ cfg_if::cfg_if! {
         /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
         pub use symmetric::rustcrypto as symm;
     }
-}*/
+}
 
 /// Miscellaneous functions.
 #[doc(hidden)]
@@ -224,10 +224,10 @@ pub mod util;
 pub mod serialization;
 
 /// Debug macro that works in both native and WASM contexts.
-/// 
+///
 /// In WASM builds (when `wasm` feature + `wasm32` target), uses browser `console.log`.
 /// In all other cases, uses `println!`.
-/// 
+///
 /// # Examples
 /// ```ignore
 /// use strand::debug_log;
@@ -254,7 +254,6 @@ macro_rules! debug_log {
 #[cfg(test)]
 mod keymaker;
 
-/* 
 use std::collections::HashMap;
 
 pub fn info() -> HashMap<&'static str, String> {
@@ -297,4 +296,3 @@ SYMMETRIC:  {}
 
     ret
 }
-*/

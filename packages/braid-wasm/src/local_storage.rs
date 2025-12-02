@@ -1,6 +1,6 @@
+use b4::api_types::Message;
 use indexed_db_futures::prelude::*;
 use wasm_bindgen::prelude::*;
-use b4::api_types::Message;
 
 const DB_VERSION: u32 = 1;
 const METADATA_STORE: &str = "message_metadata";
@@ -51,7 +51,7 @@ impl LocalStorage {
 
         let json = serde_json::to_string(message)
             .map_err(|e| JsValue::from_str(&format!("Failed to serialize message: {}", e)))?;
-        
+
         store
             .put_key_val(&JsValue::from_str(&message.id), &JsValue::from_str(&json))
             .map_err(|e| JsValue::from_str(&format!("Failed to put value: {:?}", e)))?;
@@ -75,7 +75,7 @@ impl LocalStorage {
 
         let js_array = js_sys::Uint8Array::from(data);
         let js_value: JsValue = js_array.into();
-        
+
         store
             .put_key_val(&JsValue::from_str(message_id), &js_value)
             .map_err(|e| JsValue::from_str(&format!("Failed to put value: {:?}", e)))?;
@@ -88,7 +88,10 @@ impl LocalStorage {
     }
 
     /// Get cached message data
-    pub async fn get_cached_message_data(&self, message_id: &str) -> Result<Option<Vec<u8>>, JsValue> {
+    pub async fn get_cached_message_data(
+        &self,
+        message_id: &str,
+    ) -> Result<Option<Vec<u8>>, JsValue> {
         let db = self.open_db().await?;
         let tx = db
             .transaction_on_one(DATA_STORE)
@@ -156,7 +159,7 @@ impl LocalStorage {
     /// Clear all cached data
     pub async fn clear(&self) -> Result<(), JsValue> {
         let db = self.open_db().await?;
-        
+
         // Clear metadata
         let tx = db
             .transaction_on_one_with_mode(METADATA_STORE, IdbTransactionMode::Readwrite)

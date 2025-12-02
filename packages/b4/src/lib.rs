@@ -2,10 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod messages;
 pub mod api_types;
+pub mod messages;
 
 // Native-only modules
+#[cfg(feature = "client")]
+pub mod client;
 #[cfg(feature = "native")]
 pub mod db;
 #[cfg(feature = "native")]
@@ -14,11 +16,9 @@ pub mod handlers;
 pub mod s3;
 #[cfg(feature = "native")]
 pub mod state;
-#[cfg(feature = "client")]
-pub mod client;
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::messages::newtypes::Timestamp;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn timestamp() -> Timestamp {

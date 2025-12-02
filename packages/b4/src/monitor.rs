@@ -15,7 +15,7 @@ use cursive::traits::Nameable;
 use cursive::view::Resizable;
 use cursive::views::{Canvas, Layer};
 use cursive::{Cursive, Printer, Rect, Vec2};
-  
+
 use sqlx::SqlitePool;
 
 const DEFAULT_DB_PATH: &'static str = "sqlite://b4.db";
@@ -411,11 +411,11 @@ fn get_progress(row: &BoardInfo) -> (f64, f64) {
 
 async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
     let pool = SqlitePool::connect(db_path).await?;
-    
+
     // Query boards table directly (equivalent to b3's INDEX table query)
     // SELECT * FROM INDEX WHERE is_archived = false
     let boards: Vec<(String, i32, i32, i32, i32, String)> = sqlx::query_as(
-        r#"SELECT 
+        r#"SELECT
             name,
             COALESCE(trustees_no, 0) as trustees_no,
             COALESCE(threshold_no, 0) as threshold_no,
@@ -428,7 +428,7 @@ async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
     )
     .fetch_all(&pool)
     .await?;
-    
+
     Ok(boards.into_iter().map(|(board_name, trustees_no, threshold_no, batch_count, message_count, last_message_kind)| {
         BoardInfo {
             board_name,

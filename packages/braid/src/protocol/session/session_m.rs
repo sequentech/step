@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use b4::HttpB3Message;
 use b4::messages::message::Message;
+use b4::HttpB3Message;
 use std::path::PathBuf;
 use strand::signature::StrandSignatureSk;
 use strand::symm::SymmetricKey;

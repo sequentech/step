@@ -35,23 +35,25 @@
 //! **Recommended**: Option 1 - make WASM trustee async throughout.
 //! This is the cleanest approach but requires refactoring braid-wasm::Trustee.
 
+use crate::protocol::board::local::{
+    ArtifactEntryIdentifier, BoardEntry, StatementEntryIdentifier,
+};
+use crate::util::{ProtocolContext, ProtocolError};
 use anyhow::{anyhow, Result};
+use b4::messages::artifact::*;
+use b4::messages::message::{Message, VerifiedMessage};
+use b4::messages::newtypes::*;
+use b4::messages::statement::{Statement, StatementType};
+use b4::HttpB3Message;
 use log::{debug, error, warn};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use strand::context::Ctx;
 use strand::hash::Hash;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
-use b4::messages::artifact::*;
-use b4::messages::message::{Message, VerifiedMessage};
-use b4::messages::statement::{Statement, StatementType};
-use b4::messages::newtypes::*;
-use b4::HttpB3Message;
-use crate::util::{ProtocolContext, ProtocolError};
-use crate::protocol::board::local::{BoardEntry, StatementEntryIdentifier, ArtifactEntryIdentifier};
 
 /// A WASM-compatible local board - currently in-memory only.
-/// 
+///
 /// NOTE: Persistent IndexedDB storage is architecturally ready but requires
 /// making the Trustee async in WASM. See module documentation for details.
 pub struct LocalBoard<C: Ctx> {
@@ -66,8 +68,10 @@ pub struct LocalBoard<C: Ctx> {
 impl<C: Ctx> LocalBoard<C> {
     /// Construct an empty LocalBoard with in-memory storage only
     pub(crate) fn new(_store: Option<PathBuf>, _blob_store: Option<PathBuf>) -> Self {
-        tracing::info!("WASM LocalBoard: in-memory only (IndexedDB persistence requires async refactor)");
-        
+        tracing::info!(
+            "WASM LocalBoard: in-memory only (IndexedDB persistence requires async refactor)"
+        );
+
         LocalBoard {
             configuration: None,
             cfg_hash: None,
@@ -140,10 +144,7 @@ impl<C: Ctx> LocalBoard<C> {
     }
 
     /// Adds a non-bootstrap message to the board.
-    fn add_message(
-        &mut self,
-        message: VerifiedMessage,
-    ) -> Result<(), ProtocolError> {
+    fn add_message(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
         let bytes = message.statement.strand_serialize()?;
         let statement_hash = strand::hash::hash(&bytes)?;
 
@@ -238,8 +239,7 @@ impl<C: Ctx> LocalBoard<C> {
 
     // Public for external crates (e.g., braid-wasm) to get board summary
     pub fn get_statement_entries(&self) -> Vec<BoardEntry> {
-        self
-            .statements
+        self.statements
             .iter()
             .map(|(k, v)| BoardEntry {
                 key: k.clone(),
@@ -535,4 +535,3 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(-1)
     }
 }
-

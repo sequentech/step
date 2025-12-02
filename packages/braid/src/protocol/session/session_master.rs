@@ -48,7 +48,7 @@ impl SessionMaster {
     ///
     pub async fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
         let board_params = HttpB3BoardParams::new(b3_url).await;
-        
+
         let mut session_sets = vec![];
         let mut runners = vec![];
         for i in 0..size {
@@ -306,10 +306,7 @@ impl SessionSet {
                     if has_more {
                         warn!("More messages available, updating store only..");
                         if let Err(err) = s.update_store(messages) {
-                            error!(
-                                "Error updating store: {} (has_more=true)",
-                                err
-                            );
+                            error!("Error updating store: {} (has_more=true)", err);
                         }
                         continue;
                     }

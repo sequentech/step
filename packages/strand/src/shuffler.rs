@@ -32,8 +32,8 @@
 //! ```
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use rand::{CryptoRng, RngCore};
 use rand::seq::SliceRandom;
+use rand::{CryptoRng, RngCore};
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -192,7 +192,6 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: Vec<usize>,
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
-        
         // let now = Instant::now(); println!("gen_commitments..");
         let (cs, rs) = self.gen_commitments(&perm, &generators, &self.ctx);
         // println!("gen_commitments {}", now.elapsed().as_millis());
@@ -774,7 +773,10 @@ pub(crate) fn gen_permutation(size: usize) -> Vec<usize> {
     ret
 }
 
-pub(crate) fn gen_permutation_with_rng<R: RngCore + CryptoRng>(rng: &mut R, size: usize) -> Vec<usize> {
+pub(crate) fn gen_permutation_with_rng<R: RngCore + CryptoRng>(
+    rng: &mut R,
+    size: usize,
+) -> Vec<usize> {
     let mut ret: Vec<usize> = (0..size).collect();
     ret.shuffle(rng);
 

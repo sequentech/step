@@ -189,7 +189,7 @@ impl Ctx for RistrettoCtx {
 
         let bytes = crate::hash::hash_to_array(bytes)?;
         let scalar = Scalar::from_bytes_mod_order_wide(&bytes);
-        
+
         Ok(ScalarS(scalar))
     }
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322
@@ -594,11 +594,11 @@ mod tests {
     #[cfg(not(feature = "wasm"))]
     #[test]
     pub(crate) fn test_shuffle_with_perm_rng() {
+        use rand_chacha::{rand_core::SeedableRng, ChaCha12Rng};
         use std::time::Instant;
-        use rand_chacha::{ChaCha12Rng, rand_core::SeedableRng};
 
         use crate::shuffler::Shuffler;
-        
+
         let ctx = &RistrettoCtx;
         let mut csprng = ctx.get_rng();
 
@@ -608,20 +608,22 @@ mod tests {
             csprng.fill_bytes(&mut fill);
             let p = to_plaintext_array(&fill.to_vec());
             ps.push(p);
-        }        
-        
+        }
+
         let sk = PrivateKey::gen(ctx);
         let pk = sk.get_pk();
         println!("Computing ciphertexts..");
-        let es = ps.iter()
+        let es = ps
+            .iter()
             .map(|p| {
                 let encoded = ctx.encode(p).unwrap();
                 pk.encrypt(&encoded)
             })
             .collect::<Vec<_>>();
-        
+
         let seed = vec![];
-        let now = Instant::now(); println!("* generators..");
+        let now = Instant::now();
+        println!("* generators..");
         let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         println!("* generators {}", now.elapsed().as_millis());
         let shuffler = Shuffler {
@@ -634,20 +636,29 @@ mod tests {
         let rng_seed = [0u8; 32];
         let mut rng = ChaCha12Rng::from_seed(rng_seed);
 
-        let now = Instant::now(); println!("* gen shuffle..");
-        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
+        let now = Instant::now();
+        println!("* gen shuffle..");
+        let (e_primes, rs, perm) =
+            shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
         println!("* gen shuffle {}", now.elapsed().as_millis());
-        let now = Instant::now();println!("* gen proof..");
-        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        let now = Instant::now();
+        println!("* gen proof..");
+        let proof = shuffler
+            .gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[])
+            .unwrap();
         println!("* gen proof {}", now.elapsed().as_millis());
-        let now = Instant::now(); println!("* check proof..");
-        let ok = shuffler.check_proof(&proof, es.clone(), e_primes.clone(), hs, &[]).unwrap();
+        let now = Instant::now();
+        println!("* check proof..");
+        let ok = shuffler
+            .check_proof(&proof, es.clone(), e_primes.clone(), hs, &[])
+            .unwrap();
         assert!(ok);
         println!("* check proof {}", now.elapsed().as_millis());
 
         println!("All shuffle {}", beg.elapsed().as_millis());
 
-        let ds = e_primes.iter()
+        let ds = e_primes
+            .iter()
             .map(|c| {
                 let decrypted = sk.decrypt(c);
                 ctx.decode(&decrypted)
@@ -660,7 +671,8 @@ mod tests {
         }
 
         let seed = vec![];
-        let now = Instant::now(); println!("* generators..");
+        let now = Instant::now();
+        println!("* generators..");
         let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         println!("* generators {}", now.elapsed().as_millis());
         let shuffler = Shuffler {
@@ -672,19 +684,28 @@ mod tests {
         let rng_seed = [0u8; 32];
         let mut rng = ChaCha12Rng::from_seed(rng_seed);
 
-        let now = Instant::now(); println!("* gen shuffle..");
-        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
+        let now = Instant::now();
+        println!("* gen shuffle..");
+        let (e_primes, rs, perm) =
+            shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
         println!("* gen shuffle {}", now.elapsed().as_millis());
-        let now = Instant::now();println!("* gen proof..");
-        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        let now = Instant::now();
+        println!("* gen proof..");
+        let proof = shuffler
+            .gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[])
+            .unwrap();
         println!("* gen proof {}", now.elapsed().as_millis());
-        let now = Instant::now(); println!("* check proof..");
-        let ok = shuffler.check_proof(&proof, es, e_primes.clone(), hs, &[]).unwrap();
+        let now = Instant::now();
+        println!("* check proof..");
+        let ok = shuffler
+            .check_proof(&proof, es, e_primes.clone(), hs, &[])
+            .unwrap();
         println!("* check proof {}", now.elapsed().as_millis());
 
         println!("All shuffle {}", beg.elapsed().as_millis());
 
-        let ds2 = e_primes.iter()
+        let ds2 = e_primes
+            .iter()
             .map(|c| {
                 let decrypted = sk.decrypt(c);
                 ctx.decode(&decrypted)

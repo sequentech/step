@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 /// Upload data to S3 using a pre-signed URL
 pub async fn upload_to_s3(upload_url: &str, data: &[u8]) -> Result<(), JsValue> {
     let client = reqwest::Client::new();
-    
+
     client
         .put(upload_url)
         .body(data.to_vec())
@@ -17,7 +17,7 @@ pub async fn upload_to_s3(upload_url: &str, data: &[u8]) -> Result<(), JsValue> 
 /// Download data from S3 using a pre-signed URL
 pub async fn download_from_s3(download_url: &str) -> Result<Vec<u8>, JsValue> {
     let client = reqwest::Client::new();
-    
+
     let response = client
         .get(download_url)
         .send()

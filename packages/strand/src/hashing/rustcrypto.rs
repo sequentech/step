@@ -149,3 +149,7 @@ pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};
 pub(crate) fn hasher_xof() -> Shake256 {
     Shake256::default()
 }
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: FALSE", module_path!())
+}

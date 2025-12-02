@@ -59,7 +59,7 @@ pub enum StrandError {
     #[error("ed25519 error: {0}")]
     Ed25519Error(#[from] ed25519_dalek::ed25519::Error),
     #[error("Invalid symmetric key length: {0}")]
-    InvalidSymmetricKeyLength(String)
+    InvalidSymmetricKeyLength(String),
 }
 
 /// Converts a slice into a hash-sized array.

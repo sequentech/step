@@ -3,8 +3,8 @@ mod local_storage;
 mod s3;
 pub mod trustee;
 
-use wasm_bindgen::prelude::*;
 use b4::api_types::Message;
+use wasm_bindgen::prelude::*;
 
 pub use bulletin_board::BulletinBoardClient;
 pub use local_storage::LocalStorage;
@@ -14,7 +14,7 @@ pub use trustee::WasmTrustee;
 #[wasm_bindgen(start)]
 pub fn init() {
     console_error_panic_hook::set_once();
-    
+
     // Set up tracing to output to browser console
     tracing_wasm::set_as_global_default();
 }
@@ -43,15 +43,12 @@ impl Client {
     /// Post a new message to the bulletin board
     pub async fn post_message(&self, data: Vec<u8>) -> Result<JsValue, JsValue> {
         let size = data.len();
-        
+
         // Phase 1: Initiate message upload
-        let response = self.bb_client.initiate_message(
-            size,
-            "unknown".to_string(),
-            "Unknown".to_string(),
-            0,
-            0,
-        ).await?;
+        let response = self
+            .bb_client
+            .initiate_message(size, "unknown".to_string(), "Unknown".to_string(), 0, 0)
+            .await?;
         let message_id = response.message_id.clone();
 
         // Phase 2: Upload data
@@ -59,33 +56,35 @@ impl Client {
             // Large message - upload to S3
             if let Some(upload_url) = &response.upload_url {
                 s3::upload_to_s3(upload_url, &data).await?;
-                
+
                 // Phase 3: Confirm S3 upload (no data in request)
-                self.bb_client.confirm_message(
+                self.bb_client
+                    .confirm_message(
+                        &message_id,
+                        None,
+                        "unknown".to_string(),
+                        "Unknown".to_string(),
+                        0,
+                        0,
+                    )
+                    .await?;
+            }
+        } else {
+            // Small message - send inline data in confirm request
+            self.bb_client
+                .confirm_message(
                     &message_id,
-                    None,
+                    Some(data.clone()),
                     "unknown".to_string(),
                     "Unknown".to_string(),
                     0,
                     0,
-                ).await?;
-            }
-        } else {
-            // Small message - send inline data in confirm request
-            self.bb_client.confirm_message(
-                &message_id,
-                Some(data.clone()),
-                "unknown".to_string(),
-                "Unknown".to_string(),
-                0,
-                0,
-            ).await?;
+                )
+                .await?;
         }
 
         // Cache locally
-        self.storage
-            .cache_message_data(&message_id, &data)
-            .await?;
+        self.storage.cache_message_data(&message_id, &data).await?;
 
         // Return a simple response object
         Ok(serde_wasm_bindgen::to_value(&serde_json::json!({
@@ -132,7 +131,7 @@ impl Client {
     /// List all messages from the bulletin board
     pub async fn list_messages(&self) -> Result<JsValue, JsValue> {
         let response = self.bb_client.list_messages().await?;
-        
+
         // Store metadata in local cache
         for message in &response.messages {
             self.storage.cache_message_metadata(message).await?;

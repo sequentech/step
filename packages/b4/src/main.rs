@@ -20,10 +20,10 @@ async fn main() -> Result<()> {
 
     // Initialize database
     let db = db::init_db().await?;
-    
+
     // Initialize S3 client
     let s3_client = s3::init_s3_client().await;
-    
+
     let state = AppState::new(db, s3_client);
 
     // Configure CORS
@@ -38,21 +38,39 @@ async fn main() -> Result<()> {
         .route("/boards", get(handlers::list_boards))
         .route("/boards/:board", get(handlers::get_board))
         // Message operations (board-specific)
-        .route("/boards/:board/messages/initiate", post(handlers::initiate_message))
-        .route("/boards/:board/messages/:id/confirm", post(handlers::confirm_message))
+        .route(
+            "/boards/:board/messages/initiate",
+            post(handlers::initiate_message),
+        )
+        .route(
+            "/boards/:board/messages/:id/confirm",
+            post(handlers::confirm_message),
+        )
         .route("/boards/:board/messages", get(handlers::list_messages))
         .route("/boards/:board/messages/:id", get(handlers::get_message))
         // Multi-board operations (GET)
-        .route("/boards/messages/multi/get", post(handlers::get_messages_multi))
+        .route(
+            "/boards/messages/multi/get",
+            post(handlers::get_messages_multi),
+        )
         // Multi-board operations (PUT - S3 two-step flow)
-        .route("/boards/messages/multi/initiate", post(handlers::initiate_messages_multi))
-        .route("/boards/messages/multi/confirm", post(handlers::confirm_messages_multi))
+        .route(
+            "/boards/messages/multi/initiate",
+            post(handlers::initiate_messages_multi),
+        )
+        .route(
+            "/boards/messages/multi/confirm",
+            post(handlers::confirm_messages_multi),
+        )
         .layer(cors)
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
-    tracing::info!("Bulletin board service listening on {}", listener.local_addr()?);
-    
+    tracing::info!(
+        "Bulletin board service listening on {}",
+        listener.local_addr()?
+    );
+
     axum::serve(listener, app).await?;
 
     Ok(())

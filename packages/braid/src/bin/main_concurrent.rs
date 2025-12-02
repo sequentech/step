@@ -165,7 +165,7 @@ async fn run(args: &Cli) -> Result<()> {
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "jemalloc")] {
-                
+
                 // Many statistics are cached and only updated
                 // when the epoch is advanced:
                 let e_ = e.advance();

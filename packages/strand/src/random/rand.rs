@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rand::rngs::OsRng;
+use rand::rngs::StdRng;
 use rand::CryptoRng;
 use rand::RngCore;
 use rand::TryRngCore;
-use rand::rngs::StdRng;
 
 /// Single source of randomness used in strand.
 ///
@@ -44,7 +44,7 @@ pub fn info() -> String {
 }
 
 /// RNG based on StdRng
-/// 
+///
 /// This is currently unused, but demonstrates how to use StdRng
 /// as the underlying RNG for Strand. Unlike OsRng, StdRng
 /// cannot fail to provide randomness after it has been seeded,
@@ -70,4 +70,3 @@ impl RngCore for StrandStdRng {
         self.0.fill_bytes(dest)
     }
 }
-

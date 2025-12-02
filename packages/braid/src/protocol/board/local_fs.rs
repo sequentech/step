@@ -1,12 +1,11 @@
-
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::protocol::board::local::ArtifactEntryIdentifier;
+use crate::protocol::board::local::BoardEntry;
 use crate::protocol::board::local::LocalBoardStorage;
 use crate::protocol::board::local::StatementEntryIdentifier;
-use crate::protocol::board::local::BoardEntry;
-use crate::protocol::board::local::ArtifactEntryIdentifier;
 use anyhow::Result;
 use b4::HttpB3Message;
 use log::{debug, error, warn};
@@ -51,31 +50,63 @@ impl<C: Ctx> LocalBoardStorage<C> for LocalBoard<C> {
         self.get_configuration(configuration_h)
     }
 
-    fn get_channel(&self, channel_h: &ChannelHash, signer_position: TrusteePosition) -> Result<Channel<C>, ProtocolError> {
+    fn get_channel(
+        &self,
+        channel_h: &ChannelHash,
+        signer_position: TrusteePosition,
+    ) -> Result<Channel<C>, ProtocolError> {
         self.get_channel(channel_h, signer_position)
     }
 
-    fn get_shares(&self, shares_h: &SharesHash, signer_position: TrusteePosition) -> Result<Shares<C>, ProtocolError> {
+    fn get_shares(
+        &self,
+        shares_h: &SharesHash,
+        signer_position: TrusteePosition,
+    ) -> Result<Shares<C>, ProtocolError> {
         self.get_shares(shares_h, signer_position)
     }
 
-    fn get_dkg_public_key(&self, pk_h: &PublicKeyHash, signer_position: TrusteePosition) -> Result<DkgPublicKey<C>, ProtocolError> {
+    fn get_dkg_public_key(
+        &self,
+        pk_h: &PublicKeyHash,
+        signer_position: TrusteePosition,
+    ) -> Result<DkgPublicKey<C>, ProtocolError> {
         self.get_dkg_public_key(pk_h, signer_position)
     }
 
-    fn get_ballots(&self, b_h: &CiphertextsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<Ballots<C>, ProtocolError> {
+    fn get_ballots(
+        &self,
+        b_h: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<Ballots<C>, ProtocolError> {
         self.get_ballots(b_h, batch, signer_position)
     }
 
-    fn get_mix(&self, m_h: &CiphertextsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<Mix<C>, ProtocolError> {
+    fn get_mix(
+        &self,
+        m_h: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<Mix<C>, ProtocolError> {
         self.get_mix(m_h, batch, signer_position)
     }
 
-    fn get_decryption_factors(&self, d_h: &DecryptionFactorsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<DecryptionFactors<C>, ProtocolError> {
+    fn get_decryption_factors(
+        &self,
+        d_h: &DecryptionFactorsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<DecryptionFactors<C>, ProtocolError> {
         self.get_decryption_factors(d_h, batch, signer_position)
     }
 
-    fn get_plaintexts(&self, p_h: &PlaintextsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<Plaintexts<C>, ProtocolError> {
+    fn get_plaintexts(
+        &self,
+        p_h: &PlaintextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<Plaintexts<C>, ProtocolError> {
         self.get_plaintexts(p_h, batch, signer_position)
     }
 
@@ -83,7 +114,12 @@ impl<C: Ctx> LocalBoardStorage<C> for LocalBoard<C> {
         self.update_store(messages, ignore_existing)
     }
 
-    fn store_and_return_messages(&mut self, messages: &Vec<HttpB3Message>, last_local_board_id: i64, ignore_existing: bool) -> Result<Vec<(Message, i64)>> {
+    fn store_and_return_messages(
+        &mut self,
+        messages: &Vec<HttpB3Message>,
+        last_local_board_id: i64,
+        ignore_existing: bool,
+    ) -> Result<Vec<(Message, i64)>> {
         self.store_and_return_messages(messages, last_local_board_id, ignore_existing)
     }
 
@@ -95,15 +131,21 @@ impl<C: Ctx> LocalBoardStorage<C> for LocalBoard<C> {
         self.max_messages()
     }
 
-    fn get_dkg_public_key_nohash(&self, signer_position: TrusteePosition) -> Option<DkgPublicKey<C>> {
+    fn get_dkg_public_key_nohash(
+        &self,
+        signer_position: TrusteePosition,
+    ) -> Option<DkgPublicKey<C>> {
         self.get_dkg_public_key_nohash(signer_position)
     }
 
-    fn get_plaintexts_nohash(&self, batch: BatchNumber, signer_position: TrusteePosition) -> Option<Plaintexts<C>> {
+    fn get_plaintexts_nohash(
+        &self,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<Plaintexts<C>> {
         self.get_plaintexts_nohash(batch, signer_position)
     }
 }
-
 
 ///////////////////////////////////////////////////////////////////////////
 // LocalBoard

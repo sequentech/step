@@ -4,15 +4,15 @@
 
 //! Trait for local board storage abstraction (native/wasm)
 
+use crate::util::ProtocolError;
 use anyhow::Result;
-use b4::HttpB3Message;
 use b4::messages::artifact::*;
 use b4::messages::message::{Message, VerifiedMessage};
-use b4::messages::statement::{Statement, StatementType};
 use b4::messages::newtypes::*;
+use b4::messages::statement::{Statement, StatementType};
+use b4::HttpB3Message;
 use strand::context::Ctx;
 use strand::hash::Hash;
-use crate::util::ProtocolError;
 
 // Placeholder types to match LocalBoard interface
 pub struct StatementEntry {
@@ -66,32 +66,69 @@ pub trait LocalBoardStorage<C: Ctx> {
     fn get_configuration(&self, configuration_h: &ConfigurationHash) -> Option<&Configuration<C>>;
 
     /// Get channel artifact
-    fn get_channel(&self, channel_h: &ChannelHash, signer_position: TrusteePosition) -> Result<Channel<C>, ProtocolError>;
+    fn get_channel(
+        &self,
+        channel_h: &ChannelHash,
+        signer_position: TrusteePosition,
+    ) -> Result<Channel<C>, ProtocolError>;
 
     /// Get shares artifact
-    fn get_shares(&self, shares_h: &SharesHash, signer_position: TrusteePosition) -> Result<Shares<C>, ProtocolError>;
+    fn get_shares(
+        &self,
+        shares_h: &SharesHash,
+        signer_position: TrusteePosition,
+    ) -> Result<Shares<C>, ProtocolError>;
 
     /// Get DKG public key artifact
-    fn get_dkg_public_key(&self, pk_h: &PublicKeyHash, signer_position: TrusteePosition) -> Result<DkgPublicKey<C>, ProtocolError>;
+    fn get_dkg_public_key(
+        &self,
+        pk_h: &PublicKeyHash,
+        signer_position: TrusteePosition,
+    ) -> Result<DkgPublicKey<C>, ProtocolError>;
 
     /// Get ballots artifact
-    fn get_ballots(&self, b_h: &CiphertextsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<Ballots<C>, ProtocolError>;
+    fn get_ballots(
+        &self,
+        b_h: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<Ballots<C>, ProtocolError>;
 
     /// Get mix artifact
-    fn get_mix(&self, m_h: &CiphertextsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<Mix<C>, ProtocolError>;
+    fn get_mix(
+        &self,
+        m_h: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<Mix<C>, ProtocolError>;
 
     /// Get decryption factors artifact
-    fn get_decryption_factors(&self, d_h: &DecryptionFactorsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<DecryptionFactors<C>, ProtocolError>;
+    fn get_decryption_factors(
+        &self,
+        d_h: &DecryptionFactorsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<DecryptionFactors<C>, ProtocolError>;
 
     /// Get plaintexts artifact
-    fn get_plaintexts(&self, p_h: &PlaintextsHash, batch: BatchNumber, signer_position: TrusteePosition) -> Result<Plaintexts<C>, ProtocolError>;
+    fn get_plaintexts(
+        &self,
+        p_h: &PlaintextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Result<Plaintexts<C>, ProtocolError>;
 
     /// Update store with remote messages
     fn update_store(&self, messages: &Vec<HttpB3Message>, ignore_existing: bool) -> Result<()>;
 
     /// Store and return new messages with local_id > last_local_board_id
     /// SECURITY: Returns messages with locally-controlled IDs from our store's AUTOINCREMENT
-    fn store_and_return_messages(&mut self, messages: &Vec<HttpB3Message>, last_local_board_id: i64, ignore_existing: bool) -> Result<Vec<(Message, i64)>>;
+    fn store_and_return_messages(
+        &mut self,
+        messages: &Vec<HttpB3Message>,
+        last_local_board_id: i64,
+        ignore_existing: bool,
+    ) -> Result<Vec<(Message, i64)>>;
 
     /// Get last external message id (OPTIMIZATION ONLY - no security implications)
     fn get_last_external_id(&mut self) -> Result<i64>;
@@ -100,8 +137,15 @@ pub trait LocalBoardStorage<C: Ctx> {
     fn max_messages(&self) -> usize;
 
     /// Get DKG public key (testing)
-    fn get_dkg_public_key_nohash(&self, signer_position: TrusteePosition) -> Option<DkgPublicKey<C>>;
+    fn get_dkg_public_key_nohash(
+        &self,
+        signer_position: TrusteePosition,
+    ) -> Option<DkgPublicKey<C>>;
 
     /// Get plaintexts (testing)
-    fn get_plaintexts_nohash(&self, batch: BatchNumber, signer_position: TrusteePosition) -> Option<Plaintexts<C>>;
+    fn get_plaintexts_nohash(
+        &self,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<Plaintexts<C>>;
 }

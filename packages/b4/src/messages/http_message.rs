@@ -28,7 +28,15 @@ pub struct HttpB3Message {
 }
 
 impl HttpB3Message {
-    pub fn new(id: i64, message: Vec<u8>, version: String, sender_pk: String, statement_kind: String, batch: i32, mix_number: i32) -> Self {
+    pub fn new(
+        id: i64,
+        message: Vec<u8>,
+        version: String,
+        sender_pk: String,
+        statement_kind: String,
+        batch: i32,
+        mix_number: i32,
+    ) -> Self {
         HttpB3Message {
             id,
             message,

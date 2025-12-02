@@ -18,7 +18,6 @@ use crate::protocol::board::LocalBoard;
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
-use b4::HttpB3Message;
 use b4::messages::artifact::Channel;
 use b4::messages::artifact::Configuration;
 use b4::messages::artifact::DkgPublicKey;
@@ -27,6 +26,7 @@ use b4::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
 use b4::messages::message::Message;
 use b4::messages::newtypes::*;
 use b4::messages::statement::StatementType;
+use b4::HttpB3Message;
 use std::path::PathBuf;
 use strand::util::StrandError;
 
@@ -175,7 +175,7 @@ impl<C: Ctx> Trustee<C> {
     ///
     /// The protocol main loop is reactive: it will not advance until the necessary
     /// messages are present in the board.
-    #[instrument(name = "Trustee::step", skip(remote_messages, self), level="trace")]
+    #[instrument(name = "Trustee::step", skip(remote_messages, self), level = "trace")]
     pub fn step(
         &mut self,
         remote_messages: &Vec<HttpB3Message>,
@@ -202,7 +202,10 @@ impl<C: Ctx> Trustee<C> {
         let (added_messages, last_local_id) = self.update_local_board(parsed_messages)?;
         if added_messages > 0 {
             let max_messages = self.local_board.max_messages();
-            info!("Setting last local board id {} (/{})!", last_local_id, max_messages);
+            info!(
+                "Setting last local board id {} (/{})!",
+                last_local_id, max_messages
+            );
             self.last_local_board_id = last_local_id;
         }
 
@@ -749,14 +752,22 @@ impl<C: Ctx> Trustee<C> {
         Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
     }
 
-    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
+    pub(crate) fn encrypt_share_sk(
+        &self,
+        sk: &PrivateKey<C>,
+        _cfg: &Configuration<C>,
+    ) -> Result<EncryptionData, ProtocolError> {
         let bytes: &[u8] = &sk.strand_serialize()?;
         let ed = symm::encrypt(self.encryption_key, bytes)?;
 
         Ok(ed)
     }
 
-    pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
+    pub(crate) fn decrypt_share_sk(
+        &self,
+        c: &Channel<C>,
+        _cfg: &Configuration<C>,
+    ) -> Result<PrivateKey<C>, ProtocolError> {
         let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
         let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 

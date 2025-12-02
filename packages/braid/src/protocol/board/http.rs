@@ -61,7 +61,7 @@ struct MessageRow {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum ContentTypeDto {
-    Inline { message: String },  // base64 encoded
+    Inline { message: String }, // base64 encoded
     S3 { key: String },
 }
 
@@ -74,11 +74,7 @@ pub struct HttpB3 {
 }
 
 impl HttpB3 {
-    pub async fn new(
-        base_url: &str,
-        s3_client: aws_sdk_s3::Client,
-        bucket_name: &str,
-    ) -> HttpB3 {
+    pub async fn new(base_url: &str, s3_client: aws_sdk_s3::Client, bucket_name: &str) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
@@ -133,7 +129,7 @@ impl HttpB3 {
         let statement_kind = message.statement.get_kind().to_string();
         let batch: i32 = message.statement.get_batch_number().try_into()?;
         let mix_number: i32 = message.statement.get_mix_number().try_into()?;
-        
+
         // Serialize the message
         let message_bytes = message.strand_serialize()?;
         let size = message_bytes.len();
@@ -248,18 +244,14 @@ impl HttpB3 {
 
 impl super::Board for HttpB3 {
     type Factory = HttpB3BoardParams;
-    
+
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
         let url = format!(
             "{}/boards/{}/messages?last_id={}",
             self.base_url, board, last_id
         );
 
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await?;
+        let response = self.client.get(&url).send().await?;
 
         if !response.status().is_success() {
             anyhow::bail!("Failed to get messages: HTTP {}", response.status());
@@ -327,24 +319,19 @@ impl HttpB3BoardParams {
         // Read S3 configuration from environment variables
         let s3_endpoint = std::env::var("AWS_ENDPOINT_URL")
             .unwrap_or_else(|_| "http://localhost:4566".to_string());
-        let bucket_name = std::env::var("S3_BUCKET_NAME")
-            .unwrap_or_else(|_| "wbraid-messages".to_string());
-        
+        let bucket_name =
+            std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+
         // Use explicit credentials for LocalStack (avoids IMDS calls)
-        let creds = aws_sdk_s3::config::Credentials::new(
-            "test",
-            "test",
-            None,
-            None,
-            "static-credentials"
-        );
-        
+        let creds =
+            aws_sdk_s3::config::Credentials::new("test", "test", None, None, "static-credentials");
+
         let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
             .credentials_provider(creds)
             .region("us-east-1")
             .load()
             .await;
-            
+
         let s3_config = aws_sdk_s3::config::Builder::from(&config)
             .endpoint_url(&s3_endpoint)
             .force_path_style(true)
@@ -357,7 +344,7 @@ impl HttpB3BoardParams {
             bucket_name,
         }
     }
-    
+
     /// Create a board client for a specific board (helper for testing)
     pub fn create_board(&self, board_name: &str, store_root: Option<PathBuf>) -> HttpB3 {
         HttpB3 {
@@ -399,10 +386,10 @@ impl super::BoardMulti for HttpB3 {
         &self,
         requests: &Vec<(String, i64)>,
     ) -> Result<(Vec<b4::HttpBoardMessages>, bool)> {
-        use b4::api_types::{GetMessagesMultiRequest, BoardMessageRequest};
-        
+        use b4::api_types::{BoardMessageRequest, GetMessagesMultiRequest};
+
         const DEFAULT_LIMIT: i64 = 100;
-        
+
         // Build the multi-board request
         let multi_req = GetMessagesMultiRequest {
             requests: requests
@@ -414,30 +401,28 @@ impl super::BoardMulti for HttpB3 {
                 })
                 .collect(),
         };
-        
+
         // Make single HTTP POST request for all boards
         let url = format!("{}/boards/messages/multi/get", self.base_url);
-        let response = self.client
-            .post(&url)
-            .json(&multi_req)
-            .send()
-            .await?;
-        
+        let response = self.client.post(&url).json(&multi_req).send().await?;
+
         if !response.status().is_success() {
             anyhow::bail!("Failed to get messages multi: HTTP {}", response.status());
         }
-        
+
         let multi_response: b4::api_types::GetMessagesMultiResponse = response.json().await?;
-        
+
         // Check if any board hit the limit (indicating more messages available)
-        let has_more = multi_response.boards.iter()
+        let has_more = multi_response
+            .boards
+            .iter()
             .any(|board_resp| board_resp.messages.len() >= DEFAULT_LIMIT as usize);
-        
+
         // Process each board's messages
         let mut all_boards = Vec::new();
         for board_resp in multi_response.boards {
             let mut http_messages = Vec::new();
-            
+
             for msg in board_resp.messages {
                 let message_bytes = match msg.content_type {
                     b4::api_types::ContentType::Inline { data } => data,
@@ -450,14 +435,14 @@ impl super::BoardMulti for HttpB3 {
                             .key(&key)
                             .send()
                             .await?;
-                        
+
                         let bytes = obj.body.collect().await?;
                         bytes.to_vec()
                     }
                 };
-                
+
                 let id: i64 = msg.id.parse()?;
-                
+
                 http_messages.push(HttpB3Message::new(
                     id,
                     message_bytes,
@@ -468,36 +453,37 @@ impl super::BoardMulti for HttpB3 {
                     msg.mix_number,
                 ));
             }
-            
+
             all_boards.push(b4::HttpBoardMessages {
                 board: board_resp.board,
                 messages: http_messages,
             });
         }
-        
+
         Ok((all_boards, has_more))
     }
 
     async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
         use b4::api_types::{
-            InitiateMessagesMultiRequest, BoardInitiateRequest, MessageMetadata,
-            ConfirmMessagesMultiRequest, BoardConfirmRequest, MessageConfirmation,
+            BoardConfirmRequest, BoardInitiateRequest, ConfirmMessagesMultiRequest,
+            InitiateMessagesMultiRequest, MessageConfirmation, MessageMetadata,
         };
         use strand::serialization::StrandSerialize;
-        
+
         if requests.is_empty() {
             return Ok(());
         }
-        
+
         // Phase 1: Initiate multi-board upload - get S3 URLs for all messages
         let mut initiate_requests = Vec::new();
-        let mut messages_by_board: std::collections::HashMap<String, Vec<Message>> = std::collections::HashMap::new();
-        
+        let mut messages_by_board: std::collections::HashMap<String, Vec<Message>> =
+            std::collections::HashMap::new();
+
         for (board_name, messages) in requests {
             if messages.is_empty() {
                 continue;
             }
-            
+
             let mut metadata_list = Vec::new();
             for message in &messages {
                 let sender_pk = message.sender.pk.to_der_b64_string()?;
@@ -505,7 +491,7 @@ impl super::BoardMulti for HttpB3 {
                 let batch: i32 = message.statement.get_batch_number().try_into()?;
                 let mix_number: i32 = message.statement.get_mix_number().try_into()?;
                 let message_bytes = message.strand_serialize()?;
-                
+
                 metadata_list.push(MessageMetadata {
                     size: message_bytes.len(),
                     sender_pk,
@@ -514,40 +500,41 @@ impl super::BoardMulti for HttpB3 {
                     mix_number,
                 });
             }
-            
+
             initiate_requests.push(BoardInitiateRequest {
                 board: board_name.clone(),
                 messages: metadata_list,
             });
-            
+
             messages_by_board.insert(board_name, messages);
         }
-        
+
         let initiate_req = InitiateMessagesMultiRequest {
             requests: initiate_requests,
         };
-        
+
         let url = format!("{}/boards/messages/multi/initiate", self.base_url);
-        let response = self.client
-            .post(&url)
-            .json(&initiate_req)
-            .send()
-            .await?;
-        
+        let response = self.client.post(&url).json(&initiate_req).send().await?;
+
         if !response.status().is_success() {
-            anyhow::bail!("Failed to initiate multi-board upload: HTTP {}", response.status());
+            anyhow::bail!(
+                "Failed to initiate multi-board upload: HTTP {}",
+                response.status()
+            );
         }
-        
-        let initiate_response: b4::api_types::InitiateMessagesMultiResponse = response.json().await?;
-        
+
+        let initiate_response: b4::api_types::InitiateMessagesMultiResponse =
+            response.json().await?;
+
         // Phase 2: Upload messages (to S3 or prepare inline data)
         let mut confirm_requests = Vec::new();
-        
+
         for board_response in initiate_response.boards {
             let board_name = &board_response.board;
-            let messages = messages_by_board.get(board_name)
+            let messages = messages_by_board
+                .get(board_name)
                 .ok_or_else(|| anyhow::anyhow!("Missing messages for board {}", board_name))?;
-            
+
             if messages.len() != board_response.uploads.len() {
                 anyhow::bail!(
                     "Mismatch in message count for board {}: sent {}, got {} upload slots",
@@ -556,21 +543,22 @@ impl super::BoardMulti for HttpB3 {
                     board_response.uploads.len()
                 );
             }
-            
+
             let mut confirmations = Vec::new();
-            
+
             for (message, upload_info) in messages.iter().zip(board_response.uploads.iter()) {
                 let message_bytes = message.strand_serialize()?;
-                
+
                 if upload_info.should_upload {
                     // Large message - upload to S3
                     if let Some(upload_url) = &upload_info.upload_url {
-                        let s3_response = self.client
+                        let s3_response = self
+                            .client
                             .put(upload_url)
                             .body(message_bytes)
                             .send()
                             .await?;
-                        
+
                         if !s3_response.status().is_success() {
                             anyhow::bail!(
                                 "Failed to upload to S3 for board {}: HTTP {}",
@@ -578,7 +566,7 @@ impl super::BoardMulti for HttpB3 {
                                 s3_response.status()
                             );
                         }
-                        
+
                         // S3 message - no inline data in confirmation
                         confirmations.push(MessageConfirmation {
                             message_id: upload_info.message_id.clone(),
@@ -595,29 +583,28 @@ impl super::BoardMulti for HttpB3 {
                     });
                 }
             }
-            
+
             confirm_requests.push(BoardConfirmRequest {
                 board: board_name.clone(),
                 confirmations,
             });
         }
-        
+
         // Phase 3: Confirm all uploads
         let confirm_req = ConfirmMessagesMultiRequest {
             requests: confirm_requests,
         };
-        
+
         let url = format!("{}/boards/messages/multi/confirm", self.base_url);
-        let response = self.client
-            .post(&url)
-            .json(&confirm_req)
-            .send()
-            .await?;
-        
+        let response = self.client.post(&url).json(&confirm_req).send().await?;
+
         if !response.status().is_success() {
-            anyhow::bail!("Failed to confirm multi-board upload: HTTP {}", response.status());
+            anyhow::bail!(
+                "Failed to confirm multi-board upload: HTTP {}",
+                response.status()
+            );
         }
-        
+
         Ok(())
     }
 }
@@ -641,16 +628,16 @@ impl HttpB3Index {
         struct BoardInfo {
             name: String,
         }
-        
+
         #[derive(Deserialize)]
         struct BoardsResponse {
             boards: Vec<BoardInfo>,
         }
-        
+
         let url = format!("{}/boards", self.base_url);
         let response = self.client.get(&url).send().await?;
         let boards_response: BoardsResponse = response.json().await?;
-        
+
         Ok(boards_response.boards.into_iter().map(|b| b.name).collect())
     }
 }

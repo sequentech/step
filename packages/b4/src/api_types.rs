@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! HTTP API types for the bulletin board service
-//! 
+//!
 //! This module defines all request/response types used in the HTTP API,
 //! including message handling, board operations, and S3 integration.
 
-use serde::{Deserialize, Serialize};
 use base64::Engine;
+use serde::{Deserialize, Serialize};
 
 /// Maximum size for inline message storage (set to 0 to force all messages to S3 for testing)
 pub const MAX_INLINE_MESSAGE_SIZE: usize = 0; // Was: 1024 * 1024 (1MB)
@@ -69,7 +69,7 @@ impl<'de> Deserialize<'de> for ContentType {
             Inline { message: String },
             S3 { key: String },
         }
-        
+
         let helper = ContentTypeHelper::deserialize(deserializer)?;
         match helper {
             ContentTypeHelper::Inline { message } => {
@@ -197,7 +197,7 @@ pub struct InitiateMessagesMultiRequest {
 pub struct MessageUploadInfo {
     pub message_id: String,
     pub upload_url: Option<String>, // S3 pre-signed URL (None for inline messages)
-    pub should_upload: bool,         // true if client should upload to S3
+    pub should_upload: bool,        // true if client should upload to S3
 }
 
 /// Response from initiating uploads to a single board

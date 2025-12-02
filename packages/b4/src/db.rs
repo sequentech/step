@@ -1,6 +1,6 @@
+use crate::api_types::Message;
 use anyhow::Result;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
-use crate::api_types::Message;
 use std::env;
 use std::path::PathBuf;
 
@@ -19,9 +19,9 @@ pub async fn init_db() -> Result<SqlitePool> {
         // Add mode=rwc to create the file if it doesn't exist
         format!("sqlite:{}?mode=rwc", path.display())
     });
-    
+
     tracing::info!("Connecting to database: {}", db_url);
-    
+
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect(&db_url)
@@ -92,7 +92,10 @@ pub fn validate_board_name(name: &str) -> Result<()> {
         anyhow::bail!("Board name too long (max 255 characters)");
     }
     // Only allow alphanumeric, hyphens, underscores
-    if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    if !name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
         anyhow::bail!("Board name contains invalid characters (only alphanumeric, -, _ allowed)");
     }
     Ok(())
@@ -100,9 +103,9 @@ pub fn validate_board_name(name: &str) -> Result<()> {
 
 pub async fn create_board(pool: &SqlitePool, name: &str) -> Result<Board> {
     validate_board_name(name)?;
-    
+
     let created_at = chrono::Utc::now().timestamp();
-    
+
     sqlx::query(
         r#"
         INSERT INTO boards (name, created_at, status)
@@ -166,7 +169,7 @@ pub async fn insert_message(
     mix_number: i32,
 ) -> Result<i64> {
     validate_board_name(board_name)?;
-    
+
     let content_type = match &message.content_type {
         crate::api_types::ContentType::Inline { .. } => "inline",
         crate::api_types::ContentType::S3 { .. } => "s3",
@@ -233,7 +236,7 @@ async fn update_board_statistics(
 
 pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result<Option<Message>> {
     validate_board_name(board_name)?;
-    
+
     let row = sqlx::query_as::<_, (i64, i64, i64, String, Option<Vec<u8>>, Option<String>, String, String, String, i32, i32)>(
         "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number FROM messages WHERE board_name = ? AND id = ?",
     )
@@ -242,43 +245,20 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
-        let content_type = match content_type.as_str() {
-            "inline" => crate::api_types::ContentType::Inline {
-                data: inline_data.unwrap_or_default(),
-            },
-            "s3" => crate::api_types::ContentType::S3 {
-                key: s3_key.unwrap_or_default(),
-            },
-            _ => crate::api_types::ContentType::Inline { data: vec![] },
-        };
-
-        Message {
-            id: id.to_string(),
+    Ok(row.map(
+        |(
+            id,
             timestamp,
-            size: size as usize,
+            size,
             content_type,
+            inline_data,
+            s3_key,
+            _version,
             sender_pk,
             statement_kind,
             batch,
             mix_number,
-        }
-    }))
-}
-
-pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Message>> {
-    validate_board_name(board_name)?;
-    
-    let rows = sqlx::query_as::<_, (i64, i64, i64, String, Option<Vec<u8>>, Option<String>, String, String, String, i32, i32)>(
-        "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number FROM messages WHERE board_name = ? ORDER BY id ASC",
-    )
-    .bind(board_name)
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
+        )| {
             let content_type = match content_type.as_str() {
                 "inline" => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
@@ -299,7 +279,58 @@ pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Me
                 batch,
                 mix_number,
             }
-        })
+        },
+    ))
+}
+
+pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Message>> {
+    validate_board_name(board_name)?;
+
+    let rows = sqlx::query_as::<_, (i64, i64, i64, String, Option<Vec<u8>>, Option<String>, String, String, String, i32, i32)>(
+        "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number FROM messages WHERE board_name = ? ORDER BY id ASC",
+    )
+    .bind(board_name)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(
+            |(
+                id,
+                timestamp,
+                size,
+                content_type,
+                inline_data,
+                s3_key,
+                _version,
+                sender_pk,
+                statement_kind,
+                batch,
+                mix_number,
+            )| {
+                let content_type = match content_type.as_str() {
+                    "inline" => crate::api_types::ContentType::Inline {
+                        data: inline_data.unwrap_or_default(),
+                    },
+                    "s3" => crate::api_types::ContentType::S3 {
+                        key: s3_key.unwrap_or_default(),
+                    },
+                    _ => crate::api_types::ContentType::Inline { data: vec![] },
+                };
+
+                Message {
+                    id: id.to_string(),
+                    timestamp,
+                    size: size as usize,
+                    content_type,
+                    sender_pk,
+                    statement_kind,
+                    batch,
+                    mix_number,
+                }
+            },
+        )
         .collect())
 }
 
@@ -311,7 +342,7 @@ pub async fn get_messages_after(
     limit: i64,
 ) -> Result<(Vec<Message>, bool)> {
     validate_board_name(board_name)?;
-    
+
     // Fetch limit + 1 to detect if there are more messages
     let rows = sqlx::query_as::<_, (i64, i64, i64, String, Option<Vec<u8>>, Option<String>, String, String, String, i32, i32)>(
         "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number FROM messages WHERE board_name = ? AND id > ? ORDER BY id ASC LIMIT ?",
@@ -326,28 +357,42 @@ pub async fn get_messages_after(
     let messages: Vec<Message> = rows
         .into_iter()
         .take(limit as usize)
-        .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
-            let content_type = match content_type.as_str() {
-                "inline" => crate::api_types::ContentType::Inline {
-                    data: inline_data.unwrap_or_default(),
-                },
-                "s3" => crate::api_types::ContentType::S3 {
-                    key: s3_key.unwrap_or_default(),
-                },
-                _ => crate::api_types::ContentType::Inline { data: vec![] },
-            };
-
-            Message {
-                id: id.to_string(),
+        .map(
+            |(
+                id,
                 timestamp,
-                size: size as usize,
+                size,
                 content_type,
+                inline_data,
+                s3_key,
+                _version,
                 sender_pk,
                 statement_kind,
                 batch,
                 mix_number,
-            }
-        })
+            )| {
+                let content_type = match content_type.as_str() {
+                    "inline" => crate::api_types::ContentType::Inline {
+                        data: inline_data.unwrap_or_default(),
+                    },
+                    "s3" => crate::api_types::ContentType::S3 {
+                        key: s3_key.unwrap_or_default(),
+                    },
+                    _ => crate::api_types::ContentType::Inline { data: vec![] },
+                };
+
+                Message {
+                    id: id.to_string(),
+                    timestamp,
+                    size: size as usize,
+                    content_type,
+                    sender_pk,
+                    statement_kind,
+                    batch,
+                    mix_number,
+                }
+            },
+        )
         .collect();
 
     Ok((messages, truncated))
@@ -363,11 +408,11 @@ pub async fn update_board_config_metadata(
     trustees_no: i32,
 ) -> Result<()> {
     validate_board_name(board_name)?;
-    
+
     sqlx::query(
         r#"UPDATE boards 
            SET cfg_id = ?, threshold_no = ?, trustees_no = ?
-           WHERE name = ?"#
+           WHERE name = ?"#,
     )
     .bind(cfg_id)
     .bind(threshold_no)
@@ -375,7 +420,6 @@ pub async fn update_board_config_metadata(
     .bind(board_name)
     .execute(pool)
     .await?;
-    
+
     Ok(())
 }
-

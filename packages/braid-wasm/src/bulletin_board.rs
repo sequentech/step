@@ -1,9 +1,8 @@
-use wasm_bindgen::prelude::*;
 use b4::api_types::{
-    GetMessageResponse, ListMessagesResponse, 
-    InitiateMessageRequest, InitiateMessageResponse,
-    ConfirmMessageRequest, ConfirmMessageResponse,
+    ConfirmMessageRequest, ConfirmMessageResponse, GetMessageResponse, InitiateMessageRequest,
+    InitiateMessageResponse, ListMessagesResponse,
 };
+use wasm_bindgen::prelude::*;
 
 pub struct BulletinBoardClient {
     base_url: String,

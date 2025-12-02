@@ -116,7 +116,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
             .get(format!("{}/boards/{}/messages", HTTP_URL, TEST_BOARD))
             .send()
             .await?;
-        
+
         if !response.status().is_success() {
             continue;
         }
@@ -148,31 +148,37 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     let pk_response = client
         .get(format!(
             "{}/boards/{}/messages/{}",
-            HTTP_URL, TEST_BOARD, dkg_pk_message_id.unwrap()
+            HTTP_URL,
+            TEST_BOARD,
+            dkg_pk_message_id.unwrap()
         ))
         .send()
         .await?;
-    
+
     let pk_msg: serde_json::Value = pk_response.json().await?;
-    
+
     // Response format is {"message": {...}, "download_url": ...}
     let message_obj = &pk_msg["message"];
-    
+
     // Handle both inline (message) and S3 (key) formats
-    let pk_bytes_encoded = if let Some(message_data) = message_obj["content_type"]["message"].as_str() {
-        // Inline format
-        BASE64_STANDARD.decode(message_data)?
-    } else if let Some(s3_key) = message_obj["content_type"]["key"].as_str() {
-        // S3 format - download from S3
-        let s3_url = format!("{}/{}/{}", S3_ENDPOINT, BUCKET_NAME, s3_key);
-        let s3_response = client.get(&s3_url).send().await?;
-        s3_response.bytes().await?.to_vec()
-    } else {
-        panic!("Unknown content_type format: {:?}", message_obj["content_type"]);
-    };
-    
+    let pk_bytes_encoded =
+        if let Some(message_data) = message_obj["content_type"]["message"].as_str() {
+            // Inline format
+            BASE64_STANDARD.decode(message_data)?
+        } else if let Some(s3_key) = message_obj["content_type"]["key"].as_str() {
+            // S3 format - download from S3
+            let s3_url = format!("{}/{}/{}", S3_ENDPOINT, BUCKET_NAME, s3_key);
+            let s3_response = client.get(&s3_url).send().await?;
+            s3_response.bytes().await?.to_vec()
+        } else {
+            panic!(
+                "Unknown content_type format: {:?}",
+                message_obj["content_type"]
+            );
+        };
+
     let pk_message = Message::strand_deserialize(&pk_bytes_encoded).unwrap();
-    
+
     let pk_bytes = pk_message.artifact.unwrap();
     let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
     let dkg_pk = DkgPublicKey::<C>::strand_deserialize(&pk_bytes).unwrap();
@@ -206,11 +212,13 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
             &test.protocol_manager,
         )?;
         plaintexts_in.push(next_p);
-        
+
         // Insert ballot message using a temporary board
         let board_params = HttpB3BoardParams::new(HTTP_URL).await;
         let mut temp_board = board_params.create_board(TEST_BOARD, None);
-        temp_board.insert_messages(TEST_BOARD, vec![message.try_into().unwrap()]).await?;
+        temp_board
+            .insert_messages(TEST_BOARD, vec![message.try_into().unwrap()])
+            .await?;
     }
 
     // Wait for decryption
@@ -230,32 +238,33 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
             .get(format!("{}/boards/{}/messages", HTTP_URL, TEST_BOARD))
             .send()
             .await?;
-        
+
         if !response.status().is_success() {
             continue;
         }
 
         let messages: serde_json::Value = response.json().await?;
         plaintexts_out.clear();
-        
+
         if let Some(msgs) = messages["messages"].as_array() {
             for msg in msgs {
                 // Check statement_kind field first to avoid unnecessary deserialization
                 if let Some(kind) = msg["statement_kind"].as_str() {
                     if kind == "Plaintexts" {
                         // Download message bytes (handle both inline and S3)
-                        let message_bytes = if let Some(message_data) = msg["content_type"]["message"].as_str() {
-                            // Inline format
-                            BASE64_STANDARD.decode(message_data)?
-                        } else if let Some(s3_key) = msg["content_type"]["key"].as_str() {
-                            // S3 format - download from S3
-                            let s3_url = format!("{}/{}/{}", S3_ENDPOINT, BUCKET_NAME, s3_key);
-                            let s3_response = client.get(&s3_url).send().await?;
-                            s3_response.bytes().await?.to_vec()
-                        } else {
-                            continue;
-                        };
-                        
+                        let message_bytes =
+                            if let Some(message_data) = msg["content_type"]["message"].as_str() {
+                                // Inline format
+                                BASE64_STANDARD.decode(message_data)?
+                            } else if let Some(s3_key) = msg["content_type"]["key"].as_str() {
+                                // S3 format - download from S3
+                                let s3_url = format!("{}/{}/{}", S3_ENDPOINT, BUCKET_NAME, s3_key);
+                                let s3_response = client.get(&s3_url).send().await?;
+                                s3_response.bytes().await?.to_vec()
+                            } else {
+                                continue;
+                            };
+
                         if let Ok(message) = Message::strand_deserialize(&message_bytes) {
                             if let Some(id_str) = msg["id"].as_str() {
                                 if let Ok(id) = id_str.parse::<i64>() {
@@ -273,12 +282,18 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
         }
     }
 
-    assert!(plaintexts_out.len() == batches, "Expected {} plaintext messages, got {}", batches, plaintexts_out.len());
-    
+    assert!(
+        plaintexts_out.len() == batches,
+        "Expected {} plaintext messages, got {}",
+        batches,
+        plaintexts_out.len()
+    );
+
     for (_, message) in plaintexts_out {
         let batch = message.statement.get_batch_number();
         let plaintexts = Plaintexts::<C>::strand_deserialize(&message.artifact.unwrap()).unwrap();
-        let expected: HashSet<C::P> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
+        let expected: HashSet<C::P> =
+            HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
         let actual: HashSet<C::P> = HashSet::from_iter(plaintexts.0.clone().0);
         info!("expected {} actual {}", expected.len(), actual.len());
 
@@ -335,10 +350,10 @@ pub async fn create_protocol_test<C: Ctx>(
 
     // Bootstrap message will be sent by first session
     let message = Message::bootstrap_msg(&cfg, &pm)?;
-    
+
     // Create HTTP client to initialize board
     let client = reqwest::Client::new();
-    
+
     // Create board (ignore error if already exists)
     let _ = client
         .post(format!("{}/boards", HTTP_URL))
@@ -347,11 +362,13 @@ pub async fn create_protocol_test<C: Ctx>(
         }))
         .send()
         .await;
-    
+
     // Send bootstrap message
     let board_params = HttpB3BoardParams::new(HTTP_URL).await;
     let mut temp_board = board_params.create_board(TEST_BOARD, None);
-    temp_board.insert_messages(TEST_BOARD, vec![message.try_into().unwrap()]).await?;
+    temp_board
+        .insert_messages(TEST_BOARD, vec![message.try_into().unwrap()])
+        .await?;
 
     Ok(ProtocolTest {
         ctx,

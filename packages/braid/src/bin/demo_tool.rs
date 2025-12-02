@@ -101,7 +101,7 @@ struct Cli {
 /// InitProtocol: Initializes the protocol by posting the protocol Configuration
 /// to the requested board or set of boards. These boards are also added to the
 /// database and set as active. This is done directly through the database and S3.
-/// If the required database tables do not exist they are created. Any existing 
+/// If the required database tables do not exist they are created. Any existing
 /// data is dropped.
 ///
 /// PostBallots: Posts randomly generated ciphertexts to the requested board or boards.
@@ -197,7 +197,7 @@ async fn main() -> Result<()> {
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
             let (pool, s3_client, bucket) = init_clients(&args.database_url).await?;
-            
+
             // Clear existing data
             clear_database(&pool).await?;
 
@@ -352,16 +352,16 @@ async fn init<C: Ctx>(
     let pm = get_pm(PhantomData::<C>)?;
     let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
-    
+
     // Serialize the message and store inline
     let message_bytes = message.strand_serialize()?;
     let timestamp = chrono::Utc::now().timestamp();
     let version = "1";
-    
+
     // Extract metadata for database
     let sender_pk = message.sender.pk.to_der_b64_string()?;
     let statement_kind = format!("{:?}", message.statement.get_kind());
-    
+
     // Store inline in SQLite (no S3 for demo_tool)
     sqlx::query(
         r#"INSERT INTO messages (board_name, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)
@@ -376,7 +376,7 @@ async fn init<C: Ctx>(
     .bind(&statement_kind)
     .execute(pool)
     .await?;
-    
+
     // Update board metadata with configuration info (similar to b3's update_index)
     sqlx::query(
         r#"UPDATE boards 
@@ -385,7 +385,7 @@ async fn init<C: Ctx>(
                trustees_no = ?,
                message_count = message_count + 1,
                last_message_kind = ?
-           WHERE name = ?"#
+           WHERE name = ?"#,
     )
     .bind(configuration.id.to_string())
     .bind(configuration.threshold as i32)
@@ -394,7 +394,7 @@ async fn init<C: Ctx>(
     .bind(board_name)
     .execute(pool)
     .await?;
-    
+
     Ok(())
 }
 
@@ -420,7 +420,7 @@ async fn post_ballots<C: Ctx>(
     let pm = get_pm(PhantomData::<C>)?;
     let sender_pk_obj = StrandSignaturePk::from_sk(&pm.signing_key)?;
     let sender_pk_b64 = sender_pk_obj.to_der_b64_string()?;
-    
+
     // Check if ballots already exist
     let existing: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM messages WHERE board_name = ? AND statement_kind = 'Ballots' AND sender_pk = ?"
@@ -429,7 +429,7 @@ async fn post_ballots<C: Ctx>(
     .bind(&sender_pk_b64)
     .fetch_one(pool)
     .await?;
-    
+
     if existing.0 > 0 {
         return Err(anyhow!("Ballots already present"));
     }
@@ -443,9 +443,9 @@ async fn post_ballots<C: Ctx>(
 
     let trustee_pk = configuration.trustees.get(0).unwrap();
     let trustee_pk_b64 = trustee_pk.to_der_b64_string()?;
-    
+
     info!("Looking for PublicKey from trustee: {}", trustee_pk_b64);
-    
+
     // Get the public key message
     let pk_row: Option<(String, Option<Vec<u8>>, Option<String>)> = sqlx::query_as(
         "SELECT content_type, inline_data, s3_key FROM messages WHERE board_name = ? AND statement_kind = 'PublicKey' AND sender_pk = ? LIMIT 1"
@@ -454,7 +454,7 @@ async fn post_ballots<C: Ctx>(
     .bind(&trustee_pk_b64)
     .fetch_optional(pool)
     .await?;
-    
+
     info!("PublicKey query result: {:?}", pk_row.is_some());
 
     if let Some((content_type, inline_data, s3_key)) = pk_row {
@@ -474,10 +474,13 @@ async fn post_ballots<C: Ctx>(
                 bytes.to_vec()
             }
             _ => {
-                return Err(anyhow!("Unknown content type for PublicKey: {}", content_type));
+                return Err(anyhow!(
+                    "Unknown content type for PublicKey: {}",
+                    content_type
+                ));
             }
         };
-        
+
         let message = Message::strand_deserialize(&pk_data)?;
         let bytes = message.artifact.unwrap();
         let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
@@ -511,14 +514,14 @@ async fn post_ballots<C: Ctx>(
             )?;
 
             info!("Adding ballots to the board..");
-            
+
             // Serialize and store inline
             let message_bytes = message.strand_serialize()?;
             let timestamp = chrono::Utc::now().timestamp();
             let version = "1";
             let sender_pk = message.sender.pk.to_der_b64_string()?;
             let statement_kind = format!("{:?}", message.statement.get_kind());
-            
+
             sqlx::query(
                 r#"INSERT INTO messages (board_name, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)
                    VALUES (?, ?, ?, 'inline', ?, NULL, ?, ?, ?, ?, 0)"#
@@ -534,17 +537,17 @@ async fn post_ballots<C: Ctx>(
             .execute(pool)
             .await?;
         }
-        
+
         // Update board batch_count (similar to b3's approach)
         sqlx::query(
             r#"UPDATE boards 
                SET batch_count = ?,
                    message_count = message_count + ?,
                    last_message_kind = ?
-               WHERE name = ?"#
+               WHERE name = ?"#,
         )
         .bind(batches as i32)
-        .bind(batches as i32)  // Added one message per batch
+        .bind(batches as i32) // Added one message per batch
         .bind("Ballots")
         .bind(board_name)
         .execute(pool)
@@ -571,21 +574,21 @@ async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<()> {
     let s3_config = aws_sdk_s3::Config::builder()
         .behavior_version_latest()
         .region(aws_sdk_s3::config::Region::new(
-            std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string())
+            std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
         ))
         .endpoint_url(
-            std::env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:4566".to_string())
+            std::env::var("AWS_ENDPOINT_URL")
+                .unwrap_or_else(|_| "http://localhost:4566".to_string()),
         )
         .force_path_style(true)
         .build();
     let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
-    let bucket_name = std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+    let bucket_name =
+        std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
 
     for (content_type, inline_data, s3_key) in rows {
         let message_data = match content_type.as_str() {
-            "inline" => {
-                inline_data.ok_or_else(|| anyhow!("Inline message has no data"))?
-            }
+            "inline" => inline_data.ok_or_else(|| anyhow!("Inline message has no data"))?,
             "s3" => {
                 let key = s3_key.ok_or_else(|| anyhow!("S3 message has no key"))?;
                 let obj = s3_client
@@ -610,21 +613,18 @@ async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<()> {
 
 #[instrument(skip(pool))]
 async fn list_boards(pool: &SqlitePool) -> Result<()> {
-    let boards: Vec<(String, i64, String)> = sqlx::query_as(
-        "SELECT name, created_at, status FROM boards ORDER BY created_at DESC"
-    )
-    .fetch_all(pool)
-    .await?;
+    let boards: Vec<(String, i64, String)> =
+        sqlx::query_as("SELECT name, created_at, status FROM boards ORDER BY created_at DESC")
+            .fetch_all(pool)
+            .await?;
 
     for (name, created_at, status) in boards {
         // Count messages for this board
-        let count: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM messages WHERE board_name = ?"
-        )
-        .bind(&name)
-        .fetch_one(pool)
-        .await?;
-        
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM messages WHERE board_name = ?")
+            .bind(&name)
+            .fetch_one(pool)
+            .await?;
+
         info!(
             "board: '{}', created_at: {}, status: {}, message_count: {}",
             name, created_at, status, count.0
@@ -651,15 +651,17 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
 
 /// Initialize database connection and S3 client
 async fn init_clients(database_url: &Option<String>) -> Result<(SqlitePool, S3Client, String)> {
-    let db_url = database_url.clone().or_else(|| env::var("DATABASE_URL").ok())
+    let db_url = database_url
+        .clone()
+        .or_else(|| env::var("DATABASE_URL").ok())
         .unwrap_or_else(|| {
             let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             path.push("b4.db");
             format!("sqlite:{}?mode=rwc", path.display())
         });
-    
+
     info!("Connecting to database: {}", db_url);
-    
+
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect(&db_url)
@@ -671,8 +673,10 @@ async fn init_clients(database_url: &Option<String>) -> Result<(SqlitePool, S3Cl
             name TEXT PRIMARY KEY,
             created_at INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'active'
-        )"#
-    ).execute(&pool).await?;
+        )"#,
+    )
+    .execute(&pool)
+    .await?;
 
     sqlx::query(
         r#"CREATE TABLE IF NOT EXISTS messages (
@@ -689,28 +693,30 @@ async fn init_clients(database_url: &Option<String>) -> Result<(SqlitePool, S3Cl
             s3_key TEXT,
             version TEXT NOT NULL,
             FOREIGN KEY (board_name) REFERENCES boards(name)
-        )"#
-    ).execute(&pool).await?;
+        )"#,
+    )
+    .execute(&pool)
+    .await?;
 
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_messages_board_id ON messages(board_name, id)"
-    ).execute(&pool).await?;
-    
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_messages_board_id ON messages(board_name, id)")
+        .execute(&pool)
+        .await?;
+
     // Initialize S3 client
     let s3_config = aws_sdk_s3::Config::builder()
         .behavior_version_latest()
         .region(aws_sdk_s3::config::Region::new(
-            env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string())
+            env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
         ))
         .endpoint_url(
-            env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:4566".to_string())
+            env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:4566".to_string()),
         )
         .force_path_style(true)
         .build();
     let s3_client = S3Client::from_conf(s3_config);
-    
+
     let bucket = env::var("S3_BUCKET_NAME").unwrap_or_else(|_| DEFAULT_BUCKET.to_string());
-    
+
     Ok((pool, s3_client, bucket))
 }
 
@@ -725,13 +731,11 @@ async fn clear_database(pool: &SqlitePool) -> Result<()> {
 /// Create a board
 async fn create_board(pool: &SqlitePool, name: &str) -> Result<()> {
     let created_at = chrono::Utc::now().timestamp();
-    sqlx::query(
-        "INSERT INTO boards (name, created_at, status) VALUES (?, ?, 'active')"
-    )
-    .bind(name)
-    .bind(created_at)
-    .execute(pool)
-    .await?;
+    sqlx::query("INSERT INTO boards (name, created_at, status) VALUES (?, ?, 'active')")
+        .bind(name)
+        .bind(created_at)
+        .execute(pool)
+        .await?;
     info!("Created board: {}", name);
     Ok(())
 }
@@ -739,22 +743,28 @@ async fn create_board(pool: &SqlitePool, name: &str) -> Result<()> {
 /// Drops the entire database file.
 #[instrument()]
 async fn drop_database(database_url: &Option<String>) -> Result<()> {
-    let db_path = database_url.clone().or_else(|| env::var("DATABASE_URL").ok())
+    let db_path = database_url
+        .clone()
+        .or_else(|| env::var("DATABASE_URL").ok())
         .unwrap_or_else(|| {
             let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             path.push("b4.db");
             path.display().to_string()
         });
-    
+
     // Remove sqlite: prefix if present
-    let file_path = db_path.trim_start_matches("sqlite:").split('?').next().unwrap();
-    
+    let file_path = db_path
+        .trim_start_matches("sqlite:")
+        .split('?')
+        .next()
+        .unwrap();
+
     if Path::new(file_path).exists() {
         fs::remove_file(file_path)?;
         info!("Dropped database: {}", file_path);
     } else {
         info!("Database file not found: {}", file_path);
     }
-    
+
     Ok(())
 }

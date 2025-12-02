@@ -17,7 +17,7 @@ use b4::messages::newtypes::*;
 use b4::messages::statement::StatementType;
 
 // use crate::protocol::board::http::HttpB3;
-use crate::protocol::board::{Board, http::HttpB3};
+use crate::protocol::board::{http::HttpB3, Board};
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 

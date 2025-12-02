@@ -863,7 +863,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: b3
+    container_name: b4
     restart: always
     ports:
       - "50051:50051"
@@ -875,7 +875,7 @@ services:
     depends_on:
       #- devcontainer
       - postgres-b3
-    working_dir: /workspaces/step/packages/b3
+    working_dir: /workspaces/step/packages/b4
     entrypoint: [
       "cargo",
       "watch",
