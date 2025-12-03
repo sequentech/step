@@ -31,7 +31,7 @@ Understand our release process and support policies:
 
 ## Latest Release
 
-Check out the [latest release notes](../releases/01-Release%20Next/release-next.md) to see what's new.
+Check out the [latest release notes](../releases/01-Release-Next/release-next.md) to see what's new.
 
 ## Need Help?
 
