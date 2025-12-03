@@ -52,7 +52,12 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
                       <StyledIconButton
                           className={action.className ?? ""}
                           key={index}
-                          onClick={() => record && action.action(record?.id)}
+                          onClick={(event) => {
+                            event.stopPropagation() // Prevents the click from opening the Edit view
+                              if (record) {
+                                  action.action(record.id)
+                              }
+                          }}
                       >
                           {action.icon}
                       </StyledIconButton>

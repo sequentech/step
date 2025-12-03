@@ -3,7 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {CircularProgress, Drawer, Typography} from "@mui/material"
 import React, {useContext, useEffect, useState} from "react"
-import {SimpleForm, TextInput, Create, useNotify, useRefresh, useGetOne} from "react-admin"
+import {
+    SimpleForm,
+    TextInput,
+    Create,
+    useNotify,
+    SaveButton,
+    Toolbar,
+    useRefresh,
+    useGetOne,
+} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {INSERT_TENANT} from "../../queries/InsertTenant"
 import {InsertTenantMutation} from "../../gql/graphql"
@@ -77,7 +86,14 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
                 sx: {width: "30%"},
             }}
         >
-            <SimpleForm onSubmit={onSubmit}>
+            <SimpleForm
+                onSubmit={onSubmit}
+                toolbar={
+                    <Toolbar>
+                        <SaveButton disabled={isLoading} />
+                    </Toolbar>
+                }
+            >
                 <Typography variant="h4">{`${t("tenantScreen.common.title")} ${
                     newTenant?.slug
                 }`}</Typography>
