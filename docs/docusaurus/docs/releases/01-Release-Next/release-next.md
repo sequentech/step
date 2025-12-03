@@ -35,3 +35,9 @@ ballot N times.
 Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
