@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
@@ -33,7 +33,6 @@ import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
-import {LoadingResults} from "./TallyElectionsResults"
 
 const MAX_CANDIDATES_REPRESENTED = 5
 
@@ -224,7 +223,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
-    const [isLoading, setIsLoading] = useState(true)
+
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
     const orderedResultsData = useMemo(() => {
         return resultsData.sort(sortCandidates)
@@ -243,10 +242,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             tallyData?.sequent_backend_results_contest?.filter(
                 (resultsContest) =>
                     contestId === resultsContest.contest_id &&
-                    electionId === resultsContest.election_id &&
-                    resultsEventId === resultsContest.results_event_id
+                    electionId === resultsContest.election_id
             ),
-        [tallyData?.sequent_backend_results_contest, contestId, electionId, resultsEventId]
+        [tallyData?.sequent_backend_results_contest, contestId, electionId]
     )
 
     const results: Array<Sequent_Backend_Results_Contest_Candidate> | undefined = useMemo(
@@ -254,8 +252,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             tallyData?.sequent_backend_results_contest_candidate?.filter(
                 (resultsContestCandidate) =>
                     contestId === resultsContestCandidate.contest_id &&
-                    electionId === resultsContestCandidate.election_id &&
-                    resultsEventId === resultsContestCandidate.results_event_id
+                    electionId === resultsContestCandidate.election_id
             ),
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
@@ -274,12 +271,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             return "-"
         }
     }
-
-    const isTallyDataMatchCurrentResults = useMemo(() => {
-        return tallyData?.sequent_backend_results_event?.find(
-            (event) => event.id === resultsEventId
-        )
-    }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
     useEffect(() => {
         if (results && candidates) {
@@ -301,12 +292,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             )
 
             setResultsData(temp)
-            setIsLoading(false)
         }
-        if (isTallyDataMatchCurrentResults && (!candidates?.length || !results?.length)) {
-            setIsLoading(false)
-        }
-    }, [results, candidates, isTallyDataMatchCurrentResults])
+    }, [results, candidates])
 
     const columns: GridColDef[] = [
         {
@@ -346,12 +333,14 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             headerAlign: "right",
         },
     ]
+
     return (
         <>
             <Box sx={{borderTop: "1px solid #ccc", mt: 4, p: 0}}>
                 <Typography variant="h6" component="div" sx={{mt: 6, ml: 1}}>
                     {t("tally.table.global")}
                 </Typography>
+
                 {general && general.length ? (
                     <Box
                         sx={{
@@ -533,8 +522,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             </TableContainer>
                         </Box>
                     </Box>
-                ) : !isTallyDataMatchCurrentResults ? (
-                    <LoadingResults />
                 ) : (
                     <NoItem />
                 )}
@@ -545,7 +532,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     {t("tally.table.candidates")}
                 </Typography>
 
-                {general && general.length && resultsData.length ? (
+                {resultsData.length ? (
                     <Box
                         sx={{
                             display: "flex",
@@ -577,8 +564,6 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                             />
                         </Box>
                     </Box>
-                ) : isLoading || !isTallyDataMatchCurrentResults ? (
-                    <LoadingResults />
                 ) : (
                     <NoItem />
                 )}

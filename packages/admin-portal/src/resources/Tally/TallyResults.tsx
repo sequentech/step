@@ -19,6 +19,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import { LoadingResults } from "./TallyElectionsResults"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -185,8 +186,17 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             return null
         }, [documents, areasDocuments])
 
+        const isTallyDataMatchCurrentResults = useMemo(() => {
+        return resultsEventId && tallyData?.sequent_backend_results_event?.find(
+            (event) => event.id === resultsEventId
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
         return (
             <>
+            {!isTallyDataMatchCurrentResults?
+                 <LoadingResults/> :
+                 <>
                 <Box
                     sx={{
                         borderBottom: 1,
@@ -234,6 +244,8 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                         />
                     </CustomTabPanel>
                 ))}
+                </>
+            }
             </>
         )
     }
