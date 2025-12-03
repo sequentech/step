@@ -29,3 +29,9 @@ Then at the tally level if a voter is a delegate with N weight, we'll insert the
 ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
+
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
