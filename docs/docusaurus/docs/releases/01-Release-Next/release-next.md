@@ -35,3 +35,10 @@ ballot N times.
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Error with tenants and templates in Admin portal.
+
+Fixed issues that prevented tenant creation and template creation and deletion 
+in the Admin portal.
+
+- Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
