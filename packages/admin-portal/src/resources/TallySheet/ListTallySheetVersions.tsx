@@ -161,7 +161,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
 
                     <FunctionField
                         label={t("tallysheet.table.contest")}
-                        render={(record: any) => <ContestItem record={record.contest_id} />}
+                        render={(record: Sequent_Backend_Tally_Sheet) => <ContestItem record={record.contest_id} />}
                     />
 
                     <FunctionField
@@ -187,7 +187,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     <FunctionField
                         key={"Reviewed by"}
                         label={t("tallysheet.versionsTable.reviewedBy")}
-                        render={(record: any) =>
+                        render={(record: Sequent_Backend_Tally_Sheet) =>
                             record.reviewed_at ? <TextField source="reviewed_by_user_id" /> : "-"
                         }
                     />
