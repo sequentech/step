@@ -1,18 +1,18 @@
 ---
-id: release-next
-title: Release Notes next
+id: release-9.3.0
+title: Release Notes 9.3.0
 ---
 <!--
--- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## 🐞 Tally > Export option can't be read correctly if title is too long
+## ✨ Don't build/push images on main
 
-Modify the tally export translations to show the format before the document name.
+Don't build/push images on main.
 
-- Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
-  
+- Issue: [#9291](https://github.com/sequentech/meta/issues/9291)
+
 ## 🐞 Tally > State not cleared when switching events
 
 Fix tally state is not cleared when switching election events on the tally tab.
