@@ -29,3 +29,15 @@ Then at the tally level if a voter is a delegate with N weight, we'll insert the
 ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
+
+## 🐞 Keys Ceremony > State not cleared when switching Election Events
+
+Clear keys ceremony state when switching events.
+
+- Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
