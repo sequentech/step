@@ -42,7 +42,6 @@ interface TallySheetWizardProps {
 
 export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     const {action, election: election, tallySheetId, doAction} = props
-    console.log("tallySheetId: ", tallySheetId)
     const submitRef = React.useRef<HTMLButtonElement>(null)
     const notify = useNotify()
 
@@ -138,7 +137,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 }
             }, 400)
         } else if (page === WizardSteps.Confirm) {
-            console.log("confirmed: ", tallySheetId, tallySheet) // ITs undefined when adding a new one.
             insertTallySheetAction()
             doAction(WizardSteps.List)
         }
@@ -162,7 +160,6 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }
 
-    console.log("page: ", page)
     return (
         <>
             <WizardStyles.WizardWrapper>
@@ -199,7 +196,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 )}
                 {page === WizardSteps.Edit && (choosenContest || tallySheet) && (
                     <>
-                        <EditTallySheet // TODO: EditTallySheet will keep the business logic for entering the results and calculations. But the area/contest/channel selection should be done on a separate component
+                        <EditTallySheet // TODO: EditTallySheet will keep the business logic for entering the results and calculations. But the area/contest/channel selection should be done on a separate component/step of the wizard
                             tallySheet={tallySheet}
                             election={election}
                             choosenContest={choosenContest}
@@ -216,7 +213,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                 )}
 
                 {page === WizardSteps.Confirm &&
-                    choosenContest /* TODO: check if this is necessary*/ && (
+                    choosenContest && (
                         <>
                             <ShowTallySheet
                                 tallySheet={createdTallySheet || tallySheet}
@@ -230,7 +227,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     )}
 
                 {page === WizardSteps.View &&
-                    choosenContest /* TODO: check if this is necessary*/ && (
+                    choosenContest && (
                         <>
                             <ShowTallySheet
                                 tallySheet={tallySheet}

@@ -27,7 +27,6 @@ pub struct CreateNewTallySheetInput {
     area_id: String,
 }
 
-// The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/create-new-tally-sheet", format = "json", data = "<body>")]
 pub async fn create_new_tally_sheet(
