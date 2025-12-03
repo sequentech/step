@@ -208,6 +208,11 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         setCurrentCeremony(null)
     }
 
+    // Clear state when election event changes
+    useEffect(() => {
+        goBack()
+    }, [electionEvent])
+
     const getCeremony = (id: Identifier): Sequent_Backend_Keys_Ceremony | undefined => {
         if (keysCeremonies) {
             return keysCeremonies?.list_keys_ceremony?.items.find(
