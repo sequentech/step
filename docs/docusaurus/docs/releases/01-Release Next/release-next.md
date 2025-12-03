@@ -21,3 +21,8 @@ if the user existed, leaking the information that the user did exist.
 
 - Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
 
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
