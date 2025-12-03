@@ -35,3 +35,9 @@ ballot N times.
 Modify the tally export translations to show the format before the document name.
 
 - Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
+
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
