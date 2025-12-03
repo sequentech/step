@@ -212,33 +212,31 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                     </>
                 )}
 
-                {page === WizardSteps.Confirm &&
-                    choosenContest && (
-                        <>
-                            <ShowTallySheet
-                                tallySheet={createdTallySheet || tallySheet}
-                                contest={choosenContest}
-                                doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
-                                    setEditedTallySheet(tallySheet)
-                                }
-                                submitRef={submitRef}
-                            />
-                        </>
-                    )}
+                {page === WizardSteps.Confirm && choosenContest && (
+                    <>
+                        <ShowTallySheet
+                            tallySheet={createdTallySheet || tallySheet}
+                            contest={choosenContest}
+                            doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
+                                setEditedTallySheet(tallySheet)
+                            }
+                            submitRef={submitRef}
+                        />
+                    </>
+                )}
 
-                {page === WizardSteps.View &&
-                    choosenContest && (
-                        <>
-                            <ShowTallySheet
-                                tallySheet={tallySheet}
-                                contest={choosenContest}
-                                doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
-                                    setEditedTallySheet(tallySheet)
-                                }
-                                submitRef={submitRef}
-                            />
-                        </>
-                    )}
+                {page === WizardSteps.View && choosenContest && (
+                    <>
+                        <ShowTallySheet
+                            tallySheet={tallySheet}
+                            contest={choosenContest}
+                            doEditedTalySheet={(tallySheet: Sequent_Backend_Tally_Sheet) =>
+                                setEditedTallySheet(tallySheet)
+                            }
+                            submitRef={submitRef}
+                        />
+                    </>
+                )}
 
                 <WizardStyles.Toolbar>
                     <WizardStyles.BackButton
