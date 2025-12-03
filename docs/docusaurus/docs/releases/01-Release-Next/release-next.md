@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Fix Graphql Typescript issues
+
+Update Graphql definitions in the admin-portal, which is required after a
+bad merge from main.
+
+- Issue: [#9540](https://github.com/sequentech/meta/issues/9540)
 
 ## ✨ Instant-runoff Voting (IRV/RCV) System support
 
@@ -29,6 +35,12 @@ Then at the tally level if a voter is a delegate with N weight, we'll insert the
 ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
+
+## 🐞 Keys Ceremony > State not cleared when switching Election Events
+
+Clear keys ceremony state when switching events.
+
+- Issue [#8675](https://github.com/sequentech/meta/issues/8675)
 
 ## 🐞 Can't filter voter logs by username
 
