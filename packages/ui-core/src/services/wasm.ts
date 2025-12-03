@@ -23,6 +23,7 @@ import {
     encrypt_decoded_contest_js,
     encrypt_decoded_multi_contest_js,
     test_contest_reencoding_js,
+    is_preferential_js,
     test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
@@ -47,6 +48,7 @@ import {
     IHashableSingleBallot,
     IHashableMultiBallot,
     ISignedContent,
+    ICountingAlgorithm,
 } from ".."
 
 export type {
@@ -123,6 +125,16 @@ export const sortCandidatesInContest = (
     try {
         if (!candidates || !candidates.length) return candidates
         return sort_candidates_list_js(candidates, order, applyRandom)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const isPreferential = (countingAlgorithm?: ICountingAlgorithm): boolean => {
+    if (!countingAlgorithm) return false
+    try {
+        return is_preferential_js(countingAlgorithm)
     } catch (error) {
         console.log(error)
         throw error
