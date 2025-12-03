@@ -21,6 +21,7 @@ import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality
 import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -158,21 +159,27 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
 
     return (
         <>
-            <TallyResultsSummary
-                general={general}
-                chartName={getChartName()}
-                showWeight={weightedVotingForAreas}
-                weight={weight}
-            />
-            {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
-                <TallyResultsCandidatesPlurality
-                    resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
-                    orderedResultsData={orderedResultsData}
-                    chartName={getChartName()}
-                />
-            )}
-            {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
-                <TallyResultsCandidatesIRV processResults={processResults} />
+            {!resultsEventId ? (
+                <LoadingResults />
+            ) : (
+                <>
+                    <TallyResultsSummary
+                        general={general}
+                        chartName={getChartName()}
+                        showWeight={weightedVotingForAreas}
+                        weight={weight}
+                    />
+                    {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
+                        <TallyResultsCandidatesPlurality
+                            resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
+                            orderedResultsData={orderedResultsData}
+                            chartName={getChartName()}
+                        />
+                    )}
+                    {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
+                        <TallyResultsCandidatesIRV processResults={processResults} />
+                    )}
+                </>
             )}
         </>
     )

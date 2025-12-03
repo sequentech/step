@@ -19,6 +19,7 @@ import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
 import {RunoffStatus} from "./types"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -118,19 +119,25 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
 
     return (
         <>
-            <TallyResultsSummary
-                general={general}
-                chartName={getChartName(general?.[0].name ?? undefined)}
-            />
-            {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
-                <TallyResultsCandidatesPlurality
-                    resultsData={resultsData}
-                    orderedResultsData={orderedResultsData}
-                    chartName={getChartName(general?.[0].name ?? undefined)}
-                />
-            )}
-            {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
-                <TallyResultsCandidatesIRV processResults={processResults} />
+            {!resultsEventId ? (
+                <LoadingResults />
+            ) : (
+                <>
+                    <TallyResultsSummary
+                        general={general}
+                        chartName={getChartName(general?.[0].name ?? undefined)}
+                    />
+                    {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
+                        <TallyResultsCandidatesPlurality
+                            resultsData={resultsData}
+                            orderedResultsData={orderedResultsData}
+                            chartName={getChartName(general?.[0].name ?? undefined)}
+                        />
+                    )}
+                    {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
+                        <TallyResultsCandidatesIRV processResults={processResults} />
+                    )}
+                </>
             )}
         </>
     )
