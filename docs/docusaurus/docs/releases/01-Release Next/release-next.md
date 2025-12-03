@@ -20,3 +20,9 @@ the email was being shown at the top of the login page after a failed login
 if the user existed, leaking the information that the user did exist.
 
 - Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
+
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
