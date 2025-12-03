@@ -34,6 +34,7 @@ use crate::tasks::generate_report::generate_report;
 use crate::tasks::generate_template::generate_template;
 use crate::tasks::import_application::import_applications;
 use crate::tasks::import_election_event::import_election_event;
+use crate::tasks::import_templates::import_templates_task;
 use crate::tasks::import_tenant_config::import_tenant_config;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
@@ -279,6 +280,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             prepare_publication_preview,
             export_tally_results_to_xlsx_task,
             post_tally_task,
+            import_templates_task,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -327,6 +329,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),
             export_tally_results_to_xlsx_task::NAME => &Queue::ImportExport.queue_name(&slug),
             post_tally_task::NAME => &Queue::Reports.queue_name(&slug),
+            import_templates_task::NAME => &Queue::ImportExport.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
