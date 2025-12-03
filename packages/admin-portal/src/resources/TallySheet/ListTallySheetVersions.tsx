@@ -155,7 +155,15 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                 filters={Filters}
                 empty={<Empty />}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable
+                    omit={OMIT_FIELDS}
+                    sx={{
+                        flexGrow: 1,
+                        overflowX: "auto",
+                        width: "100%",
+                        maxWidth: "100%",
+                    }}
+                >
                     <TextField source="id" />
                     <TextField source="channel" />
 
