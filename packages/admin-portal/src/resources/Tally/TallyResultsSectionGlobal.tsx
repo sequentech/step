@@ -94,6 +94,13 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         }
     }
 
+    const isTallyDataMatchCurrentResults = useMemo(() => {
+        return (
+            resultsEventId &&
+            !!tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -119,7 +126,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
 
     return (
         <>
-            {!resultsEventId ? (
+            {!isTallyDataMatchCurrentResults ? (
                 <LoadingResults />
             ) : (
                 <>
