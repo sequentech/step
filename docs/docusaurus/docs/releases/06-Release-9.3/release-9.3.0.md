@@ -7,13 +7,6 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## 🐞 Tally > "No Results" while loading the results
-
-1. Fix Tally results show "No results" while loading for it.
-2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
-
-- Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
-  
 ## ✨ Don't build/push images on main
 
 Don't build/push images on main.
@@ -313,7 +306,7 @@ confirmation and it was not checking that the password matches that of the user.
 
 - Issue: [#7585](https://github.com/sequentech/meta/issues/7585)
 
-## 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order
+## 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order
 
 Voting Portal: Invalid/BlankVote Candidates do not follow sort order within the
 top/bottom invalid candidates block.
@@ -327,7 +320,7 @@ already in the backend, but it was not configurable in the Admin Portal.
 
 - Issue: [#8528](https://github.com/sequentech/meta/issues/8528)
 
-## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
+## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
 
 - Issue: [#8527](https://github.com/sequentech/meta/issues/8527)
 
