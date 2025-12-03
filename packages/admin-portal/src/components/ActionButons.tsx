@@ -53,7 +53,7 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
                           className={action.className ?? ""}
                           key={index}
                           onClick={(event) => {
-                            event.stopPropagation() // Prevents the click from opening the Edit view
+                              event.stopPropagation()
                               if (record) {
                                   action.action(record.id)
                               }
