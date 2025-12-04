@@ -245,7 +245,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            {resultsData.length ? (
+            {isLoading || !isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
+            ) : resultsData.length ? (
                 <Box
                     sx={{
                         display: "flex",
@@ -297,8 +299,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         />
                     </Box>
                 </Box>
-            ) : isLoading || !isTallyDataMatchCurrentResults ? (
-                <LoadingResults />
             ) : (
                 <NoItem />
             )}
