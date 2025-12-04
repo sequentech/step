@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use braid::protocol::board::http::HttpB3Index;
 use clap::Parser;
@@ -15,8 +15,8 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol::session::session_m::SessionFactory;
-use braid::protocol::session::session_master::SessionMaster;
+use braid::native::session::session_m::SessionFactory;
+use braid::native::session::session_master::SessionMaster;
 use braid::protocol::trustee::TrusteeConfig;
 
 cfg_if::cfg_if! {
@@ -105,7 +105,7 @@ fn main() -> Result<()> {
 ///
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
 
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -131,7 +131,7 @@ async fn run(args: &Cli) -> Result<()> {
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    braid::util::ensure_directory(store_root.clone())?;
+    ensure_directory(store_root.clone())?;
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
 
@@ -194,4 +194,18 @@ async fn run(args: &Cli) -> Result<()> {
 fn get_ignored_boards() -> HashSet<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     HashSet::from_iter(boards_str.split(',').map(|s| s.to_string()))
+}
+
+/// Checks for and creates a directory if needed.
+fn ensure_directory(folder: PathBuf) -> Result<()> {
+    let path = folder.as_path();
+    if path.exists() {
+        if path.is_dir() {
+            Ok(())
+        } else {
+            Err(anyhow!("Path is not a folder: {}", path.display()))
+        }
+    } else {
+        fs::create_dir(path).map_err(|err| anyhow!(err))
+    }
 }

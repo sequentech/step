@@ -6,8 +6,6 @@ use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 
 use std::fmt::Debug;
-use std::fs;
-use std::path::PathBuf;
 use thiserror::Error;
 
 use b4::messages::statement::StatementType;
@@ -98,59 +96,4 @@ pub fn decode_base64(s: &String) -> Result<Vec<u8>> {
     general_purpose::STANDARD_NO_PAD
         .decode(&s)
         .map_err(|error| anyhow!(error))
-}
-
-/// Checks for and creates a directory if needed.
-pub fn ensure_directory(folder: PathBuf) -> Result<()> {
-    let path = folder.as_path();
-    if path.exists() {
-        if path.is_dir() {
-            Ok(())
-        } else {
-            Err(anyhow!("Path is not a folder: {}", path.display()))
-        }
-    } else {
-        fs::create_dir(path).map_err(|err| anyhow!(err))
-    }
-}
-
-#[cfg(feature = "native")]
-use tracing_subscriber::filter::LevelFilter;
-#[cfg(feature = "native")]
-use tracing_subscriber::reload::Handle;
-#[cfg(feature = "native")]
-use tracing_subscriber::{filter, reload};
-#[cfg(feature = "native")]
-use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
-#[cfg(feature = "native")]
-use tracing_tree::HierarchicalLayer;
-
-/// Initialize the tracing log, returning a handle that
-/// allows changing log levels at run time.
-///
-/// The log can display messages within a tree representation of the
-/// call stack. To do this you must mark function definitions
-/// you wish to track with the #[instrument] annotation.
-/// See https://docs.rs/tracing-attributes/latest/tracing_attributes/attr.instrument.html
-#[cfg(feature = "native")]
-pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
-    let layer = HierarchicalLayer::default()
-        .with_writer(std::io::stdout)
-        .with_indent_lines(true)
-        .with_indent_amount(3)
-        .with_thread_names(false)
-        .with_thread_ids(false)
-        .with_verbose_exit(false)
-        .with_verbose_entry(false)
-        .with_targets(false);
-
-    let filter = filter::LevelFilter::INFO;
-    let (filter, reload_handle) = reload::Layer::new(filter);
-    let subscriber = Registry::default().with(filter).with(layer);
-
-    if set_global {
-        tracing::subscriber::set_global_default(subscriber).unwrap();
-    }
-    tracing_log::LogTracer::init().unwrap();
-    reload_handle
 }

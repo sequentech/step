@@ -342,7 +342,7 @@
         // Dynamic import with timestamp to force cache refresh
         const timestamp = new Date().getTime();
         console.log('Loading WASM with cache-busting timestamp:', timestamp);
-        const { default: init, initThreadPool, WasmTrustee } = await import(`./crates/braid-wasm/pkg/braid_wasm.js?v=${timestamp}`);
+        const { default: init, initThreadPool, WasmSession } = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
 
         let trustee = null;
         let autoInterval = null;
@@ -544,7 +544,7 @@
                 initBtn.disabled = true;
                 initBtn.classList.add('loading');
                 
-                trustee = new WasmTrustee(JSON.stringify(config));
+                trustee = new WasmSession(JSON.stringify(config));
                 
                 document.getElementById('fetch-boards-btn').disabled = false;
                 document.getElementById('connect-board-btn').disabled = true;

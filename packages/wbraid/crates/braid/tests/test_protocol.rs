@@ -6,17 +6,17 @@ use strand::backend::ristretto::RistrettoCtx;
 
 #[test]
 fn test_protocol_memory() {
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
 
     let ctx = RistrettoCtx;
-    braid::test::protocol_test_memory::run(1000, 1, ctx);
+    braid::native::test::protocol_test_memory::run(1000, 1, ctx);
 }
 
 #[tokio::test]
 #[ignore]
 async fn test_protocol_http() {
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
     let ctx = RistrettoCtx;
 
-    braid::test::protocol_test_http::run(1000, 1, ctx).await;
+    braid::native::test::protocol_test_http::run(1000, 1, ctx).await;
 }

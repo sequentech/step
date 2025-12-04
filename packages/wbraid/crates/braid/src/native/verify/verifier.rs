@@ -22,8 +22,8 @@ use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 
 use crate::util::dbg_hash;
-use crate::verify::datalog::Target;
-use crate::verify::datalog::Verified;
+use crate::native::verify::datalog::Target;
+use crate::native::verify::datalog::Verified;
 
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
@@ -206,7 +206,7 @@ impl<C: Ctx> Verifier<C> {
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
 
         info!("{}", "Deriving verification targets..".blue());
-        let (_, targets, _) = crate::verify::datalog::S.run(&predicates);
+        let (_, targets, _) = crate::native::verify::datalog::S.run(&predicates);
         for t in &targets {
             let tvr = t.get_verification_result();
             info!("Add verification target [batch {}]", t.get_batch());
@@ -229,7 +229,7 @@ impl<C: Ctx> Verifier<C> {
         // Collect verification results
 
         info!("{}", "Collecting verification results".blue());
-        let (root, _targets, verified) = crate::verify::datalog::S.run(&predicates);
+        let (root, _targets, verified) = crate::native::verify::datalog::S.run(&predicates);
 
         let mut pk_h = None;
         let root = root.iter().next();

@@ -4,8 +4,10 @@
 extern crate cfg_if;
 
 pub mod protocol;
-#[cfg(feature = "native")]
-pub mod test;
 pub mod util;
+
+// Platform-specific modules
 #[cfg(feature = "native")]
-pub mod verify;
+pub mod native;
+#[cfg(feature = "wasm")]
+pub mod wasm;

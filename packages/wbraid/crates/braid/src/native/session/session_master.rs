@@ -20,7 +20,7 @@ use strand::backend::ristretto::RistrettoCtx;
 
 use crate::protocol::board::http::HttpB3BoardParams;
 use crate::protocol::board::{BoardFactoryMulti, BoardMulti};
-use crate::protocol::session::session_m::{SessionFactory, SessionM};
+use crate::native::session::session_m::{SessionFactory, SessionM};
 
 // How often the session map (with trustee's LocalBoard) is cleared
 // This will cause al messages in the LocalBoard to be reloaded from the

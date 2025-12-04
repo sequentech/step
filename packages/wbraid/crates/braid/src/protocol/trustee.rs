@@ -5,6 +5,7 @@
 use anyhow::Result;
 
 use log::{debug, error, info, trace, warn};
+#[cfg(feature = "native")]
 use rayon::prelude::*;
 use std::collections::HashSet;
 use tracing_attributes::instrument;
@@ -14,7 +15,10 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::LocalBoard;
+#[cfg(feature = "native")]
+use crate::protocol::board::{LocalBoard, SqliteStorage};
+#[cfg(not(feature = "native"))]
+use crate::protocol::board::{LocalBoard, InMemoryStorage};
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
@@ -108,7 +112,10 @@ pub struct Trustee<C: Ctx> {
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
     // Public for external crates (e.g., braid-wasm) to access board state
-    pub local_board: LocalBoard<C>,
+    #[cfg(feature = "native")]
+    pub local_board: LocalBoard<C, SqliteStorage>,
+    #[cfg(not(feature = "native"))]
+    pub local_board: LocalBoard<C, InMemoryStorage>,
     /// Tracks the last locally-controlled store ID loaded into the in-memory board.
     /// This is NOT the bulletin board's external ID - it's our local SQLite AUTOINCREMENT ID.
     /// The local database controls message ordering, preventing the bulletin board from
@@ -127,6 +134,10 @@ impl<C: Ctx> Trustee<C> {
     ///
     /// A trustee instance exists in the context of a session, and therefore
     /// specific board.
+    // FIXME split this into three constructors:
+    /// 1) native with store path
+    /// 2) native without store path (dummy in-memory store)
+    /// 3) wasm (using browser storage when implemented) 
     pub fn new(
         name: String,
         board_name: String,
@@ -142,15 +153,18 @@ impl<C: Ctx> Trustee<C> {
             name, store, max_concurrent_actions
         );
 
-        // let blob_root = PathBuf::from("./blobs");
-        // The blob_root should be passed to this function
-        // and then checked:
-        //         if !blob_root.is_dir() {
-        //     return Err(anyhow!("Invalid blob root {:?}", blob_root));
-        // }
-        //
-        // let blob_store = Some(blob_root.join(&board_name));
-        let local_board = LocalBoard::new(store, None);
+        // Create storage backend based on whether store path is provided
+        #[cfg(feature = "native")]
+        let local_board = {
+            let storage = store.map(|path| SqliteStorage::new(path, None));
+            LocalBoard::new(storage)
+        };
+
+        #[cfg(not(feature = "native"))]
+        let local_board = {
+            // WASM always uses in-memory storage (for now)
+            LocalBoard::new(None::<InMemoryStorage>)
+        };
 
         Trustee {
             name,
@@ -180,8 +194,12 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         remote_messages: &Vec<HttpB3Message>,
     ) -> Result<StepResult, ProtocolError> {
+        
         // Parse remote messages and assign local IDs (if store exists) or use external IDs (if no store)
-        let parsed_messages = if self.local_board.store.is_some() {
+        // FIXME local boards should handle this logic internally
+        // Use a dummy store for in memory board, and make the storage
+        // field in local board non-optional
+        let parsed_messages = if self.local_board.storage.is_some() {
             // SECURITY: Store messages and get them back with locally-controlled IDs from our database
             self.store_and_return_messages(remote_messages)?
         } else {
@@ -290,7 +308,7 @@ impl<C: Ctx> Trustee<C> {
             );
             -1
         } else {
-            if self.local_board.store.is_some() {
+            if self.local_board.storage.is_some() {
                 self.local_board.get_last_external_id().unwrap_or(-1)
             } else {
                 self.last_local_board_id

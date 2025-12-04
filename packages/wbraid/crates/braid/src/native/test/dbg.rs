@@ -22,8 +22,7 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol::action::Action;
-use crate::protocol::board::local::{ArtifactEntryIdentifier};
-use crate::protocol::board::local::{StatementEntryIdentifier};
+use crate::protocol::board::{ArtifactEntryIdentifier, StatementEntryIdentifier};
 use b4::messages::artifact::Ballots;
 use b4::messages::artifact::Configuration;
 use b4::messages::message::Message;
@@ -32,7 +31,7 @@ use b4::messages::newtypes::NULL_TRUSTEE;
 use b4::messages::protocol_manager::ProtocolManager;
 
 use crate::protocol::trustee::Trustee;
-use crate::test::vector_board::VectorBoard;
+use crate::native::test::vector_board::VectorBoard;
 use b4::messages::newtypes::MAX_TRUSTEES;
 
 /// Runs a simple interactive ncurses terminal to simulate or

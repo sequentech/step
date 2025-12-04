@@ -135,7 +135,7 @@ let response = self.bb_client.initiate_message(
             0,
         ).await?;
 
-2.6 The shared crate seems unnecessary we should be reusing structs from b4, not creating
+2.6 The shared crate may be unnecessary we should be reusing structs from b4, not creating
 duplicates on the receiving end
 
 2.7 Remove warnings
@@ -377,7 +377,7 @@ duplicates on the receiving end
 - [x] HttpB3Message created and integrated
 - [x] Braid feature flags implemented
 - [x] Board trait unified with HttpB3Message
-- [x] Trustee/WasmTrustee split implemented
+- [x] Trustee/WasmSession split implemented
 - [x] LocalBoard/WasmLocalBoard split implemented
 ## Notes
 
@@ -420,7 +420,7 @@ duplicates on the receiving end
 - [x] HttpB3Message created and integrated
 - [x] Braid feature flags implemented
 - [x] Board trait unified with HttpB3Message
-- [x] Trustee/WasmTrustee split implemented
+- [x] Trustee/WasmSession split implemented
 - [x] LocalBoard/WasmLocalBoard split implemented
 - [x] Native tests passing
 - [x] POC service and client working

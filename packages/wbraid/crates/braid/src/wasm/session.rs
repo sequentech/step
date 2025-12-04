@@ -2,15 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! WASM bindings for the Braid mixnet trustee
+//! WASM bindings for Braid protocol sessions
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 use serde::{Deserialize, Serialize};
 
-use braid::protocol::trustee::{Trustee, TrusteeConfig};
-use braid::protocol::board::local::LocalBoardStorage;
+use crate::protocol::trustee::{Trustee, TrusteeConfig};
+use crate::protocol::board::BoardEntry;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -23,7 +23,7 @@ use b4::api_types::{
 /// WASM-specific configuration that includes session properties
 /// This wraps the core TrusteeConfig with additional WASM UI needs
 #[derive(Serialize, Deserialize)]
-pub struct WasmTrusteeConfig {
+pub struct WasmSessionConfig {
     pub name: String,              // Trustee instance name (not in core config)
     pub b4_url: String,            // HTTP endpoint for this session (not trustee property)
     #[serde(flatten)]
@@ -40,16 +40,16 @@ pub struct BoardInfo {
 
 /// State information about the trustee's progress
 #[derive(Serialize, Deserialize)]
-pub struct TrusteeState {
+pub struct SessionState {
     pub board_name: String,
     pub current_messages: usize,
     pub max_messages: usize,
     pub last_message_id: i64,
 }
 
-/// Main WASM trustee interface
+/// Main WASM session interface
 #[wasm_bindgen]
-pub struct WasmTrustee {
+pub struct WasmSession {
     trustee: Option<Trustee<RistrettoCtx>>,
     name: String,                  // Session: Trustee instance name
     b4_url: String,                // Session: HTTP endpoint
@@ -58,7 +58,7 @@ pub struct WasmTrustee {
 }
 
 #[wasm_bindgen]
-impl WasmTrustee {
+impl WasmSession {
     /// Create a new trustee from a JSON configuration string
     /// 
     /// Config format:
@@ -72,13 +72,13 @@ impl WasmTrustee {
     /// }
     /// ```
     #[wasm_bindgen(constructor)]
-    pub fn new(config_json: String) -> Result<WasmTrustee, JsValue> {
+    pub fn new(config_json: String) -> Result<WasmSession, JsValue> {
         console_error_panic_hook::set_once();
         
-        let wasm_config: WasmTrusteeConfig = serde_json::from_str(&config_json)
+        let wasm_config: WasmSessionConfig = serde_json::from_str(&config_json)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse config: {}", e)))?;
         
-        Ok(WasmTrustee {
+        Ok(WasmSession {
             trustee: None,
             name: wasm_config.name,
             b4_url: wasm_config.b4_url,
@@ -96,7 +96,7 @@ impl WasmTrustee {
             .map_err(|e| JsValue::from_str(&format!("Failed to parse signing key: {}", e)))?;
         
         // Parse encryption key
-        let bytes = braid::util::decode_base64(&self.config.encryption_key)
+        let bytes = crate::util::decode_base64(&self.config.encryption_key)
             .map_err(|e| JsValue::from_str(&format!("Failed to decode encryption key: {}", e)))?;
         let ek = symm::sk_from_bytes(&bytes)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse encryption key: {}", e)))?;
@@ -642,12 +642,12 @@ impl WasmTrustee {
     pub fn get_state(&self) -> Result<JsValue, JsValue> {
         let trustee = self.trustee.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
-        
+
         let board_name = self.board_name.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
         
         // Access trustee fields directly
-        let state = TrusteeState {
+        let state = SessionState {
             board_name: board_name.clone(),
             current_messages: trustee.local_board.get_statement_entries().len() + 1,  // +1 for config
             max_messages: trustee.local_board.max_messages(),
@@ -678,11 +678,9 @@ impl WasmTrustee {
 
     /// Get board summary - list of statements in local board
     pub fn get_board_summary(&self) -> Result<JsValue, JsValue> {
-        use braid::protocol::board::local::BoardEntry;
-        
         let trustee = self.trustee.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
-        
+
         #[derive(Serialize)]
         struct StatementInfo {
             kind: String,
@@ -706,4 +704,3 @@ impl WasmTrustee {
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 }
-

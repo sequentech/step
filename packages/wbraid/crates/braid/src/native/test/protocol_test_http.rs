@@ -27,7 +27,7 @@ use crate::protocol::board::http::HttpB3;
 use crate::protocol::board::http::HttpB3BoardParams;
 use crate::protocol::board::Board;
 
-use crate::protocol::session::Session;
+use crate::native::session::Session;
 use crate::protocol::trustee::Trustee;
 
 const HTTP_URL: &'static str = "http://127.0.0.1:3000";

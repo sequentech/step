@@ -180,7 +180,7 @@ enum Command {
 #[instrument]
 async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
     let args = Cli::parse();
 
     match &args.command {

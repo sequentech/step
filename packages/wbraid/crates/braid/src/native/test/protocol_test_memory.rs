@@ -25,8 +25,8 @@ use b4::messages::newtypes::NULL_TRUSTEE;
 use b4::messages::protocol_manager::ProtocolManager;
 
 use crate::protocol::trustee::Trustee;
-use crate::test::vector_board::VectorBoard;
-use crate::test::vector_session::VectorSession;
+use crate::native::test::vector_board::VectorBoard;
+use crate::native::test::vector_session::VectorSession;
 
 pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::rng().random_range(2..13);

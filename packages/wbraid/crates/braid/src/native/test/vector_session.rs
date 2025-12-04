@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::protocol::trustee::Trustee;
-use crate::test::vector_board::VectorBoard;
+use crate::native::test::vector_board::VectorBoard;
 use b4::messages::artifact::{DkgPublicKey, Plaintexts};
 use b4::messages::message::Message;
 use log::{error, info};

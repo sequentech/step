@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use braid::protocol::board::http::{HttpB3, HttpB3BoardParams, HttpB3Index};
 use braid::util::ProtocolError;
 use clap::Parser;
@@ -13,7 +13,7 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::protocol::session::Session;
+use braid::native::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use strand::backend::ristretto::RistrettoCtx;
@@ -65,7 +65,7 @@ command line option is set to true.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "jemalloc")] {
@@ -90,7 +90,7 @@ async fn main() -> Result<()> {
     info!("ignored boards {:?}", ignored_boards);
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    braid::util::ensure_directory(store_root.clone())?;
+    ensure_directory(store_root.clone())?;
 
     let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3>> = HashMap::new();
     let mut loop_count: i64 = 0;
@@ -198,4 +198,18 @@ async fn main() -> Result<()> {
 fn get_ignored_boards() -> Vec<String> {
     let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
     boards_str.split(',').map(|s| s.to_string()).collect()
+}
+
+/// Checks for and creates a directory if needed.
+fn ensure_directory(folder: PathBuf) -> Result<()> {
+    let path = folder.as_path();
+    if path.exists() {
+        if path.is_dir() {
+            Ok(())
+        } else {
+            Err(anyhow!("Path is not a folder: {}", path.display()))
+        }
+    } else {
+        fs::create_dir(path).map_err(|err| anyhow!(err))
+    }
 }

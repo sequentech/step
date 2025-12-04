@@ -10,7 +10,7 @@ use tracing::instrument;
 
 use braid::protocol::board::http::HttpB3BoardParams;
 use braid::protocol::trustee::Trustee;
-use braid::verify::verifier::Verifier;
+use braid::native::verify::verifier::Verifier;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -40,7 +40,7 @@ struct Cli {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
 
     // generate dummy values, these are not important
     let dummy_sk = StrandSignatureSk::gen().unwrap();
