@@ -39,3 +39,11 @@ if the user existed, leaking the information that the user did exist.
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Contest result extended metrics are 0
+
+Fixes the extended metrics calculation that is visible in the json file of the 
+tally result files in `velvet-generate-reports`.
+It contains the value of some election metrics.
+
+- Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
