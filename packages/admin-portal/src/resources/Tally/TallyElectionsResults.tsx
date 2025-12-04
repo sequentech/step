@@ -172,8 +172,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     )
 
     const isTallyDataMatchCurrentResults = useMemo(() => {
-        return !!tallyData?.sequent_backend_results_event.find(
-            (event) => event.id === resultsEventId
+        return (
+            resultsEventId &&
+            !!tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
         )
     }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
@@ -245,7 +246,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            {resultsData.length ? (
+            {isLoading || !isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
+            ) : resultsData.length ? (
                 <Box
                     sx={{
                         display: "flex",
@@ -297,8 +300,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         />
                     </Box>
                 </Box>
-            ) : isLoading || !isTallyDataMatchCurrentResults ? (
-                <LoadingResults />
             ) : (
                 <NoItem />
             )}
