@@ -176,7 +176,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const isTallyDataMatchCurrentResults = useMemo(() => {
             return (
                 resultsEventId &&
-                tallyData?.sequent_backend_results_event?.find(
+                !!tallyData?.sequent_backend_results_event?.find(
                     (event) => event.id === resultsEventId
                 )
             )
