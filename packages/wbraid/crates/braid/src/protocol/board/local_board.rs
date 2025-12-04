@@ -527,6 +527,11 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
 
     /// Updates the message store and returns messages not yet in the board.
     ///
+    /// Called as part of the normal step update sequence
+    /// 1) Retrieve remote messages
+    /// 2) Store them in the message store (assigning locally-controlled IDs)
+    /// 3) Return messages with local_id > last_local_board_id for loading into memory
+    ///
     /// SECURITY: Uses locally-controlled AUTOINCREMENT IDs (not bulletin board IDs)
     /// to ensure append-only, tamper-proof message ordering.
     pub(crate) fn store_and_return_messages(

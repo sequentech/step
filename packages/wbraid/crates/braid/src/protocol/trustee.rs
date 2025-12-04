@@ -173,8 +173,10 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         remote_messages: &Vec<HttpB3Message>,
     ) -> Result<StepResult, ProtocolError> {
         
-        // Store messages and retrieve them with IDs (persistent: local IDs, no-op: external IDs)
+        // When retrieving all messages, some of them will already exist in 
+        // the local store: this is not an error
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
+        // Store messages and retrieve them with IDs (persistent: local IDs, no-op: external IDs)
         let parsed_messages = self.local_board
             .store_and_return_messages(&remote_messages, self.last_local_board_id, ignore_existing)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))?;
@@ -211,28 +213,6 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     ///////////////////////////////////////////////////////////////////////////
     // Update
     ///////////////////////////////////////////////////////////////////////////
-
-    /// Updates the message store and returns messages not yet in the board.
-    ///
-    /// Called as part of the normal step update sequence
-    /// 1) Retrieve remote messages
-    /// 2) Store them in the message store (assigning locally-controlled IDs)
-    /// 3) Return messages with local_id > last_local_board_id for loading into memory
-    ///
-    /// SECURITY: Messages are selected by locally-controlled store ID (AUTOINCREMENT),
-    /// ensuring the bulletin board cannot manipulate message ordering.
-    pub(crate) fn store_and_return_messages(
-        &mut self,
-        messages: &Vec<HttpB3Message>,
-    ) -> Result<Vec<(Message, i64)>, ProtocolError> {
-        // when retrieving all messages, some of them will already exist in 
-        // the local store: this is not an error
-        let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
-
-        self.local_board
-            .store_and_return_messages(&messages, self.last_local_board_id, ignore_existing)
-            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
-    }
 
     /// Updates the message store only, not the local board.
     ///

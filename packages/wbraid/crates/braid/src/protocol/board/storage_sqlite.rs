@@ -99,6 +99,8 @@ impl LocalBoardStorage for SqliteStorage {
         let connection = self.get_connection()?;
 
         // Choose INSERT statement based on ignore_existing flag
+        // The trustee triggers a full message update via the RETRIEVE_ALL_MESSAGES_PERIOD,
+        // so we can ignore duplicates in that case.
         let sql = if ignore_existing {
             "INSERT OR IGNORE INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) \
              VALUES(?1, ?2, ?3, ?4, ?5, ?6)"
