@@ -14,6 +14,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 - Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
 
+## 🐞 Fix Graphql Typescript issues
+
+Update Graphql definitions in the admin-portal, which is required after a
+bad merge from main.
+
+- Issue: [#9540](https://github.com/sequentech/meta/issues/9540)
+
 ## ✨ Instant-runoff Voting (IRV/RCV) System support
 
 Support for Instant-runoff elections. Adaptations and implementations were added:
@@ -35,3 +42,28 @@ Then at the tally level if a voter is a delegate with N weight, we'll insert the
 ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
+
+## 🐞 Keys Ceremony > State not cleared when switching Election Events
+
+Clear keys ceremony state when switching events.
+
+- Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Error with tenants and templates in Admin portal.
+
+Fixed issues that prevented tenant creation and template creation and deletion 
+in the Admin portal.
+
+- Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
+
+## 🐞 Tally UI shows manual and executes automatic after policy switch
+
+Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
+
+- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
