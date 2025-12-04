@@ -95,15 +95,14 @@ pub struct LocalBoard<C: Ctx, S: LocalBoardStorage> {
     // previously there was a separate field that stored row ids for artifacts in sqlite.
     pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
 
-    // Storage backend (SQLite, IndexedDB, or in-memory)
-    // FIXME make non-optional
-    pub(crate) storage: Option<S>,
+    // Storage backend (SQLite, IndexedDB, or no-op)
+    pub(crate) storage: S,
 }
 
 impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
     /// Construct an empty LocalBoard with the specified storage backend
-    pub(crate) fn new(storage: Option<S>) -> LocalBoard<C, S> {
-        tracing::info!("LocalBoard created with storage: {}", storage.is_some());
+    pub(crate) fn new(storage: S) -> LocalBoard<C, S> {
+        tracing::info!("LocalBoard created");
 
         LocalBoard {
             configuration: None,
@@ -523,10 +522,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         messages: &[HttpB3Message],
         ignore_existing: bool,
     ) -> Result<()> {
-        if let Some(storage) = &self.storage {
-            storage.store_messages(messages, ignore_existing)?;
-        }
-        Ok(())
+        self.storage.store_messages(messages, ignore_existing)
     }
 
     /// Updates the message store and returns messages not yet in the board.
@@ -539,40 +535,15 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         last_local_board_id: i64,
         ignore_existing: bool,
     ) -> Result<Vec<(b4::messages::message::Message, i64)>> {
-        // FIXME storage should not be optional, instead there should be a dummy in-memory store
-        // which would use the commented code below
-        if let Some(storage) = &self.storage {
-            storage.store_messages(messages, ignore_existing)?;
-            storage.retrieve_messages(last_local_board_id)
-        } else {
-            // The dummy in-memory store implementation should be:
-            /*
-            // No persistent store: use external bulletin board IDs (no security guarantee without persistence)
-            let ms: Result<Vec<(Message, i64)>, StrandError> = remote_messages
-                .iter()
-                .map(|m| {
-                    let message = Message::strand_deserialize(&m.message)?;
-
-                    Ok((message, m.id))
-                })
-                .collect();
-
-            ms?
-             */
-
-            Ok(vec![])
-        }
+        self.storage.store_messages(messages, ignore_existing)?;
+        self.storage.retrieve_messages(last_local_board_id)
     }
 
     /// Returns the largest external_id stored in the message store.
     ///
     /// OPTIMIZATION ONLY: Has NO security implications.
     pub(crate) fn get_last_external_id(&self) -> Result<i64> {
-        if let Some(storage) = &self.storage {
-            storage.get_last_external_id()
-        } else {
-            Ok(-1)
-        }
+        self.storage.get_last_external_id()
     }
 
     /// The maximum number of messages this protocol will generate.

@@ -15,10 +15,10 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol::action::Action;
-#[cfg(feature = "native")]
+#[cfg(all(feature = "native", not(test)))]
 use crate::protocol::board::{LocalBoard, SqliteStorage};
-#[cfg(not(feature = "native"))]
-use crate::protocol::board::{LocalBoard, InMemoryStorage};
+#[cfg(any(test, not(feature = "native")))]
+use crate::protocol::board::{LocalBoard, NoOpStorage};
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
@@ -112,10 +112,12 @@ pub struct Trustee<C: Ctx> {
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
     // Public for external crates (e.g., braid-wasm) to access board state
-    #[cfg(feature = "native")]
+    #[cfg(all(feature = "native", not(test)))]
     pub local_board: LocalBoard<C, SqliteStorage>,
+    #[cfg(all(feature = "native", test))]
+    pub local_board: LocalBoard<C, NoOpStorage>,
     #[cfg(not(feature = "native"))]
-    pub local_board: LocalBoard<C, InMemoryStorage>,
+    pub local_board: LocalBoard<C, NoOpStorage>,
     /// Tracks the last locally-controlled store ID loaded into the in-memory board.
     /// This is NOT the bulletin board's external ID - it's our local SQLite AUTOINCREMENT ID.
     /// The local database controls message ordering, preventing the bulletin board from
@@ -134,10 +136,6 @@ impl<C: Ctx> Trustee<C> {
     ///
     /// A trustee instance exists in the context of a session, and therefore
     /// specific board.
-    // FIXME split this into three constructors:
-    /// 1) native with store path
-    /// 2) native without store path (dummy in-memory store)
-    /// 3) wasm (using browser storage when implemented) 
     pub fn new(
         name: String,
         board_name: String,
@@ -153,18 +151,22 @@ impl<C: Ctx> Trustee<C> {
             name, store, max_concurrent_actions
         );
 
-        // Create storage backend based on whether store path is provided
-        #[cfg(feature = "native")]
+        // Create storage backend:
+        // - Native production: SqliteStorage (store path required)
+        // - Native tests: NoOpStorage (ignores store parameter)
+        // - WASM: NoOpStorage (until IndexedDB async implementation ready)
+        
+        #[cfg(all(feature = "native", not(test)))]
         let local_board = {
-            let storage = store.map(|path| SqliteStorage::new(path, None));
-            LocalBoard::new(storage)
+            let path = store.expect("Native production builds require a store path");
+            LocalBoard::new(SqliteStorage::new(path, None))
         };
 
-        #[cfg(not(feature = "native"))]
-        let local_board = {
-            // WASM always uses in-memory storage (for now)
-            LocalBoard::new(None::<InMemoryStorage>)
-        };
+        #[cfg(test)]
+        let local_board = LocalBoard::new(NoOpStorage::new());
+
+        #[cfg(all(not(feature = "native"), not(test)))]
+        let local_board = LocalBoard::new(NoOpStorage::new());
 
         Trustee {
             name,
@@ -195,26 +197,11 @@ impl<C: Ctx> Trustee<C> {
         remote_messages: &Vec<HttpB3Message>,
     ) -> Result<StepResult, ProtocolError> {
         
-        // Parse remote messages and assign local IDs (if store exists) or use external IDs (if no store)
-        // FIXME local boards should handle this logic internally
-        // Use a dummy store for in memory board, and make the storage
-        // field in local board non-optional
-        let parsed_messages = if self.local_board.storage.is_some() {
-            // SECURITY: Store messages and get them back with locally-controlled IDs from our database
-            self.store_and_return_messages(remote_messages)?
-        } else {
-            // No persistent store: use external bulletin board IDs (no security concern without persistence)
-            let ms: Result<Vec<(Message, i64)>, StrandError> = remote_messages
-                .iter()
-                .map(|m| {
-                    let message = Message::strand_deserialize(&m.message)?;
-
-                    Ok((message, m.id))
-                })
-                .collect();
-
-            ms?
-        };
+        // Store messages and retrieve them with IDs (persistent: local IDs, no-op: external IDs)
+        let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
+        let parsed_messages = self.local_board
+            .store_and_return_messages(&remote_messages, self.last_local_board_id, ignore_existing)
+            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))?;
 
         // Update the in-memory board with parsed messages. Returns (count, last_local_id)
         let (added_messages, last_local_id) = self.update_local_board(parsed_messages)?;
@@ -262,6 +249,8 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: &Vec<HttpB3Message>,
     ) -> Result<Vec<(Message, i64)>, ProtocolError> {
+        // when retrieving all messages, some of them will already exist in 
+        // the local store: this is not an error
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
 
         self.local_board
@@ -308,11 +297,7 @@ impl<C: Ctx> Trustee<C> {
             );
             -1
         } else {
-            if self.local_board.storage.is_some() {
-                self.local_board.get_last_external_id().unwrap_or(-1)
-            } else {
-                self.last_local_board_id
-            }
+            self.local_board.get_last_external_id().unwrap_or(-1)
         };
 
         Ok(external_last_id)

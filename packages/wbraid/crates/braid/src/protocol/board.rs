@@ -13,7 +13,7 @@ pub mod local_storage;
 pub mod local_board;
 
 // Storage backend implementations
-pub mod storage_memory;
+pub mod storage_noop;
 
 #[cfg(feature = "native")]
 pub mod storage_sqlite;
@@ -23,7 +23,7 @@ pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, Statement
 
 // Re-export storage trait and implementations
 pub use local_storage::LocalBoardStorage;
-pub use storage_memory::InMemoryStorage;
+pub use storage_noop::NoOpStorage;
 
 #[cfg(feature = "native")]
 pub use storage_sqlite::SqliteStorage;
