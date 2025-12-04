@@ -25,6 +25,16 @@ const tagalogTranslation: TranslationType = {
             moreInformationLink: "Karagdagang impormasyon",
             writeInsPlaceholder: "I-type ang write-in candidate dito",
             blankVote: "Blangkong Boto",
+            preferential: {
+                position: "Posisyon",
+                none: "Wala",
+                ordinals: {
+                    first: "st",
+                    second: "nd",
+                    third: "rd",
+                    other: "th",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",

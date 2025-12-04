@@ -48,6 +48,9 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
+                CREATE_TENANT: "Crear Llogater",
+                EXPORT_TEMPLATES: "Exportar plantilles",
+                IMPORT_TEMPLATES: "Importar plantilles",
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
@@ -364,6 +367,13 @@ const catalanTranslation: TranslationType = {
                     options: {
                         "areas-weighted-voting": "Votació Ponderada per Àrees",
                         "disabled-weighted-voting": "Votació Ponderada Desactivada",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Votació Delegada",
+                    options: {
+                        enabled: "Activada",
+                        disabled: "Desactivada",
                     },
                 },
             },
@@ -1319,6 +1329,7 @@ const catalanTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sense Preferència",
                 "plurality-at-large": "Majoria Plural",
+                "instant-runoff": "Segona Volta Instantània",
                 "random": "Aleatòries",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
@@ -1666,6 +1677,12 @@ const catalanTranslation: TranslationType = {
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
                 weight: "Pes",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Guanyador",
+                    eliminated: "Eliminat",
+                    round: "Ronda",
+                },
             },
             chart: {
                 votesForCandidates: "Vots per Candidats",

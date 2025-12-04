@@ -95,7 +95,10 @@ pub async fn save_results(
                 .expect("Failed to convert to JSON");
             let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
-            annotations["extended_metrics"] = extended_metrics_value;
+            annotations[EXTENDED_METRICS] = extended_metrics_value;
+            if let Some(process_results) = contest.contest_result.process_results.clone() {
+                annotations[PROCESS_RESULTS] = process_results;
+            }
 
             if let Some(area) = &contest.area {
                 results_area_contests.push(ResultsAreaContest {
@@ -184,7 +187,10 @@ pub async fn save_results(
                     ),
                     blank_votes: Some(contest.contest_result.total_blank_votes as i64),
                     voting_type: contest.contest.voting_type.clone(),
-                    counting_algorithm: contest.contest.counting_algorithm.clone(),
+                    counting_algorithm: contest
+                        .contest
+                        .counting_algorithm
+                        .map(|val| val.to_string()),
                     name: contest.contest.name.clone(),
                     created_at: None,
                     last_updated_at: None,
