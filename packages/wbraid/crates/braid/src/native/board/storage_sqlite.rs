@@ -241,6 +241,38 @@ impl LocalBoardStorage for SqliteStorage {
 
         Ok(external_last_id)
     }
+
+    fn get_storage_info(&self) -> Result<crate::protocol::board::local_storage::StorageInfo> {
+        use crate::protocol::board::storage_schema::GET_STORAGE_INFO_SQL;
+        
+        let connection = self.get_connection()?;
+        
+        let (total_messages, max_internal_id, max_external_id) = connection
+            .query_row(GET_STORAGE_INFO_SQL, [], |row| {
+                Ok((
+                    row.get::<_, i64>(0).unwrap_or(0),
+                    row.get::<_, Option<i64>>(1).unwrap_or(None).unwrap_or(0),
+                    row.get::<_, Option<i64>>(2).unwrap_or(None).unwrap_or(0),
+                ))
+            })?;
+        
+        let extra_info = if let Some(blob_store) = &self.blob_store {
+            Some(format!(
+                "Database: {:?}, Blob store: {:?}",
+                self.store_path, blob_store
+            ))
+        } else {
+            Some(format!("Database: {:?}", self.store_path))
+        };
+        
+        Ok(crate::protocol::board::local_storage::StorageInfo {
+            backend_type: "SqliteStorage (Native)".to_string(),
+            total_messages,
+            max_internal_id,
+            max_external_id,
+            extra_info,
+        })
+    }
 }
 
 /// Row structure for SQLite query results

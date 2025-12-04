@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::protocol::session::Session;
 use crate::protocol::board::BoardEntry;
+use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
 #[cfg(feature = "sqlite-wasm-rs")]
 use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, SqliteStorage};
@@ -179,52 +180,26 @@ impl WasmSession {
         let session = self.session.as_mut()
             .ok_or_else(|| JsValue::from_str("Session not initialized. Call init_session() first"))?;
         
-        web_sys::console::log_1(&JsValue::from_str("Connecting to board and fetching existing messages..."));
+        web_sys::console::log_1(&JsValue::from_str("Connecting to board and checking for pending messages..."));
         
-        // Get last external ID (should be 0 for a fresh connection)
+        // SECURITY CRITICAL: Get last external ID from storage (not from memory)
+        // This ensures we resume from persisted state, not transient state
         let last_id = session.trustee.get_last_external_id()
             .map_err(|e| JsValue::from_str(&format!("Failed to get last ID: {:?}", e)))?;
         
-        web_sys::console::log_1(&JsValue::from_str(&format!("Fetching messages after ID {}", last_id)));
+        web_sys::console::log_1(&JsValue::from_str(&format!("Last stored external ID: {}", last_id)));
         
-        // Fetch messages from B4
+        // Fetch messages from bulletin board to see what's available
+        // NOTE: We only fetch here, we don't store or process yet
+        // Actual storage and processing happens during protocol steps
         let messages = self.fetch_messages(last_id).await?;
         
-        web_sys::console::log_1(&JsValue::from_str(&format!("Received {} messages from board", messages.len())));
+        let pending_count = messages.len();
         
-        // Update the local board without executing actions
-        let (added_messages, last_message_id) = {
-            let session = self.session.as_mut()
-                .ok_or_else(|| JsValue::from_str("Session disappeared"))?;
-            
-            // Convert HttpB3Message to (Message, i64) pairs
-            let parsed_messages: Result<Vec<_>, JsValue> = messages.iter()
-                .map(|m| {
-                    use strand::serialization::StrandDeserialize;
-                    use b4::messages::message::Message;
-                    
-                    let message = Message::strand_deserialize(&m.message)
-                        .map_err(|e| JsValue::from_str(&format!("Failed to deserialize message: {:?}", e)))?;
-                    Ok((message, m.id))
-                })
-                .collect();
-            
-            let parsed_messages = parsed_messages?;
-            
-            // Update local board (this is what step() does internally)
-            session.trustee.update_local_board(parsed_messages)
-                .map_err(|e| JsValue::from_str(&format!("Failed to update local board: {:?}", e)))?
-        };
-        
-        // Update the last_local_board_id in trustee
-        if added_messages > 0 {
-            let session = self.session.as_mut()
-                .ok_or_else(|| JsValue::from_str("Session disappeared"))?;
-            session.trustee.last_local_board_id = last_message_id;
-            
+        if pending_count > 0 {
             web_sys::console::log_1(&JsValue::from_str(&format!(
-                "✓ Connected to board: {} messages added, last_local_board_id = {}",
-                added_messages, last_message_id
+                "✓ Connected to board: {} remote messages pending (will be processed in protocol steps)",
+                pending_count
             )));
         } else {
             web_sys::console::log_1(&JsValue::from_str("✓ Connected to board: no new messages"));
@@ -232,13 +207,13 @@ impl WasmSession {
         
         #[derive(Serialize)]
         struct ConnectInfo {
-            added: i64,
-            last_message_id: i64,
+            pending: usize,
+            last_external_id: i64,
         }
         
         serde_wasm_bindgen::to_value(&ConnectInfo {
-            added: added_messages,
-            last_message_id,
+            pending: pending_count,
+            last_external_id: last_id,
         })
         .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
@@ -661,11 +636,17 @@ impl WasmSession {
 
         let board_name = self.board_name.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
-        
+
+        let config = if session.trustee.local_board.configuration.is_some() {
+            1
+        } else {
+            0
+        };
+
         // Access trustee fields directly
         let state = SessionState {
             board_name: board_name.clone(),
-            current_messages: session.trustee.local_board.get_statement_entries().len() + 1,  // +1 for config
+            current_messages: session.trustee.local_board.get_statement_entries().len() + config,
             max_messages: session.trustee.local_board.max_messages(),
             last_message_id: session.trustee.last_local_board_id,
         };
@@ -717,6 +698,24 @@ impl WasmSession {
             .collect();
         
         serde_wasm_bindgen::to_value(&summary)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Get storage diagnostics information
+    /// 
+    /// Returns information about the storage backend including:
+    /// - Backend type (SqliteStorage vs BrowserStorage)
+    /// - Total messages stored
+    /// - Maximum internal ID (locally-controlled, security-critical)
+    /// - Maximum external ID (from bulletin board, optimization only)
+    pub fn get_storage_info(&self) -> Result<JsValue, JsValue> {
+        let session = self.session.as_ref()
+            .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
+
+        let info = session.trustee.local_board.storage.get_storage_info()
+            .map_err(|e| JsValue::from_str(&format!("Failed to get storage info: {}", e)))?;
+        
+        serde_wasm_bindgen::to_value(&info)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 }

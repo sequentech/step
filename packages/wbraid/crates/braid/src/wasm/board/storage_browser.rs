@@ -505,6 +505,20 @@ impl LocalBoardStorage for BrowserStorage {
         let meta = self.metadata.borrow();
         Ok(meta.max_external_id)
     }
+
+    fn get_storage_info(&self) -> Result<crate::protocol::board::StorageInfo> {
+        use crate::protocol::board::StorageInfo;
+        self.ensure_initialized()?;
+        
+        let meta = self.metadata.borrow();
+        Ok(StorageInfo {
+            backend_type: "BrowserStorage (IndexedDB)".to_string(),
+            total_messages: meta.next_local_id - 1,
+            max_internal_id: meta.next_local_id - 1,
+            max_external_id: meta.max_external_id,
+            extra_info: Some("Persistent IndexedDB storage".to_string()),
+        })
+    }
 }
 
 impl Default for BrowserStorage {

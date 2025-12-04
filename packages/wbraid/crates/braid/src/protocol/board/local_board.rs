@@ -96,7 +96,8 @@ pub struct LocalBoard<C: Ctx, S: LocalBoardStorage> {
     pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
 
     // Storage backend (SQLite, IndexedDB, or no-op)
-    pub(crate) storage: S,
+    // Public to allow external crates (e.g., braid-wasm) to access storage diagnostics
+    pub storage: S,
 }
 
 impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
@@ -554,7 +555,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
     /// The maximum number of messages this protocol will generate.
     pub(crate) fn max_messages(&self) -> usize {
         let Some(cfg) = &self.configuration else {
-            return 1;
+            return 0;
         };
 
         let mut sei = StatementEntryIdentifier {

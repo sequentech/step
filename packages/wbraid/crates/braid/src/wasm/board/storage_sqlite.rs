@@ -454,6 +454,61 @@ impl LocalBoardStorage for SqliteStorage {
 
         Ok(max_external_id)
     }
+
+    fn get_storage_info(&self) -> Result<crate::protocol::board::local_storage::StorageInfo> {
+        use crate::protocol::board::local_storage::StorageInfo;
+        
+        let db = self.get_connection()?;
+        let mut stmt: *mut sqlite_wasm_rs::sqlite3_stmt = ptr::null_mut();
+        
+        // Use GET_STORAGE_INFO_SQL from shared schema
+        let sql = crate::protocol::board::storage_schema::GET_STORAGE_INFO_SQL;
+        let sql_cstr = CString::new(sql)?;
+        
+        let rc = unsafe {
+            sqlite_wasm_rs::sqlite3_prepare_v2(
+                db,
+                sql_cstr.as_ptr(),
+                -1,
+                &mut stmt as *mut _,
+                ptr::null_mut(),
+            )
+        };
+
+        if rc != sqlite_wasm_rs::SQLITE_OK {
+            let err_msg = unsafe {
+                let msg_ptr = sqlite_wasm_rs::sqlite3_errmsg(db);
+                CStr::from_ptr(msg_ptr).to_string_lossy().to_string()
+            };
+            return Err(anyhow!("Failed to prepare storage info query ({}): {}", rc, err_msg));
+        }
+
+        let rc = unsafe { sqlite_wasm_rs::sqlite3_step(stmt) };
+        
+        let info = if rc == sqlite_wasm_rs::SQLITE_ROW {
+            unsafe {
+                StorageInfo {
+                    backend_type: "SqliteStorage (OPFS)".to_string(),
+                    total_messages: sqlite_wasm_rs::sqlite3_column_int64(stmt, 0),
+                    max_internal_id: sqlite_wasm_rs::sqlite3_column_int64(stmt, 1),
+                    max_external_id: sqlite_wasm_rs::sqlite3_column_int64(stmt, 2),
+                    extra_info: Some(format!("Database: {}", self.db_name)),
+                }
+            }
+        } else {
+            StorageInfo {
+                backend_type: "SqliteStorage (OPFS)".to_string(),
+                total_messages: 0,
+                max_internal_id: -1,
+                max_external_id: -1,
+                extra_info: Some(format!("Database: {}", self.db_name)),
+            }
+        };
+
+        unsafe { sqlite_wasm_rs::sqlite3_finalize(stmt) };
+
+        Ok(info)
+    }
 }
 
 impl Drop for SqliteStorage {

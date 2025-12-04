@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Shared SQL schema constants
+pub mod storage_schema;
+
 // Storage trait (persistence abstraction)
 pub mod local_storage;
 
@@ -11,8 +14,8 @@ pub mod local_board;
 // Re-export LocalBoard and its data structures
 pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, StatementEntryIdentifier};
 
-// Re-export storage trait
-pub use local_storage::LocalBoardStorage;
+// Re-export storage trait and types
+pub use local_storage::{LocalBoardStorage, StorageInfo};
 
 use anyhow::Result;
 use b4::messages::message::Message;

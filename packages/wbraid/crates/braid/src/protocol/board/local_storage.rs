@@ -11,6 +11,23 @@
 use anyhow::Result;
 use b4::HttpB3Message;
 use b4::messages::message::Message;
+use serde::{Deserialize, Serialize};
+
+/// Storage diagnostics information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageInfo {
+    /// Storage backend type (e.g., "SqliteStorage", "BrowserStorage")
+    pub backend_type: String,
+    /// Total messages stored
+    pub total_messages: i64,
+    /// Maximum internal/local ID (AUTOINCREMENT value)
+    pub max_internal_id: i64,
+    /// Maximum external ID (from bulletin board)
+    pub max_external_id: i64,
+    /// Additional backend-specific info
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra_info: Option<String>,
+}
 
 /// Storage backend abstraction for LocalBoard persistence
 ///
@@ -67,5 +84,11 @@ pub trait LocalBoardStorage: Send + Sync {
     ///
     /// Maximum external_id, or -1 if store is empty
     fn get_last_external_id(&self) -> Result<i64>;
+
+    /// Get storage diagnostics information
+    ///
+    /// Returns statistics about the storage backend for monitoring and debugging.
+    /// Useful for verifying that persistent storage is working correctly.
+    fn get_storage_info(&self) -> Result<StorageInfo>;
 }
 

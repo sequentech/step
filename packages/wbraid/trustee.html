@@ -242,7 +242,7 @@
 </head>
 <body>
     <h1>braid-wasm</h1>
-    <p class="subtitle">verifiable mixnet node (v0.4.0, built 2025-12-04 19:47:48)</p>
+    <p class="subtitle">verifiable mixnet node (v0.4.0, built 2025-12-04 21:36:41)</p>
 
     <div class="grid">
         <!-- Configuration Panel -->
@@ -335,6 +335,15 @@
                 <input type="text" id="manual-board" placeholder="Or enter board name manually">
                 <button id="connect-board-btn" disabled class="secondary">Connect</button>
             </div>
+        </div>
+
+        <!-- Storage Diagnostics Panel -->
+        <div class="panel">
+            <h2>💾 Storage Diagnostics</h2>
+            <div id="storage-info" style="font-family: 'Courier New', monospace; font-size: 12px;">
+                <em style="color: #95a5a6;">Connect to a board to see storage information</em>
+            </div>
+            <button id="refresh-storage-btn" disabled class="secondary" style="margin-top: 12px; width: 100%;">Refresh Storage Info</button>
         </div>
     </div>
 
@@ -523,6 +532,51 @@
             }
         }
 
+        async function updateStorageInfo() {
+            if (!trustee) return;
+            try {
+                const info = await trustee.get_storage_info();
+                const storageDiv = document.getElementById('storage-info');
+                
+                const html = `
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #3498db;">
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Backend:</span>
+                            <span style="color: #2c3e50; margin-left: 8px;">${info.backend_type}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Total Messages:</span>
+                            <span style="color: #2c3e50; margin-left: 8px;">${info.total_messages}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Max Internal ID:</span>
+                            <span style="color: #27ae60; margin-left: 8px;">${info.max_internal_id}</span>
+                            <span style="color: #95a5a6; font-size: 10px; margin-left: 4px;">(locally-controlled, security-critical)</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Max External ID:</span>
+                            <span style="color: #e67e22; margin-left: 8px;">${info.max_external_id}</span>
+                            <span style="color: #95a5a6; font-size: 10px; margin-left: 4px;">(bulletin board ID, optimization only)</span>
+                        </div>
+                        ${info.extra_info ? `
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ecf0f1;">
+                            <span style="color: #95a5a6; font-size: 11px;">${info.extra_info}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                storageDiv.innerHTML = html;
+            } catch (err) {
+                console.error('Failed to get storage info:', err);
+                document.getElementById('storage-info').innerHTML = `
+                    <div style="color: #e74c3c; padding: 12px; background: #f8d7da; border-radius: 4px;">
+                        Error: ${err}
+                    </div>
+                `;
+            }
+        }
+
         // Initialize WASM
         async function initializeWasm() {
             try {
@@ -656,15 +710,18 @@
                 // Initialize the session (creates the trustee object)
                 await trustee.init_session(boardName);
                 
-                // Perform initial sync: fetch existing messages and update local board
-                showStatus('boards-status', `Syncing with board '${boardName}'...`, 'info');
-                const syncResult = await trustee.connect_to_board();
-                console.log(`Initial sync complete: ${syncResult.added} messages added`);
+                // Check for pending messages (doesn't process them yet)
+                showStatus('boards-status', `Checking board '${boardName}' for pending messages...`, 'info');
+                const connectResult = await trustee.connect_to_board();
+                console.log(`Board check complete: ${connectResult.pending} remote messages pending (last stored external_id: ${connectResult.last_external_id})`);
                 
                 document.getElementById('step-btn').disabled = false;
                 document.getElementById('auto-btn').disabled = false;
                 
-                showStatus('boards-status', `✓ Connected to '${boardName}' (${syncResult.added} messages synced)`, 'success');
+                const pendingMsg = connectResult.pending > 0 
+                    ? `${connectResult.pending} remote message${connectResult.pending === 1 ? '' : 's'} pending`
+                    : 'no new messages';
+                showStatus('boards-status', `✓ Connected to '${boardName}' (${pendingMsg})`, 'success');
                 console.log(`Connected to board: ${boardName}`);
                 
                 // Get initial state and update UI
@@ -673,6 +730,10 @@
                 
                 // Update local board contents display
                 await updateBoardContents();
+                
+                // Update storage info and enable refresh button
+                await updateStorageInfo();
+                document.getElementById('refresh-storage-btn').disabled = false;
             } catch (err) {
                 showStatus('boards-status', `Error: ${err}`, 'error');
                 console.error('Connect board error:', err);
@@ -699,6 +760,7 @@
                 
                 updateState(state);
                 await updateBoardContents();
+                await updateStorageInfo();
                 
                 // Display actions or message counts
                 let action;
@@ -757,6 +819,7 @@
                         
                         updateState(state);
                         await updateBoardContents();
+                        await updateStorageInfo();
                         
                         // Display actions or message counts
                         let action;
@@ -810,6 +873,12 @@
             actionHistory = [];
             updateActionHistoryDisplay();
             console.log('Action history cleared');
+        });
+
+        // Refresh storage info
+        document.getElementById('refresh-storage-btn').addEventListener('click', async () => {
+            await updateStorageInfo();
+            console.log('Storage info refreshed');
         });
 
         // Initialize on load

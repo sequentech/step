@@ -361,7 +361,7 @@ impl HttpB3BoardParams {
     }
     
     /// Create a board client for a specific board (helper for testing)
-    pub fn create_board(&self, board_name: &str, store_root: Option<PathBuf>) -> HttpB3 {
+    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),

@@ -80,4 +80,15 @@ impl LocalBoardStorage for NoOpStorage {
         // No-op storage doesn't track IDs - always request all messages
         Ok(-1)
     }
+
+    fn get_storage_info(&self) -> Result<crate::protocol::board::StorageInfo> {
+        use crate::protocol::board::StorageInfo;
+        Ok(StorageInfo {
+            backend_type: "NoOpStorage (transient)".to_string(),
+            total_messages: 0,
+            max_internal_id: -1,
+            max_external_id: -1,
+            extra_info: Some("No persistence - messages cleared after each step".to_string()),
+        })
+    }
 }
