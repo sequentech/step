@@ -6,7 +6,7 @@ use chrono::{DateTime, Local, Utc};
 use handlebars::{
     handlebars_helper, BlockParamHolder, Context, Handlebars, Helper,
     HelperDef, HelperResult, JsonValue, Output, RenderContext, RenderError,
-    RenderErrorReason, ScopedJson,
+    RenderErrorReason, Renderable, ScopedJson,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
@@ -31,6 +31,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         helper_wrapper_or(Box::new(format_percentage), String::from("-")),
     );
     reg.register_helper(
+        "format_dec_percentage",
+        helper_wrapper_or(Box::new(format_dec_percentage), String::from("-")),
+    );
+    reg.register_helper(
         "format_date",
         helper_wrapper_or(Box::new(format_date), String::from("-")),
     );
@@ -53,6 +57,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "inc",
         helper_wrapper_or(Box::new(inc), String::from("-")),
     );
+    reg.register_helper(
+        "inc2",
+        helper_wrapper_or(Box::new(inc2), String::from("-")),
+    );
     reg.register_helper("to_json", helper_wrapper(Box::new(to_json)));
     reg.register_helper(
         "parse_i64",
@@ -70,6 +78,12 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
         "sum",
         helper_wrapper_or(Box::new(sum), String::from("-")),
     );
+    reg.register_helper(
+        "modulo",
+        helper_wrapper_or(Box::new(modulo), String::from("-")),
+    );
+    reg.register_helper("next", Box::new(next));
+    reg.register_helper("eq", Box::new(eq));
     reg
 }
 
@@ -415,6 +429,79 @@ impl HelperDef for multiply {
 }
 
 #[allow(non_camel_case_types)]
+pub struct modulo;
+
+impl HelperDef for modulo {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Get the first parameter (dividend)
+        let dividend_value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("modulo", 0))?
+            .value();
+        let dividend = parse_u64_value(dividend_value)?;
+
+        // Get the second parameter (divisor)
+        let divisor_value = helper
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("modulo", 1))?
+            .value();
+        let divisor = parse_u64_value(divisor_value)?;
+
+        if divisor == 0 {
+            return Err(RenderError::new("Modulo by zero"));
+        }
+
+        let result = dividend % divisor;
+        Ok(ScopedJson::Derived(JsonValue::from(result)))
+    }
+}
+
+#[allow(non_camel_case_types)]
+pub struct next;
+
+impl HelperDef for next {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        helper: &Helper<'rc>,
+        _handlebars: &'reg Handlebars<'reg>,
+        _context: &'rc Context,
+        _rc: &mut RenderContext<'reg, 'rc>,
+    ) -> Result<ScopedJson<'rc>, RenderError> {
+        // Get the first parameter (array)
+        let array_value = helper
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("next", 0))?
+            .value();
+
+        // Get the second parameter (index)
+        let index_value = helper
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("next", 1))?
+            .value();
+        let index = parse_u64_value(index_value)?;
+
+        // Check if the first parameter is an array
+        let array = array_value.as_array().ok_or_else(|| {
+            RenderError::new("First parameter must be an array")
+        })?;
+
+        // Calculate next index
+        let next_index = (index + 1) as usize;
+
+        // Return the next element or null if it doesn't exist
+        let result = array.get(next_index).cloned().unwrap_or(JsonValue::Null);
+
+        Ok(ScopedJson::Derived(result))
+    }
+}
+
+#[allow(non_camel_case_types)]
 pub struct parse_i64;
 
 impl HelperDef for parse_i64 {
@@ -439,6 +526,32 @@ impl HelperDef for parse_i64 {
 
         Ok(ScopedJson::Derived(json!(num_i64)))
     }
+}
+
+pub fn format_dec_percentage(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let val_json = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex(
+            "format_dec_percentage",
+            0,
+        ))?
+        .value();
+
+    let val = parse_f64_value(val_json)?;
+
+    let val = (val * 100.0).clamp(0.00, 100.00);
+
+    let formatted_number = format!("{:.2}", val);
+
+    out.write(&formatted_number)?;
+
+    Ok(())
 }
 
 pub fn format_percentage(
@@ -570,6 +683,27 @@ pub fn inc(
     Ok(())
 }
 
+pub fn inc2(
+    helper: &Helper,
+    _: &Handlebars,
+    _: &Context,
+    _: &mut RenderContext,
+    out: &mut dyn Output,
+) -> HelperResult {
+    let index: u64 = helper
+        .param(0)
+        .ok_or(RenderErrorReason::ParamNotFoundForIndex("inc2", 0))?
+        .value()
+        .as_u64()
+        .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
+
+    let inc_index = index + 2;
+
+    out.write(&inc_index.to_string())?;
+
+    Ok(())
+}
+
 pub fn to_json(
     h: &Helper,
     _: &Handlebars,
@@ -586,4 +720,55 @@ pub fn to_json(
         out.write(&json)?;
     }
     Ok(())
+}
+
+#[allow(non_camel_case_types)]
+pub struct eq;
+
+impl HelperDef for eq {
+    fn call<'reg: 'rc, 'rc>(
+        &self,
+        h: &Helper<'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let param0 = h
+            .param(0)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("eq", 0))?
+            .value();
+
+        let param1 = h
+            .param(1)
+            .ok_or(RenderErrorReason::ParamNotFoundForIndex("eq", 1))?
+            .value();
+
+        let is_equal = match (param0, param1) {
+            // Compare strings
+            (Value::String(a), Value::String(b)) => a == b,
+            // Compare numbers
+            (Value::Number(a), Value::Number(b)) => a == b,
+            // Compare booleans
+            (Value::Bool(a), Value::Bool(b)) => a == b,
+            // Compare null
+            (Value::Null, Value::Null) => true,
+            // For mixed types or other cases, compare as JSON values
+            _ => param0 == param1,
+        };
+
+        if is_equal {
+            // Render the block if the values are equal
+            if let Some(template) = h.template() {
+                template.render(r, ctx, rc, out)?;
+            }
+        } else {
+            // Render the else block if the values are not equal
+            if let Some(template) = h.inverse() {
+                template.render(r, ctx, rc, out)?;
+            }
+        }
+
+        Ok(())
+    }
 }

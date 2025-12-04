@@ -9,6 +9,7 @@ use crate::plaintext::{
     DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
     InvalidPlaintextErrorType,
 };
+use crate::types::ceremonies::CountingAlgType;
 use std::collections::HashMap;
 
 pub struct BallotCodecFixture {
@@ -45,7 +46,7 @@ fn get_contest_plurality() -> Contest {
         max_votes: (1),
         min_votes: (0),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
         annotations: None,
         candidates: vec![
@@ -218,9 +219,111 @@ fn get_contest_plurality() -> Contest {
 
 fn get_contest_borda() -> Contest {
     let mut contest = get_contest_plurality();
-    contest.counting_algorithm = Some("borda".into());
+    contest.counting_algorithm = Some(CountingAlgType::Borda);
     contest.max_votes = 4;
     contest
+}
+
+fn get_contest_irv() -> Contest {
+    let mut contest = get_contest_plurality();
+    contest.counting_algorithm = Some(CountingAlgType::InstantRunoff);
+    contest.max_votes = 3;
+    contest
+}
+
+pub fn get_irv_fixture_valid_ballot() -> BallotCodecFixture {
+    BallotCodecFixture {
+        title: "irv_fixture".to_string(),
+        contest: get_contest_irv(),
+        raw_ballot: RawBallotContest {
+            bases: vec![2u64, 4u64, 4u64, 4u64, 4u64, 4u64],
+            choices: vec![0u64, 1u64, 2u64, 0u64, 3u64, 0u64],
+        },
+        plaintext: DecodedVoteContest {
+            contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+            is_explicit_invalid: false,
+            choices: vec![
+                DecodedVoteChoice {
+                    id: 0.to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 1.to_string(),
+                    selected: 1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 2.to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 3.to_string(),
+                    selected: 2,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 4.to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ],
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+        },
+        encoded_ballot_bigint: "402".to_string(),
+        encoded_ballot: vec_to_30_array(&vec![2, 146, 1]).unwrap(),
+        expected_errors: None,
+    }
+}
+
+/// Invalid ballot due to duplicated position
+pub fn get_irv_fixture_invalid_ballot() -> BallotCodecFixture {
+    BallotCodecFixture {
+        title: "irv_fixture".to_string(),
+        contest: get_contest_irv(),
+        raw_ballot: RawBallotContest {
+            bases: vec![2u64, 4u64, 4u64, 4u64, 4u64, 4u64],
+            choices: vec![0u64, 1u64, 2u64, 0u64, 3u64, 0u64],
+        },
+        plaintext: DecodedVoteContest {
+            contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+            is_explicit_invalid: false,
+            choices: vec![
+                DecodedVoteChoice {
+                    id: 0.to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 1.to_string(),
+                    selected: 1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 2.to_string(),
+                    selected: 2,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 3.to_string(),
+                    selected: 2, // Duplicated selection
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 4.to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ],
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+        },
+        encoded_ballot_bigint: "402".to_string(),
+        encoded_ballot: vec_to_30_array(&vec![2, 146, 1]).unwrap(),
+        expected_errors: None,
+    }
 }
 
 pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {
@@ -284,7 +387,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             max_votes: (2),
             min_votes: (1),
             voting_type: Some("first-past-the-post".into()),
-            counting_algorithm: Some("plurality-at-large".into()),
+            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
             is_encrypted: (true),
             annotations: None,
             candidates: vec![
@@ -542,7 +645,7 @@ pub fn get_test_contest() -> Contest {
         max_votes: (3),
         min_votes: (1),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()),
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
         annotations: None,
         candidates: vec![
@@ -673,7 +776,7 @@ pub fn get_test_contest() -> Contest {
 pub(crate) fn get_configurable_contest(
     max: i64,
     num_candidates: usize,
-    counting_algorithm: String,
+    counting_algorithm: CountingAlgType,
     enable_writeins: bool,
     write_in_contests: Option<Vec<usize>>,
     base32_writeins: bool,
@@ -697,7 +800,7 @@ pub(crate) fn get_configurable_contest(
         max_votes: (3),
         min_votes: (0),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()),
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
         annotations: None,
         candidates: vec![
@@ -999,7 +1102,7 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
         max_votes: (200),
         min_votes: (0),
         voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()),
+        counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
         candidates,
         presentation: Some(ContestPresentation {
@@ -1167,7 +1270,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 winning_candidates_num: (1),
                 min_votes: (0),
                 voting_type: Some("first-past-the-post".into()),
-                counting_algorithm: Some("plurality-at-large".into()),
+                counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
                 annotations: None,
                 candidates: vec![
@@ -1367,7 +1470,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min_votes: (0),
                 winning_candidates_num: (1),
                 voting_type: Some("first-past-the-post".into()),
-                counting_algorithm: Some("plurality-at-large".into()),
+                counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
                 annotations: None,
                 candidates: vec![
@@ -1547,7 +1650,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min_votes: (0),
                 winning_candidates_num: (1),
                 voting_type: Some("first-past-the-post".into()),
-                counting_algorithm: Some("plurality-at-large".into()),
+                counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
                 annotations: None,
                 candidates: vec![
@@ -1737,7 +1840,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min_votes: (1),
                 winning_candidates_num: (1),
                 voting_type: Some("first-past-the-post".into()),
-                counting_algorithm: Some("plurality-at-large".into()),
+                counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
                 annotations: None,
                 candidates: vec![
@@ -1901,7 +2004,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min_votes: (1),
                 winning_candidates_num: (1),
                 voting_type: Some("first-past-the-post".into()),
-                counting_algorithm: Some("plurality-at-large".into()),
+                counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
                 annotations: None,
                 candidates: vec![
@@ -2075,7 +2178,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min_votes: (1),
                 winning_candidates_num: (1),
                 voting_type: Some("first-past-the-post".into()),
-                counting_algorithm: Some("plurality-at-large".into()),
+                counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
                 annotations: None,
                 candidates: vec![
@@ -2248,7 +2351,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min_votes: (1),
                 winning_candidates_num: (1),
                 voting_type: Some("first-past-the-post".into()),
-                counting_algorithm: Some("plurality-at-large".into()),
+                counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
                 annotations: None,
                 candidates: vec![
@@ -2414,7 +2517,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "plurality with two selections".to_string(),
-            contest: get_configurable_contest(3, 7, "plurality-at-large".to_string(), false, None, true),
+            contest: get_configurable_contest(3, 7, CountingAlgType::PluralityAtLarge, false, None, true),
             raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 0, 1, 0, 0, 0, 1, 0],
@@ -2470,7 +2573,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "plurality with three selections".to_string(),
-            contest: get_configurable_contest(3, 7, "plurality-at-large".to_string(), false, None, true),
+            contest: get_configurable_contest(3, 7, CountingAlgType::PluralityAtLarge, false, None, true),
             raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 1, 1, 0, 0, 0, 1, 0],
@@ -2526,7 +2629,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "borda with three selections".to_string(),
-            contest: get_configurable_contest(3, 7, "borda".to_string(), false, None, true),
+            contest: get_configurable_contest(3, 7, CountingAlgType::Borda, false, None, true),
             raw_ballot: RawBallotContest {
                 bases: vec![2, 4, 4, 4, 4, 4, 4, 4],
                 choices: vec![0, 1, 3, 0, 0, 0, 2, 0]
@@ -2580,7 +2683,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "plurality explicit invalid and one selection".to_string(),
-            contest: get_configurable_contest(2, 2, "plurality-at-large".to_string(), false, None, true),
+            contest: get_configurable_contest(2, 2, CountingAlgType::PluralityAtLarge, false, None, true),
             raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2],
                 choices: vec![1, 1, 0]
@@ -2616,7 +2719,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "two write ins, an explicit invalid ballot, one of the write-ins is not selected".to_string(),
-            contest: get_configurable_contest(2, 6, "borda".to_string(), true, None, true),
+            contest: get_configurable_contest(2, 6, CountingAlgType::Borda, true, None, true),
             raw_ballot: RawBallotContest {
                 bases: vec!  [2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
                 choices: vec![1, 1, 0, 0, 1, 2, 0, 4, 0, 0]
@@ -2639,6 +2742,12 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             ("numSelected".to_string(), "3".to_string()),
                             ("max".to_string(), "2".to_string())
                         ]),
+                    },
+                    InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some("errors.implicit.duplicatedPosition".to_string()),
+                        message_map: HashMap::new(),
                     }
                 ],
                 invalid_alerts: vec![],
@@ -2683,7 +2792,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "three write ins, a valid ballot, one of the write-ins is not selected".to_string(),
-            contest: get_configurable_contest(3, 7, "plurality-at-large".to_string(), true, None, true),
+            contest: get_configurable_contest(3, 7, CountingAlgType::PluralityAtLarge, true, None, true),
             raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 32, 32, 32, 32, 32, 32, 32, 32],
                 choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 5, 0, 0, 1, 27, 2, 3, 0]
@@ -2739,7 +2848,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Not enough choices to decode".to_string(),
-            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, None, true),
+            contest: get_configurable_contest(2, 3, CountingAlgType::PluralityAtLarge, true, None, true),
             raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0],
@@ -2780,7 +2889,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "simple vote".to_string(),
-            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
+            contest: get_configurable_contest(2, 3, CountingAlgType::PluralityAtLarge, true, Some(vec![0]), true),
             raw_ballot: RawBallotContest {
                 bases:   vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0, 0],
@@ -2818,7 +2927,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Write in doesn't end on 0".to_string(),
-            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
+            contest: get_configurable_contest(2, 3, CountingAlgType::PluralityAtLarge, true, Some(vec![0]), true),
             raw_ballot: RawBallotContest {
                 bases:   vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 1],
@@ -2862,7 +2971,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Ballot larger than expected".to_string(),
-            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, Some(vec![]), true),
+            contest: get_configurable_contest(2, 3, CountingAlgType::PluralityAtLarge, true, Some(vec![]), true),
             raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 24],
@@ -2915,7 +3024,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
             contest: get_configurable_contest(
                 3,
                 7,
-                "plurality-at-large".to_string(),
+                CountingAlgType::PluralityAtLarge,
                 false,
                 None,
                 true,
@@ -2926,7 +3035,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
             contest: get_configurable_contest(
                 1,
                 1,
-                "plurality-at-large".to_string(),
+                CountingAlgType::PluralityAtLarge,
                 false,
                 None,
                 true,
@@ -2937,7 +3046,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
             contest: get_configurable_contest(
                 1,
                 1,
-                "borda".to_string(),
+                CountingAlgType::Borda,
                 false,
                 None,
                 true,
@@ -2948,7 +3057,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
             contest: get_configurable_contest(
                 2,
                 3,
-                "borda".to_string(),
+                CountingAlgType::Borda,
                 false,
                 None,
                 true,

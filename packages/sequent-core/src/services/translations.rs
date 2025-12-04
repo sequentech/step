@@ -5,8 +5,8 @@
 use crate::{
     ballot::{
         Contest, ContestEncryptionPolicy, ContestPresentation,
-        DecodedBallotsInclusionPolicy, ElectionEventPresentation,
-        ElectionPresentation, I18nContent,
+        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
+        ElectionEventPresentation, ElectionPresentation, I18nContent,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::hasura::core::{Election, ElectionEvent},
@@ -59,6 +59,18 @@ impl ElectionEvent {
         presentation
             .decoded_ballot_inclusion_policy
             .unwrap_or_default()
+    }
+
+    pub fn get_delegated_voting_policy(&self) -> DelegatedVotingPolicy {
+        let Some(presentation_val) = self.presentation.clone() else {
+            return DelegatedVotingPolicy::default();
+        };
+        let Ok(presentation) =
+            deserialize_value::<ElectionEventPresentation>(presentation_val)
+        else {
+            return DelegatedVotingPolicy::default();
+        };
+        presentation.delegated_voting_policy.unwrap_or_default()
     }
 }
 
