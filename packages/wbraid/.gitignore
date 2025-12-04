@@ -3,6 +3,11 @@ b4.db
 b4.db-shm
 b4.db-wal
 
+# misc
+browser_trustee_config.json
+Cargo.lock
+demo/
+
 # Rust
 target/
 **/*.rs.bk
