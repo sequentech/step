@@ -24,3 +24,5 @@ if the user existed, leaking the information that the user did exist.
 ## 🐞 Tally UI shows manual and executes automatic after policy switch
 
 Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
+
+- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
