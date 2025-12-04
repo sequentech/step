@@ -51,11 +51,23 @@ web-sys = { version = "0.3", optional = true, features = [
     "IdbRequest",
     "IdbTransactionMode",
     "IdbCursorWithValue",
+    # OPFS (Origin Private File System) support
+    "Navigator",
+    "StorageManager",
+    "FileSystemDirectoryHandle",
+    "FileSystemFileHandle",
+    "FileSystemSyncAccessHandle",
+    "FileSystemGetDirectoryOptions",
+    "FileSystemGetFileOptions",
+    "FileSystemReadWriteOptions",
+    # localStorage for OPFS metadata cache
+    "Storage",
 ] }
 tracing-wasm = { version = "0.2", optional = true }
 indexed_db_futures = { version = "0.5", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
+sqlite-wasm-rs = { version = "0.4", optional = true, default-features = false, features = ["precompiled"] }
 
 # Shared optional dependencies (used in both native and WASM but with different features)
 reqwest = { version = "0.12", optional = true, default-features = false, features = ["json", "rustls-tls"] }
@@ -123,7 +135,7 @@ native = [
     "dep:chrono",
 ]
 
-# WASM build with HTTP bulletin board and IndexedDB
+# WASM build with HTTP bulletin board and SQLite WASM storage
 wasm-core = [
     "dep:strand",
     "strand/wasm",
@@ -138,13 +150,17 @@ wasm-core = [
     "dep:indexed_db_futures",
     "dep:console_error_panic_hook",
     "dep:serde-wasm-bindgen",
+    "dep:sqlite-wasm-rs",
     "dep:b4",
     "b4/wasm-core",
 ]
 
+# SQLite WASM storage (explicit feature for conditional compilation)
+sqlite-wasm-rs = ["dep:sqlite-wasm-rs"]
+
 # Cryptography backend options (strand features)
 # wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-wasm = ["wasm-core"]
+wasm = ["wasm-core", "sqlite-wasm-rs"]
 
 # Memory profiling (native only)
 jemalloc = ["dep:tikv-jemalloc-ctl", "dep:tikv-jemallocator"]

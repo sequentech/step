@@ -68,3 +68,4 @@ pub trait LocalBoardStorage: Send + Sync {
     /// Maximum external_id, or -1 if store is empty
     fn get_last_external_id(&self) -> Result<i64>;
 }
+

@@ -12,6 +12,9 @@ use serde::{Deserialize, Serialize};
 use crate::protocol::session::Session;
 use crate::protocol::board::BoardEntry;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
+#[cfg(feature = "sqlite-wasm-rs")]
+use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, SqliteStorage};
+#[cfg(not(feature = "sqlite-wasm-rs"))]
 use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, BrowserStorage};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -57,6 +60,9 @@ pub struct SessionState {
 /// The protocol execution cycle is managed by the inner session.
 #[wasm_bindgen]
 pub struct WasmSession {
+    #[cfg(feature = "sqlite-wasm-rs")]
+    session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, SqliteStorage>>,
+    #[cfg(not(feature = "sqlite-wasm-rs"))]
     session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, BrowserStorage>>,
     // Trustee instance name
     // FIXME is this used anywhere?
@@ -96,6 +102,16 @@ impl WasmSession {
         })
     }
 
+    /// Initialize OPFS VFS for SQLite storage (call once before init_session)
+    /// 
+    /// This must be called before creating any sessions when using SQLite storage.
+    /// It installs the OPFS (Origin Private File System) backend that SQLite will use.
+    #[cfg(feature = "sqlite-wasm-rs")]
+    pub async fn init_storage() -> Result<(), JsValue> {
+        crate::wasm::board::init_sqlite_opfs().await?;
+        Ok(())
+    }
+
     /// Initialize a session for a specific board
     /// 
     /// This creates the Trustee object needed to process messages
@@ -110,13 +126,24 @@ impl WasmSession {
         let ek = symm::sk_from_bytes(&bytes)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse encryption key: {}", e)))?;
         
-        // Create trustee with browser storage
+        // Create trustee with storage
+        #[cfg(feature = "sqlite-wasm-rs")]
+        let storage = {
+            web_sys::console::log_1(&JsValue::from_str("Using SqliteStorage with OPFS backend"));
+            SqliteStorage::new(format!("{}.db", board_name))
+        };
+        #[cfg(not(feature = "sqlite-wasm-rs"))]
+        let storage = {
+            web_sys::console::log_1(&JsValue::from_str("Using BrowserStorage (transient localStorage)"));
+            BrowserStorage::new()
+        };
+        
         let trustee = Trustee::new(
             self.name.clone(),
             board_name.clone(),
             sk,
             ek,
-            BrowserStorage::new(),
+            storage,
             None, // Default max_concurrent_actions
         );
         

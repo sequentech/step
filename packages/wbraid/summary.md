@@ -125,6 +125,14 @@ Completed: Trustees = 5, Threshold = 3, Ciphertexts = 1000
    - **Goal**: Validate board metadata tracking and monitor visualization
    - **Note**: Monitor was migrated from b3's INDEX table approach to b4's boards table
 
+2.6 Revise:
+
+// SAFETY: BrowserStorage is safe to Send/Sync in WASM because:
+// - WASM runs single-threaded on the main thread
+// - RefCell provides interior mutability without actual thread contention
+// - Rayon workers run in separate WASM instances, don't share this storage
+unsafe impl Send for BrowserStorage {}
+unsafe impl Sync for BrowserStorage {}
 
 2.7 Remove warnings
 
