@@ -37,18 +37,34 @@ pub trait Board: Sized {
     /// ids do not determine the message history; this history is defined
     /// locally by each trustee according to the order in which those messages
     /// were received.
+    #[cfg(not(target_arch = "wasm32"))]
     fn get_messages(
         &mut self,
         board: &str,
         last_id: i64,
     ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>> + Send;
 
+    #[cfg(target_arch = "wasm32")]
+    fn get_messages(
+        &mut self,
+        board: &str,
+        last_id: i64,
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>>;
+
     /// Posts a messages to the given board of the bulletin board.
+    #[cfg(not(target_arch = "wasm32"))]
     fn insert_messages(
         &mut self,
         board: &str,
         messages: Vec<Message>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
+
+    #[cfg(target_arch = "wasm32")]
+    fn insert_messages(
+        &mut self,
+        board: &str,
+        messages: Vec<Message>,
+    ) -> impl std::future::Future<Output = Result<()>>;
 }
 
 /// Allows abstracting over a board client implementation

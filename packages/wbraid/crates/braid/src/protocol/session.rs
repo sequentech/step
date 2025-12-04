@@ -17,7 +17,7 @@ use crate::util::ProtocolError;
 /// bulletin board.
 pub struct Session<C: Ctx + 'static, B: Board + 'static, S: crate::protocol::board::LocalBoardStorage> {
     pub board_name: String,
-    trustee: Trustee<C, S>,
+    pub trustee: Trustee<C, S>,
     board_factory: B::Factory,
 }
 impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, B, S> {

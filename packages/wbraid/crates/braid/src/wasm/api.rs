@@ -9,8 +9,10 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::protocol::trustee::{Trustee, TrusteeConfig};
+use crate::protocol::session::Session;
 use crate::protocol::board::BoardEntry;
+use crate::protocol::trustee::{Trustee, TrusteeConfig};
+use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, BrowserStorage};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -50,8 +52,7 @@ pub struct SessionState {
 /// Main WASM session interface
 #[wasm_bindgen]
 pub struct WasmSession {
-    // Temporarily using native::board::NoOpStorage until WASM gets proper browser storage
-    trustee: Option<Trustee<RistrettoCtx, crate::native::board::NoOpStorage>>,
+    session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, BrowserStorage>>,
     name: String,                  // Session: Trustee instance name
     b4_url: String,                // Session: HTTP endpoint
     board_name: Option<String>,    // Session: Current board
@@ -80,7 +81,7 @@ impl WasmSession {
             .map_err(|e| JsValue::from_str(&format!("Failed to parse config: {}", e)))?;
         
         Ok(WasmSession {
-            trustee: None,
+            session: None,
             name: wasm_config.name,
             b4_url: wasm_config.b4_url,
             board_name: None,
@@ -102,17 +103,25 @@ impl WasmSession {
         let ek = symm::sk_from_bytes(&bytes)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse encryption key: {}", e)))?;
         
-        // Create trustee (no persistent store for WASM - in-memory only)
+        // Create trustee with browser storage
         let trustee = Trustee::new(
             self.name.clone(),
             board_name.clone(),
             sk,
             ek,
-            crate::native::board::NoOpStorage::new(),
+            BrowserStorage::new(),
             None, // Default max_concurrent_actions
         );
         
-        self.trustee = Some(trustee);
+        // Create board factory
+        let board_factory = WasmHttpBoardFactory::new(WasmHttpBoardParams {
+            b4_url: self.b4_url.clone(),
+        });
+        
+        // Create session
+        let session = Session::new(&board_name, trustee, board_factory);
+        
+        self.session = Some(session);
         self.board_name = Some(board_name.clone());
         
         web_sys::console::log_1(&JsValue::from_str(&format!(
@@ -133,13 +142,13 @@ impl WasmSession {
     /// Returns the number of messages fetched and added to the local board.
     pub async fn connect_to_board(&mut self) -> Result<JsValue, JsValue> {
         // Ensure we have a session
-        let trustee = self.trustee.as_mut()
+        let session = self.session.as_mut()
             .ok_or_else(|| JsValue::from_str("Session not initialized. Call init_session() first"))?;
         
         web_sys::console::log_1(&JsValue::from_str("Connecting to board and fetching existing messages..."));
         
         // Get last external ID (should be 0 for a fresh connection)
-        let last_id = trustee.get_last_external_id()
+        let last_id = session.trustee.get_last_external_id()
             .map_err(|e| JsValue::from_str(&format!("Failed to get last ID: {:?}", e)))?;
         
         web_sys::console::log_1(&JsValue::from_str(&format!("Fetching messages after ID {}", last_id)));
@@ -151,8 +160,8 @@ impl WasmSession {
         
         // Update the local board without executing actions
         let (added_messages, last_message_id) = {
-            let trustee = self.trustee.as_mut()
-                .ok_or_else(|| JsValue::from_str("Trustee disappeared"))?;
+            let session = self.session.as_mut()
+                .ok_or_else(|| JsValue::from_str("Session disappeared"))?;
             
             // Convert HttpB3Message to (Message, i64) pairs
             let parsed_messages: Result<Vec<_>, JsValue> = messages.iter()
@@ -169,15 +178,15 @@ impl WasmSession {
             let parsed_messages = parsed_messages?;
             
             // Update local board (this is what step() does internally)
-            trustee.update_local_board(parsed_messages)
+            session.trustee.update_local_board(parsed_messages)
                 .map_err(|e| JsValue::from_str(&format!("Failed to update local board: {:?}", e)))?
         };
         
         // Update the last_local_board_id in trustee
         if added_messages > 0 {
-            let trustee = self.trustee.as_mut()
-                .ok_or_else(|| JsValue::from_str("Trustee disappeared"))?;
-            trustee.last_local_board_id = last_message_id;
+            let session = self.session.as_mut()
+                .ok_or_else(|| JsValue::from_str("Session disappeared"))?;
+            session.trustee.last_local_board_id = last_message_id;
             
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "✓ Connected to board: {} messages added, last_local_board_id = {}",
@@ -580,68 +589,40 @@ impl WasmSession {
     /// 2. Processes them through the trustee
     /// 3. Posts any resulting messages back to B4
     /// 
-    /// Returns the number of messages posted and messages added
+    /// Returns information about actions taken
     pub async fn step(&mut self) -> Result<JsValue, JsValue> {
-        // Get last external ID first
-        let last_id = {
-            let trustee = self.trustee.as_mut()
-                .ok_or_else(|| JsValue::from_str("Session not initialized. Call init_session() first"))?;
-            
-            trustee.get_last_external_id()
-                .map_err(|e| JsValue::from_str(&format!("Failed to get last ID: {:?}", e)))?
-        };
+        let session = self.session.as_mut()
+            .ok_or_else(|| JsValue::from_str("Session not initialized. Call init_session() first"))?;
         
-        web_sys::console::log_1(&JsValue::from_str(&format!("Fetching messages after ID {}", last_id)));
+        // Capture state before step for reporting
+        let messages_before = session.trustee.local_board.get_statement_entries().len();
         
-        // Fetch messages from B4
-        let messages = self.fetch_messages(last_id).await?;
+        // Use the generic Session::step() method which handles everything
+        session.step()
+            .await
+            .map_err(|e| {
+                let error_msg = format!("Step failed: {:?}", e);
+                web_sys::console::error_1(&JsValue::from_str(&error_msg));
+                JsValue::from_str(&error_msg)
+            })?;
         
-        web_sys::console::log_1(&JsValue::from_str(&format!("Received {} messages", messages.len())));
-        
-        // Process through trustee
-        let (num_posted, num_added, messages_to_post, action_strings) = {
-            let trustee = self.trustee.as_mut()
-                .ok_or_else(|| JsValue::from_str("Trustee disappeared"))?;
-                
-            let step_result = trustee.step(&messages)
-                .map_err(|e| {
-                    let error_msg = format!("Step failed: {:?}", e);
-                    web_sys::console::error_1(&JsValue::from_str(&error_msg));
-                    JsValue::from_str(&error_msg)
-                })?;
-            
-            // Convert actions to strings using Display trait
-            let actions: Vec<String> = step_result.actions.iter()
-                .map(|a| format!("{}", a))
-                .collect();
-            
-            (step_result.messages.len(), step_result.added_messages as usize, step_result.messages, actions)
-        };
-        
-        if num_posted > 0 {
-            web_sys::console::log_1(&JsValue::from_str(&format!("Posting {} messages", num_posted)));
-            
-            // Post messages back to B4
-            self.post_messages(messages_to_post).await?;
-        }
+        // Report what happened (approximate - Session doesn't expose detailed step results)
+        let messages_after = session.trustee.local_board.get_statement_entries().len();
+        let added = messages_after.saturating_sub(messages_before);
         
         #[derive(Serialize)]
         struct StepInfo {
-            posted: usize,
             added: usize,
-            actions: Vec<String>,
         }
         
         serde_wasm_bindgen::to_value(&StepInfo {
-            posted: num_posted,
-            added: num_added,
-            actions: action_strings,
+            added,
         }).map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 
     /// Get current state of the trustee for visualization
     pub fn get_state(&self) -> Result<JsValue, JsValue> {
-        let trustee = self.trustee.as_ref()
+        let session = self.session.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
 
         let board_name = self.board_name.as_ref()
@@ -650,9 +631,9 @@ impl WasmSession {
         // Access trustee fields directly
         let state = SessionState {
             board_name: board_name.clone(),
-            current_messages: trustee.local_board.get_statement_entries().len() + 1,  // +1 for config
-            max_messages: trustee.local_board.max_messages(),
-            last_message_id: trustee.last_local_board_id,
+            current_messages: session.trustee.local_board.get_statement_entries().len() + 1,  // +1 for config
+            max_messages: session.trustee.local_board.max_messages(),
+            last_message_id: session.trustee.last_local_board_id,
         };
         
         serde_wasm_bindgen::to_value(&state)
@@ -679,7 +660,7 @@ impl WasmSession {
 
     /// Get board summary - list of statements in local board
     pub fn get_board_summary(&self) -> Result<JsValue, JsValue> {
-        let trustee = self.trustee.as_ref()
+        let session = self.session.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
 
         #[derive(Serialize)]
@@ -690,7 +671,7 @@ impl WasmSession {
             mix: usize,
         }
         
-        let entries: Vec<BoardEntry> = trustee.local_board.get_statement_entries();
+        let entries: Vec<BoardEntry> = session.trustee.local_board.get_statement_entries();
         let summary: Vec<StatementInfo> = entries
             .iter()
             .map(|e| StatementInfo {

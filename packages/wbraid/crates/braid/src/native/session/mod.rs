@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod session;
+// Native-specific session implementations with tokio optimizations
 pub mod session_m;
 pub mod session_master;
 
-pub use session::Session;
+// Re-export generic Session from protocol (for backward compatibility)
+pub use crate::protocol::session::Session;
 pub use session_m::SessionM;
