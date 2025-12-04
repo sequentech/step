@@ -7,10 +7,10 @@
 //! This module provides WebAssembly bindings for running Braid trustees in a browser.
 //! It requires the `wasm` feature to be enabled.
 
-pub mod api;
+pub mod session;
 pub mod board;
 
-pub use api::WasmSession;
+pub use session::WasmSession;
 
 // Re-export wasm-bindgen-rayon's initThreadPool for browser usage
 // This provides parallel computation support via Web Workers

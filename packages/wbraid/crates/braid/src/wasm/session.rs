@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! WASM bindings for Braid protocol sessions
+//! WASM bindings for Braid mixnet node
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;

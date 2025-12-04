@@ -125,18 +125,6 @@ Completed: Trustees = 5, Threshold = 3, Ciphertexts = 1000
    - **Goal**: Validate board metadata tracking and monitor visualization
    - **Note**: Monitor was migrated from b3's INDEX table approach to b4's boards table
 
-2.5 Batches and mixnumbers are not being respected by braid-wasm, hardcoded at 0, see lib::post_message, eg
-
-let response = self.bb_client.initiate_message(
-            size,
-            "unknown".to_string(),
-            "Unknown".to_string(),
-            0,
-            0,
-        ).await?;
-
-2.6 The shared crate may be unnecessary we should be reusing structs from b4, not creating
-duplicates on the receiving end
 
 2.7 Remove warnings
 
