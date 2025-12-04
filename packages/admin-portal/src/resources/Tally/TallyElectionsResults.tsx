@@ -140,7 +140,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            {resultsData.length ? (
+            {isLoading || !isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
+            ) : resultsData.length ? (
                 <DataGrid
                     rows={resultsData}
                     columns={columns}
@@ -154,8 +156,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     pageSizeOptions={[10, 20, 50, 100]}
                     disableRowSelectionOnClick
                 />
-            ) : isLoading || !isTallyDataMatchCurrentResults ? (
-                <LoadingResults />
             ) : (
                 <NoItem />
             )}

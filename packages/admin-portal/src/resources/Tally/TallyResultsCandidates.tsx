@@ -27,7 +27,6 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
-import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -51,7 +50,6 @@ const winningPositionComparator: GridComparatorFn<string> = (v1, v2) => {
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
-    const [isLoading, setIsLoading] = useState(true)
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
@@ -86,12 +84,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 
-    const isTallyDataMatchCurrentResults = useMemo(() => {
-        return !!tallyData?.sequent_backend_results_event.find(
-            (event) => event.id === resultsEventId
-        )
-    }, [tallyData?.sequent_backend_results_event, resultsEventId])
-
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -110,11 +102,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     }
                 }
             )
+
             setResultsData(temp)
-            setIsLoading(false)
-        }
-        if (isTallyDataMatchCurrentResults && (!candidates?.length || !results?.length)) {
-            setIsLoading(false)
         }
     }, [results, candidates])
 
@@ -285,8 +274,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                         </TableBody>
                     </Table>
                 </TableContainer>
-            ) : !isTallyDataMatchCurrentResults ? (
-                <LoadingResults />
             ) : (
                 <NoItem />
             )}
@@ -312,8 +299,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     pageSizeOptions={[10, 20, 50, 100]}
                     disableRowSelectionOnClick
                 />
-            ) : isLoading || !isTallyDataMatchCurrentResults ? (
-                <LoadingResults />
             ) : (
                 <NoItem />
             )}
