@@ -4,7 +4,9 @@ Upstream-Contact: Eduardo Robles <edu@sequentech.io>
 Source: https://github.com/sequentech
 
 Files:
-  hasura/*
+  hasura/*.* 
+  hasura/metadata/* 
+  hasura/migrations/*
   .ackrc
   packages/.ackrc
   packages/.gitignore

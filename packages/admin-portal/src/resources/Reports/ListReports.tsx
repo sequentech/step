@@ -242,7 +242,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: templates} = useGetList<Sequent_Backend_Template>(
         "sequent_backend_template",
         {
-            pagination: {page: 1, perPage: 100},
+            pagination: {page: 1, perPage: 1000},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
@@ -259,7 +259,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {data: elections} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
-            pagination: {page: 1, perPage: 200},
+            pagination: {page: 1, perPage: 1000},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,

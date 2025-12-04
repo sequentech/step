@@ -168,16 +168,21 @@ impl RawBallotCodec for Contest {
 
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
-        let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
-        let mut invalid_alerts: Vec<InvalidPlaintextError> = vec![];
+
+        // Prepare the return value to pass it around, its values can still be
+        // modified.
+        let mut decoded_contest = DecodedVoteContest {
+            contest_id: self.id.clone(),
+            is_explicit_invalid,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![],
+        };
         let char_map = self.get_char_map();
 
         // 1. clone the contest and reset the selections
         let mut sorted_candidates = self.candidates.clone();
         sorted_candidates.sort_by_key(|q| q.id.clone());
-
-        // 1.2. Initialize selection
-        let mut sorted_choices: Vec<DecodedVoteChoice> = vec![];
 
         // 2. sort & segment candidates
         let valid_candidates: Vec<&Candidate> = sorted_candidates
@@ -192,7 +197,7 @@ impl RawBallotCodec for Contest {
         //    raw_ballot has as many choices as required
         if choices.len() < valid_candidates.len() + 1 {
             // Invalid Ballot: Not enough choices to decode
-            invalid_errors.push(InvalidPlaintextError {
+            decoded_contest.invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::EncodingError,
                 candidate_id: None,
                 message: Some("errors.encoding.notEnoughChoices".to_string()),
@@ -217,7 +222,7 @@ impl RawBallotCodec for Contest {
                 .to_i64()
                 .ok_or_else(|| "choice out of range".to_string())?;
 
-            sorted_choices.push(DecodedVoteChoice {
+            decoded_contest.choices.push(DecodedVoteChoice {
                 id: candidate.id.clone(),
                 selected: choice_value - 1,
                 write_in_text: None,
@@ -244,18 +249,21 @@ impl RawBallotCodec for Contest {
                 if let Ok(new_value) = value_res {
                     write_in_bytes.push(new_value);
                 } else {
-                    invalid_errors.push(InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::EncodingError,
-                        candidate_id: Some(candidate.id.clone()),
-                        message: Some(
-                            "errors.encoding.writeInChoiceOutOfRange"
-                                .to_string(),
-                        ),
-                        message_map: HashMap::from([(
-                            "index".to_string(),
-                            write_in_index.to_string(),
-                        )]),
-                    });
+                    decoded_contest.invalid_errors.push(
+                        InvalidPlaintextError {
+                            error_type:
+                                InvalidPlaintextErrorType::EncodingError,
+                            candidate_id: Some(candidate.id.clone()),
+                            message: Some(
+                                "errors.encoding.writeInChoiceOutOfRange"
+                                    .to_string(),
+                            ),
+                            message_map: HashMap::from([(
+                                "index".to_string(),
+                                write_in_index.to_string(),
+                            )]),
+                        },
+                    );
                 }
 
                 write_in_index += 1;
@@ -263,7 +271,7 @@ impl RawBallotCodec for Contest {
 
             // check index is not out of bounds
             if write_in_index >= choices.len() {
-                invalid_errors.push(InvalidPlaintextError {
+                decoded_contest.invalid_errors.push(InvalidPlaintextError {
                     error_type: InvalidPlaintextErrorType::EncodingError,
                     candidate_id: Some(candidate.id.clone()),
                     message: Some(
@@ -281,7 +289,7 @@ impl RawBallotCodec for Contest {
             let write_in_str_res = char_map.to_string(&write_in_bytes);
 
             if write_in_str_res.is_err() {
-                invalid_errors.push(InvalidPlaintextError {
+                decoded_contest.invalid_errors.push(InvalidPlaintextError {
                     error_type: InvalidPlaintextErrorType::EncodingError,
                     candidate_id: Some(candidate.id.clone()),
                     message: Some(
@@ -297,17 +305,18 @@ impl RawBallotCodec for Contest {
             let write_in_str = write_in_str_res.map(Some).unwrap_or(None);
 
             // add write_in to choice
-            let n = sorted_choices
+            let n = decoded_contest
+                .choices
                 .iter()
                 .position(|choice| choice.id == candidate.id)
                 .unwrap();
-            let mut choice = sorted_choices[n].clone();
+            let mut choice = decoded_contest.choices[n].clone();
             choice.write_in_text = write_in_str;
-            sorted_choices[n] = choice;
+            decoded_contest.choices[n] = choice;
         }
 
         if write_in_index < choices.len() {
-            invalid_errors.push(InvalidPlaintextError {
+            decoded_contest.invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::EncodingError,
                 candidate_id: None,
                 message: Some("errors.encoding.ballotTooLarge".to_string()),
@@ -315,241 +324,55 @@ impl RawBallotCodec for Contest {
             });
         }
 
-        let invalid_vote_policy = self.get_invalid_vote_policy();
-        // explicit invalid error
-        if is_explicit_invalid {
-            match invalid_vote_policy {
-                InvalidVotePolicy::NOT_ALLOWED => {
-                    invalid_errors.push(InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Explicit,
-                        candidate_id: None,
-                        message: Some("errors.explicit.notAllowed".to_string()),
-                        message_map: HashMap::new(),
-                    });
-                }
-                InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT => {
-                    invalid_alerts.push(InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Explicit,
-                        candidate_id: None,
-                        message: Some("errors.explicit.alert".to_string()),
-                        message_map: HashMap::new(),
-                    });
-                }
-                _ => {}
-            }
-        }
+        let presentation = self.presentation.clone().unwrap_or_default();
+
+        let invalid_vote_policy_errors =
+            check_invalid_vote_policy(&presentation, is_explicit_invalid);
+        decoded_contest.update(invalid_vote_policy_errors);
 
         // implicit invalid errors
-        let num_selected_candidates = sorted_choices
+        let num_selected_candidates = decoded_contest
+            .choices
             .iter()
             .filter(|choice| choice.selected > -1)
             .count();
 
-        // Prepare the return value to pass it around, its values can still be
-        // modified.
-        let mut decoded_contest = DecodedVoteContest {
-            contest_id: self.id.clone(),
-            is_explicit_invalid,
-            invalid_errors,
-            invalid_alerts,
-            choices: sorted_choices,
-        };
+        let (max_votes, min_votes, maxmin_errors) =
+            check_max_min_votes_policy(self.max_votes, self.min_votes);
+        decoded_contest.update(maxmin_errors);
 
-        let max_votes: Option<usize> = match usize::try_from(self.max_votes) {
-            Ok(val) => Some(val),
-            Err(_) => {
-                decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::EncodingError,
-                    candidate_id: None,
-                    message: Some(
-                        "errors.encoding.invalidMaxVotes".to_string(),
-                    ),
-                    message_map: HashMap::from([(
-                        "max".to_string(),
-                        self.max_votes.to_string(),
-                    )]),
-                });
-
-                None
-            }
-        };
-
-        let min_votes: Option<usize> = match usize::try_from(self.min_votes) {
-            Ok(val) => Some(val),
-            Err(_) => {
-                decoded_contest.invalid_errors.push(InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::EncodingError,
-                    candidate_id: None,
-                    message: Some(
-                        "errors.encoding.invalidMinVotes".to_string(),
-                    ),
-                    message_map: HashMap::from([(
-                        "min".to_string(),
-                        self.min_votes.to_string(),
-                    )]),
-                });
-
-                None
-            }
-        };
-
-        if let Some(presentation) = &self.presentation {
-            if let Some(max_votes) = max_votes {
-                if num_selected_candidates >= max_votes {
-                    decoded_contest = handle_over_vote_policy(
-                        &decoded_contest,
-                        &presentation,
-                        num_selected_candidates,
-                        max_votes,
-                    );
-                }
-            }
-            if let Some(min_votes) = min_votes {
-                if num_selected_candidates < min_votes {
-                    decoded_contest.invalid_errors.push(
-                        InvalidPlaintextError {
-                            error_type: InvalidPlaintextErrorType::Implicit,
-                            candidate_id: None,
-                            message: Some(
-                                "errors.implicit.selectedMin".to_string(),
-                            ),
-                            message_map: HashMap::from([
-                                (
-                                    "numSelected".to_string(),
-                                    num_selected_candidates.to_string(),
-                                ),
-                                ("min".to_string(), self.min_votes.to_string()),
-                            ]),
-                        },
-                    );
-                }
-            }
-
-            // Handle undervote alerts. Please note that the case of
-            // `num_selected_candidates < min_votes` is handle in prev step and
-            // is independent of `under_vote_policy`, it's an invalid vote no
-            // matter what
-            if let (Some(max_votes), Some(min_votes), Some(under_vote_policy)) =
-                (max_votes, min_votes, presentation.under_vote_policy)
-            {
-                if under_vote_policy != EUnderVotePolicy::ALLOWED
-                    && num_selected_candidates < max_votes
-                    && num_selected_candidates >= min_votes
-                {
-                    decoded_contest.invalid_alerts.push(
-                        InvalidPlaintextError {
-                            error_type: InvalidPlaintextErrorType::Implicit,
-                            candidate_id: None,
-                            message: Some(
-                                "errors.implicit.underVote".to_string(),
-                            ),
-                            message_map: HashMap::from([
-                                ("type".to_string(), "alert".to_string()),
-                                (
-                                    "numSelected".to_string(),
-                                    num_selected_candidates.to_string(),
-                                ),
-                                ("min".to_string(), self.min_votes.to_string()),
-                                ("max".to_string(), self.max_votes.to_string()),
-                            ]),
-                        },
-                    );
-                }
-            }
-
-            // handle blank vote policy
-            if let Some(blank_vote_policy) = presentation.blank_vote_policy {
-                if num_selected_candidates == 0 && !is_explicit_invalid {
-                    (match blank_vote_policy {
-                        EBlankVotePolicy::NOT_ALLOWED => {
-                            &mut decoded_contest.invalid_errors
-                        }
-                        _ => &mut decoded_contest.invalid_alerts,
-                    })
-                    .push(InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Implicit,
-                        candidate_id: None,
-                        message: Some("errors.implicit.blankVote".to_string()),
-                        message_map: HashMap::from([
-                            ("type".to_string(), "alert".to_string()),
-                            (
-                                "numSelected".to_string(),
-                                num_selected_candidates.to_string(),
-                            ),
-                        ]),
-                    });
-                }
-            }
+        if let Some(max_votes) = max_votes.clone() {
+            let overvote_check = check_over_vote_policy(
+                &presentation,
+                num_selected_candidates,
+                max_votes,
+            );
+            decoded_contest.update(overvote_check);
         }
+        if let Some(min_votes) = min_votes.clone() {
+            let min_check =
+                check_min_vote_policy(num_selected_candidates, min_votes);
+            decoded_contest.update(min_check);
+        }
+
+        let under_vote_check = check_under_vote_policy(
+            &presentation,
+            num_selected_candidates,
+            max_votes.clone(),
+            min_votes.clone(),
+        );
+        decoded_contest.update(under_vote_check);
+
+        // handle blank vote policy
+        let blank_vote_check = check_blank_vote_policy(
+            &presentation,
+            num_selected_candidates,
+            is_explicit_invalid,
+        );
+        decoded_contest.update(blank_vote_check);
 
         Ok(decoded_contest)
     }
-}
-
-fn handle_over_vote_policy(
-    decoded_contest: &DecodedVoteContest,
-    presentation: &ContestPresentation,
-    num_selected_candidates: usize,
-    max_votes: usize,
-) -> DecodedVoteContest {
-    let mut new_decoded_contest = decoded_contest.clone();
-    if num_selected_candidates == max_votes
-        && presentation.over_vote_policy
-            == Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE)
-    {
-        new_decoded_contest
-            .invalid_alerts
-            .push(InvalidPlaintextError {
-                error_type: InvalidPlaintextErrorType::Implicit,
-                candidate_id: None,
-                message: Some("errors.implicit.overVoteDisabled".to_string()),
-                message_map: HashMap::from([
-                    ("type".to_string(), "alert".to_string()),
-                    (
-                        "numSelected".to_string(),
-                        num_selected_candidates.to_string(),
-                    ),
-                    ("max".to_string(), max_votes.to_string()),
-                ]),
-            });
-    } else if num_selected_candidates > max_votes {
-        let text_error = || InvalidPlaintextError {
-            error_type: InvalidPlaintextErrorType::Implicit,
-            candidate_id: None,
-            message: Some("errors.implicit.selectedMax".to_string()),
-            message_map: HashMap::from([
-                (
-                    "numSelected".to_string(),
-                    num_selected_candidates.to_string(),
-                ),
-                ("max".to_string(), max_votes.to_string()),
-            ]),
-        };
-
-        // for errors, we use only invalid_vote_policy. Overvote policy is going
-        // to be used only for alerts
-        if presentation.invalid_vote_policy != Some(InvalidVotePolicy::ALLOWED)
-        {
-            new_decoded_contest.invalid_errors.push(text_error());
-        }
-
-        match presentation.over_vote_policy.unwrap_or_default() {
-            EOverVotePolicy::ALLOWED => (),
-            EOverVotePolicy::ALLOWED_WITH_MSG => {
-                new_decoded_contest.invalid_alerts.push(text_error())
-            }
-            EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT => {
-                new_decoded_contest.invalid_alerts.push(text_error())
-            }
-            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT => {
-                new_decoded_contest.invalid_alerts.push(text_error());
-            }
-            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE => {
-                new_decoded_contest.invalid_alerts.push(text_error());
-            }
-        };
-    }
-    new_decoded_contest
 }
 
 #[cfg(test)]

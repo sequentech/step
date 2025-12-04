@@ -20,6 +20,7 @@ interface GenerateReportProps {
     name: string
     electionEventId: string
     tallySessionId: string
+    handleClose: () => void
 }
 
 export const GeneratePDF: React.FC<GenerateReportProps> = ({
@@ -27,6 +28,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     name,
     electionEventId,
     tallySessionId,
+    handleClose,
 }) => {
     const {t} = useTranslation()
     const [documentId, setDocumentId] = useState<string | null>(null)
@@ -51,6 +53,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     const onClick = async (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
+        handleClose()
         if (!documentId) {
             return
         }

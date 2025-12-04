@@ -7,38 +7,38 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## 🐞 Keycloak: Redirect To Registration Authenticator doesn't work when `http-relative-path` is set
+## 🐞 Fix Graphql Typescript issues
 
-Keycloak: Redirect authenticator doesn't work when http-relative-path is set.
-The reason is that the http-relative-path is set twice, `/auth` appears twice in
-the URL.
+Update Graphql definitions in the admin-portal, which is required after a
+bad merge from main.
 
-- Issue: [#8574](https://github.com/sequentech/meta/issues/8574)
+- Issue: [#9540](https://github.com/sequentech/meta/issues/9540)
 
-## 🐞 Keycloak: Deferred authenticator in Login mode ask for password confirmation
+## 🐞 Keys Ceremony > State not cleared when switching Election Events
 
-When using the Deferred Authenticator in Login mode, it was asking for password
-confirmation and it was not checking that the password matches that of the user.
+Fix keys ceremony state is not cleared when switching election events.
 
-- Issue: [#7585](https://github.com/sequentech/meta/issues/7585)
+- Issue: [#8675](https://github.com/sequentech/meta/issues/8675)
 
-## 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order
+## 🐞 Tally > State not cleared when switching events
 
-Voting Portal: Invalid/BlankVote Candidates do not follow sort order within the
-top/bottom invalid candidates block.
+Fix tally state is not cleared when switching election events on the tally tab.
 
-- Issue: [#8528](https://github.com/sequentech/meta/issues/8528)
+- Issue: [#8674](https://github.com/sequentech/meta/issues/8674)
+  
+## 🐞 Username is shown after an attempted login with a valid username
 
-### 🐞 Invalid Vote Position was not configurable in Admin Portal > Candidate
+When the Keycloak login flow used the step `Username Password Form - Allowing password expiration`,
+the email was being shown at the top of the login page after a failed login
+if the user existed, leaking the information that the user did exist.
 
-Added Invalid Vote Position configuration in Admin Portal > Candidate. This was
-already in the backend, but it was not configurable in the Admin Portal.
+- Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
 
-- Issue: [#8528](https://github.com/sequentech/meta/issues/8528)
+## 🐞 Can't filter voter logs by username
 
-## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
+Fixed an issue that prevented to search logs by username in the Admin portal.
 
-- Issue: [#8527](https://github.com/sequentech/meta/issues/8527)
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
 
 ## 🐞 Contest result extended metrics are 0
 

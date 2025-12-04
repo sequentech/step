@@ -8,7 +8,8 @@ import json
 import csv
 import random
 import os
-from itertools import cycle
+from itertools import cycle, islice
+import time
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
@@ -221,58 +222,157 @@ def run_duplicate_votes(args):
     duplicate_votes_config = config.get("duplicate_votes", {})
     row_id_to_clone = duplicate_votes_config.get("row_id_to_clone", "")
 
-    keycloak_conn = psycopg2.connect(
-        dbname=os.getenv("KC_DB"),
-        user=os.getenv("KC_DB_USERNAME"),
-        password=os.getenv("KC_DB_PASSWORD"),
-        host=os.getenv("KC_DB_URL_HOST"),
-        port=os.getenv("KC_DB_URL_PORT")
-    )
-    hasura_conn = psycopg2.connect(
-        dbname=os.getenv("HASURA_PG_DBNAME"),
-        user=os.getenv("HASURA_PG_USER"),
-        password=os.getenv("HASURA_PG_PASSWORD"),
-        host=os.getenv("HASURA_PG_HOST"),
-        port=os.getenv("HASURA_PG_PORT")
-    )
-    print("Number of rows to clone: ", num_votes)
-    kc_cursor = keycloak_conn.cursor()
-    hasura_cursor = hasura_conn.cursor()
-    #Offset should start at 0 and can be changed if you want to add more votes
-    get_user_ids_query = """
-    SELECT ue.id, ue.username, r.name AS realm_name
-    FROM user_entity AS ue
-    JOIN realm AS r ON ue.realm_id = r.id
-    WHERE r.name = %s
-    LIMIT %s
-    OFFSET 0;
-    """
-    kc_cursor.execute(get_user_ids_query, (realm_name, num_votes))
-    existing_user_ids = [row[0] for row in kc_cursor.fetchall()]
-    print("Number of existing user ids: ", len(existing_user_ids))
-    hasura_cursor.execute(
+    keycloak_conn_params = {
+        "dbname": os.getenv("KEYCLOAK_DB__DBNAME"),
+        "user": os.getenv("KEYCLOAK_DB__USER"),
+        "password": os.getenv("KEYCLOAK_DB__PASSWORD"),
+        "host": os.getenv("KEYCLOAK_DB__HOST"),
+        "port": os.getenv("KEYCLOAK_DB__PORT")
+    }
+    hasura_conn_params = {
+        "dbname": os.getenv("HASURA_DB__DBNAME"),
+        "user": os.getenv("HASURA_DB__USER"),
+        "password": os.getenv("HASURA_DB__PASSWORD"),
+        "host": os.getenv("HASURA_DB__HOST"),
+        "port": os.getenv("HASURA_DB__PORT")
+    }
+
+    keycloak_conn = None
+    hasura_conn = None
+    kc_cursor = None
+    hasura_cursor = None
+    votes_stream_cursor = None
+
+    try:
+        print(f"Connecting to Keycloak DB: host={keycloak_conn_params.get('host')}, dbname={keycloak_conn_params.get('dbname')}")
+        keycloak_conn = psycopg2.connect(**keycloak_conn_params)
+        kc_cursor = keycloak_conn.cursor()  # regular cursor
+        print("Successfully connected to Keycloak DB.")
+
+        print(f"Connecting to Hasura DB: host={hasura_conn_params.get('host')}, dbname={hasura_conn_params.get('dbname')}")
+        hasura_conn = psycopg2.connect(**hasura_conn_params)
+        hasura_cursor = hasura_conn.cursor()  # regular cursor
+        print("Successfully connected to Hasura DB.")
+
+        # 1. Find a vote for this election_event_id (and optionally election_id)
+        if election_id:
+            query_start = time.time()
+            hasura_cursor.execute(
+            """
+                SELECT
+                    election_id,
+                    area_id
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = %s
+                    AND election_event_id = %s
+                    AND election_id = %s
+                LIMIT 1
+            """, (tenant_id, election_event_id, election_id))
+            query_end = time.time()
+            print(f"[Query 1] Find vote with election_id: {query_end - query_start:.4f} seconds")
+        else:
+            query_start = time.time()
+            hasura_cursor.execute(
+            """
+                SELECT
+                    election_id,
+                    area_id 
+                FROM sequent_backend.cast_vote
+                WHERE
+                    tenant_id = %s
+                    AND election_event_id = %s
+                LIMIT 1
+            """, (tenant_id, election_event_id))
+            query_end = time.time()
+            print(f"[Query 1] Find vote with election_id: {query_end - query_start:.4f} seconds")
+        row = hasura_cursor.fetchone()
+        if not row:
+            print(f"No cast votes found for election_event_id={election_event_id} (and election_id={election_id} if provided). Cannot proceed.")
+            return
+        found_election_id, found_area_id = row
+        if not election_id:
+            election_id = found_election_id
+        area_id = found_area_id
+        print(f"Using election_id={election_id}, area_id={area_id}")
+
+        # 2. Find the realm name for this election event and tenant
+        realm_name = f"tenant-{tenant_id}-event-{election_event_id}"
+        print(f"Using realm_name={realm_name}")
+
+        # 3. Get eligible voter IDs for the area (limit to num_votes_requested, random order)
+        get_user_ids_query = """
+        SELECT ue.id
+        FROM user_entity AS ue
+        JOIN realm AS r ON ue.realm_id = r.id
+        INNER JOIN user_attribute AS us ON us.user_id = ue.id
+        WHERE r.name = %s AND us.name = 'area-id' AND us.value = %s
+        ORDER BY random()
+        LIMIT %s;
         """
+        print(f"Fetching up to {num_votes_requested} voter IDs from Keycloak realm '{realm_name}' for area_id '{area_id}'...")
+        query_start = time.time()
+        kc_cursor.execute(get_user_ids_query, (realm_name, area_id, num_votes_requested))
+        user_ids = [row[0] for row in kc_cursor.fetchall()]
+        query_end = time.time()
+        print(f"[Query 2] Fetch voter IDs: {query_end - query_start:.4f} seconds")
+        if not user_ids:
+            print(f"No user IDs found in realm '{realm_name}' for area_id '{area_id}'. Cannot generate votes.")
+            return
+        actual_users_found = len(user_ids)
+        if actual_users_found < num_votes_requested:
+            print(f"Warning: Requested {num_votes_requested} votes, but only found {actual_users_found} suitable users. Proceeding with {actual_users_found} votes.")
+        print(f"Found {actual_users_found} user IDs. Will generate votes for these users.")
+
+        # 4. Get existing votes for this election/area (streaming, not all in memory)
+        get_votes_query = """
         SELECT election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id
-            FROM sequent_backend.cast_vote WHERE id = %s""", (row_id_to_clone,))
-    base_row = hasura_cursor.fetchone()
-    if not base_row:
-        print("No row found to clone.")
-    else:
-        election_id, tenant_id, area_id,annotations, content, cast_ballot_signature, election_event_id, ballot_id = base_row
-        annotations_json = json.dumps(annotations)
-        rows_to_insert = []
-        for i in range(len(existing_user_ids)):
-            uid = existing_user_ids[i]
-            rows_to_insert.append((
-                uid, election_id, tenant_id, area_id,annotations_json, content,
-                cast_ballot_signature, election_event_id, ballot_id
-            ))
-        print("rows_to_insert", len(rows_to_insert))
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter='\t', quoting=csv.QUOTE_MINIMAL)
-        for row in rows_to_insert:
-            writer.writerow(row)
-        output.seek(0)
+        FROM sequent_backend.cast_vote
+        WHERE election_id = %s AND area_id = %s AND tenant_id = %s AND election_event_id = %s
+        LIMIT %s
+        """
+        # Only fetch as many base votes as we need (or a reasonable max like 1000)
+        max_base_votes = min(actual_users_found, 1000)
+        votes_stream_cursor = hasura_conn.cursor(name='votes_stream_cursor')  # named cursor for streaming
+        query_start = time.time()
+        votes_stream_cursor.execute(get_votes_query, (election_id, area_id, tenant_id, election_event_id, max_base_votes))
+        query_end = time.time()
+        print(f"[Query 3] Fetch base votes: {query_end - query_start:.4f} seconds")
+        print("Streaming existing votes for election/area...")
+        base_votes = []
+        for row in votes_stream_cursor:
+            base_votes.append(row)
+        votes_stream_cursor.close()
+        if not base_votes:
+            print(f"No existing votes found for election_id={election_id}, area_id={area_id}. Cannot duplicate.")
+            return
+        print(f"Found {len(base_votes)} base votes to use for duplication.")
+
+        print("\n⚠️  ATTEMPTING TO DISABLE TRIGGER (requires superuser privileges)...")
+        try:
+            hasura_cursor.execute("ALTER TABLE sequent_backend.cast_vote DISABLE TRIGGER check_revote_trigger")
+            print("✓ Trigger disabled successfully")
+        except Exception as e:
+            print(f"✗ Could not disable trigger: {e}")
+            raise e
+
+        # 5. Prepare generator for new votes (cycle through base_votes if needed)
+        def vote_row_generator(user_ids, base_votes, total_rows):
+            from itertools import islice, cycle
+            base_votes_cycle = cycle(base_votes)
+            for i, (user_id, base_vote) in enumerate(zip(user_ids, islice(base_votes_cycle, total_rows))):
+                election_id, tenant_id, area_id, annotations_obj, content, cast_ballot_signature, election_event_id, ballot_id = base_vote
+                annotations_json_str = json.dumps(annotations_obj)
+                row_tuple = (
+                    str(user_id), election_id, tenant_id, area_id, annotations_json_str,
+                    content, cast_ballot_signature, election_event_id, ballot_id
+                )
+                sio = io.StringIO()
+                csv_writer = csv.writer(sio, delimiter='\t', quoting=csv.QUOTE_MINIMAL, lineterminator='\n')
+                csv_writer.writerow(row_tuple)
+                yield sio.getvalue()
+
+        file_like_adapter = StringIteratorIO(vote_row_generator(user_ids, base_votes, actual_users_found))
         copy_sql = """
         COPY sequent_backend.cast_vote (
             voter_id_string, election_id, tenant_id, area_id, annotations, content,
@@ -281,16 +381,56 @@ def run_duplicate_votes(args):
         FROM STDIN WITH (FORMAT csv, DELIMITER E'\t')
         """
         start_time = datetime.now()
-        print("Start time:", start_time)
-        hasura_cursor.copy_expert(copy_sql, output)
-        hasura_conn.commit()
+        query_start = time.time()
+        print(f"SQL Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        hasura_cursor.copy_expert(sql=copy_sql, file=file_like_adapter)
+        query_end = time.time()
         end_time = datetime.now()
-        print("End time:", end_time)
-    # Cleanup
-    kc_cursor.close()
-    keycloak_conn.close()
-    hasura_cursor.close()
-    hasura_conn.close()
+        print(f"SQL End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"[Query 4] Insert votes: {query_end - query_start:.4f} seconds")
+        duration = end_time - start_time
+        print(f"Successfully inserted {actual_users_found} duplicated vote records.")
+        print(f"Insertion duration: {duration}")
+
+        try:
+            hasura_cursor.execute("ALTER TABLE sequent_backend.cast_vote ENABLE TRIGGER check_revote_trigger")
+            print("\n✓ Trigger re-enabled")
+        except Exception as e:
+            print(f"\n✗ Could not re-enable trigger: {e}")
+            raise e
+
+        commit_start = time.time()
+        hasura_conn.commit()
+        commit_end = time.time()
+        print(f"[Query 5] COMMIT transaction: {commit_end - commit_start:.4f} seconds")
+
+    except psycopg2.Error as db_err:
+        print(f"\nDatabase error occurred: {db_err}")
+        if hasura_conn:
+            print("Rolling back Hasura transaction due to error.")
+            hasura_conn.rollback()
+    except IOError as io_err:
+        print(f"\nFile/IO error: {io_err}")
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+    finally:
+        print("\nClosing database connections...")
+        if kc_cursor:
+            try: kc_cursor.close()
+            except Exception: pass
+        if keycloak_conn:
+            try: keycloak_conn.close()
+            except Exception: pass
+        if votes_stream_cursor:
+            try: votes_stream_cursor.close()
+            except Exception: pass
+        if hasura_cursor:
+            try: hasura_cursor.close()
+            except Exception: pass
+        if hasura_conn:
+            try: hasura_conn.close()
+            except Exception: pass
+        print("Database connections closed.")
 
 # ------------------------------
 # Action: generate-applications
