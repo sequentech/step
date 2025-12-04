@@ -228,3 +228,11 @@ The correct version of java jvm for the container architecture is installed inst
 of just defaulting to installing x86-x64 version.
 
 - Issue: [#8621](https://github.com/sequentech/meta/issues/8621)
+
+## 🐞 Contest result extended metrics are 0
+
+Fixes the extended metrics calculation that is visible in the json file of the 
+tally result files in `velvet-generate-reports`.
+It contains the value of some election metrics.
+
+- Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
