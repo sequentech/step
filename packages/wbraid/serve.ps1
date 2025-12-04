@@ -10,7 +10,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Inject build info into HTML
-$buildTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+$wasmFile = "crates\braid\pkg\braid_bg.wasm"
+$buildTime = (Get-Item $wasmFile).LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss")
+echo "Build time: $buildTime"
 $version = (Get-Content "crates\braid\Cargo.toml" | Select-String -Pattern 'version = "(.+)"').Matches[0].Groups[1].Value
 $buildInfo = "v$version, built $buildTime"
 

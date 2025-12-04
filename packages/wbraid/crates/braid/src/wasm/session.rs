@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! WASM bindings for Braid mixnet node
+//! WASM bindings for Braid mixnet node and session
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -50,6 +50,9 @@ pub struct SessionState {
 }
 
 /// Main WASM session interface
+/// 
+/// Wraps a braid::protocol::session::Session with browser-specific functionality
+/// The protocol execution cycle is managed by the inner session.
 #[wasm_bindgen]
 pub struct WasmSession {
     session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, BrowserStorage>>,
