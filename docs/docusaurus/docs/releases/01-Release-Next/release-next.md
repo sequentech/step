@@ -54,3 +54,9 @@ Fixed issues that prevented tenant creation and template creation and deletion
 in the Admin portal.
 
 - Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
+
+## 🐞 Tally UI shows manual and executes automatic after policy switch
+
+Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
+
+- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
