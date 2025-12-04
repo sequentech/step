@@ -52,7 +52,12 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
                       <StyledIconButton
                           className={action.className ?? ""}
                           key={index}
-                          onClick={() => record && action.action(record?.id)}
+                          onClick={(event) => {
+                              event.stopPropagation()
+                              if (record) {
+                                  action.action(record.id)
+                              }
+                          }}
                       >
                           {action.icon}
                       </StyledIconButton>
