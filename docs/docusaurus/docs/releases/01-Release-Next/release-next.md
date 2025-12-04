@@ -14,6 +14,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 - Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
 
+## 🐞 Error with tenants and templates in Admin portal.
+
+Fixed issues that prevented tenant creation and template creation and deletion 
+in the Admin portal.
+
+- Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
+
+## 🐞 Fix Graphql Typescript issues
+
+Update Graphql definitions in the admin-portal, which is required after a
+bad merge from main.
+
+- Issue: [#9540](https://github.com/sequentech/meta/issues/9540)
+
 ## 🐞 Can't filter voter logs by username
 
 Fixed an issue that prevented to search logs by username in the Admin portal.
