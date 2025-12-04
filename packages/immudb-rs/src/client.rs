@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -100,7 +100,7 @@ impl Client {
             .get_ref()
             .databases
             .iter()
-            .find(|database| database.name == database_name)
+            .find(|database| database.name == database_name && database.loaded)
             .is_some();
         Ok(has_database)
     }

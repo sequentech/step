@@ -1,5 +1,5 @@
 use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_election_by_id;

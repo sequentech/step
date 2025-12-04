@@ -1,7 +1,6 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::update_election_event_status;
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::election_event_board::get_election_event_board;
@@ -52,7 +51,7 @@ pub async fn update_election_status(
         get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
             .await
             .with_context(|| "error getting election event")?;
-    let mut status =
+    let mut event_status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
 
     let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
@@ -79,14 +78,25 @@ pub async fn update_election_status(
             election_channels.push(VotingStatusChannel::KIOSK)
         }
 
+        if VotingStatusChannel::EARLY_VOTING
+            .channel_from(&voting_channels)
+            .unwrap_or(false)
+        {
+            election_channels.push(VotingStatusChannel::EARLY_VOTING)
+        }
+
         election_channels
     } else {
         info!("Default voting channels");
         // Update all if none are configured
-        vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+        vec![
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+            VotingStatusChannel::EARLY_VOTING,
+        ]
     };
 
-    for voting_channel in &voting_channels {
+    for voting_channel in voting_channels {
         election_event_status::update_election_voting_status_impl(
             tenant_id.clone(),
             user_id,
@@ -99,7 +109,7 @@ pub async fn update_election_status(
             &hasura_transaction,
         )
         .await?;
-        let current_event_status = status.status_by_channel(voting_channel);
+        let current_event_status = event_status.status_by_channel(voting_channel);
 
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
 
@@ -107,7 +117,9 @@ pub async fn update_election_status(
             && current_event_status == VotingStatus::NOT_STARTED
         {
             info!("Updating election event status to OPEN");
-            status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
+            event_status
+                .close_early_voting_if_online_status_change(voting_channel, VotingStatus::OPEN);
+            event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
 
             update_board_on_status_change(
                 &hasura_transaction,
@@ -128,7 +140,7 @@ pub async fn update_election_status(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
-        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
+        serde_json::to_value(&event_status).with_context(|| "Error parsing status")?,
     )
     .await
     .with_context(|| "Error updating election event status")?;
@@ -151,12 +163,9 @@ pub async fn update_board_on_status_change(
 ) -> Result<()> {
     let board_name =
         get_election_event_board(board_reference).with_context(|| "missing bulletin board")?;
-    let elections_ids_str = match election_id.clone() {
-        Some(election_id) => Some(election_id),
-        None => match elections_ids.clone() {
-            Some(elections_ids) => Some(elections_ids.join(",")),
-            None => None,
-        },
+    let elections_ids_vec = match election_id.clone() {
+        Some(election_id) => Some(vec![election_id]),
+        None => elections_ids.clone(),
     };
 
     let electoral_log = if let Some(user_id) = user_id {
@@ -167,7 +176,7 @@ pub async fn update_board_on_status_change(
             &election_event_id,
             user_id,
             username.map(|val| val.to_string()),
-            elections_ids_str,
+            elections_ids_vec,
             None,
         )
         .await?

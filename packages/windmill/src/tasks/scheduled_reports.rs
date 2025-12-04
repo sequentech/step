@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -84,13 +84,13 @@ fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn scheduled_reports() -> Result<()> {
+pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
     // Get the Celery app for scheduling tasks
     let celery_app = get_celery_app().await;
 
     // Get the current time
     let now = Local::now();
-    let one_minute_later = now + Duration::minutes(1);
+    let nsecs_later = now + Duration::seconds(rate_seconds as i64);
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -113,7 +113,7 @@ pub async fn scheduled_reports() -> Result<()> {
             let Some(formatted_date) = get_next_scheduled_time(&report) else {
                 return false;
             };
-            formatted_date < one_minute_later
+            formatted_date < nsecs_later
         })
         .collect::<Vec<_>>();
     info!(

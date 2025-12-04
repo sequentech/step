@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {PropsWithChildren, useEffect, useRef} from "react"
@@ -8,16 +8,15 @@ import {Backdrop, Box, Button, Breakpoint} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
 import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
-import styledEmotion from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
-import {styled as muiStyled} from "@mui/material/styles"
 
-const StyledBackdrop = styledEmotion(Backdrop)`
+const StyledBackdrop = styled(Backdrop)`
     opacity: 0.5 !important;
 `
 
-const StyledDialogActions = muiStyled(DialogActions)`
+const StyledDialogActions = styled(DialogActions)`
     @media (max-width: 600px) {
         &.has-middle.MuiDialogActions-root {
             flex-direction: column !important;
@@ -29,7 +28,7 @@ const StyledDialogActions = muiStyled(DialogActions)`
     }
 `
 
-const StyledDialogErrorContent = muiStyled(DialogContent)(({theme}) => ({
+const StyledDialogErrorContent = styled(DialogContent)(({theme}) => ({
     color: theme.palette.errorColor,
 }))
 
@@ -46,6 +45,7 @@ export interface DialogProps extends PropsWithChildren {
     maxWidth?: Breakpoint | false
     errorMessage?: string
     hasCloseButton?: boolean
+    className?: string
 }
 
 const Dialog: React.FC<DialogProps> = ({
@@ -62,6 +62,7 @@ const Dialog: React.FC<DialogProps> = ({
     maxWidth = "xs",
     errorMessage,
     hasCloseButton,
+    className,
 }) => {
     const okVariant =
         "info" === variant ? "primary" : "softwarning" === variant ? "softWarning" : "solidWarning"
@@ -81,6 +82,8 @@ const Dialog: React.FC<DialogProps> = ({
         okButtonRef.current = false
     }, [open])
 
+    let fullClass = className ? `${className} dialog` : "dialog"
+
     return (
         <MaterialDialog
             onClose={closeDialog}
@@ -88,7 +91,7 @@ const Dialog: React.FC<DialogProps> = ({
             slots={{backdrop: StyledBackdrop}}
             fullWidth={fullWidth}
             maxWidth={maxWidth}
-            className="dialog"
+            className={fullClass}
         >
             <DialogTitle className="dialog-title">
                 <Icon

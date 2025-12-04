@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -25,6 +25,16 @@ const tagalogTranslation: TranslationType = {
             moreInformationLink: "Karagdagang impormasyon",
             writeInsPlaceholder: "I-type ang pangalan ng write-in na kandidato dito",
             blankVote: "Blangkong Boto",
+            preferential: {
+                position: "Posisyon",
+                none: "Wala",
+                ordinals: {
+                    first: "st",
+                    second: "nd",
+                    third: "rd",
+                    other: "th",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",
@@ -64,7 +74,9 @@ const tagalogTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Pinapagana ng",
+        footer: {
+            poweredBy: "Pinapagana ng <1></1>",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Hindi sapat ang mga pagpili upang ma-decode",
