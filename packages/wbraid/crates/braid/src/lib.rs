@@ -7,7 +7,8 @@ pub mod protocol;
 pub mod util;
 
 // Platform-specific modules
-#[cfg(feature = "native")]
+// Note: native::board is available in both builds because NoOpStorage is used by WASM temporarily
+#[cfg(any(feature = "native", feature = "wasm"))]
 pub mod native;
 #[cfg(feature = "wasm")]
 pub mod wasm;

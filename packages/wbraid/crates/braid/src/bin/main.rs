@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid::protocol::board::http::{HttpB3, HttpB3BoardParams, HttpB3Index};
+use braid::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
 use braid::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3, braid::protocol::board::SqliteStorage>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
                 board_name.clone()
             );
 
-            let storage = braid::protocol::board::SqliteStorage::new(store_root.join(board_name), None);
+            let storage = braid::native::board::SqliteStorage::new(store_root.join(board_name), None);
             let trustee = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 board_name.to_string(),

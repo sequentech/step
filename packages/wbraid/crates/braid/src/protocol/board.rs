@@ -2,31 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/// HTTP client for bulletin board using Service API
-#[cfg(feature = "native")]
-pub mod http;
-
 // Storage trait (persistence abstraction)
 pub mod local_storage;
 
 // Universal LocalBoard implementation and data structures
 pub mod local_board;
 
-// Storage backend implementations
-pub mod storage_noop;
-
-#[cfg(feature = "native")]
-pub mod storage_sqlite;
-
 // Re-export LocalBoard and its data structures
 pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, StatementEntryIdentifier};
 
-// Re-export storage trait and implementations
+// Re-export storage trait
 pub use local_storage::LocalBoardStorage;
-pub use storage_noop::NoOpStorage;
-
-#[cfg(feature = "native")]
-pub use storage_sqlite::SqliteStorage;
 
 use anyhow::Result;
 use b4::messages::message::Message;

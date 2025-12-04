@@ -172,7 +172,7 @@ pub struct ProtocolTest<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>>,
+    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
     pub remote: VectorBoard,
 }
 
@@ -188,7 +188,7 @@ pub fn create_protocol_test<C: Ctx>(
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C, crate::protocol::board::NoOpStorage>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<Trustee<C, crate::native::board::NoOpStorage>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|i| {
             let sk = StrandSignatureSk::generate().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
@@ -200,7 +200,7 @@ pub fn create_protocol_test<C: Ctx>(
                     "foo".to_string(),
                     sk,
                     encryption_key,
-                    crate::protocol::board::NoOpStorage::new(),
+                    crate::native::board::NoOpStorage::new(),
                     None,
                 ),
                 pk,

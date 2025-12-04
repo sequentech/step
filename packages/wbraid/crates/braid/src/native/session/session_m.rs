@@ -14,7 +14,7 @@ use tracing::info;
 
 use crate::protocol::trustee::Trustee;
 use crate::protocol::trustee::TrusteeConfig;
-use crate::protocol::board::SqliteStorage;
+use crate::native::board::SqliteStorage;
 use crate::util::ProtocolError;
 
 use strand::context::Ctx;

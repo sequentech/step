@@ -5,7 +5,7 @@
 use anyhow::Result;
 
 use log::{debug, error, info, trace, warn};
-#[cfg(feature = "native")]
+// #[cfg(feature = "native")]
 use rayon::prelude::*;
 use std::collections::HashSet;
 use tracing_attributes::instrument;
@@ -507,7 +507,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         };
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
-        #[cfg(feature = "native")]
+        // #[cfg(feature = "native")]
         let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
             .into_par_iter()
             .map(|a| {
@@ -527,6 +527,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
             })
             .collect();
 
+        /*    
         #[cfg(not(feature = "native"))]
         let results: Result<Vec<Vec<Message>>, ProtocolError> = actions
             .into_iter()
@@ -546,7 +547,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
                     m
                 }
             })
-            .collect();
+            .collect();*/
 
         // flatten all messages
         let result = results?.into_iter().flatten().collect();

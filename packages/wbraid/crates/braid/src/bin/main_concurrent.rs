@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Result};
 
-use braid::protocol::board::http::HttpB3Index;
+use braid::native::board::HttpB3Index;
 use clap::Parser;
 use std::collections::HashSet;
 use std::fs;

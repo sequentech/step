@@ -23,8 +23,8 @@ use b4::messages::newtypes::PublicKeyHash;
 use b4::messages::newtypes::MAX_TRUSTEES;
 use b4::messages::newtypes::NULL_TRUSTEE;
 
-use crate::protocol::board::http::HttpB3;
-use crate::protocol::board::http::HttpB3BoardParams;
+use crate::native::board::HttpB3;
+use crate::native::board::HttpB3BoardParams;
 use crate::protocol::board::Board;
 
 use crate::native::session::Session;
@@ -72,7 +72,7 @@ pub struct ProtocolTest<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
     pub protocol_manager: b4::messages::protocol_manager::ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>>,
+    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
 }
 
 async fn run_protocol_test_http<C: Ctx + 'static>(
@@ -88,7 +88,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
 
     for t in test.trustees.into_iter() {
         let board_params = HttpB3BoardParams::new(HTTP_URL).await;
-        let session: Session<C, HttpB3, crate::protocol::board::NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
+        let session: Session<C, HttpB3, crate::native::board::NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }
 
@@ -306,7 +306,7 @@ pub async fn create_protocol_test<C: Ctx>(
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C, crate::protocol::board::NoOpStorage>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<Trustee<C, crate::native::board::NoOpStorage>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|i| {
             let sk = StrandSignatureSk::generate().unwrap();
             let encryption_key = strand::symm::gen_key();
@@ -317,7 +317,7 @@ pub async fn create_protocol_test<C: Ctx>(
                     "foo".to_string(),
                     sk,
                     encryption_key,
-                    crate::protocol::board::NoOpStorage::new(),
+                    crate::native::board::NoOpStorage::new(),
                     None,
                 ),
                 pk,

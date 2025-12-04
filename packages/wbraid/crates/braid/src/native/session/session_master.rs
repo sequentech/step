@@ -18,7 +18,7 @@ use tokio::time::{sleep, Duration};
 use b4::HttpB3Message;
 use strand::backend::ristretto::RistrettoCtx;
 
-use crate::protocol::board::http::HttpB3BoardParams;
+use crate::native::board::HttpB3BoardParams;
 use crate::protocol::board::{BoardFactoryMulti, BoardMulti};
 use crate::native::session::session_m::{SessionFactory, SessionM};
 
@@ -175,7 +175,7 @@ impl SessionSet {
     /// process and are not expected to exit.
     pub fn run(mut self) -> JoinHandle<()> {
         let handler = tokio::spawn(async move {
-            let mut session_map: HashMap<String, SessionM<RistrettoCtx, crate::protocol::board::SqliteStorage>> = HashMap::new();
+            let mut session_map: HashMap<String, SessionM<RistrettoCtx, crate::native::board::SqliteStorage>> = HashMap::new();
             let mut loop_count: i64 = 0;
 
             loop {
@@ -228,7 +228,7 @@ impl SessionSet {
                         "* Set {}: Session memory reset: reload all artifacts from store",
                         self.name
                     );
-                    let new_sessions: Result<Vec<(String, SessionM<RistrettoCtx, crate::protocol::board::SqliteStorage>)>> = session_map
+                    let new_sessions: Result<Vec<(String, SessionM<RistrettoCtx, crate::native::board::SqliteStorage>)>> = session_map
                         .keys()
                         .map(|k| Ok((k.clone(), self.session_factory.create_session(&k)?)))
                         .collect();

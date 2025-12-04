@@ -6,8 +6,19 @@
 //!
 //! This module contains functionality that only compiles for native platforms
 //! (i.e., not WebAssembly). It requires the `native` feature to be enabled.
+//!
+//! Note: The `board` module is also available in WASM builds because NoOpStorage
+//! is temporarily used by WASM until proper browser-based storage is implemented.
 
+// Available in both native and WASM (for NoOpStorage)
+pub mod board;
+
+// Native-only modules
+#[cfg(feature = "native")]
 pub mod logging;
+#[cfg(feature = "native")]
 pub mod session;
+#[cfg(feature = "native")]
 pub mod test;
+#[cfg(feature = "native")]
 pub mod verify;

@@ -8,7 +8,7 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::protocol::board::http::HttpB3BoardParams;
+use braid::native::board::HttpB3BoardParams;
 use braid::protocol::trustee::Trustee;
 use braid::native::verify::verifier::Verifier;
 
@@ -52,12 +52,12 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
     
-    let trustee: Trustee<RistrettoCtx, braid::protocol::board::NoOpStorage> = Trustee::new(
+    let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
         dummy_sk,
         dummy_encryption_key,
-        braid::protocol::board::NoOpStorage::new(),
+        braid::native::board::NoOpStorage::new(),
         None,
     );
     let board_params = HttpB3BoardParams::new(&args.server_url).await;

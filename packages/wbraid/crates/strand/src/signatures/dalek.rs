@@ -16,7 +16,7 @@
 //! let msg = b"message";
 //! let mut rng = StrandRng;
 //! // generate signing (private) and verification (public) keys
-//! let sk = StrandSignatureSk::gen().unwrap();
+//! let sk = StrandSignatureSk::generate().unwrap();
 //! let vk = StrandSignaturePk::from_sk(&sk).unwrap();
 //! // sign data
 //! let sig = sk.sign(msg);

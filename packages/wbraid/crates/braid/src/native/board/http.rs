@@ -11,6 +11,8 @@ use b4::messages::message::Message;
 use b4::HttpB3Message;
 use strand::serialization::StrandSerialize;
 
+use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
+
 #[derive(Debug, Serialize)]
 struct InitiateMessageRequest {
     size: usize,
@@ -246,7 +248,7 @@ impl HttpB3 {
     }
 }
 
-impl super::Board for HttpB3 {
+impl Board for HttpB3 {
     type Factory = HttpB3BoardParams;
     
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
@@ -369,7 +371,7 @@ impl HttpB3BoardParams {
     }
 }
 
-impl super::BoardFactory<HttpB3> for HttpB3BoardParams {
+impl BoardFactory<HttpB3> for HttpB3BoardParams {
     fn get_board(&self) -> HttpB3 {
         // Board name will be set when used with Session
         HttpB3 {
@@ -381,7 +383,7 @@ impl super::BoardFactory<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl super::BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
+impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
     fn get_board(&self) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
@@ -392,7 +394,7 @@ impl super::BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl super::BoardMulti for HttpB3 {
+impl BoardMulti for HttpB3 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages_multi(
