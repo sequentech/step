@@ -26,10 +26,12 @@ use b4::api_types::{
 /// This wraps the core TrusteeConfig with additional WASM UI needs
 #[derive(Serialize, Deserialize)]
 pub struct WasmSessionConfig {
-    pub name: String,              // Trustee instance name (not in core config)
-    pub b4_url: String,            // HTTP endpoint for this session (not trustee property)
+    // Trustee instance name
+    // FIXME is this used anywhere?
+    pub name: String,              
+    pub b4_url: String,            
     #[serde(flatten)]
-    pub trustee_config: TrusteeConfig,  // Core cryptographic config from braid
+    pub trustee_config: TrusteeConfig,  
 }
 
 /// Board information for UI display
@@ -56,10 +58,12 @@ pub struct SessionState {
 #[wasm_bindgen]
 pub struct WasmSession {
     session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, BrowserStorage>>,
-    name: String,                  // Session: Trustee instance name
-    b4_url: String,                // Session: HTTP endpoint
-    board_name: Option<String>,    // Session: Current board
-    config: TrusteeConfig,         // Core: Cryptographic configuration
+    // Trustee instance name
+    // FIXME is this used anywhere?
+    name: String,
+    b4_url: String,                
+    board_name: Option<String>,
+    config: TrusteeConfig,
 }
 
 #[wasm_bindgen]
