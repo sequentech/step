@@ -427,8 +427,3 @@ Prevent error when switching between elections on the "Data" tab by safely
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
 
-## 🐞 Tally UI shows manual and executes automatic after policy switch
-
-Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
-
-- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
