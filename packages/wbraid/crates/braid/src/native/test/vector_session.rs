@@ -14,14 +14,14 @@ use b4::messages::newtypes::{BatchNumber, TrusteePosition};
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
 #[derive(Debug)]
-pub struct VectorSession<C: Ctx> {
-    trustee: Trustee<C>,
+pub struct VectorSession<C: Ctx, S: crate::protocol::board::LocalBoardStorage> {
+    trustee: Trustee<C, S>,
     remote: Arc<Mutex<VectorBoard>>,
     last_message: i64,
 }
 
-impl<C: Ctx> VectorSession<C> {
-    pub fn new(trustee: Trustee<C>, remote: Arc<Mutex<VectorBoard>>) -> VectorSession<C> {
+impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
+    pub fn new(trustee: Trustee<C, S>, remote: Arc<Mutex<VectorBoard>>) -> VectorSession<C, S> {
         VectorSession {
             trustee,
             remote,

@@ -113,14 +113,14 @@ enum Check {
     PLAINTEXTS_VALID,
 }
 
-pub struct Verifier<C: Ctx> {
-    trustee: Trustee<C>,
+pub struct Verifier<C: Ctx, S: crate::protocol::board::LocalBoardStorage> {
+    trustee: Trustee<C, S>,
     board: HttpB3,
     board_name: String,
 }
 
-impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: HttpB3, board_name: &str) -> Verifier<C> {
+impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> Verifier<C, S> {
+    pub fn new(trustee: Trustee<C, S>, board: HttpB3, board_name: &str) -> Verifier<C, S> {
         Verifier {
             trustee,
             board,

@@ -15,10 +15,7 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol::action::Action;
-#[cfg(all(feature = "native", not(test)))]
-use crate::protocol::board::{LocalBoard, SqliteStorage};
-#[cfg(any(test, not(feature = "native")))]
-use crate::protocol::board::{LocalBoard, NoOpStorage};
+use crate::protocol::board::{LocalBoard, LocalBoardStorage};
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
@@ -31,7 +28,6 @@ use b4::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
 use b4::messages::message::Message;
 use b4::messages::newtypes::*;
 use b4::messages::statement::StatementType;
-use std::path::PathBuf;
 use strand::util::StrandError;
 
 use strand::symm::{self, EncryptionData};
@@ -105,19 +101,14 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// of actions that can be executed in parallel. Higher
 /// values may increase core utilization, but also
 /// peak memory usage.
-pub struct Trustee<C: Ctx> {
+pub struct Trustee<C: Ctx, S: LocalBoardStorage> {
     pub(crate) name: String,
     #[allow(dead_code)]
     pub(crate) board_name: String,
     pub(crate) signing_key: StrandSignatureSk,
     pub(crate) encryption_key: symm::SymmetricKey,
     // Public for external crates (e.g., braid-wasm) to access board state
-    #[cfg(all(feature = "native", not(test)))]
-    pub local_board: LocalBoard<C, SqliteStorage>,
-    #[cfg(all(feature = "native", test))]
-    pub local_board: LocalBoard<C, NoOpStorage>,
-    #[cfg(not(feature = "native"))]
-    pub local_board: LocalBoard<C, NoOpStorage>,
+    pub local_board: LocalBoard<C, S>,
     /// Tracks the last locally-controlled store ID loaded into the in-memory board.
     /// This is NOT the bulletin board's external ID - it's our local SQLite AUTOINCREMENT ID.
     /// The local database controls message ordering, preventing the bulletin board from
@@ -131,7 +122,7 @@ pub struct Trustee<C: Ctx> {
     pub(crate) max_concurrent_actions: Option<usize>,
 }
 
-impl<C: Ctx> Trustee<C> {
+impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// Constructs a trustee instance.
     ///
     /// A trustee instance exists in the context of a session, and therefore
@@ -141,32 +132,17 @@ impl<C: Ctx> Trustee<C> {
         board_name: String,
         signing_key: StrandSignatureSk,
         encryption_key: symm::SymmetricKey,
-        store: Option<PathBuf>,
+        storage: S,
         max_concurrent_actions: Option<usize>,
-    ) -> Trustee<C> {
+    ) -> Trustee<C, S> {
         // let max_concurrent_actions = 10;
 
         info!(
-            "Trustee {} created, store = {:?}, max_concurrent_actions = {:?}",
-            name, store, max_concurrent_actions
+            "Trustee {} created, max_concurrent_actions = {:?}",
+            name, max_concurrent_actions
         );
 
-        // Create storage backend:
-        // - Native production: SqliteStorage (store path required)
-        // - Native tests: NoOpStorage (ignores store parameter)
-        // - WASM: NoOpStorage (until IndexedDB async implementation ready)
-        
-        #[cfg(all(feature = "native", not(test)))]
-        let local_board = {
-            let path = store.expect("Native production builds require a store path");
-            LocalBoard::new(SqliteStorage::new(path, None))
-        };
-
-        #[cfg(test)]
-        let local_board = LocalBoard::new(NoOpStorage::new());
-
-        #[cfg(all(not(feature = "native"), not(test)))]
-        let local_board = LocalBoard::new(NoOpStorage::new());
+        let local_board = LocalBoard::new(storage);
 
         Trustee {
             name,
@@ -785,7 +761,7 @@ impl<C: Ctx> Trustee<C> {
 }
 
 /// Trustees can sign Messages
-impl<C: Ctx> b4::messages::message::Signer for Trustee<C> {
+impl<C: Ctx, S: LocalBoardStorage> b4::messages::message::Signer for Trustee<C, S> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
@@ -798,7 +774,7 @@ impl<C: Ctx> b4::messages::message::Signer for Trustee<C> {
 // Debug
 ///////////////////////////////////////////////////////////////////////////
 
-impl<C: Ctx> std::fmt::Debug for Trustee<C> {
+impl<C: Ctx, S: LocalBoardStorage> std::fmt::Debug for Trustee<C, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Trustee({})", self.name)
     }

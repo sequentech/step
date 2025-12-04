@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3, braid::protocol::board::SqliteStorage>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
@@ -129,12 +129,13 @@ async fn main() -> Result<()> {
                 board_name.clone()
             );
 
+            let storage = braid::protocol::board::SqliteStorage::new(store_root.join(board_name), None);
             let trustee = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 board_name.to_string(),
                 sk.clone(),
                 ek.clone(),
-                Some(store_root.join(board_name)),
+                storage,
                 None,
             );
             let board = HttpB3BoardParams::new(&args.b3_url).await;

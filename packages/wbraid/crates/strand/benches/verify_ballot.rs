@@ -91,7 +91,7 @@ fn ballots_ristretto(
     let mut csprng = OsRng;
     let mut fill = [0u8; 30];
     csprng.try_fill_bytes(&mut fill).unwrap();
-    let sk = StrandSignatureSk::gen().unwrap();
+    let sk = StrandSignatureSk::generate().unwrap();
 
     (
         ballots(ctx, pk, fill, n, &sk),

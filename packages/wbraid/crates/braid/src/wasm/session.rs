@@ -50,7 +50,7 @@ pub struct SessionState {
 /// Main WASM session interface
 #[wasm_bindgen]
 pub struct WasmSession {
-    trustee: Option<Trustee<RistrettoCtx>>,
+    trustee: Option<Trustee<RistrettoCtx, crate::protocol::board::NoOpStorage>>,
     name: String,                  // Session: Trustee instance name
     b4_url: String,                // Session: HTTP endpoint
     board_name: Option<String>,    // Session: Current board
@@ -107,7 +107,7 @@ impl WasmSession {
             board_name.clone(),
             sk,
             ek,
-            None, // No store for WASM
+            crate::protocol::board::NoOpStorage::new(),
             None, // Default max_concurrent_actions
         );
         

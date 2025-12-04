@@ -122,7 +122,7 @@ struct ReplContext<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C>>,
+    pub trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>>,
     pub trustee_pks: Vec<StrandSignaturePk>,
     pub remote: VectorBoard,
     pub last_messages: Vec<Message>,
@@ -281,16 +281,16 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
 
-    let trustees: Vec<Trustee<C>> = (0..n_trustees)
+    let trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>> = (0..n_trustees)
         .into_iter()
         .map(|i| {
-            let kp = StrandSignatureSk::gen().unwrap();
+            let kp = StrandSignatureSk::generate().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             Trustee::new(
@@ -298,7 +298,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
                 "foo".to_string(),
                 kp,
                 encryption_key,
-                None,
+                crate::protocol::board::NoOpStorage::new(),
                 None,
             )
         })
@@ -576,7 +576,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
     let trustee = args.get_one::<String>("trustee");
     if let Some(value) = trustee {
         let t = value.parse::<u8>()?;
-        let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
+        let trustee_: Option<&mut Trustee<C, crate::protocol::board::NoOpStorage>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
             // let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
             let step_result = trustee.step(&context.remote.get(-1)).unwrap();

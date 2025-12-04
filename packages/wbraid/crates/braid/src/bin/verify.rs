@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
     braid::native::logging::init_log(true);
 
     // generate dummy values, these are not important
-    let dummy_sk = StrandSignatureSk::gen().unwrap();
+    let dummy_sk = StrandSignatureSk::generate().unwrap();
     let dummy_encryption_key = strand::symm::gen_key();
 
     let args = Cli::parse();
@@ -52,12 +52,12 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
     
-    let trustee: Trustee<RistrettoCtx> = Trustee::new(
+    let trustee: Trustee<RistrettoCtx, braid::protocol::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
         dummy_sk,
         dummy_encryption_key,
-        None,
+        braid::protocol::board::NoOpStorage::new(),
         None,
     );
     let board_params = HttpB3BoardParams::new(&args.server_url).await;

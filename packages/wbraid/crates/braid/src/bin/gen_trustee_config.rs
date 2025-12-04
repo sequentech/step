@@ -54,7 +54,7 @@ fn main() {
 ///
 /// Prints configuration to standard out.
 fn gen_trustee_config<C: Ctx>() {
-    let sk = StrandSignatureSk::gen().unwrap();
+    let sk = StrandSignatureSk::generate().unwrap();
     let pk = StrandSignaturePk::from_sk(&sk).unwrap();
     let encryption_key: symm::SymmetricKey = symm::gen_key();
 
@@ -82,7 +82,7 @@ fn gen_trustee_config<C: Ctx>() {
 ///
 /// Prints configuration to standard out.
 fn gen_protocol_manager_config<C: Ctx>() {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,

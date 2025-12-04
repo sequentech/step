@@ -28,7 +28,7 @@ use b4::messages::message::Message;
 /// The `store_messages()` method assigns locally-controlled IDs (e.g., SQLite AUTOINCREMENT)
 /// that establish immutable message ordering. The `retrieve_messages()` method returns messages
 /// in this locally-determined order, preventing the bulletin board from manipulating history.
-pub trait LocalBoardStorage: Send {
+pub trait LocalBoardStorage: Send + Sync {
     /// Store messages and assign locally-controlled IDs
     ///
     /// # Security

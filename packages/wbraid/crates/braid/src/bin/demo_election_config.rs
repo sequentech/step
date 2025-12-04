@@ -37,14 +37,14 @@ fn main() {
 }
 
 fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_i| {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
             let tc = TrusteeConfig::new_from_objects(sk, encryption_key);

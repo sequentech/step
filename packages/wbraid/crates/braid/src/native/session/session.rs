@@ -15,17 +15,17 @@ use crate::util::ProtocolError;
 ///
 /// A protocol session handles one board in the
 /// bulletin board.
-pub struct Session<C: Ctx + 'static, B: Board + 'static> {
+pub struct Session<C: Ctx + 'static, B: Board + 'static, S: crate::protocol::board::LocalBoardStorage> {
     pub board_name: String,
-    trustee: Trustee<C>,
+    trustee: Trustee<C, S>,
     board_factory: B::Factory,
 }
-impl<C: Ctx, B: Board> Session<C, B> {
+impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, B, S> {
     /// Constructs a new SessionM to handle the requested board.
     ///
     /// The board_factory parameter is used at each step to perform
     /// messaging to/from the remote bulletin board.
-    pub fn new(board_name: &str, trustee: Trustee<C>, board_factory: B::Factory) -> Session<C, B> {
+    pub fn new(board_name: &str, trustee: Trustee<C, S>, board_factory: B::Factory) -> Session<C, B, S> {
         Session {
             board_name: board_name.to_string(),
             trustee,
