@@ -16,7 +16,7 @@ $buildInfo = "v$version, built $buildTime"
 
 $htmlContent = Get-Content "trustee.html" -Raw
 # Remove any existing build info first, then add new one
-$htmlContent = $htmlContent -replace '(<p class="subtitle">cryptographic mixnet node)( \(v[\d.]+, built .+?\))?(</p>)', "`$1 ($buildInfo)`$3"
+$htmlContent = $htmlContent -replace '(<p class="subtitle">verifiable mixnet node)( \(v[\d.]+, built .+?\))?(</p>)', "`$1 ($buildInfo)`$3"
 $htmlContent | Set-Content "trustee.html" -NoNewline
 
 Write-Host "Injected build info: $buildInfo" -ForegroundColor Cyan
