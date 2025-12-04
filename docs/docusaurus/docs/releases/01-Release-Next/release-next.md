@@ -54,3 +54,8 @@ Fixed issues that prevented tenant creation and template creation and deletion
 in the Admin portal.
 
 - Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
+
+## ✨ Tally > Ballot Images: add election_alias
+Added to ballot images template data struct election_alias.
+
+- Issue: [#8680](https://github.com/sequentech/meta/issues/8680)
