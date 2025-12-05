@@ -14,6 +14,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 - Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
 
+## 🐞 Tally UI shows manual and executes automatic after policy switch
+
+Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
+
+- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
+
 ## 🐞 Error with tenants and templates in Admin portal.
 
 Fixed issues that prevented tenant creation and template creation and deletion 
