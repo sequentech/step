@@ -337,10 +337,70 @@ pub async fn list_messages(
     }
 }
 
+pub async fn get_messages(
+    State(state): State<AppState>,
+    Path(board_name): Path<String>,
+    Query(query): Query<GetMessagesQuery>,
+) -> Result<Json<crate::api_types::GetMessagesResponse>, StatusCode> {
+    use crate::api_types::{GetMessagesResponse, MessageWithUrl};
+    
+    // Get messages using same logic as list_messages
+    let messages = if let Some(last_id) = query.last_id {
+        let limit = query.limit.unwrap_or(100).min(1000);
+        
+        let (msgs, _truncated) = db::get_messages_after(&state.db, &board_name, last_id, limit)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to get messages after ID: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+        
+        if msgs.is_empty() {
+            tracing::warn!("Found 0 messages for get_messages request on board '{}' with last_id {}", board_name, last_id);
+        }
+        
+        msgs
+    } else {
+        db::list_messages(&state.db, &board_name)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to list messages: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+    };
+    
+    // Generate download URLs for S3 messages
+    let mut enriched_messages = Vec::new();
+    for msg in messages {
+        let download_url = match &msg.content_type {
+            ContentType::S3 { key } => {
+                tracing::debug!("[S3] Generating download URL for s3://{}/{}", state.bucket_name, key);
+                Some(s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("[S3] Failed to generate download URL: {}", e);
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?)
+            }
+            ContentType::Inline { .. } => None,
+        };
+        
+        enriched_messages.push(MessageWithUrl {
+            message: msg,
+            download_url,
+        });
+    }
+    
+    tracing::debug!("get_messages: returning {} messages with download URLs", enriched_messages.len());
+    Ok(Json(GetMessagesResponse { messages: enriched_messages }))
+}
+
 pub async fn get_messages_multi(
     State(state): State<AppState>,
     Json(req): Json<GetMessagesMultiRequest>,
 ) -> Result<Json<GetMessagesMultiResponse>, StatusCode> {
+    use crate::api_types::MessageWithUrl;
+    
     tracing::info!(
         "[MULTI-GET] {} boards in single request",
         req.requests.len()
@@ -359,18 +419,40 @@ pub async fn get_messages_multi(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
         
+        // Generate download URLs for S3 messages
+        let mut enriched_messages = Vec::new();
+        for msg in messages {
+            let download_url = match &msg.content_type {
+                ContentType::S3 { key } => {
+                    tracing::debug!("[S3] Generating download URL for s3://{}/{}", state.bucket_name, key);
+                    Some(s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("[S3] Failed to generate download URL: {}", e);
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })?)
+                }
+                ContentType::Inline { .. } => None,
+            };
+            
+            enriched_messages.push(MessageWithUrl {
+                message: msg,
+                download_url,
+            });
+        }
+        
         tracing::info!(
             "  -> Board '{}': last_id={}, limit={}, returned={} messages{}",
             board_req.board,
             last_id,
             limit,
-            messages.len(),
+            enriched_messages.len(),
             if has_more { " (paginated, more available)" } else { "" }
         );
         
         boards.push(BoardMessagesResponse {
             board: board_req.board,
-            messages,
+            messages: enriched_messages,
         });
     }
     

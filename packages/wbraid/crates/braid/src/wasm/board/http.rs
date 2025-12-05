@@ -12,7 +12,7 @@ use crate::protocol::board::{Board, BoardFactory};
 use b4::HttpB3Message;
 use b4::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
-    ListMessagesResponse, ContentType,
+    ListMessagesResponse, GetMessagesResponse, MessageWithUrl, ContentType,
 };
 use b4::messages::message::Message;
 use strand::serialization::StrandSerialize;
@@ -34,6 +34,10 @@ impl WasmHttpBoard {
     }
 
     /// Fetch messages from B4 for a specific board
+    /// 
+    /// Maintains all-or-nothing semantics: each HttpB3Message is only constructed
+    /// after BOTH metadata (from list response) AND complete message data (inline or S3)
+    /// are successfully fetched. If S3 download fails, the entire operation aborts.
     async fn fetch_messages_internal(&self, board_name: &str, last_id: i64) -> Result<Vec<HttpB3Message>, JsValue> {
         let url = format!("{}/boards/{}/messages?last_id={}", self.params.b4_url, board_name, last_id);
         
@@ -56,51 +60,24 @@ impl WasmHttpBoard {
         
         let json = JsFuture::from(resp.json()?).await?;
         
-        let list_response: ListMessagesResponse = serde_wasm_bindgen::from_value(json)
+        let get_response: GetMessagesResponse = serde_wasm_bindgen::from_value(json)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse messages response: {}", e)))?;
         
-        // Convert to HttpB3Message, fetching S3 content when needed
+        // Convert to HttpB3Message, fetching S3 content using pre-signed URLs
         let mut messages = Vec::new();
         
-        for http_msg in list_response.messages {
-            let message_bytes = match http_msg.content_type {
+        // NOTE: POTENTIAL OPTIMIZATION
+        // S3 downloads are currently sequential. For better performance with many messages,
+        // these could be parallelized using futures::join_all or similar techniques.
+        // With pre-signed URLs already available, there's no dependency between downloads.
+        
+        for msg in get_response.messages {
+            let message_bytes = match msg.message.content_type {
                 ContentType::Inline { data } => data,
                 ContentType::S3 { key: _ } => {
-                    // TODO: PERFORMANCE OPTIMIZATION
-                    // Currently making individual requests to B4 for each S3 message to get
-                    // pre-signed download URLs. This causes N extra HTTP requests (one per message).
-                    // Better approach: modify B4's list_messages endpoint to include download_urls
-                    // in the batch response, eliminating these round-trips.
-                    // Alternative: parallelize these requests using futures::join_all.
-                    
-                    // Fetch download URL from B4's single-message endpoint
-                    let message_url = format!("{}/boards/{}/messages/{}", 
-                        self.params.b4_url, 
-                        board_name,
-                        http_msg.id
-                    );
-                    
-                    let opts = RequestInit::new();
-                    opts.set_method("GET");
-                    opts.set_mode(RequestMode::Cors);
-                    
-                    let request = Request::new_with_str_and_init(&message_url, &opts)?;
-                    let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
-                    let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
-                    let resp: Response = resp_value.dyn_into()?;
-                    
-                    if !resp.ok() {
-                        return Err(JsValue::from_str(&format!(
-                            "Failed to fetch message {}: HTTP {}",
-                            http_msg.id, resp.status()
-                        )));
-                    }
-                    
-                    let json = JsFuture::from(resp.json()?).await?;
-                    let download_url = js_sys::Reflect::get(&json, &JsValue::from_str("download_url"))
-                        .map_err(|e| JsValue::from_str(&format!("Failed to get download_url: {:?}", e)))?
-                        .as_string()
-                        .ok_or_else(|| JsValue::from_str("download_url is not a string"))?;
+                    // Use pre-signed download URL from response (no individual B4 requests needed!)
+                    let download_url = msg.download_url
+                        .ok_or_else(|| JsValue::from_str("S3 message missing download_url"))?;
                     
                     // Fetch the actual binary content from the pre-signed S3 URL
                     let opts2 = RequestInit::new();
@@ -124,17 +101,17 @@ impl WasmHttpBoard {
                 }
             };
             
-            let id: i64 = http_msg.id.parse()
-                .map_err(|e| JsValue::from_str(&format!("Failed to parse message ID '{}': {}", http_msg.id, e)))?;
+            let id: i64 = msg.message.id.parse()
+                .map_err(|e| JsValue::from_str(&format!("Failed to parse message ID '{}': {}", msg.message.id, e)))?;
             
             messages.push(HttpB3Message::new(
                 id,
                 message_bytes,
                 "1".to_string(),
-                http_msg.sender_pk,
-                http_msg.statement_kind,
-                http_msg.batch,
-                http_msg.mix_number,
+                msg.message.sender_pk,
+                msg.message.statement_kind,
+                msg.message.batch,
+                msg.message.mix_number,
             ));
         }
         
