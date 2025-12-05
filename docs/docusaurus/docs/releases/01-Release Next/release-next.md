@@ -13,6 +13,12 @@ Modify the tally export translations to show the format before the document name
 
 - Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
 
+## 🐞 Tally > "No Results" while loading the results
+1. Fix Tally results show "No results" while loading for it.
+2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
+
+- Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
+
 ## 🐞 Fix Graphql Typescript issues
 
 Update Graphql definitions in the admin-portal, which is required after a
