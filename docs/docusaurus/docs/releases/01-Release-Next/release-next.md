@@ -13,6 +13,13 @@ After the dependency updates, the Election Data form had stopped working.
 
 - Issue: [#9572](https://github.com/sequentech/meta/issues/9572)
 
+## 🐞 Tally > "No Results" while loading the results
+
+1. Fix Tally results show "No results" while loading for it.
+2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
+
+- Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
+
 ## 🐞 Fix Graphql Typescript issues
 
 Update Graphql definitions in the admin-portal, which is required after a
