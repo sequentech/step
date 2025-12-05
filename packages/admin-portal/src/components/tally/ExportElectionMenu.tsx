@@ -263,7 +263,12 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                     overflow: "hidden",
                                                 }}
                                             >
-                                                <span title={format.label}>
+                                                <span
+                                                    title={t("common.label.exportFormat", {
+                                                        item: documents.name,
+                                                        format: format.label,
+                                                    })}
+                                                >
                                                     {t("common.label.exportFormat", {
                                                         item: documents.name,
                                                         format: format.label,

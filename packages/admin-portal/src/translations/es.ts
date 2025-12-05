@@ -1122,7 +1122,7 @@ const spanishTranslation: TranslationType = {
                 import: "Importar",
                 export: "Exportar",
                 loadingData: "Cargando datos ...",
-                exportFormat: "Exportar resultados de '{{item}}' en formato {{format}}",
+                exportFormat: "Exportar en formato {{format}} - Resultados de '{{item}}'",
                 allResults: "del evento electoral",
                 globalAreaResults: "de todas las áreas",
                 title: "Título",
