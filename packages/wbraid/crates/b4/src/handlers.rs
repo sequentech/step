@@ -266,6 +266,7 @@ pub async fn get_message(
     State(state): State<AppState>,
     Path((board_name, id)): Path<(String, String)>,
 ) -> Result<Json<GetMessageResponse>, StatusCode> {
+
     let id_num: i64 = id.parse().map_err(|_| {
         tracing::error!("Invalid message ID: {}", id);
         StatusCode::BAD_REQUEST
@@ -305,6 +306,7 @@ pub async fn list_messages(
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<ListMessagesResponse>, StatusCode> {
+        
     // If last_id is provided, use range query
     if let Some(last_id) = query.last_id {
         let limit = query.limit.unwrap_or(100).min(1000); // Max 1000 messages per request
@@ -316,6 +318,10 @@ pub async fn list_messages(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
+        if messages.is_empty() {
+            tracing::warn!("Found 0 messages for list_messages request on board '{}' with last_id {}", board_name, last_id);
+        }
+        
         // TODO: Return truncated flag in response for pagination
         Ok(Json(ListMessagesResponse { messages }))
     } else {

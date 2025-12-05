@@ -142,6 +142,9 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> Verifier<C, S> {
         );
 
         let messages = self.board.get_messages(&self.board_name, -1).await?;
+
+        info!("Retrieved messages {} from board.", messages.len());
+        
         let messages: Vec<(Message, i64)> = messages
             .iter()
             .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))

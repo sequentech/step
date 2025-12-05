@@ -269,6 +269,8 @@ impl Board for HttpB3 {
 
         let list_response: ListMessagesResponse = response.json().await?;
 
+        println!("{:?}", list_response);
+
         let mut result = Vec::new();
 
         for msg_row in list_response.messages {
