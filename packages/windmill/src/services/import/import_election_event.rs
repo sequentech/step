@@ -103,7 +103,13 @@ pub struct ImportElectionEventSchema {
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
     pub applications: Option<Vec<Application>>,
+    #[serde(default = "default_version")]
     pub version: String,
+}
+
+// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
+fn default_version() -> String {
+    "9.0.0".to_string()
 }
 
 #[instrument(err)]
@@ -462,11 +468,17 @@ pub async fn decrypt_document(
     Ok(temp_file_path)
 }
 
-fn extract_major(version: &str) -> Option<u32> {
-    version
-        .split('.')
-        .next()
-        .and_then(|v| v.parse::<u32>().ok())
+fn extract_major(input: &str) -> Option<u64> {
+    // Trim optional 'v' or 'V' prefix
+    let trimmed = input.trim_start_matches(|c| c == 'v' || c == 'V');
+
+    // We take characters from the start as long as they are digits.
+    // This stops at the first dot '.', hyphen '-', or any non-digit.
+    let major_str: String = trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
+
+    // Parse the result into a u64
+    // If the string was empty (e.g., input was "invalid"), this returns None.
+    major_str.parse::<u64>().ok()
 }
 
 fn check_version_compatibility(imported_version: &str, current_version: &str) -> Result<()> {
@@ -509,7 +521,7 @@ pub async fn get_election_event_schema(
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
     let current_version = std::env::var("APP_VERSION").unwrap_or_else(|_| "dev".to_string());
-    check_version_compatibility(&original_data.version, &current_version).with_context(|| anyhow!("Version mismatch: Imported version {} is not compatible with current version {}. Please upgrade your system.", original_data.version, current_version))?;
+    check_version_compatibility(&original_data.version, &current_version)?;
     replace_ids(data_str, &original_data, id, tenant_id.clone())
 }
 

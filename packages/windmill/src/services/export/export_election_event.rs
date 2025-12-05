@@ -169,7 +169,7 @@ pub async fn generate_encrypted_zip(
 
 pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string(&data)?;
+    let data_str = serde_json::to_string_pretty(&data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
