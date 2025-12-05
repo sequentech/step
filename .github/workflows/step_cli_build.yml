@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,16 +7,13 @@ name: Build Step CLI Binary
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
   release:
     types: [published]
 
 jobs:
   build-cli:
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
     env:
       CARGO_TARGET_DIR: rust-local-target
       RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
@@ -28,16 +25,14 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler musl-tools libssl-dev pkg-config musl-dev libunwind-dev
+          sudo apt-get install -y build-essential protobuf-compiler musl-tools libssl-dev pkg-config musl-dev libunwind-dev
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: nightly
+          toolchain: 1.90.0
           components: rustfmt
-          override: true
-          target: x86_64-unknown-linux-musl
+          targets: x86_64-unknown-linux-musl
 
       - name: Link openssl
         working-directory: packages/step-cli

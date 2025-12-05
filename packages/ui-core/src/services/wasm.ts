@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -23,12 +23,17 @@ import {
     encrypt_decoded_contest_js,
     encrypt_decoded_multi_contest_js,
     test_contest_reencoding_js,
+    is_preferential_js,
     test_multi_contest_reencoding_js,
     get_write_in_available_characters_js,
     check_is_blank_js,
+    sign_hashable_ballot_with_ephemeral_voter_signing_key_js,
+    sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js,
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
+    verify_ballot_signature_js,
+    verify_multi_ballot_signature_js,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -42,6 +47,8 @@ import {
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    ISignedContent,
+    ICountingAlgorithm,
 } from ".."
 
 export type {
@@ -56,13 +63,30 @@ export type {
 
 export type BallotSelection = Array<IDecodedVoteContest>
 
-export const initCore = () => {
-    try {
-        SequentCoreLibInit().then(set_hooks)
-    } catch (error) {
-        console.error("Error initializing SequentCoreLib:", error)
-        throw error
+// Create a variable to hold the singleton promise
+let initializationPromise: Promise<void> | null = null
+
+/**
+ * Initializes the Sequent Core WASM library.
+ * This function is a singleton and will only run the initialization once.
+ * @returns A promise that resolves when the library is ready.
+ */
+export const initCore = (): Promise<void> => {
+    // If the promise doesn't exist yet, create it
+    if (!initializationPromise) {
+        initializationPromise = SequentCoreLibInit()
+            .then((_core) => {
+                // The set_hooks function is often passed the core module itself
+                set_hooks()
+            })
+            .catch((error) => {
+                console.error("Error initializing SequentCoreLib:", error)
+                // Re-throw the error to let consumers handle it
+                throw error
+            })
     }
+    // Return the existing promise on subsequent calls
+    return initializationPromise
 }
 
 export const sortElectionList = (
@@ -101,6 +125,16 @@ export const sortCandidatesInContest = (
     try {
         if (!candidates || !candidates.length) return candidates
         return sort_candidates_list_js(candidates, order, applyRandom)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const isPreferential = (countingAlgorithm?: ICountingAlgorithm): boolean => {
+    if (!countingAlgorithm) return false
+    try {
+        return is_preferential_js(countingAlgorithm)
     } catch (error) {
         console.log(error)
         throw error
@@ -165,6 +199,40 @@ export const encryptMultiBallotSelection = (
 ): IAuditableMultiBallot => {
     try {
         return encrypt_decoded_multi_contest_js(ballotSelection, election)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const signHashableBallot = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableSingleBallot
+): ISignedContent => {
+    try {
+        return sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const signHashableMultiBallot = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableMultiBallot
+): ISignedContent => {
+    try {
+        return sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            content
+        )
     } catch (error) {
         console.log(error)
         throw error
@@ -252,6 +320,34 @@ export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
     } catch (error) {
         console.log(error)
         return null
+    }
+}
+
+export const verifyBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableSingleBallot
+): boolean | null => {
+    try {
+        let isVerified: boolean = verify_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyMultiBallotSignature = (
+    ballot_id: string,
+    election_id: string,
+    content: IAuditableMultiBallot
+): boolean | null => {
+    try {
+        let isVerified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
+        return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 

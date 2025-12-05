@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -82,4 +82,8 @@ export enum ETallyType {
 export enum ETallyTypeCssClass {
     ELECTORAL_RESULTS = "electoral-results",
     INITIALIZATION_REPORT = "init-report",
+}
+
+export enum CreateKeysError {
+    PERMISSION_LABELS = "permission-labels",
 }

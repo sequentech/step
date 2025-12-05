@@ -1,12 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import styled from "@emotion/styled"
 import {Paper, Box, Typography, IconButton, Table, TableCell, AccordionSummary} from "@mui/material"
 import {Button} from "react-admin"
 
-import {styled as muiStyled} from "@mui/material/styles"
+import {styled} from "@mui/material/styles"
 
 export const CustomAccordionSummary = styled(AccordionSummary)<{isLoading: boolean}>(
     ({theme, isLoading}) => ({
@@ -113,7 +112,7 @@ export const LogTypography = styled(Typography)({
     fontWeight: "500",
 })
 
-export const ViewTaskTypography = muiStyled(Button)(({theme}) => ({
+export const ViewTaskTypography = styled(Button)(({theme}) => ({
     "margin": "5px",
     "paddingLeft": "25px",
     "backgroundColor": theme.palette.white,
@@ -130,7 +129,7 @@ export const ViewTaskTypography = muiStyled(Button)(({theme}) => ({
     },
 }))
 
-export const DownloaButton = muiStyled(Button)(({theme}) => ({
+export const DownloaButton = styled(Button)(({theme}) => ({
     "margin": "5px",
     "background": theme.palette.brandColor,
     "color": theme.palette.white,

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -20,9 +20,11 @@ use crate::multi_ballot::{
     AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
     RawHashableMultiBallot,
 };
+use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
+use crate::util::normalize_vote::normalize_election;
 use base64::engine::general_purpose;
 use base64::Engine;
 use strand::serialization::StrandSerialize;
@@ -155,12 +157,21 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         )));
     }
 
-    let contest_choices = decoded_contests
+    let contest_choices: Vec<_> = decoded_contests
         .iter()
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    let ballot_choices = BallotChoices::new(false, contest_choices);
+    let is_explicit_invalid = decoded_contests
+        .iter()
+        .any(|choice| choice.is_explicit_invalid);
+
+    let counting_algorithm = config.get_counting_algorithm()?;
+    let ballot_choices = BallotChoices::new(
+        is_explicit_invalid,
+        contest_choices,
+        counting_algorithm,
+    );
 
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
@@ -191,7 +202,16 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         .map(ContestChoices::from_decoded_vote_contest)
         .collect();
 
-    let ballot = BallotChoices::new(false, contest_choices);
+    let is_explicit_invalid = decoded_contests
+        .iter()
+        .any(|choice| choice.is_explicit_invalid);
+
+    let counting_algorithm = config.get_counting_algorithm()?;
+    let ballot = BallotChoices::new(
+        is_explicit_invalid,
+        contest_choices,
+        counting_algorithm,
+    );
 
     encrypt_multi_ballot(ctx, &ballot, config)
 }
@@ -251,9 +271,14 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         contests: AuditableBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
-    let hashable_ballot = HashableBallot::try_from(&auditable_ballot)?;
+    let signed_hashable_ballot =
+        SignedHashableBallot::try_from(&auditable_ballot)?;
+    let hashable_ballot: HashableBallot =
+        HashableBallot::try_from(&signed_hashable_ballot)?;
     auditable_ballot.ballot_hash = hash_ballot(&hashable_ballot)?;
 
     Ok(auditable_ballot)
@@ -350,6 +375,8 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
         contests: AuditableMultiBallot::serialize_contests::<C>(&contests)?,
         ballot_hash: String::from(""),
         config: config.clone(),
+        voter_signing_pk: None,
+        voter_ballot_signature: None,
     };
 
     let hashable_ballot = HashableMultiBallot::try_from(&auditable_ballot)?;
@@ -385,6 +412,8 @@ mod tests {
     use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
+    use crate::plaintext::DecodedVoteContest;
+    use crate::serialization::deserialize_with_path::deserialize_value;
     use crate::util::normalize_vote::normalize_vote_contest;
 
     use strand::backend::ristretto::RistrettoCtx;
@@ -442,13 +471,13 @@ mod tests {
         assert_eq!(
             normalize_vote_contest(
                 &decoded_plaintext,
-                contest.get_counting_algorithm().as_str(),
+                contest.get_counting_algorithm(),
                 false,
                 &invalid_candidate_ids,
             ),
             normalize_vote_contest(
                 &decoded_contest,
-                contest.get_counting_algorithm().as_str(),
+                contest.get_counting_algorithm(),
                 false,
                 &invalid_candidate_ids,
             )
@@ -485,13 +514,13 @@ mod tests {
         assert_eq!(
             normalize_vote_contest(
                 &decoded_contest,
-                contest.get_counting_algorithm().as_str(),
+                contest.get_counting_algorithm(),
                 false,
                 &invalid_candidate_ids,
             ),
             normalize_vote_contest(
                 &decoded_contest2,
-                contest.get_counting_algorithm().as_str(),
+                contest.get_counting_algorithm(),
                 false,
                 &invalid_candidate_ids,
             )
