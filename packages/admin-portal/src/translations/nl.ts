@@ -1154,7 +1154,7 @@ const dutchTranslation: TranslationType = {
                 import: "Importeren",
                 export: "Exporteren",
                 loadingData: "Gegevens laden...",
-                exportFormat: "Exporteer '{{item}}' resultaten in {{format}} formaat",
+                exportFormat: "Exporteren in {{format}}-formaat - Resultaten van '{{item}}",
                 allResults: "verkiezingsevenement",
                 globalAreaResults: "alle gebieden",
                 title: "Titel",
