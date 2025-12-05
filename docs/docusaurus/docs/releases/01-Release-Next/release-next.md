@@ -49,6 +49,12 @@ ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
 
+## 🐞 Tally > Export option can't be read correctly if title is too long
+
+Modify the tally export translations to show the format before the document name.
+
+- Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
+
 ## 🐞 Keys Ceremony > State not cleared when switching Election Events
 
 Clear keys ceremony state when switching events.

@@ -1159,7 +1159,7 @@ const galegoTranslation: TranslationType = {
                 import: "Importar",
                 export: "Exportar",
                 loadingData: "Cargando datos...",
-                exportFormat: "Exportar '{{item}}' en formato {{format}}",
+                exportFormat: "Exportar en formato {{format}} - Resultados de '{{item}}'",
                 allResults: "evento electoral",
                 globalAreaResults: "todas as áreas",
                 title: "Título",
