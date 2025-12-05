@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Fix Graphql Typescript issues
+
+Update Graphql definitions in the admin-portal, which is required after a
+bad merge from main.
+
+- Issue: [#9540](https://github.com/sequentech/meta/issues/9540)
 
 ## ✨ Instant-runoff Voting (IRV/RCV) System support
 
@@ -41,3 +47,23 @@ Clear keys ceremony state when switching events.
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Error with tenants and templates in Admin portal.
+
+Fixed issues that prevented tenant creation and template creation and deletion 
+in the Admin portal.
+
+- Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
+
+## 🐞 Tally UI shows manual and executes automatic after policy switch
+
+Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
+
+- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
+
+## ✨ Tally sheets input support
+
+`TALLY SHEETS` tab has been moved to election level. The table supports new actions
+ like viewing the versions for each ballot box and approving/disapproving them.
+New permission roles have been created: `tally-sheet-view`, `tally-sheet-create` and `tally-sheet-review`.
+If they are not present they must be created in Realm Roles and assigned in Groups > Admin > Role Mapping.
