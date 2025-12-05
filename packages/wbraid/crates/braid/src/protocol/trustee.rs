@@ -109,15 +109,6 @@ pub struct Trustee<C: Ctx, S: LocalBoardStorage> {
     pub(crate) encryption_key: symm::SymmetricKey,
     // Public for external crates (e.g., braid-wasm) to access board state
     pub local_board: LocalBoard<C, S>,
-    /// Tracks the last locally-controlled store ID loaded into the in-memory board.
-    /// This is NOT the bulletin board's external ID - it's our local SQLite AUTOINCREMENT ID.
-    /// The local database controls message ordering, preventing the bulletin board from
-    /// manipulating history by reordering or prepending messages.
-    /// See the "Security Model: Message ID Tracking" section in the Trustee struct documentation.
-    ///
-    /// FIXME: Consider moving this into LocalBoard. This field would be updated in
-    /// LocalBoard when calling add, instead of being returned to the calling Trustee.
-    pub last_local_board_id: i64,
     pub(crate) step_counter: i64,
     pub(crate) max_concurrent_actions: Option<usize>,
 }
@@ -150,7 +141,6 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
             signing_key,
             encryption_key,
             local_board,
-            last_local_board_id: -1,
             step_counter: 0,
             max_concurrent_actions,
         }
@@ -178,15 +168,15 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
         // Store messages and retrieve them with IDs (persistent: local IDs, no-op: external IDs)
         let parsed_messages = self.local_board
-            .store_and_return_messages(&remote_messages, self.last_local_board_id, ignore_existing)
+            .store_and_return_messages(&remote_messages, ignore_existing)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))?;
 
-        // Update the in-memory board with parsed messages. Returns (count, last_local_id)
-        let (added_messages, last_local_id) = self.update_local_board(parsed_messages)?;
+        // Update the in-memory board with parsed messages. Returns count of added messages.
+        let added_messages = self.update_local_board(parsed_messages)?;
         if added_messages > 0 {
             let max_messages = self.local_board.max_messages();
-            info!("Setting last local board id {} (/{})!", last_local_id, max_messages);
-            self.last_local_board_id = last_local_id;
+            let last_id = self.local_board.get_last_local_board_id();
+            info!("Loaded {} messages, last local board id {} (/{})!", added_messages, last_id, max_messages);
         }
 
         trace!("Update added {} messages", added_messages);
@@ -205,7 +195,8 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
             );
         }
 
-        let ret = StepResult::new(messages, actions, added_messages, last_local_id);
+        let last_id = self.local_board.get_last_local_board_id();
+        let ret = StepResult::new(messages, actions, added_messages, last_id);
 
         Ok(ret)
     }
@@ -262,16 +253,16 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// Updates the LocalBoard, inserting new messages into the statements and
     /// artifact maps.
     ///
-    /// Takes a vector of (message, local_id) pairs as input, returns a pair
-    /// of (updated messages count, last local_id added to board).
+    /// Takes a vector of (message, local_id) pairs as input, returns count of added messages.
     ///
-    /// SECURITY: The local_id values are locally-controlled (from our SQLite AUTOINCREMENT)
+    /// SECURITY: The local_id values are locally-controlled (from our storage backend)
     /// and determine the order messages are processed, not the bulletin board's external IDs.
+    /// LocalBoard automatically tracks last_local_board_id.
     #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     pub fn update_local_board(
         &mut self,
         messages: Vec<(Message, i64)>,
-    ) -> Result<(i64, i64), ProtocolError> {
+    ) -> Result<i64, ProtocolError> {
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
             self.update(messages, configuration)
@@ -292,9 +283,8 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         &mut self,
         messages: Vec<(Message, i64)>,
         configuration: Configuration<C>,
-    ) -> Result<(i64, i64), ProtocolError> {
+    ) -> Result<i64, ProtocolError> {
         let mut added = 0;
-        let mut last_added_id: i64 = -1;
 
         // Sanity check: field cfg_hash must exist at this point
         let cfg_hash = self.local_board.get_cfg_hash();
@@ -331,15 +321,12 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
             }
 
             let stmt = verified.statement.clone();
-            let _ = self.local_board.add(verified, id)?;
+            self.local_board.add(verified, id)?;
             debug!("Added message type=[{}]", stmt);
             added += 1;
-            if id > last_added_id {
-                last_added_id = id;
-            }
         }
 
-        Ok((added, last_added_id))
+        Ok(added)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -354,9 +341,8 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     fn update_bootstrap(
         &mut self,
         mut messages: Vec<(Message, i64)>,
-    ) -> Result<(i64, i64), ProtocolError> {
+    ) -> Result<i64, ProtocolError> {
         let mut added = 0;
-        let mut last_added_id: i64 = -1;
 
         trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
@@ -399,19 +385,15 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
         trace!("Verified signature, Configuration signed by Protocol Manager");
 
-        let added_ = self.local_board.add(verified, last_id);
-        if added_.is_ok() {
-            added += 1;
-            last_added_id = last_id;
-        } else {
-            return added_.map(|()| (0, last_added_id));
-        }
+        self.local_board.add(verified, last_id)?;
+        added += 1;
+        
         // Process the rest of the messages
         if !messages.is_empty() {
             return self.update(messages, configuration);
         }
 
-        Ok((added, last_added_id))
+        Ok(added)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -815,6 +797,7 @@ impl TrusteeConfig {
 ///
 /// Contains the messages generated by the trustee as well as
 /// statistics about the step execution.
+#[derive(Debug)]
 pub struct StepResult {
     pub messages: Vec<Message>,
     pub actions: HashSet<Action>,

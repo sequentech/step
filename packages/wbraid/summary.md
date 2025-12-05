@@ -127,14 +127,18 @@ Completed: Trustees = 5, Threshold = 3, Ciphertexts = 1000
 
 2.6 Revise:
 
-// SAFETY: BrowserStorage is safe to Send/Sync in WASM because:
-// - WASM runs single-threaded on the main thread
-// - RefCell provides interior mutability without actual thread contention
-// - Rayon workers run in separate WASM instances, don't share this storage
-unsafe impl Send for BrowserStorage {}
-unsafe impl Sync for BrowserStorage {}
+// SAFETY: WASM is single-threaded, so RefCell is safe to share across "threads"
+// (which don't actually exist in WASM). This allows IndexedDbStorage to implement
+// LocalBoardStorage which requires Send + Sync.
+unsafe impl Send for IndexedDbStorage {}
+unsafe impl Sync for IndexedDbStorage {}
 
 2.7 Remove warnings
+
+2.8 We have lost the ability to save artifacts outside of the localboard.
+In the previous version of braid, there was a way to save artifacts in the
+sqlite data base, and store only the row ids in the local board. This was lost
+in the wasm compatible version of braid, all artifacts will be in memory.
 
 3. **Verifier Binary Testing**:
    - [ ] Run verifier against a completed protocol execution

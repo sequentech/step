@@ -98,6 +98,11 @@ pub struct LocalBoard<C: Ctx, S: LocalBoardStorage> {
     // Storage backend (SQLite, IndexedDB, or no-op)
     // Public to allow external crates (e.g., braid-wasm) to access storage diagnostics
     pub storage: S,
+    
+    /// Tracks the last locally-controlled store ID loaded into the in-memory board.
+    /// This is the local database's AUTOINCREMENT ID (or equivalent), NOT the
+    /// bulletin board's external ID. Updated automatically by add().
+    last_local_board_id: i64,
 }
 
 impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
@@ -111,6 +116,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
             statements: HashMap::new(),
             artifacts_memory: HashMap::new(),
             storage,
+            last_local_board_id: -1,
         }
     }
 
@@ -120,20 +126,27 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
 
     /// Adds a message to the board.
     ///
-    /// If the message comes from a store, the store_id must point to the row in the
-    /// storage where the message originates. If there is no store this value is ignored.
+    /// The _store_id parameter was historically a remnant, but is now used to track
+    /// last_local_board_id (the locally-controlled storage ID: SQLite AUTOINCREMENT
+    /// or IndexedDB position). This allows LocalBoard to automatically track which
+    /// messages have been loaded into memory.
     pub(crate) fn add(
         &mut self,
         message: VerifiedMessage,
-        // FIXME this field was previously used to refer to the row in the store,
-        // but we are storing artifacts in memory only now
-        _store_id: i64,
+        local_id: i64,
     ) -> Result<(), ProtocolError> {
-        if message.statement.get_kind() == StatementType::Configuration {
+        let result = if message.statement.get_kind() == StatementType::Configuration {
             self.add_bootstrap(message)
         } else {
             self.add_message(message)
+        };
+        
+        // Update tracking: this message with local_id has been loaded into memory
+        if result.is_ok() && local_id > self.last_local_board_id {
+            self.last_local_board_id = local_id;
         }
+        
+        result
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -526,6 +539,14 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         self.storage.store_messages(messages, ignore_existing)
     }
 
+    /// Returns the last locally-controlled store ID loaded into this board.
+    ///
+    /// This is NOT the bulletin board's external ID - it's our local database ID
+    /// (SQLite AUTOINCREMENT or IndexedDB position).
+    pub(crate) fn get_last_local_board_id(&self) -> i64 {
+        self.last_local_board_id
+    }
+
     /// Updates the message store and returns messages not yet in the board.
     ///
     /// Called as part of the normal step update sequence
@@ -538,11 +559,10 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
     pub(crate) fn store_and_return_messages(
         &mut self,
         messages: &[HttpB3Message],
-        last_local_board_id: i64,
         ignore_existing: bool,
     ) -> Result<Vec<(b4::messages::message::Message, i64)>> {
         self.storage.store_messages(messages, ignore_existing)?;
-        self.storage.retrieve_messages(last_local_board_id)
+        self.storage.retrieve_messages(self.last_local_board_id)
     }
 
     /// Returns the largest external_id stored in the message store.

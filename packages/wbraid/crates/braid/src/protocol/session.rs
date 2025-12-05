@@ -8,7 +8,7 @@ use tracing::info;
 use strand::context::Ctx;
 
 use crate::protocol::board::{Board, BoardFactory};
-use crate::protocol::trustee::Trustee;
+use crate::protocol::trustee::{Trustee, StepResult};
 use crate::util::ProtocolError;
 
 /// A protocol session.
@@ -42,7 +42,7 @@ impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, 
     /// 2) Run the trustee step
     /// 3) Post the messages returned by the trustee
     /// to the remote board
-    pub async fn step(&mut self) -> Result<(), ProtocolError> {
+    pub async fn step(&mut self) -> Result<(usize, StepResult), ProtocolError> {
         let mut board = self.board_factory.get_board();
 
         let external_last_id = self.trustee.get_last_external_id()?;
@@ -54,15 +54,17 @@ impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, 
 
         // NOTE: we must call step even if there are no new remote messages
         // because there may be actions pending in the trustee's LocalBoard.
-        let step_result = self.trustee.step(&messages)?;
+        let mut step_result = self.trustee.step(&messages)?;
 
-        info!("Posting {} messages..", step_result.messages.len());
+        let posted_count = step_result.messages.len();
+        info!("Posting {} messages..", posted_count);
 
-        let result = board
-            .insert_messages(&self.board_name, step_result.messages)
+        // Post messages and clear the vector (we don't need to keep them)
+        board
+            .insert_messages(&self.board_name, std::mem::take(&mut step_result.messages))
             .await
-            .map_err(|e| ProtocolError::BoardError(e.to_string()));
+            .map_err(|e| ProtocolError::BoardError(e.to_string()))?;
 
-        result
+        Ok((posted_count, step_result))
     }
 }

@@ -13,10 +13,7 @@ use crate::protocol::session::Session;
 use crate::protocol::board::BoardEntry;
 use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
-#[cfg(feature = "sqlite-wasm-rs")]
-use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, SqliteStorage};
-#[cfg(not(feature = "sqlite-wasm-rs"))]
-use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, BrowserStorage};
+use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, IndexedDbStorage};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -61,10 +58,7 @@ pub struct SessionState {
 /// The protocol execution cycle is managed by the inner session.
 #[wasm_bindgen]
 pub struct WasmSession {
-    #[cfg(feature = "sqlite-wasm-rs")]
-    session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, SqliteStorage>>,
-    #[cfg(not(feature = "sqlite-wasm-rs"))]
-    session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, BrowserStorage>>,
+    session: Option<Session<RistrettoCtx, crate::wasm::board::WasmHttpBoard, IndexedDbStorage>>,
     // Trustee instance name
     // FIXME is this used anywhere?
     name: String,
@@ -103,20 +97,11 @@ impl WasmSession {
         })
     }
 
-    /// Initialize OPFS VFS for SQLite storage (call once before init_session)
-    /// 
-    /// This must be called before creating any sessions when using SQLite storage.
-    /// It installs the OPFS (Origin Private File System) backend that SQLite will use.
-    #[cfg(feature = "sqlite-wasm-rs")]
-    pub async fn init_storage() -> Result<(), JsValue> {
-        crate::wasm::board::init_sqlite_opfs().await?;
-        Ok(())
-    }
-
     /// Initialize a session for a specific board
     /// 
-    /// This creates the Trustee object needed to process messages
-    pub fn init_session(&mut self, board_name: String) -> Result<(), JsValue> {
+    /// This creates the Trustee object and initializes IndexedDB storage.
+    /// Must be called before connect_to_board() or step().
+    pub async fn init_session(&mut self, board_name: String) -> Result<(), JsValue> {
         // Parse signing key
         let sk = StrandSignatureSk::from_der_b64_string(&self.config.signing_key_sk)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse signing key: {}", e)))?;
@@ -127,17 +112,17 @@ impl WasmSession {
         let ek = symm::sk_from_bytes(&bytes)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse encryption key: {}", e)))?;
         
-        // Create trustee with storage
-        #[cfg(feature = "sqlite-wasm-rs")]
-        let storage = {
-            web_sys::console::log_1(&JsValue::from_str("Using SqliteStorage with OPFS backend"));
-            SqliteStorage::new(format!("{}.db", board_name))
-        };
-        #[cfg(not(feature = "sqlite-wasm-rs"))]
-        let storage = {
-            web_sys::console::log_1(&JsValue::from_str("Using BrowserStorage (transient localStorage)"));
-            BrowserStorage::new()
-        };
+        // Create IndexedDB storage (persistent, tamper-resistant)
+        let storage = IndexedDbStorage::new(format!("braid_{}", board_name));
+        
+        // Initialize storage (open IndexedDB and load metadata)
+        storage.init()
+            .await
+            .map_err(|e| JsValue::from_str(&format!("Failed to initialize storage: {}", e)))?;
+        
+        web_sys::console::log_1(&JsValue::from_str(
+            "Using IndexedDbStorage (persistent, metadata-only)"
+        ));
         
         let trustee = Trustee::new(
             self.name.clone(),
@@ -603,11 +588,8 @@ impl WasmSession {
         let session = self.session.as_mut()
             .ok_or_else(|| JsValue::from_str("Session not initialized. Call init_session() first"))?;
         
-        // Capture state before step for reporting
-        let messages_before = session.trustee.local_board.get_statement_entries().len();
-        
-        // Use the generic Session::step() method which handles everything
-        session.step()
+        // Use the generic Session::step() method which returns (posted_count, StepResult)
+        let (posted_count, step_result) = session.step()
             .await
             .map_err(|e| {
                 let error_msg = format!("Step failed: {:?}", e);
@@ -615,17 +597,37 @@ impl WasmSession {
                 JsValue::from_str(&error_msg)
             })?;
         
-        // Report what happened (approximate - Session doesn't expose detailed step results)
-        let messages_after = session.trustee.local_board.get_statement_entries().len();
-        let added = messages_after.saturating_sub(messages_before);
+        // Persist metadata to IndexedDB after protocol step
+        session.trustee.local_board.storage.persist()
+            .await
+            .map_err(|e| {
+                let error_msg = format!("Failed to persist storage: {:?}", e);
+                web_sys::console::error_1(&JsValue::from_str(&error_msg));
+                JsValue::from_str(&error_msg)
+            })?;
         
         #[derive(Serialize)]
         struct StepInfo {
-            added: usize,
+            added: i64,
+            posted: usize,
+            actions: Vec<String>,
         }
         
+        // Convert actions to strings for display (just variant names)
+        let action_strings: Vec<String> = step_result.actions
+            .iter()
+            .map(|a| {
+                // Extract just the variant name from Debug format
+                // e.g., "SignConfiguration(...)" -> "SignConfiguration"
+                let debug_str = format!("{:?}", a);
+                debug_str.split('(').next().unwrap_or(&debug_str).to_string()
+            })
+            .collect();
+        
         serde_wasm_bindgen::to_value(&StepInfo {
-            added,
+            added: step_result.added_messages,
+            posted: posted_count,
+            actions: action_strings,
         }).map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 
@@ -648,11 +650,29 @@ impl WasmSession {
             board_name: board_name.clone(),
             current_messages: session.trustee.local_board.get_statement_entries().len() + config,
             max_messages: session.trustee.local_board.max_messages(),
-            last_message_id: session.trustee.last_local_board_id,
+            last_message_id: session.trustee.local_board.get_last_local_board_id(),
         };
         
         serde_wasm_bindgen::to_value(&state)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Clear persistent storage (for testing)
+    ///
+    /// This clears the IndexedDB storage, allowing a fresh start.
+    /// Note: This does NOT reset the session - you'll need to reload the page
+    /// or call init_session() again after clearing.
+    pub async fn clear_storage(&self) -> Result<(), JsValue> {
+        let session = self.session.as_ref()
+            .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
+        
+        session.trustee.local_board.storage.clear()
+            .await
+            .map_err(|e| {
+                let error_msg = format!("Failed to clear storage: {:?}", e);
+                web_sys::console::error_1(&JsValue::from_str(&error_msg));
+                JsValue::from_str(&error_msg)
+            })
     }
 
     /// Get the current board name (if session initialized)
@@ -704,8 +724,8 @@ impl WasmSession {
     /// Get storage diagnostics information
     /// 
     /// Returns information about the storage backend including:
-    /// - Backend type (SqliteStorage vs BrowserStorage)
-    /// - Total messages stored
+    /// - Backend type (IndexedDbStorage)
+    /// - Total messages stored (hash metadata count)
     /// - Maximum internal ID (locally-controlled, security-critical)
     /// - Maximum external ID (from bulletin board, optimization only)
     pub fn get_storage_info(&self) -> Result<JsValue, JsValue> {
