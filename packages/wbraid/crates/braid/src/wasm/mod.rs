@@ -9,8 +9,10 @@
 
 pub mod session;
 pub mod board;
+pub mod verify;
 
 pub use session::WasmSession;
+pub use verify::WasmVerifier;
 
 // Re-export wasm-bindgen-rayon's initThreadPool for browser usage
 // This provides parallel computation support via Web Workers

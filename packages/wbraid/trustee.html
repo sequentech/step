@@ -242,7 +242,7 @@
 </head>
 <body>
     <h1>braid-wasm</h1>
-    <p class="subtitle">verifiable mixnet node (v0.4.0, built 2025-12-05 04:42:40)</p>
+    <p class="subtitle">verifiable mixnet node (v0.4.0, built 2025-12-05 15:52:07)</p>
 
     <div class="grid">
         <!-- Configuration Panel -->
@@ -347,11 +347,38 @@
         </div>
     </div>
 
+    <!-- Independent Verifier Section -->
+    <div class="panel" style="margin-top: 20px;">
+        <h2>🔍 Independent Verifier</h2>
+        <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 16px;">
+            Verify election integrity without trustee credentials. Checks configuration, signatures, PK construction, mixing, and decryption.
+        </p>
+        <div class="form-group">
+            <label for="verifier-b4-url">B4 Server URL:</label>
+            <input type="text" id="verifier-b4-url" value="http://127.0.0.1:3000" placeholder="http://127.0.0.1:3000">
+        </div>
+        <div class="form-group">
+            <label for="verifier-board">Board Name:</label>
+            <div class="button-group">
+                <input type="text" id="verifier-board" placeholder="Enter board name to verify">
+                <button id="verify-board-btn" class="success">Verify Board</button>
+            </div>
+        </div>
+        <div id="verify-status"></div>
+        
+        <!-- Verification Results (collapsible) -->
+        <details id="verify-results-details" style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;" class="hidden">
+            <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📋 Verification Results</summary>
+            <div id="verify-results" style="margin-top: 12px; font-size: 12px; max-height: 300px; overflow-y: auto; font-family: 'Courier New', monospace;">
+            </div>
+        </details>
+    </div>
+
     <script type="module">
         // Dynamic import with timestamp to force cache refresh
         const timestamp = new Date().getTime();
         console.log('Loading WASM with cache-busting timestamp:', timestamp);
-        const { default: init, initThreadPool, WasmSession } = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
+        const { default: init, initThreadPool, WasmSession, WasmVerifier } = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
 
         let trustee = null;
         let autoInterval = null;
@@ -842,6 +869,84 @@
             await updateStorageInfo();
             console.log('Storage info refreshed');
         });
+
+        // Verify board
+        document.getElementById('verify-board-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('verify-board-btn');
+            const statusEl = document.getElementById('verify-status');
+            const resultsDetailsEl = document.getElementById('verify-results-details');
+            const resultsEl = document.getElementById('verify-results');
+            const b4Url = document.getElementById('verifier-b4-url').value.trim();
+            const boardName = document.getElementById('verifier-board').value.trim();
+
+            if (!boardName) {
+                showStatusInEl(statusEl, 'Please enter a board name', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add('loading');
+            showStatusInEl(statusEl, `Verifying board "${boardName}"...`, 'info');
+            resultsDetailsEl.classList.add('hidden');
+
+            try {
+                console.log(`Starting verification of board "${boardName}" from ${b4Url}`);
+                
+                // Create verifier instance
+                const verifier = new WasmVerifier(b4Url);
+                
+                // Run verification
+                const result = await verifier.verify_board(boardName);
+                
+                console.log('Verification result:', result);
+                
+                // Display results
+                const resultData = JSON.parse(result);
+                const isValid = resultData.valid || false;
+                const checks = resultData.checks || [];
+                
+                if (isValid) {
+                    showStatusInEl(statusEl, `✅ Board "${boardName}" verified successfully`, 'success');
+                } else {
+                    showStatusInEl(statusEl, `❌ Verification failed for board "${boardName}"`, 'error');
+                }
+                
+                // Display individual check results
+                let html = '<div style="padding: 8px 0;">';
+                html += `<div style="margin-bottom: 8px; font-weight: 600; color: ${isValid ? '#27ae60' : '#e74c3c'};">`;
+                html += `Overall: ${isValid ? 'VALID ✅' : 'INVALID ❌'}</div>`;
+                
+                if (checks.length > 0) {
+                    html += '<div style="border-top: 1px solid #ecf0f1; padding-top: 8px;">';
+                    checks.forEach(check => {
+                        const status = check.passed ? '✅' : '❌';
+                        const color = check.passed ? '#27ae60' : '#e74c3c';
+                        html += `<div style="padding: 4px 0; color: ${color};">${status} ${check.name}</div>`;
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<div style="color: #7f8c8d; font-style: italic;">No detailed checks available</div>';
+                }
+                
+                html += '</div>';
+                resultsEl.innerHTML = html;
+                resultsDetailsEl.classList.remove('hidden');
+                resultsDetailsEl.setAttribute('open', '');
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                showStatusInEl(statusEl, `Error: ${error.message || error}`, 'error');
+                resultsDetailsEl.classList.add('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
+        });
+
+        // Helper function for showing status in any element
+        function showStatusInEl(el, message, type) {
+            el.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
 
         // Initialize on load
         initializeWasm();

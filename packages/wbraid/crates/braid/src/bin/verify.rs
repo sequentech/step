@@ -8,7 +8,7 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::native::board::HttpB3BoardParams;
+use braid::native::board::{HttpB3, HttpB3BoardParams};
 use braid::protocol::trustee::Trustee;
 use braid::native::verify::verifier::Verifier;
 
@@ -61,9 +61,10 @@ async fn main() -> Result<()> {
         None,
     );
     let board_params = HttpB3BoardParams::new(&args.server_url).await;
-    let board = board_params.create_board(&args.board, None);
-    let mut session = Verifier::new(trustee, board, &args.board);
-    session.run().await?;
+    let board: HttpB3 = board_params.create_board(&args.board, None);
+    let mut session: Verifier<RistrettoCtx, HttpB3, braid::native::board::NoOpStorage> = 
+        Verifier::new(trustee, board, &args.board);
+    let _result = session.run().await?;
 
     Ok(())
 }

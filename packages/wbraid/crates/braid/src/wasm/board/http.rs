@@ -66,6 +66,13 @@ impl WasmHttpBoard {
             let message_bytes = match http_msg.content_type {
                 ContentType::Inline { data } => data,
                 ContentType::S3 { key: _ } => {
+                    // TODO: PERFORMANCE OPTIMIZATION
+                    // Currently making individual requests to B4 for each S3 message to get
+                    // pre-signed download URLs. This causes N extra HTTP requests (one per message).
+                    // Better approach: modify B4's list_messages endpoint to include download_urls
+                    // in the batch response, eliminating these round-trips.
+                    // Alternative: parallelize these requests using futures::join_all.
+                    
                     // Fetch download URL from B4's single-message endpoint
                     let message_url = format!("{}/boards/{}/messages/{}", 
                         self.params.b4_url, 

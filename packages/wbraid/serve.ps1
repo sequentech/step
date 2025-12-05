@@ -20,6 +20,11 @@ $htmlContent = Get-Content "trustee.html" -Raw
 $htmlContent = $htmlContent -replace '(<p class="subtitle">verifiable mixnet node)( \(v[\d.]+, built .+?\))?(</p>)', "`$1 ($buildInfo)`$3"
 $htmlContent | Set-Content "trustee.html" -NoNewline
 
+# Inject build info into verifier.html as well
+$verifierContent = Get-Content "verifier.html" -Raw
+$verifierContent = $verifierContent -replace '(<p class="subtitle">election verifier)( \([^)]+\))?(</p>)', "`$1 ($buildInfo)`$3"
+$verifierContent | Set-Content "verifier.html" -NoNewline
+
 Write-Host "Injected build info: $buildInfo" -ForegroundColor Cyan
 Write-Host "Starting development server on http://127.0.0.1:8080" -ForegroundColor Green
 python server.py

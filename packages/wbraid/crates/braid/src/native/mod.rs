@@ -9,9 +9,11 @@
 //!
 //! Note: The `board` module is also available in WASM builds because NoOpStorage
 //! is temporarily used by WASM until proper browser-based storage is implemented.
+//! The `verify` module is also available for WASM verifier support.
 
-// Available in both native and WASM (for NoOpStorage)
+// Available in both native and WASM
 pub mod board;
+pub mod verify;
 
 // Native-only modules
 #[cfg(feature = "native")]
@@ -20,5 +22,3 @@ pub mod logging;
 pub mod session;
 #[cfg(feature = "native")]
 pub mod test;
-#[cfg(feature = "native")]
-pub mod verify;
