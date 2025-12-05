@@ -7,6 +7,13 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Tally > "No Results" while loading the results
+
+1. Fix Tally results show "No results" while loading for it.
+2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
+
+- Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
+
 ## 🐞 Tally UI shows manual and executes automatic after policy switch
 
 Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
