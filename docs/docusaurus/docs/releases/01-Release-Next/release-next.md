@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Errors editing forms
+
+After the dependency updates, the Election Data form had stopped working.
+
+- Issue: [#9572](https://github.com/sequentech/meta/issues/9572)
+
 ## 🐞 Tally > Export option can't be read correctly if title is too long
 
 Modify the tally export translations to show the format before the document name.
