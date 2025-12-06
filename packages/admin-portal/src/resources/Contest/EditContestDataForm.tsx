@@ -72,7 +72,6 @@ import {CircularProgress} from "@mui/material"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {DebugErrors} from "@/components/DebugErrors"
 
 type FieldValues = Record<string, any>
 
@@ -599,7 +598,6 @@ export const ContestDataForm: React.FC = () => {
                         record={parsedValue}
                         toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
-                        <DebugErrors />
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-general"}
