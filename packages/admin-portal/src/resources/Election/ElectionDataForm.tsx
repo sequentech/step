@@ -23,7 +23,6 @@ import {
     FormDataConsumer,
     required,
 } from "react-admin"
-import {useFormState} from "react-hook-form"
 import {
     Accordion,
     AccordionDetails,
@@ -80,12 +79,7 @@ import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
-
-const DebugErrors = () => {
-  const { errors,  } = useFormState()
-  console.log("Errors →", errors)
-  return null
-};
+import {DebugErrors} from "@/components/DebugErrors"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -251,7 +245,7 @@ export const ElectionDataForm: React.FC = () => {
 
             temp.presentation.contests_order =
                 temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
-                
+
             temp.presentation.audit_button_cfg ??= EVotingPortalAuditButtonCfg.SHOW
             temp.presentation.cast_vote_gold_level ??= ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL
             temp.presentation.start_screen_title_policy ??= EStartScreenTitlePolicy.ELECTION

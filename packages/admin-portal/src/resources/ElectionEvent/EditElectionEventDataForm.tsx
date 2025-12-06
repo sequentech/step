@@ -89,6 +89,7 @@ import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
+import {DebugErrors} from "@/components/DebugErrors"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -745,6 +746,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     </Toolbar>
                 }
             >
+                <DebugErrors />
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={expanded === "election-event-data-general"}

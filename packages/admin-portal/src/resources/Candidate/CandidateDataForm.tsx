@@ -60,6 +60,7 @@ import {styled} from "@mui/material/styles"
 import {DropFile, Icon, adminTheme} from "@sequentech/ui-essentials"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {DebugErrors} from "@/components/DebugErrors"
 
 const StyledIconButton = styled(IconButton)`
     color: ${adminTheme.palette.brandColor};
@@ -386,6 +387,7 @@ export const CandidateDataForm: React.FC<{
                         record={parsedValue}
                         toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
+                        <DebugErrors />
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "candidate-data-general"}
