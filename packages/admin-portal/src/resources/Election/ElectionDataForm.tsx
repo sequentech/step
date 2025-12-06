@@ -23,6 +23,7 @@ import {
     FormDataConsumer,
     required,
 } from "react-admin"
+import {useFormState} from "react-hook-form"
 import {
     Accordion,
     AccordionDetails,
@@ -79,6 +80,12 @@ import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
+
+const DebugErrors = () => {
+  const { errors,  } = useFormState()
+  console.log("Errors →", errors)
+  return null
+};
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -238,8 +245,20 @@ export const ElectionDataForm: React.FC = () => {
                 temp.scheduledClosing = temp.presentation?.dates?.scheduled_closing
             }
 
+            if (!temp.presentation) {
+                temp.presentation = {}
+            }
+
             temp.presentation.contests_order =
                 temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
+                
+            temp.presentation.audit_button_cfg ??= EVotingPortalAuditButtonCfg.SHOW
+            temp.presentation.cast_vote_gold_level ??= ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL
+            temp.presentation.start_screen_title_policy ??= EStartScreenTitlePolicy.ELECTION
+            temp.presentation.security_confirmation_policy ??= ESecurityConfirmationPolicy.NONE
+            temp.presentation.initialization_report_policy ??= EInitializeReportPolicy.NOT_REQUIRED
+            temp.presentation.grace_period_policy ??= EGracePeriodPolicy.NO_GRACE_PERIOD
+            temp.presentation.grace_period_secs ??= 0
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
@@ -569,6 +588,7 @@ export const ElectionDataForm: React.FC = () => {
                             </Toolbar>
                         }
                     >
+                        <DebugErrors />
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-general"}
@@ -682,6 +702,7 @@ export const ElectionDataForm: React.FC = () => {
                                     source="presentation.contests_order"
                                     choices={orderAnswerChoices()}
                                     validate={required()}
+                                    defaultValue={ContestsOrder.ALPHABETICAL}
                                 />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
@@ -814,6 +835,7 @@ export const ElectionDataForm: React.FC = () => {
                                     choices={initializationReportChoices()}
                                     label={String(t("electionScreen.initializeReportPolicy.label"))}
                                     validate={required()}
+                                    defaultValue={EInitializeReportPolicy.NOT_REQUIRED}
                                 />
                                 <Box>
                                     <Typography
