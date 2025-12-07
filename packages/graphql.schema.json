@@ -9046,14 +9046,14 @@
                 "defaultValue": null
               },
               {
-                "name": "user_timezone",
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "String",
+                    "name": "uuid",
                     "ofType": null
                   }
                 },
