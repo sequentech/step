@@ -20,7 +20,6 @@ use windmill::types::tasks::ETasksExecution;
 pub struct CreateBallotReceiptInput {
     ballot_id: String,
     ballot_tracker_url: String,
-    tenant_id: String,
     election_event_id: String,
     election_id: String,
     user_timezone: String,
