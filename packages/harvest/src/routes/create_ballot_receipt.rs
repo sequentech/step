@@ -18,13 +18,13 @@ use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateBallotReceiptInput {
-    pub ballot_id: String,
-    pub ballot_tracker_url: String,
-    pub election_event_id: String,
-    pub election_id: String,
-    pub time_zone: Option<TimeZone>,
-    pub date_format: Option<DateFormat>,
+pub struct createBallotReceiptInput {
+    ballot_id: String,
+    ballot_tracker_url: String,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: String,
+    user_timezone: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -89,8 +89,7 @@ pub async fn create_ballot_receipt(
                 input.election_id,
                 area_id,
                 voter_id,
-                input.time_zone,
-                input.date_format,
+                input.user_timezone,
                 task_execution.clone(),
             ),
         )
