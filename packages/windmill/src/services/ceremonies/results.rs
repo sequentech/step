@@ -1,6 +1,13 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::postgres::area::{self, get_areas, get_areas_by_ids, get_event_areas};
+use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
+use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
+use crate::postgres::document;
+use crate::postgres::election::{get_elections, get_elections_by_ids};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_area_contest::insert_results_area_contests;
 use crate::postgres::results_area_contest_candidate::insert_results_area_contest_candidates;
 use crate::postgres::results_contest::insert_results_contests;
@@ -8,20 +15,28 @@ use crate::postgres::results_contest_candidate::insert_results_contest_candidate
 use crate::postgres::results_election::insert_results_elections;
 use crate::postgres::results_event::insert_results_event;
 use crate::services::ceremonies::result_documents::save_result_documents;
+use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::services::connection;
-use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::Area;
+use rusqlite::Connection;
+use rusqlite::Transaction as SqliteTransaction;
+use sequent_core::sqlite::results_event::find_results_event_sqlite;
+use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
 use sequent_core::types::hasura::core::TallySessionExecution;
+use sequent_core::types::hasura::core::{Area, TallySession};
 use sequent_core::types::results::*;
+use sequent_core::util::temp_path::get_file_size;
 use serde_json::json;
 use std::cmp;
 use std::path::PathBuf;
+use tempfile::{NamedTempFile, TempPath};
+use tracing::info;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use velvet::cli::state::State;
+use velvet::pipes::generate_db::DATABASE_FILENAME;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
+use velvet::pipes::pipe_name::PipeNameOutputDir;
 
 #[instrument(skip_all)]
 pub async fn save_results(
@@ -71,16 +86,19 @@ pub async fn save_results(
             let total_blank_votes_percent: f64 =
                 contest.contest_result.percentage_total_blank_votes / 100.0;
 
-            let extended_metrics_value = serde_json::to_value(
-                contest
-                    .contest_result
-                    .extended_metrics
-                    .clone()
-                    .unwrap_or_default(),
-            )
-            .expect("Failed to convert to JSON");
+            let contest_result_ext_metrics = contest
+                .contest_result
+                .extended_metrics
+                .clone()
+                .unwrap_or_default();
+            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
+                .expect("Failed to convert to JSON");
+            let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
-            annotations["extended_metrics"] = extended_metrics_value;
+            annotations[EXTENDED_METRICS] = extended_metrics_value;
+            if let Some(process_results) = contest.contest_result.process_results.clone() {
+                annotations[PROCESS_RESULTS] = process_results;
+            }
 
             if let Some(area) = &contest.area {
                 results_area_contests.push(ResultsAreaContest {
@@ -129,13 +147,6 @@ pub async fn save_results(
                     documents: None,
                 });
 
-                let votes_base: f64 = cmp::max(
-                    contest.contest_result.total_votes
-                        - contest.contest_result.total_invalid_votes
-                        - contest.contest_result.total_blank_votes,
-                    1,
-                ) as f64;
-
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     results_area_contest_candidates.push(ResultsAreaContestCandidate {
@@ -176,7 +187,10 @@ pub async fn save_results(
                     ),
                     blank_votes: Some(contest.contest_result.total_blank_votes as i64),
                     voting_type: contest.contest.voting_type.clone(),
-                    counting_algorithm: contest.contest.counting_algorithm.clone(),
+                    counting_algorithm: contest
+                        .contest
+                        .counting_algorithm
+                        .map(|val| val.to_string()),
                     name: contest.contest.name.clone(),
                     created_at: None,
                     last_updated_at: None,
@@ -207,13 +221,6 @@ pub async fn save_results(
                     ),
                 });
 
-                let votes_base: f64 = cmp::max(
-                    contest.contest_result.total_votes
-                        - contest.contest_result.total_invalid_votes
-                        - contest.contest_result.total_blank_votes,
-                    1,
-                ) as f64;
-
                 for candidate in &contest.candidate_result {
                     let cast_votes_percent: f64 = (candidate.total_count as f64) / votes_base;
                     results_contest_candidates.push(ResultsContestCandidate {
@@ -243,15 +250,16 @@ pub async fn save_results(
         tenant_id.into(),
         election_event_id.into(),
         results_event_id.into(),
-        results_contests,
+        results_contests.clone(),
     )
     .await?;
+
     insert_results_area_contests(
         hasura_transaction,
         tenant_id.into(),
         election_event_id.into(),
         results_event_id.into(),
-        results_area_contests,
+        results_area_contests.clone(),
     )
     .await?;
 
@@ -260,7 +268,7 @@ pub async fn save_results(
         tenant_id,
         election_event_id,
         results_event_id,
-        results_elections,
+        results_elections.clone(),
     )
     .await?;
 
@@ -269,7 +277,7 @@ pub async fn save_results(
         tenant_id,
         election_event_id,
         results_event_id,
-        results_contest_candidates,
+        results_contest_candidates.clone(),
     )
     .await?;
 
@@ -278,7 +286,7 @@ pub async fn save_results(
         tenant_id,
         election_event_id,
         results_event_id,
-        results_area_contest_candidates,
+        results_area_contest_candidates.clone(),
     )
     .await?;
 
@@ -288,6 +296,7 @@ pub async fn save_results(
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
     hasura_transaction: &Transaction<'_>,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     tenant_id: &str,
     election_event_id: &str,
     session_ids_opt: Option<Vec<i64>>,
@@ -303,13 +312,27 @@ pub async fn generate_results_id_if_necessary(
     if !(session_ids.len() > previous_session_ids.len()) {
         return Ok(None);
     }
-    let results_event =
-        insert_results_event(hasura_transaction, &tenant_id, &election_event_id).await?;
-    Ok(Some(results_event.id))
+
+    if let Some(sqlite_transaction) = sqlite_transaction_opt {
+        let results_event =
+            find_results_event_sqlite(sqlite_transaction, tenant_id, election_event_id)
+                .context("Failed to find results event table")?;
+
+        insert_results_event(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &results_event.id,
+        )
+        .await?;
+        Ok(Some(results_event.id))
+    } else {
+        Ok(None)
+    }
 }
 
 #[instrument(skip_all)]
-pub async fn populate_results_tables(
+pub async fn process_results_tables(
     hasura_transaction: &Transaction<'_>,
     base_tally_path: &PathBuf,
     state_opt: Option<State>,
@@ -320,9 +343,11 @@ pub async fn populate_results_tables(
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
+    sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
 ) -> Result<Option<String>> {
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
+        sqlite_transaction_opt,
         tenant_id,
         election_event_id,
         session_ids,
@@ -351,11 +376,110 @@ pub async fn populate_results_tables(
                 areas,
                 default_language,
                 tally_type_enum,
+                sqlite_transaction_opt,
             )
             .await?;
         }
         Ok(results_event_id_opt)
     } else {
         Ok(previous_execution.results_event_id)
+    }
+}
+
+#[instrument(skip(hasura_transaction, state_opt, previous_execution, areas))]
+pub async fn populate_results_tables(
+    hasura_transaction: &Transaction<'_>,
+    base_tally_path: &PathBuf,
+    state_opt: Option<State>,
+    tenant_id: &str,
+    election_event_id: &str,
+    session_ids: Option<Vec<i64>>,
+    previous_execution: TallySessionExecution,
+    areas: &Vec<Area>,
+    default_language: &str,
+    tally_type_enum: TallyType,
+    is_empty: bool,
+) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
+    let velvet_output_dir = base_tally_path.join("output");
+    let base_database_path = velvet_output_dir.join(PipeNameOutputDir::GenerateDatabase.as_ref());
+    let database_path = base_database_path.join(DATABASE_FILENAME);
+    let document_id = Uuid::new_v4().to_string();
+
+    let results_event_id_opt = if !is_empty {
+        let results_event_id_opt =
+            tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+                let mut sqlite_connection = Connection::open(&database_path)?;
+                let sqlite_transaction = sqlite_connection.transaction()?;
+
+                let process_result = tokio::runtime::Handle::current().block_on(async {
+                    process_results_tables(
+                        hasura_transaction,
+                        base_tally_path,
+                        state_opt,
+                        tenant_id,
+                        election_event_id,
+                        session_ids,
+                        previous_execution,
+                        areas,
+                        default_language,
+                        tally_type_enum,
+                        Some(&sqlite_transaction),
+                    )
+                    .await
+                })?;
+                sqlite_transaction.commit()?;
+                Ok(process_result)
+            })?;
+        results_event_id_opt
+    } else {
+        let results_event_id_opt =
+            tokio::task::block_in_place(|| -> anyhow::Result<Option<String>> {
+                let process_result = tokio::runtime::Handle::current().block_on(async {
+                    process_results_tables(
+                        hasura_transaction,
+                        base_tally_path,
+                        state_opt,
+                        tenant_id,
+                        election_event_id,
+                        session_ids,
+                        previous_execution,
+                        areas,
+                        default_language,
+                        tally_type_enum,
+                        None,
+                    )
+                    .await
+                })?;
+                Ok(process_result)
+            })?;
+        results_event_id_opt
+    };
+
+    if let Some(ref results_event_id) = results_event_id_opt {
+        let file_name = format!("results-{}.db", results_event_id);
+        let file_path = database_path.to_str().ok_or(anyhow!("Empty upload path"))?;
+        let file_size = get_file_size(file_path)?;
+
+        let _document = upload_and_return_document(
+            hasura_transaction,
+            file_path,
+            file_size,
+            "application/vnd.sqlite3",
+            tenant_id,
+            Some(election_event_id.to_string()),
+            &file_name,
+            Some(document_id.to_string()),
+            false,
+        )
+        .await?;
+
+        let documents = TallySessionDocuments {
+            sqlite: Some(document_id.to_string()),
+            xlsx: None,
+        };
+
+        Ok((results_event_id_opt, Some(documents)))
+    } else {
+        Ok((results_event_id_opt, None))
     }
 }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -295,13 +295,4 @@ pub async fn update_election_event_ballot_styles(
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
     lock.release().await?;
     Ok(())
-}
-
-#[instrument(err)]
-pub async fn get_ballot_styles_for_authorized_elections(
-    tenant_id: &str,
-    election_event_id: &str,
-    authorized_election_ids: &Vec<String>,
-) -> AnyhowResult<Vec<BallotStyle>> {
-    todo!()
 }

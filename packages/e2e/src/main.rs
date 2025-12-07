@@ -1,9 +1,10 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod services;
 
+use anyhow::Result;
 use clap::Parser;
 use services::{
     enrollment::run_enrollment_test, login::run_login_test, reports::run_reports_test,
@@ -29,14 +30,14 @@ pub struct Args {
     test_duration: u64,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     let result = match args.test_type.as_str() {
-        "enrollment" => run_enrollment_test(&args),
-        "voting" => run_voting_test(&args),
-        "login" => run_login_test(&args),
-        "reports" => run_reports_test(&args),
+        "enrollment" => run_enrollment_test(&args)?,
+        "voting" => run_voting_test(&args)?,
+        "login" => run_login_test(&args)?,
+        "reports" => run_reports_test(&args)?,
         _ => {
             eprintln!("Unknown test type: {}", args.test_type);
             std::process::exit(1);
@@ -47,4 +48,6 @@ fn main() {
     //     eprintln!("Error: {}", e);
     //     std::process::exit(1);
     // }
+
+    Ok(())
 }

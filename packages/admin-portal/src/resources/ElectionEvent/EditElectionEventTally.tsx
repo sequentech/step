@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,9 +13,13 @@ import {TallyCeremonyTrustees} from "../Tally/TallyCeremonyTrustees"
 import {MiruExportWizard} from "@/components/MiruExportWizard"
 
 export const EditElectionEventTally: React.FC = () => {
-    const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
-    const {tallyId, isTrustee, isCreatingType, isCreated, selectedTallySessionData} =
-        useElectionEventTallyStore()
+    const {
+        tallyId,
+        isTrustee,
+        creatingType: isCreatingType,
+        isCreated,
+        selectedTallySessionData,
+    } = useElectionEventTallyStore()
 
     return (
         <Box>
@@ -24,7 +28,7 @@ export const EditElectionEventTally: React.FC = () => {
             ) : isCreatingType || isCreated || tallyId ? (
                 <>{!isTrustee ? <TallyCeremony /> : <TallyCeremonyTrustees />}</>
             ) : (
-                <ListTally recordTally={recordTally} />
+                <ListTally />
             )}
         </Box>
     )

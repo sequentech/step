@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -161,6 +161,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
             area_ids: None,
             only_with_user: None,
             election_id: None,
+            statement_kind: None,
         };
         Ok(count_electoral_log(input).await.ok())
     }
@@ -185,6 +186,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
             area_ids: None,
             only_with_user: None,
             election_id: None,
+            statement_kind: None,
         })
         .await
         .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
@@ -243,6 +245,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     area_ids: None,
                     only_with_user: None,
                     election_id: None,
+                    statement_kind: None,
                 })
                 .await
                 .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;

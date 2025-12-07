@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -64,17 +64,6 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const [updateImage] = useUpdate()
 
-    useEffect(() => {
-        if (record) {
-            const temp: I18n = {...BASE_DATA}
-            for (const lang in record?.enabled_languages) {
-                temp.title_i18n[lang] = valueMaterials.title_i18n[lang] || ""
-                temp.subtitle_i18n[lang] = valueMaterials.subtitle_i18n[lang] || ""
-            }
-            setValueMaterials(temp)
-        }
-    }, [record])
-
     const onSuccess = (data: Sequent_Backend_Support_Material) => {
         updateImage("sequent_backend_support_material", {
             id: data.id,
@@ -84,18 +73,14 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
         })
 
         refresh()
+        close?.()
         notify(t("materials.createMaterialSuccess"), {type: "success"})
-        if (close) {
-            close()
-        }
     }
 
     const onError = async (res: any) => {
         refresh()
+        close?.()
         notify("materials.createMaterialError", {type: "error"})
-        if (close) {
-            close()
-        }
     }
 
     const renderTabs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
@@ -107,7 +92,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                     component: () => (
                         <>
                             <TextField
-                                label={t("electionEventScreen.field.materialTitle")}
+                                label={String(t("electionEventScreen.field.materialTitle"))}
                                 size="small"
                                 value={valueMaterials.title_i18n[lang] || ""}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -118,7 +103,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                                 }
                             />
                             <TextField
-                                label={t("electionEventScreen.field.materialSubTitle")}
+                                label={String(t("electionEventScreen.field.materialSubTitle"))}
                                 size="small"
                                 value={valueMaterials.subtitle_i18n[lang] || ""}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -217,7 +202,10 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                         {t("materials.common.subtitle")}
                     </PageHeaderStyles.SubTitle>
                     <Tabs elements={renderTabs(record)} />
-                    <BooleanInput source={"is_hidden"} label={t("materials.fields.isHidden")} />
+                    <BooleanInput
+                        source={"is_hidden"}
+                        label={String(t("materials.fields.isHidden"))}
+                    />
                     <DropFile handleFiles={handleFiles} />
                     {imageType ? (
                         <Box

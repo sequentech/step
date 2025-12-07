@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, PropsWithChildren, createContext} from "react"
@@ -10,7 +10,6 @@ import {ApolloProvider} from "@apollo/client"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getOperationRole} from "@/services/Permissions"
 import {IPermissions} from "@/types/keycloak"
-import SelectTenant from "@/screens/SelectTenant"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -30,7 +29,7 @@ interface ApolloContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
     role: string
 }
 
@@ -113,17 +112,11 @@ export const ApolloContextProvider = ({children, role}: ApolloContextProviderPro
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {apolloClient} = useContext(ApolloContext)
-    const {isAuthenticated, getAccessToken} = useContext(AuthContext)
-
-    // Show SelectTenant when not authenticated
-    if (!isAuthenticated && !getAccessToken()) {
-        return <SelectTenant />
-    }
 
     // Show loading spinner while waiting for client
     if (null === apolloClient) {
         return (
-            <Box>
+            <Box className="apollo-wrapper">
                 <CircularProgress />
             </Box>
         )

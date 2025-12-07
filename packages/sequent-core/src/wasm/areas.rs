@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::area_tree::*;
 use crate::types::hasura::core::AreaContest;
-use crate::wasm::test::IntoResult;
+use crate::wasm::wasm::IntoResult;
 use std::collections::HashSet;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
