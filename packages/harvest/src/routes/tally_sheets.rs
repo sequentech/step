@@ -112,7 +112,6 @@ pub struct ReviewTallySheetInput {
     new_status: TallySheetStatus,
 }
 
-// The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/review-tally-sheet", format = "json", data = "<body>")]
 pub async fn review_tally_sheet(
