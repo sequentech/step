@@ -29,6 +29,8 @@ pub struct ReportCronConfig {
     pub email_recipients: Vec<String>,
     #[serde(default)]
     pub executer_username: String,
+    #[serde(default)]
+    pub user_timezone: Option<String>,
 }
 
 impl Default for ReportCronConfig {
@@ -39,6 +41,7 @@ impl Default for ReportCronConfig {
             cron_expression: Default::default(),
             email_recipients: Default::default(),
             executer_username: Default::default(),
+            user_timezone: None,
         }
     }
 }

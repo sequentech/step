@@ -47,6 +47,7 @@ pub struct ExecutionAnnotations {
     pub app_hash: String,
     pub executer_username: Option<String>,
     pub results_hash: Option<String>,
+    pub user_timezone: Option<String>,
 }
 
 pub fn get_app_hash() -> String {

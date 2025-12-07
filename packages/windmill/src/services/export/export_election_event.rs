@@ -353,6 +353,7 @@ pub async fn process_export_zip(
                 report_origin: ReportOriginatedFrom::ExportFunction,
                 executer_username: None,
                 tally_session_id: None,
+                user_timezone: None,
             },
             ReportFormat::CSV, // Assuming CSV format for this export
         );
