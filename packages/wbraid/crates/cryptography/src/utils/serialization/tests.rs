@@ -19,6 +19,25 @@ mod tests {
     use vser_derive::VSerializable as VSer;
 
     #[test]
+    fn test_usize_and_phantomdata() {
+        #[derive(Debug, Clone, VSer, PartialEq)]
+        struct TestNewLeafTypes<T> {
+            size: usize,
+            _phantom: std::marker::PhantomData<T>,
+        }
+
+        let data = TestNewLeafTypes::<String> {
+            size: 12345,
+            _phantom: std::marker::PhantomData,
+        };
+
+        let serialized = data.ser();
+        let deserialized = TestNewLeafTypes::<String>::deser(&serialized).unwrap();
+
+        assert_eq!(data, deserialized);
+    }
+
+    #[test]
     fn test_struct_vser_ristretto() {
         test_struct_vser::<RCtx>()
     }
