@@ -77,4 +77,8 @@ pub enum Error {
     /// Occurs when randomness used to decrypt is invalid
     #[error("{0}")]
     DecryptionError(String),
+
+    /// Occurs when symmetric encryption fails
+    #[error("{0}")]
+    EncryptionError(String),
 }

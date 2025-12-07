@@ -453,6 +453,27 @@ impl VDeserializable for u64 {
     }
 }
 
+/// Implements [`VSerializable`] for usize
+///
+/// Serializes as u64 for platform independence
+impl VSerializable for usize {
+    fn ser(&self) -> Vec<u8> {
+        let value: u64 = (*self).try_into().expect("usize should fit in u64");
+        value.to_be_bytes().to_vec()
+    }
+}
+
+/// Implements [`VDeserializable`] for usize
+///
+/// Deserializes from u64 for platform independence
+impl VDeserializable for usize {
+    fn deser(buffer: &[u8]) -> Result<usize, Error> {
+        let bytes: [u8; 8] = buffer.try_into()?;
+        let value = u64::from_be_bytes(bytes);
+        value.try_into().map_err(|_| Error::DeserializationError("usize overflow".to_string()))
+    }
+}
+
 /// Implements [`VSerializable`] for u16
 ///
 /// Required by [`ParticipantPosition`][`crate::dkgd::recipient::ParticipantPosition`]
@@ -677,6 +698,8 @@ macro_rules! impl_vser_for_tuples {
         generate_tuple_impl!(A, B, C, D, E, F; 1, 2, 3, 4, 5; 0, 1, 2, 3, 4);
 
         generate_tuple_impl!(A, B, C, D, E, F, G; 1, 2, 3, 4, 5, 6; 0, 1, 2, 3, 4, 5);
+
+        generate_tuple_impl!(A, B, C, D, E, F, G, H; 1, 2, 3, 4, 5, 6, 7; 0, 1, 2, 3, 4, 5, 6);
     };
 }
 

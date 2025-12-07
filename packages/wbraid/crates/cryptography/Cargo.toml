@@ -32,6 +32,9 @@ serde = { version = "1.0.219", features=["derive"], optional = true}
 hex = "0.4.3"
 custom_warning_macro = { path = "../macros/custom_warning_macro" }
 
+# symmetric encryption
+chacha20poly1305 = "0.11.0-rc.2"
+
 [lib]
 crate-type = ["rlib"]
 path = "src/lib.rs"
@@ -45,6 +48,7 @@ client = []
 custom-warnings = ["custom_warning_macro/on"]
 serde = ["dep:serde"]
 long_running_tests = []
+wasm = []
 
 [[bench]]
 name = "large_vector"

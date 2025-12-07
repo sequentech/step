@@ -18,4 +18,7 @@ pub mod serialization;
 
 pub mod signatures;
 
+/// Symmetric encryption utilities.
+pub mod symm;
+
 pub use error::Error;

@@ -325,6 +325,8 @@ macro_rules! impl_for_tuples {
         generate_tuple_impl!(A, B, C, D, E, F; 1, 2, 3, 4, 5; 0, 1, 2, 3, 4);
 
         generate_tuple_impl!(A, B, C, D, E, F, G; 1, 2, 3, 4, 5, 6; 0, 1, 2, 3, 4, 5);
+
+        generate_tuple_impl!(A, B, C, D, E, F, G, H; 1, 2, 3, 4, 5, 6, 7; 0, 1, 2, 3, 4, 5, 6);
     };
 }
 

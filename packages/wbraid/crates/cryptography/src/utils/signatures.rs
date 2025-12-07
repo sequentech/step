@@ -42,14 +42,17 @@ pub trait SignatureScheme<R: CRng> {
     /// The signer type, a private key used for signing.
     type Signer: Signer<Self::Signature> + FSer + VSer;
     /// The verifier type, a public key used to verify signatures.
-    type Verifier: Verifier<Self::Signature> + FSer + VSer;
+    type Verifier: Verifier<Self::Signature> + FSer + VSer + Clone + PartialEq + Eq + std::hash::Hash + std::fmt::Debug;
     /// The signature type, a digital signature on some data.
-    type Signature: FSer + VSer;
+    type Signature: FSer + VSer + Clone;
 
     /// Generates a new private signing key.
     ///
     /// The corresponding public verification key can be obtained with `signing_key.verifying_key()`.
     fn gen_signing_key(rng: &mut R) -> Self::Signer;
+    
+    /// Gets the verifying key from a signing key.
+    fn verifying_key(signer: &Self::Signer) -> Self::Verifier;
 }
 
 /**
@@ -82,6 +85,10 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
 
     fn gen_signing_key(rng: &mut R) -> ed25519_dalek::SigningKey {
         Self::Signer::generate(rng)
+    }
+    
+    fn verifying_key(signer: &Self::Signer) -> Self::Verifier {
+        signer.verifying_key()
     }
 }
 
