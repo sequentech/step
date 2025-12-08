@@ -6,6 +6,16 @@ title: Release Notes next
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+
+## 🐞 Admin Portal: Scheduled Repeatable Reports is not working
+
+Modify the admin portal add/edit report form to require cron expression and email
+list to be filled.
+Fix using the recipients email list instead of empty list 
+when execute the report.
+
+- Issue: [#5412](https://github.com/sequentech/meta/issues/5412)
+
 ## 🐞 Tally > Export option can't be read correctly if title is too long
 
 Modify the tally export translations to show the format before the document name.
