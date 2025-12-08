@@ -361,21 +361,62 @@ impl Statement {
 
 impl VSerializable for Statement {
     fn ser(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
         match self {
-            Statement::Configuration(ts, cfg) => (0u8, ts, cfg).ser(),
-            Statement::ConfigurationSigned(ts, cfg) => (1u8, ts, cfg).ser(),
-            Statement::Channel(ts, cfg, ch) => (2u8, ts, cfg, ch).ser(),
-            Statement::ChannelsAllSigned(ts, cfg, chs) => (3u8, ts, cfg, chs).ser(),
-            Statement::Shares(ts, cfg, sh) => (4u8, ts, cfg, sh).ser(),
-            Statement::PublicKey(ts, cfg, pk, shs, chs) => (5u8, ts, cfg, pk, shs, chs).ser(),
-            Statement::PublicKeySigned(ts, cfg, pk, shs, chs) => (6u8, ts, cfg, pk, shs, chs).ser(),
-            Statement::Ballots(ts, cfg, bn, cth, pk, tset) => (7u8, ts, cfg, bn, cth, pk, tset).ser(),
-            Statement::Mix(ts, cfg, bn, cth1, cth2, mn) => (8u8, ts, cfg, bn, cth1, cth2, mn).ser(),
-            Statement::MixSigned(ts, cfg, bn, mn, cth1, cth2) => (9u8, ts, cfg, bn, mn, cth1, cth2).ser(),
-            Statement::DecryptionFactors(ts, cfg, bn, dfh, cth, shs) => (10u8, ts, cfg, bn, dfh, cth, shs).ser(),
-            Statement::Plaintexts(ts, cfg, bn, pth, dfhs, cth, pk) => (11u8, ts, cfg, bn, pth, dfhs, cth, pk).ser(),
-            Statement::PlaintextsSigned(ts, cfg, bn, pth, dfhs, cth, pk) => (12u8, ts, cfg, bn, pth, dfhs, cth, pk).ser(),
+            Statement::Configuration(ts, cfg) => {
+                bytes.extend(0u8.ser());
+                bytes.extend((ts, cfg).ser());
+            },
+            Statement::ConfigurationSigned(ts, cfg) => {
+                bytes.extend(1u8.ser());
+                bytes.extend((ts, cfg).ser());
+            },
+            Statement::Channel(ts, cfg, ch) => {
+                bytes.extend(2u8.ser());
+                bytes.extend((ts, cfg, ch).ser());
+            },
+            Statement::ChannelsAllSigned(ts, cfg, chs) => {
+                bytes.extend(3u8.ser());
+                bytes.extend((ts, cfg, chs).ser());
+            },
+            Statement::Shares(ts, cfg, sh) => {
+                bytes.extend(4u8.ser());
+                bytes.extend((ts, cfg, sh).ser());
+            },
+            Statement::PublicKey(ts, cfg, pk, shs, chs) => {
+                bytes.extend(5u8.ser());
+                bytes.extend((ts, cfg, pk, shs, chs).ser());
+            },
+            Statement::PublicKeySigned(ts, cfg, pk, shs, chs) => {
+                bytes.extend(6u8.ser());
+                bytes.extend((ts, cfg, pk, shs, chs).ser());
+            },
+            Statement::Ballots(ts, cfg, bn, cth, pk, tset) => {
+                bytes.extend(7u8.ser());
+                bytes.extend((ts, cfg, bn, cth, pk, tset).ser());
+            },
+            Statement::Mix(ts, cfg, bn, cth1, cth2, mn) => {
+                bytes.extend(8u8.ser());
+                bytes.extend((ts, cfg, bn, cth1, cth2, mn).ser());
+            },
+            Statement::MixSigned(ts, cfg, bn, mn, cth1, cth2) => {
+                bytes.extend(9u8.ser());
+                bytes.extend((ts, cfg, bn, mn, cth1, cth2).ser());
+            },
+            Statement::DecryptionFactors(ts, cfg, bn, dfh, cth, shs) => {
+                bytes.extend(10u8.ser());
+                bytes.extend((ts, cfg, bn, dfh, cth, shs).ser());
+            },
+            Statement::Plaintexts(ts, cfg, bn, pth, dfhs, cth, pk) => {
+                bytes.extend(11u8.ser());
+                bytes.extend((ts, cfg, bn, pth, dfhs, cth, pk).ser());
+            },
+            Statement::PlaintextsSigned(ts, cfg, bn, pth, dfhs, cth, pk) => {
+                bytes.extend(12u8.ser());
+                bytes.extend((ts, cfg, bn, pth, dfhs, cth, pk).ser());
+            },
         }
+        bytes
     }
 }
 
@@ -531,5 +572,169 @@ pub(crate) mod tests {
             DecryptionFactorsHashes::deser(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
+    }
+
+    #[test]
+    fn test_serialize_statement_configuration() {
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let stmt = Statement::Configuration(12345, cfg_hash);
+        
+        let bytes = stmt.ser();
+        println!("Serialized bytes length: {}", bytes.len());
+        println!("First 20 bytes: {:?}", &bytes[0..20.min(bytes.len())]);
+        
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (Statement::Configuration(ts1, cfg1), Statement::Configuration(ts2, cfg2)) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_publickey() {
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
+        let shares_hashes = SharesHashes([crate::messages::newtypes::zero_hash(); MAX_TRUSTEES]);
+        let channels_hashes = ChannelsHashes([crate::messages::newtypes::zero_hash(); MAX_TRUSTEES]);
+        
+        let stmt = Statement::PublicKey(
+            67890,
+            cfg_hash,
+            pk_hash,
+            shares_hashes,
+            channels_hashes,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::PublicKey(ts1, cfg1, pk1, shs1, chs1),
+                Statement::PublicKey(ts2, cfg2, pk2, shs2, chs2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(pk1.0, pk2.0);
+                assert_eq!(shs1.0, shs2.0);
+                assert_eq!(chs1.0, chs2.0);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_ballots() {
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
+        let cth = CiphertextsHash(crate::messages::newtypes::zero_hash());
+        let trustee_set: TrusteeSet = [1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        
+        let stmt = Statement::Ballots(
+            11111,
+            cfg_hash,
+            5,
+            cth,
+            pk_hash,
+            trustee_set,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::Ballots(ts1, cfg1, bn1, cth1, pk1, tset1),
+                Statement::Ballots(ts2, cfg2, bn2, cth2, pk2, tset2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(bn1, bn2);
+                assert_eq!(cth1.0, cth2.0);
+                assert_eq!(pk1.0, pk2.0);
+                assert_eq!(tset1, tset2);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_mix() {
+        use sha3::digest::generic_array::GenericArray;
+        
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let cth1 = CiphertextsHash(crate::messages::newtypes::zero_hash());
+        let cth2 = CiphertextsHash(GenericArray::from_slice(&[1u8; 64]).clone());
+        
+        let stmt = Statement::Mix(
+            22222,
+            cfg_hash,
+            3,
+            cth1,
+            cth2,
+            2,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::Mix(ts1, cfg1, bn1, cth1a, cth2a, mn1),
+                Statement::Mix(ts2, cfg2, bn2, cth1b, cth2b, mn2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(bn1, bn2);
+                assert_eq!(cth1a.0, cth1b.0);
+                assert_eq!(cth2a.0, cth2b.0);
+                assert_eq!(mn1, mn2);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_serialize_statement_plaintexts() {
+        use sha3::digest::generic_array::GenericArray;
+        
+        let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
+        let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
+        let pth = PlaintextsHash(GenericArray::from_slice(&[2u8; 64]).clone());
+        let dfhs = DecryptionFactorsHashes([crate::messages::newtypes::zero_hash(); MAX_TRUSTEES]);
+        let cth = CiphertextsHash(GenericArray::from_slice(&[3u8; 64]).clone());
+        
+        let stmt = Statement::Plaintexts(
+            33333,
+            cfg_hash,
+            7,
+            pth,
+            dfhs,
+            cth,
+            pk_hash,
+        );
+        
+        let bytes = stmt.ser();
+        let deserialized = Statement::deser(&bytes).unwrap();
+        
+        match (stmt, deserialized) {
+            (
+                Statement::Plaintexts(ts1, cfg1, bn1, pth1, dfhs1, cth1, pk1),
+                Statement::Plaintexts(ts2, cfg2, bn2, pth2, dfhs2, cth2, pk2)
+            ) => {
+                assert_eq!(ts1, ts2);
+                assert_eq!(cfg1.0, cfg2.0);
+                assert_eq!(bn1, bn2);
+                assert_eq!(pth1.0, pth2.0);
+                assert_eq!(dfhs1.0, dfhs2.0);
+                assert_eq!(cth1.0, cth2.0);
+                assert_eq!(pk1.0, pk2.0);
+            }
+            _ => panic!("Deserialized statement has wrong variant"),
+        }
     }
 }

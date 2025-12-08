@@ -12,22 +12,34 @@ use crate::messages::newtypes::{BatchNumber, MixNumber};
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::dkgd::recipient::DecryptionFactor;
 use cryptography::utils::serialization::{VSerializable, VDeserializable};
 use cryptography::VSerializable as VSer;
 use cryptography::utils::signatures::SignatureScheme;
 use cryptography::utils::symm;
-use cryptography::zkp::dlogeq::DlogEqProof;
 use cryptography::zkp::schnorr::SchnorrProof;
 use cryptography::zkp::shuffle::ShuffleProof;
 use sha3::Digest;
 
-#[derive(Clone, VSer)]
+#[derive(VSer)]
 pub struct Configuration<C: Context> {
     pub id: u128,
     pub protocol_manager: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
     pub trustees: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>,
     pub threshold: usize,
     pub phantom: PhantomData<C>,
+}
+
+impl<C: Context> Clone for Configuration<C> {
+    fn clone(&self) -> Self {
+        Configuration {
+            id: self.id,
+            protocol_manager: self.protocol_manager.clone(),
+            trustees: self.trustees.clone(),
+            threshold: self.threshold,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<C: Context> Configuration<C> {
@@ -210,28 +222,35 @@ impl<C: Context, const W: usize> Mix<C, W> {
     }
 }
 
+/// Decryption factors for threshold decryption.
+///
+/// Contains a vector of DecryptionFactor from the cryptography library,
+/// which includes the partial decryption value, proof, and participant position.
+///
+/// SECURITY NOTE: When verifying these decryption factors, the ParticipantPosition
+/// field must be verified against the signature for that participant. This ensures
+/// that a malicious participant cannot claim to be a different participant.
 #[derive(Debug)]
-pub struct DecryptionFactors<C: Context, const W: usize> {
-    pub factors: Vec<[C::Element; W]>,
-    pub proofs: Vec<DlogEqProof<C, W>>,
+pub struct DecryptionFactors<C: Context, const W: usize, const P: usize> {
+    pub factors: Vec<DecryptionFactor<C, P, W>>,
 }
 
-impl<C: Context, const W: usize> VSerializable for DecryptionFactors<C, W> {
+impl<C: Context, const W: usize, const P: usize> VSerializable for DecryptionFactors<C, W, P> {
     fn ser(&self) -> Vec<u8> {
-        (&self.factors, &self.proofs).ser()
+        self.factors.ser()
     }
 }
 
-impl<C: Context, const W: usize> VDeserializable for DecryptionFactors<C, W> {
+impl<C: Context, const W: usize, const P: usize> VDeserializable for DecryptionFactors<C, W, P> {
     fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
-        let (factors, proofs) = <(Vec<[C::Element; W]>, Vec<DlogEqProof<C, W>>)>::deser(buffer)?;
-        Ok(DecryptionFactors { factors, proofs })
+        let factors = Vec::<DecryptionFactor<C, P, W>>::deser(buffer)?;
+        Ok(DecryptionFactors { factors })
     }
 }
 
-impl<C: Context, const W: usize> DecryptionFactors<C, W> {
-    pub fn new(factors: Vec<[C::Element; W]>, proofs: Vec<DlogEqProof<C, W>>) -> DecryptionFactors<C, W> {
-        DecryptionFactors { factors, proofs }
+impl<C: Context, const W: usize, const P: usize> DecryptionFactors<C, W, P> {
+    pub fn new(factors: Vec<DecryptionFactor<C, P, W>>) -> DecryptionFactors<C, W, P> {
+        DecryptionFactors { factors }
     }
 }
 

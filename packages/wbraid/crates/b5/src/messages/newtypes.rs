@@ -20,6 +20,7 @@ pub const NULL_TRUSTEE: usize = 1001;
 pub type Hash = crate::CryptographicHash;
 
 /// Zero hash constant for comparisons
+#[inline]
 pub fn zero_hash() -> Hash {
     use sha3::digest::generic_array::GenericArray;
     GenericArray::from_slice(&[0u8; 64]).clone()

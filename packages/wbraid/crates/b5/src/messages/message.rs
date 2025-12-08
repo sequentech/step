@@ -37,8 +37,8 @@ impl Message {
     // functions.
     ///////////////////////////////////////////////////////////////////////////
 
-    pub fn bootstrap_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn bootstrap_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
         manager: &S,
     ) -> Result<Message, CryptoError> {
         let cfg_bytes = cfg.ser();
@@ -50,8 +50,8 @@ impl Message {
         manager.sign(statement, Some(cfg_bytes))
     }
 
-    pub fn configuration_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn configuration_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
         trustee: &S,
     ) -> Result<Message, CryptoError> {
         let cfg_bytes = cfg.ser();
@@ -64,9 +64,9 @@ impl Message {
         trustee.sign(statement, None)
     }
 
-    pub fn channel_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
-        channel: &Channel<CryptographicContext>,
+    pub fn channel_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
+        channel: &Channel<C>,
         artifact: bool,
         trustee: &S,
     ) -> Result<Message, CryptoError> {
@@ -91,8 +91,8 @@ impl Message {
     }
 
     // Signs all the commitments for all trustees
-    pub fn channels_all_signed_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn channels_all_signed_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
         commitments_hs: &ChannelsHashes,
         trustee: &S,
     ) -> Result<Message, CryptoError> {
@@ -110,9 +110,9 @@ impl Message {
     }
 
     // Shares sent from one trustee to all trustees
-    pub fn shares_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
-        shares: &Shares<CryptographicContext>,
+    pub fn shares_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
+        shares: &Shares<C>,
         trustee: &S,
     ) -> Result<Message, CryptoError> {
         let cfg_bytes = cfg.ser();
@@ -130,9 +130,9 @@ impl Message {
         trustee.sign(statement, Some(share_bytes))
     }
 
-    pub fn public_key_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
-        dkgpk: &DkgPublicKey<CryptographicContext>,
+    pub fn public_key_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
+        dkgpk: &DkgPublicKey<C>,
         shares_hs: &SharesHashes,
         commitments_hs: &ChannelsHashes,
         artifact: bool,
@@ -168,10 +168,10 @@ impl Message {
         }
     }
 
-    pub fn ballots_msg<S: Signer<CryptographicContext>, const W: usize>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn ballots_msg<C: Context, S: Signer<C>, const W: usize>(
+        cfg: &Configuration<C>,
         batch: BatchNumber,
-        ballots: &Ballots<CryptographicContext, W>,
+        ballots: &Ballots<C, W>,
         selected_trustees: TrusteeSet,
         pk_h: PublicKeyHash,
         pm: &S,
@@ -196,12 +196,12 @@ impl Message {
         pm.sign(statement, Some(ballots_bytes))
     }
 
-    pub fn mix_msg<S: Signer<CryptographicContext>, const W: usize>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn mix_msg<C: Context, S: Signer<C>, const W: usize>(
+        cfg: &Configuration<C>,
         batch: BatchNumber,
         // Points to either Ballots or Mix
         previous_ciphertexts_h: CiphertextsHash,
-        mix: &Mix<CryptographicContext, W>,
+        mix: &Mix<C, W>,
         trustee: &S,
     ) -> Result<Message, CryptoError> {
         let cfg_bytes = cfg.ser();
@@ -224,8 +224,8 @@ impl Message {
         trustee.sign(statement, Some(mix_bytes))
     }
 
-    pub fn mix_signed_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn mix_signed_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
         batch: BatchNumber,
         // Points to either Ballots or Mix
         previous_ciphertexts_h: CiphertextsHash,
@@ -248,10 +248,10 @@ impl Message {
         trustee.sign(statement, None)
     }
 
-    pub fn decryption_factors_msg<S: Signer<CryptographicContext>, const W: usize>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn decryption_factors_msg<C: Context, S: Signer<C>, const W: usize, const P: usize>(
+        cfg: &Configuration<C>,
         batch: BatchNumber,
-        dfactors: DecryptionFactors<CryptographicContext, W>,
+        dfactors: DecryptionFactors<C, W, P>,
         mix_h: CiphertextsHash,
         shares_hs: SharesHashes,
         trustee: &S,
@@ -277,10 +277,10 @@ impl Message {
         trustee.sign(statement, Some(dfactors_bytes))
     }
 
-    pub fn plaintexts_msg<S: Signer<CryptographicContext>, const W: usize>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn plaintexts_msg<C: Context, S: Signer<C>, const W: usize>(
+        cfg: &Configuration<C>,
         batch: BatchNumber,
-        plaintexts: Plaintexts<CryptographicContext, W>,
+        plaintexts: Plaintexts<C, W>,
         dfactors_hs: DecryptionFactorsHashes,
         cipher_h: CiphertextsHash,
         pk_h: PublicKeyHash,
@@ -308,8 +308,8 @@ impl Message {
         trustee.sign(statement, Some(plaintexts_bytes))
     }
 
-    pub fn plaintexts_signed_msg<S: Signer<CryptographicContext>>(
-        cfg: &Configuration<CryptographicContext>,
+    pub fn plaintexts_signed_msg<C: Context, S: Signer<C>>(
+        cfg: &Configuration<C>,
         batch: BatchNumber,
         plaintexts_h: PlaintextsHash,
         dfactors_hs: DecryptionFactorsHashes,
@@ -342,7 +342,7 @@ impl Message {
     ///////////////////////////////////////////////////////////////////////////
 
     // FIXME add check for timestamp not older than some threshold
-    pub fn verify(&self, configuration: &Configuration<CryptographicContext>) -> Result<VerifiedMessage> {
+    pub fn verify<C: Context>(&self, configuration: &Configuration<C>) -> Result<VerifiedMessage> {
         let (kind, st_cfg_h, _, mix_no, _) = self.statement.get_data();
 
         if mix_no > configuration.trustees.len() {
@@ -351,18 +351,37 @@ impl Message {
             ));
         }
 
+        // Convert concrete VerifyingKey to generic verifier type
+        use cryptography::utils::serialization::{VSerializable, VDeserializable};
+        let pk_bytes = self.sender.pk.ser();
+        let generic_pk: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier = 
+            VDeserializable::deser(&pk_bytes)
+                .map_err(|e| anyhow!("Failed to deserialize sender public key: {:?}", e))?;
+
         // We don't care about doing a sequential search here as the size is small
         let index: usize = configuration
-            .get_trustee_position(&self.sender.pk)
+            .get_trustee_position(&generic_pk)
             .ok_or(anyhow!(
                 "Received a message from a trustee that is not part of the configuration {:?}",
                 self.sender.pk
             ))?;
 
         let bytes = self.statement.ser();
-        // Verify signature
+        // Verify signature using the verifier from the configuration
         use cryptography::utils::signatures::Verifier;
-        let verified = self.sender.pk.verify(&bytes, &self.signature);
+        let verifier = if index == PROTOCOL_MANAGER_INDEX as usize {
+            &configuration.protocol_manager
+        } else {
+            &configuration.trustees[index]
+        };
+        
+        // Convert concrete signature to generic type
+        let sig_bytes = self.signature.ser();
+        let generic_sig: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signature = 
+            VDeserializable::deser(&sig_bytes)
+                .map_err(|e| anyhow!("Failed to deserialize signature: {:?}", e))?;
+        
+        let verified = verifier.verify(&bytes, &generic_sig);
 
         if verified.is_err() {
             return Err(anyhow!(
@@ -449,8 +468,8 @@ impl Message {
 }
 
 // Placeholder for possible further verifications
-fn verify_artifact(
-    _cfg: &Configuration<CryptographicContext>,
+fn verify_artifact<C: Context>(
+    _cfg: &Configuration<C>,
     kind: &StatementType,
     _data: &Vec<u8>,
 ) -> Result<()> {
