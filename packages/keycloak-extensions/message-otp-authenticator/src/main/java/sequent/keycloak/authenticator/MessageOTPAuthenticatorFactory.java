@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -142,6 +142,18 @@ public class MessageOTPAuthenticatorFactory
             "Will be used for test mode. code will contain only digit and with the same number of digits as Code length specify",
             ProviderConfigProperty.STRING_TYPE,
             "123456"),
+        new ProviderConfigProperty(
+            Utils.MAX_RECEIVER_REUSE,
+            "Maximum users with the same Phone/Email",
+            "Maximum number of users using the same Phone Number/Email.",
+            ProviderConfigProperty.STRING_TYPE,
+            "1"),
+        new ProviderConfigProperty(
+            Utils.VALID_COUNTRY_CODES,
+            "Valid country codes, separated by comma",
+            "List of prefixes/country codes that are valid, separated by comma. For example '+1,+44'. If empty, all will be valid. User won't be able to send OTP messages to phone numbers from other countries.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
         messageCourier);
   }
 

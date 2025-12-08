@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -35,3 +35,5 @@ export {default as Tree} from "./components/Tree/Tree"
 export {NotFoundScreen} from "./components/NotFoundScreen"
 export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"
 export {default as CustomAutocompleteArrayInput} from "./components/CustomAutocompleteArrayInput/CustomAutocompleteArrayInput"
+export {default as Loader} from "./components/Loader/Loader"
+export {default as ExpandableText} from "./components/ExpandableText/ExpandableText"

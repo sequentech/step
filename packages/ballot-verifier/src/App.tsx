@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -39,8 +39,8 @@ const HeaderWithContext: React.FC = () => {
         presentation?.logo_url === undefined
             ? BlankLogoImg
             : presentation?.logo_url === null
-            ? SequentLogo
-            : presentation?.logo_url
+              ? SequentLogo
+              : presentation?.logo_url
 
     return (
         <Header

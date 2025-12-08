@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
@@ -20,6 +20,33 @@ impl TryFrom<Row> for AreaContestWrapper {
             contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
         }))
     }
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn insert_area_to_area_contests(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    contest_ids: &[Uuid],
+) -> Result<()> {
+    let area_contests: Vec<AreaContest> = contest_ids
+        .iter()
+        .map(|contest_id| AreaContest {
+            id: Uuid::new_v4().to_string(),
+            area_id: area_id.to_string(),
+            contest_id: contest_id.to_string(),
+        })
+        .collect();
+
+    insert_area_contests(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &area_contests,
+    )
+    .await?;
+    Ok(())
 }
 
 #[instrument(err, skip_all)]

@@ -29,6 +29,54 @@
             "problemMatcher": []
         },
         {
+            "label": "generate.dependency.report",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/tasks/dependencies/generate-dependency-report.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "security.audit.dependencies",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./scripts/tasks/security/audit-dependencies.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "check.reuse",
             "command": "devenv",
             "args": [
@@ -77,6 +125,126 @@
             "problemMatcher": []
         },
         {
+            "label": "start.storybook.ui-essentials",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd packages && yarn storybook:ui-essentials",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "start.docusaurus",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd docs/docusaurus && yarn && yarn start",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "start.build.docusaurus",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd docs/docusaurus && yarn && yarn build",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "run.claude",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "claude --dangerously-skip-permissions",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "run.spectaql",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "cd docs/api/graphql && yarn && yarn run generate-full-docs && python -m http.server -d docs",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "start.build.admin-portal",
             "command": "devenv",
             "args": [
@@ -84,7 +252,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal",
+                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:admin-portal && yarn start:admin-portal",
             ],
             "presentation": {
                 "echo": true,
@@ -206,13 +374,40 @@
                 "runOn": "default"
             },
             "problemMatcher": []
+        },        {
+            "label": "rebuild.janitor",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop janitor; docker compose build janitor && docker compose up -d --no-deps janitor",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
         },
         {
-          "label": "logs.restart.simplesaml",
+          "label": "logs.restart.simplesamlphp",
           "command": "bash",
           "args": [
             "-c",
-            "docker compose stop simplesaml; docker compose build simplesaml && docker compose up -d --no-deps simplesaml && docker compose logs -f --tail 100 simplesaml"
+            "docker compose stop simplesamlphp; docker compose build simplesamlphp && docker compose up -d --no-deps simplesamlphp && docker compose logs -f --tail 100 simplesamlphp"
           ],
           "options": {
             "env": {
@@ -413,7 +608,7 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.simplesaml",
+            "label": "logs.simplesamlphp",
             "command": "docker",
             "args": [
                 "compose",
@@ -421,7 +616,7 @@
                 "-f",
                 "--tail",
                 "200",
-                "simplesaml",
+                "simplesamlphp",
             ],
             "options": {
                 "env": {
@@ -646,6 +841,34 @@
             "problemMatcher": []
         },
         {
+            "label": "logs.reset.minio",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop minio configure-minio && docker compose up -d --build --no-deps minio && docker compose up --build -d --no-deps configure-minio && docker compose logs -f minio configure-minio",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.restart.trustees",
             "command": "bash",
             "args": [
@@ -790,6 +1013,32 @@
             "problemMatcher": []
         },
         {
+            "label": "build.sequent-core",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+              "-l",
+              "-c",
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
+            ],
+            "options": {
+              "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+              "echo": true,
+              "reveal": "always",
+              "focus": false,
+              "panel": "dedicated",
+              "showReuseMessage": true,
+              "clear": false
+            },
+            "isBackground": false,
+            "runOptions": {
+              "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.orare",
             "command": "docker",
             "args": [
@@ -903,6 +1152,55 @@
             "runOn": "default"
           },
           "problemMatcher": []
-        }
+        },
+        {
+            "label": "fix.docker",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "rm -rf /home/vscode/.docker/",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "update.license.headers",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "python3",
+                "--",
+                "./scripts/update_license_headers.py",
+                ".",
+                "--include-excluded"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
     ]
 }

@@ -1,4 +1,0 @@
--- Could not auto-generate a down migration.
--- Please write an appropriate down migration for the SQL below:
--- alter table "sequent_backend"."tally_session" add column "permission_label" text[]
---  null;

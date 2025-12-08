@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -25,6 +25,16 @@ const catalanTranslation: TranslationType = {
             moreInformationLink: "Més informació",
             writeInsPlaceholder: "Tecleja aquí el candidat per escrit",
             blankVote: "Vot en blanc",
+            preferential: {
+                position: "Posició",
+                none: "Cap",
+                ordinals: {
+                    first: "º",
+                    second: "º",
+                    third: "º",
+                    other: "º",
+                },
+            },
         },
         homeScreen: {
             title: "Verificador de Vot Sequent",
@@ -63,7 +73,9 @@ const catalanTranslation: TranslationType = {
                 ok: "OK",
             },
         },
-        poweredBy: "Funciona amb",
+        footer: {
+            poweredBy: "Funciona amb <1></1>",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "No hi ha prou opcions per a decodificar",

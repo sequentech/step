@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {Box, styled, Button, TextField, InputLabel} from "@mui/material"
 import {DropFile, Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
-import React, {useEffect, memo, useState} from "react"
+import React, {useEffect, useRef, memo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {GetUploadUrlMutation} from "@/gql/graphql"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
@@ -51,6 +51,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
         const [isEncrypted, setIsEncrypted] = useState<boolean>(false)
         const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
+        const passwordInputRef = useRef<HTMLInputElement>(null)
         const [password, setPassword] = useState<string>("")
         const [theFile, setTheFile] = useState<File | undefined>()
 
@@ -58,6 +59,15 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setShaField("")
             setDocumentId(null)
         }, [refresh])
+
+        // Used to autofocus the password input field in the modal dialog. Just
+        // using the autofocus property in PasswordInputStyle's inputProps
+        // doesn't work
+        useEffect(() => {
+            if (passwordDialogOpen && passwordInputRef?.current) {
+                passwordInputRef.current.focus()
+            }
+        }, [passwordDialogOpen, passwordInputRef.current])
 
         const uploadFile = async (url: string, file: File) => {
             await fetch(url, {
@@ -146,7 +156,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             <Box sx={{padding: "0"}}>
                 <TextField
                     disabled={isWorking()}
-                    label={t("electionEventScreen.import.sha")}
+                    label={String(t("electionEventScreen.import.sha"))}
                     size="small"
                     value={shaField}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -186,9 +196,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 <Dialog
                     variant="warning"
                     open={showShaDialog}
-                    ok={t("electionEventScreen.import.shaDialog.ok")}
-                    cancel={t("electionEventScreen.import.shaDialog.cancel")}
-                    title={t("electionEventScreen.import.shaDialog.title")}
+                    ok={String(t("electionEventScreen.import.shaDialog.ok"))}
+                    cancel={String(t("electionEventScreen.import.shaDialog.cancel"))}
+                    title={String(t("electionEventScreen.import.shaDialog.title"))}
                     handleClose={(result: boolean) => {
                         if (result) {
                             doImport(documentId as string, shaField, password)
@@ -203,23 +213,28 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 <Dialog
                     open={passwordDialogOpen}
                     handleClose={handlePasswordSubmit}
-                    title={t("electionEventScreen.import.passwordDialog.title")}
+                    title={String(t("electionEventScreen.import.passwordDialog.title"))}
                     ok={"Ok"}
                     variant="info"
                 >
-                    <SimpleForm toolbar={false} component={Box}>
-                        <Box>
-                            <InputLabel>
-                                {t("electionEventScreen.import.passwordDialog.description")}:
-                            </InputLabel>
-                            <PasswordInputStyle
-                                label={false}
-                                source="password"
-                                helperText={false}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </Box>
-                    </SimpleForm>
+                    <>
+                        <SimpleForm toolbar={false} component={Box}>
+                            <Box>
+                                <InputLabel>
+                                    {t("electionEventScreen.import.passwordDialog.description")}:
+                                </InputLabel>
+                                <PasswordInputStyle
+                                    label={false}
+                                    source="password"
+                                    helperText={false}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    inputProps={{
+                                        ref: passwordInputRef,
+                                    }}
+                                />
+                            </Box>
+                        </SimpleForm>
+                    </>
                 </Dialog>
             </Box>
         )

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -14,22 +14,27 @@ pub type JsonError = Custom<Json<ErrorResponse>>;
 #[derive(Serialize, AsRefStr, Display, Debug)]
 pub enum ErrorCode {
     InternalServerError,
-    QueueError,
     Unauthorized,
     CheckStatusFailed,
     AreaNotFound,
     ElectionEventNotFound,
     ElectoralLogNotFound,
     CheckPreviousVotesFailed,
+    CheckRevotesFailed,
+    CheckVotesInOtherAreasFailed,
+    InsertFailedExceedsAllowedRevotes,
     GetClientCredentialsFailed,
     GetAreaIdFailed,
     GetTransactionFailed,
     DeserializeBallotFailed,
+    DeserializeAreaPresentationFailed,
     DeserializeContestsFailed,
     PokValidationFailed,
     UuidParseFailed,
     UnknownError,
     InvalidEventProcessor,
+    ConfirmPolicyShowCastVoteLogsFailed,
+    BallotIdMismatch,
     // Add any other needed error codes
 }
 
