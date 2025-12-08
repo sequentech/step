@@ -7,8 +7,7 @@
 use super::*;
 use crate::protocol::datalog;
 use anyhow::Result;
-use rayon::prelude::*;
-use strand::{serialization::StrandVector, zkp::ChaumPedersen};
+use cryptography::traits::groups::{GroupScalar, CryptographicGroup};
 
 /// Computes the decryption factors using this trustee's secret share.
 ///
@@ -20,7 +19,7 @@ use strand::{serialization::StrandVector, zkp::ChaumPedersen};
 /// this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn compute_decryption_factors<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     channels_hs: &ChannelsHashes,
@@ -30,9 +29,11 @@ pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::Loca
     shares_hs: &SharesHashes,
     self_p: &TrusteePosition,
     num_t: &TrusteeCount,
+    threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
-    let ctx = C::default();
+    use cryptography::dkgd::recipient::{Recipient, ParticipantPosition};
+    
     let cfg = trustee.get_configuration(cfg_h)?;
 
     let pk = trustee
@@ -43,20 +44,20 @@ pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::Loca
     let my_channel = trustee
         .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
         .add_context("Computing decryption factors")?;
+    let my_sk_keypair = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
-    let mut secret = C::X::add_identity();
+    // Decrypt and sum all shares to compute our secret key
+    let mut secret = C::Scalar::zero();
     for sender in 0..*num_t {
         let share_h = shares_hs.0[sender];
-        let share_ = trustee
+        let share_msg = trustee
             .get_shares(&SharesHash(share_h), sender)
             .add_context("Computing decryption factors")?;
 
-        let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
-
-        let share = ctx.decrypt_exp(&share_.encrypted_shares[*self_p], sk)?;
+        let share = C::G::decrypt_scalar(&share_msg.encrypted_shares[*self_p], &my_sk_keypair.skey)
+            .map_err(|e| ProtocolError::InternalError(format!("Failed to decrypt share: {:?}", e)))?;
 
         secret = secret.add(&share);
-        secret = secret.modq(&ctx);
     }
 
     let ciphertexts = trustee
@@ -66,42 +67,47 @@ pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::Loca
     info!(
         "ComputeDecryptionFactors [{}] ({})..",
         dbg_hash(&ciphertexts_h.0),
-        ciphertexts.ciphertexts.0.len(),
+        ciphertexts.ciphertexts.len(),
     );
 
-    let suffix = format!("decryption_factor{self_p}");
+    let suffix = format!("decryption proof");
     let label = cfg.label(*batch, suffix);
 
-    let zkp = strand::zkp::Zkp::new(&ctx);
-
-    let result: Result<Vec<(C::E, ChaumPedersen<C>)>, ProtocolError> = ciphertexts
-        .ciphertexts
-        .0
-        .par_iter()
-        .map(|c| {
-            let (base, proof) =
-                strand::threshold::decryption_factor(&c, &secret, &vk, &label, &zkp, &ctx)?;
-
-            // FIXME removed self-verify
-            // let ok = zkp.verify_decryption(&vk, &base, &c.mhr, &c.gr, &proof, &label);
-            // assert!(ok);
-
-            Ok((base, proof))
-        })
-        .collect();
-
-    let (factors, proofs): (Vec<C::E>, Vec<ChaumPedersen<C>>) = result?.into_iter().unzip();
-
-    let df = DecryptionFactors::new(factors, StrandVector(proofs));
-    let m = Message::decryption_factors_msg(cfg, *batch, df, *ciphertexts_h, *shares_hs, trustee)?;
-    Ok(vec![m])
+    // Use dispatch macro to create Recipient with const generics
+    crate::dispatch_threshold_trustees!(*threshold, *num_t, {
+        use cryptography::dkgd::recipient::DkgCiphertext;
+        
+        let position = ParticipantPosition::from_usize(*self_p + 1);
+        let recipient = Recipient::<C, T, P>::new(position, vk, secret);
+        
+        // Wrap plain Ciphertexts into DkgCiphertext<C, 2, T> for decryption_factor
+        let wrapped_ciphertexts: Vec<DkgCiphertext<C, 2, T>> = ciphertexts.ciphertexts
+            .iter()
+            .map(|c| DkgCiphertext(c.clone()))
+            .collect();
+        
+        let dfactors = recipient.decryption_factor(&wrapped_ciphertexts, &label)
+            .map_err(|e| ProtocolError::InternalError(format!("Failed to compute decryption factors: {:?}", e)))?;
+        
+        let decryption_factors = b5::messages::artifact::DecryptionFactors::new(dfactors);
+        let m = b5::messages::message::Message::decryption_factors_msg(
+            &cfg,
+            *batch,
+            decryption_factors,
+            *ciphertexts_h,
+            *shares_hs,
+            trustee,
+        )?;
+        
+        Ok(vec![m])
+    })
 }
 
 /// Computes the plaintexts from a threshold number of decryption factors.
 ///
 /// Includes verification of decryption proofs. Returns a Message of type
 /// Plaintexts signed by this trustee.
-pub(super) fn compute_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn compute_plaintexts<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     pk_h: &PublicKeyHash,
@@ -111,7 +117,10 @@ pub(super) fn compute_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardSt
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message>, ProtocolError>
+where
+    Trustee<C, S>: b5::messages::message::Signer<C>,
+{
     let cfg = trustee.get_configuration(cfg_h)?;
     let plaintexts = compute_plaintexts_(
         cfg_h,
@@ -141,7 +150,7 @@ pub(super) fn compute_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardSt
 ///
 /// Includes verification of decryption proofs. Returns a Message of type
 /// PlaintextsSigned signed by this trustee.
-pub(super) fn sign_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn sign_plaintexts<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     pk_h: &PublicKeyHash,
@@ -152,7 +161,10 @@ pub(super) fn sign_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStora
     trustees: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message>, ProtocolError>
+where
+    Trustee<C, S>: b5::messages::message::Signer<C>,
+{
     let cfg = trustee.get_configuration(cfg_h)?;
     info!(
         "SignPlaintexts verifying decryption [{}] => [{}]",
@@ -175,7 +187,7 @@ pub(super) fn sign_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStora
         .get_plaintexts(plaintexts_h, *batch, trustees[0] - 1)
         .add_context("Signing plaintexts")?;
 
-    if expected.0 .0 == actual.0 .0 {
+    if expected.0 == actual.0 {
         info!(
             "SignPlaintexts verifying decryption [{}] => [{}], ok",
             dbg_hash(&ciphertexts_h.0),
@@ -203,13 +215,13 @@ pub(super) fn sign_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStora
 /// Computes the plaintexts from a threshold number of decryption factors.
 ///
 /// For each ciphertext and trustee, verifies the decryption factors, then
-/// combines them into a single divisor. This divisor is then applied to
-/// the mhr part of the ciphertext to yield the plaintext.
+/// combines them into a single divisor using the cryptography library's
+/// Recipient::combine function which handles lagrange coefficients and proof verification.
 ///
 /// Returns a Message of type Plaintexts signed by this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     pk_h: &PublicKeyHash,
@@ -219,10 +231,8 @@ fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Plaintexts<C>, ProtocolError> {
-    let ctx = C::default();
+) -> Result<b5::messages::artifact::Plaintexts<C, 2>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
-    let zkp = strand::zkp::Zkp::new(&ctx);
     let pk = trustee
         .get_dkg_public_key(pk_h, 0)
         .add_context("Computing plaintexts")?;
@@ -231,8 +241,7 @@ fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
         .get_mix(ciphertexts_h, *batch, *mix_signer)
         .add_context("Computing plaintexts")?;
 
-    let num_ciphertexts = mix.ciphertexts.0.len();
-    let mut divider = vec![C::E::mul_identity(); num_ciphertexts];
+    let num_ciphertexts = mix.ciphertexts.len();
 
     info!(
         "ComputePlaintexts [{}] ({})..",
@@ -246,7 +255,12 @@ fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
         "Unexpected number of decryption factors"
     );
 
-    // Decryption factors for each trustee
+    let num_trustees = cfg.trustees.len();   
+    /*
+    // Collect decryption factors for the T trustees
+    let mut all_dfactors = Vec::new();
+    let mut verification_keys_vec = Vec::new();
+    
     for (t, df_h) in dfactors_hs.0.iter().enumerate() {
         // Threshold is 1-based
         if t < *threshold {
@@ -254,43 +268,11 @@ fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
                 .get_decryption_factors(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
                 .add_context("Computing plaintexts")?;
 
-            assert_eq!(num_ciphertexts, dfactors.factors.0.len());
+            assert_eq!(num_ciphertexts, dfactors.factors.len());
+            
             let vk = pk.verification_keys[ts[t] - 1].clone();
-
-            // Lagrange parameter is 1-based, as is the ts[] array. The set of present trustees is generated by datalog
-            // as a fixed sized array with padded zeroes, so we select the slice corresponding to the
-            // filled in trustees.
-            let lagrange = strand::threshold::lagrange(ts[t], &ts[0..*threshold], &ctx);
-
-            let it = dfactors
-                .factors
-                .0
-                .par_iter()
-                .zip(dfactors.proofs.0.par_iter());
-            let it2 = it.zip(mix.ciphertexts.0.par_iter());
-
-            let suffix = format!("decryption_factor{}", ts[t] - 1);
-            let label = cfg.label(*batch, suffix);
-
-            let values: Result<Vec<C::E>, ProtocolError> = it2
-                .into_par_iter()
-                .map(|((df, proof), c)| {
-                    let ok = strand::threshold::verify_decryption_factor(
-                        &c, &vk, &df, &proof, &label, &zkp,
-                    )?;
-                    if ok {
-                        Ok(ctx.emod_pow(&df, &lagrange))
-                    } else {
-                        Err(ProtocolError::VerificationError(format!(
-                            "Failed to verify decryption proof"
-                        )))
-                    }
-                })
-                .collect();
-
-            for (index, next) in values?.iter().enumerate() {
-                divider[index] = divider[index].mul(next).modp(&ctx);
-            }
+            verification_keys_vec.push(vk);
+            all_dfactors.push(dfactors.factors);
         } else {
             debug!("Processed all decryption factors (t = {})", t);
             break;
@@ -298,21 +280,82 @@ fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     }
 
     info!(
-        "ComputePlaintexts applying decryption factors[{}] ({})..",
+        "ComputePlaintexts combining decryption factors[{}] ({})..",
         dbg_hash(&ciphertexts_h.0),
         num_ciphertexts,
     );
-    let ps = mix
-        .ciphertexts
-        .0
-        .par_iter()
-        .enumerate()
-        .map(|(index, c)| {
-            let decrypted = c.mhr.divp(&divider[index], &ctx).modp(&ctx);
 
-            ctx.decode(&decrypted)
-        })
-        .collect();
+    let suffix = format!("plaintexts");
+    let label = cfg.label(*batch, suffix);
+    
+    // Use dispatch macro to handle runtime threshold/trustee count -> compile-time const generics
+    let num_trustees = cfg.trustees.len();*/
+    
+    
+    let plaintexts = crate::dispatch_threshold_trustees!(*threshold, num_trustees, {
+        
+        // Collect decryption factors for the T trustees
+        let mut all_dfactors = Vec::new();
+        let mut verification_keys_vec = Vec::new();
+        
+        for (t, df_h) in dfactors_hs.0.iter().enumerate() {
+            // Threshold is 1-based
+            if t < *threshold {
+                let dfactors = trustee
+                    .get_decryption_factors::<P>(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
+                    .add_context("Computing plaintexts")?;
 
-    Ok(Plaintexts(StrandVector(ps)))
+                assert_eq!(num_ciphertexts, dfactors.factors.len());
+                
+                let vk = pk.verification_keys[ts[t] - 1].clone();
+                verification_keys_vec.push(vk);
+                all_dfactors.push(dfactors.factors);
+            } else {
+                debug!("Processed all decryption factors (t = {})", t);
+                break;
+            }
+        }
+
+        info!(
+            "ComputePlaintexts combining decryption factors[{}] ({})..",
+            dbg_hash(&ciphertexts_h.0),
+            num_ciphertexts,
+        );
+
+        let suffix = format!("decryption proof");
+        let label = cfg.label(*batch, suffix);
+        
+        // Use dispatch macro to handle runtime threshold/trustee count -> compile-time const generics
+        let num_trustees = cfg.trustees.len();    
+        
+        
+        use cryptography::dkgd::recipient::{combine, DkgCiphertext};
+        use std::array;
+        
+        // Wrap plain Ciphertexts into DkgCiphertext<C, 2, T> for combine function
+        let wrapped_ciphertexts: Vec<DkgCiphertext<C, 2, T>> = mix.ciphertexts
+            .iter()
+            .map(|c| DkgCiphertext(c.clone()))
+            .collect();
+        
+        // Convert Vec to fixed-size arrays
+        // T is the threshold (number of factors we have), P is total participants
+        let dfactors_array: [Vec<cryptography::dkgd::recipient::DecryptionFactor<C, P, 2>>; T] = 
+            all_dfactors.try_into()
+                .map_err(|_| ProtocolError::InternalError("Failed to convert decryption factors to array".to_string()))?;
+        let vkeys_array: [C::Element; T] = 
+            verification_keys_vec.try_into()
+                .map_err(|_| ProtocolError::InternalError("Failed to convert verification keys to array".to_string()))?;
+        
+        combine(
+            &wrapped_ciphertexts,
+            &dfactors_array,
+            &vkeys_array,
+            &label,
+        ).map_err(|e| ProtocolError::VerificationError(format!(
+            "Failed to combine decryption factors: {:?}", e
+        )))
+    })?;
+
+    Ok(Plaintexts(plaintexts))
 }

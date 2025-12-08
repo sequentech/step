@@ -73,9 +73,9 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{IdbDatabase, IdbRequest, IdbTransactionMode};
 
-use b4::messages::message::Message;
-use b4::HttpB3Message;
-use strand::serialization::StrandDeserialize;
+use b5::messages::message::Message;
+use b5::HttpB3Message;
+use cryptography::utils::serialization::variable::VDeserializable;
 
 use crate::protocol::board::local_storage::{LocalBoardStorage, StorageInfo};
 
@@ -454,13 +454,13 @@ impl IndexedDbStorage {
     
     /// Compute hash of message bytes
     fn compute_hash(msg: &HttpB3Message) -> Result<Vec<u8>> {
-        let hash = strand::hash::hash_to_array(&msg.message)?;
+        let hash = b5::hash_to_array(&msg.message)?;
         Ok(hash.to_vec())
     }
     
     /// Extract metadata from message for duplicate detection
     fn extract_metadata(msg: &HttpB3Message) -> Result<MessageMetadata> {
-        let message = Message::strand_deserialize(&msg.message)?;
+        let message = Message::deser(&msg.message)?;
         
         Ok(MessageMetadata {
             sender_pk: message.sender.pk.to_der_b64_string()?,
@@ -701,7 +701,7 @@ impl LocalBoardStorage for IndexedDbStorage {
                 // idx=0 is the last message (local_id=S), idx=1 is second-to-last (local_id=S-1), etc.
                 let local_id = S - (idx as i64);
                 
-                match Message::strand_deserialize(&msg.message) {
+                match Message::deser(&msg.message) {
                     Ok(message) => Ok((message, local_id)),
                     Err(e) => Err(anyhow::anyhow!("Failed to deserialize message: {}", e)),
                 }

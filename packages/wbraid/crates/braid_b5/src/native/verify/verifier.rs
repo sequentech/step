@@ -11,11 +11,12 @@ use serde::Serialize;
 use strum::Display;
 use tracing::info;
 
-use b4::messages::artifact::Configuration;
-use b4::messages::message::Message;
-use b4::messages::message::VerifiedMessage;
-use b4::messages::newtypes::*;
-use b4::messages::statement::StatementType;
+use b5::messages::artifact::Configuration;
+use b5::messages::message::Message;
+use b5::messages::message::VerifiedMessage;
+use b5::messages::newtypes::*;
+use b5::messages::statement::StatementType;
+use b5::CryptographicHash as Hash;
 
 use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
@@ -26,8 +27,8 @@ use crate::native::verify::datalog::Target;
 use crate::native::verify::datalog::Verified;
 use crate::native::verify::logger::{VerifierLogger, create_logger};
 
-use strand::context::Ctx;
-use strand::serialization::StrandDeserialize;
+use cryptography::context::Context;
+use cryptography::utils::serialization::variable::VDeserializable;
 
 /*
 Verifies the election data published on the bulletin board to implement universal verifiability. The key elements
@@ -114,14 +115,14 @@ enum Check {
     PLAINTEXTS_VALID,
 }
 
-pub struct Verifier<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> {
+pub struct Verifier<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> {
     trustee: Trustee<C, S>,
     board: B,
     board_name: String,
     logger: Box<dyn VerifierLogger>,
 }
 
-impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifier<C, B, S> {
+impl<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifier<C, B, S> {
     pub fn new(trustee: Trustee<C, S>, board: B, board_name: &str) -> Verifier<C, B, S> {
         Verifier {
             trustee,
@@ -146,7 +147,7 @@ impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifier<C,
         
         let messages: Vec<(Message, i64)> = messages
             .iter()
-            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
+            .map(|m| (Message::deser(&m.message).unwrap(), m.id))
             .collect();
         // discard ids here
         // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
@@ -166,8 +167,8 @@ impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifier<C,
             .artifact
             .as_ref()
             .unwrap();
-        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
-        let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+        let cfg_h = b5::hash_to_array(&cfg_bytes)?;
+        let cfg = Configuration::<C>::deser(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
         vr.add_result(
@@ -292,7 +293,7 @@ impl Target {
 }
 
 impl Verified {
-    fn add_results<C: Ctx>(
+    fn add_results<C: Context>(
         &self,
         vr: &mut VerificationResult,
         target: &Target,
@@ -300,10 +301,10 @@ impl Verified {
         pk_h: &Option<PublicKeyHash>,
     ) -> Result<()> {
         let mixing_hs = self.get_mixing_hs();
-        let filtered_mixes: Vec<[u8; 64]> = mixing_hs
+        let filtered_mixes: Vec<_> = mixing_hs
             .0
             .into_iter()
-            .filter(|h| *h != [0u8; 64])
+            .filter(|h| *h != Hash::default())
             .collect();
 
         let b = &self.get_batch().to_string();

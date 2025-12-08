@@ -2,17 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b5::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use base64::engine::general_purpose;
 use base64::Engine;
-use braid::protocol::trustee::TrusteeConfig;
+use braid_b5::protocol::trustee::TrusteeConfig;
 use clap::Parser;
 use std::marker::PhantomData;
 
-use strand::backend::ristretto::RistrettoCtx;
-use strand::context::Ctx;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strand::symm;
+use cryptography::context::RistrettoCtx;
+use cryptography::context::Context;
+use b5::{VerifyingKey, SigningKey};
+use cryptography::utils::symm;
 
 #[derive(clap::ValueEnum, Clone)]
 enum Command {
@@ -33,14 +33,14 @@ struct Cli {
 /// Trustee configuration contains
 ///
 /// * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
-/// * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
+/// * signing_key_pk: base64 encoding of corresponding VerifyingKey serialization
 /// * encryption_key: base64 encoding of a sign::SymmetricKey
 ///
 /// Protocol manager configuration contains
 ///
 ///  * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding.
 ///
-/// The randomness is provided by strand, see the strand::rand module.
+/// The randomness is provided by the cryptography crate.
 fn main() {
     let args = Cli::parse();
 
@@ -53,22 +53,12 @@ fn main() {
 /// Generates a trustee configuration with cryptographic secrets.
 ///
 /// Prints configuration to standard out.
-fn gen_trustee_config<C: Ctx>() {
-    let sk = StrandSignatureSk::generate().unwrap();
-    let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+fn gen_trustee_config<C: Context>() {
+    let mut rng = C::get_rng();
+    let sk = b5::generate_signing_key();
     let encryption_key: symm::SymmetricKey = symm::gen_key();
 
-    let ek_bytes = encryption_key.as_slice();
-
-    let sk_string: String = sk.to_der_b64_string().unwrap();
-    let pk_string: String = pk.to_der_b64_string().unwrap();
-    let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
-
-    let tc = TrusteeConfig {
-        signing_key_sk: sk_string,
-        signing_key_pk: pk_string,
-        encryption_key: ek_string,
-    };
+    let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
 
     let toml = toml::to_string(&tc).unwrap();
     println!("{toml}");
@@ -81,9 +71,10 @@ fn gen_trustee_config<C: Ctx>() {
 /// designated as protocol manager in the configuration.
 ///
 /// Prints configuration to standard out.
-fn gen_protocol_manager_config<C: Ctx>() {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
-    let pm: ProtocolManager<C> = ProtocolManager {
+fn gen_protocol_manager_config<C: Context>() {
+    let mut rng = C::get_rng();
+    let pmkey = b5::generate_signing_key();
+    let pm: ProtocolManager<RistrettoCtx> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };

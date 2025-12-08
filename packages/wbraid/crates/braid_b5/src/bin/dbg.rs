@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use strand::backend::ristretto::RistrettoCtx;
+use cryptography::context::RistrettoCtx;
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
@@ -14,8 +14,8 @@ use tracing_tree::HierarchicalLayer;
 /// simulate or debug a protocol execution.
 fn main() {
     let log_reload = init_log();
-    let ctx = RistrettoCtx;
-    braid::native::test::dbg::dbg(ctx, log_reload).unwrap();
+    let Context = RistrettoCtx;
+    braid_b5::native::test::dbg::dbg(Context, log_reload).unwrap();
 }
 
 /// Initialize the tracing log, returning a handle that

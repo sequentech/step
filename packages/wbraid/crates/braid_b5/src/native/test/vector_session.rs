@@ -4,23 +4,23 @@
 
 use crate::protocol::trustee::Trustee;
 use crate::native::test::vector_board::VectorBoard;
-use b4::messages::artifact::{DkgPublicKey, Plaintexts};
-use b4::messages::message::Message;
+use b5::messages::artifact::{DkgPublicKey, Plaintexts};
+use b5::messages::message::Message;
 use log::{error, info};
 use std::sync::{Arc, Mutex};
-use strand::context::Ctx;
+use cryptography::context::Context;
 
-use b4::messages::newtypes::{BatchNumber, TrusteePosition};
+use b5::messages::newtypes::{BatchNumber, TrusteePosition};
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
 #[derive(Debug)]
-pub struct VectorSession<C: Ctx, S: crate::protocol::board::LocalBoardStorage> {
+pub struct VectorSession<C: Context, S: crate::protocol::board::LocalBoardStorage> {
     trustee: Trustee<C, S>,
     remote: Arc<Mutex<VectorBoard>>,
     last_message: i64,
 }
 
-impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
+impl<C: Context, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
     pub fn new(trustee: Trustee<C, S>, remote: Arc<Mutex<VectorBoard>>) -> VectorSession<C, S> {
         VectorSession {
             trustee,
@@ -57,7 +57,7 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Option<b5::messages::artifact::Plaintexts<C, 2>> {
         self.trustee._get_plaintexts_nohash(batch, signer_position)
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {

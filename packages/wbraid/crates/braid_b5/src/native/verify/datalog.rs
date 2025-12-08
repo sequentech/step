@@ -4,7 +4,7 @@
 
 use crate::protocol::datalog::{hashes_add, hashes_init};
 use crate::protocol::predicate::Predicate;
-use b4::messages::newtypes::*;
+use b5::messages::newtypes::*;
 use crepe::crepe;
 use std::collections::HashSet;
 

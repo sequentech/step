@@ -2,21 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use strand::backend::ristretto::RistrettoCtx;
+use cryptography::context::RistrettoCtx;
 
 #[test]
 fn test_protocol_memory() {
-    braid::native::logging::init_log(true);
+    braid_b5::native::logging::init_log(true);
 
-    let ctx = RistrettoCtx;
-    braid::native::test::protocol_test_memory::run(1000, 1, ctx);
+    braid_b5::native::test::protocol_test_memory::run::<RistrettoCtx>(1000, 1);
 }
 
 #[tokio::test]
 #[ignore]
 async fn test_protocol_http() {
-    braid::native::logging::init_log(true);
-    let ctx = RistrettoCtx;
+    braid_b5::native::logging::init_log(true);
 
-    braid::native::test::protocol_test_http::run(1000, 1, ctx).await;
+    braid_b5::native::test::protocol_test_http::run::<RistrettoCtx>(1000, 1).await;
 }

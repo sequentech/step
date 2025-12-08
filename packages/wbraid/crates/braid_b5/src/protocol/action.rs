@@ -6,16 +6,13 @@ use anyhow::Result;
 use strum::Display;
 
 pub(self) use log::{debug, info, trace};
-pub(self) use strand::context::Ctx;
-pub(self) use strand::context::Element;
-pub(self) use strand::context::Exponent;
+pub(self) use cryptography::context::Context;
 
-pub(self) use crate::protocol::datalog::NULL_HASH;
 pub(self) use crate::protocol::trustee::Trustee;
 pub(self) use crate::util::{ProtocolContext, ProtocolError};
-pub(self) use b4::messages::artifact::{DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares};
-pub(self) use b4::messages::message::Message;
-pub(self) use b4::messages::newtypes::*;
+pub(self) use b5::messages::artifact::{DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares};
+pub(self) use b5::messages::message::Message;
+pub(self) use b5::messages::newtypes::*;
 
 // Used by submodules
 use crate::util::dbg_hash;
@@ -146,7 +143,7 @@ impl Action {
     /// 4) Create messages through Message static functions
     ///      4.1) Message::<function> Computes hashes and artifact data
     ///      4.2) Trustee::<message> Signs the statement and returns Message
-    pub(crate) fn run<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(&self, trustee: &Trustee<C, S>) -> Result<Vec<Message>, ProtocolError> {
+    pub(crate) fn run<C: Context, S: crate::protocol::board::LocalBoardStorage>(&self, trustee: &Trustee<C, S>) -> Result<Vec<Message>, ProtocolError> {
         info!("Running action {}..", &self);
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
@@ -217,6 +214,7 @@ impl Action {
                 shares_hs,
                 self_p,
                 num_t,
+                _threshold,
                 trustee,
             ),
             Self::ComputePlaintexts(
@@ -267,7 +265,7 @@ impl Action {
     /// Runs this Action in verifying mode.
     ///
     /// Only three actions are relevant for a verifier.
-    pub(crate) fn run_for_verifier<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+    pub(crate) fn run_for_verifier<C: Context, S: crate::protocol::board::LocalBoardStorage>(
         &self,
         trustee: &Trustee<C, S>,
     ) -> Result<Vec<Message>, ProtocolError> {

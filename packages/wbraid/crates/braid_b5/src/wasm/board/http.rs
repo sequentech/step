@@ -9,13 +9,13 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
 use crate::protocol::board::{Board, BoardFactory};
-use b4::HttpB3Message;
-use b4::api_types::{
+use b5::HttpB3Message;
+use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     ListMessagesResponse, GetMessagesResponse, MessageWithUrl, ContentType,
 };
-use b4::messages::message::Message;
-use strand::serialization::StrandSerialize;
+use b5::messages::message::Message;
+use cryptography::utils::serialization::variable::VSerializable;
 
 /// Parameters for creating a WASM HTTP board connection
 #[derive(Clone)]
@@ -128,7 +128,7 @@ impl WasmHttpBoard {
         let mix_number: i32 = message.statement.get_mix_number() as i32;
         
         // Serialize message
-        let message_bytes = message.strand_serialize()
+        let message_bytes = message.ser()
             .map_err(|e| JsValue::from_str(&format!("Failed to serialize message: {:?}", e)))?;
         let size = message_bytes.len();
         

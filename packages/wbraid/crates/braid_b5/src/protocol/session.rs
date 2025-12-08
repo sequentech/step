@@ -5,7 +5,7 @@
 use anyhow::Result;
 use tracing::info;
 
-use strand::context::Ctx;
+use cryptography::context::Context;
 
 use crate::protocol::board::{Board, BoardFactory};
 use crate::protocol::trustee::{Trustee, StepResult};
@@ -15,12 +15,12 @@ use crate::util::ProtocolError;
 ///
 /// A protocol session handles one board in the
 /// bulletin board.
-pub struct Session<C: Ctx + 'static, B: Board + 'static, S: crate::protocol::board::LocalBoardStorage> {
+pub struct Session<C: Context + 'static, B: Board + 'static, S: crate::protocol::board::LocalBoardStorage> {
     pub board_name: String,
     pub trustee: Trustee<C, S>,
     board_factory: B::Factory,
 }
-impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, B, S> {
+impl<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, B, S> {
     /// Constructs a new SessionM to handle the requested board.
     ///
     /// The board_factory parameter is used at each step to perform

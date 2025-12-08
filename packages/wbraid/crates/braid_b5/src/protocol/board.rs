@@ -18,8 +18,8 @@ pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, Statement
 pub use local_storage::{LocalBoardStorage, StorageInfo};
 
 use anyhow::Result;
-use b4::messages::message::Message;
-use b4::HttpB3Message;
+use b5::messages::message::Message;
+use b5::HttpB3Message;
 
 /// Defines the interface with a bulletin board.
 ///
@@ -96,7 +96,7 @@ pub trait BoardMulti: Sized {
     fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> impl std::future::Future<Output = Result<(Vec<b4::HttpBoardMessages>, bool)>> + Send;
+    ) -> impl std::future::Future<Output = Result<(Vec<b5::HttpBoardMessages>, bool)>> + Send;
 
     fn insert_messages_multi(
         &self,

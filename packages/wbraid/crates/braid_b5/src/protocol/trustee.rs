@@ -10,27 +10,28 @@ use rayon::prelude::*;
 use std::collections::HashSet;
 use tracing_attributes::instrument;
 
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strand::{context::Ctx, elgamal::PrivateKey};
+use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
+use b5::{VerifyingKey, SigningKey};
+use cryptography::context::Context;
+use cryptography::utils::signatures::SignatureScheme;
 
 use crate::protocol::action::Action;
 use crate::protocol::board::{LocalBoard, LocalBoardStorage};
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
-use b4::HttpB3Message;
-use b4::messages::artifact::Channel;
-use b4::messages::artifact::Configuration;
-use b4::messages::artifact::DkgPublicKey;
-use b4::messages::artifact::Shares;
-use b4::messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
-use b4::messages::message::Message;
-use b4::messages::newtypes::*;
-use b4::messages::statement::StatementType;
-use strand::util::StrandError;
+use b5::HttpB3Message;
+use b5::messages::artifact::Channel;
+use b5::messages::artifact::Configuration;
+use b5::messages::artifact::DkgPublicKey;
+use b5::messages::artifact::Shares;
+use b5::messages::artifact::{DecryptionFactors, Plaintexts};
+use b5::messages::message::Message;
+use b5::messages::newtypes::*;
+use b5::messages::statement::StatementType;
+use cryptography::utils::error::Error as CryptographyError;
 
-use strand::symm::{self, EncryptionData};
+use cryptography::utils::symm::{self, EncryptionData};
 
 const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 
@@ -101,11 +102,15 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// of actions that can be executed in parallel. Higher
 /// values may increase core utilization, but also
 /// peak memory usage.
-pub struct Trustee<C: Ctx, S: LocalBoardStorage> {
+pub struct Trustee<C: Context, S: LocalBoardStorage> 
+where
+    <C::SignatureScheme as SignatureScheme<C::Rng>>::Signer: Send + Sync,
+    <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier: Send + Sync,
+{
     pub(crate) name: String,
     #[allow(dead_code)]
     pub(crate) board_name: String,
-    pub(crate) signing_key: StrandSignatureSk,
+    pub(crate) signing_key: <C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Signer,
     pub(crate) encryption_key: symm::SymmetricKey,
     // Public for external crates (e.g., braid-wasm) to access board state
     pub local_board: LocalBoard<C, S>,
@@ -113,7 +118,7 @@ pub struct Trustee<C: Ctx, S: LocalBoardStorage> {
     pub(crate) max_concurrent_actions: Option<usize>,
 }
 
-impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
+impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     /// Constructs a trustee instance.
     ///
     /// A trustee instance exists in the context of a session, and therefore
@@ -121,7 +126,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     pub fn new(
         name: String,
         board_name: String,
-        signing_key: StrandSignatureSk,
+        signing_key: <C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Signer,
         encryption_key: symm::SymmetricKey,
         storage: S,
         max_concurrent_actions: Option<usize>,
@@ -166,10 +171,11 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         // When retrieving all messages, some of them will already exist in 
         // the local store: this is not an error
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
+        
         // Store messages and retrieve them with IDs (persistent: local IDs, no-op: external IDs)
         let parsed_messages = self.local_board
             .store_and_return_messages(&remote_messages, ignore_existing)
-            .map_err(|e| ProtocolError::BoardError(format!("{}", e)))?;
+            .map_err(|e| ProtocolError::BoardError(format!("error here: {}", e)))?;
 
         // Update the in-memory board with parsed messages. Returns count of added messages.
         let added_messages = self.update_local_board(parsed_messages)?;
@@ -366,7 +372,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         }
 
         let artifact = zero.artifact.as_ref().expect("impossible");
-        let configuration = Configuration::strand_deserialize(artifact)?;
+        let configuration = Configuration::deser(artifact)?;
 
         if !configuration.is_valid() {
             return Err(ProtocolError::InvalidConfiguration(format!(
@@ -625,7 +631,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Ballots<C>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Ballots<C, 2>, ProtocolError> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -640,7 +646,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Mix<C>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Mix<C, 2>, ProtocolError> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -650,12 +656,12 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_decryption_factors(
+    pub(crate) fn get_decryption_factors<const P: usize>(
         &self,
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C>, ProtocolError> {
+    ) -> Result<DecryptionFactors<C, 2, P>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -671,7 +677,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C>, ProtocolError> {
+    ) -> Result<Plaintexts<C, 2>, ProtocolError> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }
@@ -687,20 +693,20 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     ///
     /// Trustee signing public keys are also used to
     /// identify trustees in protocol Configurations.
-    pub fn get_pk(&self) -> Result<StrandSignaturePk, StrandError> {
-        Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
+    pub fn get_pk(&self) -> Result<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier, CryptographyError> {
+        Ok(C::SignatureScheme::verifying_key(&self.signing_key))
     }
 
-    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
-        let bytes: &[u8] = &sk.strand_serialize()?;
-        let ed = symm::encrypt(self.encryption_key, bytes)?;
+    pub(crate) fn encrypt_share_sk(&self, sk: &cryptography::cryptosystem::elgamal::KeyPair<C>, _cfg: &Configuration<C>) -> Result<EncryptionData, ProtocolError> {
+        let bytes = sk.ser();
+        let ed = symm::encrypt(self.encryption_key, &bytes)?;
 
         Ok(ed)
     }
 
-    pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>, ProtocolError> {
+    pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<cryptography::cryptosystem::elgamal::KeyPair<C>, ProtocolError> {
         let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
-        let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
+        let ret = cryptography::cryptosystem::elgamal::KeyPair::<C>::deser(&decrypted)?;
 
         Ok(ret)
     }
@@ -715,7 +721,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Option<b5::messages::artifact::Plaintexts<C, 2>> {
         self.local_board
             .get_plaintexts_nohash(batch, signer_position)
     }
@@ -724,8 +730,8 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
 }
 
 /// Trustees can sign Messages
-impl<C: Ctx, S: LocalBoardStorage> b4::messages::message::Signer for Trustee<C, S> {
-    fn get_signing_key(&self) -> &StrandSignatureSk {
+impl<C: Context, S: LocalBoardStorage> b5::messages::message::Signer<C> for Trustee<C, S> {
+    fn get_signing_key(&self) -> &<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Signer {
         &self.signing_key
     }
     fn get_name(&self) -> String {
@@ -737,7 +743,7 @@ impl<C: Ctx, S: LocalBoardStorage> b4::messages::message::Signer for Trustee<C, 
 // Debug
 ///////////////////////////////////////////////////////////////////////////
 
-impl<C: Ctx, S: LocalBoardStorage> std::fmt::Debug for Trustee<C, S> {
+impl<C: Context, S: LocalBoardStorage> std::fmt::Debug for Trustee<C, S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Trustee({})", self.name)
     }
@@ -772,14 +778,11 @@ impl TrusteeConfig {
 
     /// Construct a TrusteeConfig from keys in object form.
     pub fn new_from_objects(
-        signing_key: StrandSignatureSk,
+        signing_key: SigningKey,
         encryption_key: symm::SymmetricKey,
     ) -> Self {
-        let sk_string = signing_key.to_der_b64_string().unwrap();
-        let pk_string = StrandSignaturePk::from_sk(&signing_key)
-            .unwrap()
-            .to_der_b64_string()
-            .unwrap();
+        let sk_string = b5::signing_key_to_der_b64_string(&signing_key).unwrap();
+        let pk_string = b5::verifying_key_to_der_b64_string(&VerifyingKey::from(&signing_key)).unwrap();
 
         // Compatible with both aes and chacha20poly backends
         let ek_bytes = encryption_key.as_slice();

@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
-use braid::util::ProtocolError;
+use braid_b5::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
+use braid_b5::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
 use std::fs;
@@ -13,12 +13,12 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::native::session::Session;
-use braid::protocol::trustee::Trustee;
-use braid::protocol::trustee::TrusteeConfig;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
-use strand::symm;
+use braid_b5::native::session::Session;
+use braid_b5::protocol::trustee::Trustee;
+use braid_b5::protocol::trustee::TrusteeConfig;
+use cryptography::context::RistrettoCtx;
+use b5::SigningKey;
+use cryptography::utils::symm;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
@@ -65,7 +65,7 @@ command line option is set to true.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::native::logging::init_log(true);
+    braid_b5::native::logging::init_log(true);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "jemalloc")] {
@@ -81,9 +81,10 @@ async fn main() -> Result<()> {
         .expect("Should have been able to read the trustee configuration file");
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
-    let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk)?;
+    let sk: SigningKey = b5::signing_key_from_der_b64_string(&tc.signing_key_sk)
+        .map_err(|e| anyhow!("Failed to decode signing key: {}", e))?;
 
-    let bytes = braid::util::decode_base64(&tc.encryption_key)?;
+    let bytes = braid_b5::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
 
     let ignored_boards = get_ignored_boards();
@@ -92,7 +93,7 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3, braid_b5::native::board::SqliteStorage>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
@@ -129,7 +130,7 @@ async fn main() -> Result<()> {
                 board_name.clone()
             );
 
-            let storage = braid::native::board::SqliteStorage::new(store_root.join(board_name), None);
+            let storage = braid_b5::native::board::SqliteStorage::new(store_root.join(board_name), None);
             let trustee = Trustee::new(
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 board_name.to_string(),

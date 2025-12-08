@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use b4::{
+use b5::{
     HttpB3Message,
     messages::{message::Message, statement::StatementType},
 };
-use strand::serialization::{StrandDeserialize, StrandSerialize};
+use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
 
 /// VectorBoard
 ///
@@ -41,10 +41,12 @@ impl VectorBoard {
 
     pub fn add(&mut self, message: Message) {
         let last_id: i64 = self.messages.len() as i64;
-        let m = message.strand_serialize().unwrap();
+        let m = message.ser();
+
+        let back = Message::deser(&m).unwrap();
         
         // Extract metadata from message
-        let sender_pk = message.sender.pk.to_der_b64_string().unwrap();
+        let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk).unwrap();
         let statement_kind = message.statement.get_kind().to_string();
         let batch: i32 = message.statement.get_batch_number().try_into().unwrap();
         let mix_number: i32 = message.statement.get_mix_number().try_into().unwrap();
@@ -84,7 +86,7 @@ impl std::fmt::Debug for VectorBoard {
         let types: Vec<(StatementType, bool)> = self
             .messages
             .iter()
-            .map(|m| Message::strand_deserialize(&m.message).unwrap())
+            .map(|m| Message::deser(&m.message).unwrap())
             .map(|m| (m.statement.get_kind(), m.artifact.is_some()))
             .collect();
         write!(

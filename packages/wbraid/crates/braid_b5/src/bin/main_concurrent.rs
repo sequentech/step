@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Result};
 
-use braid::native::board::HttpB3Index;
+use braid_b5::native::board::HttpB3Index;
 use clap::Parser;
 use std::collections::HashSet;
 use std::fs;
@@ -15,9 +15,9 @@ use tokio::time::{sleep, Duration};
 use tracing::instrument;
 use tracing::{error, info};
 
-use braid::native::session::session_m::SessionFactory;
-use braid::native::session::session_master::SessionMaster;
-use braid::protocol::trustee::TrusteeConfig;
+use braid_b5::native::session::session_m::SessionFactory;
+use braid_b5::native::session::session_master::SessionMaster;
+use braid_b5::protocol::trustee::TrusteeConfig;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
@@ -105,7 +105,7 @@ fn main() -> Result<()> {
 ///
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {
-    braid::native::logging::init_log(true);
+    braid_b5::native::logging::init_log(true);
 
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {

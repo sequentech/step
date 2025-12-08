@@ -14,11 +14,11 @@ use crate::protocol::board::BoardEntry;
 use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
 use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, IndexedDbStorage};
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
-use strand::symm;
-use b4::HttpB3Message;
-use b4::api_types::{
+use cryptography::context::RistrettoCtx;
+use b5::SigningKey;
+use cryptography::utils::symm;
+use b5::HttpB3Message;
+use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     ListMessagesResponse, ContentType,
 };
@@ -103,7 +103,7 @@ impl WasmSession {
     /// Must be called before connect_to_board() or step().
     pub async fn init_session(&mut self, board_name: String) -> Result<(), JsValue> {
         // Parse signing key
-        let sk = StrandSignatureSk::from_der_b64_string(&self.config.signing_key_sk)
+        let sk = SigningKey::from_der_b64_string(&self.config.signing_key_sk)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse signing key: {}", e)))?;
         
         // Parse encryption key
@@ -384,7 +384,7 @@ impl WasmSession {
 
     /// Post messages to B4
     async fn post_messages(&self, messages: Vec<b4::messages::message::Message>) -> Result<(), JsValue> {
-        use strand::serialization::StrandSerialize;
+        use cryptography::utils::serialization::variable::VSerializable;
         
         if messages.is_empty() {
             return Ok(());
@@ -410,7 +410,7 @@ impl WasmSession {
             let mix_number: i32 = message.statement.get_mix_number() as i32;
             
             // Serialize message
-            let message_bytes = message.strand_serialize()
+            let message_bytes = message.ser()
                 .map_err(|e| JsValue::from_str(&format!("Failed to serialize message: {:?}", e)))?;
             let size = message_bytes.len();
             

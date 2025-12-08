@@ -7,12 +7,13 @@ use log::trace;
 use std::collections::HashSet;
 use strum::Display;
 
-use strand::context::Ctx;
-use strand::signature::StrandSignaturePk;
+use cryptography::context::Context;
+use cryptography::utils::signatures::SignatureScheme;
+use b5::VerifyingKey;
 
-use b4::messages::artifact::Configuration;
-use b4::messages::newtypes::*;
-use b4::messages::statement::Statement;
+use b5::messages::artifact::Configuration;
+use b5::messages::newtypes::*;
+use b5::messages::statement::Statement;
 
 use crate::util::ProtocolError;
 
@@ -122,7 +123,7 @@ pub(crate) enum Predicate {
 }
 impl Predicate {
     /// Returns the predicate asserted by the given statement.
-    pub(crate) fn from_statement<C: Ctx>(
+    pub(crate) fn from_statement<C: Context>(
         statement: &Statement,
         signer_position: TrusteePosition,
         cfg: &Configuration<C>,
@@ -266,9 +267,9 @@ impl Predicate {
     ///
     /// Special case for bootstrapping. Other statements are obtained
     /// with Predicate::from_statement.
-    pub(crate) fn get_bootstrap_predicate<C: Ctx>(
+    pub(crate) fn get_bootstrap_predicate<C: Context>(
         configuration: &Configuration<C>,
-        trustee_pk: &StrandSignaturePk,
+        trustee_pk: &<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
     ) -> Result<Predicate, ProtocolError> {
         let index = configuration.get_trustee_position(trustee_pk).ok_or(
             ProtocolError::InvalidConfiguration(
@@ -295,7 +296,7 @@ impl Predicate {
     /// Special case for bootstrapping in verifier mode. In verifying mode
     /// this predicate will identify this trustee as a strict observer, only
     /// deriving verification Actions.
-    pub(crate) fn get_verifier_bootstrap_predicate<C: Ctx>(
+    pub(crate) fn get_verifier_bootstrap_predicate<C: Context>(
         configuration: &Configuration<C>,
     ) -> Result<Predicate, ProtocolError> {
         let cfg = ConfigurationHash::from_configuration(configuration).map_err(|e| {

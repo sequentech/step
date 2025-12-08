@@ -12,9 +12,9 @@ use crate::native::verify::verifier::Verifier;
 use crate::wasm::board::{WasmHttpBoard, WasmHttpBoardParams};
 use crate::native::board::NoOpStorage;
 
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
-use strand::symm;
+use cryptography::context::RistrettoCtx;
+use b5::SigningKey;
+use cryptography::utils::symm;
 
 /// Individual verification check result
 #[derive(Serialize, Deserialize)]
@@ -82,7 +82,7 @@ impl WasmVerifier {
         )));
 
         // Generate dummy trustee credentials (not used for verification)
-        let dummy_sk = StrandSignatureSk::generate()
+        let dummy_sk = b5::generate_signing_key()
             .map_err(|e| JsValue::from_str(&format!("Failed to generate key: {}", e)))?;
         let dummy_encryption_key = symm::gen_key();
 

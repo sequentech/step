@@ -14,22 +14,22 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use tracing::{info, instrument};
 
-use b4::messages::artifact::Configuration;
-use b4::messages::artifact::DkgPublicKey;
-use b4::messages::message::Message;
-use b4::messages::newtypes::PublicKeyHash;
-use b4::messages::newtypes::MAX_TRUSTEES;
-use b4::messages::newtypes::NULL_TRUSTEE;
-use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use b5::messages::artifact::Configuration;
+use b5::messages::artifact::DkgPublicKey;
+use b5::messages::message::Message;
+use b5::messages::newtypes::PublicKeyHash;
+use b5::messages::newtypes::MAX_TRUSTEES;
+use b5::messages::newtypes::NULL_TRUSTEE;
+use b5::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 
-use braid::protocol::trustee::TrusteeConfig;
+use braid_b5::protocol::trustee::TrusteeConfig;
 use rand::seq::IndexedRandom;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::context::Ctx;
-use strand::serialization::StrandDeserialize;
-use strand::serialization::StrandSerialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use strand::symm;
+use cryptography::context::RistrettoCtx;
+use cryptography::context::Context;
+use cryptography::cryptosystem::elgamal::PublicKey;
+use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
+use b5::{VerifyingKey, SigningKey};
+use cryptography::utils::symm;
 
 /// The default board if none specified.
 const TEST_BOARD: &'static str = "test";
@@ -179,8 +179,8 @@ enum Command {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    let ctx = RistrettoCtx;
-    braid::native::logging::init_log(true);
+    let Context = RistrettoCtx;
+    braid_b5::native::logging::init_log(true);
     let args = Cli::parse();
 
     match &args.command {
@@ -193,7 +193,7 @@ async fn main() -> Result<()> {
                 "Should have been able to read session configuration file at '{:?}'",
                 path
             ));
-            let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
+            let configuration = Configuration::<RistrettoCtx>::deser(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
             let (pool, s3_client, bucket) = init_clients(&args.database_url).await?;
@@ -208,7 +208,7 @@ async fn main() -> Result<()> {
                     &format!("{}_{}", args.board_name, i + 1)
                 };
                 create_board(&pool, name).await?;
-                init(&pool, &s3_client, &bucket, name, configuration.clone()).await?;
+                init::<RistrettoCtx>(&pool, &s3_client, &bucket, name, configuration.clone()).await?;
             }
 
             info!(
@@ -233,7 +233,7 @@ async fn main() -> Result<()> {
                     args.batches,
                     args.num_trustees,
                     args.threshold,
-                    &ctx,
+                    &Context,
                 )
                 .await?;
             }
@@ -285,25 +285,25 @@ async fn main() -> Result<()> {
 ///    └ 3
 ///    |
 ///   └ trustee.toml
-fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
-    let pm: ProtocolManager<C> = ProtocolManager {
+fn gen_configs<C: Context>(n_trustees: usize, threshold: usize) -> Result<()> {
+    let pmkey: SigningKey = b5::generate_signing_key();
+    let pm: ProtocolManager<RistrettoCtx> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<VerifyingKey>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::generate().unwrap();
-            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+            let sk = b5::generate_signing_key();
+            let pk = VerifyingKey::from(&sk);
             let encryption_key: symm::SymmetricKey = symm::gen_key();
             let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
             (tc, pk)
         })
         .unzip();
 
-    let cfg = Configuration::<C>::new(
+    let cfg = Configuration::<RistrettoCtx>::new(
         0,
-        StrandSignaturePk::from_sk(&pm.signing_key)?,
+        VerifyingKey::from(&pm.signing_key),
         trustee_pks,
         threshold,
         PhantomData,
@@ -312,7 +312,7 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
     println!("Creating demo files at '{}'", DEMO_DIR);
     fs::create_dir_all(DEMO_DIR)?;
 
-    let cfg_bytes = cfg.strand_serialize()?;
+    let cfg_bytes = cfg.ser();
     let mut file = File::create(Path::new(DEMO_DIR).join(CONFIG))?;
     file.write_all(&cfg_bytes).unwrap();
 
@@ -342,24 +342,25 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
 ///
 /// This information will be taken from the demo directory created in the gen-config step.
 #[instrument(skip(pool, s3_client))]
-async fn init<C: Ctx>(
+async fn init<C: Context>(
     pool: &SqlitePool,
     s3_client: &S3Client,
     bucket: &str,
     board_name: &str,
-    configuration: Configuration<C>,
+    configuration: Configuration<RistrettoCtx>,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<C>)?;
     let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
     
     // Serialize the message and store inline
-    let message_bytes = message.strand_serialize()?;
+    let message_bytes = message.ser();
     let timestamp = chrono::Utc::now().timestamp();
     let version = "1";
     
     // Extract metadata for database
-    let sender_pk = message.sender.pk.to_der_b64_string()?;
+    let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+        .map_err(|e| anyhow!("Failed to encode verifying key: {}", e))?;
     let statement_kind = format!("{:?}", message.statement.get_kind());
     
     // Store inline in SQLite (no S3 for demo_tool)
@@ -406,7 +407,7 @@ async fn init<C: Ctx>(
 /// present on the board, an error will be returned. A protocol run can always be reset
 /// with the init-protocol command.
 #[instrument(skip(pool, s3_client))]
-async fn post_ballots<C: Ctx>(
+async fn post_ballots<C: Context>(
     pool: &SqlitePool,
     s3_client: &S3Client,
     bucket: &str,
@@ -415,11 +416,12 @@ async fn post_ballots<C: Ctx>(
     batches: u32,
     n_trustees: usize,
     threshold: usize,
-    ctx: &C,
+    Context: &C,
 ) -> Result<()> {
-    let pm = get_pm(PhantomData::<C>)?;
-    let sender_pk_obj = StrandSignaturePk::from_sk(&pm.signing_key)?;
-    let sender_pk_b64 = sender_pk_obj.to_der_b64_string()?;
+    let pm = get_pm(PhantomData::<RistrettoCtx>)?;
+    let sender_pk_obj = VerifyingKey::from(&pm.signing_key);
+    let sender_pk_b64 = b5::verifying_key_to_der_b64_string(&sender_pk_obj)
+        .map_err(|e| anyhow!("Failed to encode sender pk: {}", e))?;
     
     // Check if ballots already exist
     let existing: (i64,) = sqlx::query_as(
@@ -438,11 +440,12 @@ async fn post_ballots<C: Ctx>(
     let contents = fs::read(&path)
         .expect("Should have been able to read session configuration file at '{path}'");
 
-    let configuration = Configuration::<C>::strand_deserialize(&contents)
+    let configuration = Configuration::<RistrettoCtx>::deser(&contents)
         .map_err(|e| anyhow!("Could not read configuration {e:?}"))?;
 
     let trustee_pk = configuration.trustees.get(0).unwrap();
-    let trustee_pk_b64 = trustee_pk.to_der_b64_string()?;
+    let trustee_pk_b64 = b5::verifying_key_to_der_b64_string(trustee_pk)
+        .map_err(|e| anyhow!("Failed to encode trustee pk: {}", e))?;
     
     info!("Looking for PublicKey from trustee: {}", trustee_pk_b64);
     
@@ -478,15 +481,15 @@ async fn post_ballots<C: Ctx>(
             }
         };
         
-        let message = Message::strand_deserialize(&pk_data)?;
+        let message = Message::deser(&pk_data)?;
         let bytes = message.artifact.unwrap();
-        let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
-        let pk_bytes = dkgpk.strand_serialize()?;
-        let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
+        let dkgpk = DkgPublicKey::<RistrettoCtx>::deser(&bytes).unwrap();
+        let pk_bytes = dkgpk.ser();
+        let pk_h = b5::hash_to_array(&pk_bytes)?;
         let pk_element = dkgpk.pk;
-        let _pk = strand::elgamal::PublicKey::from_element(&pk_element, ctx);
+        let _pk = PublicKey::<RistrettoCtx>::new(pk_element.clone());
 
-        let ballots = strand::util::random_ciphertexts(ciphertexts, &C::default());
+        let ballots = b5::random_ciphertexts::<RistrettoCtx, 1>(ciphertexts);
         info!("Generated {} ballots", ballots.len());
 
         let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -497,26 +500,27 @@ async fn post_ballots<C: Ctx>(
         let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
         selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-        let ballot_batch = b4::messages::artifact::Ballots::new(ballots);
+        let ballot_batch = b5::messages::artifact::Ballots::new(ballots);
         let pm = get_pm(PhantomData::<RistrettoCtx>)?;
 
         for i in 0..batches {
-            let message = b4::messages::message::Message::ballots_msg(
+            let message = b5::messages::message::Message::ballots_msg(
                 &configuration,
                 i as u64,
                 &ballot_batch,
                 selected_trustees,
-                PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
+                PublicKeyHash(pk_h),
                 &pm,
             )?;
 
             info!("Adding ballots to the board..");
             
             // Serialize and store inline
-            let message_bytes = message.strand_serialize()?;
+            let message_bytes = message.ser();
             let timestamp = chrono::Utc::now().timestamp();
             let version = "1";
-            let sender_pk = message.sender.pk.to_der_b64_string()?;
+            let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+                .map_err(|e| anyhow!("Failed to encode sender pk: {}", e))?;
             let statement_kind = format!("{:?}", message.statement.get_kind());
             
             sqlx::query(
@@ -602,7 +606,7 @@ async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<()> {
             }
         };
 
-        let message = Message::strand_deserialize(&message_data)?;
+        let message = Message::deser(&message_data)?;
         info!("message: {:?}", message);
     }
     Ok(())
@@ -633,17 +637,17 @@ async fn list_boards(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> Result<ProtocolManager<C>> {
+fn get_pm<C: Context>(ctxp: PhantomData<C>) -> Result<ProtocolManager<RistrettoCtx>> {
     let path = Path::new(DEMO_DIR).join(PROTOCOL_MANAGER);
     let contents = fs::read_to_string(&path)
         .expect("Should have been able to read the protocol manager file at '{path}'");
 
     let pm_config: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
-    let sk = StrandSignatureSk::from_der_b64_string(&pm_config.signing_key)
+    let sk = b5::signing_key_from_der_b64_string(&pm_config.signing_key)
         .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
-    let pm: ProtocolManager<C> = ProtocolManager {
+    let pm: ProtocolManager<RistrettoCtx> = ProtocolManager {
         signing_key: sk,
-        phantom: ctxp,
+        phantom: PhantomData,
     };
 
     Ok(pm)

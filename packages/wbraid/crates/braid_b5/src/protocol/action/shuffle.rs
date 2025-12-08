@@ -7,6 +7,9 @@
 use anyhow::Result;
 
 use super::*;
+use cryptography::cryptosystem::elgamal::PublicKey;
+use cryptography::zkp::shuffle::Shuffler;
+use cryptography::traits::groups::CryptographicGroup;
 
 /// Computes a mix.
 ///
@@ -20,11 +23,11 @@ use super::*;
 ///
 /// Returns a Message of type Mix signed by the current trustee.
 ///
-/// The shuffle is implemented in strand, as described in Haenni
+/// The shuffle is implemented in the cryptography library, as described in Haenni
 /// et al., Haines; based on Wikstrom et al. The generators
 /// are computed with a seed from the configuration label
 /// and the mix number.
-pub(crate) fn mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(crate) fn mix<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     source_h: &CiphertextsHash,
@@ -35,7 +38,6 @@ pub(crate) fn mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
-    let ctx = C::default();
 
     let ciphertexts = if *mix_no == 1 {
         assert_eq!(signer_t, PROTOCOL_MANAGER_INDEX);
@@ -47,7 +49,7 @@ pub(crate) fn mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
         info!(
             "Mix computing shuffle [{} (ballots)] ({})..",
             dbg_hash(&source_h.0),
-            ballots.ciphertexts.0.len()
+            ballots.ciphertexts.len()
         );
         ballots.ciphertexts
     } else {
@@ -68,36 +70,34 @@ pub(crate) fn mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
         info!(
             "Mix computing shuffle [{} (mix)] ({})..",
             dbg_hash(&source_h.0),
-            mix.ciphertexts.0.len()
+            mix.ciphertexts.len()
         );
 
         mix.ciphertexts
     };
 
     // Null mix
-    if ciphertexts.0.len() == 0 {
-        let mix = Mix::null(*mix_no);
+    if ciphertexts.len() == 0 {
+        let mix = Mix::<C, 2>::null(*mix_no);
         let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
         return Ok(vec![m]);
     }
 
     let dkg_pk = trustee.get_dkg_public_key(pk_h, 0).add_context("Mixing")?;
-    let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
+    let pk = PublicKey::new(dkg_pk.pk);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
     info!("Mix computing generators..");
 
-    let hs = ctx.generators(ciphertexts.0.len() + 1, &seed)?;
-    let shuffler = strand::shuffler::Shuffler::new(&pk, &ctx);
+    let hs = C::G::ind_generators(ciphertexts.len(), &seed)?;
+    let shuffler = Shuffler::new(hs, pk);
 
     info!("Mix computing shuffle..");
-    let (e_primes, rs, perm) = shuffler.gen_shuffle(&ciphertexts.0);
-
     let label = cfg.label(*batch, format!("shuffle{mix_no}"));
-    let proof = shuffler.gen_proof(ciphertexts.0, &e_primes, rs, hs, perm, &label)?;
+    let (e_primes, proof) = shuffler.shuffle(&ciphertexts, &label)?;
 
     // FIXME removed self-verify
-    // let ok = shuffler.check_proof(&proof, &cs, &e_primes, &label);
+    // let ok = shuffler.verify(&ciphertexts, &e_primes, &proof, &label);
     // assert!(ok);
 
     let mix = Mix::new(e_primes, proof, *mix_no);
@@ -112,11 +112,11 @@ pub(crate) fn mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
 ///
 /// Returns a Message of type MixSigned signed by this trustee.
 ///
-/// The shuffle is implemented in strand, as described in Haenni
+/// The shuffle is implemented in the cryptography library, as described in Haenni
 /// et al., Haines; based on Wikstrom et al. The generators
 /// are computed with a seed from the configuration label
 /// and the mix number.
-pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(crate) fn sign_mix<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     source_h: &CiphertextsHash,
@@ -129,8 +129,6 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     mix_no: &MixNumber,
     trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message>, ProtocolError> {
-    let ctx = C::default();
-
     let cfg = trustee.get_configuration(cfg_h)?;
     let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
         let ballots = trustee
@@ -141,7 +139,7 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
             "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
             dbg_hash(&source_h.0),
             dbg_hash(&cipher_h.0),
-            ballots.ciphertexts.0.len()
+            ballots.ciphertexts.len()
         );
         ballots.ciphertexts
     } else {
@@ -153,7 +151,7 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
             "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
             dbg_hash(&source_h.0),
             dbg_hash(&cipher_h.0),
-            mix.ciphertexts.0.len()
+            mix.ciphertexts.len()
         );
         mix.ciphertexts
     };
@@ -164,8 +162,8 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     let mix_number = mix.mix_number;
 
     // Null mix
-    if source_cs.0.len() == 0 {
-        if (mix.ciphertexts.0.len() != 0) || mix.proof.is_some() {
+    if source_cs.len() == 0 {
+        if (mix.ciphertexts.len() != 0) || mix.proof.is_some() {
             return Err(ProtocolError::VerificationError(format!(
                 "A null mix should have no outout ciphertexts or proof"
             )));
@@ -184,14 +182,14 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
         .add_context("Signing mix")?;
-    let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
+    let pk = PublicKey::new(dkg_pk.pk);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
-    let hs = ctx.generators(source_cs.0.len() + 1, &seed)?;
-    let shuffler = strand::shuffler::Shuffler::new(&pk, &ctx);
+    let hs = C::G::ind_generators(source_cs.len(), &seed)?;
+    let shuffler = Shuffler::new(hs, pk);
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
-    let ok = shuffler.check_proof(&proof, source_cs.0, mix.ciphertexts.0, hs, &label)?;
+    let ok = shuffler.verify(&source_cs, &mix.ciphertexts, &proof, &label)?;
     info!(
         "SignMix shuffle verification [{}] => [{}] ok = {}",
         dbg_hash(&source_h.0),

@@ -7,11 +7,12 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::info;
 
-use b4::messages::message::Message;
-use b4::HttpB3Message;
-use strand::serialization::StrandSerialize;
+use b5::messages::message::Message;
+use b5::HttpB3Message;
+use cryptography::utils::serialization::variable::VSerializable;
 
 use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
+use crate::util::ProtocolError;
 
 #[derive(Debug, Serialize)]
 struct InitiateMessageRequest {
@@ -98,13 +99,14 @@ impl HttpB3 {
     /// Helper to post a single message to a specific board
     async fn post_message_to_board(&self, board: &str, message: &Message) -> Result<()> {
         // Extract metadata from message
-        let sender_pk = message.sender.pk.to_der_b64_string()?;
+        let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+            .map_err(ProtocolError::InternalError)?;
         let statement_kind = message.statement.get_kind().to_string();
         let batch: i32 = message.statement.get_batch_number().try_into()?;
         let mix_number: i32 = message.statement.get_mix_number().try_into()?;
         
         // Serialize the message
-        let message_bytes = message.strand_serialize()?;
+        let message_bytes = message.ser();
         let size = message_bytes.len();
 
         // Phase 1: Initiate message
@@ -377,8 +379,8 @@ impl BoardMulti for HttpB3 {
     async fn get_messages_multi(
         &self,
         requests: &Vec<(String, i64)>,
-    ) -> Result<(Vec<b4::HttpBoardMessages>, bool)> {
-        use b4::api_types::{GetMessagesMultiRequest, BoardMessageRequest};
+    ) -> Result<(Vec<b5::HttpBoardMessages>, bool)> {
+        use b5::api_types::{GetMessagesMultiRequest, BoardMessageRequest};
         
         const DEFAULT_LIMIT: i64 = 100;
         
@@ -406,7 +408,7 @@ impl BoardMulti for HttpB3 {
             anyhow::bail!("Failed to get messages multi: HTTP {}", response.status());
         }
         
-        let multi_response: b4::api_types::GetMessagesMultiResponse = response.json().await?;
+        let multi_response: b5::api_types::GetMessagesMultiResponse = response.json().await?;
         
         // Check if any board hit the limit (indicating more messages available)
         let has_more = multi_response.boards.iter()
@@ -419,8 +421,8 @@ impl BoardMulti for HttpB3 {
             
             for msg_with_url in board_resp.messages {
                 let message_bytes = match msg_with_url.message.content_type {
-                    b4::api_types::ContentType::Inline { data } => data,
-                    b4::api_types::ContentType::S3 { key: _ } => {
+                    b5::api_types::ContentType::Inline { data } => data,
+                    b5::api_types::ContentType::S3 { key: _ } => {
                         // Use pre-signed download URL from response
                         let download_url = msg_with_url.download_url
                             .ok_or_else(|| anyhow::anyhow!("S3 message missing download_url"))?;
@@ -453,7 +455,7 @@ impl BoardMulti for HttpB3 {
                 ));
             }
             
-            all_boards.push(b4::HttpBoardMessages {
+            all_boards.push(b5::HttpBoardMessages {
                 board: board_resp.board,
                 messages: http_messages,
             });
@@ -463,11 +465,11 @@ impl BoardMulti for HttpB3 {
     }
 
     async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
-        use b4::api_types::{
+        use b5::api_types::{
             InitiateMessagesMultiRequest, BoardInitiateRequest, MessageMetadata,
             ConfirmMessagesMultiRequest, BoardConfirmRequest, MessageConfirmation,
         };
-        use strand::serialization::StrandSerialize;
+        use cryptography::utils::serialization::variable::VSerializable;
         
         if requests.is_empty() {
             return Ok(());
@@ -484,11 +486,12 @@ impl BoardMulti for HttpB3 {
             
             let mut metadata_list = Vec::new();
             for message in &messages {
-                let sender_pk = message.sender.pk.to_der_b64_string()?;
+                let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+                    .map_err(ProtocolError::InternalError)?;
                 let statement_kind = message.statement.get_kind().to_string();
                 let batch: i32 = message.statement.get_batch_number().try_into()?;
                 let mix_number: i32 = message.statement.get_mix_number().try_into()?;
-                let message_bytes = message.strand_serialize()?;
+                let message_bytes = message.ser();
                 
                 metadata_list.push(MessageMetadata {
                     size: message_bytes.len(),
@@ -522,7 +525,7 @@ impl BoardMulti for HttpB3 {
             anyhow::bail!("Failed to initiate multi-board upload: HTTP {}", response.status());
         }
         
-        let initiate_response: b4::api_types::InitiateMessagesMultiResponse = response.json().await?;
+        let initiate_response: b5::api_types::InitiateMessagesMultiResponse = response.json().await?;
         
         // Phase 2: Upload messages (to S3 or prepare inline data)
         let mut confirm_requests = Vec::new();
@@ -544,7 +547,7 @@ impl BoardMulti for HttpB3 {
             let mut confirmations = Vec::new();
             
             for (message, upload_info) in messages.iter().zip(board_response.uploads.iter()) {
-                let message_bytes = message.strand_serialize()?;
+                let message_bytes = message.ser();
                 
                 if upload_info.should_upload {
                     // Large message - upload to S3

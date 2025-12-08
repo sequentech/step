@@ -7,9 +7,9 @@
 use super::*;
 use crate::protocol::datalog;
 use anyhow::Result;
-use b4::messages::artifact::Channel;
-use strand::elgamal::PublicKey;
-use strand::zkp::Zkp;
+use b5::messages::artifact::Channel;
+use b5::messages::newtypes::zero_hash;
+use cryptography::traits::groups::CryptographicGroup;
 
 /// Generates a private communication channel for this trustee.
 ///
@@ -26,21 +26,22 @@ use strand::zkp::Zkp;
 /// key corresponding to the public key.
 ///
 /// Returns a Message of type Channel signed by this trustee.
-pub(super) fn gen_channel<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn gen_channel<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
-    let ctx: C = Default::default();
-
+) -> Result<Vec<Message>, ProtocolError>
+where
+    Trustee<C, S>: b5::messages::message::Signer<C>,
+{
     let cfg = trustee.get_configuration(configuration_h)?;
 
     // Generate a keypair for share transport
-    let sk = strand::elgamal::PrivateKey::gen(&ctx);
     let label = cfg.label(0, format!("channel pk proof"));
-    let (pk, proof) = sk.get_pk_and_proof(&label)?;
+    let (keypair, proof) = b5::gen_elgamal_keypair_with_proof::<C>(&label)
+        .map_err(|e| ProtocolError::InternalError(e))?;
 
-    let ed = trustee.encrypt_share_sk(&sk, &cfg)?;
-    let channel = Channel::new(pk.element().clone(), proof, ed);
+    let ed = trustee.encrypt_share_sk(&keypair, &cfg)?;
+    let channel = Channel::new(keypair.pkey.y.clone(), proof, ed);
 
     let m = Message::channel_msg(cfg, &channel, true, trustee)?;
     Ok(vec![m])
@@ -53,16 +54,18 @@ pub(super) fn gen_channel<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
 /// their own Channel's private key by decrypting it.
 ///
 /// Returns a Message of type ChannelsAllSigned signed by this trustee.
-pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn sign_channels<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     channels_hs: &ChannelsHashes,
     self_pos: &TrusteePosition,
     num_trustees: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
-    let ctx: C = Default::default();
+) -> Result<Vec<Message>, ProtocolError>
+where
+    Trustee<C, S>: b5::messages::message::Signer<C>,
+{
     let cfg = trustee.get_configuration(configuration_h)?;
-    let zkp = Zkp::new(&ctx);
+    let g = C::generator();
     let label = cfg.label(0, format!("channel pk proof"));
 
     assert_eq!(
@@ -74,13 +77,14 @@ pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage
     for (i, h) in channels_hs
         .0
         .iter()
-        .filter(|h| **h != NULL_HASH)
+        .filter(|h| **h != zero_hash())
         .enumerate()
     {
         let hash = *h;
         let channel = trustee.get_channel(&ChannelHash(hash), i)?;
         let pk_element = channel.channel_pk.clone();
-        let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
+        let ok = channel.pk_proof.verify(&g, &pk_element, &label)
+            .map_err(|e| ProtocolError::VerificationError(format!("Schnorr verify error: {:?}", e)))?;
         if !ok {
             return Err(ProtocolError::VerificationError(format!(
                 "Failed to verify schnorr proof on channel"
@@ -89,8 +93,8 @@ pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage
 
         // Check that our own Channel is at the correct posistion and decrypts correctly
         if i == *self_pos {
-            let sk = trustee.decrypt_share_sk(&channel, cfg)?;
-            if *sk.pk_element() != pk_element {
+            let keypair = trustee.decrypt_share_sk(&channel, cfg)?;
+            if keypair.pkey.y != pk_element {
                 return Err(ProtocolError::VerificationError(format!(
                     "Failed to decrypt self channel"
                 )));
@@ -112,46 +116,53 @@ pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage
 /// Returns a Message of type Shares signed by this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-pub(super) fn compute_shares<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn compute_shares<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     channels_hs: &ChannelsHashes,
     num_trustees: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
-    let ctx = C::default();
+) -> Result<Vec<Message>, ProtocolError>
+where
+    Trustee<C, S>: b5::messages::message::Signer<C>,
+{
+    use cryptography::dkgd::dealer::Dealer;
+    
     let cfg = trustee.get_configuration(configuration_h)?;
 
-    let (coeffs, commitments) = strand::threshold::gen_coefficients(*threshold, &ctx);
+    // Use dispatch macro to convert runtime values to const generics
+    crate::dispatch_threshold_trustees!(*threshold, *num_trustees, {
+        // Generate dealer with shares and checking values
+        let dealer = Dealer::<C, T, P>::generate();
+        let dealer_shares = dealer.get_verifiable_shares();
+        
+        let mut encrypted_shares = vec![];
 
-    let mut s = vec![];
+        for i in 0..*num_trustees {
+            let share = dealer_shares.shares[i].clone();
 
-    for i in 0..*num_trustees {
-        let share = strand::threshold::eval_poly(i + 1, *threshold, &coeffs, &ctx);
+            // Obtain the public key for the recipient of the share
+            let target_channel_h = channels_hs.0.get(i).ok_or(ProtocolError::InternalError(
+                "Could not retrieve channel hash".to_string(),
+            ))?;
 
-        // Obtain the public key for the recipient of the share
-        let target_channel_h = channels_hs.0.get(i).ok_or(ProtocolError::InternalError(
-            "Could not retrieve channel hash".to_string(),
-        ))?;
+            let target_hash = *target_channel_h;
+            let target_channel = trustee.get_channel(&ChannelHash(target_hash), i)?;
 
-        let target_hash = *target_channel_h;
+            // Encrypt share for target trustee using scalar encryption
+            let share_bytes = C::G::encrypt_scalar(&share, &target_channel.channel_pk)
+                .map_err(|e| ProtocolError::InternalError(format!("Failed to encrypt share: {:?}", e)))?;
 
-        let target_channel = trustee.get_channel(&ChannelHash(target_hash), i)?;
+            encrypted_shares.push(share_bytes);
+        }
 
-        // Encrypt share for target trustee
-        let encryption_pk = PublicKey::<C>::from_element(&target_channel.channel_pk, &ctx);
-
-        let share_bytes = ctx.encrypt_exp(&share, encryption_pk);
-
-        s.push(share_bytes?)
-    }
-
-    let shares = Shares {
-        commitments: commitments,
-        encrypted_shares: s,
-    };
-    let m = Message::shares_msg(cfg, &shares, trustee)?;
-    Ok(vec![m])
+        let shares = Shares {
+            commitments: dealer_shares.checking_values.to_vec(),
+            encrypted_shares,
+        };
+        let m = Message::shares_msg(cfg, &shares, trustee)?;
+        Ok(vec![m])
+    })
 }
 
 /// Computes the public key corresponding to the shares.
@@ -160,7 +171,7 @@ pub(super) fn compute_shares<C: Ctx, S: crate::protocol::board::LocalBoardStorag
 ///
 /// Returns a Message of type PublicKey signed by
 /// this trustee.
-pub(super) fn compute_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn compute_pk<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
     channels_hs: &ChannelsHashes,
@@ -168,7 +179,10 @@ pub(super) fn compute_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message>, ProtocolError>
+where
+    Trustee<C, S>: b5::messages::message::Signer<C>,
+{
     let cfg = trustee.get_configuration(cfg_h)?;
     let pk = compute_pk_(
         cfg_h,
@@ -193,7 +207,7 @@ pub(super) fn compute_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
 ///
 /// Returns a Message of type PublicKeySigned signed by
 /// this trustee.
-pub(super) fn sign_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+pub(super) fn sign_pk<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     pk_h: &PublicKeyHash,
     shares_hs: &SharesHashes,
@@ -202,7 +216,10 @@ pub(super) fn sign_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message>, ProtocolError>
+where
+    Trustee<C, S>: b5::messages::message::Signer<C>,
+{
     let cfg = trustee.get_configuration(cfg_h)?;
     info!(
         "SignPk verifying public key [{}] ({})..",
@@ -252,7 +269,7 @@ pub(super) fn sign_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
 /// all trustees.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+fn compute_pk_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
     channels_hs: &ChannelsHashes,
@@ -260,57 +277,89 @@ fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<(C::E, Vec<C::E>), ProtocolError> {
-    let ctx = C::default();
+) -> Result<(C::Element, Vec<C::Element>), ProtocolError> {
+    use cryptography::dkgd::recipient::{Recipient, ParticipantPosition};
+    use cryptography::dkgd::dealer::VerifiableShare;
+    
     let cfg = trustee.get_configuration(cfg_h)?;
-    let mut pk = C::E::mul_identity();
-    let mut verification_keys = vec![C::E::mul_identity(); *num_t];
 
-    // Iterate over sender shares
-    for (i, _h) in shares_hs.0.iter().filter(|h| **h != NULL_HASH).enumerate() {
-        let share_h = shares_hs.0[i];
-        let share = trustee.get_shares(&SharesHash(share_h), i)?;
+    // Get our channel to decrypt our shares
+    let my_channel_h = channels_hs.0.get(*self_pos)
+        .ok_or(ProtocolError::InternalError(
+            "Could not retrieve channel hash for self".to_string(),
+        ))?;
+    let my_channel = trustee.get_channel(&ChannelHash(*my_channel_h), *self_pos)
+        .add_context("Retrieving channel for self")?;
+    let my_sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
-        pk = pk.mul(&share.commitments[0]).modp(&ctx);
+    // Use dispatch macro to work with const generics
+    crate::dispatch_threshold_trustees!(*threshold, *num_t, {
+        // Collect all shares sent to us from all dealers
+        let mut verifiable_shares = Vec::new();
 
-        // Iterate over receiver trustees to compute their verification key
-        for (j, vk) in verification_keys.iter_mut().enumerate().take(*num_t) {
-            let vkf =
-                strand::threshold::verification_key_factor(&share.commitments, *threshold, j, &ctx);
+        for (i, _h) in shares_hs.0.iter().filter(|h| **h != zero_hash()).enumerate() {
+            let share_h = shares_hs.0[i];
+            let share_msg = trustee.get_shares(&SharesHash(share_h), i)?;
 
-            *vk = vk.mul(&vkf).modp(&ctx);
+            // Decrypt our share from this dealer
+            let encrypted_share = &share_msg.encrypted_shares[*self_pos];
+            let share_scalar = C::G::decrypt_scalar(encrypted_share, &my_sk.skey)
+                .map_err(|e| ProtocolError::InternalError(format!("Failed to decrypt share: {:?}", e)))?;
 
-            // Our share is sent from trustee i to j, when j = us
-            if j == *self_pos {
-                // Construct our private key to decrypt our share
-                let my_channel_h =
-                    channels_hs
-                        .0
-                        .get(*self_pos)
-                        .ok_or(ProtocolError::InternalError(
-                            "Could not retrieve channel hash for self".to_string(),
-                        ))?;
+            // Convert commitments Vec to array [C::Element; T]
+            let checking_values: [C::Element; T] = share_msg.commitments.clone()
+                .try_into()
+                .map_err(|_| ProtocolError::InternalError(
+                    format!("Expected {} commitments, got {}", T, share_msg.commitments.len())
+                ))?;
 
-                let my_channel = trustee
-                    .get_channel(&ChannelHash(*my_channel_h), *self_pos)
-                    .add_context("Retrieving channel for self")?;
-
-                let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
-
-                // Decrypt the share sent from i to us
-                let value = ctx.decrypt_exp(&share.encrypted_shares[*self_pos], sk)?;
-                // Verify the share
-                let ok = strand::threshold::verify_share(&value, &vkf, &ctx);
-                if !ok {
-                    return Err(ProtocolError::VerificationError(format!(
-                        "Trustee {} failed to verify share from {}..",
-                        j, i
-                    )));
-                }
-                trace!("Trustee {} verified share received from {}", j, i);
-            }
+            let verifiable_share = VerifiableShare::new(share_scalar, checking_values);
+            verifiable_shares.push(verifiable_share);
         }
-    }
 
-    Ok((pk, verification_keys))
+        // Convert Vec to array [VerifiableShare; P]
+        let shares_array: [VerifiableShare<C, T>; P] = verifiable_shares.try_into()
+            .map_err(|v: Vec<_>| ProtocolError::InternalError(
+                format!("Expected {} shares, got {}", P, v.len())
+            ))?;
+
+        // Create position (1-indexed)
+        let position = ParticipantPosition::from_usize(*self_pos + 1);
+
+        // Verify all shares and compute joint public key
+        let (joint_pk, _verification_key, _sk) = Recipient::<C, T, P>::verify_shares(&position, &shares_array)
+            .map_err(|e| ProtocolError::VerificationError(format!("Share verification failed: {:?}", e)))?;
+
+        // Compute verification keys for all trustees
+        let mut verification_keys = Vec::new();
+        for j in 0..*num_t {
+            let pos_j = ParticipantPosition::from_usize(j + 1);
+            
+            // Collect all checking values from all dealers
+            let mut all_checking_values = Vec::new();
+            for (i, _h) in shares_hs.0.iter().filter(|h| **h != zero_hash()).enumerate() {
+                let share_h = shares_hs.0[i];
+                let share_msg = trustee.get_shares(&SharesHash(share_h), i)?;
+                
+                let checking_values: [C::Element; T] = share_msg.commitments.clone()
+                    .try_into()
+                    .map_err(|_| ProtocolError::InternalError(
+                        format!("Expected {} commitments, got {}", T, share_msg.commitments.len())
+                    ))?;
+                
+                all_checking_values.push(checking_values);
+            }
+            
+            let all_cvs: [[C::Element; T]; P] = all_checking_values.try_into()
+                .map_err(|v: Vec<_>| ProtocolError::InternalError(
+                    format!("Expected {} checking value sets, got {}", P, v.len())
+                ))?;
+            
+            let vk = Recipient::<C, T, P>::verification_key(&pos_j, &all_cvs);
+            verification_keys.push(vk);
+        }
+
+        trace!("Trustee {} verified all {} shares", self_pos, P);
+        Ok((joint_pk, verification_keys))
+    })
 }

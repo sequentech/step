@@ -9,8 +9,8 @@
 //! LocalBoard business logic.
 
 use anyhow::Result;
-use b4::HttpB3Message;
-use b4::messages::message::Message;
+use b5::HttpB3Message;
+use b5::messages::message::Message;
 use serde::{Deserialize, Serialize};
 
 /// Storage diagnostics information

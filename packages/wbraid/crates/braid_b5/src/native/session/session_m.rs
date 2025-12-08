@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use b4::HttpB3Message;
-use b4::messages::message::Message;
+use b5::HttpB3Message;
+use b5::messages::message::Message;
 use std::path::PathBuf;
-use strand::signature::StrandSignatureSk;
-use strand::symm::SymmetricKey;
+use b5::SigningKey;
+use cryptography::utils::symm::SymmetricKey;
 
-use strand::backend::ristretto::RistrettoCtx;
+use cryptography::context::RistrettoCtx;
 use tracing::info;
 
 use crate::protocol::trustee::Trustee;
@@ -17,7 +17,7 @@ use crate::protocol::trustee::TrusteeConfig;
 use crate::native::board::SqliteStorage;
 use crate::util::ProtocolError;
 
-use strand::context::Ctx;
+use cryptography::context::Context;
 
 /// A protocol session, M version.
 ///
@@ -35,11 +35,11 @@ use strand::context::Ctx;
 /// (see also SessionSet::run and main_concurrent::run).
 /// SessionSets will create and drop SessionM's as necessary
 /// according to updates to the bulletin board index.
-pub struct SessionM<C: Ctx + 'static, S: crate::protocol::board::LocalBoardStorage> {
+pub struct SessionM<C: Context + 'static, S: crate::protocol::board::LocalBoardStorage> {
     pub board_name: String,
     trustee: Trustee<C, S>,
 }
-impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
+impl<C: Context, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
     /// Constructs a new SessionM to handle the requested board.
     pub fn new(board_name: &str, trustee: Trustee<C, S>) -> Result<SessionM<C, S>> {
         let ret = SessionM {
@@ -85,7 +85,7 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
 #[derive(Clone)]
 pub struct SessionFactory {
     pub(crate) trustee_name: String,
-    signing_key: StrandSignatureSk,
+    signing_key: SigningKey,
     symm_key: SymmetricKey,
     store_root: PathBuf,
     max_concurrent_actions: Option<usize>,
@@ -97,11 +97,11 @@ impl SessionFactory {
         store_root: PathBuf,
         max_concurrent_actions: Option<usize>,
     ) -> Result<Self> {
-        let signing_key: StrandSignatureSk =
-            StrandSignatureSk::from_der_b64_string(&cfg.signing_key_sk)?;
+        let signing_key: SigningKey = b5::signing_key_from_der_b64_string(&cfg.signing_key_sk)
+            .map_err(|e| anyhow!("Failed to decode signing key: {}", e))?;
 
         let bytes = crate::util::decode_base64(&cfg.encryption_key)?;
-        let symm_key = strand::symm::sk_from_bytes(&bytes)?;
+        let symm_key = cryptography::utils::symm::sk_from_bytes(&bytes)?;
 
         if !store_root.is_dir() {
             return Err(anyhow!("Invalid store root {:?}", store_root));

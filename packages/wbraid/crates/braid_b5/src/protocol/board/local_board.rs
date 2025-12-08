@@ -15,15 +15,15 @@
 use anyhow::Result;
 use log::{debug, error, warn};
 use std::collections::HashMap;
-use strand::context::Ctx;
-use strand::hash::Hash;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
+use cryptography::context::Context;
+use b5::CryptographicHash as Hash;
+use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
 
-use b4::messages::artifact::*;
-use b4::messages::message::VerifiedMessage;
-use b4::messages::statement::{Statement, StatementType};
-use b4::messages::newtypes::*;
-use b4::HttpB3Message;
+use b5::messages::artifact::*;
+use b5::messages::message::VerifiedMessage;
+use b5::messages::statement::{Statement, StatementType};
+use b5::messages::newtypes::*;
+use b5::HttpB3Message;
 
 use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::util::{ProtocolContext, ProtocolError};
@@ -70,7 +70,7 @@ pub struct ArtifactEntryIdentifier {
 /// Generic over:
 /// - `C`: Cryptographic context (e.g., RistrettoCtx)
 /// - `S`: Storage backend implementing LocalBoardStorage trait
-pub struct LocalBoard<C: Ctx, S: LocalBoardStorage> {
+pub struct LocalBoard<C: Context, S: LocalBoardStorage> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
 
@@ -105,7 +105,7 @@ pub struct LocalBoard<C: Ctx, S: LocalBoardStorage> {
     last_local_board_id: i64,
 }
 
-impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
+impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
     /// Construct an empty LocalBoard with the specified storage backend
     pub(crate) fn new(storage: S) -> LocalBoard<C, S> {
         tracing::info!("LocalBoard created");
@@ -172,7 +172,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
                         "Missing artifact in configuration message"
                     )))?;
 
-            let configuration = Configuration::<C>::strand_deserialize(artifact_bytes);
+            let configuration = Configuration::<C>::deser(artifact_bytes);
 
             if let Ok(configuration) = configuration {
                 self.configuration = Some(configuration);
@@ -222,15 +222,15 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
     /// If an artifact that already existed in the board is received the
     /// artifact and the statement will be ignored.
     fn add_message(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
-        let bytes = message.statement.strand_serialize()?;
-        let statement_hash = strand::hash::hash(&bytes)?;
+        let bytes = message.statement.ser();
+        let statement_hash = b5::hash_bytes(&bytes);
 
         let statement_identifier =
             self.get_statement_entry_identifier(&message.statement, message.signer_position);
         let statement_entry = self.statements.get(&statement_identifier);
 
         if let Some((existing_hash, _)) = statement_entry {
-            if statement_hash == existing_hash {
+            if statement_hash == *existing_hash {
                 debug!(
                     "Statement identifier already exists (identical): {:?}",
                     statement_identifier
@@ -251,7 +251,8 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
             // The statement is new, we check the artifact
             if let Some(artifact) = message.artifact {
                 let artifact_identifier = self.get_artifact_entry_identifier(&statement_identifier);
-                let artifact_hash = strand::hash::hash_to_array(&artifact)?;
+                let artifact_hash = b5::hash_to_array(&artifact)
+                    .map_err(|e| ProtocolError::InternalError(format!("Failed to hash artifact: {}", e)))?;
 
                 let artifact_entry = self.artifacts_memory.get(&artifact_identifier);
 
@@ -361,7 +362,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<Channel<C>, ProtocolError> {
         let bytes = self.get_dkg_artifact(StatementType::Channel, channel_h.0, signer_position)?;
-        Ok(Channel::<C>::strand_deserialize(&bytes)?)
+        Ok(Channel::<C>::deser(&bytes)?)
     }
 
     /// Gets a Share, with a hash check.
@@ -371,7 +372,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<Shares<C>, ProtocolError> {
         let bytes = self.get_dkg_artifact(StatementType::Shares, shares_h.0, signer_position)?;
-        Ok(Shares::strand_deserialize(&bytes)?)
+        Ok(Shares::deser(&bytes)?)
     }
 
     /// Gets the DkgPublicKey, with a hash check.
@@ -381,7 +382,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<DkgPublicKey<C>, ProtocolError> {
         let bytes = self.get_dkg_artifact(StatementType::PublicKey, pk_h.0, signer_position)?;
-        Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
+        Ok(DkgPublicKey::<C>::deser(&bytes)?)
     }
 
     /// Gets Ballots, with a hash check.
@@ -390,9 +391,9 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         b_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Ballots<C>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Ballots<C, 2>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Ballots, b_h.0, signer_position, batch)?;
-        Ok(Ballots::<C>::strand_deserialize(&bytes)?)
+        Ok(b5::messages::artifact::Ballots::<C, 2>::deser(&bytes)?)
     }
 
     /// Gets a Mix, with a hash check.
@@ -401,25 +402,25 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         m_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Mix<C>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Mix<C, 2>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Mix, m_h.0, signer_position, batch)?;
-        Ok(Mix::<C>::strand_deserialize(&bytes)?)
+        Ok(b5::messages::artifact::Mix::<C, 2>::deser(&bytes)?)
     }
 
     /// Gets DecryptionFactors, with a hash check.
-    pub(crate) fn get_decryption_factors(
+    pub(crate) fn get_decryption_factors<const P: usize>(
         &self,
         d_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C>, ProtocolError> {
+    ) -> Result<DecryptionFactors<C, 2, P>, ProtocolError> {
         let bytes = self.get_artifact(
             StatementType::DecryptionFactors,
             d_h.0,
             signer_position,
             batch,
         )?;
-        Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
+        Ok(DecryptionFactors::<C, 2, P>::deser(&bytes)?)
     }
 
     /// Gets Plaintexts, with a hash check.
@@ -428,9 +429,9 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         p_h: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Plaintexts<C, 2>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Plaintexts, p_h.0, signer_position, batch)?;
-        Ok(Plaintexts::<C>::strand_deserialize(&bytes)?)
+        Ok(b5::messages::artifact::Plaintexts::<C, 2>::deser(&bytes)?)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -560,7 +561,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         &mut self,
         messages: &[HttpB3Message],
         ignore_existing: bool,
-    ) -> Result<Vec<(b4::messages::message::Message, i64)>> {
+    ) -> Result<Vec<(b5::messages::message::Message, i64)>> {
         self.storage.store_messages(messages, ignore_existing)?;
         self.storage.retrieve_messages(self.last_local_board_id)
     }
@@ -613,14 +614,14 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
             self.get_artifact_entry_identifier_ext(StatementType::PublicKey, signer_position, 0, 0);
         let entry = self.artifacts_memory.get(&aei)?;
 
-        DkgPublicKey::<C>::strand_deserialize(&entry.1).ok()
+        DkgPublicKey::<C>::deser(&entry.1).ok()
     }
 
     pub(crate) fn get_plaintexts_nohash(
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Option<b5::messages::artifact::Plaintexts<C, 2>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Plaintexts,
             signer_position,
@@ -629,6 +630,6 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         );
         let entry = self.artifacts_memory.get(&aei)?;
 
-        Plaintexts::<C>::strand_deserialize(&entry.1).ok()
+        b5::messages::artifact::Plaintexts::<C, 2>::deser(&entry.1).ok()
     }
 }

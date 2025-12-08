@@ -8,12 +8,12 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid::native::board::{HttpB3, HttpB3BoardParams};
-use braid::protocol::trustee::Trustee;
-use braid::native::verify::verifier::Verifier;
+use braid_b5::native::board::{HttpB3, HttpB3BoardParams};
+use braid_b5::protocol::trustee::Trustee;
+use braid_b5::native::verify::verifier::Verifier;
 
-use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
+use cryptography::context::RistrettoCtx;
+use b5::SigningKey;
 
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
@@ -40,11 +40,11 @@ struct Cli {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::native::logging::init_log(true);
+    braid_b5::native::logging::init_log(true);
 
     // generate dummy values, these are not important
-    let dummy_sk = StrandSignatureSk::generate().unwrap();
-    let dummy_encryption_key = strand::symm::gen_key();
+    let dummy_sk = b5::generate_signing_key();
+    let dummy_encryption_key = cryptography::utils::symm::gen_key();
 
     let args = Cli::parse();
 
@@ -52,17 +52,17 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
     
-    let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
+    let trustee: Trustee<RistrettoCtx, braid_b5::native::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
         dummy_sk,
         dummy_encryption_key,
-        braid::native::board::NoOpStorage::new(),
+        braid_b5::native::board::NoOpStorage::new(),
         None,
     );
     let board_params = HttpB3BoardParams::new(&args.server_url).await;
     let board: HttpB3 = board_params.create_board(&args.board, None);
-    let mut session: Verifier<RistrettoCtx, HttpB3, braid::native::board::NoOpStorage> = 
+    let mut session: Verifier<RistrettoCtx, HttpB3, braid_b5::native::board::NoOpStorage> = 
         Verifier::new(trustee, board, &args.board);
     let _result = session.run().await?;
 

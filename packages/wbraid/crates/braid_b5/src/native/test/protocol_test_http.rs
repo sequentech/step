@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
+use aws_sdk_s3::types::Protocol;
 use base64::prelude::*;
 use log::{info, warn};
 use rand::seq::IndexedRandom;
@@ -12,16 +13,19 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::time::Instant;
 
-use strand::context::Ctx;
-use strand::elgamal::Ciphertext;
-use strand::serialization::StrandDeserialize;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use cryptography::context::Context;
+use cryptography::cryptosystem::elgamal::PublicKey;
+use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::traits::groups::GroupElement;
+use cryptography::utils::serialization::variable::VDeserializable;
+use cryptography::context::RistrettoCtx;
+use b5::{VerifyingKey, SigningKey};
 
-use b4::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
-use b4::messages::message::Message;
-use b4::messages::newtypes::PublicKeyHash;
-use b4::messages::newtypes::MAX_TRUSTEES;
-use b4::messages::newtypes::NULL_TRUSTEE;
+use b5::messages::artifact::{Ballots, Configuration, DkgPublicKey};
+use b5::messages::message::Message;
+use b5::messages::newtypes::PublicKeyHash;
+use b5::messages::newtypes::MAX_TRUSTEES;
+use b5::messages::newtypes::NULL_TRUSTEE;
 
 use crate::native::board::HttpB3;
 use crate::native::board::HttpB3BoardParams;
@@ -35,7 +39,7 @@ const TEST_BOARD: &'static str = "protocoltest";
 const S3_ENDPOINT: &'static str = "http://127.0.0.1:4566";
 const BUCKET_NAME: &'static str = "wbraid-messages";
 
-pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
+pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
     let n_trustees = rand::rng().random_range(2..13);
     let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
@@ -51,7 +55,7 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
 
     let now = Instant::now();
 
-    let test = create_protocol_test(n_trustees, &threshold, ctx)
+    let test: ProtocolTest<RistrettoCtx> = create_protocol_test(n_trustees, &threshold)
         .await
         .unwrap();
 
@@ -68,23 +72,22 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
-pub struct ProtocolTest<C: Ctx> {
-    pub ctx: C,
+pub struct ProtocolTest<C: Context> {
     pub cfg: Configuration<C>,
-    pub protocol_manager: b4::messages::protocol_manager::ProtocolManager<C>,
+    pub protocol_manager: b5::messages::protocol_manager::ProtocolManager<C>,
     pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
 }
 
-async fn run_protocol_test_http<C: Ctx + 'static>(
+async fn run_protocol_test_http<C: Context + 'static>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
     batches: usize,
     threshold: &[usize],
 ) -> Result<()> {
-    let ctx = test.ctx.clone();
     let mut sessions = vec![];
 
-    let _pks: Vec<StrandSignaturePk> = test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
+    let _pks: Vec<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier> = 
+        test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
     for t in test.trustees.into_iter() {
         let board_params = HttpB3BoardParams::new(HTTP_URL).await;
@@ -171,28 +174,29 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
         panic!("Unknown content_type format: {:?}", message_obj["content_type"]);
     };
     
-    let pk_message = Message::strand_deserialize(&pk_bytes_encoded).unwrap();
+    let pk_message = Message::deser(&pk_bytes_encoded).unwrap();
     
     let pk_bytes = pk_message.artifact.unwrap();
-    let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
-    let dkg_pk = DkgPublicKey::<C>::strand_deserialize(&pk_bytes).unwrap();
-    let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &test.ctx);
+    let pk_h = b5::hash_to_array(&pk_bytes).unwrap();
+    let dkg_pk = DkgPublicKey::<C>::deser(&pk_bytes).unwrap();
+    let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
 
     let mut plaintexts_in = vec![];
-    let mut rng = ctx.get_rng();
+    let mut rng = C::get_rng();
 
     // Encrypt and submit ballots
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
-        let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
+        let next_p: Vec<[C::Element; 2]> = (0..count).map(|_| {
+            [C::Element::random(&mut rng), C::Element::random(&mut rng)]
+        }).collect();
 
         info!("Encrypting {} ciphertexts..", next_p.len());
 
-        let ballots: Vec<Ciphertext<C>> = next_p
+        let ballots: Vec<Ciphertext<C, 2>> = next_p
             .par_iter()
             .map(|p| {
-                let encoded = ctx.encode(p).unwrap();
-                pk.encrypt(&encoded)
+                pk.encrypt(p)
             })
             .collect();
         let ballot_batch = Ballots::new(ballots);
@@ -256,7 +260,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
                             continue;
                         };
                         
-                        if let Ok(message) = Message::strand_deserialize(&message_bytes) {
+                        if let Ok(message) = Message::deser(&message_bytes) {
                             if let Some(id_str) = msg["id"].as_str() {
                                 if let Ok(id) = id_str.parse::<i64>() {
                                     plaintexts_out.push((id, message));
@@ -277,9 +281,9 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     
     for (_, message) in plaintexts_out {
         let batch = message.statement.get_batch_number();
-        let plaintexts = Plaintexts::<C>::strand_deserialize(&message.artifact.unwrap()).unwrap();
-        let expected: HashSet<C::P> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
-        let actual: HashSet<C::P> = HashSet::from_iter(plaintexts.0.clone().0);
+        let plaintexts = b5::messages::artifact::Plaintexts::<C, 2>::deser(&message.artifact.unwrap()).unwrap();
+        let expected: HashSet<[C::Element; 2]> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
+        let actual: HashSet<[C::Element; 2]> = HashSet::from_iter(plaintexts.0.clone());
         info!("expected {} actual {}", expected.len(), actual.len());
 
         assert!(expected == actual, "Plaintext mismatch for batch {}", batch);
@@ -296,21 +300,22 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
     Ok(())
 }
 
-pub async fn create_protocol_test<C: Ctx>(
+pub async fn create_protocol_test<C: Context>(
     n_trustees: usize,
     threshold: &[usize],
-    ctx: C,
 ) -> Result<ProtocolTest<C>> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
-    let pm = b4::messages::protocol_manager::ProtocolManager {
+    use cryptography::utils::signatures::SignatureScheme;
+    let mut rng = C::get_rng();
+    let pmkey = C::SignatureScheme::gen_signing_key(&mut rng);
+    let pm = b5::messages::protocol_manager::ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C, crate::native::board::NoOpStorage>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<Trustee<C, crate::native::board::NoOpStorage>>, Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>) = (0..n_trustees)
         .map(|i| {
-            let sk = StrandSignatureSk::generate().unwrap();
-            let encryption_key = strand::symm::gen_key();
-            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+            let sk = C::SignatureScheme::gen_signing_key(&mut rng);
+            let encryption_key = cryptography::utils::symm::gen_key();
+            let pk = C::SignatureScheme::verifying_key(&sk);
             (
                 Trustee::new(
                     i.to_string(),
@@ -327,7 +332,7 @@ pub async fn create_protocol_test<C: Ctx>(
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+        C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
         PhantomData,
@@ -354,7 +359,6 @@ pub async fn create_protocol_test<C: Ctx>(
     temp_board.insert_messages(TEST_BOARD, vec![message.try_into().unwrap()]).await?;
 
     Ok(ProtocolTest {
-        ctx,
         cfg,
         protocol_manager: pm,
         trustees,

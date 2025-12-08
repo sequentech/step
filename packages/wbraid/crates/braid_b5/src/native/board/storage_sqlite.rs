@@ -8,16 +8,16 @@
 //! Messages are stored with locally-controlled auto-increment IDs that
 //! establish immutable ordering, preventing bulletin board manipulation.
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use rusqlite::{params, Connection};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::time::Instant;
 
-use b4::messages::message::Message;
-use b4::HttpB3Message;
-use strand::serialization::StrandDeserialize;
+use b5::messages::message::Message;
+use b5::HttpB3Message;
+use cryptography::utils::serialization::variable::VDeserializable;
 
 use crate::protocol::board::local_storage::LocalBoardStorage;
 
@@ -115,17 +115,18 @@ impl LocalBoardStorage for SqliteStorage {
 
         for m in messages {
             // Verify schema version compatibility
-            if m.version != b4::get_schema_version() {
+            if m.version != b5::get_schema_version() {
                 return Err(anyhow::anyhow!(
                     "Mismatched schema version: {} != {}",
                     m.version,
-                    b4::get_schema_version()
+                    b5::get_schema_version()
                 ));
             }
 
             // Deserialize to extract metadata
-            let message = Message::strand_deserialize(&m.message)?;
-            let sender_pk = message.sender.pk.to_der_b64_string()?;
+            let message = Message::deser(&m.message)?;
+            let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+                .map_err(|e| anyhow!("Failed to encode verifying key: {}", e))?;
             let kind = message.statement.get_kind().to_string();
             let batch: i32 = message.statement.get_batch_number().try_into()?;
             let mix_number: i32 = message.statement.get_mix_number().try_into()?;
@@ -217,10 +218,10 @@ impl LocalBoardStorage for SqliteStorage {
                         path
                     );
 
-                    Message::strand_deserialize(&buffer)?
+                    Message::deser(&buffer)?
                 } else {
                     // Read message bytes from database
-                    Message::strand_deserialize(&row.message)?
+                    Message::deser(&row.message)?
                 };
 
                 Ok((message, id))

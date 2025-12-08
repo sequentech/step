@@ -23,10 +23,10 @@
 
 use anyhow::Result;
 use std::sync::Mutex;
-use strand::serialization::StrandDeserialize;
+use cryptography::utils::serialization::variable::VDeserializable;
 
-use b4::messages::message::Message;
-use b4::HttpB3Message;
+use b5::messages::message::Message;
+use b5::HttpB3Message;
 use crate::protocol::board::local_storage::LocalBoardStorage;
 
 /// No-op storage backend (no persistence, no security)
@@ -65,7 +65,7 @@ impl LocalBoardStorage for NoOpStorage {
         let result: Result<Vec<(Message, i64)>> = transient
             .iter()
             .map(|m| {
-                let message = Message::strand_deserialize(&m.message)?;
+                let message = Message::deser(&m.message)?;
                 Ok((message, m.id)) // Use external bulletin board ID (no security)
             })
             .collect();
