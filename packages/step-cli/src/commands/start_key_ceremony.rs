@@ -71,6 +71,7 @@ pub fn start_ceremony(
         trustee_names: Some(trustees),
         election_id: election_id.map(|id| id.to_string()),
         name: name.map(|n| n.to_string()),
+        is_automatic_ceremony: Some(false)
     };
 
     let request_body = CreateKeysCeremony::build_query(variables);

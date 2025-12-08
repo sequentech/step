@@ -52,8 +52,8 @@ For local development:
 - Keycloak url - this is http://keycloak:8090 when in local dev codespace environment - required*
 - Keycloak user - use admin for local - required*
 - Keycloak password - use admin for local - required*
-- Keycloak client id - use admin for local - required*
-- Keycloak client secret - use admin for local - required*
+- Keycloak client id - required*
+- Keycloak client secret - required*
 ### Usage
 
 Get help:
@@ -64,8 +64,6 @@ step <command> --help
 ```
 
 Common commands:
-
-
 
 ## Refresh Auth Token
 > This command should be called when the jwt has expired

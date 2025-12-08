@@ -4,6 +4,7 @@ mutation CreateKeysCeremony(
         $trusteeNames: [String!]
         $electionId: String
         $name: String
+        $isAutomaticCeremony: Boolean
     ) {
         create_keys_ceremony(
             object: {
@@ -12,6 +13,7 @@ mutation CreateKeysCeremony(
                 trustee_names: $trusteeNames
                 election_id: $electionId
                 name: $name
+                is_automatic_ceremony: $isAutomaticCeremony
             }
         ) {
             keys_ceremony_id
