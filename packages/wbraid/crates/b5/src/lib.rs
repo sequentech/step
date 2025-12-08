@@ -53,19 +53,6 @@ pub fn timestamp() -> Timestamp {
     (js_sys::Date::now() / 1000.0) as u64
 }
 
-/*pub(crate) fn system_time_from_timestamp(seconds: Timestamp) -> Option<SystemTime> {
-    let duration = Duration::from_secs(seconds);
-    UNIX_EPOCH.checked_add(duration)
-}
-
-pub(crate) fn timestamp_from_system_time(system_time: &SystemTime) -> Timestamp {
-    let since_the_epoch = system_time
-        .duration_since(UNIX_EPOCH)
-        .expect("Impossible with respect to UNIX_EPOCH");
-
-    since_the_epoch.as_secs()
-}*/
-
 pub fn get_schema_version() -> String {
     "1".to_string()
 }
