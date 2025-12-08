@@ -28,11 +28,10 @@ use chacha20poly1305::aead::Key;
 
 use crate::utils::error::Error;
 
-// Re-export the Array type from chacha20poly1305's dependency
-type SymmetricKeyInner = Key<ChaCha20Poly1305>;
-
 /// Symmetric encryption key for ChaCha20-Poly1305
-pub type SymmetricKey = SymmetricKeyInner;
+/// 
+/// Re-export the Array type from chacha20poly1305's dependency
+pub type SymmetricKey = Key<ChaCha20Poly1305>;
 
 /// Encrypted data with associated nonce for ChaCha20-Poly1305 AEAD
 #[derive(VSer, Clone)]
@@ -45,6 +44,7 @@ pub struct EncryptionData {
 
 impl EncryptionData {
     /// Create a new `EncryptionData` from encrypted bytes and nonce
+    #[must_use]
     pub fn new(encrypted_bytes: Vec<u8>, nonce: Nonce) -> EncryptionData {
         EncryptionData {
             encrypted_bytes,
@@ -54,6 +54,9 @@ impl EncryptionData {
 }
 
 /// Generate a random symmetric encryption key
+/// 
+/// From crate doc:"Generate random key using the operating system’s secure RNG."
+#[must_use]
 pub fn gen_key() -> SymmetricKey {
     ChaCha20Poly1305::generate_key()
         .expect("Failed to generate key")
@@ -68,7 +71,7 @@ pub fn encrypt(key: SymmetricKey, data: &[u8]) -> Result<EncryptionData, Error> 
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
     // 4,294,967,296 messages with random nonces can be encrypted under a given key
     let nonce = ChaCha20Poly1305::generate_nonce()
-        .map_err(|e| Error::EncryptionError(format!("Failed to generate nonce: {}", e)))?;
+        .map_err(|e| Error::EncryptionError(format!("Failed to generate nonce: {e}")))?;
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher
         .encrypt(&nonce, data)

@@ -137,7 +137,7 @@ impl CryptographicGroup for Ristretto255Group {
         let elements = Self::encode_scalar(scalar)?;
         
         // Create public key and encrypt
-        let pk = PublicKey::new(public_key.clone());
+        let pk = PublicKey::new(*public_key);
         let ciphertext: Ciphertext<RistrettoCtx, 2> = pk.encrypt(&elements);
         
         // Serialize to bytes
@@ -158,12 +158,12 @@ impl CryptographicGroup for Ristretto255Group {
         
         // Deserialize ciphertext
         let ct: Ciphertext<RistrettoCtx, 2> = Ciphertext::deser(ciphertext)
-            .map_err(|e| Error::DeserializationError(format!("Failed to deserialize ciphertext: {:?}", e)))?;
+            .map_err(|e| Error::DeserializationError(format!("Failed to deserialize ciphertext: {e:?}")))?;
         
         // Create keypair (we need public key for KeyPair structure)
         let public_element = Self::generator().exp(secret_key);
         let pk = PublicKey::new(public_element);
-        let keypair = KeyPair { skey: secret_key.clone(), pkey: pk };
+        let keypair = KeyPair { skey: *secret_key, pkey: pk };
         
         // Decrypt to get elements
         let elements = keypair.decrypt(&ct);

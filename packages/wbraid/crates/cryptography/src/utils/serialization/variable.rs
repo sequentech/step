@@ -710,7 +710,7 @@ pub trait VSer: VSerializable + VDeserializable {}
 
 impl<T: VSerializable + VDeserializable> VSer for T {}
 
-/// Implements [`VSerializable`] for PhantomData (zero-sized, serializes to empty)
+/// Implements [`VSerializable`] for `PhantomData` (zero-sized, serializes to empty)
 impl<T> VSerializable for std::marker::PhantomData<T> {
     fn ser(&self) -> Vec<u8> {
         // PhantomData is zero-sized, serializes to empty vector
@@ -718,7 +718,7 @@ impl<T> VSerializable for std::marker::PhantomData<T> {
     }
 }
 
-/// Implements [`VDeserializable`] for PhantomData (zero-sized, deserializes from empty)
+/// Implements [`VDeserializable`] for `PhantomData` (zero-sized, deserializes from empty)
 impl<T> VDeserializable for std::marker::PhantomData<T> {
     fn deser(_buffer: &[u8]) -> Result<Self, Error> {
         // PhantomData is zero-sized, always succeeds

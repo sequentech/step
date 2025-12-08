@@ -107,7 +107,7 @@ impl CryptographicGroup for P256Group {
     ///
     /// # Errors
     ///
-    /// - Not implemented for P256Group
+    /// - Not implemented for `P256Group`
     fn encrypt_scalar(_scalar: &Self::Scalar, _public_key: &Self::Element) -> Result<Vec<u8>, Error> {
         todo!("encrypt_scalar not implemented for P256Group")
     }
@@ -116,7 +116,7 @@ impl CryptographicGroup for P256Group {
     ///
     /// # Errors
     ///
-    /// - Not implemented for P256Group
+    /// - Not implemented for `P256Group`
     fn decrypt_scalar(_ciphertext: &[u8], _secret_key: &Self::Scalar) -> Result<Self::Scalar, Error> {
         todo!("decrypt_scalar not implemented for P256Group")
     }
