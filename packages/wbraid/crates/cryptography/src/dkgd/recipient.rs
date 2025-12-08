@@ -131,7 +131,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// [shares][VerifiableShare] which are then verified. Use this constructor
     /// instead if the required argument values are available from a previously
     /// created `Recipient` as a result of a call to [`from_shares`][`Self::from_shares`].
-    pub(crate) fn new(
+    pub fn new(
         position: ParticipantPosition<P>,
         verification_key: C::Element,
         sk: C::Scalar,
@@ -528,7 +528,7 @@ impl<C: Context, const T: usize> DkgPublicKey<C, T> {
  * `T` decryption factors, the plaintext can be computed using the [`combine`]
  * function.
  */
-#[derive(Debug, VSerializable, PartialEq)]
+#[derive(Debug, PartialEq, VSerializable)]
 pub struct DkgCiphertext<C: Context, const W: usize, const T: usize>(pub Ciphertext<C, W>);
 impl<C: Context, const W: usize, const T: usize> DkgCiphertext<C, W, T> {
     /// Returns the `u` component of the ciphertext.
