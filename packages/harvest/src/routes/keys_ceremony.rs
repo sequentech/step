@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,6 +13,7 @@ use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strum_macros::Display;
 use tracing::{error, event, instrument, Level};
 use windmill::postgres;
@@ -174,6 +175,7 @@ pub struct CreateKeysCeremonyInput {
     trustee_names: Vec<String>,
     election_id: Option<String>,
     name: Option<String>,
+    is_automatic_ceremony: bool,
 }
 
 #[derive(Debug, Display)]
@@ -252,6 +254,7 @@ pub async fn create_keys_ceremony(
         input.trustee_names,
         input.election_id.clone(),
         input.name,
+        input.is_automatic_ceremony,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -22,6 +22,12 @@ on:
         required: false
         type: boolean
         default: true
+      infra_only:
+        description: 'Beyond-Infra Deployment Only'
+        required: false
+        type: boolean
+        default: false
+
 
 permissions:
   contents: write
@@ -29,10 +35,7 @@ permissions:
 
 jobs:
   create-release-branch:
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
     outputs:
       NEW_RELEASE_BRANCH: ${{ steps.CreateReleaseBranch.outputs.NEW_RELEASE_BRANCH }}
       DEPLOYER_BRANCH: ${{ steps.CreateReleaseBranch.outputs.DEPLOYER_BRANCH }}
@@ -51,11 +54,11 @@ jobs:
             exit 1
           fi
           # Check the preRelease input is false, otherwise, fail
-          if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
-            echo "Error: Pre-release is not supported for the first release on a new release branch. Please set preRelease to false"
-            echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
-            exit 1
-          fi
+          #if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+          #  echo "Error: Pre-release is not supported for the first release on a new release branch. Please set preRelease to false"
+          #  echo "Warning: You can set preRelease to true for the subsequent releases on the release branch"
+          #  exit 1
+          #fi
         fi
 
     - name: Checkout code
@@ -67,6 +70,11 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
 
     - name: Install release-it
       run: npm install --global release-it@19.0.3
@@ -104,8 +112,8 @@ jobs:
           branchExists=$(git ls-remote --heads origin $releaseBranchName)
           if [ -n "$branchExists" ]; then
             echo "Info: Branch $releaseBranchName already exists"
-            echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
-            exit 1
+            # echo "Error: You can not create a new release branch without releasing a final version on the existing release branch"
+            # exit 1
           else
             git checkout -b $releaseBranchName
             # Add an empty commit to the new branch
@@ -118,10 +126,7 @@ jobs:
         fi
 
   release:
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
@@ -205,9 +210,17 @@ jobs:
           # If the new release branch is created, then increment the minor or major version
           # Currently, no pre-release is supported for major or minor releases from the main branch
           if [ "${{ github.event.inputs.createMajorReleaseBranch }}" = "true" ]; then
-            release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+              release-it --ci --increment=premajor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            else
+              release-it --ci --increment=major --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            fi
           elif [ "${{ github.event.inputs.createMinorReleaseBranch }}" = "true" ]; then
-            release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
+              release-it --ci --increment=preminor --preRelease=rc --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            else
+              release-it --ci --increment=minor --git.tagMatch=v[0-9]*\.[0-9]*\.[0-9]* --git.getLatestTagFromAllRefs --verbose
+            fi
           fi
         fi
 
@@ -226,6 +239,7 @@ jobs:
   # Build & Push the images
 
   build-and-push:
+    if: ${{ github.event.inputs.infra_only == 'false' }}
     uses: ./.github/workflows/reusable_build_push.yml
     needs: release
     secrets: inherit
@@ -233,12 +247,19 @@ jobs:
       tag: ${{ needs.release.outputs.VERSION }}
       push: true
 
+  # build-and-push-root-account:
+  #   if: ${{ github.event.inputs.infra_only == 'false' }}
+  #   uses: ./.github/workflows/reusable_build_push_root.yml
+  #   needs: release
+  #   secrets: inherit
+  #   with:
+  #     tag: ${{ needs.release.outputs.VERSION }}
+  #     push: true
+
   trigger-beyond-release:
-    needs: [release, build-and-push]
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    needs: [release]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: gcp-selfhosted-ubuntu24
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -250,29 +271,10 @@ jobs:
         inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
         wait-for-completion: true
 
-  trigger-gitops-release:
-    needs: [release, build-and-push]
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
-    steps:
-    - name: Trigger GitOps Release Workflow
-      uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
-      with:
-        repo: 'sequentech/gitops'
-        ref: ${{ github.ref }}
-        workflow: 'Automated Release Process'
-        token: ${{ secrets.PAT }}
-        inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
-        wait-for-completion: true
-
   trigger-deployer:
-    needs: [release, create-release-branch, build-and-push, trigger-beyond-release, trigger-gitops-release]
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    needs: [release, create-release-branch, trigger-beyond-release]
+    if: ${{ always() && needs.release.result == 'success' && needs.create-release-branch.result == 'success' }}
+    runs-on: gcp-selfhosted-ubuntu24
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -281,16 +283,13 @@ jobs:
         ref: main # always use main for now #${{ needs.create-release-branch.outputs.DEPLOYER_BRANCH }} 
         workflow: Deployer Workflow
         token: ${{ secrets.PAT }}
-        inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}"}'
+        inputs: '{"version":"${{ needs.release.outputs.VERSION }}", "hash":"${{ needs.release.outputs.HASH }}", "infra_only":"${{ github.event.inputs.infra_only }}" }'
 
   cleanup:
     if: failure()
     # Here define the depenency jobs
-    needs: [release,build-and-push]
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    needs: [release]
+    runs-on: gcp-selfhosted-ubuntu24
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -305,11 +304,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   slack-report:
-    needs: [release, build-and-push, trigger-deployer, cleanup]
-    runs-on:
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    needs: [release, trigger-deployer, cleanup]
+    runs-on: gcp-selfhosted-ubuntu24
     timeout-minutes: 20
     if: always()
     steps:

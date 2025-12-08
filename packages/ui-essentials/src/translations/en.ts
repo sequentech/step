@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
@@ -23,6 +23,16 @@ const englishTranslation = {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",
             blankVote: "Blank Vote",
+            preferential: {
+                position: "Position",
+                none: "None",
+                ordinals: {
+                    first: "st",
+                    second: "nd",
+                    third: "rd",
+                    other: "th",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Ballot Verifier",
@@ -62,7 +72,9 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
-        poweredBy: "Powered by",
+        footer: {
+            poweredBy: "Powered by <1></1>",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Not enough choices to decode",

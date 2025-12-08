@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
@@ -147,6 +147,50 @@ pub async fn insert_tally_session(
         return Err(anyhow!("Error inserting row"));
     };
     Ok(value.clone())
+}
+
+#[instrument(err, skip(hasura_transaction))]
+pub async fn get_tally_session_by_election_event_id_pending_post_tally_task(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<TallySession>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+        SELECT
+            *
+        FROM
+            sequent_backend.tally_session
+        WHERE
+            tenant_id = $1 AND
+            election_event_id = $2 AND
+            annotations @> '{"is_post_task_completed": false}'::jsonb
+        ORDER BY
+            created_at DESC;
+    "#,
+        )
+        .await?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let elements: Vec<TallySession> = rows
+        .into_iter()
+        .map(|row| -> Result<TallySession> {
+            row.try_into()
+                .map(|res: TallySessionWrapper| -> TallySession { res.0 })
+        })
+        .collect::<Result<Vec<TallySession>>>()?;
+
+    Ok(elements)
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -373,6 +417,43 @@ pub async fn update_tally_session_status(
 }
 
 #[instrument(err, skip_all)]
+pub async fn set_post_tally_task_completed(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                sequent_backend.tally_session
+            SET
+                annotations = annotations || '{"is_post_task_completed": true}'
+            WHERE
+                id = $1 AND
+                tenant_id = $2 AND
+                election_event_id = $3;
+        "#,
+        )
+        .await?;
+
+    let _rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &Uuid::parse_str(tally_session_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(&election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running query update tally sesstion status: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
 pub async fn set_tally_session_completed(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -387,7 +468,8 @@ pub async fn set_tally_session_completed(
                 sequent_backend.tally_session
             SET
                 execution_status = $1,
-                is_execution_completed = TRUE
+                is_execution_completed = TRUE,
+                annotations = annotations || '{"is_post_task_completed": false}'
             WHERE
                 id = $2 AND
                 tenant_id = $3 AND

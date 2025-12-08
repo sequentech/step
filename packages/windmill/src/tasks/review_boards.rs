@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election_event::get_batch_election_events;
@@ -46,7 +46,7 @@ pub async fn review_boards() -> Result<()> {
             .to_lowercase();
         let task = celery_app
             .send_task(
-                insert_tenant::new(default_tenant_id.clone(), default_tenant_slug.clone())
+                insert_tenant::new(default_tenant_id.clone(), default_tenant_slug.clone(), None)
                     .with_expires_in(30),
             )
             .await?;

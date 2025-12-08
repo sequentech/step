@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -9,13 +9,14 @@ use anyhow::{Context, Result};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TaskAnnotations {
     document_id: Option<String>,
 }
 
+#[instrument(skip_all, err)]
 pub async fn post(
     tenant_id: &str,
     election_event_id: Option<&str>,
@@ -42,6 +43,7 @@ pub async fn post(
 }
 
 // TODO filter also by tenant-id and document-id
+#[instrument(skip_all, err)]
 pub async fn update(
     tenant_id: &str,
     task_id: &str,
@@ -57,6 +59,7 @@ pub async fn update(
 }
 
 // TODO filter also by tenant-id and document-id
+#[instrument(skip_all, err)]
 pub async fn update_complete(
     task: &TasksExecution,
     document_id: Option<String>,
@@ -74,6 +77,7 @@ pub async fn update_complete(
 }
 
 // TODO filter also by tenant-id and document-id
+#[instrument(skip_all, err)]
 pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::FAILED;

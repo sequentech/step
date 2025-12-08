@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::keycloak::get_keyckloak_pool;
@@ -94,6 +94,7 @@ impl CreateElectoralLogs {
             username: username.clone(),
             election_id: Some(election_id.to_string()),
             area_id: Some(area_id.to_string()),
+            ballot_id: None,
         };
 
         let board_message: ElectoralLogMessage = message.try_into().with_context(|| "")?;

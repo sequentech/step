@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -72,7 +72,7 @@ const StyledApp = styled(Box)<{css: string}>`
 export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
-        <StyledApp className="felix-ttt" css={css}>
+        <StyledApp className="styled-app-atom" css={css}>
             {children}
         </StyledApp>
     )
@@ -119,7 +119,7 @@ const App: React.FC<AppProps> = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
     const {i18n, t} = useTranslation()
     adminI18nProvider.changeLocale(i18n.language)
-    i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
+    i18n.on("languageChanged", (lng: string) => adminI18nProvider.changeLocale(lng))
     const {isAuthenticated} = useContext(AuthContext)
 
     useEffect(() => {
@@ -137,7 +137,7 @@ const App: React.FC<AppProps> = () => {
             <Admin
                 dataProvider={dataProvider || undefined}
                 layout={CustomLayout}
-                theme={fullAdminTheme}
+                theme={fullAdminTheme as any}
                 i18nProvider={adminI18nProvider}
             >
                 <CustomRoutes>

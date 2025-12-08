@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -17,6 +17,6 @@ macro_rules! console_log {
 #[cfg(not(feature = "wasm"))]
 macro_rules! console_log {
     ($($t:tt)*) => {
-        ::tracing::info!("{}", format_args!($($t)*));
+        println!("{}", format_args!($($t)*));
     }
 }

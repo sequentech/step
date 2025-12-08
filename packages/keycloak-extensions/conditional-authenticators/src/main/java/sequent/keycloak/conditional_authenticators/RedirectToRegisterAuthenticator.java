@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -23,7 +23,6 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.Urls;
-import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
@@ -42,12 +41,10 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
    * @return base uri builder
    */
   protected UriBuilder prepareBaseUriBuilder(final AuthenticationFlowContext context) {
-    final URI baseUriOriginal = context.getUriInfo().getBaseUri();
-    final URI baseUri = UriBuilder.fromUri(baseUriOriginal).path("/").build();
-    log.info("baseUri = " + baseUri);
-
-    final UriBuilder uriBuilder =
-        Urls.loginActionsBase(baseUri).path(LoginActionsService.class, "registerPage");
+    final String requestURI = context.getUriInfo().getBaseUri().getPath();
+    final UriBuilder uriBuilder = UriBuilder.fromUri(requestURI);
+    // replace path, since the base should not add any, as it's added later on
+    uriBuilder.replacePath("");
     final ClientModel client = context.getAuthenticationSession().getClient();
     final AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
 
@@ -57,6 +54,8 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
     if (authenticationSession != null) {
       uriBuilder.queryParam(Constants.TAB_ID, authenticationSession.getTabId());
     }
+    log.infov("requestURI = {0}, uriBuilder.build() = {1}", requestURI, uriBuilder.build());
+
     return uriBuilder;
   }
 
@@ -67,11 +66,12 @@ public class RedirectToRegisterAuthenticator implements Authenticator {
       // and most importantly, the 'execution' ID which maintains the
       // authentication flow state.
       final UriBuilder builder = prepareBaseUriBuilder(context);
+      final URI baseUri = builder.build();
 
       // The name of the current realm.
       final String realmName = context.getRealm().getName();
 
-      final URI registrationUri = builder.build(realmName);
+      final URI registrationUri = Urls.realmRegisterPage(baseUri, realmName);
 
       // Perform the redirect using a 302 Found response.
       final Response response =

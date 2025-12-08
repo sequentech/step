@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -87,7 +87,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 {withFilter ? <FilterButton /> : null}
 
                 {withAction ? (
-                    <Button onClick={doAction} label={t(actionLabel)}>
+                    <Button onClick={doAction} label={String(t(actionLabel))}>
                         <Add />
                     </Button>
                 ) : null}
@@ -96,7 +96,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     <>
                         <Button
                             onClick={() => setOpen(true)}
-                            label={t("common.label.add")}
+                            label={String(t("common.label.add"))}
                             className="add-button"
                         >
                             <Add />
@@ -118,7 +118,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 )}
 
                 {withImport ? (
-                    <Button onClick={doImport} label={t("common.label.import")}>
+                    <Button onClick={doImport} label={String(t("common.label.import"))}>
                         <UploadIcon />
                     </Button>
                 ) : null}
@@ -127,7 +127,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     <React.Fragment>
                         <Button
                             onClick={(e: React.MouseEvent<HTMLElement>) => openExportMenu(e)}
-                            label={t("common.label.export")}
+                            label={String(t("common.label.export"))}
                             disabled={isExportDisabled}
                         >
                             <DownloadIcon />
@@ -139,7 +139,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     !defaultExport ? (
                         <Button
                             onClick={doExport}
-                            label={t("common.label.export")}
+                            label={String(t("common.label.export"))}
                             disabled={isExportDisabled}
                         >
                             <DownloadIcon />

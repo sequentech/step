@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, useContext} from "react"
@@ -166,7 +166,7 @@ export const SelectTenant = () => {
         )?.logo_url
         const newCss = (data?.sequent_backend_tenant[0].annotations as ITenantTheme | undefined)
             ?.css
-        setLogoImg(errors?.length > 0 ? SequentLogo : newLogoState ?? SequentLogo)
+        setLogoImg(errors?.length > 0 ? SequentLogo : (newLogoState ?? SequentLogo))
         setCss(newCss ?? "")
     }
 
@@ -334,7 +334,7 @@ export const SelectTenant = () => {
             {loading ? (
                 <CircularProgress />
             ) : (
-                <StyledApp css={css}>
+                <StyledApp css={css} className="select-tenant">
                     <Header
                         appVersion={{main: globalSettings.APP_VERSION}}
                         appHash={{main: globalSettings.APP_HASH}}
@@ -365,7 +365,7 @@ export const SelectTenant = () => {
                                     <Box component="form" onSubmit={handleSubmit} sx={{mt: 2}}>
                                         <TextField
                                             fullWidth
-                                            label={t("common.label.tenantName")}
+                                            label={String(t("common.label.tenantName"))}
                                             variant="outlined"
                                             margin="normal"
                                             value={tenant}

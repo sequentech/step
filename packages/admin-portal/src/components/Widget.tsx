@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -42,7 +42,6 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
-import {Button} from "react-admin"
 import {GetTaskByIdQuery} from "@/gql/graphql"
 
 interface LogTableProps {
@@ -84,6 +83,7 @@ export interface WidgetProps {
     onClose: (taskId: string) => void
     onSuccess?: () => void
     onFailure?: () => void
+    automaticallyDownload?: boolean
     logs?: Array<ITaskLog>
     taskId?: string
 }
@@ -95,6 +95,7 @@ export const Widget: React.FC<WidgetProps> = ({
     onClose,
     onSuccess,
     onFailure,
+    automaticallyDownload,
     logs,
     taskId,
 }) => {
@@ -107,6 +108,7 @@ export const Widget: React.FC<WidgetProps> = ({
     const [taskDataType, setTaskDataType] = useState<ETasksExecution | undefined>(type)
     const [taskDataStatus, setTaskDataStatus] = useState<ETaskExecutionStatus>(status)
     const [taskDataLogs, setTaskDataLogs] = useState<Array<ITaskLog>>(logs || [])
+    const [touchedDownload, setTouchedDownload] = useState(false)
 
     const initialLog: ITaskLog[] = [
         {created_date: new Date().toLocaleString(), log_text: "Task started"},
@@ -137,8 +139,24 @@ export const Widget: React.FC<WidgetProps> = ({
             onFailure && onFailure()
         } else if (taskDataStatus === ETaskExecutionStatus.SUCCESS) {
             onSuccess && onSuccess()
+            if (touchedDownload) {
+                return
+            }
+            const lastTask = taskData?.sequent_backend_tasks_execution?.[0]
+            if (automaticallyDownload && lastTask?.annotations?.document_id) {
+                setTouchedDownload(true)
+                setDownloading(true)
+                setExportDocumentId(lastTask?.annotations?.document_id)
+            }
         }
-    }, [taskDataStatus, onFailure, onSuccess])
+    }, [
+        taskDataStatus,
+        downloading,
+        touchedDownload,
+        taskData?.sequent_backend_tasks_execution?.[0]?.annotations?.document_id,
+        onFailure,
+        onSuccess,
+    ])
 
     const onSetViewTask = (event: React.MouseEvent<HTMLElement>) => {
         event.stopPropagation()
@@ -159,7 +177,6 @@ export const Widget: React.FC<WidgetProps> = ({
                         className="accordion-summary"
                         isLoading={taskDataStatus === ETaskExecutionStatus.IN_PROGRESS}
                         expandIcon={<ExpandMoreIcon />}
-                        sx={{backgroundColor: "#0F054C"}}
                     >
                         <HeaderBox className="header-box">
                             <InfoBox className="info-box">
@@ -213,7 +230,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                         className="view-icon"
                                         onClick={onSetViewTask}
                                     >
-                                        {t("tasksScreen.widget.viewTask")}
+                                        {t("tasksScreen.widget.viewTask") as any}
                                     </ViewTaskTypography>
                                 </>
                             ) : null}
@@ -229,7 +246,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                         downloading ||
                                         lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
                                     }
-                                    label={t("tasksScreen.widget.downloadDocument")}
+                                    label={String(t("tasksScreen.widget.downloadDocument"))}
                                 >
                                     <DownloadIcon />
                                 </DownloaButton>

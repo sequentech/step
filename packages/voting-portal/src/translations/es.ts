@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const spanishTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Regresar",
+            showMore: "Mostrar más",
+            showLess: "Mostrar menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -14,6 +16,9 @@ const spanishTranslation: TranslationType = {
             review: "Revisión",
             confirmation: "Confirmación",
             audit: "Auditar",
+        },
+        footer: {
+            poweredBy: "Funciona con <1></1>",
         },
         votingScreen: {
             backButton: "Atrás",
@@ -29,6 +34,14 @@ const spanishTranslation: TranslationType = {
                 title: "Voto inválido o en blanco",
                 content:
                     "Algunas de sus respuestas harán que la papeleta en una o más preguntas sea inválida o en blanco.",
+                ok: "Volver y revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
+            warningDialog: {
+                title: "Revisa tu papeleta",
+                content:
+                    "Tu papeleta contiene selecciones que pueden necesitar tu atención (como seleccionar menos opciones de las permitidas). Tu papeleta es válida y se contará tal como se ha enviado.",
                 ok: "Volver y revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
@@ -124,6 +137,14 @@ const spanishTranslation: TranslationType = {
                     "Ha ocurrido un error al procesar su solicitud. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 CAST_VOTE_unexpected:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                CAST_VOTE_timeout:
+                    "Error de tiempo de espera para emitir el voto. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Has superado el límite de revotos. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Has superado el número permitido de revotos. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Ya has votado en otra área. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
                 CAST_VOTE_UnknownError:
                     "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 NO_BALLOT_SELECTION:
@@ -154,6 +175,18 @@ const spanishTranslation: TranslationType = {
                     "Tu sesión ha expirado. Por favor, intenta de nuevo desde el principio.",
                 CAST_VOTE_BallotIdMismatch:
                     "El identificador de la papeleta no coincide con el del voto emitido.",
+                SESSION_STORAGE_ERROR:
+                    "El almacenamiento de sesión no está disponible. Por favor, inténtelo de nuevo o contacte con soporte.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Hubo un error al analizar los datos de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Los datos de la papeleta no son válidos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Error de tiempo de espera al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Error al convertir a papeleta hashable. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                INTERNAL_ERROR:
+                    "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
         },
         confirmationScreen: {
@@ -288,6 +321,8 @@ const spanishTranslation: TranslationType = {
                 overVoteDisabled:
                     "Máximo alcanzado: Has seleccionado el máximo de {{numSelected}} opciones. Para cambiar tu selección, por favor, desmarca primero otra opción.",
                 blankVote: "Voto en Blanco: 0 opciones seleccionadas",
+                preferenceOrderWithGaps: "El orden de preferencia tiene uno o más huecos.",
+                duplicatedPosition: "La misma posición fue seleccionada para dos o más candidatos.",
             },
             explicit: {
                 notAllowed:
@@ -318,6 +353,10 @@ const spanishTranslation: TranslationType = {
             notFound: "Tu ID de Papeleta {{ballotId}} no ha sido localizada",
             contentDesc: "Este es el contenido de tu Papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
+            ballotIdNotFoundAtFilter:
+                "No encontrado, compruebe que el ID de la Papeleta sea correcto y pertenezca a este usuario.",
+            filterByBallotId: "Filtrar por ID de Papeleta",
+            totalBallots: "Papeletas: {{total}}",
             steps: {
                 lookup: "Localiza tu Papeleta",
                 result: "Resultado",
@@ -327,6 +366,17 @@ const spanishTranslation: TranslationType = {
                 content:
                     "Esta pantalla le permite al votante encontrar su Papeleta utilizando el ID de la Papeleta para recuperarlo. Este procedimiento permite comprobar que su voto fue emitido correctamente y que el voto registrado coincide con el voto cifrado que emitió.",
                 ok: "OK",
+            },
+            tabs: {
+                logs: "Logs",
+                ballotLocator: "Localizador de Papeletas",
+            },
+            column: {
+                statement_kind: "Tipo",
+                statement_timestamp: "Marca de tiempo",
+                username: "Usuario",
+                ballot_id: "ID de Papeleta",
+                message: "Mensaje",
             },
         },
     },

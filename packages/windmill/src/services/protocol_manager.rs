@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -419,7 +419,7 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
     let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
 
-    let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
+    let board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
 }

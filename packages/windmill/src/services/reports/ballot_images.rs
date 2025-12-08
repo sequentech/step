@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
@@ -12,7 +12,7 @@ use sequent_core::services::s3::get_minio_url;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use velvet::pipes::vote_receipts::ComputedTemplateData;
+use velvet::pipes::ballot_images::ComputedTemplateData;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
