@@ -121,6 +121,56 @@ impl CryptographicGroup for Ristretto255Group {
 
         Ok(ret)
     }
+
+    /// Encrypt a scalar with ElGamal encryption using the given public key
+    ///
+    /// # Errors
+    ///
+    /// - `EncodingError` if the scalar cannot be encoded
+    /// - `SerializationError` if the ciphertext cannot be serialized
+    fn encrypt_scalar(scalar: &Self::Scalar, public_key: &Self::Element) -> Result<Vec<u8>, Error> {
+        use crate::context::RistrettoCtx;
+        use crate::cryptosystem::elgamal::{PublicKey, Ciphertext};
+        use crate::utils::serialization::VSerializable;
+        
+        // Encode scalar into 2 elements
+        let elements = Self::encode_scalar(scalar)?;
+        
+        // Create public key and encrypt
+        let pk = PublicKey::new(public_key.clone());
+        let ciphertext: Ciphertext<RistrettoCtx, 2> = pk.encrypt(&elements);
+        
+        // Serialize to bytes
+        Ok(ciphertext.ser())
+    }
+
+    /// Decrypt a scalar from ElGamal-encrypted serialized ciphertext
+    ///
+    /// # Errors
+    ///
+    /// - `DeserializationError` if the ciphertext cannot be deserialized
+    /// - `ScalarDecodeError` if the decrypted elements cannot be decoded
+    fn decrypt_scalar(ciphertext: &[u8], secret_key: &Self::Scalar) -> Result<Self::Scalar, Error> {
+        use crate::context::RistrettoCtx;
+        use crate::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+        use crate::utils::serialization::VDeserializable;
+        use crate::traits::groups::GroupElement;
+        
+        // Deserialize ciphertext
+        let ct: Ciphertext<RistrettoCtx, 2> = Ciphertext::deser(ciphertext)
+            .map_err(|e| Error::DeserializationError(format!("Failed to deserialize ciphertext: {:?}", e)))?;
+        
+        // Create keypair (we need public key for KeyPair structure)
+        let public_element = Self::generator().exp(secret_key);
+        let pk = PublicKey::new(public_element);
+        let keypair = KeyPair { skey: secret_key.clone(), pkey: pk };
+        
+        // Decrypt to get elements
+        let elements = keypair.decrypt(&ct);
+        
+        // Decode elements back to scalar
+        Self::decode_scalar(&elements)
+    }
 }
 
 impl Ristretto255Group {

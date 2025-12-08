@@ -104,6 +104,28 @@ pub trait CryptographicGroup {
     /// - `HashToElementError` if using `P256Group` and `NistP256::hash_from_bytes` returns error
     #[crate::warning("Verify implementations are correct")]
     fn ind_generators(count: usize, label: &[u8]) -> Result<Vec<Self::Element>, Error>;
+
+    /// Encrypt a scalar with ElGamal encryption using the given public key
+    ///
+    /// This encodes the scalar into group elements and encrypts them, returning
+    /// the serialized ciphertext as a byte vector. Used for encrypting DKG shares.
+    ///
+    /// # Errors
+    ///
+    /// - `EncodingError` if the scalar cannot be encoded into elements
+    /// - `SerializationError` if the ciphertext cannot be serialized
+    fn encrypt_scalar(scalar: &Self::Scalar, public_key: &Self::Element) -> Result<Vec<u8>, Error>;
+
+    /// Decrypt a scalar from ElGamal-encrypted serialized ciphertext
+    ///
+    /// This deserializes the ciphertext, decrypts it, and decodes the result
+    /// back into a scalar. Used for decrypting DKG shares.
+    ///
+    /// # Errors
+    ///
+    /// - `DeserializationError` if the ciphertext bytes cannot be deserialized
+    /// - `ScalarDecodeError` if the decrypted elements cannot be decoded into a scalar
+    fn decrypt_scalar(ciphertext: &[u8], secret_key: &Self::Scalar) -> Result<Self::Scalar, Error>;
 }
 
 // -------------------------------------------------------------------------

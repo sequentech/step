@@ -102,4 +102,22 @@ impl CryptographicGroup for P256Group {
 
         Ok(ret)
     }
+
+    /// Encrypt a scalar with ElGamal encryption using the given public key
+    ///
+    /// # Errors
+    ///
+    /// - Not implemented for P256Group
+    fn encrypt_scalar(_scalar: &Self::Scalar, _public_key: &Self::Element) -> Result<Vec<u8>, Error> {
+        todo!("encrypt_scalar not implemented for P256Group")
+    }
+
+    /// Decrypt a scalar from ElGamal-encrypted serialized ciphertext
+    ///
+    /// # Errors
+    ///
+    /// - Not implemented for P256Group
+    fn decrypt_scalar(_ciphertext: &[u8], _secret_key: &Self::Scalar) -> Result<Self::Scalar, Error> {
+        todo!("decrypt_scalar not implemented for P256Group")
+    }
 }
