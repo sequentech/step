@@ -18,9 +18,8 @@ use cryptography::cryptosystem::elgamal::PublicKey;
 use cryptography::cryptosystem::elgamal::Ciphertext;
 use cryptography::utils::serialization::variable::VSerializable;
 use cryptography::context::RistrettoCtx;
-use b5::{VerifyingKey, SigningKey};
 
-use b5::messages::artifact::{Ballots, Configuration, Plaintexts};
+use b5::messages::artifact::{Configuration, Plaintexts};
 use b5::messages::message::Message;
 use b5::messages::newtypes::PublicKeyHash;
 use b5::messages::newtypes::MAX_TRUSTEES;

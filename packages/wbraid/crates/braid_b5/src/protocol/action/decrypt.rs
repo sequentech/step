@@ -255,43 +255,8 @@ fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>
         "Unexpected number of decryption factors"
     );
 
-    let num_trustees = cfg.trustees.len();   
-    /*
-    // Collect decryption factors for the T trustees
-    let mut all_dfactors = Vec::new();
-    let mut verification_keys_vec = Vec::new();
-    
-    for (t, df_h) in dfactors_hs.0.iter().enumerate() {
-        // Threshold is 1-based
-        if t < *threshold {
-            let dfactors = trustee
-                .get_decryption_factors(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
-                .add_context("Computing plaintexts")?;
-
-            assert_eq!(num_ciphertexts, dfactors.factors.len());
-            
-            let vk = pk.verification_keys[ts[t] - 1].clone();
-            verification_keys_vec.push(vk);
-            all_dfactors.push(dfactors.factors);
-        } else {
-            debug!("Processed all decryption factors (t = {})", t);
-            break;
-        }
-    }
-
-    info!(
-        "ComputePlaintexts combining decryption factors[{}] ({})..",
-        dbg_hash(&ciphertexts_h.0),
-        num_ciphertexts,
-    );
-
-    let suffix = format!("plaintexts");
-    let label = cfg.label(*batch, suffix);
-    
+    let num_trustees = cfg.trustees.len();    
     // Use dispatch macro to handle runtime threshold/trustee count -> compile-time const generics
-    let num_trustees = cfg.trustees.len();*/
-    
-    
     let plaintexts = crate::dispatch_threshold_trustees!(*threshold, num_trustees, {
         
         // Collect decryption factors for the T trustees
@@ -325,12 +290,7 @@ fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>
         let suffix = format!("decryption proof");
         let label = cfg.label(*batch, suffix);
         
-        // Use dispatch macro to handle runtime threshold/trustee count -> compile-time const generics
-        let num_trustees = cfg.trustees.len();    
-        
-        
         use cryptography::dkgd::recipient::{combine, DkgCiphertext};
-        use std::array;
         
         // Wrap plain Ciphertexts into DkgCiphertext<C, 2, T> for combine function
         let wrapped_ciphertexts: Vec<DkgCiphertext<C, 2, T>> = mix.ciphertexts

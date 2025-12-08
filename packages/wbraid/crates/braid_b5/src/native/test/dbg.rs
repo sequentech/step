@@ -20,8 +20,7 @@ use cryptography::context::Context;
 use cryptography::traits::groups::CryptographicGroup;
 use cryptography::cryptosystem::elgamal::PublicKey;
 use cryptography::cryptosystem::elgamal::Ciphertext;
-use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
-use b5::{VerifyingKey, SigningKey};
+use cryptography::utils::serialization::variable::VSerializable;
 
 use crate::protocol::action::Action;
 use crate::protocol::board::{ArtifactEntryIdentifier, StatementEntryIdentifier};

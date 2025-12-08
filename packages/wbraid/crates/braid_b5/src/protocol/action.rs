@@ -10,7 +10,7 @@ pub(self) use cryptography::context::Context;
 
 pub(self) use crate::protocol::trustee::Trustee;
 pub(self) use crate::util::{ProtocolContext, ProtocolError};
-pub(self) use b5::messages::artifact::{DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares};
+pub(self) use b5::messages::artifact::{DkgPublicKey, Mix, Plaintexts, Shares};
 pub(self) use b5::messages::message::Message;
 pub(self) use b5::messages::newtypes::*;
 

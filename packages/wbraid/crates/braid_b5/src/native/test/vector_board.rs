@@ -42,8 +42,6 @@ impl VectorBoard {
     pub fn add(&mut self, message: Message) {
         let last_id: i64 = self.messages.len() as i64;
         let m = message.ser();
-
-        let back = Message::deser(&m).unwrap();
         
         // Extract metadata from message
         let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk).unwrap();

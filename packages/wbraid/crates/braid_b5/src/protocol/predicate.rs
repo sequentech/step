@@ -9,7 +9,6 @@ use strum::Display;
 
 use cryptography::context::Context;
 use cryptography::utils::signatures::SignatureScheme;
-use b5::VerifyingKey;
 
 use b5::messages::artifact::Configuration;
 use b5::messages::newtypes::*;

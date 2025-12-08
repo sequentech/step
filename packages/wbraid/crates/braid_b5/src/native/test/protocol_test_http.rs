@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use aws_sdk_s3::types::Protocol;
 use base64::prelude::*;
 use log::{info, warn};
 use rand::seq::IndexedRandom;
@@ -19,7 +18,6 @@ use cryptography::cryptosystem::elgamal::Ciphertext;
 use cryptography::traits::groups::GroupElement;
 use cryptography::utils::serialization::variable::VDeserializable;
 use cryptography::context::RistrettoCtx;
-use b5::{VerifyingKey, SigningKey};
 
 use b5::messages::artifact::{Ballots, Configuration, DkgPublicKey};
 use b5::messages::message::Message;

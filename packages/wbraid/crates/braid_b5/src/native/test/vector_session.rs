@@ -4,7 +4,7 @@
 
 use crate::protocol::trustee::Trustee;
 use crate::native::test::vector_board::VectorBoard;
-use b5::messages::artifact::{DkgPublicKey, Plaintexts};
+use b5::messages::artifact::DkgPublicKey;
 use b5::messages::message::Message;
 use log::{error, info};
 use std::sync::{Arc, Mutex};
