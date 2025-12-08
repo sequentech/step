@@ -103,9 +103,6 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// values may increase core utilization, but also
 /// peak memory usage.
 pub struct Trustee<C: Context, S: LocalBoardStorage> 
-where
-    <C::SignatureScheme as SignatureScheme<C::Rng>>::Signer: Send + Sync,
-    <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier: Send + Sync,
 {
     pub(crate) name: String,
     #[allow(dead_code)]

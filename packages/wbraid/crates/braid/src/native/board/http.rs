@@ -72,8 +72,8 @@ enum ContentTypeDto {
 pub struct HttpB3 {
     client: reqwest::Client,
     base_url: String,
-    s3_client: aws_sdk_s3::Client,
-    bucket_name: String,
+    // s3_client: aws_sdk_s3::Client,
+    // bucket_name: String,
 }
 
 impl HttpB3 {
@@ -85,8 +85,8 @@ impl HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
-            s3_client,
-            bucket_name: bucket_name.to_string(),
+            // s3_client,
+            // bucket_name: bucket_name.to_string(),
         }
     }
 
@@ -292,8 +292,8 @@ impl Board for HttpB3 {
 #[derive(Clone)]
 pub struct HttpB3BoardParams {
     base_url: String,
-    s3_client: aws_sdk_s3::Client,
-    bucket_name: String,
+    // s3_client: aws_sdk_s3::Client,
+    // bucket_name: String,
 }
 
 impl HttpB3BoardParams {
@@ -327,8 +327,8 @@ impl HttpB3BoardParams {
 
         HttpB3BoardParams {
             base_url: base_url.to_string(),
-            s3_client,
-            bucket_name,
+            // s3_client,
+            // bucket_name,
         }
     }
     
@@ -337,8 +337,8 @@ impl HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            s3_client: self.s3_client.clone(),
-            bucket_name: self.bucket_name.clone(),
+            // s3_client: self.s3_client.clone(),
+            // bucket_name: self.bucket_name.clone(),
         }
     }
 }
@@ -349,8 +349,8 @@ impl BoardFactory<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            s3_client: self.s3_client.clone(),
-            bucket_name: self.bucket_name.clone(),
+            // s3_client: self.s3_client.clone(),
+            // bucket_name: self.bucket_name.clone(),
         }
     }
 }
@@ -360,8 +360,8 @@ impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            s3_client: self.s3_client.clone(),
-            bucket_name: self.bucket_name.clone(),
+            // s3_client: self.s3_client.clone(),
+            // bucket_name: self.bucket_name.clone(),
         }
     }
 }
