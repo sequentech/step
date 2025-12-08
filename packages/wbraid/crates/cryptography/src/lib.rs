@@ -12,9 +12,6 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-// final pass
-// #![warn(clippy::restriction)]
-
 /// Defines implementation choices for key cryptographic functionalities.
 pub mod context;
 pub mod cryptosystem;

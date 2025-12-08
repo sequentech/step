@@ -14,6 +14,7 @@ use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::traits::groups::ReplScalarOps;
 use crate::utils::error::Error;
+use crate::utils::error::ErrorContext;
 use crate::utils::hash;
 use crate::utils::serialization::VSerializable;
 
@@ -147,7 +148,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             return Err(Error::EmptyShuffle);
         }
         if ciphertexts.len() != self.h_generators.len() {
-            return Err(Error::MismatchedShuffleLength);
+            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between ciphertexts and h_generators when mixing");
         }
 
         let big_n = ciphertexts.len();
@@ -374,19 +375,19 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             return Err(Error::EmptyShuffle);
         }
         if ciphertexts.len() != permuted_ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength);
+            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between ciphertexts and permuted ciphertexts");
         }
         if ciphertexts.len() != self.h_generators.len() {
-            return Err(Error::MismatchedShuffleLength);
+            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between ciphertexts and h_generators");
         }
         if proof.commitments.big_b_n.len() != ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength);
+            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between proof commitments big_b_n and ciphertexts");
         }
         if proof.commitments.big_b_prime_n.len() != ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength);
+            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between proof commitments big_b_prime_n and ciphertexts");
         }
         if proof.commitments.u_n.len() != ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength);
+            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between proof commitments u_n and ciphertexts");
         }
 
         let commitments = &proof.commitments;

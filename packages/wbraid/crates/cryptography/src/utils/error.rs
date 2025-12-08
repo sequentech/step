@@ -81,4 +81,27 @@ pub enum Error {
     /// Occurs when symmetric encryption fails
     #[error("{0}")]
     EncryptionError(String),
+
+    /// Wraps another error with additional context
+    #[error("{0}: {1}")]
+    WrappedError(String, Box<Error>),
+}
+
+/// Attaches a contextual string to an Error.
+pub trait ErrorContext<T> {
+    /// Attaches a contextual string to an Error.
+    fn with_context(self, context: &str) -> Result<T, Error>;
+}
+impl<T> ErrorContext<T> for Result<T, Error> {
+    /// Attaches a contextual string to an Error.
+    fn with_context(self, context: &str) -> Result<T, Error> {
+        if let Err(e) = self {
+            Err(Error::WrappedError(
+                context.to_string(),
+                Box::new(e),
+            ))
+        } else {
+            self
+        }
+    }
 }
