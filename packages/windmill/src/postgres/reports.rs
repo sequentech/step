@@ -172,16 +172,14 @@ pub async fn update_report_last_document_time(
             UPDATE
                 "sequent_backend".report
             SET 
-                cron_config = 
+                cron_config = jsonb_set(
                     COALESCE(cron_config, '{}'::jsonb),
                     '{last_document_produced}',
                     to_jsonb(
-                        to_char(NOW() at time zone 'utc',
-                        'YYYY-MM-DD"T"HH24:MI:SS.US'
-                    )
-                ),
-                true
-            )
+                        to_char(NOW() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US')
+                    ),
+                    true
+                )
             WHERE
                 tenant_id = $1
                 AND id = $2
