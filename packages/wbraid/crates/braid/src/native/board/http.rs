@@ -39,11 +39,6 @@ struct ConfirmMessageRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct ConfirmMessageResponse {
-    success: bool,
-}
-
-#[derive(Debug, Deserialize)]
 struct GetMessagesResponse {
     messages: Vec<MessageWithUrl>,
 }
