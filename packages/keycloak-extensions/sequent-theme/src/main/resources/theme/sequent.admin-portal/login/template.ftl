@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false displayCard=true>
 <!DOCTYPE html>
-<html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if>>
+<html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if> translate="no">
 
 <head>
     <meta charset="utf-8">
@@ -141,7 +141,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     <div class="col-md-10">
                         <#nested "show-username">
                         <div id="kc-username" class="${properties.kcFormGroupClass!}">
-                            <label id="kc-attempted-username">${address!(auth.attemptedUsername)}</label>
+                            <h1 id="kc-page-title"><#nested "header"></h1>
                             <a id="reset-login" href="${url.loginRestartFlowUrl}" aria-label="${msg("restartLoginTooltip")}">
                                 <div class="kc-login-tooltip">
                                     <i class="${properties.kcResetFlowIcon!}"></i>
@@ -154,7 +154,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <#else>
                 <#nested "show-username">
                 <div id="kc-username" class="${properties.kcFormGroupClass!}">
-                    <label id="kc-attempted-username">${address!(auth.attemptedUsername)}</label>
+                    <h1 id="kc-page-title"><#nested "header"></h1>
                     <a id="reset-login" href="${url.loginRestartFlowUrl}" aria-label="${msg("restartLoginTooltip")}">
                         <div class="kc-login-tooltip">
                             <i class="${properties.kcResetFlowIcon!}"></i>

@@ -127,29 +127,29 @@ export const ElectionDataForm: React.FC = () => {
     const [activateSave, setActivateSave] = useState(false)
 
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
-        id: record.election_event_id,
+        id: record?.election_event_id,
     })
 
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
-        id: record.tenant_id || tenantId,
+        id: record?.tenant_id || tenantId,
     })
 
     const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
         filter: {
-            election_id: record.id,
-            tenant_id: record.tenant_id,
-            election_event_id: record.election_event_id,
+            election_id: record?.id,
+            tenant_id: record?.tenant_id,
+            election_event_id: record?.election_event_id,
         },
     })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
-            id: record.image_document_id || record.tenant_id,
-            meta: {tenant_id: record.tenant_id},
+            id: record?.image_document_id || record?.tenant_id,
+            meta: {tenant_id: record?.tenant_id},
         },
         {
-            enabled: !!record.image_document_id || !!record.tenant_id,
+            enabled: !!record?.image_document_id || !!record?.tenant_id,
             onError: (error: any) => {
                 console.log(`error fetching image doc: ${error.message}`)
             },
@@ -220,7 +220,7 @@ export const ElectionDataForm: React.FC = () => {
                 }
             }
 
-            if (!incoming.presentation) {
+            if (!incoming?.presentation) {
                 temp.presentation = {}
             }
 
@@ -435,7 +435,7 @@ export const ElectionDataForm: React.FC = () => {
                     notify(t("electionScreen.error.fileLoaded"), {type: "success"})
 
                     updateImage("sequent_backend_election", {
-                        id: record.id,
+                        id: record?.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
                         },
@@ -523,7 +523,7 @@ export const ElectionDataForm: React.FC = () => {
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
     }
-    return data ? (
+    return record && data ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(

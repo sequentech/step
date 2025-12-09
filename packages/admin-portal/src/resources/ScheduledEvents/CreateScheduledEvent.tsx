@@ -155,6 +155,10 @@ const CreateEvent: FC<CreateEventProps> = ({
             console.error(error)
         }
     }
+    const isRequiredElection = (eventType: EventProcessors) =>
+        ![EventProcessors.START_VOTING_PERIOD, EventProcessors.END_VOTING_PERIOD].includes(
+            eventType
+        )
 
     const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -225,6 +229,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                     ) : (
                         targetsElection(eventType as EventProcessors) && (
                             <SelectElection
+                                isRequired={isRequiredElection(eventType as EventProcessors)}
                                 tenantId={tenantId}
                                 electionEventId={electionEventId}
                                 label={t("eventsScreen.election.label")}

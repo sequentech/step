@@ -45,9 +45,9 @@ pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     ISO8601::to_date(&scheduled_date).ok()
 }
 
+#[instrument(skip(celery_app), err)]
 pub async fn handle_allow_init_report(
     celery_app: Arc<Celery>,
-    transaction: &Transaction<'_>,
     scheduled_event: &ScheduledEvent,
 ) -> Result<()> {
     let Some(datetime) = get_datetime(scheduled_event) else {
@@ -110,9 +110,9 @@ pub async fn handle_allow_init_report(
     Ok(())
 }
 
+#[instrument(skip(celery_app), err)]
 pub async fn handle_allow_voting_period_end(
     celery_app: Arc<Celery>,
-    transaction: &Transaction<'_>,
     scheduled_event: &ScheduledEvent,
 ) -> Result<()> {
     let Some(datetime) = get_datetime(scheduled_event) else {
@@ -175,6 +175,7 @@ pub async fn handle_allow_voting_period_end(
     Ok(())
 }
 
+#[instrument(skip(celery_app), err)]
 pub async fn handle_voting_event(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -239,6 +240,7 @@ pub async fn handle_voting_event(
     Ok(())
 }
 
+#[instrument(skip(celery_app), err)]
 pub async fn handle_election_event_enrollment(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -310,6 +312,7 @@ pub async fn handle_election_lockdown(
     Ok(())
 }
 
+#[instrument(skip(celery_app), err)]
 pub async fn handle_election_allow_tally(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -359,10 +362,10 @@ pub async fn handle_election_allow_tally(
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn scheduled_events() -> Result<()> {
+pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
     let celery_app = get_celery_app().await;
     let now = ISO8601::now();
-    let one_minute_later = now + Duration::seconds(60);
+    let nsecs_later = now + Duration::seconds(rate_seconds as i64);
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -383,7 +386,7 @@ pub async fn scheduled_events() -> Result<()> {
             let Some(formatted_date) = get_datetime(&event) else {
                 return false;
             };
-            formatted_date < one_minute_later
+            formatted_date < nsecs_later
         })
         .collect::<Vec<_>>();
     info!("Found {} events to be run now", to_be_run_now.len());
@@ -393,16 +396,10 @@ pub async fn scheduled_events() -> Result<()> {
         };
         match event_processor {
             EventProcessors::ALLOW_INIT_REPORT => {
-                handle_allow_init_report(celery_app.clone(), &hasura_transaction, scheduled_event)
-                    .await?;
+                handle_allow_init_report(celery_app.clone(), scheduled_event).await?;
             }
             EventProcessors::ALLOW_VOTING_PERIOD_END => {
-                handle_allow_voting_period_end(
-                    celery_app.clone(),
-                    &hasura_transaction,
-                    scheduled_event,
-                )
-                .await?;
+                handle_allow_voting_period_end(celery_app.clone(), scheduled_event).await?;
             }
             EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
                 if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {

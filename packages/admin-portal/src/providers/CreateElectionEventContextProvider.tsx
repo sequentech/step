@@ -150,6 +150,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
     }
 
     const openImportDrawer = () => {
+        setErrors(null)
         toggleImportDrawer(true)
     }
 
