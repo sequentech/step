@@ -2,4 +2,4 @@ label: 'IdP SSO Configuration & Handoff'
 position: 3
 link:
   type: doc
-  id: developers/Tutorials/setup_idp_initiated_sso
+  id: developers/tutorials/setup_idp_initiated_sso
