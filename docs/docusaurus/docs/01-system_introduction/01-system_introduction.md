@@ -1,7 +1,6 @@
 ---
 id: system_introduction
 title: Sequent Voting Platform Documentation
-position: 1
 ---
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>

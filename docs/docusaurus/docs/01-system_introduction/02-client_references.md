@@ -1,7 +1,6 @@
 ---
 id: client_references
 title: Client References
-position: 2
 ---
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
