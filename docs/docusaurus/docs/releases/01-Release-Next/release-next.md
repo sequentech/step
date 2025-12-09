@@ -7,6 +7,15 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal: Scheduled Repeatable Reports is not working
+
+Modify the admin portal add/edit report form to require cron expression and email
+list to be filled.
+Fix using the recipients email list instead of empty list 
+when execute the report.
+
+- Issue: [#5412](https://github.com/sequentech/meta/issues/5412)
+
 ## 🐞 Errors editing forms
 
 After the dependency updates, the Election Data form had stopped working.
