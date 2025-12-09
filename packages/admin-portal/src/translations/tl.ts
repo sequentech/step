@@ -81,6 +81,9 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "I-export ang Configurasyon ng Tenant",
                 IMPORT_TENANT_CONFIG: "I-import ang Configurasyon ng Tenant",
                 RENDER_DOCUMENT_PDF: "I-render ang dokumento bilang PDF",
+                CREATE_TENANT: "Lumikha ng Tenant",
+                EXPORT_TEMPLATES: "I-export ang mga Template",
+                IMPORT_TEMPLATES: "I-import ang mga Template",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
@@ -1156,7 +1159,7 @@ const tagalogTranslation: TranslationType = {
                 import: "I-import",
                 export: "I-export",
                 loadingData: "Naga-load ng data...",
-                exportFormat: "I-export ang '{{item}}' na resulta sa {{format}} na format",
+                exportFormat: "I-export sa format na {{format}} - Mga resulta ng '{{item}}",
                 allResults: "kaganapan ng halalan",
                 globalAreaResults: "lahat ng lugar",
                 title: "Pamagat",
