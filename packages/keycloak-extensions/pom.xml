@@ -23,6 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>message-otp-authenticator</module>
         <module>security-question-authenticator</module>
         <module>sequent-theme</module>
+        <module>custom-event-listener</module>
     </modules>
 
 	<properties>
