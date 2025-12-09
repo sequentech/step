@@ -63,7 +63,7 @@ const config = {
         logo: {
           alt: 'Sequent Logo',
           src: '/img/logo_negative.svg',
-          href: (process.env.BASE_URL || '') + '/docs/system_introduction/system_introduction',
+          href: (process.env.BASE_URL || '') + '/docs/system_introduction',
         },
         items: [
           {
