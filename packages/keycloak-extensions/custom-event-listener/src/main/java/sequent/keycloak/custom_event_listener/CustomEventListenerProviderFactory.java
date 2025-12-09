@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package sequent.keycloak.custom_event_listener;
 
+import com.google.auto.service.AutoService;
 import org.keycloak.Config.Scope;
 import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventListenerProviderFactory;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
-import com.google.auto.service.AutoService;
 
 @AutoService(EventListenerProviderFactory.class)
 public class CustomEventListenerProviderFactory implements EventListenerProviderFactory {
