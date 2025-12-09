@@ -1,10 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
     ballot::{
         Contest, ContestEncryptionPolicy, ContestPresentation,
+        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
         ElectionEventPresentation, ElectionPresentation, I18nContent,
     },
     serialization::deserialize_with_path::deserialize_value,
@@ -42,6 +43,34 @@ impl ElectionEvent {
             return ContestEncryptionPolicy::default();
         };
         presentation.contest_encryption_policy.unwrap_or_default()
+    }
+
+    pub fn get_decoded_ballots_inclusion_policy(
+        &self,
+    ) -> DecodedBallotsInclusionPolicy {
+        let Some(presentation_val) = self.presentation.clone() else {
+            return DecodedBallotsInclusionPolicy::default();
+        };
+        let Ok(presentation) =
+            deserialize_value::<ElectionEventPresentation>(presentation_val)
+        else {
+            return DecodedBallotsInclusionPolicy::default();
+        };
+        presentation
+            .decoded_ballot_inclusion_policy
+            .unwrap_or_default()
+    }
+
+    pub fn get_delegated_voting_policy(&self) -> DelegatedVotingPolicy {
+        let Some(presentation_val) = self.presentation.clone() else {
+            return DelegatedVotingPolicy::default();
+        };
+        let Ok(presentation) =
+            deserialize_value::<ElectionEventPresentation>(presentation_val)
+        else {
+            return DelegatedVotingPolicy::default();
+        };
+        presentation.delegated_voting_policy.unwrap_or_default()
     }
 }
 

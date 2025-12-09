@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -35,6 +35,7 @@ lazy_static! {
     static ref PASSWORD_COL_NAME: String = String::from("password");
     static ref USERNAME_COL_NAME: String = String::from("username");
     static ref EMAIL_COL_NAME: String = String::from("email");
+    static ref EMAIL_VERIFIED_COL_NAME: String = String::from("email_verified");
     static ref GROUP_COL_NAME: String = String::from("group_name");
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
     static ref ELECTION_COL_PREFIX: String = String::from("election__");
@@ -43,7 +44,8 @@ lazy_static! {
         SALT_COL_NAME.clone(),
         PASSWORD_COL_NAME.clone(),
         GROUP_COL_NAME.clone(),
-        NUMBER_OF_ITERATIONS_COL_NAME.clone()
+        NUMBER_OF_ITERATIONS_COL_NAME.clone(),
+        EMAIL_VERIFIED_COL_NAME.clone()
     ];
 }
 
@@ -204,10 +206,12 @@ fn get_insert_user_query(
     let user_entity_columns = vec![
         "id",
         "email",
+        "email_constraint",
         "enabled",
         "first_name",
         "last_name",
         "username",
+        "not_before",
     ];
     let select_columns: Vec<String> = user_entity_columns
         .iter()
@@ -218,7 +222,7 @@ fn get_insert_user_query(
                 // Cast enabled to boolean, with TRUE as default
                 "enabled" => {
                     if voters_table_columns.contains(&col_name) {
-                        "enabled::boolean".to_string()
+                        "COALESCE(NULLIF(enabled, ''), 'TRUE')::boolean".to_string()
                     } else {
                         "'TRUE'::boolean".to_string()
                     }
@@ -226,11 +230,19 @@ fn get_insert_user_query(
                 // empty as default, lowercase required in keycloak
                 "email" => {
                     if voters_table_columns.contains(&col_name) {
-                        "LOWER(email)".to_string()
+                        "NULLIF(LOWER(email), '')".to_string()
                     } else {
-                        "''".to_string()
+                        "NULL".to_string()
                     }
                 }
+                "email_constraint" => {
+                    if voters_table_columns.contains(&"email".to_string()) {
+                        "NULLIF(LOWER(email), '')".to_string()
+                    } else {
+                        "NULL".to_string()
+                    }
+                }
+                "not_before" => "0".to_string(),
                 // empty as default
                 _ => {
                     if voters_table_columns.contains(&col_name) {
@@ -242,6 +254,15 @@ fn get_insert_user_query(
             }
         })
         .collect();
+
+    // Conditionally create the SELECT statement for email_verified.
+    // If the column doesn't exist in the source table, default to true.
+    let email_verified_select = if voters_table_columns.contains(&"email_verified".to_string()) {
+        "COALESCE(NULLIF(email_verified, '')::boolean, true)".to_string()
+    } else {
+        "true".to_string()
+    };
+
     let user_entity_query = format!(
         r#"INSERT INTO user_entity (
                     realm_id,
@@ -251,7 +272,7 @@ fn get_insert_user_query(
                 )
                 SELECT
                     '{realm_id}',
-                    true,
+                    {email_verified_select},
                     (extract(epoch from now()) * 1000)::bigint,
                     {}
                 FROM
@@ -342,11 +363,13 @@ fn get_insert_user_query(
                 INSERT 
                 INTO user_group_membership (
                     group_id,
-                    user_id
+                    user_id,
+                    membership_type
                 )
                 SELECT
                     pug.group_id,
-                    pug.user_id
+                    pug.user_id,
+                    'UNMANAGED'
                 FROM pre_user_group pug
             )
             "#
@@ -608,6 +631,7 @@ pub async fn import_users_file(
                     }
                     column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
                     column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
+                    column_name if column_name == &*EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
                     _ => data.to_string(),
                 };
 

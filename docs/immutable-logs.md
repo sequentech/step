@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 # Immutable Logging
@@ -20,19 +20,7 @@ immutable database" with the following characteristics:
 
 There are three different manners in which we use Immudb:
 
-1. **Backend Database Log:** Our Backend API implements a GraphQL interface.
-   This API is exposed by Hasura. The business logic is implemented by the
-   `harvest` and `windmill` packages. The Backend API stores data in a
-   PostgreSQL database. Changes to this database, and sometimes queries (based
-   on settings), get logged by [PgAudit]. We record these logs in an Immudb
-   Database. For this process, we use a vendored fork of `immudb-log-audit` in
-   Go. You can find it in our repository under `vendor/immudb-log-audit/`.
-
-   Database logging happens at the deployment level. There's a one to one
-   relation between the deployment's single PostgreSQL database and the 
-   Immudb immutable log populated with PgAudit.
-
-2. **Cryptographic Board Log:** Sequent Voting Platform uses a Mixnet for
+1. **Cryptographic Board Log:** Sequent Voting Platform uses a Mixnet for
    preserving ballot secrecy. The mixnet shuffles the ballots in a
    mathematically verifiable manner. All these operations are orchestated and
    logged for transparency using an immutable log. This log is the basis of the
@@ -44,7 +32,7 @@ There are three different manners in which we use Immudb:
    There's one Cryptographic Board per Election Event. Each Cryptographic Board
    has its own Immudb database.
 
-3. **Election Protocol Log:** Important election operations need to be signed by
+2. **Election Protocol Log:** Important election operations need to be signed by
    one or more people and correctly registered in the Election Protocol Log. The
    Election Protocol register operations such as each cast vote by a voter or
    the request by one or more adminstrators to perform an election tally. These
@@ -55,28 +43,6 @@ There are three different manners in which we use Immudb:
 
    Each Election Event has its own Election Protocol Board. And Each Election
    Protocol Board Log is implemented as an Immudb Database.
-
-## Backend Database Log
-
-```mermaid
-graph TB
-
-PostgreSQL --> PgAudit
-PgAudit --> Immudb
-```
-
-[PgAudit] is a well stablished and mature PostgreSQL extension. The PostgreSQL
-Audit Extension (or pgaudit) provides detailed session and/or object audit
-logging via the standard logging facility provided by PostgreSQL. The goal of
-PostgreSQL Audit to provide the tools needed to produce audit logs required to
-pass certain government, financial, or ISO certification audits.
-
-The way this works is as follows: PgAudit is configured to record its logs in
-Json format in some `/logs` directory. This directory could perhaps be a mounted
-volume, so that the `immudb-log-audit` service can also have access to it. The
-`immudb-log-audit` service detects any new file or line change, process it, and
-records this new output from PgAudit into the corresponding table in the 
-corresponding Immudb database.
 
 ### Backend Database Logs UI
 

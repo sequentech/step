@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useMemo, useState} from "react"
@@ -45,17 +45,15 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
         e.preventDefault()
         e.stopPropagation()
         setDocumentId(null)
-        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT)
+        handleClose()
+        const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let {data} = await generateTemplate({
                 variables: {
                     tallySessionId: tallySessionId,
                     electionId: electionId,
                     electionEventId: electionEventId,
-                    type:
-                        reportType === ETemplateType.BALLOT_IMAGES
-                            ? "BallotImages"
-                            : "VoteReceipts",
+                    type: "BallotImages",
                 },
             })
             let response = data?.generate_template
@@ -75,7 +73,7 @@ export const GenerateReport: React.FC<GenerateReportProps> = ({
     }
 
     return (
-        <MenuItem onClick={onClick}>
+        <MenuItem onClick={onClick} key={reportType}>
             <Box
                 sx={{
                     textOverflow: "ellipsis",

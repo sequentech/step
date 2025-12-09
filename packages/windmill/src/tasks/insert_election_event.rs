@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -19,7 +18,7 @@ use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{TasksExecution, VotingChannels};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::env;
@@ -54,6 +53,9 @@ pub async fn insert_election_event_anyhow(
     };
 
     final_object.id = Some(id.clone());
+    if final_object.voting_channels.is_none() {
+        final_object.voting_channels = serde_json::to_value(VotingChannels::default()).ok();
+    }
 
     match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
         Ok(realm) => Some(realm),

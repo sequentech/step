@@ -1,5 +1,5 @@
 #!/bin/bash -i
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -23,7 +23,7 @@ gq http://graphql-engine:8080/v1/graphql \
 cd ..
 cp admin-portal/graphql.schema.json voting-portal/graphql.schema.json
 cp admin-portal/graphql.schema.json ballot-verifier/graphql.schema.json
-cp admin-portal/graphql.schema.json ..
+cp admin-portal/graphql.schema.json .
 
 yarn
 

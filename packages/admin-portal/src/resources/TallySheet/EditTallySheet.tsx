@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {LegacyRef, useEffect, useMemo, useState} from "react"
@@ -386,7 +386,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
         }
     }
 
-    let timeoutId: NodeJS.Timeout
+    let timeoutId: ReturnType<typeof setTimeout>
     const debouncedSearchArea = (event: React.ChangeEvent<HTMLInputElement>) => {
         const {value} = event.target
         clearTimeout(timeoutId)
@@ -469,7 +469,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     <Select
                         name="channel"
                         value={channel || ""}
-                        label={t("tallysheet.label.channel")}
+                        label={String(t("tallysheet.label.channel"))}
                         onChange={(e: SelectChangeEvent) => setChannel(e.target.value)}
                         required
                     >
@@ -486,7 +486,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 </PageHeaderStyles.Wrapper>
 
                 <TextField
-                    label={t("tallysheet.label.contest_id")}
+                    label={String(t("tallysheet.label.contest_id"))}
                     name="constest_id"
                     value={results.contest_id}
                     onChange={handleTextChange}
@@ -496,7 +496,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 />
 
                 <TextField
-                    label={t("tallysheet.label.total_votes")}
+                    label={String(t("tallysheet.label.total_votes"))}
                     name="total_votes"
                     value={typeof results.total_votes === "number" ? results.total_votes : ""}
                     onChange={handleNumberChange}
@@ -505,7 +505,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     disabled
                 />
                 <TextField
-                    label={t("tallysheet.label.total_valid_votes")}
+                    label={String(t("tallysheet.label.total_valid_votes"))}
                     name="total_valid_votes"
                     value={
                         typeof results.total_valid_votes === "number"
@@ -528,7 +528,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     }}
                 >
                     <TextField
-                        label={t("tallysheet.label.total_invalid")}
+                        label={String(t("tallysheet.label.total_invalid"))}
                         name="total_invalid"
                         value={
                             typeof invalids.total_invalid === "number" ? invalids.total_invalid : ""
@@ -539,7 +539,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         disabled
                     />
                     <TextField
-                        label={t("tallysheet.label.implicit_invalid")}
+                        label={String(t("tallysheet.label.implicit_invalid"))}
                         name="implicit_invalid"
                         value={
                             typeof invalids.implicit_invalid === "number"
@@ -551,7 +551,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         required
                     />
                     <TextField
-                        label={t("tallysheet.label.explicit_invalid")}
+                        label={String(t("tallysheet.label.explicit_invalid"))}
                         name="explicit_invalid"
                         value={
                             typeof invalids.explicit_invalid === "number"
@@ -565,7 +565,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 </Box>
 
                 <TextField
-                    label={t("tallysheet.label.total_blank_votes")}
+                    label={String(t("tallysheet.label.total_blank_votes"))}
                     name="total_blank_votes"
                     value={
                         typeof results.total_blank_votes === "number"
@@ -577,7 +577,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                     required
                 />
                 <TextField
-                    label={t("tallysheet.label.census")}
+                    label={String(t("tallysheet.label.census"))}
                     name="census"
                     value={typeof results.census === "number" ? results.census : ""}
                     onChange={handleCensusChange}
@@ -608,7 +608,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         </Typography>
                         <TextField
                             id={candidate.candidate_id}
-                            label={t("tallysheet.label.total_votes")}
+                            label={String(t("tallysheet.label.total_votes"))}
                             name="total_votes"
                             value={candidate.total_votes}
                             onChange={handleCandidateChange}

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -7,6 +7,7 @@ use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
@@ -277,8 +278,8 @@ impl Message {
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::TallyClose(election);
-        Self::from_body(event, body, sd, user_id, username, None, None, None)
+        let body = StatementBody::TallyClose(election.clone());
+        Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
     pub fn send_template(

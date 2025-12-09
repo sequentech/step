@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
@@ -25,7 +25,7 @@ use b3::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use b3::messages::statement::StatementType;
 
 use braid::protocol::trustee2::TrusteeConfig;
-use rand::prelude::SliceRandom;
+use rand::seq::IndexedRandom;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
@@ -435,7 +435,7 @@ async fn post_ballots<C: Ctx>(
 
         let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let all = &max[0..n_trustees];
-        let mut rng = &mut rand::thread_rng();
+        let mut rng = &mut rand::rng();
         let threshold: Vec<usize> = all.choose_multiple(&mut rng, threshold).cloned().collect();
 
         let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];

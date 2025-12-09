@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -255,7 +255,7 @@ const SettingsLocalization = () => {
                         <Select
                             labelId="select-language"
                             fullWidth
-                            label={t("electionEventScreen.localization.selectLanguage")}
+                            label={String(t("electionEventScreen.localization.selectLanguage"))}
                             onChange={handleLanguageChange}
                             value={selectedLanguage}
                         >
@@ -270,7 +270,10 @@ const SettingsLocalization = () => {
                         </Select>
                     </FormControl>
                     <div className="list-actions">
-                        <Button onClick={() => setOpenCreate(true)} label={t("common.label.add")}>
+                        <Button
+                            onClick={() => setOpenCreate(true)}
+                            label={String(t("common.label.add"))}
+                        >
                             <Add />
                         </Button>
 
@@ -298,11 +301,15 @@ const SettingsLocalization = () => {
 
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                        label={t("electionEventScreen.localization.labels.key")}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.key")
+                                        )}
                                     />
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                        label={t("electionEventScreen.localization.labels.value")}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.value")
+                                        )}
                                         multiline
                                     />
                                 </>
@@ -318,11 +325,11 @@ const SettingsLocalization = () => {
                     >
                         <TextField
                             source="id"
-                            label={t("electionEventScreen.localization.labels.key")}
+                            label={String(t("electionEventScreen.localization.labels.key"))}
                         />
                         <TextField
                             source="value"
-                            label={t("electionEventScreen.localization.labels.value")}
+                            label={String(t("electionEventScreen.localization.labels.value"))}
                         />
                         <WrapperField label="Actions">
                             <ActionsColumn actions={actions} />
@@ -358,13 +365,13 @@ const SettingsLocalization = () => {
 
                         <TextInput
                             source="editableKey"
-                            label={t("electionEventScreen.localization.labels.key")}
+                            label={String(t("electionEventScreen.localization.labels.key"))}
                             defaultValue={recordId ?? undefined}
                             disabled
                         />
                         <TextInput
                             source="editableVal"
-                            label={t("electionEventScreen.localization.labels.value")}
+                            label={String(t("electionEventScreen.localization.labels.value"))}
                             defaultValue={
                                 recordId
                                     ? (record?.settings as ITenantSettings | undefined)?.i18n?.[
@@ -381,9 +388,9 @@ const SettingsLocalization = () => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

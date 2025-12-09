@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
@@ -9,7 +9,7 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
@@ -74,7 +74,18 @@ export const TallyCeremonyTrustees: React.FC = () => {
     // TODO: fix the "perPage 9999"
     const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: record?.id, tenant_id: tenantId},
+        filter: {
+            election_event_id: record?.id,
+            tenant_id: tenantId,
+            id: tallyId
+                ? {
+                      format: "hasura-raw-query",
+                      value: {
+                          _in: tally?.election_ids ?? [],
+                      },
+                  }
+                : undefined,
+        },
     })
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
@@ -125,9 +136,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
             !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                 ? WizardSteps.Start
                 : trusteeStatus === ITrusteeStatus.WAITING &&
-                  tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                ? WizardSteps.Start
-                : WizardSteps.Status
+                    tally?.execution_status !== ITallyExecutionStatus.CANCELLED
+                  ? WizardSteps.Start
+                  : WizardSteps.Status
         )
     }, [trusteeStatus])
 

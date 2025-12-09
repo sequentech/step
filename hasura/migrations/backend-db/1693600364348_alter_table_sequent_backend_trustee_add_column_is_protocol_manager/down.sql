@@ -1,4 +1,0 @@
--- Could not auto-generate a down migration.
--- Please write an appropriate down migration for the SQL below:
--- alter table "sequent_backend"."trustee" add column "is_protocol_manager" boolean
---  null default 'false';

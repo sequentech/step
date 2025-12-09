@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -24,6 +24,16 @@ const galegoTranslation = {
             moreInformationLink: "Máis información",
             writeInsPlaceholder: "Escriba aquí o candidato por escrito",
             blankVote: "Voto en Branco",
+            preferential: {
+                position: "Posición",
+                none: "Ningún",
+                ordinals: {
+                    first: "º",
+                    second: "º",
+                    third: "º",
+                    other: "º",
+                },
+            },
         },
         homeScreen: {
             title: "Verificador de Papeletas Sequent",
@@ -62,7 +72,9 @@ const galegoTranslation = {
                 ok: "Aceptar",
             },
         },
-        poweredBy: "Desenvolvido por",
+        footer: {
+            poweredBy: "Desenvolvido por <1></1>",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Non hai suficientes opcións para descodificar",

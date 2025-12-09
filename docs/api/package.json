@@ -1,0 +1,17 @@
+{
+  "name": "graphql",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "AGPL-3.0-only",
+  "resolutions": {
+    "cross-spawn": "^7.0.6",
+    "ws": "^8.18.0",
+    "nanoid": "^3.3.8",
+    "micromatch": "^4.0.8",
+    "tmp": "^0.2.3",
+    "on-headers": "^1.1.0",
+    "brace-expansion": "^2.0.2",
+    "send": "^0.19.1",
+    "serve-static": "^2.2.0"
+  }
+}

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const dutchTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Ga terug",
+            showMore: "Toon meer",
+            showLess: "Toon minder",
         },
         breadcrumbSteps: {
             electionList: "Kieslijst",
@@ -14,6 +16,9 @@ const dutchTranslation: TranslationType = {
             review: "Controle",
             confirmation: "Bevestiging",
             audit: "Audit",
+        },
+        footer: {
+            poweredBy: "Aangedreven door <1></1>",
         },
         votingScreen: {
             backButton: "Terug",
@@ -29,6 +34,14 @@ const dutchTranslation: TranslationType = {
                 title: "Ongeldige of blanco stem",
                 content:
                     "Sommige van uw antwoorden maken het stembiljet voor een of meer vragen ongeldig of blanco.",
+                ok: "Terug en controleren",
+                continue: "Doorgaan",
+                cancel: "Annuleren",
+            },
+            warningDialog: {
+                title: "Controleer uw stembiljet",
+                content:
+                    "Uw stembiljet bevat keuzes die mogelijk uw aandacht nodig hebben (zoals het selecteren van minder opties dan toegestaan). Uw stembiljet is geldig en zal worden geteld zoals ingediend.",
                 ok: "Terug en controleren",
                 continue: "Doorgaan",
                 cancel: "Annuleren",
@@ -123,6 +136,14 @@ const dutchTranslation: TranslationType = {
                     "Er is een fout opgetreden bij het verwerken van uw verzoek. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 CAST_VOTE_unexpected:
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
+                CAST_VOTE_timeout:
+                    "Time-out fout bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "U heeft de limiet voor herstemmen overschreden. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "U heeft het toegestane aantal herstemmen overschreden. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "U heeft al in een ander gebied gestemd. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
                 CAST_VOTE_UnknownError:
                     "Er is een onbekende fout opgetreden bij het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 NO_BALLOT_SELECTION:
@@ -147,6 +168,23 @@ const dutchTranslation: TranslationType = {
                     "Er was een fout bij het serialiseren van het stembiljet. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 UNKNOWN_ERROR:
                     "Er is een fout opgetreden. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
+                REAUTH_FAILED:
+                    "Authenticatie is mislukt. Probeer het opnieuw of neem contact op met ondersteuning voor hulp.",
+                SESSION_EXPIRED: "Uw sessie is verlopen. Begin opnieuw vanaf het begin.",
+                CAST_VOTE_BallotIdMismatch:
+                    "De stembiljet-ID komt niet overeen met de uitgebrachte stem.",
+                SESSION_STORAGE_ERROR:
+                    "Sessie-opslag is niet beschikbaar. Probeer het opnieuw of neem contact op met de ondersteuning.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Er is een fout opgetreden bij het verwerken van de stemgegevens. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Stemgegevens zijn niet geldig. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Time-out fout bij het ophalen van de gegevens. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Fout bij het converteren naar hashbare stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
+                INTERNAL_ERROR:
+                    "Er is een interne fout opgetreden tijdens het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
             },
         },
         confirmationScreen: {
@@ -281,6 +319,9 @@ const dutchTranslation: TranslationType = {
                 overVoteDisabled:
                     "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
                 blankVote: "Blanco stem: 0 keuzes geselecteerd",
+                preferenceOrderWithGaps: "De voorkeursvolgorde heeft een of meer hiaten.",
+                duplicatedPosition:
+                    "Dezelfde positie is geselecteerd voor twee of meer kandidaten.",
             },
             explicit: {
                 notAllowed:
@@ -334,6 +375,7 @@ const dutchTranslation: TranslationType = {
                 statement_timestamp: "Tijdstip",
                 username: "Gebruikersnaam",
                 ballot_id: "Stembiljet ID",
+                message: "Bericht",
             },
         },
     },

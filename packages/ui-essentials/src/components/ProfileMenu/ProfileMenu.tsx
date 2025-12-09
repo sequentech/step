@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,16 +15,16 @@ import {
 import CountdownTimer from "../CountdownBar/CountdownBar"
 import AccountCircle from "@mui/icons-material/AccountCircle"
 import LogoutIcon from "@mui/icons-material/Logout"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
 
-const Span = styled.span`
+const Span = styled("span")`
     font-size: 14px;
     color: ${theme.palette.customGrey.dark};
 `
 
-const Name = styled.span`
+const Name = styled("span")`
     font-weight: 400;
 `
 
@@ -137,6 +137,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         setAnchorEl(null)
     }
 
+    const profileName =
+        userProfile.firstName && userProfile.firstName !== ""
+            ? userProfile.firstName
+            : userProfile.username
+
     return (
         <Box>
             <StyledButtonTooltip
@@ -165,11 +170,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                     )}
                     <StyledButton
                         className="logout-button"
-                        aria-label="log out button"
+                        aria-labelledby="welcome-text-name"
                         onClick={handleMenu}
                     >
                         <AccountCircle sx={{fontSize: 40}} />
                         <Box
+                            id="welcome-text-name"
                             className="user-first-name"
                             sx={{
                                 display: {xs: "none", sm: "block"},
@@ -180,19 +186,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 lineHeight: "18px",
                                 fontWeight: "200",
                             }}
-                            title={
-                                userProfile.firstName && userProfile.firstName !== ""
-                                    ? userProfile.firstName
-                                    : userProfile.username
-                            }
+                            title={profileName}
                         >
                             <Trans
                                 i18nKey="header.welcome"
                                 values={{
-                                    name:
-                                        userProfile.firstName && userProfile.firstName !== ""
-                                            ? userProfile.firstName
-                                            : userProfile.username,
+                                    name: profileName,
                                 }}
                                 components={{br: <br />, span: <Name />}}
                             />

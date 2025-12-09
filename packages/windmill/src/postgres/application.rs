@@ -1,13 +1,19 @@
-// SPDX-FileCopyrightText: 2024 Sequent Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::collections::HashMap;
 
 use crate::{
-    services::{application::ApplicationAnnotations, reports::voters::EnrollmentFilters},
+    services::application::ApplicationAnnotations,
     types::application::{ApplicationStatus, ApplicationType},
 };
+
+#[derive(Clone, Debug)]
+pub struct EnrollmentFilters {
+    pub status: ApplicationStatus,
+    pub verification_type: Option<ApplicationType>,
+}
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;

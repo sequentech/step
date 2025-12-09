@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
@@ -68,6 +67,7 @@ pub async fn find_area_ballots(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
+    election_id: &str,
     output_file: &PathBuf,
 ) -> Result<()> {
     // COPY does not support parameters so we have to add them using format
@@ -75,14 +75,14 @@ pub async fn find_area_ballots(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         voter_id_string,
-                        election_id,
                         content
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = '{tenant_id}' AND
                         election_event_id = '{election_event_id}' AND
-                        area_id = '{area_id}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
+                        area_id = '{area_id}' AND
+                        election_id = '{election_id}'
+                    ORDER BY voter_id_string
                 "#
     );
 
@@ -107,7 +107,7 @@ pub async fn find_area_ballots(
 
     let bytes_copied = copy(&mut async_reader, &mut writer).await?;
 
-    debug!("bytes_copied: {bytes_copied}");
+    info!("ballot bytes_copied: {bytes_copied}");
 
     writer.flush().await?;
 
@@ -412,18 +412,6 @@ pub async fn get_users_with_vote_info(
         user.votes_info = Some(votes_info);
     }
 
-    // filter by has_voted, if needed - keep only users with at least one vote
-    if let Some(has_voted) = filter_by_has_voted {
-        users.retain(|user| {
-            let info_count = user.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
-            if has_voted {
-                info_count > 0
-            } else {
-                info_count == 0
-            }
-        });
-    }
-
     Ok(users)
 }
 
@@ -703,41 +691,4 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
-}
-
-/// Returns the private signing key for the given voter.
-///
-/// The private key is generated and a log post
-/// is published with the corresponding public key
-/// (with StatementType::AdminPublicKey).
-///
-/// There is a possibility that the private key is created
-/// but the notification fails. This is logged in
-/// electorallog::post_voter_pk
-#[instrument(err)]
-pub async fn get_voter_signing_key(
-    hasura_transaction: &Transaction<'_>,
-    elog_database: &str,
-    tenant_id: &str,
-    event_id: &str,
-    user_id: &str,
-    area_id: &str,
-) -> Result<StrandSignatureSk> {
-    info!("Generating private signing key for voter {}", user_id);
-    let sk = StrandSignatureSk::gen()?;
-    let pk = StrandSignaturePk::from_sk(&sk)?;
-    let pk = pk.to_der_b64_string()?;
-
-    ElectoralLog::post_voter_pk(
-        hasura_transaction,
-        elog_database,
-        tenant_id,
-        event_id,
-        user_id,
-        &pk,
-        area_id,
-    )
-    .await?;
-
-    Ok(sk)
 }

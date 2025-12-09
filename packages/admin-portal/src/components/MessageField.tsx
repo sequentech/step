@@ -1,68 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {Box, Button} from "@mui/material"
-import {styled} from "@mui/material/styles"
+import {ExpandableText} from "@sequentech/ui-essentials"
 import React, {useEffect, useState} from "react"
 import {useRecordContext} from "react-admin"
 import {useTranslation} from "react-i18next"
-
-/**
- * A styled MUI Button that looks like a link.
- * The button will have no background, no border, no padding, and an underline.
- * The text will be black and the decoration will be an underline.
- * The button will have no box shadow.
- * The button will have a pointer cursor.
- * On hover, the button will have a black color and an underline decoration.
- * On active, the button will have a primary color and no decoration.
- * On focus, the button will have a primary color and an underline decoration.
- */
-const LinkButton = styled(Button)(({theme}) => ({
-    "minWidth": "auto",
-    "minHeight": "auto",
-    "background": "none",
-    "fontSize": "12px",
-    "color": theme.palette.primary.main,
-    "border": "none",
-    "padding": 0,
-    "textDecoration": "none",
-    "boxShadow": "none",
-    "cursor": "pointer",
-    /**
-     * On hover, the button will have a black color and an underline decoration.
-     */
-    "&:hover": {
-        background: "none",
-        padding: 0,
-        color: theme.palette.black,
-        textDecoration: "underline",
-        border: "none",
-        boxShadow: "none",
-    },
-    /**
-     * On active, the button will have a primary color and no decoration.
-     */
-    "&:active": {
-        background: "none",
-        padding: 0,
-        color: theme.palette.primary.main,
-        outline: "none",
-        border: "none",
-        boxShadow: "none",
-    },
-    /**
-     * On focus, the button will have a primary color and an underline decoration.
-     */
-    "&:focus": {
-        background: "none",
-        padding: 0,
-        color: theme.palette.primary.main,
-        boxShadow: "none",
-        border: "none",
-        outline: "none",
-    },
-}))
 
 type MessageFieldProps = {
     source?: string
@@ -91,7 +34,6 @@ export const MessageField: React.FC<MessageFieldProps> = ({
     const {t} = useTranslation()
     const base = useRecordContext()
     const [data, setData] = useState<string>("")
-    const [more, setMore] = useState<boolean>(false)
 
     useEffect(() => {
         if (base) {
@@ -100,26 +42,11 @@ export const MessageField: React.FC<MessageFieldProps> = ({
     }, [base, source, content])
 
     return (
-        <Box sx={{width: "100%"}}>
-            <Box sx={{flex: 1, overflowWrap: "anywhere"}}>
-                {more ? (
-                    <span>{data}</span>
-                ) : (
-                    <>
-                        <span>{data.slice(0, initialLength)}</span>
-                        <span>{data.length > initialLength ? "..." : ""}</span>
-                    </>
-                )}
-            </Box>
-            {data.length > initialLength && (
-                <Box sx={{display: "flex", justifyContent: "flex-end"}}>
-                    <LinkButton disableRipple onClick={() => setMore(!more)}>
-                        {more
-                            ? t("electionEventScreen.common.showLess")
-                            : t("electionEventScreen.common.showMore")}
-                    </LinkButton>
-                </Box>
-            )}
-        </Box>
+        <ExpandableText
+            text={data}
+            initialLength={initialLength}
+            showMoreLabel={t("electionEventScreen.common.showMore")}
+            showLessLabel={t("electionEventScreen.common.showLess")}
+        />
     )
 }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
@@ -19,7 +19,7 @@ interface CandidateContextProviderProps {
     /**
      * The elements wrapped by the Candidate context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 export const CandidateContextProvider = (props: CandidateContextProviderProps) => {
@@ -47,7 +47,7 @@ export const CandidateContextProvider = (props: CandidateContextProviderProps) =
 
 export const useCandidateStore: () => [
     string | null,
-    (CandidateId: string | null) => void
+    (CandidateId: string | null) => void,
 ] = () => {
     const {CandidateId, setCandidateId} = useContext(CandidateContext)
 

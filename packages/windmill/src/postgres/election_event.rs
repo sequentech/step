@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::import::import_election_event::ImportElectionEventSchema;
@@ -467,7 +467,7 @@ pub async fn delete_election_event(
     ];
 
     for table in related_tables {
-        let query = format!(
+        let query: String = format!(
             r#"
             DELETE FROM sequent_backend.{}
             WHERE tenant_id = $1 AND election_event_id = $2;

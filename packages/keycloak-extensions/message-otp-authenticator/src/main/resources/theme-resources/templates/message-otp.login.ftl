@@ -1,31 +1,17 @@
 <#--
-SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=true; section>
-    <#if section = "header" || section = "show-username">
-        <h1>
+    <#if section = "header">
             <#if isOtl>
                 ${msg("messageOtp.otl.title")}
             <#else>
                 ${msg("messageOtp.auth.title")}
             </#if>
-        </h1>
-        <#-- the following already declared at template.ftl for "show-username" case. --->
-        <#if section = "header" && section != "show-username">
-            <div id="kc-username" class="${properties.kcFormGroupClass!}">
-                <label id="kc-attempted-username">${address}</label>
-                <a id="reset-login" href="${url.loginRestartFlowUrl}" aria-label="${msg("restartRegistrationTooltip")}">
-                    <div class="kc-login-tooltip">
-                        <i class="${properties.kcResetFlowIcon!}"></i>
-                        <span class="kc-tooltip-text">${msg("restartRegistrationTooltip")}</span>
-                    </div>
-                </a>
-            </div>
-        </#if>
 	<#elseif section = "form">
 		<form
 			id="kc-message-code-login-form"

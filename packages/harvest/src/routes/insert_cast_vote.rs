@@ -1,6 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2024 David Ruescas <david@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -62,7 +60,7 @@ pub async fn insert_cast_vote(
                 &claims.hasura_claims.tenant_id,
                 &claims.hasura_claims.user_id,
                 &area_id,
-                &voting_channel,
+                voting_channel,
                 &claims.auth_time,
                 &user_info.ip.map(|ip| ip.to_string()),
                 &user_info
@@ -121,9 +119,9 @@ pub async fn insert_cast_vote(
                     ErrorCode::ElectoralLogNotFound,
                 )
             }
-            CastVoteError::CheckStatusFailed(_) => ErrorResponse::new(
+            CastVoteError::CheckStatusFailed(msg) => ErrorResponse::new(
                 Status::Unauthorized,
-                ErrorCode::CheckStatusFailed.to_string().as_str(),
+                &msg,
                 ErrorCode::CheckStatusFailed,
             ),
             CastVoteError::VotingChannelNotEnabled(_) => ErrorResponse::new(
@@ -136,17 +134,31 @@ pub async fn insert_cast_vote(
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,
             ),
-            CastVoteError::CheckPreviousVotesFailed(_) => {
+            CastVoteError::CheckPreviousVotesFailed(msg) => {
                 ErrorResponse::new(
                     Status::BadRequest,
-                    ErrorCode::CheckPreviousVotesFailed.to_string().as_str(),
+                    &msg,
                     ErrorCode::CheckPreviousVotesFailed,
+                )
+            }
+            CastVoteError::CheckRevotesFailed(msg) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &msg,
+                    ErrorCode::CheckRevotesFailed,
+                )
+            }
+            CastVoteError::CheckVotesInOtherAreasFailed(msg) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &msg,
+                    ErrorCode::CheckVotesInOtherAreasFailed,
                 )
             }
             CastVoteError::InsertFailedExceedsAllowedRevotes => ErrorResponse::new(
                 Status::BadRequest,
-                ErrorCode::CheckPreviousVotesFailed.to_string().as_str(),
-                ErrorCode::CheckPreviousVotesFailed,
+                ErrorCode::InsertFailedExceedsAllowedRevotes.to_string().as_str(),
+                ErrorCode::InsertFailedExceedsAllowedRevotes,
             ),
             CastVoteError::InsertFailed(_) => ErrorResponse::new(
                 Status::InternalServerError,
@@ -196,6 +208,13 @@ pub async fn insert_cast_vote(
                     ErrorCode::DeserializeContestsFailed,
                 )
             }
+            CastVoteError::DeserializeAreaPresentationFailed(_) => {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    ErrorCode::DeserializeAreaPresentationFailed.to_string().as_str(),
+                    ErrorCode::DeserializeAreaPresentationFailed,
+                )
+            }
             CastVoteError::SerializeVoterIdFailed(_) => {
                 ErrorResponse::new(
                     Status::InternalServerError,
@@ -238,6 +257,11 @@ pub async fn insert_cast_vote(
                 Status::InternalServerError,
                 ErrorCode::UnknownError.to_string().as_str(),
                 ErrorCode::UnknownError,
+            ),
+            CastVoteError::BallotIdMismatch(msg) => ErrorResponse::new(
+                Status::BadRequest,
+                &msg,
+                ErrorCode::BallotIdMismatch,
             ),
         }
     })?;

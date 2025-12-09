@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const tagalogTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Bumalik",
+            showMore: "Lakihan ang nakikita",
+            showLess: "Bawasan ang nakikita",
         },
         breadcrumbSteps: {
             electionList: "Listahan ng mga Balota",
@@ -14,6 +16,9 @@ const tagalogTranslation: TranslationType = {
             review: "Suriin",
             confirmation: "Kumpirmasyon",
             audit: "Audit",
+        },
+        footer: {
+            poweredBy: "Pinapagana ng <1></1>",
         },
         votingScreen: {
             backButton: "Bumalik",
@@ -31,6 +36,14 @@ const tagalogTranslation: TranslationType = {
                     "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga tanong.",
                 ok: "Bumalik at suriin",
                 continue: "Ipagpatuloy",
+                cancel: "Kanselahin",
+            },
+            warningDialog: {
+                title: "Suriin ang iyong balota",
+                content:
+                    "Ang iyong balota ay naglalaman ng mga pagpili na maaaring mangailangan ng iyong pansin (tulad ng pagpili ng mas kaunting opsyon kaysa sa pinapayagan). Ang iyong balota ay wasto at biblangin ayon sa iyong isinumite.",
+                ok: "Bumalik at suriin",
+                continue: "Magpatuloy",
                 cancel: "Kanselahin",
             },
         },
@@ -124,6 +137,14 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng error sa pagproseso ng iyong kahilingan. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_unexpected:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
+                CAST_VOTE_timeout:
+                    "May error sa timeout sa pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Lumampas ka na sa limitasyon ng muling pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Lumampas ka na sa pinapayagang bilang ng muling pagboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Nakaboto ka na sa ibang lugar. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
@@ -146,6 +167,23 @@ const tagalogTranslation: TranslationType = {
                     "Nagkaroon ng error sa pag-serialize ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helodesk para sa tulong.",
                 UNKNOWN_ERROR:
                     "Nagkaroon ng error. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
+                REAUTH_FAILED:
+                    "Nabigo ang authentication. Pakisubukan muli o makipag-ugnayan sa helpdesk para sa tulong.",
+                SESSION_EXPIRED:
+                    "Ang iyong session ay nag-expire na. Pakisubukan muli mula sa simula.",
+                CAST_VOTE_BallotIdMismatch: "Hindi tumutugma ang ballot ID sa ibinotong boto.",
+                SESSION_STORAGE_ERROR:
+                    "Hindi magamit ang session storage. Pakisubukang muli o makipag-ugnayan sa support.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Nagkaroon ng error sa pag-parse ng data ng balota. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Ang data ng balota ay hindi wasto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "May error sa timeout sa pagkuha ng data. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "May error sa pag-convert sa hashable na balota. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
+                INTERNAL_ERROR:
+                    "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
         },
         confirmationScreen: {
@@ -281,6 +319,10 @@ const tagalogTranslation: TranslationType = {
                 overVoteDisabled:
                     "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
                 blankVote: "Blank Vote: Walang pinili",
+                preferenceOrderWithGaps:
+                    "Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
+                duplicatedPosition:
+                    "Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
             },
             explicit: {
                 notAllowed:
@@ -329,10 +371,11 @@ const tagalogTranslation: TranslationType = {
                 ballotLocator: "Lokaliseer uw Stembiljet",
             },
             column: {
-                statement_kind: "Type",
-                statement_timestamp: "Tijdstip",
-                username: "Gebruikersnaam",
-                ballot_id: "Stembiljet ID",
+                statement_kind: "Uri",
+                statement_timestamp: "Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
+                message: "Mensahe",
             },
         },
     },

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,7 +10,7 @@ import {
     IExecutionStatus,
 } from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
-import {Alert} from "@mui/material"
+import {Alert, CircularProgress} from "@mui/material"
 import React, {useContext, useState, useEffect} from "react"
 import {StartStep} from "@/components/keys-ceremony/StartStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
@@ -18,6 +18,7 @@ import {useTranslation} from "react-i18next"
 import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
+import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 
 export const isTrusteeParticipating = (
     ceremony: Sequent_Backend_Keys_Ceremony,
@@ -42,7 +43,7 @@ const hasTrusteeCheckedKeys = (
 }
 
 interface TrusteeWizardProps {
-    electionEvent: Sequent_Backend_Election_Event
+    electionEvent?: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony
     setCurrentCeremony?: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     goBack: () => void
@@ -114,6 +115,15 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
     }
 
+    if (!electionEvent) {
+        return <CircularProgress />
+    }
+
+    const isAutomaticCeremony =
+        electionEvent.presentation?.ceremonies_policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
     return (
         <WizardStyles.WizardWrapper>
             <BreadCrumbSteps
@@ -169,7 +179,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                             ? () => setCurrentStep(WizardStep.Start)
                             : undefined
                     }
-                    isNextDisabled={checkKeysGenerated()}
+                    isNextDisabled={checkKeysGenerated() || isAutomaticCeremony}
                     message={
                         checkKeysGenerated() ? (
                             <>

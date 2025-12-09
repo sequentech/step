@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -360,7 +360,8 @@ function TreeMenuItem({
     const [open, setOpen] = useState(false)
 
     const location = useLocation()
-    const {setTallyId, setTaskId, setCustomFilter} = useElectionEventTallyStore()
+    const {setTallyId, setTaskId, setCustomFilter, setCreatedFlag, setCreatingFlag} =
+        useElectionEventTallyStore()
 
     const onClick = (isLabel: boolean) => {
         if (isLabel && open) {
@@ -390,6 +391,8 @@ function TreeMenuItem({
     useEffect(() => {
         // set context tally to null to allow navigation to new election event tally
         setTallyId(null)
+        setCreatedFlag(false)
+        setCreatingFlag(null)
         // set context task to null to allow navigation to new election event task
         setTaskId(null)
         // set context task to null to allow navigation to new election event task

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const catalanTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Tornar",
+            showMore: "Mostra'n més",
+            showLess: "Mostra'n menys",
         },
         breadcrumbSteps: {
             electionList: "Llista de Votacions",
@@ -14,6 +16,9 @@ const catalanTranslation: TranslationType = {
             review: "Revisió",
             confirmation: "Confirmació",
             audit: "Auditar",
+        },
+        footer: {
+            poweredBy: "Funciona amb <1></1>",
         },
         votingScreen: {
             backButton: "Enrere",
@@ -32,6 +37,14 @@ const catalanTranslation: TranslationType = {
                 ok: "Tornar i revisar",
                 continue: "Continuar",
                 cancel: "Cancel·lar",
+            },
+            warningDialog: {
+                title: "Revisa la teva papereta",
+                content:
+                    "La teva papereta conté seleccions que poden necessitar la teva atenció (com ara seleccionar menys opcions de les permeses). La teva papereta és vàlida i es comptarà tal com s'ha enviat.",
+                ok: "Torna i revisa",
+                continue: "Continua",
+                cancel: "Cancel·la",
             },
         },
         startScreen: {
@@ -124,6 +137,14 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error en processar la seva sol·licitud. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 CAST_VOTE_unexpected:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
+                CAST_VOTE_timeout:
+                    "Error de temps d'espera per emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Heu superat el límit de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Heu superat el nombre permès de revots. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Ja heu votat en una altra àrea. Si us plau, torneu-ho a provar més tard o contacteu amb l'assistència per obtenir ajuda.",
                 CAST_VOTE_UnknownError:
                     "Hi ha hagut un error desconegut en emetre el vot. Si us plau, torni-ho a provar més tard o contacti amb el suport per obtenir ajuda.",
                 NO_BALLOT_SELECTION:
@@ -148,6 +169,24 @@ const catalanTranslation: TranslationType = {
                     "Hi ha hagut un error en serialitzar la papereta. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
                 UNKNOWN_ERROR:
                     "Hi ha hagut un error. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
+                REAUTH_FAILED:
+                    "L'autenticació ha fallat. Si us plau, torna-ho a intentar o contacta amb el servei d'assistència.",
+                SESSION_EXPIRED:
+                    "La teva sessió ha caducat. Si us plau, torna a començar des del principi.",
+                CAST_VOTE_BallotIdMismatch:
+                    "L'identificador de la papereta no coincideix amb el del vot emès.",
+                SESSION_STORAGE_ERROR:
+                    "L'emmagatzematge de sessió no està disponible. Si us plau, torneu-ho a provar o contacteu amb el suport.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "S'ha produït un error en analitzar les dades de la papereta. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Les dades de la papereta no són vàlides. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Error de temps d'espera en obtenir les dades. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Error en convertir a papereta hashable. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
+                INTERNAL_ERROR:
+                    "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
         },
         confirmationScreen: {
@@ -282,6 +321,9 @@ const catalanTranslation: TranslationType = {
                 overVoteDisabled:
                     "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
                 blankVote: "Vot en Blanc: 0 opcions seleccionades",
+                preferenceOrderWithGaps: "L'ordre de preferència té un o més buits.",
+                duplicatedPosition:
+                    "La mateixa posició va ser seleccionada per a dos o més candidats.",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",
@@ -334,6 +376,7 @@ const catalanTranslation: TranslationType = {
                 statement_timestamp: "Marca de temps",
                 username: "Usuari",
                 ballot_id: "ID de la Papereta",
+                message: "Missatge",
             },
         },
     },

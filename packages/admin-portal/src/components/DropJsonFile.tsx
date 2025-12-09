@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useRef} from "react"
@@ -28,7 +28,7 @@ const DropJsonFile: React.FC<DropJsonFileProps> = ({handleFiles}) => {
                 variant="responsive"
                 sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
             >
-                <Icon variant="info" icon={faCloudArrowUp} fontSize="50px" />
+                <Icon variant="info" icon={faCloudArrowUp as any} fontSize="50px" />
                 <Box
                     sx={{
                         display: "flex",

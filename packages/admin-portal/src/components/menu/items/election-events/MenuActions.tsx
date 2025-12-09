@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,14 +15,17 @@ import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
 import {getNavLinkCreate, mapAddResource, mapImportResource} from "./TreeMenu"
 import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {divContainer} from "@/components/styles/Menu"
 import {useMutation} from "@apollo/client"
-import {DeleteElectionEvent} from "@/gql/graphql"
+import {DeleteElectionEvent, DeleteElectionEventMutation} from "@/gql/graphql"
 import {DELETE_ELECTION_EVENT} from "@/queries/DeleteElectionEvent"
 import {IPermissions} from "@/types/keycloak"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {WidgetProps} from "@/components/Widget"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
@@ -57,6 +60,15 @@ interface Props {
     reloadTree: () => void
 }
 
+const StyledIconContainer = styled("p")`
+    ${divContainer}
+    cursor: pointer
+`
+
+const StyledAddCircleIcon = styled(AddCircleIcon)`
+    color: ${adminTheme.palette.brandColor};
+`
+
 export default function MenuAction({
     isArchivedTab,
     resourceId,
@@ -75,13 +87,16 @@ export default function MenuAction({
 
     const [deleteOne] = useDelete()
     const [update] = useUpdate()
-    const [delete_election_event] = useMutation<DeleteElectionEvent>(DELETE_ELECTION_EVENT, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+    const [delete_election_event] = useMutation<DeleteElectionEventMutation>(
+        DELETE_ELECTION_EVENT,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.ELECTION_EVENT_DELETE,
+                },
             },
-        },
-    })
+        }
+    )
 
     const notify = useNotify()
 
@@ -93,7 +108,7 @@ export default function MenuAction({
         action: Action
         payload: ActionPayload
     } | null>(null)
-
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const isItemElectionEventType = resourceType === "sequent_backend_election_event"
     const {setElectionEventIdFlag, setElectionIdFlag, setContestIdFlag, setCandidateIdFlag} =
         useElectionEventTallyStore()
@@ -180,24 +195,28 @@ export default function MenuAction({
     }
 
     const deleteElectionEventAction = async (payload: ActionPayload) => {
+        const currWidget: WidgetProps = addWidget(ETasksExecution.DELETE_ELECTION_EVENT, undefined)
         try {
-            await delete_election_event({
+            const {data, errors} = await delete_election_event({
                 variables: {
                     electionEventId: payload.id,
                 },
             })
-            notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
-                type: "success",
+
+            if (data?.delete_election_event?.error_msg || errors) {
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            const taskId = data?.delete_election_event?.task_execution?.id
+            setWidgetTaskId(currWidget.identifier, taskId, () => {
+                setSelectedActionModal(null)
+                setElectionEventIdFlag(null)
+                setElectionIdFlag(null)
+                setContestIdFlag(null)
+                reloadTree()
             })
-            setSelectedActionModal(null)
-            setElectionEventIdFlag(null)
-            setElectionIdFlag(null)
-            setContestIdFlag(null)
-            reloadTree()
         } catch (error) {
-            notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
-                type: "error",
-            })
+            updateWidgetFail(currWidget.identifier)
         }
     }
 
@@ -254,15 +273,6 @@ export default function MenuAction({
 
     const openActionMenu = Boolean(anchorEl)
     const idActionMenu = openActionMenu ? "action-menu" : undefined
-
-    const StyledIconContainer = styled.p`
-        ${divContainer}
-        cursor: pointer
-    `
-
-    const StyledAddCircleIcon = styled(AddCircleIcon)`
-        color: ${adminTheme.palette.brandColor};
-    `
 
     /**
      * Permissions
@@ -445,8 +455,8 @@ export default function MenuAction({
                         ? t("common.label.archive")
                         : t("common.label.unarchive")
                 }
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmArchiveAction()
@@ -462,9 +472,9 @@ export default function MenuAction({
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

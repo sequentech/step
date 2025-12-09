@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 export interface ICandidateUrl {
@@ -6,6 +6,11 @@ export interface ICandidateUrl {
     kind?: string
     title?: string
     is_image: boolean
+}
+
+export enum IInvalidVotePosition {
+    TOP = "top",
+    BOTTOM = "bottom",
 }
 
 export interface ICandidatePresentation {

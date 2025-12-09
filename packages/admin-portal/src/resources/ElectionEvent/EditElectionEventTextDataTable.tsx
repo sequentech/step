@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -103,10 +103,13 @@ const LocalizationList: React.FC<LocalizationListProps> = ({
                 sort={sort}
                 setSort={setSort}
             >
-                <TextField source="id" label={t("electionEventScreen.localization.labels.key")} />
+                <TextField
+                    source="id"
+                    label={String(t("electionEventScreen.localization.labels.key"))}
+                />
                 <TextField
                     source="value"
-                    label={t("electionEventScreen.localization.labels.value")}
+                    label={String(t("electionEventScreen.localization.labels.value"))}
                 />
                 <WrapperField label="Actions">
                     <ActionsColumn actions={actions} />
@@ -177,15 +180,15 @@ const EditElectionEventTextDataTable = () => {
         update(
             "sequent_backend_election_event",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     presentation: {
-                        ...record.presentation,
+                        ...record?.presentation,
                         i18n: {
-                            ...record.presentation.i18n,
+                            ...record?.presentation.i18n,
                             [selectedLanguage]: {
-                                ...record.presentation.i18n?.[selectedLanguage],
+                                ...record?.presentation.i18n?.[selectedLanguage],
                                 [newKey]: newValue,
                             },
                         },
@@ -212,15 +215,15 @@ const EditElectionEventTextDataTable = () => {
         update(
             "sequent_backend_election_event",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     presentation: {
-                        ...record.presentation,
+                        ...record?.presentation,
                         i18n: {
-                            ...record.presentation.i18n,
+                            ...record?.presentation.i18n,
                             [selectedLanguage]: {
-                                ...record.presentation.i18n?.[selectedLanguage],
+                                ...record?.presentation.i18n?.[selectedLanguage],
                                 [recordId as string]: editVal,
                             },
                         },
@@ -242,19 +245,19 @@ const EditElectionEventTextDataTable = () => {
     }
     const confirmDeleteAction = () => {
         if (!deleteId || !selectedLanguage) return
-        const updatedI18nForLanguage = {...record.presentation.i18n[selectedLanguage]}
+        const updatedI18nForLanguage = {...record?.presentation.i18n[selectedLanguage]}
         delete updatedI18nForLanguage[deleteId as string]
 
         update(
             "sequent_backend_election_event",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     presentation: {
-                        ...record.presentation,
+                        ...record?.presentation,
                         i18n: {
-                            ...record.presentation?.i18n,
+                            ...record?.presentation?.i18n,
                             [selectedLanguage]: updatedI18nForLanguage,
                         },
                     },
@@ -309,7 +312,7 @@ const EditElectionEventTextDataTable = () => {
                             <Select
                                 labelId="select-language"
                                 fullWidth
-                                label={t("electionEventScreen.localization.selectLanguage")}
+                                label={String(t("electionEventScreen.localization.selectLanguage"))}
                                 onChange={handleLanguageChange}
                                 value={selectedLanguage}
                             >
@@ -328,7 +331,7 @@ const EditElectionEventTextDataTable = () => {
                         {canCreateLocalization ? (
                             <Button
                                 onClick={() => setOpenCreate(true)}
-                                label={t("common.label.add")}
+                                label={String(t("common.label.add"))}
                             >
                                 <Add />
                             </Button>
@@ -358,11 +361,15 @@ const EditElectionEventTextDataTable = () => {
 
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                        label={t("electionEventScreen.localization.labels.key")}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.key")
+                                        )}
                                     />
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                        label={t("electionEventScreen.localization.labels.value")}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.value")
+                                        )}
                                         multiline
                                     />
                                 </>
@@ -373,7 +380,7 @@ const EditElectionEventTextDataTable = () => {
                 <List actions={false} sx={{flexGrow: 1, width: "100%"}} pagination={false}>
                     <LocalizationList
                         selectedLanguage={selectedLanguage}
-                        election_event_id={record.id}
+                        election_event_id={record?.id}
                         actions={actions}
                     />
                 </List>
@@ -402,13 +409,13 @@ const EditElectionEventTextDataTable = () => {
 
                         <TextInput
                             source="editableKey"
-                            label={t("electionEventScreen.localization.labels.key")}
+                            label={String(t("electionEventScreen.localization.labels.key"))}
                             defaultValue={recordId ?? undefined}
                             disabled
                         />
                         <TextInput
                             source="editableVal"
-                            label={t("electionEventScreen.localization.labels.value")}
+                            label={String(t("electionEventScreen.localization.labels.value"))}
                             defaultValue={
                                 recordId
                                     ? record?.presentation?.i18n[selectedLanguage][recordId]
@@ -423,9 +430,9 @@ const EditElectionEventTextDataTable = () => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()

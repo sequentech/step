@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::keycloak::get_keyckloak_pool;
@@ -110,7 +110,8 @@ impl CreateElectoralLogs {
         let tenant_id = config.tenant_id;
         let election_event_id = config.election_event_id;
         let election_id = config.election_id;
-        let immudb_db = get_event_board(&tenant_id, &election_event_id);
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let immudb_db = get_event_board(&tenant_id, &election_event_id, &slug);
         let area_id = config.area_id;
         let realm_name = config.realm_name;
 

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -78,7 +78,7 @@ public class SmartLinkActionTokenHandler extends AbstractActionTokenHandler<Smar
 
     if (token.getScopes() != null) {
       authSession.setClientNote(OAuth2Constants.SCOPE, token.getScopes());
-      AuthenticationManager.setClientScopesInSession(authSession);
+      AuthenticationManager.setClientScopesInSession(session, authSession);
     }
 
     if (token.getRememberMe() != null && token.getRememberMe()) {

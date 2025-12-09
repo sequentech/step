@@ -1,9 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import styled from "@emotion/styled"
-import {styled as muiStyled} from "@mui/material/styles"
+import {styled} from "@mui/material/styles"
 import {Box, Drawer, Button} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
 import MailIcon from "@mui/icons-material/Mail"
@@ -20,7 +19,7 @@ export const ResourceListStyles = {
         text-align: center;
         width: 100%;
     `,
-    EmptyButtonList: styled.div`
+    EmptyButtonList: styled("div")`
         display: flex;
         flex-direction: row;
         gap: 10px;
@@ -29,7 +28,7 @@ export const ResourceListStyles = {
         font-size: 24px;
         margin-right: 0.5em;
     `,
-    Drawer: muiStyled(Drawer)`
+    Drawer: styled(Drawer)`
         width: 40%;
         media (max-width: 800px) {
             width: 60%;

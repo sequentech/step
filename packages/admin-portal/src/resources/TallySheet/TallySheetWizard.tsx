@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
@@ -180,8 +180,8 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                                 {page === WizardSteps.Edit
                                     ? t("tallysheet.common.confirm")
                                     : page === WizardSteps.Confirm
-                                    ? t("tallysheet.common.save")
-                                    : t("tallysheet.common.next")}
+                                      ? t("tallysheet.common.save")
+                                      : t("tallysheet.common.next")}
                                 <ChevronRightIcon />
                             </>
                         </NextButton>

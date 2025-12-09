@@ -1,8 +1,8 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo} from "react"
-import {SxProps} from "@mui/material"
+import {SxProps, Theme} from "@mui/material"
 import {AutocompleteInput, useDataProvider, useGetList, required} from "react-admin"
 import {ETemplateType} from "@/types/templates"
 
@@ -12,7 +12,7 @@ interface SelectTemplateProps {
     source: string
     label?: string
     onSelectTemplate?: (template: {alias: string}) => void
-    customStyle?: SxProps
+    customStyle?: SxProps<Theme>
     disabled?: boolean
     value?: string | null
     isRequired?: boolean
@@ -72,7 +72,7 @@ const SelectTemplate = ({
             choices={choices}
             onChange={handleTemplateChange}
             debounce={100}
-            sx={customStyle}
+            sx={customStyle as any}
             disabled={disabled}
             validate={isRequired ? [required()] : undefined}
             isLoading={isLoading}

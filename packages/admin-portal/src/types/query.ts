@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -107,6 +107,7 @@ export const sequent_backend_tally_session_execution: Sequent_Backend_Tally_Sess
     status: undefined,
     tally_session_id: "",
     tenant_id: "",
+    documents: undefined,
 }
 
 export const sequent_backend_tally_session_contest: Sequent_Backend_Tally_Session_Contest = {
@@ -169,6 +170,7 @@ const sequent_backend_area: Sequent_Backend_Area = {
     name: undefined,
     tenant_id: "",
     type: undefined,
+    presentation: undefined,
 }
 
 export const sequent_backend_area_contest: Sequent_Backend_Area_Contest = {

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -64,6 +64,8 @@ impl Clone for Input {
                     header_template: pdf_options.header_template.clone(),
                     footer_template: pdf_options.footer_template.clone(),
                     prefer_css_page_size: pdf_options.prefer_css_page_size.clone(),
+                    generate_document_outline: pdf_options.generate_document_outline.clone(),
+                    generate_tagged_pdf: pdf_options.generate_tagged_pdf.clone(),
                     transfer_mode: None,
                 }),
             },
@@ -92,6 +94,8 @@ impl Clone for Input {
                     header_template: pdf_options.header_template.clone(),
                     footer_template: pdf_options.footer_template.clone(),
                     prefer_css_page_size: pdf_options.prefer_css_page_size.clone(),
+                    generate_document_outline: pdf_options.generate_document_outline.clone(),
+                    generate_tagged_pdf: pdf_options.generate_tagged_pdf.clone(),
                     transfer_mode: None,
                 }),
             },

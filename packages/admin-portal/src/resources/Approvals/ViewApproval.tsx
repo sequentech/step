@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -172,7 +172,7 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
 
                 {task.status === IApplicationsStatus.PENDING && (
                     <RejectApplicationButton
-                        label={t("approvalsScreen.reject.label")}
+                        label={String(t("approvalsScreen.reject.label"))}
                         onClick={setRejectDialogOpen}
                     />
                 )}
@@ -192,12 +192,12 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 open={true}
                 variant="info"
                 handleClose={goBack}
-                title={t("approvalsScreen.taskInformation")}
-                ok={t("approvalsScreen.ok")}
+                title={String(t("approvalsScreen.taskInformation"))}
+                ok={String(t("approvalsScreen.ok"))}
                 fullWidth={true}
                 maxWidth="md"
             >
-                {Content}
+                <>{Content}</>
             </Dialog>
         )
     }

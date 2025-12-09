@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
@@ -72,7 +72,9 @@ const englishTranslation = {
             points: "({{points}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
         },
-        poweredBy: "Powered by",
+        footer: {
+            poweredBy: "Powered by <1></1>",
+        },
         errors: {
             encoding: {
                 notEnoughChoices: "Not enough choices to decode",

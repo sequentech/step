@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,14 +6,15 @@ import React from "react"
 import {EditBase, useGetOne} from "react-admin"
 import {CandidateDataForm} from "./CandidateDataForm"
 import {Sequent_Backend_Candidate, Sequent_Backend_Document} from "@/gql/graphql"
+import {CircularProgress} from "@mui/material"
 
-export const EditCandidateData: React.FC<{record: Sequent_Backend_Candidate}> = ({record}) => {
+export const EditCandidateData: React.FC<{record?: Sequent_Backend_Candidate}> = ({record}) => {
+    if (!record) {
+        return <CircularProgress />
+    }
     const transform = (data: any) => {
-        console.log("TRANSFORM ELECTION :: ", data)
-
         // save presentation object
         // language_conf
-        console.log("data before :: ", data)
         const enabled_language_codes = []
         for (const key in data.enabled_languages) {
             if (typeof data.enabled_languages[key] === "boolean" && data.enabled_languages[key]) {

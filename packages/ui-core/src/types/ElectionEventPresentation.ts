@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -45,6 +45,11 @@ export enum EElectionEventLockedDown {
     NOT_LOCKED_DOWN = "not-locked-down",
 }
 
+export enum EElectionEventDecodedBallots {
+    INCLUDED = "included",
+    NOT_INCLUDED = "not-included",
+}
+
 export enum EElectionEventContestEncryptionPolicy {
     MULTIPLE_CONTESTS = "multiple-contests",
     SINGLE_CONTEST = "single-contest",
@@ -65,6 +70,21 @@ export enum EElectionEventOTP {
     DISABLED = "disabled",
 }
 
+export enum EElectionEventCeremoniesPolicy {
+    MANUAL_CEREMONIES = "manual-ceremonies",
+    AUTOMATED_CEREMONIES = "automated-ceremonies",
+}
+
+export enum EElectionEventWeightedVotingPolicy {
+    AREAS_WEIGHTED_VOTING = "areas-weighted-voting",
+    DISABLED_WEIGHTED_VOTING = "disabled-weighted-voting",
+}
+
+export enum EElectionEventDelegatedVotingPolicy {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -78,9 +98,13 @@ export interface IElectionEventPresentation {
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
     keys_ceremony_policy?: KeysCeremonyPolicy
-    locked_down: EElectionEventLockedDown
-    contest_encryption_policy: EElectionEventContestEncryptionPolicy
-    publish_policy: EElectionEventPublishPolicy
-    enrollment: EElectionEventEnrollment
-    otp: EElectionEventOTP
+    locked_down?: EElectionEventLockedDown
+    contest_encryption_policy?: EElectionEventContestEncryptionPolicy
+    publish_policy?: EElectionEventPublishPolicy
+    enrollment?: EElectionEventEnrollment
+    otp?: EElectionEventOTP
+    ceremonies_policy?: EElectionEventCeremoniesPolicy
+    weighted_voting_policy?: EElectionEventWeightedVotingPolicy
+    voter_signing_policy?: EVoterSigningPolicy
+    delegated_voting_policy: EElectionEventDelegatedVotingPolicy
 }

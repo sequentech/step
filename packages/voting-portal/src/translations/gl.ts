@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Legal <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
 import {TranslationType} from "./en"
@@ -8,6 +8,8 @@ const galegoTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Volver",
+            showMore: "Mostrar Máis",
+            showLess: "Mostrar Menos",
         },
         breadcrumbSteps: {
             electionList: "Lista de Papeletas",
@@ -15,6 +17,9 @@ const galegoTranslation: TranslationType = {
             review: "Revisión",
             confirmation: "Confirmación",
             audit: "Auditoría",
+        },
+        footer: {
+            poweredBy: "Desenvolvido por <1></1>",
         },
         votingScreen: {
             backButton: "Volver",
@@ -31,6 +36,14 @@ const galegoTranslation: TranslationType = {
                 content:
                     "Algunhas das túas respostas farán que a papeleta sexa inválida ou quede en branco en unha ou máis preguntas.",
                 ok: "Volver e revisar",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
+            warningDialog: {
+                title: "Revisa a túa papeleta",
+                content:
+                    "A túa papeleta contén seleccións que poden necesitar a túa atención (como seleccionar menos opcións das permitidas). A túa papeleta é válida e contarase tal como se enviou.",
+                ok: "Voltar e revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
@@ -125,6 +138,14 @@ const galegoTranslation: TranslationType = {
                     "Produciuse un erro ao procesar a túa solicitude. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 CAST_VOTE_unexpected:
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
+                CAST_VOTE_timeout:
+                    "Erro de tempo de espera ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Superou o límite de renovacións de voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Superou o número permitido de renovacións de voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Xa votou noutra área. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
                 CAST_VOTE_UnknownError:
                     "Produciuse un erro descoñecido ao emitir o voto. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 NO_BALLOT_SELECTION:
@@ -146,6 +167,24 @@ const galegoTranslation: TranslationType = {
                     "Houbo un erro ao serializar a papeleta. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
                 UNKNOWN_ERROR:
                     "Houbo un erro. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
+                REAUTH_FAILED:
+                    "A autenticación fallou. Inténtao de novo ou contacta co soporte para obter axuda.",
+                SESSION_EXPIRED:
+                    "A túa sesión expirou. Por favor, comeza de novo dende o principio.",
+                CAST_VOTE_BallotIdMismatch:
+                    "O identificador da papeleta non coincide co do voto emitido.",
+                SESSION_STORAGE_ERROR:
+                    "O almacenamento de sesión non está dispoñible. Por favor, inténteo de novo ou contacte co soporte.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Houbo un erro ao analizar os datos da papeleta. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Os datos da papeleta non son válidos. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Erro de tempo de espera ao obter os datos. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Erro ao converter a papeleta hashable. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
+                INTERNAL_ERROR:
+                    "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
         },
         confirmationScreen: {
@@ -280,6 +319,9 @@ const galegoTranslation: TranslationType = {
                 overVoteDisabled:
                     "Máximo alcanzado: Seleccionaches o máximo {{numSelected}} opcións. Para cambiar a selección, deselecciona primeiro outra opción.",
                 blankVote: "Voto en branco: 0 opcións seleccionadas",
+                preferenceOrderWithGaps: "A orde de preferencia ten un ou máis ocos.",
+                duplicatedPosition:
+                    "A mesma posición foi seleccionada para dous ou máis candidatos.",
             },
             explicit: {
                 notAllowed:
@@ -333,6 +375,7 @@ const galegoTranslation: TranslationType = {
                 statement_timestamp: "Marca de tempo",
                 username: "Nome de usuario",
                 ballot_id: "ID da papeleta",
+                message: "Mensaxe",
             },
         },
     },

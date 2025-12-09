@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress} from "@mui/material"
@@ -96,7 +96,7 @@ interface SettingsContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 const SettingsContextProvider = (props: SettingsContextProviderProps) => {
@@ -121,7 +121,7 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
         if (!loaded) {
             loadSettings()
         }
-    }, [])
+    }, [loaded])
     // Setup the context provider
     return (
         <SettingsContext.Provider

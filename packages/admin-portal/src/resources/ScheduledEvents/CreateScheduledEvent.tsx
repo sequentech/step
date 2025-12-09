@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {FC, useEffect, useMemo, useState} from "react"
@@ -87,8 +87,8 @@ const CreateEvent: FC<CreateEventProps> = ({
     )
     const [eventType, setEventType] = useState<EventProcessors>(
         isEditEvent
-            ? (selectedEvent?.event_processor as EventProcessors | null) ??
-                  EventProcessors.START_VOTING_PERIOD
+            ? ((selectedEvent?.event_processor as EventProcessors | null) ??
+                  EventProcessors.START_VOTING_PERIOD)
             : EventProcessors.START_VOTING_PERIOD
     )
     useEffect(() => {
@@ -155,6 +155,10 @@ const CreateEvent: FC<CreateEventProps> = ({
             console.error(error)
         }
     }
+    const isRequiredElection = (eventType: EventProcessors) =>
+        ![EventProcessors.START_VOTING_PERIOD, EventProcessors.END_VOTING_PERIOD].includes(
+            eventType
+        )
 
     const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -181,7 +185,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         required
                         name="event_type"
                         labelId="event-type-select-label"
-                        label={t("eventsScreen.eventType.label")}
+                        label={String(t("eventsScreen.eventType.label"))}
                         value={eventType}
                         onChange={(e: any) => setEventType(e.target.value)}
                         disabled={isEditEvent || isLoading}
@@ -218,16 +222,17 @@ const CreateEvent: FC<CreateEventProps> = ({
                 <FormControl fullWidth>
                     {isEditEvent ? (
                         <TextField
-                            label={t("eventsScreen.election.label")}
+                            label={String(t("eventsScreen.election.label"))}
                             disabled={true}
                             value={selectedEvent ? getElectionName(selectedEvent) : "-"}
                         />
                     ) : (
                         targetsElection(eventType as EventProcessors) && (
                             <SelectElection
+                                isRequired={isRequiredElection(eventType as EventProcessors)}
                                 tenantId={tenantId}
                                 electionEventId={electionEventId}
-                                label={t("eventsScreen.election.label")}
+                                label={String(t("eventsScreen.election.label"))}
                                 onSelectElection={(electionId) => setElectionId(electionId)}
                                 source="event_payload.election_id"
                                 disabled={isEditEvent || isLoading}

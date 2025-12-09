@@ -1,0 +1,19 @@
+{
+  "name": "graphql",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+
+  "scripts": {
+    "preprocess-schema": "node ./preprocess-schema.js",
+    "generate-docs-graphql": "npx spectaql spectaql-config.yml",
+    "generate-full-docs": "mkdir -p ./docs && yarn run preprocess-schema && yarn run generate-docs-graphql"
+  },
+  "dependencies": {
+    "graphql": "^16.11.0",
+    "spectaql": "^3.0.5"
+  },
+  "resolutions": {
+    "graphql": "16.11.0"
+  }
+}

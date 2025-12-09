@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -7,6 +7,8 @@ const frenchTranslation: TranslationType = {
     translations: {
         common: {
             goBack: "Revenir",
+            showMore: "Afficher plus",
+            showLess: "Afficher moins",
         },
         breadcrumbSteps: {
             electionList: "Liste des Élections",
@@ -14,6 +16,9 @@ const frenchTranslation: TranslationType = {
             review: "Révision",
             confirmation: "Confirmation",
             audit: "Auditer",
+        },
+        footer: {
+            poweredBy: "Propulsé par <1></1>",
         },
         votingScreen: {
             backButton: "Retour",
@@ -30,6 +35,14 @@ const frenchTranslation: TranslationType = {
                 content:
                     "Certaines de vos réponses pourraient rendre le bulletin invalide ou blanc dans une ou plusieurs questions.",
                 ok: "Revenir et réviser",
+                continue: "Continuer",
+                cancel: "Annuler",
+            },
+            warningDialog: {
+                title: "Vérifiez votre bulletin",
+                content:
+                    "Votre bulletin contient des sélections qui peuvent nécessiter votre attention (comme sélectionner moins d'options que permis). Votre bulletin est valide et sera compté tel que soumis.",
+                ok: "Retour et vérification",
                 continue: "Continuer",
                 cancel: "Annuler",
             },
@@ -123,6 +136,14 @@ const frenchTranslation: TranslationType = {
                     "Une erreur est survenue lors du traitement de votre demande. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 CAST_VOTE_unexpected:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                CAST_VOTE_timeout:
+                    "Erreur de délai pour voter. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_InsertFailedExceedsAllowedRevotes:
+                    "Vous avez dépassé la limite de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_CheckRevotesFailed:
+                    "Vous avez dépassé le nombre autorisé de votes. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
+                CAST_VOTE_CheckVotesInOtherAreasFailed:
+                    "Vous avez déjà voté dans une autre zone. Veuillez réessayer ultérieurement ou contacter l'assistance pour obtenir de l'aide.",
                 CAST_VOTE_UnknownError:
                     "Une erreur inconnue est survenue lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 NO_BALLOT_SELECTION:
@@ -147,6 +168,23 @@ const frenchTranslation: TranslationType = {
                     "Une erreur est survenue lors de la sérialisation du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 UNKNOWN_ERROR:
                     "Une erreur est survenue. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                REAUTH_FAILED:
+                    "L'authentification a échoué. Veuillez réessayer ou contacter le support pour obtenir de l'aide.",
+                SESSION_EXPIRED: "Votre session a expiré. Veuillez recommencer depuis le début.",
+                CAST_VOTE_BallotIdMismatch:
+                    "L'identifiant du bulletin ne correspond pas à celui du vote exprimé.",
+                SESSION_STORAGE_ERROR:
+                    "Le stockage de session n'est pas disponible. Veuillez réessayer ou contacter le support.",
+                PARSE_BALLOT_DATA_ERROR:
+                    "Une erreur s'est produite lors de l'analyse des données du bulletin de vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                NOT_VALID_BALLOT_DATA_ERROR:
+                    "Les données du bulletin de vote ne sont pas valides. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                FETCH_DATA_TIMEOUT_ERROR:
+                    "Erreur de délai d'attente pour récupérer les données. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                TO_HASHABLE_BALLOT_ERROR:
+                    "Erreur lors de la conversion en bulletin de vote hashable. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
+                INTERNAL_ERROR:
+                    "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
         },
         confirmationScreen: {
@@ -281,6 +319,9 @@ const frenchTranslation: TranslationType = {
                 overVoteDisabled:
                     "Maximum atteint : Vous avez sélectionné le maximum de {{numSelected}} choix. Pour changer votre sélection, veuillez d'abord désélectionner une autre option.",
                 blankVote: "Vote Blanc: 0 options sélectionnées",
+                preferenceOrderWithGaps: "L'ordre de préférence comporte un ou plusieurs trous.",
+                duplicatedPosition:
+                    "La même position a été sélectionnée pour deux ou plusieurs candidats.",
             },
             explicit: {
                 notAllowed:
@@ -334,6 +375,7 @@ const frenchTranslation: TranslationType = {
                 statement_timestamp: "Marque de temps",
                 username: "Nom d'utilisateur",
                 ballot_id: "ID de Bulletin",
+                message: "Message",
             },
         },
     },

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -15,7 +15,7 @@ use electoral_log::client::types::{
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
 use electoral_log::messages::statement::{StatementBody, StatementType};
-use electoral_log::BoardClient;
+use electoral_log::{BoardClient, ElectoralLogVarCharColumn, SqlCompOperators};
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
 use serde_json::Value;

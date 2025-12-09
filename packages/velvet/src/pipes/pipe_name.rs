@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,13 +12,13 @@ use strum_macros::{AsRefStr, Display, EnumString};
 pub enum PipeName {
     DecodeBallots,
     DecodeMCBallots,
-    VoteReceipts,
     BallotImages,
     MCBallotReceipts,
     MCBallotImages,
     DoTally,
     MarkWinners,
     GenerateReports,
+    GenerateDatabase,
 }
 
 struct PipeNameVisitor;
@@ -45,8 +45,6 @@ pub enum PipeNameOutputDir {
     DecodeBallots,
     #[strum(serialize = "velvet-decode-mcballots")]
     DecodeMCBallots,
-    #[strum(serialize = "velvet-vote-receipts")]
-    VoteReceipts,
     #[strum(serialize = "velvet-mcballot-receipts")]
     MCBallotReceipts,
     #[strum(serialize = "velvet-do-tally")]
@@ -55,6 +53,8 @@ pub enum PipeNameOutputDir {
     MarkWinners,
     #[strum(serialize = "velvet-generate-reports")]
     GenerateReports,
+    #[strum(serialize = "velvet-generate-database")]
+    GenerateDatabase,
     #[strum(serialize = "velvet-ballot-images")]
     BallotImages,
     #[strum(serialize = "velvet-mcballot-images")]

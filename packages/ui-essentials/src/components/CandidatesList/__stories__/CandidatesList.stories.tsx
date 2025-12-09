@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -18,7 +18,7 @@ const SimpleCandidate: React.FC<SimpleCandidateProps> = ({isActive}) => (
     <Candidate
         title="Micky Mouse"
         description="Candidate Description"
-        isActive={isActive}
+        isSelectable={isActive}
         hasCategory={true}
         url="https://google.com"
         shouldDisable={false}

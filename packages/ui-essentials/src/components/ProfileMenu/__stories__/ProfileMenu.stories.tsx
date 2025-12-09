@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -24,7 +24,7 @@ const meta: Meta<typeof ProfileMenu> = {
                     alignItems: "flex-end",
                 }}
             >
-                <Story />
+                <>{Story({} as any, {} as any)}</>
             </Box>
         ),
     ],

@@ -1,5 +1,5 @@
 use crate::postgres::application::get_applications_by_election;
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::export_bulletin_boards;
@@ -584,7 +584,9 @@ pub async fn process_export_zip(
     // Upload the ZIP file (encrypted or original) to Hasura
     let _document = upload_and_return_document(
         &hasura_transaction,
-        upload_path.to_str().unwrap(),
+        upload_path
+            .to_str()
+            .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
         zip_size,
         "application/zip",
         &tenant_id.to_string(),

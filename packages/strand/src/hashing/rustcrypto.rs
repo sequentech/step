@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,7 +12,7 @@ use sha2::Sha256;
 use sha2::Sha512;
 use sha3::Shake256;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 use std::path::PathBuf;
 
 use crate::util::StrandError;

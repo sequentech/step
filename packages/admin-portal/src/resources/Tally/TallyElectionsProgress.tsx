@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
@@ -10,7 +10,7 @@ import {
 } from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {ElectionStatusItem} from "@/components/ElectionStatusItem"
-import styled from "@emotion/styled"
+import {styled} from "@mui/material/styles"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ITallyCeremonyStatus, ITallyElectionStatus} from "@/types/ceremonies"
@@ -116,7 +116,7 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
         },
     ]
 
-    const ProgressBarDiv = styled.div`
+    const ProgressBarDiv = styled("div")`
         width: 100%;
         max-width: 18rem;
         display: flex;
