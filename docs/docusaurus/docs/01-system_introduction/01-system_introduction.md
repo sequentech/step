@@ -31,7 +31,7 @@ Understand our release process and support policies:
 
 ## Latest Release
 
-Check out the [latest release notes](../08-releases/01-Release-Next/release-next.md) to see what's new.
+Check out the [latest release notes](../08-releases/01-release-next/release-next.md) to see what's new.
 
 ## Need Help?
 
@@ -47,12 +47,12 @@ t push
 ### 🗳️ For Election Managers
 Learn how to create and manage elections:
 - [Setting Up Your First Election](../02-election_managers/)
-- [Admin Portal Overview](../02-election_managers/01-Tutorials/02-admin_portal_tutorials_create-election.md)
+- [Admin Portal Overview](../02-election_managers/01-tutorials/02-admin_portal_tutorials_create-election.md)
 
 ### 👥 For Voters
 Understand the voting process:
-- [Voting Guide](../03-voters/01-Tutorials/01-voter_cast_your_vote.md)
-- [How to Audit Your Ballot](../03-voters/01-Tutorials/03-voter_audit_ballot.md)
+- [Voting Guide](../03-voters/01-tutorials/01-voter_cast_your_vote.md)
+- [How to Audit Your Ballot](../03-voters/01-tutorials/03-voter_audit_ballot.md)
 - [Voting Portal Overview](../03-voters/01-voting_portal.md)
 
 ### 🔍 For Auditors
@@ -65,5 +65,5 @@ Verify election integrity:
 Start building and contributing:
 - [Contributing Guide](../07-developers/00-contributing.md)
 - [GraphQL API Documentation](../07-developers/01-graphql-api.md)
-- [CLI Tool](../07-developers/02-CLI/01-cli_cli.md)
+- [CLI Tool](../07-developers/02-cli/01-cli_cli.md)
 - [GitHub Repository](https://github.com/sequentech/step)
