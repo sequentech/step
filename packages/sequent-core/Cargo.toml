@@ -143,6 +143,7 @@ probe = ["dep:tokio", "dep:warp"]
 lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
+version = ["dep:tracing"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
 

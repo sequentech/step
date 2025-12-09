@@ -43,6 +43,7 @@ use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
+use sequent_core::util::version::{ENV_VAR_APP_VERSION, DEV_APP_VERSION, check_version_compatibility};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -468,51 +469,6 @@ pub async fn decrypt_document(
     Ok(temp_file_path)
 }
 
-fn extract_major(input: &str) -> Option<u64> {
-    // Trim optional 'v' or 'V' prefix
-    let trimmed = input.trim_start_matches(|c| c == 'v' || c == 'V');
-
-    // We take characters from the start as long as they are digits.
-    // This stops at the first dot '.', hyphen '-', or any non-digit.
-    let major_str: String = trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
-
-    // Parse the result into a u64
-    // If the string was empty (e.g., input was "invalid"), this returns None.
-    major_str.parse::<u64>().ok()
-}
-
-fn check_version_compatibility(imported_version: &str, current_version: &str) -> Result<()> {
-    info!(
-        "Checking version compatibility - Current: {}, Imported: {}",
-        current_version, imported_version
-    );
-
-    // If current version is "dev", allow any import
-    if current_version == "dev" {
-        info!("Current version is 'dev', allowing import");
-        return Ok(());
-    }
-
-    if imported_version == "dev" {
-        info!("Imported version is 'dev' while system is not in dev mode, rejecting import");
-        return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {}. Please use a different version.", current_version));
-    }
-
-    let current_major_parsed = extract_major(&current_version)
-        .ok_or_else(|| anyhow!("Could not parse current version"))?;
-    let imported_major_parsed = extract_major(imported_version)
-        .ok_or_else(|| anyhow!("Could not parse imported version"))?;
-
-    if current_major_parsed < imported_major_parsed {
-        return Err(anyhow!(
-            "Version mismatch: Imported version {} is not compatible with current version {}. Please upgrade your system.",
-            imported_version,
-            current_version
-        ));
-    }
-    Ok(())
-}
-
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
@@ -520,7 +476,7 @@ pub async fn get_election_event_schema(
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
-    let current_version = std::env::var("APP_VERSION").unwrap_or_else(|_| "dev".to_string());
+    let current_version = std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
     check_version_compatibility(&original_data.version, &current_version)?;
     replace_ids(data_str, &original_data, id, tenant_id.clone())
 }
