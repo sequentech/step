@@ -32,7 +32,7 @@ Before contributing, make sure you have:
 - A [GitHub account](https://github.com/signup)
 - Git installed on your local machine
 - Docker installed for running the development environment
-- Basic knowledge of the technologies we use (see [System Architecture](../reference/01-software-architecture/01-intro.md))
+- Basic knowledge of the technologies we use (see [System Architecture](../reference/03-software-architecture/intro.md))
 
 ### Development Environment Setup
 
