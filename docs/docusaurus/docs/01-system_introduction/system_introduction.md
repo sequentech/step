@@ -44,6 +44,7 @@ Check out the [latest release notes](../08-releases/01-Release-Next/release-next
 
 Choose your path based on your role:
 
+t push
 ### 🗳️ For Election Managers
 Learn how to create and manage elections:
 - [Setting Up Your First Election](../02-election_managers/)
@@ -65,5 +66,5 @@ Verify election integrity:
 Start building and contributing:
 - [Contributing Guide](../07-developers/00-contributing.md)
 - [GraphQL API Documentation](../07-developers/01-graphql-api.md)
-- [CLI Tool](../07-developers/02-CLI/01-ecli_cli.md)
+- [CLI Tool](../07-developers/02-CLI/01-cli_cli.md)
 - [GitHub Repository](https://github.com/sequentech/step)

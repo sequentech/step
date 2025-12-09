@@ -359,8 +359,8 @@ Schedule regular dependency report updates:
 4. Commit the regenerated files
 
 ## Related Documentation
-
-- [Third-Party Dependencies Documentation](../../reference/third_party_deps/third_party_deps.md) - Generated dependency documentation
+docs/docusaurus/docs/
+- [Third-Party Dependencies Documentation](../../05-reference/third_party_deps/third_party_deps.md) - Generated dependency documentation
 
 ## Further Information
 
