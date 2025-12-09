@@ -7,6 +7,41 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Reports > Add pagination to the electoral results report
+
+Added pagination to the electoral results reports in the footer.
+
+- Issue: [#9535](https://github.com/sequentech/meta/issues/9535)
+
+## 🐞 Keycloak's custom event listener is not working
+
+Electoral logs from keycloak, for example when a voter logs in/off, are not being
+recorded. This happened because after the dependency updates, the inetum
+authenticator keycloak extension was removed, but it contained the custom event
+listener. This fix adds it back, only the custom event listener, not the inetum
+part.
+
+- Issue: [#9574](https://github.com/sequentech/meta/issues/9574)
+
+## 🐞 Errors editing forms
+
+After the dependency updates, the Election Data form had stopped working.
+
+- Issue: [#9572](https://github.com/sequentech/meta/issues/9572)
+
+## 🐞 Tally > "No Results" while loading the results
+
+1. Fix Tally results show "No results" while loading for it.
+2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
+
+- Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
+
+## 🐞 Fix Graphql Typescript issues
+
+Update Graphql definitions in the admin-portal, which is required after a
+bad merge from main.
+
+- Issue: [#9540](https://github.com/sequentech/meta/issues/9540)
 
 ## ✨ Instant-runoff Voting (IRV/RCV) System support
 
@@ -30,8 +65,33 @@ ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
 
-## ✨ Reports > Add pagination to the electoral results report
+## 🐞 Tally > Export option can't be read correctly if title is too long
 
-Added pagination to the electoral results reports in the footer.
+Modify the tally export translations to show the format before the document name.
 
-- Issue: [#9535](https://github.com/sequentech/meta/issues/9535)
+- Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
+
+## 🐞 Keys Ceremony > State not cleared when switching Election Events
+
+Clear keys ceremony state when switching events.
+
+- Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Can't filter voter logs by username
+
+Fixed an issue that prevented to search logs by username in the Admin portal.
+
+- Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Error with tenants and templates in Admin portal.
+
+Fixed issues that prevented tenant creation and template creation and deletion 
+in the Admin portal.
+
+- Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
+
+## 🐞 Tally UI shows manual and executes automatic after policy switch
+
+Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
+
+- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
