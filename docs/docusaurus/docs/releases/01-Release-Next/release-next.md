@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Reports > Add pagination to the electoral results report
+
+Added pagination to the electoral results reports in the footer.
+
+- Issue: [#9535](https://github.com/sequentech/meta/issues/9535)
+
 ## 🐞 Keycloak's custom event listener is not working
 
 Electoral logs from keycloak, for example when a voter logs in/off, are not being
