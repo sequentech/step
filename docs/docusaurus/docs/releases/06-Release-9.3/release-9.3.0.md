@@ -390,6 +390,14 @@ are displayed correctly in print mode.
 
 - Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
 
+## 🐞 Contest result extended metrics are 0
+
+Fixes the extended metrics calculation that is visible in the json file of the 
+tally result files in `velvet-generate-reports`.
+It contains the value of some election metrics.
+
+- Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
+
 ## ✨ Weighted voting for areas
 
 Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
@@ -419,7 +427,3 @@ Prevent error when switching between elections on the "Data" tab by safely
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
 
-## ✨ Tally > Ballot Images: add election_alias
-Added to ballot images template data struct election_alias.
-
-- Issue: [#8680](https://github.com/sequentech/meta/issues/8680)

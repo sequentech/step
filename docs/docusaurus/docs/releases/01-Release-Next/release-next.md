@@ -7,6 +7,24 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Tally > Ballot Images: add election_alias
+Added to ballot images template data struct election_alias.
+
+- Issue: [#8680](https://github.com/sequentech/meta/issues/8680)
+
+## 🐞 Errors editing forms
+
+After the dependency updates, the Election Data form had stopped working.
+
+- Issue: [#9572](https://github.com/sequentech/meta/issues/9572)
+
+## 🐞 Tally > "No Results" while loading the results
+
+1. Fix Tally results show "No results" while loading for it.
+2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
+
+- Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
+
 ## 🐞 Fix Graphql Typescript issues
 
 Update Graphql definitions in the admin-portal, which is required after a
@@ -36,6 +54,12 @@ ballot N times.
 
 - Issue: [#7683](https://github.com/sequentech/meta/issues/7683)
 
+## 🐞 Tally > Export option can't be read correctly if title is too long
+
+Modify the tally export translations to show the format before the document name.
+
+- Issue: [#8676](https://github.com/sequentech/meta/issues/8676)
+
 ## 🐞 Keys Ceremony > State not cleared when switching Election Events
 
 Clear keys ceremony state when switching events.
@@ -55,7 +79,8 @@ in the Admin portal.
 
 - Issue: [#9539](https://github.com/sequentech/meta/issues/9539)
 
-## ✨ Tally > Ballot Images: add election_alias
-Added to ballot images template data struct election_alias.
+## 🐞 Tally UI shows manual and executes automatic after policy switch
 
-- Issue: [#8680](https://github.com/sequentech/meta/issues/8680)
+Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
+
+- Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
