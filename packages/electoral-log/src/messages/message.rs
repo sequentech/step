@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::ElectoralLogMessage;
+use crate::client::types::ElectoralLogMessage;
 use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
+use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
@@ -26,7 +27,7 @@ use std::fmt;
 /// a cross-event statement
 pub const GENERIC_EVENT: &'static str = "Generic Event";
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
+#[derive(Clone, BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
     pub sender_signature: StrandSignature,

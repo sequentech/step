@@ -9,6 +9,9 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use clap::Args;
 use csv::WriterBuilder;
+use electoral_log::client::types::{
+    ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseOrdMap,
+};
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
 use electoral_log::messages::statement::{StatementBody, StatementType};
@@ -78,9 +81,9 @@ impl ExportCastVotes {
             .await
             .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
 
-        let cols_match = BTreeMap::from([(
+        let cols_match = WhereClauseOrdMap::from(&[(
             ElectoralLogVarCharColumn::StatementKind,
-            (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
+            SqlCompOperators::Equal(StatementType::CastVote.to_string()),
         )]);
         let order_by: Option<HashMap<String, String>> = None;
         println!("Getting messages");

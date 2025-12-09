@@ -671,7 +671,6 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({customCss}) => {
     const {t} = useTranslation()
     const [inputBallotId, setInputBallotId] = useState<string>("")
     const {globalSettings} = useContext(SettingsContext)
-
     const hasBallotId = !!ballotId
     const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
