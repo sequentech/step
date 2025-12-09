@@ -1,6 +1,7 @@
 ---
 id: technology
 title: Technology
+position: 3
 ---
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
