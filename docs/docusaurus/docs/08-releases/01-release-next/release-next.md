@@ -79,3 +79,9 @@ in the Admin portal.
 Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
 
 - Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
+
+## ✨ Documentation: Structural Changes
+
+Documentation sidebar order has been restructured
+
+- Issue: [#8672](https://github.com/sequentech/meta/issues/8672)
