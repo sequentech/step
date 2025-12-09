@@ -8,7 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 ## ✨ Tally > Ballot Images: add election_alias
-Added to ballot images template data struct election_alias.
+Modify the tally election config to include both an election name and an alias, 
+and then add the election_alias to the ballot images template data 
+so that it displays the alias if available, or the name otherwise.
 
 - Issue: [#8680](https://github.com/sequentech/meta/issues/8680)
 
