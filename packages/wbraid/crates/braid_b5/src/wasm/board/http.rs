@@ -203,10 +203,6 @@ impl WasmHttpBoard {
             
             let confirm_req = ConfirmMessageRequest {
                 data: None,
-                sender_pk,
-                statement_kind,
-                batch,
-                mix_number,
             };
             
             let confirm_json = serde_json::to_string(&confirm_req)
@@ -238,10 +234,6 @@ impl WasmHttpBoard {
             
             let confirm_req = ConfirmMessageRequest {
                 data: Some(message_bytes),
-                sender_pk,
-                statement_kind,
-                batch,
-                mix_number,
             };
             
             let confirm_json = serde_json::to_string(&confirm_req)

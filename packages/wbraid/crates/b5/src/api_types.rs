@@ -108,11 +108,8 @@ pub struct InitiateMessageResponse {
 /// Request to confirm a message upload (step 2 of 2-step flow)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfirmMessageRequest {
-    pub data: Option<Vec<u8>>, // Only for inline messages
-    pub sender_pk: String,
-    pub statement_kind: String,
-    pub batch: i32,
-    pub mix_number: i32,
+    /// Message data (only for inline messages; S3 messages already uploaded)
+    pub data: Option<Vec<u8>>,
 }
 
 /// Response from confirming a message upload

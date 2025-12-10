@@ -31,10 +31,6 @@ struct InitiateMessageResponse {
 #[derive(Debug, Serialize)]
 struct ConfirmMessageRequest {
     data: Option<Vec<u8>>,
-    sender_pk: String,
-    statement_kind: String,
-    batch: i32,
-    mix_number: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -150,10 +146,6 @@ impl HttpB3 {
                 );
                 let confirm_req = ConfirmMessageRequest {
                     data: None,
-                    sender_pk: sender_pk.clone(),
-                    statement_kind: statement_kind.clone(),
-                    batch,
-                    mix_number,
                 };
 
                 let confirm_response = self
@@ -180,10 +172,6 @@ impl HttpB3 {
             );
             let confirm_req = ConfirmMessageRequest {
                 data: Some(message_bytes),
-                sender_pk,
-                statement_kind,
-                batch,
-                mix_number,
             };
 
             let confirm_response = self

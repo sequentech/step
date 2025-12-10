@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         .route("/boards/:board", get(handlers::get_board))
         // Message operations (board-specific)
         .route("/boards/:board/messages/initiate", post(handlers::initiate_message))
-        .route("/boards/:board/messages/:id/confirm", post(handlers::confirm_message))
+        .route("/boards/:board/messages/:id/confirm", post(handlers::confirm_message::<CryptographicContext>))
         .route("/boards/:board/messages/list", get(handlers::list_messages))
         .route("/boards/:board/messages", get(handlers::get_messages))
         .route("/boards/:board/messages/:id", get(handlers::get_message))
