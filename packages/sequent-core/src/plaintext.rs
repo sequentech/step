@@ -7,8 +7,8 @@ use crate::ballot_codec::multi_ballot::{
 };
 use crate::ballot_codec::PlaintextCodec;
 use crate::multi_ballot::AuditableMultiBallotContests;
-use crate::types::ceremonies::CountingAlgType;
 use crate::plaintext_ballot::AuditablePlaintextBallotContest;
+use crate::types::ceremonies::CountingAlgType;
 use crate::{
     ballot::*, multi_ballot::AuditableMultiBallot,
     plaintext_ballot::AuditablePlaintextBallot,

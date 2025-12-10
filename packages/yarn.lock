@@ -17242,16 +17242,16 @@ sentence-case@^3.0.4:
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   uid "e953be0882f18ddc2b03c22cc70df098edda1dda"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#e953be0882f18ddc2b03c22cc70df098edda1dda"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#69f6c1d90d4e9caf0ec55c572a38abd3610e8617"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   uid "e953be0882f18ddc2b03c22cc70df098edda1dda"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#e953be0882f18ddc2b03c22cc70df098edda1dda"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#69f6c1d90d4e9caf0ec55c572a38abd3610e8617"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#e953be0882f18ddc2b03c22cc70df098edda1dda"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#69f6c1d90d4e9caf0ec55c572a38abd3610e8617"
 
 serialize-javascript@6.0.0, serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
   version "6.0.2"

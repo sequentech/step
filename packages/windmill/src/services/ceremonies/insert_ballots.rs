@@ -11,18 +11,16 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
 use crate::services::protocol_manager::*;
+use crate::services::public_keys;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
-use crate::services::public_keys;
 use anyhow::{anyhow, Context, Result};
+use b3::messages::artifact::DkgPublicKey;
 use b3::messages::message::Message;
 use b3::messages::newtypes::BatchNumber;
-use b3::messages::newtypes::TrusteeSet;
 use b3::messages::newtypes::PublicKeyHash;
-use b3::messages::artifact::DkgPublicKey;
+use b3::messages::newtypes::TrusteeSet;
 use b3::messages::statement::StatementType;
-use strand::serialization::StrandDeserialize;
-use strand::serialization::StrandSerialize;
 use base64::{
     alphabet,
     engine::{self, general_purpose},
@@ -44,6 +42,8 @@ use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContest
 use serde_json::json;
 use std::collections::HashMap;
 use strand::elgamal::Ciphertext;
+use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignaturePk;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use tempfile::NamedTempFile;
@@ -137,7 +137,10 @@ pub async fn insert_ballots_messages(
                 &tenant_id,
                 &election_event_id,
                 board_name,
-                vec!["MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs=".to_string(),"MCowBQYDK2VwAyEA50mtZzCBnubUwMhRkKyGomrUCBGgvEsbu79D3Cckjbc=".to_string()],
+                vec![
+                    "MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs=".to_string(),
+                    "MCowBQYDK2VwAyEA50mtZzCBnubUwMhRkKyGomrUCBGgvEsbu79D3Cckjbc=".to_string(),
+                ],
                 2,
             )
             .await?;
@@ -145,9 +148,9 @@ pub async fn insert_ballots_messages(
     };
 
     let configuration = get_configuration(&board_messages)?;
-    let public_key_hash = if contest_encryption_policy != ContestEncryptionPolicy::PLAINTEXT { 
-        get_public_key_hash::<RistrettoCtx>(&board_messages)? 
-    } else { 
+    let public_key_hash = if contest_encryption_policy != ContestEncryptionPolicy::PLAINTEXT {
+        get_public_key_hash::<RistrettoCtx>(&board_messages)?
+    } else {
         // let found_config = board_messages
         // .iter()
         // .find(|message| StatementType::Configuration == message.statement.get_kind())

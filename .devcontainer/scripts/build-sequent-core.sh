@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 set -euo pipefail
 
 # SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
@@ -8,8 +8,6 @@ set -euo pipefail
 # This is to resolve an issue where nix -fzero-call-used-regs=used-gpr hardening
 # flag, which is not supported when compiling C code for WebAssembly targets
 # (used by the ring cryptographic library):
-export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="-O3 -ffunction-sections -fdata-sections -fno-exceptions"; 
 
 TARGET_DIR=/workspaces/step/packages/sequent-core
 cd "$TARGET_DIR"

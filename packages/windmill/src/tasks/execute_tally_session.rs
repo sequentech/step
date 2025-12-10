@@ -33,6 +33,7 @@ use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
@@ -92,7 +93,6 @@ use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
-use crate::services::election_event_board::get_election_event_board;
 
 #[instrument(skip_all, err)]
 fn get_ballot_styles(ballot_styles: &Vec<BallotStyleHasura>) -> Result<Vec<BallotStyle>> {
@@ -516,25 +516,26 @@ pub async fn upsert_ballots_messages(
         .into_iter()
         .map(|tally_session_contest| tally_session_contest.session_id.clone() as i64)
         .collect();
-    let existing_ballots_batches: Vec<i64> = if contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT { 
-        messages
-        .iter()
-        .filter(|message| {
-            expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
-                && StatementType::Plaintexts == message.statement.get_kind()
-        })
-        .map(|message| message.statement.get_batch_number() as i64)
-        .collect()
-    } else { 
-        messages
-        .iter()
-        .filter(|message| {
-            expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
-                && StatementType::Ballots == message.statement.get_kind()
-        })
-        .map(|message| message.statement.get_batch_number() as i64)
-        .collect()
-    };
+    let existing_ballots_batches: Vec<i64> =
+        if contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT {
+            messages
+                .iter()
+                .filter(|message| {
+                    expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
+                        && StatementType::Plaintexts == message.statement.get_kind()
+                })
+                .map(|message| message.statement.get_batch_number() as i64)
+                .collect()
+        } else {
+            messages
+                .iter()
+                .filter(|message| {
+                    expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
+                        && StatementType::Ballots == message.statement.get_kind()
+                })
+                .map(|message| message.statement.get_batch_number() as i64)
+                .collect()
+        };
     event!(
         Level::INFO,
         "existing_ballots_batches: '{:?}'",
@@ -705,7 +706,9 @@ async fn map_plaintext_data(
         .await
         .with_context(|| "error listing existing keys ceremonies")?;
 
-    if keys_ceremonies.is_empty() && election_event.get_contest_encryption_policy() != ContestEncryptionPolicy::PLAINTEXT {
+    if keys_ceremonies.is_empty()
+        && election_event.get_contest_encryption_policy() != ContestEncryptionPolicy::PLAINTEXT
+    {
         event!(
             Level::INFO,
             "Election Event {} has no keys ceremony",
@@ -732,8 +735,8 @@ async fn map_plaintext_data(
                 .collect(),
         };
 
-    let mut rng = StdRng::from_os_rng();
-    available_trustees.shuffle(&mut rng);
+        let mut rng = StdRng::from_os_rng();
+        available_trustees.shuffle(&mut rng);
 
         let trustee_names: Vec<String> = available_trustees.into_iter().take(threshold).collect();
 
