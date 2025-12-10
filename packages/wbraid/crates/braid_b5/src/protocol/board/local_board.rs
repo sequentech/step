@@ -408,19 +408,29 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
     }
 
     /// Gets DecryptionFactors, with a hash check.
+    /// Deserializes PartialDecryption from the wire and constructs DecryptionFactors
+    /// by adding the signer_position from the message signature.
     pub(crate) fn get_decryption_factors<const P: usize>(
         &self,
         d_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C, 2, P>, ProtocolError> {
+    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, P, 2>, ProtocolError> {
+        use cryptography::dkgd::recipient::{DecryptionFactors, ParticipantPosition};
+        
         let bytes = self.get_artifact(
             StatementType::DecryptionFactors,
             d_h.0,
             signer_position,
             batch,
         )?;
-        Ok(DecryptionFactors::<C, 2, P>::deser(&bytes)?)
+        
+        // Deserialize PartialDecryption (message layer - no position)
+        let partial_decryption = b5::messages::artifact::PartialDecryption::<C, 2>::deser(&bytes)?;
+        
+        // Construct DecryptionFactors (crypto layer - with position from signer)
+        let position = ParticipantPosition::from_usize(signer_position + 1);
+        Ok(DecryptionFactors::new(partial_decryption.factors, position))
     }
 
     /// Gets Plaintexts, with a hash check.

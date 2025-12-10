@@ -248,10 +248,10 @@ impl Message {
         trustee.sign(statement, None)
     }
 
-    pub fn decryption_factors_msg<C: Context, S: Signer<C>, const W: usize, const P: usize>(
+    pub fn decryption_factors_msg<C: Context, S: Signer<C>, const W: usize>(
         cfg: &Configuration<C>,
         batch: BatchNumber,
-        dfactors: DecryptionFactors<C, W, P>,
+        dfactors: PartialDecryption<C, W>,
         mix_h: CiphertextsHash,
         shares_hs: SharesHashes,
         trustee: &S,

@@ -86,14 +86,15 @@ pub(super) fn compute_decryption_factors<C: Context, S: crate::protocol::board::
             .map(|c| DkgCiphertext(c.clone()))
             .collect();
         
-        let dfactors = recipient.decryption_factor(&wrapped_ciphertexts, &label)
+        let dfactors_with_source = recipient.decryption_factor(&wrapped_ciphertexts, &label)
             .map_err(|e| ProtocolError::InternalError(format!("Failed to compute decryption factors: {:?}", e)))?;
         
-        let decryption_factors = b5::messages::artifact::DecryptionFactors::new(dfactors);
+        // Create message-layer PartialDecryption (without source) from DecryptionFactors
+        let partial_decryption = b5::messages::artifact::PartialDecryption::new(dfactors_with_source.factors);
         let m = b5::messages::message::Message::decryption_factors_msg(
             &cfg,
             *batch,
-            decryption_factors,
+            partial_decryption,
             *ciphertexts_h,
             *shares_hs,
             trustee,
@@ -261,20 +262,17 @@ fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>
         
         // Collect decryption factors for the T trustees
         let mut all_dfactors = Vec::new();
-        let mut verification_keys_vec = Vec::new();
         
         for (t, df_h) in dfactors_hs.0.iter().enumerate() {
             // Threshold is 1-based
             if t < *threshold {
-                let dfactors = trustee
+                let dfactors_with_source = trustee
                     .get_decryption_factors::<P>(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
                     .add_context("Computing plaintexts")?;
 
-                assert_eq!(num_ciphertexts, dfactors.factors.len());
+                assert_eq!(num_ciphertexts, dfactors_with_source.factors.len());
                 
-                let vk = pk.verification_keys[ts[t] - 1].clone();
-                verification_keys_vec.push(vk);
-                all_dfactors.push(dfactors.factors);
+                all_dfactors.push(dfactors_with_source);
             } else {
                 debug!("Processed all decryption factors (t = {})", t);
                 break;
@@ -298,9 +296,14 @@ fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>
             .map(|c| DkgCiphertext(c.clone()))
             .collect();
         
+        // Extract verification keys from public key - indexed by source position
+        let verification_keys_vec: Vec<C::Element> = all_dfactors
+            .iter()
+            .map(|df| pk.verification_keys[df.source.0 as usize - 1].clone())
+            .collect();
+        
         // Convert Vec to fixed-size arrays
-        // T is the threshold (number of factors we have), P is total participants
-        let dfactors_array: [Vec<cryptography::dkgd::recipient::DecryptionFactor<C, P, 2>>; T] = 
+        let dfactors_array: [cryptography::dkgd::recipient::DecryptionFactors<C, P, 2>; T] = 
             all_dfactors.try_into()
                 .map_err(|_| ProtocolError::InternalError("Failed to convert decryption factors to array".to_string()))?;
         let vkeys_array: [C::Element; T] = 

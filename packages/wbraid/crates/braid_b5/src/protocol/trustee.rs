@@ -25,7 +25,7 @@ use b5::messages::artifact::Channel;
 use b5::messages::artifact::Configuration;
 use b5::messages::artifact::DkgPublicKey;
 use b5::messages::artifact::Shares;
-use b5::messages::artifact::{DecryptionFactors, Plaintexts};
+use b5::messages::artifact::Plaintexts;
 use b5::messages::message::Message;
 use b5::messages::newtypes::*;
 use b5::messages::statement::StatementType;
@@ -658,7 +658,7 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<DecryptionFactors<C, 2, P>, ProtocolError> {
+    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, P, 2>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }

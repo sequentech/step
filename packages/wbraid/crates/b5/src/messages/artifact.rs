@@ -222,35 +222,34 @@ impl<C: Context, const W: usize> Mix<C, W> {
     }
 }
 
-/// Decryption factors for threshold decryption.
+/// Partial decryption data for transmission over the wire.
 ///
-/// Contains a vector of DecryptionFactor from the cryptography library,
-/// which includes the partial decryption value, proof, and participant position.
+/// Contains decryption factors (value + proof pairs) without participant position.
+/// The position is determined by the message signature, not the message content.
 ///
-/// SECURITY NOTE: When verifying these decryption factors, the ParticipantPosition
-/// field must be verified against the signature for that participant. This ensures
-/// that a malicious participant cannot claim to be a different participant.
+/// This is the message-layer representation. The cryptography layer uses
+/// [`cryptography::dkgd::recipient::DecryptionFactors`] which includes the source position.
 #[derive(Debug)]
-pub struct DecryptionFactors<C: Context, const W: usize, const P: usize> {
-    pub factors: Vec<DecryptionFactor<C, P, W>>,
+pub struct PartialDecryption<C: Context, const W: usize> {
+    pub factors: Vec<DecryptionFactor<C, W>>,
 }
 
-impl<C: Context, const W: usize, const P: usize> VSerializable for DecryptionFactors<C, W, P> {
+impl<C: Context, const W: usize> VSerializable for PartialDecryption<C, W> {
     fn ser(&self) -> Vec<u8> {
         self.factors.ser()
     }
 }
 
-impl<C: Context, const W: usize, const P: usize> VDeserializable for DecryptionFactors<C, W, P> {
+impl<C: Context, const W: usize> VDeserializable for PartialDecryption<C, W> {
     fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
-        let factors = Vec::<DecryptionFactor<C, P, W>>::deser(buffer)?;
-        Ok(DecryptionFactors { factors })
+        let factors = Vec::<DecryptionFactor<C, W>>::deser(buffer)?;
+        Ok(PartialDecryption { factors })
     }
 }
 
-impl<C: Context, const W: usize, const P: usize> DecryptionFactors<C, W, P> {
-    pub fn new(factors: Vec<DecryptionFactor<C, P, W>>) -> DecryptionFactors<C, W, P> {
-        DecryptionFactors { factors }
+impl<C: Context, const W: usize> PartialDecryption<C, W> {
+    pub fn new(factors: Vec<DecryptionFactor<C, W>>) -> PartialDecryption<C, W> {
+        PartialDecryption { factors }
     }
 }
 
