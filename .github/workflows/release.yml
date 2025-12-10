@@ -126,7 +126,7 @@ jobs:
         fi
 
   release:
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
     needs: create-release-branch
     outputs:
       VERSION: ${{ steps.Release.outputs.VERSION }}
@@ -259,7 +259,7 @@ jobs:
   trigger-beyond-release:
     needs: [release]
     if: ${{ always() && needs.release.result == 'success' }}
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
     steps:
     - name: Trigger Beyond Release Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -274,7 +274,7 @@ jobs:
   trigger-deployer:
     needs: [release, create-release-branch, trigger-beyond-release]
     if: ${{ always() && needs.release.result == 'success' && needs.create-release-branch.result == 'success' }}
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
     steps:
     - name: Trigger Deployer Workflow
       uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
@@ -289,7 +289,7 @@ jobs:
     if: failure()
     # Here define the depenency jobs
     needs: [release]
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -305,7 +305,7 @@ jobs:
 
   slack-report:
     needs: [release, trigger-deployer, cleanup]
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
     timeout-minutes: 20
     if: always()
     steps:
