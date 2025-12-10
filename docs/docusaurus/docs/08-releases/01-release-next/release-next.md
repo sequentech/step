@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ feat/meta-9293-add-cargo-cache/main
+
+Added cargo caching for efficient test builds
+
+- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+
 ## ✨ Reports > Add pagination to the electoral results report
 
 Added pagination to the electoral results reports in the footer.
