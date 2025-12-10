@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ fix-step-release-workflow
+
+Added 'sudo' to release-it installation
+
+- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+
 ## ✨ feat/meta-9293-add-cargo-cache/main
 
 Added cargo caching for efficient test builds
