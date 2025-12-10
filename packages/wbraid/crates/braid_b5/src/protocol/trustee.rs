@@ -658,7 +658,7 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, P, 2>, ProtocolError> {
+    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, 2, P>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }

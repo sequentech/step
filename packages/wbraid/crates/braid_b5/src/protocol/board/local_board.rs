@@ -415,7 +415,7 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
         d_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, P, 2>, ProtocolError> {
+    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, 2, P>, ProtocolError> {
         use cryptography::dkgd::recipient::{DecryptionFactors, ParticipantPosition};
         
         let bytes = self.get_artifact(

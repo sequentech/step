@@ -303,7 +303,7 @@ fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>
             .collect();
         
         // Convert Vec to fixed-size arrays
-        let dfactors_array: [cryptography::dkgd::recipient::DecryptionFactors<C, P, 2>; T] = 
+        let dfactors_array: [cryptography::dkgd::recipient::DecryptionFactors<C, 2, P>; T] = 
             all_dfactors.try_into()
                 .map_err(|_| ProtocolError::InternalError("Failed to convert decryption factors to array".to_string()))?;
         let vkeys_array: [C::Element; T] = 

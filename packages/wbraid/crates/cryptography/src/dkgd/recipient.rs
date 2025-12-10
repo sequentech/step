@@ -91,10 +91,10 @@ use vser_derive::VSerializable;
  *     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
  *
  * // partial decryption
- * let dfactors: [DecryptionFactors<RCtx, P, W>; P] =
+ * let dfactors: [DecryptionFactors<RCtx, W, P>; P] =
  *     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
  *
- * let threshold: &[DecryptionFactors<RCtx, P, W>; T] =
+ * let threshold: &[DecryptionFactors<RCtx, W, P>; T] =
  *     dfactors[0..T].try_into().expect("slice matches array: T == T");
  *
  * // combine the decryption factors into the plaintext
@@ -325,11 +325,11 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
     ///
     /// // each recipient computes their partial decryption, which includes a proof of correctness
-    /// let dfactors: [DecryptionFactors<RCtx, P, W>; P] =
+    /// let dfactors: [DecryptionFactors<RCtx, W, P>; P] =
     ///     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
     ///
     /// // select the first T decryption factors
-    /// let threshold: &[DecryptionFactors<RCtx, P, W>; T] =
+    /// let threshold: &[DecryptionFactors<RCtx, W, P>; T] =
     ///     dfactors[0..T].try_into().expect("slice matches array: T == T");
     ///
     /// // combine the decryption factors into the plaintext
@@ -354,7 +354,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         &self,
         ciphertexts: &[DkgCiphertext<C, W, T>],
         proof_context: &[u8],
-    ) -> Result<DecryptionFactors<C, P, W>, Error> {
+    ) -> Result<DecryptionFactors<C, W, P>, Error> {
         let factors: Result<Vec<DecryptionFactor<C, W>>, Error> = ciphertexts
             .iter()
             .map(|c| {
@@ -474,14 +474,14 @@ impl<C: Context, const W: usize> DecryptionFactor<C, W> {
  * These are combined to compute the plaintext using the [`combine`] function.
  */
 #[derive(Debug, Clone, PartialEq)]
-pub struct DecryptionFactors<C: Context, const P: usize, const W: usize> {
+pub struct DecryptionFactors<C: Context, const W: usize, const P: usize> {
     /// The partial decryptions for multiple ciphertexts
     pub factors: Vec<DecryptionFactor<C, W>>,
     /// The position of the participant who computed these partial decryptions
     pub source: ParticipantPosition<P>,
 }
 
-impl<C: Context, const P: usize, const W: usize> DecryptionFactors<C, P, W> {
+impl<C: Context, const W: usize, const P: usize> DecryptionFactors<C, W, P> {
     /// Constructs a new [`DecryptionFactors`] from the given values.
     #[must_use]
     pub fn new(
@@ -635,7 +635,7 @@ impl<const P: usize> ParticipantPosition<P> {
 /// - `DecryptProofFailed` if any of the decryption proofs fail to verify.
 pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
     ciphertexts: &[DkgCiphertext<C, W, T>],
-    dfactors: &[DecryptionFactors<C, P, W>; T],
+    dfactors: &[DecryptionFactors<C, W, P>; T],
     verification_keys: &[C::Element; T],
     proof_context: &[u8],
 ) -> Result<Vec<[C::Element; W]>, Error> {

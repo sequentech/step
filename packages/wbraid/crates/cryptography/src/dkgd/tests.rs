@@ -105,10 +105,10 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
     let verification_keys: [C::Element; T] =
         array::from_fn(|i| recipients[i].0.get_verification_key().clone());
 
-    let dfactors: [DecryptionFactors<C, P, W>; P] =
+    let dfactors: [DecryptionFactors<C, W, P>; P] =
         recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
 
-    let threshold: &[DecryptionFactors<C, P, W>; T] = dfactors[0..T]
+    let threshold: &[DecryptionFactors<C, W, P>; T] = dfactors[0..T]
         .try_into()
         .expect("slice matches array: T == T");
     let decrypted = combine(&encrypted, &threshold, &verification_keys, &vec![]);
@@ -135,7 +135,7 @@ fn test_dkgd_non_t<C: Context, const T: usize, const P: usize, const W: usize>()
     let message: [C::Element; W] = array::from_fn(|_| C::random_element());
     let encrypted = vec![pk.encrypt(&message)];
 
-    let mut dfactors: [DecryptionFactors<C, P, W>; P] =
+    let mut dfactors: [DecryptionFactors<C, W, P>; P] =
         recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
     let mut rng = C::get_rng();
     dfactors.shuffle(&mut rng);
@@ -175,7 +175,7 @@ fn test_joint_pkey<C: Context, const T: usize, const P: usize, const W: usize>()
 
 fn untyped_combine<C: Context, const P: usize, const W: usize>(
     ciphertexts: &[Ciphertext<C, W>],
-    dfactors: &[DecryptionFactors<C, P, W>],
+    dfactors: &[DecryptionFactors<C, W, P>],
 ) -> Vec<[C::Element; W]> {
     // get the participants
     let present: Vec<ParticipantPosition<P>> =

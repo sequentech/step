@@ -82,10 +82,10 @@ use vser_derive::VSerializable;
  *     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
  *
  * // partial decryption
- * let dfactors: [DecryptionFactors<RCtx, P, W>; P] =
+ * let dfactors: [DecryptionFactors<RCtx, W, P>; P] =
  *     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
  *
- * let threshold: &[DecryptionFactors<RCtx, P, W>; T] =
+ * let threshold: &[DecryptionFactors<RCtx, W, P>; T] =
  *     dfactors[0..T].try_into().expect("slice matches array: T == T");
  *
  * // combine the decryption factors into the plaintext
