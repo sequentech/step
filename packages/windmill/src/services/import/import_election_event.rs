@@ -43,7 +43,9 @@ use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
-use sequent_core::util::version::{ENV_VAR_APP_VERSION, DEV_APP_VERSION, check_version_compatibility};
+use sequent_core::util::version::{
+    check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -476,7 +478,8 @@ pub async fn get_election_event_schema(
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
-    let current_version = std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
+    let current_version =
+        std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
     check_version_compatibility(&original_data.version, &current_version)?;
     replace_ids(data_str, &original_data, id, tenant_id.clone())
 }
