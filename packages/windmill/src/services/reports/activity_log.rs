@@ -120,6 +120,7 @@ pub struct ActivityLogsTemplate {
 
 impl ActivityLogsTemplate {
     pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
             ids.tenant_id.as_str(),
             ids.election_event_id.as_str(),
