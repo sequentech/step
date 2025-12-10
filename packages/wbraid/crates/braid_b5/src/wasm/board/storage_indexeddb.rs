@@ -463,7 +463,8 @@ impl IndexedDbStorage {
         let message = Message::deser(&msg.message)?;
         
         Ok(MessageMetadata {
-            sender_pk: message.sender.pk.to_der_b64_string()?,
+            sender_pk: b5::verifying_key_to_der_b64_string(&message.sender.pk)
+                .map_err(|e| anyhow::anyhow!("Failed to encode sender PK: {}", e))?,
             statement_kind: message.statement.get_kind().to_string(),
             batch: message.statement.get_batch_number().try_into()?,
             mix_number: message.statement.get_mix_number().try_into()?,

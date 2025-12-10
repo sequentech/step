@@ -58,7 +58,12 @@ use crate::utils::signatures::SignatureScheme;
  * }
  * ```
  */
-pub trait Context: private::Sealed + std::fmt::Debug + PartialEq + Clone + 'static {
+pub trait Context: private::Sealed + std::fmt::Debug + PartialEq + Clone + Send + Sync + 'static 
+where
+    <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Signer: Send + Sync,
+    <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Verifier: Send + Sync,
+    <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Signature: Send + Sync,
+{
     /// The group element type.
     type Element: GroupElement<Scalar = Self::Scalar> + FSer + VSer + Clone + Send + Sync;
 

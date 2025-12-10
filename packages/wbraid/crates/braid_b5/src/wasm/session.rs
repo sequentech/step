@@ -103,7 +103,7 @@ impl WasmSession {
     /// Must be called before connect_to_board() or step().
     pub async fn init_session(&mut self, board_name: String) -> Result<(), JsValue> {
         // Parse signing key
-        let sk = SigningKey::from_der_b64_string(&self.config.signing_key_sk)
+        let sk = b5::signing_key_from_der_b64_string(&self.config.signing_key_sk)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse signing key: {}", e)))?;
         
         // Parse encryption key
@@ -382,8 +382,8 @@ impl WasmSession {
         Ok(messages)
     }
 
-    /// Post messages to B4
-    async fn post_messages(&self, messages: Vec<b4::messages::message::Message>) -> Result<(), JsValue> {
+    /// Post messages to the bulletin board
+    async fn post_messages(&self, messages: Vec<b5::messages::message::Message>) -> Result<(), JsValue> {
         use cryptography::utils::serialization::variable::VSerializable;
         
         if messages.is_empty() {
@@ -403,15 +403,14 @@ impl WasmSession {
         
         for message in messages {
             // Extract metadata
-            let sender_pk = message.sender.pk.to_der_b64_string()
-                .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {:?}", e)))?;
+            let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+                .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {}", e)))?;
             let statement_kind = message.statement.get_kind().to_string();
             let batch: i32 = message.statement.get_batch_number() as i32;
             let mix_number: i32 = message.statement.get_mix_number() as i32;
             
             // Serialize message
-            let message_bytes = message.ser()
-                .map_err(|e| JsValue::from_str(&format!("Failed to serialize message: {:?}", e)))?;
+            let message_bytes = message.ser();
             let size = message_bytes.len();
             
             web_sys::console::log_1(&JsValue::from_str(&format!(

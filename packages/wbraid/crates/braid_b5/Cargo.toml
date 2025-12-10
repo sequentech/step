@@ -16,7 +16,7 @@ license = "AGPL-3.0-only"
 rand = "0.9"
 
 cryptography = { path="../cryptography", optional = true }
-b5 = { path="../b5", optional = true }
+b5 = { path="../b5", optional = true, default-features = false }
 crepe = "0.1"
 strum = { version = "0.27", features = ["derive"] }
 

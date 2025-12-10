@@ -82,8 +82,7 @@ impl WasmVerifier {
         )));
 
         // Generate dummy trustee credentials (not used for verification)
-        let dummy_sk = b5::generate_signing_key()
-            .map_err(|e| JsValue::from_str(&format!("Failed to generate key: {}", e)))?;
+        let dummy_sk = b5::generate_signing_key();;
         let dummy_encryption_key = symm::gen_key();
 
         // Create NoOp storage (verifier doesn't need persistence)

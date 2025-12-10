@@ -121,15 +121,14 @@ impl WasmHttpBoard {
     /// Post a single message to B4
     async fn post_message_internal(&self, board_name: &str, message: Message) -> Result<(), JsValue> {
         // Extract metadata
-        let sender_pk = message.sender.pk.to_der_b64_string()
-            .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {:?}", e)))?;
+        let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+            .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {}", e)))?;
         let statement_kind = message.statement.get_kind().to_string();
         let batch: i32 = message.statement.get_batch_number() as i32;
         let mix_number: i32 = message.statement.get_mix_number() as i32;
         
         // Serialize message
-        let message_bytes = message.ser()
-            .map_err(|e| JsValue::from_str(&format!("Failed to serialize message: {:?}", e)))?;
+        let message_bytes = message.ser();
         let size = message_bytes.len();
         
         // Phase 1: Initiate message

@@ -16,6 +16,9 @@ sha3 = "0.10"
 
 # rng
 rand = { version = "0.8", features = ["std"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+# getrandom 0.2 is used by some dependencies, need js feature for WASM
+getrandom_v02 = { package = "getrandom", version = "0.2", features = ["js"] }
 
 # signatures
 ed25519-dalek = {version = "2.2.0", features=["rand_core"] }
