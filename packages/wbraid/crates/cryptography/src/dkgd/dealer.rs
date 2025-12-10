@@ -48,7 +48,7 @@ use vser_derive::VSerializable;
  * use cryptography::context::RistrettoCtx as RCtx;
  * use cryptography::groups::ristretto255::RistrettoElement;
  * use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
- * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactor};
+ * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactors};
  *
  * const P: usize = 3;
  * const T: usize = 2;
@@ -82,10 +82,10 @@ use vser_derive::VSerializable;
  *     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
  *
  * // partial decryption
- * let dfactors: [Vec<DecryptionFactor<RCtx, P, W>>; P] =
+ * let dfactors: [DecryptionFactors<RCtx, P, W>; P] =
  *     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
  *
- * let threshold: &[Vec<DecryptionFactor<RCtx, P, W>>; T] =
+ * let threshold: &[DecryptionFactors<RCtx, P, W>; T] =
  *     dfactors[0..T].try_into().expect("slice matches array: T == T");
  *
  * // combine the decryption factors into the plaintext

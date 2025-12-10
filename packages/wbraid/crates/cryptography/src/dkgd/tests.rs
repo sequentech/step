@@ -7,7 +7,7 @@
 use crate::cryptosystem::elgamal::Ciphertext;
 use crate::dkgd::dealer::{Dealer, VerifiableShare};
 use crate::dkgd::recipient::combine;
-use crate::dkgd::recipient::{DecryptionFactor, DkgPublicKey, ParticipantPosition, Recipient};
+use crate::dkgd::recipient::{DecryptionFactors, DkgPublicKey, ParticipantPosition, Recipient};
 use crate::traits::groups::DistGroupOps;
 use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
@@ -105,10 +105,10 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
     let verification_keys: [C::Element; T] =
         array::from_fn(|i| recipients[i].0.get_verification_key().clone());
 
-    let dfactors: [Vec<DecryptionFactor<C, P, W>>; P] =
+    let dfactors: [DecryptionFactors<C, P, W>; P] =
         recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
 
-    let threshold: &[Vec<DecryptionFactor<C, P, W>>; T] = dfactors[0..T]
+    let threshold: &[DecryptionFactors<C, P, W>; T] = dfactors[0..T]
         .try_into()
         .expect("slice matches array: T == T");
     let decrypted = combine(&encrypted, &threshold, &verification_keys, &vec![]);
@@ -135,7 +135,7 @@ fn test_dkgd_non_t<C: Context, const T: usize, const P: usize, const W: usize>()
     let message: [C::Element; W] = array::from_fn(|_| C::random_element());
     let encrypted = vec![pk.encrypt(&message)];
 
-    let mut dfactors: [Vec<DecryptionFactor<C, P, W>>; P] =
+    let mut dfactors: [DecryptionFactors<C, P, W>; P] =
         recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
     let mut rng = C::get_rng();
     dfactors.shuffle(&mut rng);
@@ -175,17 +175,17 @@ fn test_joint_pkey<C: Context, const T: usize, const P: usize, const W: usize>()
 
 fn untyped_combine<C: Context, const P: usize, const W: usize>(
     ciphertexts: &[Ciphertext<C, W>],
-    dfactors: &[Vec<DecryptionFactor<C, P, W>>],
+    dfactors: &[DecryptionFactors<C, P, W>],
 ) -> Vec<[C::Element; W]> {
     // get the participants
     let present: Vec<ParticipantPosition<P>> =
-        dfactors.iter().map(|df| df[0].source.clone()).collect();
+        dfactors.iter().map(|df| df.source.clone()).collect();
 
     let mut divisors_acc = vec![<[C::Element; W]>::one(); ciphertexts.len()];
 
     for dfactor in dfactors {
-        let iter = dfactor.iter();
-        let lagrange = untyped_lagrange::<C, P>(&dfactor[0].source, &present);
+        let iter = dfactor.factors.iter();
+        let lagrange = untyped_lagrange::<C, P>(&dfactor.source, &present);
 
         let raised = iter.map(|df| df.value.dist_exp(&lagrange));
 

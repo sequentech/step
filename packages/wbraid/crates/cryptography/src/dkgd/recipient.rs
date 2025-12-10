@@ -57,7 +57,7 @@ use vser_derive::VSerializable;
  * use cryptography::context::RistrettoCtx as RCtx;
  * use cryptography::groups::ristretto255::RistrettoElement;
  * use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
- * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactor};
+ * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactors};
  *
  * const P: usize = 3;
  * const T: usize = 2;
@@ -91,10 +91,10 @@ use vser_derive::VSerializable;
  *     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
  *
  * // partial decryption
- * let dfactors: [Vec<DecryptionFactor<RCtx, P, W>>; P] =
+ * let dfactors: [DecryptionFactors<RCtx, P, W>; P] =
  *     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
  *
- * let threshold: &[Vec<DecryptionFactor<RCtx, P, W>>; T] =
+ * let threshold: &[DecryptionFactors<RCtx, P, W>; T] =
  *     dfactors[0..T].try_into().expect("slice matches array: T == T");
  *
  * // combine the decryption factors into the plaintext
@@ -299,7 +299,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// use cryptography::context::RistrettoCtx as RCtx;
     /// use cryptography::groups::ristretto255::RistrettoElement;
     /// use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
-    /// use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactor};
+    /// use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, DecryptionFactors};
     ///
     /// const P: usize = 3;
     /// const T: usize = 2;
@@ -325,11 +325,11 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///     array::from_fn(|i| recipients[i].0.get_verification_key().clone());
     ///
     /// // each recipient computes their partial decryption, which includes a proof of correctness
-    /// let dfactors: [Vec<DecryptionFactor<RCtx, P, W>>; P] =
+    /// let dfactors: [DecryptionFactors<RCtx, P, W>; P] =
     ///     recipients.map(|r| r.0.decryption_factor(&encrypted, &vec![]).unwrap());
     ///
     /// // select the first T decryption factors
-    /// let threshold: &[Vec<DecryptionFactor<RCtx, P, W>>; T] =
+    /// let threshold: &[DecryptionFactors<RCtx, P, W>; T] =
     ///     dfactors[0..T].try_into().expect("slice matches array: T == T");
     ///
     /// // combine the decryption factors into the plaintext
@@ -347,14 +347,15 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///
     /// - `HashToElementError` if challenge generation for [`DlogEqProof`] computation returns error
     ///
-    /// Returns a vector of [`DecryptionFactor`]'s corresponding to the input ciphertexts; this
-    /// struct contains this recipient's partial decryption together with a proof of correctness.
+    /// Returns [`DecryptionFactors`] containing partial decryptions for all input ciphertexts.
+    /// The returned struct includes this recipient's position and a vector of decryption factors,
+    /// one per ciphertext, each with its proof of correctness.
     pub fn decryption_factor<const W: usize>(
         &self,
         ciphertexts: &[DkgCiphertext<C, W, T>],
         proof_context: &[u8],
-    ) -> Result<Vec<DecryptionFactor<C, P, W>>, Error> {
-        let ret: Result<Vec<DecryptionFactor<C, P, W>>, Error> = ciphertexts
+    ) -> Result<DecryptionFactors<C, P, W>, Error> {
+        let factors: Result<Vec<DecryptionFactor<C, W>>, Error> = ciphertexts
             .iter()
             .map(|c| {
                 let dfactor = c.u().dist_exp(&self.sk);
@@ -369,11 +370,11 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
                     proof_context,
                 )?;
 
-                Ok(DecryptionFactor::new(dfactor, proof, self.position.clone()))
+                Ok(DecryptionFactor::new(dfactor, proof))
             })
             .collect();
 
-        ret
+        Ok(DecryptionFactors::new(factors?, self.position.clone()))
     }
 
     /// Compute a factor of the verification key for a `Recipient` at `position`.
@@ -437,23 +438,18 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
 /**
  * A partial decryption of an `ElGamal` ciphertext.
  *
- * Contains the partial decryption of the ciphertext together with a
- * proof of correctness. At least `T` [`DecryptionFactor`]'s are needed
- * to decrypt ciphertexts encrypted with the joint public key. These
- * decryption factors are combined to compute the plaintext using the
- * [`combine`] function.
+ * Contains the partial decryption value and proof of correctness for a single ciphertext.
+ * This is the basic cryptographic data without participant position information.
  */
 #[derive(Debug, Clone, VSerializable, PartialEq)]
-pub struct DecryptionFactor<C: Context, const P: usize, const W: usize> {
+pub struct DecryptionFactor<C: Context, const W: usize> {
     /// The partial decryption of the ciphertext
     pub value: [C::Element; W],
     /// The proof of decryption correctness
     pub proof: DlogEqProof<C, W>,
-    /// The position of the participant who computed this partial decryption
-    pub source: ParticipantPosition<P>,
 }
 
-impl<C: Context, const P: usize, const W: usize> DecryptionFactor<C, P, W> {
+impl<C: Context, const W: usize> DecryptionFactor<C, W> {
     /// Constructs a new [`DecryptionFactor`] from the given values.
     ///
     /// The standard way to compute decryption factors is through the [`Recipient::decryption_factor`] method,
@@ -461,13 +457,38 @@ impl<C: Context, const P: usize, const W: usize> DecryptionFactor<C, P, W> {
     pub(crate) fn new(
         value: [C::Element; W],
         proof: DlogEqProof<C, W>,
-        source: ParticipantPosition<P>,
     ) -> Self {
         Self {
             value,
             proof,
-            source,
         }
+    }
+}
+
+/**
+ * A collection of partial decryptions from a single participant.
+ *
+ * Contains multiple [`DecryptionFactor`]s (one per ciphertext) together with
+ * the participant position. At least `T` [`DecryptionFactors`] from different
+ * participants are needed to decrypt ciphertexts encrypted with the joint public key.
+ * These are combined to compute the plaintext using the [`combine`] function.
+ */
+#[derive(Debug, Clone, PartialEq)]
+pub struct DecryptionFactors<C: Context, const P: usize, const W: usize> {
+    /// The partial decryptions for multiple ciphertexts
+    pub factors: Vec<DecryptionFactor<C, W>>,
+    /// The position of the participant who computed these partial decryptions
+    pub source: ParticipantPosition<P>,
+}
+
+impl<C: Context, const P: usize, const W: usize> DecryptionFactors<C, P, W> {
+    /// Constructs a new [`DecryptionFactors`] from the given values.
+    #[must_use]
+    pub fn new(
+        factors: Vec<DecryptionFactor<C, W>>,
+        source: ParticipantPosition<P>,
+    ) -> Self {
+        Self { factors, source }
     }
 }
 
@@ -614,22 +635,22 @@ impl<const P: usize> ParticipantPosition<P> {
 /// - `DecryptProofFailed` if any of the decryption proofs fail to verify.
 pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
     ciphertexts: &[DkgCiphertext<C, W, T>],
-    dfactors: &[Vec<DecryptionFactor<C, P, W>>; T],
+    dfactors: &[DecryptionFactors<C, P, W>; T],
     verification_keys: &[C::Element; T],
     proof_context: &[u8],
 ) -> Result<Vec<[C::Element; W]>, Error> {
     // get the participants
-    let present: [ParticipantPosition<P>; T] = array::from_fn(|i| dfactors[i][0].source.clone());
+    let present: [ParticipantPosition<P>; T] = array::from_fn(|i| dfactors[i].source.clone());
     let mut divisors_acc: Vec<[C::Element; W]> = vec![<[C::Element; W]>::one(); ciphertexts.len()];
 
     // ensure uniqueness for dfactors and verification_keys
     // let vk_set = HashSet::<C::Element>::from_iter(verification_keys.clone().into_iter());
-    // It is not easy to construct a set for [Vec<DecryptionFactor<C, P, W>>]
-    // let dfactors_set = HashSet::<Vec<DecryptionFactor<C, P, W>>>::from_iter(dfactors.clone().into_iter());
+    // It is not easy to construct a set for [DecryptionFactors<C, P, W>]
+    // let dfactors_set = HashSet::<DecryptionFactors<C, P, W>>::from_iter(dfactors.clone().into_iter());
     #[crate::warning("Ensure that both dfactors and verification_keys are unique.")]
-    for (i, dfactor) in dfactors.iter().enumerate() {
-        let iter = dfactor.iter().zip(ciphertexts.iter());
-        let lagrange = lagrange::<C, T, P>(&dfactor[0].source, &present);
+    for (i, dfactor_set) in dfactors.iter().enumerate() {
+        let iter = dfactor_set.factors.iter().zip(ciphertexts.iter());
+        let lagrange = lagrange::<C, T, P>(&dfactor_set.source, &present);
 
         let c_lambda = iter.map(|(df, c)| {
             let g = C::generator();
