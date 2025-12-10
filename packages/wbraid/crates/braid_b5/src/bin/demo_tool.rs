@@ -481,7 +481,7 @@ async fn post_ballots<C: Context>(
             }
         };
         
-        let message = Message::deser(&pk_data)?;
+        let message: Message<RistrettoCtx> = Message::deser(&pk_data)?;
         let bytes = message.artifact.unwrap();
         let dkgpk = DkgPublicKey::<RistrettoCtx>::deser(&bytes).unwrap();
         let pk_bytes = dkgpk.ser();
@@ -606,7 +606,7 @@ async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<()> {
             }
         };
 
-        let message = Message::deser(&message_data)?;
+        let message: Message<RistrettoCtx> = Message::deser(&message_data)?;
         info!("message: {:?}", message);
     }
     Ok(())

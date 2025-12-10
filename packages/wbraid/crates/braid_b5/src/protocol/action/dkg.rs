@@ -29,7 +29,7 @@ use cryptography::traits::groups::CryptographicGroup;
 pub(super) fn gen_channel<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError>
+) -> Result<Vec<Message<C>>, ProtocolError>
 where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {
@@ -60,7 +60,7 @@ pub(super) fn sign_channels<C: Context, S: crate::protocol::board::LocalBoardSto
     self_pos: &TrusteePosition,
     num_trustees: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError>
+) -> Result<Vec<Message<C>>, ProtocolError>
 where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {
@@ -122,7 +122,7 @@ pub(super) fn compute_shares<C: Context, S: crate::protocol::board::LocalBoardSt
     num_trustees: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError>
+) -> Result<Vec<Message<C>>, ProtocolError>
 where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {
@@ -179,7 +179,7 @@ pub(super) fn compute_pk<C: Context, S: crate::protocol::board::LocalBoardStorag
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError>
+) -> Result<Vec<Message<C>>, ProtocolError>
 where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {
@@ -216,7 +216,7 @@ pub(super) fn sign_pk<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError>
+) -> Result<Vec<Message<C>>, ProtocolError>
 where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {

@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -9,7 +5,9 @@ use tracing::info;
 
 use b5::messages::message::Message;
 use b5::HttpB3Message;
+use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VSerializable;
+use cryptography::utils::signatures::SignatureScheme;
 
 use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
 use crate::util::ProtocolError;
@@ -92,9 +90,9 @@ impl HttpB3 {
     }
 
     /// Helper to post a single message to a specific board
-    async fn post_message_to_board(&self, board: &str, message: &Message) -> Result<()> {
+    async fn post_message_to_board<C: Context>(&self, board: &str, message: &Message<C>) -> Result<()> {
         // Extract metadata from message
-        let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+        let sender_pk = C::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
             .map_err(ProtocolError::InternalError)?;
         let statement_kind = message.statement.get_kind().to_string();
         let batch: i32 = message.statement.get_batch_number().try_into()?;
@@ -212,7 +210,7 @@ impl HttpB3 {
     }
 }
 
-impl Board for HttpB3 {
+impl<C: Context> Board<C> for HttpB3 {
     type Factory = HttpB3BoardParams;
     
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
@@ -282,7 +280,7 @@ impl Board for HttpB3 {
         Ok(result)
     }
 
-    async fn insert_messages(&mut self, board: &str, messages: Vec<Message>) -> Result<()> {
+    async fn insert_messages(&mut self, board: &str, messages: Vec<Message<C>>) -> Result<()> {
         for message in messages {
             self.post_message_to_board(board, &message).await?;
         }
@@ -345,7 +343,7 @@ impl HttpB3BoardParams {
     }
 }
 
-impl BoardFactory<HttpB3> for HttpB3BoardParams {
+impl<C: Context> BoardFactory<C, HttpB3> for HttpB3BoardParams {
     fn get_board(&self) -> HttpB3 {
         // Board name will be set when used with Session
         HttpB3 {
@@ -357,7 +355,7 @@ impl BoardFactory<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
+impl<C: Context> BoardFactoryMulti<C, HttpB3> for HttpB3BoardParams {
     fn get_board(&self) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
@@ -368,7 +366,7 @@ impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl BoardMulti for HttpB3 {
+impl<C: Context> BoardMulti<C> for HttpB3 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages_multi(
@@ -459,7 +457,7 @@ impl BoardMulti for HttpB3 {
         Ok((all_boards, has_more))
     }
 
-    async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message>)>) -> Result<()> {
+    async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message<C>>)>) -> Result<()> {
         use b5::api_types::{
             InitiateMessagesMultiRequest, BoardInitiateRequest, MessageMetadata,
             ConfirmMessagesMultiRequest, BoardConfirmRequest, MessageConfirmation,
@@ -472,7 +470,7 @@ impl BoardMulti for HttpB3 {
         
         // Phase 1: Initiate multi-board upload - get S3 URLs for all messages
         let mut initiate_requests = Vec::new();
-        let mut messages_by_board: std::collections::HashMap<String, Vec<Message>> = std::collections::HashMap::new();
+        let mut messages_by_board: std::collections::HashMap<String, Vec<Message<C>>> = std::collections::HashMap::new();
         
         for (board_name, messages) in requests {
             if messages.is_empty() {
@@ -481,7 +479,7 @@ impl BoardMulti for HttpB3 {
             
             let mut metadata_list = Vec::new();
             for message in &messages {
-                let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+                let sender_pk = C::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
                     .map_err(ProtocolError::InternalError)?;
                 let statement_kind = message.statement.get_kind().to_string();
                 let batch: i32 = message.statement.get_batch_number().try_into()?;

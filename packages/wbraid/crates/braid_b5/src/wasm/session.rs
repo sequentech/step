@@ -15,7 +15,6 @@ use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
 use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, IndexedDbStorage};
 use cryptography::context::RistrettoCtx;
-use b5::SigningKey;
 use cryptography::utils::symm;
 use b5::HttpB3Message;
 use b5::api_types::{
@@ -383,7 +382,7 @@ impl WasmSession {
     }
 
     /// Post messages to the bulletin board
-    async fn post_messages(&self, messages: Vec<b5::messages::message::Message>) -> Result<(), JsValue> {
+    async fn post_messages(&self, messages: Vec<b5::messages::message::Message<RistrettoCtx>>) -> Result<(), JsValue> {
         use cryptography::utils::serialization::variable::VSerializable;
         
         if messages.is_empty() {

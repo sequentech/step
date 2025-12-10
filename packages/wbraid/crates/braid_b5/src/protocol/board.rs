@@ -28,8 +28,8 @@ use b5::HttpB3Message;
 ///
 /// 1) retrieving messages greater than some id (as defined by the bulletin board).
 /// 2) Posting new messages.
-pub trait Board: Sized {
-    type Factory: BoardFactory<Self>;
+pub trait Board<C: cryptography::context::Context>: Sized {
+    type Factory: BoardFactory<C, Self>;
 
     /// Return messages with an id greater than the supplied last_id value from
     /// the given board of the bulletin board.
@@ -59,21 +59,21 @@ pub trait Board: Sized {
     fn insert_messages(
         &mut self,
         board: &str,
-        messages: Vec<Message>,
+        messages: Vec<Message<C>>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
 
     #[cfg(target_arch = "wasm32")]
     fn insert_messages(
         &mut self,
         board: &str,
-        messages: Vec<Message>,
+        messages: Vec<Message<C>>,
     ) -> impl std::future::Future<Output = Result<()>>;
 }
 
 /// Allows abstracting over a board client implementation
 ///
 /// FIXME: probably overengineered.
-pub trait BoardFactory<B: Board>: Sized {
+pub trait BoardFactory<C: cryptography::context::Context, B: Board<C>>: Sized {
     fn get_board(&self) -> B;
 }
 
@@ -87,8 +87,8 @@ pub trait BoardFactory<B: Board>: Sized {
 ///
 /// This version allows receiving and posting messages in batches that span
 /// more than one board.
-pub trait BoardMulti: Sized {
-    type Factory: BoardFactoryMulti<Self>;
+pub trait BoardMulti<C: cryptography::context::Context>: Sized {
+    type Factory: BoardFactoryMulti<C, Self>;
 
     /// Returns a list of HttpBoardMessages for the given requests.
     ///
@@ -100,13 +100,13 @@ pub trait BoardMulti: Sized {
 
     fn insert_messages_multi(
         &self,
-        requests: Vec<(String, Vec<Message>)>,
+        requests: Vec<(String, Vec<Message<C>>)>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
 }
 
 /// Allows abstracting over a board client implementation
 ///
 /// FIXME: probably overengineered.
-pub trait BoardFactoryMulti<B: BoardMulti>: Sized {
+pub trait BoardFactoryMulti<C: cryptography::context::Context, B: BoardMulti<C>>: Sized {
     fn get_board(&self) -> B;
 }

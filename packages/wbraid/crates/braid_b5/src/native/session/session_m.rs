@@ -56,7 +56,7 @@ impl<C: Context, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
     /// call is still required because there may be messages in the
     /// message_store whose required Actions have not yet executed,
     /// leading to a possible protocol hang.
-    pub fn step(&mut self, messages: &Vec<HttpB3Message>) -> Result<Vec<Message>, ProtocolError> {
+    pub fn step(&mut self, messages: &Vec<HttpB3Message>) -> Result<Vec<Message<C>>, ProtocolError> {
         // NOTE: we must call step even if there are no new remote messages
         // because there may be actions pending in the trustees LocalBoard.
         let step_result = self.trustee.step(messages)?;

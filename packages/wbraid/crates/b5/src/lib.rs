@@ -16,7 +16,7 @@ pub mod s3;
 pub mod state;
 
 use anyhow::Result;
-use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::messages::newtypes::Timestamp;
 
 use cryptography::context::{Context, RistrettoCtx};

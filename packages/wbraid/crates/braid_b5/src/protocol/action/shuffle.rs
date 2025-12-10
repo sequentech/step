@@ -36,7 +36,7 @@ pub(crate) fn mix<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     mix_no: &MixNumber,
     trustees: &TrusteeSet,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message<C>>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
 
     let ciphertexts = if *mix_no == 1 {
@@ -128,7 +128,7 @@ pub(crate) fn sign_mix<C: Context, S: crate::protocol::board::LocalBoardStorage>
     pk_h: &PublicKeyHash,
     mix_no: &MixNumber,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message<C>>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
         let ballots = trustee

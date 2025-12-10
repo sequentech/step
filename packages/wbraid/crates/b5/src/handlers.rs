@@ -575,9 +575,10 @@ pub async fn confirm_messages_multi(
                 // Deserialize to extract metadata
                 use cryptography::utils::serialization::{VDeserializable, VSerializable};
                 use crate::messages::message::Message as B5Message;
+                use crate::CryptographicContext;
                 use base64::{Engine as _, engine::general_purpose};
                 
-                let parsed_msg = B5Message::deser(&data)
+                let parsed_msg = B5Message::<CryptographicContext>::deser(&data)
                     .map_err(|e| {
                         tracing::error!("Failed to deserialize message for board '{}': {}", board_name, e);
                         StatusCode::BAD_REQUEST
@@ -652,9 +653,10 @@ pub async fn confirm_messages_multi(
                 // Deserialize to extract metadata
                 use cryptography::utils::serialization::{VDeserializable, VSerializable};
                 use crate::messages::message::Message as B5Message;
+                use crate::CryptographicContext;
                 use base64::{Engine as _, engine::general_purpose};
                 
-                let parsed_msg = B5Message::deser(&data)
+                let parsed_msg = B5Message::<CryptographicContext>::deser(&data)
                     .map_err(|e| {
                         tracing::error!("Failed to deserialize S3 message for board '{}': {}", board_name, e);
                         StatusCode::BAD_REQUEST

@@ -65,7 +65,7 @@ impl<C: Context, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, 
     }
 }
 
-fn send(messages: Vec<Message>, remote: &mut VectorBoard) {
+fn send<C: cryptography::context::Context>(messages: Vec<Message<C>>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Sending message to vector board {:?}", m);
         remote.add(m.try_clone().unwrap());

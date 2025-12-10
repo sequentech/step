@@ -31,7 +31,7 @@ pub(super) fn compute_decryption_factors<C: Context, S: crate::protocol::board::
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> {
+) -> Result<Vec<Message<C>>, ProtocolError> {
     use cryptography::dkgd::recipient::{Recipient, ParticipantPosition};
     
     let cfg = trustee.get_configuration(cfg_h)?;
@@ -118,7 +118,7 @@ pub(super) fn compute_plaintexts<C: Context, S: crate::protocol::board::LocalBoa
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError>
+) -> Result<Vec<Message<C>>, ProtocolError>
 where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {
@@ -162,7 +162,7 @@ pub(super) fn sign_plaintexts<C: Context, S: crate::protocol::board::LocalBoardS
     trustees: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError>
+) -> Result<Vec<Message<C>>, ProtocolError>
 where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {

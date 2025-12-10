@@ -15,12 +15,12 @@ use crate::util::ProtocolError;
 ///
 /// A protocol session handles one board in the
 /// bulletin board.
-pub struct Session<C: Context + 'static, B: Board + 'static, S: crate::protocol::board::LocalBoardStorage> {
+pub struct Session<C: Context + 'static, B: Board<C> + 'static, S: crate::protocol::board::LocalBoardStorage> {
     pub board_name: String,
     pub trustee: Trustee<C, S>,
     board_factory: B::Factory,
 }
-impl<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, B, S> {
+impl<C: Context, B: Board<C>, S: crate::protocol::board::LocalBoardStorage> Session<C, B, S> {
     /// Constructs a new SessionM to handle the requested board.
     ///
     /// The board_factory parameter is used at each step to perform
@@ -42,7 +42,7 @@ impl<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> Session
     /// 2) Run the trustee step
     /// 3) Post the messages returned by the trustee
     /// to the remote board
-    pub async fn step(&mut self) -> Result<(usize, StepResult), ProtocolError> {
+    pub async fn step(&mut self) -> Result<(usize, StepResult<C>), ProtocolError> {
         let mut board = self.board_factory.get_board();
 
         let external_last_id = self.trustee.get_last_external_id()?;

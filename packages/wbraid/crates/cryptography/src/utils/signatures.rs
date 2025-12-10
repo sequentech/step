@@ -53,6 +53,16 @@ pub trait SignatureScheme<R: CRng> {
     
     /// Gets the verifying key from a signing key.
     fn verifying_key(signer: &Self::Signer) -> Self::Verifier;
+    
+    /// Serializes a verifying key to a base64-encoded string.
+    ///
+    /// This is useful for HTTP APIs and other string-based protocols.
+    fn verifier_to_base64_string(verifier: &Self::Verifier) -> Result<String, String>;
+    
+    /// Deserializes a verifying key from a base64-encoded string.
+    ///
+    /// This is the inverse of `verifier_to_base64_string`.
+    fn verifier_from_base64_string(s: &str) -> Result<Self::Verifier, String>;
 }
 
 /**
@@ -89,6 +99,29 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
     
     fn verifying_key(signer: &Self::Signer) -> Self::Verifier {
         signer.verifying_key()
+    }
+    
+    fn verifier_to_base64_string(verifier: &Self::Verifier) -> Result<String, String> {
+        use base64::{engine::general_purpose, Engine as _};
+        
+        // Ed25519 public keys are 32 bytes
+        let bytes = verifier.to_bytes();
+        Ok(general_purpose::STANDARD.encode(&bytes))
+    }
+    
+    fn verifier_from_base64_string(s: &str) -> Result<Self::Verifier, String> {
+        use base64::{engine::general_purpose, Engine as _};
+        
+        let bytes = general_purpose::STANDARD
+            .decode(s)
+            .map_err(|e| format!("Failed to decode base64: {:?}", e))?;
+        
+        let bytes: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| "Invalid key length: expected 32 bytes".to_string())?;
+        
+        VerifyingKey::from_bytes(&bytes)
+            .map_err(|e| format!("Failed to parse verifying key: {:?}", e))
     }
 }
 

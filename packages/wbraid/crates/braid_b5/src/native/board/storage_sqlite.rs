@@ -17,6 +17,7 @@ use std::time::Instant;
 
 use b5::messages::message::Message;
 use b5::HttpB3Message;
+use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VDeserializable;
 
 use crate::protocol::board::local_storage::LocalBoardStorage;
@@ -124,7 +125,7 @@ impl LocalBoardStorage for SqliteStorage {
             }
 
             // Deserialize to extract metadata
-            let message = Message::deser(&m.message)?;
+            let message = Message::<b5::CryptographicContext>::deser(&m.message)?;
             let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
                 .map_err(|e| anyhow!("Failed to encode verifying key: {}", e))?;
             let kind = message.statement.get_kind().to_string();
@@ -168,7 +169,7 @@ impl LocalBoardStorage for SqliteStorage {
         Ok(())
     }
 
-    fn retrieve_messages(&self, last_local_board_id: i64) -> Result<Vec<(Message, i64)>> {
+    fn retrieve_messages<C: Context>(&self, last_local_board_id: i64) -> Result<Vec<(Message<C>, i64)>> {
         let connection = self.get_connection()?;
 
         // SECURITY CRITICAL: ORDER BY id ASC ensures messages are processed in the
@@ -191,7 +192,7 @@ impl LocalBoardStorage for SqliteStorage {
             })
         })?;
 
-        let messages: Result<Vec<(Message, i64)>> = rows
+        let messages: Result<Vec<(Message<C>, i64)>> = rows
             .map(|mr| {
                 let row = mr?;
                 let id = row.id;

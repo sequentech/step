@@ -13,7 +13,7 @@ use super::*;
 pub(super) fn sign_config<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message>, ProtocolError> 
+) -> Result<Vec<Message<C>>, ProtocolError> 
 where 
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {

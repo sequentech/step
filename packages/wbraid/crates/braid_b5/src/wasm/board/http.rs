@@ -12,10 +12,12 @@ use crate::protocol::board::{Board, BoardFactory};
 use b5::HttpB3Message;
 use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
-    ListMessagesResponse, GetMessagesResponse, MessageWithUrl, ContentType,
+    GetMessagesResponse, ContentType,
 };
 use b5::messages::message::Message;
+use cryptography::context::RistrettoCtx;
 use cryptography::utils::serialization::variable::VSerializable;
+use cryptography::utils::signatures::SignatureScheme;
 
 /// Parameters for creating a WASM HTTP board connection
 #[derive(Clone)]
@@ -119,9 +121,9 @@ impl WasmHttpBoard {
     }
 
     /// Post a single message to B4
-    async fn post_message_internal(&self, board_name: &str, message: Message) -> Result<(), JsValue> {
+    async fn post_message_internal(&self, board_name: &str, message: Message<RistrettoCtx>) -> Result<(), JsValue> {
         // Extract metadata
-        let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+        let sender_pk = <RistrettoCtx as cryptography::context::Context>::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
             .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {}", e)))?;
         let statement_kind = message.statement.get_kind().to_string();
         let batch: i32 = message.statement.get_batch_number() as i32;
@@ -268,7 +270,7 @@ impl WasmHttpBoard {
     }
 }
 
-impl Board for WasmHttpBoard {
+impl Board<RistrettoCtx> for WasmHttpBoard {
     type Factory = WasmHttpBoardFactory;
 
     async fn get_messages(&mut self, board_name: &str, last_id: i64) -> anyhow::Result<Vec<HttpB3Message>> {
@@ -277,7 +279,7 @@ impl Board for WasmHttpBoard {
             .map_err(|e| anyhow::anyhow!("Failed to fetch messages: {:?}", e))
     }
 
-    async fn insert_messages(&mut self, board_name: &str, messages: Vec<Message>) -> anyhow::Result<()> {
+    async fn insert_messages(&mut self, board_name: &str, messages: Vec<Message<RistrettoCtx>>) -> anyhow::Result<()> {
         for message in messages {
             self.post_message_internal(board_name, message)
                 .await
@@ -299,7 +301,7 @@ impl WasmHttpBoardFactory {
     }
 }
 
-impl BoardFactory<WasmHttpBoard> for WasmHttpBoardFactory {
+impl BoardFactory<RistrettoCtx, WasmHttpBoard> for WasmHttpBoardFactory {
     fn get_board(&self) -> WasmHttpBoard {
         WasmHttpBoard::new(self.params.clone())
     }

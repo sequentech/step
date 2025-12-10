@@ -23,6 +23,7 @@
 
 use anyhow::Result;
 use std::sync::Mutex;
+use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VDeserializable;
 
 use b5::messages::message::Message;
@@ -59,10 +60,10 @@ impl LocalBoardStorage for NoOpStorage {
         Ok(())
     }
 
-    fn retrieve_messages(&self, _last_local_board_id: i64) -> Result<Vec<(Message, i64)>> {
+    fn retrieve_messages<C: Context>(&self, _last_local_board_id: i64) -> Result<Vec<(Message<C>, i64)>> {
         // Parse messages from transient buffer, using external IDs
         let mut transient = self.transient.lock().unwrap();
-        let result: Result<Vec<(Message, i64)>> = transient
+        let result: Result<Vec<(Message<C>, i64)>> = transient
             .iter()
             .map(|m| {
                 let message = Message::deser(&m.message)?;

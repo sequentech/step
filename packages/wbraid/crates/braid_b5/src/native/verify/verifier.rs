@@ -115,14 +115,14 @@ enum Check {
     PLAINTEXTS_VALID,
 }
 
-pub struct Verifier<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> {
+pub struct Verifier<C: Context, B: Board<C>, S: crate::protocol::board::LocalBoardStorage> {
     trustee: Trustee<C, S>,
     board: B,
     board_name: String,
     logger: Box<dyn VerifierLogger>,
 }
 
-impl<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifier<C, B, S> {
+impl<C: Context, B: Board<C>, S: crate::protocol::board::LocalBoardStorage> Verifier<C, B, S> {
     pub fn new(trustee: Trustee<C, S>, board: B, board_name: &str) -> Verifier<C, B, S> {
         Verifier {
             trustee,
@@ -145,14 +145,14 @@ impl<C: Context, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifie
 
         info!("Retrieved messages {} from board.", messages.len());
         
-        let messages: Vec<(Message, i64)> = messages
+        let messages: Vec<(Message<C>, i64)> = messages
             .iter()
             .map(|m| (Message::deser(&m.message).unwrap(), m.id))
             .collect();
         // discard ids here
-        // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
+        // let messages: Vec<Message<C>> = messages.into_iter().map(|(m, id)| m).collect();
 
-        let cfg_message: Vec<&Message> = messages
+        let cfg_message: Vec<&Message<C>> = messages
             .iter()
             .filter(|m| m.0.statement.get_kind() == StatementType::Configuration)
             .map(|m| &m.0)

@@ -172,7 +172,7 @@ async fn run_protocol_test_http<C: Context + 'static>(
         panic!("Unknown content_type format: {:?}", message_obj["content_type"]);
     };
     
-    let pk_message = Message::deser(&pk_bytes_encoded).unwrap();
+    let pk_message = Message::<C>::deser(&pk_bytes_encoded).unwrap();
     
     let pk_bytes = pk_message.artifact.unwrap();
     let pk_h = b5::hash_to_array(&pk_bytes).unwrap();
@@ -216,7 +216,7 @@ async fn run_protocol_test_http<C: Context + 'static>(
     }
 
     // Wait for decryption
-    let mut plaintexts_out: Vec<(i64, Message)> = vec![];
+    let mut plaintexts_out: Vec<(i64, Message<C>)> = vec![];
     for i in 0..150 {
         info!("Decryption Cycle {}", i);
 

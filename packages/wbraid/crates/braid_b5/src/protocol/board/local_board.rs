@@ -571,7 +571,7 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
         &mut self,
         messages: &[HttpB3Message],
         ignore_existing: bool,
-    ) -> Result<Vec<(b5::messages::message::Message, i64)>> {
+    ) -> Result<Vec<(b5::messages::message::Message<C>, i64)>> {
         self.storage.store_messages(messages, ignore_existing)?;
         self.storage.retrieve_messages(self.last_local_board_id)
     }

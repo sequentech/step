@@ -126,7 +126,7 @@ struct ReplContext<C: Context> {
     pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
     pub trustee_pks: Vec<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier>,
     pub remote: VectorBoard,
-    pub last_messages: Vec<Message>,
+    pub last_messages: Vec<Message<C>>,
     pub last_actions: HashSet<Action>,
     pub log_reload: Option<Handle<LevelFilter, Registry>>,
     pub plaintexts: Vec<[C::Element; 2]>,
@@ -147,7 +147,7 @@ struct Status<C: Context> {
     statement_keys: Vec<Vec<StatementEntryIdentifier>>,
     artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
     remote: VectorBoard,
-    last_messages: Vec<Message>,
+    last_messages: Vec<Message<C>>,
     last_actions: HashSet<Action>,
 }
 impl<C: Context> Status<C> {
@@ -156,7 +156,7 @@ impl<C: Context> Status<C> {
         statement_keys: Vec<Vec<StatementEntryIdentifier>>,
         artifact_keys: Vec<Vec<ArtifactEntryIdentifier>>,
         remote: VectorBoard,
-        last_messages: Vec<Message>,
+        last_messages: Vec<Message<C>>,
         last_actions: HashSet<Action>,
     ) -> Status<C> {
         Status {
@@ -258,7 +258,7 @@ impl<C: Context> Status<C> {
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
         for m in self.remote.messages.iter() {
-            let m = Message::deser(&m.message).unwrap();
+            let m = Message::<C>::deser(&m.message).unwrap();
             use cryptography::utils::serialization::{VSerializable, VDeserializable};
             let pk_bytes = m.sender.pk.ser();
             let generic_pk: <C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier = 
@@ -603,7 +603,7 @@ fn step<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Op
 }
 
 /// Simulates posting to the bulletin board.
-fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
+fn send<C: cryptography::context::Context>(messages: &Vec<Message<C>>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Adding message {:?} to remote", m);
         remote.add(m.try_clone().unwrap());

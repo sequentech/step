@@ -7,6 +7,7 @@ use b5::{
     messages::{message::Message, statement::StatementType},
 };
 use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
+use cryptography::utils::signatures::SignatureScheme;
 
 /// VectorBoard
 ///
@@ -39,12 +40,12 @@ impl VectorBoard {
         }
     }
 
-    pub fn add(&mut self, message: Message) {
+    pub fn add<C: cryptography::context::Context>(&mut self, message: Message<C>) {
         let last_id: i64 = self.messages.len() as i64;
         let m = message.ser();
         
         // Extract metadata from message
-        let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk).unwrap();
+        let sender_pk = C::SignatureScheme::verifier_to_base64_string(&message.sender.pk).unwrap();
         let statement_kind = message.statement.get_kind().to_string();
         let batch: i32 = message.statement.get_batch_number().try_into().unwrap();
         let mix_number: i32 = message.statement.get_mix_number().try_into().unwrap();
@@ -84,7 +85,7 @@ impl std::fmt::Debug for VectorBoard {
         let types: Vec<(StatementType, bool)> = self
             .messages
             .iter()
-            .map(|m| Message::deser(&m.message).unwrap())
+            .map(|m| Message::<cryptography::context::RistrettoCtx>::deser(&m.message).unwrap())
             .map(|m| (m.statement.get_kind(), m.artifact.is_some()))
             .collect();
         write!(

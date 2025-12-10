@@ -18,7 +18,7 @@ use tokio::time::{sleep, Duration};
 use b5::HttpB3Message;
 use cryptography::context::RistrettoCtx;
 
-use crate::native::board::HttpB3BoardParams;
+use crate::native::board::{HttpB3, HttpB3BoardParams};
 use crate::protocol::board::{BoardFactoryMulti, BoardMulti};
 use crate::native::session::session_m::{SessionFactory, SessionM};
 
@@ -274,8 +274,8 @@ impl SessionSet {
                     std::process::exit(0);
                 }*/
 
-                let board = self.board_params.get_board();
-                let responses = board.get_messages_multi(&requests).await;
+                let board: HttpB3 = <HttpB3BoardParams as BoardFactoryMulti<RistrettoCtx, HttpB3>>::get_board(&self.board_params);
+                let responses = <HttpB3 as BoardMulti<RistrettoCtx>>::get_messages_multi(&board, &requests).await;
 
                 // Pagination: if the bulletin board returns has_more = true it means there
                 // are more messages available that exceeded the per-request limit.

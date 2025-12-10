@@ -72,9 +72,11 @@ use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{IdbDatabase, IdbRequest, IdbTransactionMode};
+use cryptography::utils::signatures::SignatureScheme;
 
 use b5::messages::message::Message;
 use b5::HttpB3Message;
+use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VDeserializable;
 
 use crate::protocol::board::local_storage::{LocalBoardStorage, StorageInfo};
@@ -460,10 +462,10 @@ impl IndexedDbStorage {
     
     /// Extract metadata from message for duplicate detection
     fn extract_metadata(msg: &HttpB3Message) -> Result<MessageMetadata> {
-        let message = Message::deser(&msg.message)?;
+        let message = Message::<cryptography::context::RistrettoCtx>::deser(&msg.message)?;
         
         Ok(MessageMetadata {
-            sender_pk: b5::verifying_key_to_der_b64_string(&message.sender.pk)
+            sender_pk: <cryptography::context::RistrettoCtx as cryptography::context::Context>::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
                 .map_err(|e| anyhow::anyhow!("Failed to encode sender PK: {}", e))?,
             statement_kind: message.statement.get_kind().to_string(),
             batch: message.statement.get_batch_number().try_into()?,
@@ -660,7 +662,7 @@ impl LocalBoardStorage for IndexedDbStorage {
         Ok(())
     }
     
-    fn retrieve_messages(&self, last_local_board_id: i64) -> Result<Vec<(Message, i64)>> {
+    fn retrieve_messages<C: Context>(&self, last_local_board_id: i64) -> Result<Vec<(Message<C>, i64)>> where C: 'static {
         // Clone messages to avoid borrow issues during verify_and_store
         let messages = {
             let transient = self.transient.borrow();
@@ -693,7 +695,7 @@ impl LocalBoardStorage for IndexedDbStorage {
         
         // The messages we need are at the END of the buffer (most recent)
         // because verify_and_store ensures buffer has [verified_messages, new_messages]
-        let mut result: Vec<(Message, i64)> = messages
+        let mut result: Vec<(Message<C>, i64)> = messages
             .iter()
             .rev()  // Start from the end
             .take(messages_to_return)
@@ -702,7 +704,7 @@ impl LocalBoardStorage for IndexedDbStorage {
                 // idx=0 is the last message (local_id=S), idx=1 is second-to-last (local_id=S-1), etc.
                 let local_id = S - (idx as i64);
                 
-                match Message::deser(&msg.message) {
+                match Message::<C>::deser(&msg.message) {
                     Ok(message) => Ok((message, local_id)),
                     Err(e) => Err(anyhow::anyhow!("Failed to deserialize message: {}", e)),
                 }
