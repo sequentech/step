@@ -80,6 +80,9 @@ const englishTranslation = {
                 EXPORT_TENANT_CONFIG: "Export Tenant Config",
                 IMPORT_TENANT_CONFIG: "Import Tenant Config",
                 RENDER_DOCUMENT_PDF: "Render Document PDF",
+                CREATE_TENANT: "Create Tenant",
+                EXPORT_TEMPLATES: "Export Templates",
+                IMPORT_TEMPLATES: "Import Templates",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
@@ -364,6 +367,13 @@ const englishTranslation = {
                     options: {
                         "areas-weighted-voting": "Weighted Voting for Areas",
                         "disabled-weighted-voting": "Disabled Weighted Voting",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Delegated Voting Policy",
+                    options: {
+                        enabled: "Enabled",
+                        disabled: "Disabled",
                     },
                 },
             },
@@ -1138,7 +1148,7 @@ const englishTranslation = {
                 import: "Import",
                 export: "Export",
                 loadingData: "Loading data ...",
-                exportFormat: "Export '{{item}}' results in {{format}} format",
+                exportFormat: "Export in {{format}} format - '{{item}}' results",
                 allResults: "election event",
                 globalAreaResults: "all areas",
                 title: "Title",
@@ -1299,6 +1309,7 @@ const englishTranslation = {
             options: {
                 "non-preferential": "No Preferential",
                 "plurality-at-large": "Plurality at Large",
+                "instant-runoff": "Instant Runoff",
                 "random": "Random",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
@@ -1644,6 +1655,12 @@ const englishTranslation = {
                 number_of_votes: "Number of Votes",
                 winning_position: "Winning position",
                 weight: "Weight",
+                preferential: {
+                    candidate: "Candidate",
+                    winner: "Winner",
+                    eliminated: "Eliminated",
+                    round: "Round",
+                },
             },
             chart: {
                 votesForCandidates: "Votes For Candidates",

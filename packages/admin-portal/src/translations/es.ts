@@ -81,6 +81,9 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                CREATE_TENANT: "Crear Inquilino",
+                EXPORT_TEMPLATES: "Exportar Plantillas",
+                IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
@@ -366,6 +369,13 @@ const spanishTranslation: TranslationType = {
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
                         "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Votación Delegada",
+                    options: {
+                        enabled: "Habilitado",
+                        disabled: "Deshabilitado",
                     },
                 },
             },
@@ -1150,7 +1160,7 @@ const spanishTranslation: TranslationType = {
                 import: "Importar",
                 export: "Exportar",
                 loadingData: "Cargando datos ...",
-                exportFormat: "Exportar resultados de '{{item}}' en formato {{format}}",
+                exportFormat: "Exportar en formato {{format}} - Resultados de '{{item}}'",
                 allResults: "del evento electoral",
                 globalAreaResults: "de todas las áreas",
                 title: "Título",
@@ -1311,6 +1321,7 @@ const spanishTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sin Preferencia",
                 "plurality-at-large": "Mayoría Plural",
+                "instant-runoff": "Segunda Vuelta Instantánea",
                 "random": "Aleatorias",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
@@ -1658,6 +1669,12 @@ const spanishTranslation: TranslationType = {
                 number_of_votes: "Número de votos",
                 winning_position: "Posición ganadora",
                 weight: "Peso",
+                preferential: {
+                    candidate: "Candidato",
+                    winner: "Ganador",
+                    eliminated: "Eliminado",
+                    round: "Ronda",
+                },
             },
             chart: {
                 votesForCandidates: "Votos por Candidatos",

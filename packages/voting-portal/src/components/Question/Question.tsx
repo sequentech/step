@@ -166,7 +166,7 @@ export const Question: React.FC<IQuestionProps> = ({
         // Calculating the number of selected candidates
         let selectedChoicesCount = 0
         contestState?.choices.forEach((choice) => {
-            choice.selected === 0 && selectedChoicesCount++
+            choice.selected >= 0 && selectedChoicesCount++
         })
         setSelectedChoicesSum(selectedChoicesCount)
     }, [contestState])
@@ -279,7 +279,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                 contestId={question.id}
                                 key={answerIndex}
                                 index={answerIndex}
-                                isActive={!isReview}
+                                isSelectable={!isReview}
                                 isReview={isReview}
                                 isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                                 isRadioSelection={isRadioSelection}
@@ -339,7 +339,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                     contestId={question.id}
                                     index={answerIndex}
                                     key={answerIndex}
-                                    isActive={!isReview}
+                                    isSelectable={!isReview}
                                     isInvalidVote={false}
                                     isReview={isReview}
                                     isRadioSelection={isRadioSelection}
@@ -367,7 +367,7 @@ export const Question: React.FC<IQuestionProps> = ({
                                 contestId={question.id}
                                 index={answerIndex}
                                 key={answerIndex}
-                                isActive={!isReview}
+                                isSelectable={!isReview}
                                 isReview={isReview}
                                 isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                                 isInvalidWriteIns={false}

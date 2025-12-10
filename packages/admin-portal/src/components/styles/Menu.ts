@@ -206,7 +206,9 @@ export const MenuStyles = {
     StyledAddCircleIcon: styled(AddCircleIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    StyledDiv: styled(Box)<{isWidth: boolean}>`
+    StyledDiv: styled(Box, {
+        shouldForwardProp: (prop) => prop !== "isWidth",
+    })<{isWidth: boolean}>`
         flex: 0 0 auto;
         height: 1.5rem;
         width: ${({isWidth}) => (isWidth ? "1.5rem" : "auto")};

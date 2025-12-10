@@ -12,6 +12,7 @@ import {
     encryptMultiBallotSelection,
     encodePlaintextBallotSelection,
     interpretContestSelection,
+    isPreferential,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
@@ -34,6 +35,7 @@ import {
     ISignedContent,
     IContest,
     BallotSelection,
+    ICountingAlgorithm,
 } from "@sequentech/ui-core"
 
 export interface IBallotService {
@@ -90,6 +92,7 @@ export interface IBallotService {
         electionId: string,
         hashableBallot: IAuditableMultiBallot
     ) => ISignedContent | null
+    isPreferential: (countingAlgorithm?: ICountingAlgorithm) => boolean
     signHashablePlaintextBallot: (
         ballotId: string,
         electionId: string,
@@ -116,5 +119,6 @@ export const provideBallotService = (): IBallotService => ({
     checkIsBlank,
     signHashableBallot,
     signHashableMultiBallot,
+    isPreferential,
     signHashablePlaintextBallot,
 })

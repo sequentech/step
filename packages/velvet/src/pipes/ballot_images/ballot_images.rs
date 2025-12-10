@@ -9,11 +9,11 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
-
 use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates, Weight};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
+use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -57,6 +57,7 @@ impl BallotImages {
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
         let tally = Tally::new(
             contest,
+            ScopeOperation::Area(TallyOperation::ProcessBallotsAll), // TODO: Fix this
             vec![(path.to_path_buf(), Weight::default())],
             0,
             0,

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::election::get_elections;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
@@ -30,7 +31,9 @@ use base64::{
 use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ContestEncryptionPolicy, ElectionPresentation, HashableBallot};
+use sequent_core::ballot::{
+    ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation, HashableBallot,
+};
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::plaintext_ballot::HashablePlaintextBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
@@ -85,6 +88,7 @@ pub async fn insert_ballots_messages(
     trustee_names: Vec<String>,
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
+    delegated_voting_policy: DelegatedVotingPolicy,
 ) -> Result<Vec<TallySessionContest>> {
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
@@ -187,6 +191,7 @@ pub async fn insert_ballots_messages(
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
+            let is_delegated = delegated_voting_policy == DelegatedVotingPolicy::ENABLED;
 
             let task = tokio::task::spawn_blocking(move || {
                 tokio::runtime::Handle::current().block_on(async move {
@@ -261,6 +266,7 @@ pub async fn insert_ballots_messages(
                         &tally_session_contest.area_id,
                         &election_alias,
                         &users_temp_file.path().to_path_buf(),
+                        is_delegated,
                     )
                     .await?;
 
@@ -272,6 +278,9 @@ pub async fn insert_ballots_messages(
                     let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
 
+                    // Add the index where the username of the delegated vote is if the election has delegation enabled.
+                    let delegate_count_index = if is_delegated { Some(1) } else { None };
+
                     let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
                         merge_join_csv(
                             &ballots_temp_file,
@@ -279,6 +288,7 @@ pub async fn insert_ballots_messages(
                             ballots_join_indexes,
                             users_join_idexes,
                             ballots_output_index,
+                            delegate_count_index,
                         )?;
 
                     let ballot_contents: Vec<BallotContent<RistrettoCtx>> = ballot_contents

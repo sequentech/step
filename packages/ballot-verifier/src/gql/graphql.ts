@@ -1,6 +1,6 @@
 import {TypedDocumentNode as DocumentNode} from "@graphql-typed-document-node/core"
 export type Maybe<T> = T | null
-export type InputMaybe<T> = Maybe<T>
+export type InputMaybe<T> = T | null | undefined
 export type Exact<T extends {[key: string]: unknown}> = {[K in keyof T]: T[K]}
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & {[SubKey in K]?: Maybe<T[SubKey]>}
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & {[SubKey in K]: Maybe<T[SubKey]>}
@@ -283,6 +283,7 @@ export type ElectoralLogFilter = {
     statement_kind?: InputMaybe<Scalars["String"]["input"]>
     statement_timestamp?: InputMaybe<Scalars["String"]["input"]>
     user_id?: InputMaybe<Scalars["String"]["input"]>
+    username?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type ElectoralLogOrderBy = {
@@ -374,6 +375,7 @@ export type ExportTemplateOutput = {
     __typename?: "ExportTemplateOutput"
     document_id: Scalars["String"]["output"]
     error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 export type ExportTenantUsersOutput = {
@@ -552,8 +554,10 @@ export type InsertCastVoteOutput = {
 
 export type InsertTenantOutput = {
     __typename?: "InsertTenantOutput"
+    error_msg?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
     slug: Scalars["String"]["output"]
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 /** Boolean expression to compare columns of type "Int". All fields are combined with logical 'AND'. */
@@ -19938,6 +19942,7 @@ export type TemplateOutput = {
     __typename?: "templateOutput"
     document_id: Scalars["String"]["output"]
     error_msg?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
 }
 
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */

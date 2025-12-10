@@ -8,6 +8,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
 
+// Keys for annotations fields in ResultAreaContest
+pub const EXTENDED_METRICS: &str = "extended_metrics";
+pub const PROCESS_RESULTS: &str = "process_results";
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ResultDocumentType {
     Json,

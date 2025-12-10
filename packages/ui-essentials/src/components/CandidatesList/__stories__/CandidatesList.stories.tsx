@@ -18,7 +18,7 @@ const SimpleCandidate: React.FC<SimpleCandidateProps> = ({isActive}) => (
     <Candidate
         title="Micky Mouse"
         description="Candidate Description"
-        isActive={isActive}
+        isSelectable={isActive}
         hasCategory={true}
         url="https://google.com"
         shouldDisable={false}

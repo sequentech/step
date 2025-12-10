@@ -7,6 +7,7 @@ import {
     EEnableCheckableLists,
     EEarlyVotingPolicy,
 } from "@sequentech/ui-core"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
@@ -35,7 +36,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
             min_votes: 1,
             winning_candidates_num: 1,
             voting_type: "first-past-the-post",
-            counting_algorithm: "plurality-at-large",
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {
@@ -198,7 +199,7 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
             min_votes: 1,
             winning_candidates_num: 1,
             voting_type: "first-past-the-post",
-            counting_algorithm: "plurality-at-large",
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {
@@ -309,7 +310,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
             min_votes: 1,
             winning_candidates_num: 1,
             voting_type: "first-past-the-post",
-            counting_algorithm: "plurality-at-large",
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {
@@ -425,7 +426,7 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
             min_votes: 1,
             winning_candidates_num: 1,
             voting_type: "first-past-the-post",
-            counting_algorithm: "plurality-at-large",
+            counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
             is_encrypted: true,
             candidates: [
                 {

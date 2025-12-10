@@ -22,6 +22,8 @@ import {
     IContestLayoutProperties,
     verifyBallotSignature,
     verifyMultiBallotSignature,
+    ICountingAlgorithm,
+    isPreferential,
     verifyPlaintextBallotSignature,
 } from "@sequentech/ui-core"
 
@@ -58,6 +60,7 @@ export interface IBallotService {
         election_id: string,
         content: IAuditableMultiBallot
     ) => boolean | null
+    isPreferential: (countingAlgorithm?: ICountingAlgorithm) => boolean
     verifyPlaintextBallotSignature: (
         ballot_id: string,
         election_id: string,
@@ -78,5 +81,6 @@ export const provideBallotService = (): IBallotService => ({
     checkIsBlank,
     verifyBallotSignature,
     verifyMultiBallotSignature,
+    isPreferential,
     verifyPlaintextBallotSignature,
 })
