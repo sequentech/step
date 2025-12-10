@@ -16,8 +16,8 @@ use tracing::{error, info};
 use braid_b5::native::session::Session;
 use braid_b5::protocol::trustee::Trustee;
 use braid_b5::protocol::trustee::TrusteeConfig;
-use cryptography::context::RistrettoCtx;
-use b5::SigningKey;
+use cryptography::context::{RistrettoCtx, Context};
+use cryptography::utils::signatures::SignatureScheme;
 use cryptography::utils::symm;
 
 cfg_if::cfg_if! {
@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
         .expect("Should have been able to read the trustee configuration file");
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
-    let sk: SigningKey = b5::signing_key_from_der_b64_string(&tc.signing_key_sk)
+    let sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::signer_from_base64_string(&tc.signing_key_sk)
         .map_err(|e| anyhow!("Failed to decode signing key: {}", e))?;
 
     let bytes = braid_b5::util::decode_base64(&tc.encryption_key)?;

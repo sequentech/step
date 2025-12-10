@@ -16,7 +16,7 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 
 use b5::HttpB3Message;
-use cryptography::context::RistrettoCtx;
+use cryptography::context::Context;
 
 use crate::native::board::{HttpB3, HttpB3BoardParams};
 use crate::protocol::board::{BoardFactoryMulti, BoardMulti};
@@ -33,20 +33,20 @@ const SESSION_RESET_PERIOD: i64 = 20 * 60;
 /// on construction. It will then route updates to the set
 /// of active boards to the necessary SessionSets using mspc
 /// channels.
-pub struct SessionMaster {
+pub struct SessionMaster<C: Context> {
     session_sets: Vec<SessionSetHandle>,
     board_params: HttpB3BoardParams,
-    session_factory: SessionFactory,
+    session_factory: SessionFactory<C>,
 }
 
-impl SessionMaster {
+impl<C: Context> SessionMaster<C> {
     /// Constructs a SessionMaster.
     ///
     /// On construction, a SessionMaster will construct and then
     /// start the requested number of SessionSets and the channels
     /// used to update them.
     ///
-    pub async fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
+    pub async fn new(b3_url: &str, session_factory: SessionFactory<C>, size: usize) -> Result<Self> {
         let board_params = HttpB3BoardParams::new(b3_url).await;
         
         let mut session_sets = vec![];
@@ -130,17 +130,17 @@ impl SessionMaster {
 /// run protocol sessions on. SessionSets are run in tokio threads
 /// concurrently. Session's individual bulletin board requests and
 /// responses are multiplexed and chunked at the SessionSet level.
-pub struct SessionSet {
+pub struct SessionSet<C: Context> {
     name: String,
-    session_factory: SessionFactory,
+    session_factory: SessionFactory<C>,
     board_params: HttpB3BoardParams,
     inbox: Receiver<SessionSetMessage>,
 }
-impl SessionSet {
+impl<C: Context> SessionSet<C> {
     /// Constructs a SessionSet, but does not run any Sessions yet.
     pub fn new(
         name: &str,
-        session_factory: &SessionFactory,
+        session_factory: &SessionFactory<C>,
         board_params: &HttpB3BoardParams,
         inbox: mpsc::Receiver<SessionSetMessage>,
     ) -> Result<Self> {
@@ -175,7 +175,7 @@ impl SessionSet {
     /// process and are not expected to exit.
     pub fn run(mut self) -> JoinHandle<()> {
         let handler = tokio::spawn(async move {
-            let mut session_map: HashMap<String, SessionM<RistrettoCtx, crate::native::board::SqliteStorage>> = HashMap::new();
+            let mut session_map: HashMap<String, SessionM<C, crate::native::board::SqliteStorage>> = HashMap::new();
             let mut loop_count: i64 = 0;
 
             loop {
@@ -228,7 +228,7 @@ impl SessionSet {
                         "* Set {}: Session memory reset: reload all artifacts from store",
                         self.name
                     );
-                    let new_sessions: Result<Vec<(String, SessionM<RistrettoCtx, crate::native::board::SqliteStorage>)>> = session_map
+                    let new_sessions: Result<Vec<(String, SessionM<C, crate::native::board::SqliteStorage>)>> = session_map
                         .keys()
                         .map(|k| Ok((k.clone(), self.session_factory.create_session(&k)?)))
                         .collect();
@@ -274,8 +274,8 @@ impl SessionSet {
                     std::process::exit(0);
                 }*/
 
-                let board: HttpB3 = <HttpB3BoardParams as BoardFactoryMulti<RistrettoCtx, HttpB3>>::get_board(&self.board_params);
-                let responses = <HttpB3 as BoardMulti<RistrettoCtx>>::get_messages_multi(&board, &requests).await;
+                let board: HttpB3 = <HttpB3BoardParams as BoardFactoryMulti<C, HttpB3>>::get_board(&self.board_params);
+                let responses = <HttpB3 as BoardMulti<C>>::get_messages_multi(&board, &requests).await;
 
                 // Pagination: if the bulletin board returns has_more = true it means there
                 // are more messages available that exceeded the per-request limit.

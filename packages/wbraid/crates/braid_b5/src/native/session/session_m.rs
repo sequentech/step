@@ -6,10 +6,10 @@ use anyhow::{anyhow, Result};
 use b5::HttpB3Message;
 use b5::messages::message::Message;
 use std::path::PathBuf;
-use b5::SigningKey;
 use cryptography::utils::symm::SymmetricKey;
 
-use cryptography::context::RistrettoCtx;
+// use cryptography::context::RistrettoCtx;
+use cryptography::utils::signatures::SignatureScheme;
 use tracing::info;
 
 use crate::protocol::trustee::Trustee;
@@ -83,21 +83,21 @@ impl<C: Context, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
 }
 
 #[derive(Clone)]
-pub struct SessionFactory {
+pub struct SessionFactory<C: Context> {
     pub(crate) trustee_name: String,
-    signing_key: SigningKey,
+    signing_key: <<C as Context>::SignatureScheme as SignatureScheme<<C as Context>::Rng>>::Signer,
     symm_key: SymmetricKey,
     store_root: PathBuf,
     max_concurrent_actions: Option<usize>,
 }
-impl SessionFactory {
+impl<C: Context> SessionFactory<C> {
     pub fn new(
         trustee_name: &str,
         cfg: TrusteeConfig,
         store_root: PathBuf,
         max_concurrent_actions: Option<usize>,
     ) -> Result<Self> {
-        let signing_key: SigningKey = b5::signing_key_from_der_b64_string(&cfg.signing_key_sk)
+        let signing_key = <<C as Context>::SignatureScheme as SignatureScheme<_>>::signer_from_base64_string(&cfg.signing_key_sk)
             .map_err(|e| anyhow!("Failed to decode signing key: {}", e))?;
 
         let bytes = crate::util::decode_base64(&cfg.encryption_key)?;
@@ -116,7 +116,7 @@ impl SessionFactory {
         })
     }
 
-    pub fn create_session(&self, board_name: &str) -> Result<SessionM<RistrettoCtx, SqliteStorage>> {
+    pub fn create_session(&self, board_name: &str) -> Result<SessionM<C, SqliteStorage>> {
         info!("* Creating new session for board '{}'..", board_name);
 
         let storage = SqliteStorage::new(self.store_root.join(&board_name), None);

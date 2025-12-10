@@ -12,8 +12,8 @@ use braid_b5::native::board::{HttpB3, HttpB3BoardParams};
 use braid_b5::protocol::trustee::Trustee;
 use braid_b5::native::verify::verifier::Verifier;
 
-use cryptography::context::RistrettoCtx;
-use b5::SigningKey;
+use cryptography::context::{RistrettoCtx, Context};
+use cryptography::utils::signatures::SignatureScheme;
 
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
@@ -43,7 +43,8 @@ async fn main() -> Result<()> {
     braid_b5::native::logging::init_log(true);
 
     // generate dummy values, these are not important
-    let dummy_sk = b5::generate_signing_key();
+    let mut rng = RistrettoCtx::get_rng();
+    let dummy_sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::gen_signing_key(&mut rng);
     let dummy_encryption_key = cryptography::utils::symm::gen_key();
 
     let args = Cli::parse();

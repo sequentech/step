@@ -87,7 +87,7 @@ impl SqliteStorage {
 }
 
 impl LocalBoardStorage for SqliteStorage {
-    fn store_messages(&self, messages: &[HttpB3Message], ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB3Message], ignore_existing: bool) -> Result<()> {
         let now = Instant::now();
 
         // Ensure blob store directory exists if configured
@@ -125,8 +125,8 @@ impl LocalBoardStorage for SqliteStorage {
             }
 
             // Deserialize to extract metadata
-            let message = Message::<b5::CryptographicContext>::deser(&m.message)?;
-            let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+            let message = Message::<C>::deser(&m.message)?;
+            let sender_pk = <<C as Context>::SignatureScheme as cryptography::utils::signatures::SignatureScheme<_>>::verifier_to_base64_string(&message.sender.pk)
                 .map_err(|e| anyhow!("Failed to encode verifying key: {}", e))?;
             let kind = message.statement.get_kind().to_string();
             let batch: i32 = message.statement.get_batch_number().try_into()?;

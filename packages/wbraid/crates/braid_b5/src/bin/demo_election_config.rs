@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 use cryptography::context::RistrettoCtx;
 use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VSerializable;
-use b5::{VerifyingKey, SigningKey};
+use cryptography::utils::signatures::SignatureScheme;
 use cryptography::utils::symm;
 
 use b5::messages::artifact::Configuration;
@@ -38,24 +38,24 @@ fn main() {
 
 fn gen_election_config<C: Context>(n_trustees: usize, threshold: &[usize]) {
     let mut rng = C::get_rng();
-    let pmkey = b5::generate_signing_key();
-    let pm: ProtocolManager<RistrettoCtx> = ProtocolManager {
+    let pmkey = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
+    let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<VerifyingKey>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<<<C as Context>::SignatureScheme as SignatureScheme<<C as Context>::Rng>>::Verifier>) = (0..n_trustees)
         .map(|_i| {
-            let sk = b5::generate_signing_key();
-            let pk = VerifyingKey::from(&sk);
+            let sk = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
+            let pk = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifying_key(&sk);
             let encryption_key: symm::SymmetricKey = symm::gen_key();
-            let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
+            let tc = TrusteeConfig::new_from_objects::<C>(sk, encryption_key);
             (tc, pk)
         })
         .unzip();
 
-    let cfg = Configuration::<RistrettoCtx>::new(
+    let cfg = Configuration::<C>::new(
         0,
-        VerifyingKey::from(&pm.signing_key),
+        <<C as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
         PhantomData,

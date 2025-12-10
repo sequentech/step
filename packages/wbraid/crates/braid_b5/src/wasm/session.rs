@@ -14,8 +14,9 @@ use crate::protocol::board::BoardEntry;
 use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::protocol::trustee::{Trustee, TrusteeConfig};
 use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, IndexedDbStorage};
-use cryptography::context::RistrettoCtx;
+use cryptography::context::{RistrettoCtx, Context};
 use cryptography::utils::symm;
+use cryptography::utils::signatures::SignatureScheme;
 use b5::HttpB3Message;
 use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
@@ -102,7 +103,7 @@ impl WasmSession {
     /// Must be called before connect_to_board() or step().
     pub async fn init_session(&mut self, board_name: String) -> Result<(), JsValue> {
         // Parse signing key
-        let sk = b5::signing_key_from_der_b64_string(&self.config.signing_key_sk)
+        let sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::signer_from_base64_string(&self.config.signing_key_sk)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse signing key: {}", e)))?;
         
         // Parse encryption key
@@ -402,7 +403,7 @@ impl WasmSession {
         
         for message in messages {
             // Extract metadata
-            let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+            let sender_pk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifier_to_base64_string(&message.sender.pk)
                 .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {}", e)))?;
             let statement_kind = message.statement.get_kind().to_string();
             let batch: i32 = message.statement.get_batch_number() as i32;

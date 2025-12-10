@@ -14,8 +14,7 @@ use tracing_tree::HierarchicalLayer;
 /// simulate or debug a protocol execution.
 fn main() {
     let log_reload = init_log();
-    let Context = RistrettoCtx;
-    braid_b5::native::test::dbg::dbg(Context, log_reload).unwrap();
+    braid_b5::native::test::dbg::dbg::<RistrettoCtx>(log_reload).unwrap();
 }
 
 /// Initialize the tracing log, returning a handle that

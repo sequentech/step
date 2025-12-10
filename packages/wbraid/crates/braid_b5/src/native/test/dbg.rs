@@ -61,11 +61,11 @@ use b5::messages::newtypes::MAX_TRUSTEES;
 /// When launching, the initial number of trustees is 2, with threshold
 /// participants = (1,2).
 #[instrument(skip(log_reload))]
-pub fn dbg<C: Context>(Context: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
+pub fn dbg<C: Context>(log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
     let trustees = 2;
     let threshold = [1, 2];
 
-    let mut demo = mk_context(Context, trustees, &threshold);
+    let mut demo = mk_context::<C>(trustees, &threshold);
     demo.log_reload = Some(log_reload);
 
     let mut repl = Repl::new(demo)
@@ -120,7 +120,6 @@ pub fn dbg<C: Context>(Context: C, log_reload: Handle<LevelFilter, Registry>) ->
 
 /// Contains all the information necessary to interact with the protocol from the repl.
 struct ReplContext<C: Context> {
-    pub Context: C,
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
     pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
@@ -286,7 +285,7 @@ impl<C: Context> Status<C> {
 }
 
 /// Constructs the repl context used to interact with the protocol.
-fn mk_context<C: Context>(Context: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
+fn mk_context<C: Context>(n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
 
@@ -338,7 +337,6 @@ fn mk_context<C: Context>(Context: C, n_trustees: u8, threshold: &[usize]) -> Re
     );
 
     ReplContext {
-        Context,
         cfg,
         protocol_manager: pm,
         trustees,
@@ -442,7 +440,6 @@ fn status<C: Context>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result
 /// is complete, the plaintexts and decrypted commands can
 /// show the correspondence.
 fn ballots<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let Context = context.Context.clone();
     let ballot_no = args
         .get_one::<String>("count")
         .and_then(|s| s.parse::<usize>().ok())
@@ -548,7 +545,7 @@ fn reset<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<O
     info!("Num trustees: {:?}", n_trustees);
     info!("Threshold: {:?}", threshold);
 
-    let reset = mk_context(context.Context.clone(), n_trustees, &threshold);
+    let reset = mk_context(n_trustees, &threshold);
 
     context.remote = reset.remote;
     context.trustees = reset.trustees;

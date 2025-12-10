@@ -6,6 +6,7 @@ use anyhow::{anyhow, Result};
 
 use braid_b5::native::board::HttpB3Index;
 use clap::Parser;
+use cryptography::context::RistrettoCtx;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
@@ -143,7 +144,7 @@ async fn run(args: &Cli) -> Result<()> {
             .unwrap(),
     );
 
-    let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
+    let factory: SessionFactory<RistrettoCtx> = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
     let mut master = SessionMaster::new(&args.b3_url, factory, args.session_workers).await?;
 
     loop {

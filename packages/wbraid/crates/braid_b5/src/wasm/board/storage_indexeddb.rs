@@ -461,11 +461,11 @@ impl IndexedDbStorage {
     }
     
     /// Extract metadata from message for duplicate detection
-    fn extract_metadata(msg: &HttpB3Message) -> Result<MessageMetadata> {
-        let message = Message::<cryptography::context::RistrettoCtx>::deser(&msg.message)?;
+    fn extract_metadata<C: Context>(msg: &HttpB3Message) -> Result<MessageMetadata> {
+        let message = Message::<C>::deser(&msg.message)?;
         
         Ok(MessageMetadata {
-            sender_pk: <cryptography::context::RistrettoCtx as cryptography::context::Context>::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
+            sender_pk: <C as Context>::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
                 .map_err(|e| anyhow::anyhow!("Failed to encode sender PK: {}", e))?,
             statement_kind: message.statement.get_kind().to_string(),
             batch: message.statement.get_batch_number().try_into()?,
@@ -485,7 +485,7 @@ impl IndexedDbStorage {
     /// hash_list is 0-indexed (hash_list[0] = hash of message with id=1)
     ///
     /// Therefore: hash_list[id - 1] = hash for message with local_id=id
-    fn verify_and_store(
+    fn verify_and_store<C: Context>(
         &self,
         messages: &[HttpB3Message],
         local_board_id: i64,
@@ -593,7 +593,7 @@ impl IndexedDbStorage {
         let mut new_count = 0;
         for (idx, msg) in new_messages.iter().enumerate() {
             let hash = Self::compute_hash(msg)?;
-            let metadata = Self::extract_metadata(msg)?;
+            let metadata = Self::extract_metadata::<C>(msg)?;
             
             let new_local_id = S + 1 + idx as i64;
             
@@ -646,7 +646,7 @@ impl IndexedDbStorage {
 }
 
 impl LocalBoardStorage for IndexedDbStorage {
-    fn store_messages(&self, messages: &[HttpB3Message], _ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB3Message], _ignore_existing: bool) -> Result<()> {
         // NOTE: We don't know last_local_board_id here, so we assume B = S (normal case)
         // The verification will happen in retrieve_messages() where we have access to B
         
@@ -670,7 +670,7 @@ impl LocalBoardStorage for IndexedDbStorage {
         };
         
         // Perform verification and update metadata
-        let (verified_count, _new_count) = self.verify_and_store(&messages, last_local_board_id, false)?;
+        let (verified_count, _new_count) = self.verify_and_store::<C>(&messages, last_local_board_id, false)?;
         
         // If we verified historical messages, this is a security-critical operation worth highlighting
         if verified_count > 0 {

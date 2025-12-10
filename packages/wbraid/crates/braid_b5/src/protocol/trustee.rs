@@ -11,7 +11,6 @@ use std::collections::HashSet;
 use tracing_attributes::instrument;
 
 use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
-use b5::{VerifyingKey, SigningKey};
 use cryptography::context::Context;
 use cryptography::utils::signatures::SignatureScheme;
 
@@ -268,7 +267,7 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     ) -> Result<i64, ProtocolError> {
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
-            self.update(messages, configuration)
+            self.update(messages, &configuration)
         } else {
             self.update_bootstrap(messages)
         }
@@ -285,7 +284,7 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     fn update(
         &mut self,
         messages: Vec<(Message<C>, i64)>,
-        configuration: Configuration<C>,
+        configuration: &Configuration<C>,
     ) -> Result<i64, ProtocolError> {
         let mut added = 0;
 
@@ -393,7 +392,7 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
         
         // Process the rest of the messages
         if !messages.is_empty() {
-            return self.update(messages, configuration);
+            return self.update(messages, &configuration);
         }
 
         Ok(added)
@@ -774,13 +773,14 @@ impl TrusteeConfig {
     }
 
     /// Construct a TrusteeConfig from keys in object form.
-    pub fn new_from_objects(
-        signing_key: SigningKey,
+    /// Construct a TrusteeConfig from keys in object form.
+    pub fn new_from_objects<C: Context>(
+        signing_key: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signer,
         encryption_key: symm::SymmetricKey,
     ) -> Self {
-        let sk_string = b5::signing_key_to_der_b64_string(&signing_key).unwrap();
-        let pk_string = b5::verifying_key_to_der_b64_string(&VerifyingKey::from(&signing_key)).unwrap();
-
+        let sk_string = <C::SignatureScheme as SignatureScheme<C::Rng>>::signer_to_base64_string(&signing_key).unwrap();
+        let vk = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifying_key(&signing_key);
+        let pk_string = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifier_to_base64_string(&vk).unwrap();
         // Compatible with both aes and chacha20poly backends
         let ek_bytes = encryption_key.as_slice();
         let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);

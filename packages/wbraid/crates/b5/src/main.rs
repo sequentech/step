@@ -6,7 +6,7 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use b5::{db, handlers, s3, state::AppState};
+use b5::{CryptographicContext, db, handlers, s3, state::AppState};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
         .route("/boards/messages/multi/get", post(handlers::get_messages_multi))
         // Multi-board operations (PUT - S3 two-step flow)
         .route("/boards/messages/multi/initiate", post(handlers::initiate_messages_multi))
-        .route("/boards/messages/multi/confirm", post(handlers::confirm_messages_multi))
+        .route("/boards/messages/multi/confirm", post(handlers::confirm_messages_multi::<CryptographicContext>))
         .layer(cors)
         .with_state(state);
 

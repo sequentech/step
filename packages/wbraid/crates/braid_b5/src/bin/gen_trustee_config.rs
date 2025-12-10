@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 
 use cryptography::context::RistrettoCtx;
 use cryptography::context::Context;
-use b5::{VerifyingKey, SigningKey};
+use cryptography::utils::signatures::SignatureScheme;
 use cryptography::utils::symm;
 
 #[derive(clap::ValueEnum, Clone)]
@@ -55,10 +55,10 @@ fn main() {
 /// Prints configuration to standard out.
 fn gen_trustee_config<C: Context>() {
     let mut rng = C::get_rng();
-    let sk = b5::generate_signing_key();
+    let sk = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
     let encryption_key: symm::SymmetricKey = symm::gen_key();
 
-    let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
+    let tc = TrusteeConfig::new_from_objects::<C>(sk, encryption_key);
 
     let toml = toml::to_string(&tc).unwrap();
     println!("{toml}");
@@ -73,8 +73,8 @@ fn gen_trustee_config<C: Context>() {
 /// Prints configuration to standard out.
 fn gen_protocol_manager_config<C: Context>() {
     let mut rng = C::get_rng();
-    let pmkey = b5::generate_signing_key();
-    let pm: ProtocolManager<RistrettoCtx> = ProtocolManager {
+    let pmkey = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
+    let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };

@@ -53,7 +53,7 @@ impl NoOpStorage {
 }
 
 impl LocalBoardStorage for NoOpStorage {
-    fn store_messages(&self, messages: &[HttpB3Message], _ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB3Message], _ignore_existing: bool) -> Result<()> {
         // Store messages transiently for this step only
         let mut transient = self.transient.lock().unwrap();
         *transient = messages.to_vec();

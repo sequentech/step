@@ -28,7 +28,7 @@ use cryptography::context::RistrettoCtx;
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::PublicKey;
 use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
-use b5::{VerifyingKey, SigningKey};
+use cryptography::utils::signatures::SignatureScheme;
 use cryptography::utils::symm;
 
 /// The default board if none specified.
@@ -286,24 +286,25 @@ async fn main() -> Result<()> {
 ///    |
 ///   └ trustee.toml
 fn gen_configs<C: Context>(n_trustees: usize, threshold: usize) -> Result<()> {
-    let pmkey: SigningKey = b5::generate_signing_key();
-    let pm: ProtocolManager<RistrettoCtx> = ProtocolManager {
+    let mut rng = C::get_rng();
+    let pmkey = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
+    let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<VerifyingKey>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<<<C as Context>::SignatureScheme as SignatureScheme<<C as Context>::Rng>>::Verifier>) = (0..n_trustees)
         .map(|_| {
-            let sk = b5::generate_signing_key();
-            let pk = VerifyingKey::from(&sk);
+            let sk = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
+            let pk = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifying_key(&sk);
             let encryption_key: symm::SymmetricKey = symm::gen_key();
-            let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
+            let tc = TrusteeConfig::new_from_objects::<C>(sk, encryption_key);
             (tc, pk)
         })
         .unzip();
 
-    let cfg = Configuration::<RistrettoCtx>::new(
+    let cfg = Configuration::<C>::new(
         0,
-        VerifyingKey::from(&pm.signing_key),
+        <<C as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold,
         PhantomData,
@@ -359,7 +360,7 @@ async fn init<C: Context>(
     let version = "1";
     
     // Extract metadata for database
-    let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+    let sender_pk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifier_to_base64_string(&message.sender.pk)
         .map_err(|e| anyhow!("Failed to encode verifying key: {}", e))?;
     let statement_kind = format!("{:?}", message.statement.get_kind());
     
@@ -419,8 +420,8 @@ async fn post_ballots<C: Context>(
     Context: &C,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
-    let sender_pk_obj = VerifyingKey::from(&pm.signing_key);
-    let sender_pk_b64 = b5::verifying_key_to_der_b64_string(&sender_pk_obj)
+    let sender_pk_obj = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key);
+    let sender_pk_b64 = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifier_to_base64_string(&sender_pk_obj)
         .map_err(|e| anyhow!("Failed to encode sender pk: {}", e))?;
     
     // Check if ballots already exist
@@ -444,7 +445,7 @@ async fn post_ballots<C: Context>(
         .map_err(|e| anyhow!("Could not read configuration {e:?}"))?;
 
     let trustee_pk = configuration.trustees.get(0).unwrap();
-    let trustee_pk_b64 = b5::verifying_key_to_der_b64_string(trustee_pk)
+    let trustee_pk_b64 = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifier_to_base64_string(trustee_pk)
         .map_err(|e| anyhow!("Failed to encode trustee pk: {}", e))?;
     
     info!("Looking for PublicKey from trustee: {}", trustee_pk_b64);
@@ -519,7 +520,7 @@ async fn post_ballots<C: Context>(
             let message_bytes = message.ser();
             let timestamp = chrono::Utc::now().timestamp();
             let version = "1";
-            let sender_pk = b5::verifying_key_to_der_b64_string(&message.sender.pk)
+            let sender_pk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifier_to_base64_string(&message.sender.pk)
                 .map_err(|e| anyhow!("Failed to encode sender pk: {}", e))?;
             let statement_kind = format!("{:?}", message.statement.get_kind());
             
@@ -643,7 +644,7 @@ fn get_pm<C: Context>(ctxp: PhantomData<C>) -> Result<ProtocolManager<RistrettoC
         .expect("Should have been able to read the protocol manager file at '{path}'");
 
     let pm_config: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
-    let sk = b5::signing_key_from_der_b64_string(&pm_config.signing_key)
+    let sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::signer_from_base64_string(&pm_config.signing_key)
         .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
     let pm: ProtocolManager<RistrettoCtx> = ProtocolManager {
         signing_key: sk,

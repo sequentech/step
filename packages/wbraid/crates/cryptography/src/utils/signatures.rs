@@ -40,7 +40,7 @@ use crate::utils::{
  */
 pub trait SignatureScheme<R: CRng> {
     /// The signer type, a private key used for signing.
-    type Signer: Signer<Self::Signature> + FSer + VSer;
+    type Signer: Signer<Self::Signature> + FSer + VSer + Clone;
     /// The verifier type, a public key used to verify signatures.
     type Verifier: Verifier<Self::Signature> + FSer + VSer + Clone + PartialEq + Eq + std::hash::Hash + std::fmt::Debug;
     /// The signature type, a digital signature on some data.
@@ -63,6 +63,16 @@ pub trait SignatureScheme<R: CRng> {
     ///
     /// This is the inverse of `verifier_to_base64_string`.
     fn verifier_from_base64_string(s: &str) -> Result<Self::Verifier, String>;
+    
+    /// Serializes a signing key to a base64-encoded string.
+    ///
+    /// This is useful for configuration files and key management.
+    fn signer_to_base64_string(signer: &Self::Signer) -> Result<String, String>;
+    
+    /// Deserializes a signing key from a base64-encoded string.
+    ///
+    /// This is the inverse of `signer_to_base64_string`.
+    fn signer_from_base64_string(s: &str) -> Result<Self::Signer, String>;
 }
 
 /**
@@ -122,6 +132,28 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
         
         VerifyingKey::from_bytes(&bytes)
             .map_err(|e| format!("Failed to parse verifying key: {:?}", e))
+    }
+    
+    fn signer_to_base64_string(signer: &Self::Signer) -> Result<String, String> {
+        use base64::{engine::general_purpose, Engine as _};
+        
+        // Ed25519 secret keys are 32 bytes
+        let bytes = signer.to_bytes();
+        Ok(general_purpose::STANDARD.encode(&bytes))
+    }
+    
+    fn signer_from_base64_string(s: &str) -> Result<Self::Signer, String> {
+        use base64::{engine::general_purpose, Engine as _};
+        
+        let bytes = general_purpose::STANDARD
+            .decode(s)
+            .map_err(|e| format!("Failed to decode base64: {:?}", e))?;
+        
+        let bytes: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| "Invalid key length: expected 32 bytes".to_string())?;
+        
+        Ok(SigningKey::from_bytes(&bytes))
     }
 }
 

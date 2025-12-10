@@ -12,8 +12,9 @@ use crate::native::verify::verifier::Verifier;
 use crate::wasm::board::{WasmHttpBoard, WasmHttpBoardParams};
 use crate::native::board::NoOpStorage;
 
-use cryptography::context::RistrettoCtx;
+use cryptography::context::{RistrettoCtx, Context};
 use cryptography::utils::symm;
+use cryptography::utils::signatures::SignatureScheme;
 
 /// Individual verification check result
 #[derive(Serialize, Deserialize)]
@@ -81,7 +82,8 @@ impl WasmVerifier {
         )));
 
         // Generate dummy trustee credentials (not used for verification)
-        let dummy_sk = b5::generate_signing_key();
+        let mut rng = RistrettoCtx::get_rng();
+        let dummy_sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::gen_signing_key(&mut rng);
         let dummy_encryption_key = symm::gen_key();
 
         // Create NoOp storage (verifier doesn't need persistence)

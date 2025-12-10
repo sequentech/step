@@ -4,6 +4,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use cryptography::context::Context;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::api_types::{
@@ -533,7 +534,7 @@ pub async fn initiate_messages_multi(
     }))
 }
 
-pub async fn confirm_messages_multi(
+pub async fn confirm_messages_multi<C: Context>(
     State(state): State<AppState>,
     Json(req): Json<ConfirmMessagesMultiRequest>,
 ) -> Result<Json<ConfirmMessagesMultiResponse>, StatusCode> {
@@ -575,10 +576,10 @@ pub async fn confirm_messages_multi(
                 // Deserialize to extract metadata
                 use cryptography::utils::serialization::{VDeserializable, VSerializable};
                 use crate::messages::message::Message as B5Message;
-                use crate::CryptographicContext;
+
                 use base64::{Engine as _, engine::general_purpose};
                 
-                let parsed_msg = B5Message::<CryptographicContext>::deser(&data)
+                let parsed_msg = B5Message::<C>::deser(&data)
                     .map_err(|e| {
                         tracing::error!("Failed to deserialize message for board '{}': {}", board_name, e);
                         StatusCode::BAD_REQUEST
@@ -653,10 +654,9 @@ pub async fn confirm_messages_multi(
                 // Deserialize to extract metadata
                 use cryptography::utils::serialization::{VDeserializable, VSerializable};
                 use crate::messages::message::Message as B5Message;
-                use crate::CryptographicContext;
                 use base64::{Engine as _, engine::general_purpose};
                 
-                let parsed_msg = B5Message::<CryptographicContext>::deser(&data)
+                let parsed_msg = B5Message::<C>::deser(&data)
                     .map_err(|e| {
                         tracing::error!("Failed to deserialize S3 message for board '{}': {}", board_name, e);
                         StatusCode::BAD_REQUEST
