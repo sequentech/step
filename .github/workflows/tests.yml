@@ -7,12 +7,13 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
 jobs:
   run-tests:
     name: Run Rust tests
     runs-on: gcp-selfhosted-ubuntu24
+    timeout-minutes: 35
     strategy:
       matrix:
         include:
@@ -38,6 +39,24 @@ jobs:
           toolchain: 1.90.0
           components: rustfmt
           targets: x86_64-unknown-linux-musl
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: packages/${{ matrix.service }}/target
+          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/${{ matrix.service }}/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-${{ matrix.service }}-
 
       - name: Install system dependencies
         run: |
@@ -69,4 +88,5 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
+          CARGO_BUILD_JOBS: 4
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
