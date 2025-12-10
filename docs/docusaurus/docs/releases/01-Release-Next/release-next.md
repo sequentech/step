@@ -7,7 +7,13 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## 🐞 Admin Portal > Can't send message to voters
+## ✨ feat/meta-9293-add-cargo-cache/main
+
+Added cargo caching for efficient test builds
+
+- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+
+## ✨ Reports > Add pagination to the electoral results report
 
 Going to the Admin Portal > Election Event > Voters > Send generated an
 unexpected error.
