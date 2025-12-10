@@ -717,6 +717,7 @@ services:
       - devcontainer
     depends_on:
       - devcontainer
+      - rabbitmq
       #- postgres
       #- postgres-keycloak
     environment:

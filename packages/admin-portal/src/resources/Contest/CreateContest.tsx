@@ -23,7 +23,8 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import {ICountingAlgorithm, IVotingType} from "./constants"
+import {IVotingType} from "./constants"
+import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {CandidatesOrder, IContestPresentation} from "@sequentech/ui-core"
 import {Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
@@ -46,8 +47,8 @@ export const CreateContest: React.FC = () => {
     const {refetch} = useTreeMenuData(false)
     const {setLastCreatedResource} = useContext(NewResourceContext)
 
-    const votingTypesChoices = () => {
-        return (Object.values(IVotingType) as IVotingType[]).map((value) => ({
+    const countingAlgorithmChoices = () => {
+        return (Object.values(ICountingAlgorithm) as ICountingAlgorithm[]).map((value) => ({
             id: value,
             name: t(`contestScreen.options.${value.toLowerCase()}`),
         }))
@@ -98,19 +99,9 @@ export const CreateContest: React.FC = () => {
                     <NumberInput source="max_votes" defaultValue="1" />
                     <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput
-                        source="voting_type"
-                        defaultValue={IVotingType.NON_PREFERENTIAL}
-                        choices={votingTypesChoices()}
-                    />
-                    <SelectInput
                         source="counting_algorithm"
                         defaultValue={ICountingAlgorithm.PLURALITY_AT_LARGE}
-                        choices={[
-                            {
-                                id: ICountingAlgorithm.PLURALITY_AT_LARGE,
-                                name: t("contestScreen.options.plurality-at-large"),
-                            },
-                        ]}
+                        choices={countingAlgorithmChoices()}
                     />
                     <SelectInput
                         source="presentation.candidates_order"

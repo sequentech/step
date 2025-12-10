@@ -81,6 +81,9 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exportar Configuración del Cliente",
                 IMPORT_TENANT_CONFIG: "Importar Configuración del Cliente",
                 RENDER_DOCUMENT_PDF: "Renderizar el documento PDF",
+                CREATE_TENANT: "Crear Cliente",
+                EXPORT_TEMPLATES: "Exportar Plantillas",
+                IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
@@ -364,6 +367,13 @@ const galegoTranslation: TranslationType = {
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
                         "disabled-weighted-voting": "Votación Ponderada Desactivada",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Voto Delegado",
+                    options: {
+                        enabled: "Activado",
+                        disabled: "Desactivado",
                     },
                 },
             },
@@ -1149,7 +1159,7 @@ const galegoTranslation: TranslationType = {
                 import: "Importar",
                 export: "Exportar",
                 loadingData: "Cargando datos...",
-                exportFormat: "Exportar '{{item}}' en formato {{format}}",
+                exportFormat: "Exportar en formato {{format}} - Resultados de '{{item}}'",
                 allResults: "evento electoral",
                 globalAreaResults: "todas as áreas",
                 title: "Título",
@@ -1310,6 +1320,7 @@ const galegoTranslation: TranslationType = {
             options: {
                 "non-preferential": "Non Preferencial",
                 "plurality-at-large": "Pluralidade en Xeral",
+                "instant-runoff": "Segunda Volta Instantánea",
                 "random": "Aleatorio",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
@@ -1657,6 +1668,12 @@ const galegoTranslation: TranslationType = {
                 number_of_votes: "Número de Votos",
                 winning_position: "Posición Gañadora",
                 weight: "Peso",
+                preferential: {
+                    candidate: "Candidato",
+                    winner: "Gañador",
+                    eliminated: "Eliminado",
+                    round: "Rolda",
+                },
             },
             chart: {
                 votesForCandidates: "Votos polos Candidatos",

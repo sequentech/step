@@ -18,6 +18,7 @@ import {
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
+    BallotSelection,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -189,6 +190,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     disableNextButton,
 }) => {
     const dispatch = useAppDispatch()
+    const submit = useSubmit()
 
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
@@ -206,10 +208,24 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
         if (!ballotSelectionState) {
             return []
         }
-        let err = isMultiContest
-            ? interpretMultiContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
-            : interpretContestSelection(ballotSelectionState, ballotStyle.ballot_eml)
-        return err
+        let selectionState: BallotSelection = []
+        try {
+            if (isMultiContest) {
+                selectionState = interpretMultiContestSelection(
+                    ballotSelectionState,
+                    ballotStyle.ballot_eml
+                )
+            } else {
+                selectionState = interpretContestSelection(
+                    ballotSelectionState,
+                    ballotStyle.ballot_eml
+                )
+            }
+        } catch (err) {
+            console.log("Error was thrown by wasm interface: ", err)
+            submit({error: VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT}, {method: "post"})
+        }
+        return selectionState
     }, [ballotSelectionState, isMultiContest, ballotStyle.ballot_eml])
 
     const handleNext = () => {

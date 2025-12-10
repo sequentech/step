@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, PropsWithChildren} from "react"
+import React, {useState, useEffect, useMemo, PropsWithChildren} from "react"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
@@ -34,6 +34,7 @@ import {translate, ICandidate, IContest, EInvalidVotePolicy} from "@sequentech/u
 import {keyBy} from "lodash"
 import Image from "mui-image"
 import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
+import {provideBallotService} from "../services/BallotService"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -118,9 +119,17 @@ interface CandidateChoiceProps {
     ordered: boolean
     isWriteIn: boolean
     writeInValue: string | undefined
+    isPreferentialVote?: boolean
+    selectedPosition?: number | null
 }
 
-const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, writeInValue}) => {
+const CandidateChoice: React.FC<CandidateChoiceProps> = ({
+    answer,
+    isWriteIn,
+    writeInValue,
+    isPreferentialVote,
+    selectedPosition,
+}) => {
     const imageUrl = answer && getImageUrl(answer)
 
     return (
@@ -130,6 +139,8 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, wri
             isWriteIn={isWriteIn}
             writeInValue={writeInValue}
             shouldDisable={false}
+            isPreferentialVote={isPreferentialVote}
+            selectedPosition={selectedPosition}
         >
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>
@@ -156,6 +167,10 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
             </>
         )
     }
+
+    const {isPreferential} = provideBallotService()
+    const isPreferentialVote = isPreferential(question.counting_algorithm)
+
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
             question.presentation?.invalid_vote_policy !== EInvalidVotePolicy.NOT_ALLOWED &&
@@ -196,6 +211,8 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
                         ordered={properties?.ordered || false}
                         isWriteIn={checkIsWriteIn(answersById[answer.id])}
                         writeInValue={answer.write_in_text}
+                        isPreferentialVote={isPreferentialVote}
+                        selectedPosition={answer.selected + 1}
                     />
                 ))}
             </CandidatesWrapper>
