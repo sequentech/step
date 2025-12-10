@@ -3152,17 +3152,44 @@
       "frontchannelLogout": true,
       "protocol": "openid-connect",
       "attributes": {
-        "oidc.ciba.grant.enabled": "false",
-        "client.secret.creation.time": "1721740319",
-        "backchannel.logout.session.required": "true",
-        "post.logout.redirect.uris": "*",
-        "oauth2.device.authorization.grant.enabled": "false",
-        "backchannel.logout.revoke.offline.tokens": "false"
+        "client.secret.creation.time" : "1721740319",
+        "post.logout.redirect.uris" : "*",
+        "oauth2.device.authorization.grant.enabled" : "false",
+        "backchannel.logout.revoke.offline.tokens" : "false",
+        "use.refresh.tokens" : "true",
+        "oidc.ciba.grant.enabled" : "false",
+        "client.use.lightweight.access.token.enabled" : "false",
+        "backchannel.logout.session.required" : "true",
+        "client_credentials.use_refresh_token" : "false",
+        "acr.loa.map" : "{\"gold\":\"2\",\"silver\":\"1\"}",
+        "tls.client.certificate.bound.access.tokens" : "false",
+        "require.pushed.authorization.requests" : "false",
+        "display.on.consent.screen" : "false",
+        "token.response.type.bearer.lower-case" : "false",
+        "dpop.bound.access.tokens" : "false",
+        "default.acr.values" : "gold"
       },
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
       "nodeReRegistrationTimeout": -1,
       "protocolMappers": [
+        {
+          "id": "cc59e6c0-5f13-4626-95c5-d76393d1f793",
+          "name": "x-hasura-tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired" : false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant-id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+            "jsonType.label": "String"
+          }
+        },
         {
           "id": "e48bb89e-5452-4f01-a96a-b94b0663eb8a",
           "name": "x-hasura-default-role",
@@ -3181,6 +3208,90 @@
             "access.tokenResponse.claim": "false"
           }
         },
+        {
+        "id": "f1804544-7b49-4f44-8cea-8349be5875bc",
+        "name": "auth_time",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-usersessionmodel-note-mapper",
+        "consentRequired": false,
+        "config": {
+          "user.session.note": "AUTH_TIME",
+          "introspection.token.claim": "true",
+          "userinfo.token.claim" : "true",
+          "id.token.claim": "true",
+          "lightweight.claim": "false",
+          "access.token.claim": "true",
+          "claim.name": "https://hasura\\.io/jwt/auth_time",
+          "jsonType.label": "long",
+          "access.tokenResponse.claim": "false"
+        }
+      },
+       {
+        "id": "af4eccac-f71e-4c6d-8334-45ed550e8fac",
+        "name": "x-hasura-allowed-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+            "jsonType.label": "String"
+          }
+      },
+      {
+        "id": "31417714-666b-41c7-ae05-a9c3a4948443",
+        "name": "x-hasura-permission-labels",
+        "protocol": "openid-connect",
+        "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
+        "consentRequired": false,
+        "config": {
+          "introspection.token.claim": "true",
+          "userinfo.token.claim": "true",
+          "user.attribute": "permission_labels",
+          "id.token.claim": "true",
+          "lightweight.claim": "false",
+          "access.token.claim": "true",
+          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
+          "jsonType.label": "String"
+        }
+      },
+      {
+        "id": "04319485-b298-4701-a8db-76c1ab682378",
+        "name": "x-hasura-user-id",
+        "protocol" : "openid-connect",
+        "protocolMapper": "oidc-usermodel-property-mapper",
+        "consentRequired": false,
+        "config": {
+          "introspection.token.claim": "true",
+          "userinfo.token.claim": "true",
+          "user.attribute": "id",
+          "id.token.claim": "true",
+          "lightweight.claim": "false",
+          "access.token.claim": "true",
+          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+          "jsonType.label": "String"
+        }
+      },
+      {
+        "id" : "5c333dda-dcd9-49eb-b680-d5c082304e27",
+        "name": "trustee",
+        "protocol" : "openid-connect",
+        "protocolMapper" : "oidc-usermodel-attribute-mapper",
+        "consentRequired" : false,
+        "config" : {
+          "introspection.token.claim" : "true",
+          "userinfo.token.claim" : "true",
+          "user.attribute" : "trustee",
+          "id.token.claim" : "true",
+          "lightweight.claim" : "false",
+          "access.token.claim" : "true",
+          "claim.name" : "trustee",
+          "jsonType.label" : "String"
+        }
+      },
         {
           "id": "046b121c-b86d-4bb5-82cf-98da389b7eb2",
           "name": "Client Host",
