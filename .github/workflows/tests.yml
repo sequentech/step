@@ -7,12 +7,12 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on: gcp-selfhosted-ubuntu24
+    runs-on: gcp-selfhosted-ubuntu24-high-memory
     timeout-minutes: 30
     strategy:
       matrix:
@@ -88,5 +88,5 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
-          CARGO_BUILD_JOBS: 4
+          CARGO_BUILD_JOBS: 3
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
