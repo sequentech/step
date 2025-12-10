@@ -206,9 +206,9 @@ export const ListTally: React.FC<ListAreaProps> = () => {
     )
     const isUnencryptedPolicy = useMemo(
         () =>
-            electionEventRecord.presentation?.contest_encryption_policy ===
+            electionEventRecord?.presentation?.contest_encryption_policy ===
             EElectionEventContestEncryptionPolicy.PLAINTEXT,
-        electionEventRecord.presentation?.contest_encryption_policy
+        electionEventRecord?.presentation?.contest_encryption_policy
     )
 
     console.log("isKeyCeremonyFinished: ", isKeyCeremonyFinished)

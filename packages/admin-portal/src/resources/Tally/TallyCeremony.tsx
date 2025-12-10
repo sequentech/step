@@ -359,7 +359,7 @@ export const TallyCeremony: React.FC = () => {
         EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
     const isUnencryptedElection =
-        electionEvent.presentation?.contest_encryption_policy ===
+        electionEvent?.presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.PLAINTEXT
 
     const shouldSkipCeremony = isAutomatedCeremony || isUnencryptedElection
@@ -393,13 +393,13 @@ export const TallyCeremony: React.FC = () => {
                 (ceremony: any) => tallySession?.keys_ceremony_id === ceremony.id
             )
             const localIsAutomatedCeremony =
-                electionEvent.presentation?.ceremonies_policy ===
+                electionEvent?.presentation?.ceremonies_policy ===
                     EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
                 localCurrentKeysCeremony?.settings?.policy ===
                     EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
             const localIsPlaintextElection =
-                electionEvent.presentation?.contest_encryption_policy ===
+                electionEvent?.presentation?.contest_encryption_policy ===
                 EElectionEventContestEncryptionPolicy.PLAINTEXT
 
             const localShouldSkipCeremony = localIsAutomatedCeremony || localIsPlaintextElection
@@ -934,7 +934,6 @@ export const TallyCeremony: React.FC = () => {
                                     id="keys-ceremony-for-tally"
                                     value={keysCeremonyId ?? ""}
                                     label={String(t("tally.keysCeremonyTitle"))}
-                                    placeholder={t("tally.keysCeremonyTitle")}
                                     disabled={isUnencryptedElection}
                                     onChange={(props) => {
                                         if (!props?.target?.value) {
