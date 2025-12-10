@@ -88,5 +88,5 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
-          CARGO_BUILD_JOBS: 3
+          CARGO_BUILD_JOBS: 4
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
