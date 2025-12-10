@@ -77,7 +77,7 @@ jobs:
         node-version: '24'
 
     - name: Install release-it
-      run: npm install --global release-it@19.0.3
+      run: sudo npm install --global release-it@19.0.3
 
     - name: Create Release Branch if required
       id: CreateReleaseBranch
@@ -164,7 +164,7 @@ jobs:
 
     - name: Install release tools
       run: |
-        npm install --global release-it@16.2.1
+        sudo npm install --global release-it@16.2.1
 
     - name: Determine Release Increment
       id: CheckLatestRelease
