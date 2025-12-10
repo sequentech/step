@@ -13,7 +13,7 @@ jobs:
   run-tests:
     name: Run Rust tests
     runs-on: gcp-selfhosted-ubuntu24
-    timeout-minutes: 30
+    timeout-minutes: 35
     strategy:
       matrix:
         include:
