@@ -12,24 +12,20 @@ use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
 };
-use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
 use b3::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
-use electoral_log::client::types::*;
 use electoral_log::assign_value;
+use electoral_log::client::types::*;
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::*;
 use electoral_log::messages::statement::{StatementBody, StatementType};
-use electoral_log::{
-    ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
-};
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
-use sequent_core::util::retry::retry_with_exponential_backoff;
 use sequent_core::services::date::ISO8601;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
@@ -904,7 +900,12 @@ impl CastVoteEntry {
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     let mut client = get_board_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
     info!("database name = {board_name}");
     let cols_match_select = input.as_where_clause_map()?;
     let order_by = input.order_by.clone();
@@ -1082,8 +1083,12 @@ pub async fn list_cast_vote_messages_and_count(
         ),
         async {
             let mut client = get_board_client().await?;
-            let board_name =
-                get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+            let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+            let board_name = get_event_board(
+                input.tenant_id.as_str(),
+                input.election_event_id.as_str(),
+                &slug,
+            );
             info!("database name = {board_name}");
             let total: usize = client
                 .count_electoral_log_messages(&board_name, Some(cols_match_count))
@@ -1112,7 +1117,12 @@ pub async fn list_cast_vote_messages(
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
     info!("database name = {board_name}");
     let order_by = input.order_by.clone();
 
@@ -1167,7 +1177,12 @@ pub async fn list_cast_vote_messages(
 #[instrument(err)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let mut client = get_board_client().await?;
-    let board_name = get_event_board(input.tenant_id.as_str(), input.election_event_id.as_str());
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &slug,
+    );
     info!("database name = {board_name}");
     let cols_match_count = input.as_where_clause_map()?;
     let total = client

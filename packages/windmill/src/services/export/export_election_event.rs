@@ -357,17 +357,10 @@ pub async fn process_export_zip(
             ReportFormat::CSV, // Assuming CSV format for this export
         );
 
-        // Prepare user data
-        let user_data = activity_logs_template
-            .prepare_user_data(&hasura_transaction, &hasura_transaction)
+        let temp_activity_logs_file = activity_logs_template
+            .generate_export_csv_data(&activity_logs_filename)
             .await
-            .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
-
-        // Generate the CSV file using generate_export_data
-        let temp_activity_logs_file =
-            activity_log::generate_export_data(&user_data.electoral_log, &activity_logs_filename)
-                .await
-                .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+            .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
         zip_writer
             .start_file(&activity_logs_filename, options)

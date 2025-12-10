@@ -120,7 +120,11 @@ pub struct ActivityLogsTemplate {
 
 impl ActivityLogsTemplate {
     pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
-        let board_name = get_event_board(ids.tenant_id.as_str(), ids.election_event_id.as_str());
+        let board_name = get_event_board(
+            ids.tenant_id.as_str(),
+            ids.election_event_id.as_str(),
+            &slug,
+        );
         ActivityLogsTemplate {
             ids,
             report_format,

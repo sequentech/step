@@ -815,13 +815,6 @@ impl BoardClient {
         tables: &str,
         indexes: &[String],
     ) -> Result<()> {
-    /// the requested tables and indexes if they don't exist.
-    async fn upsert_database(
-        &mut self,
-        database_name: &str,
-        tables: &str,
-        indexes: &[String],
-    ) -> Result<()> {
         // create database if it doesn't exist
         if !self.client.has_database(database_name).await? {
             println!("Database not found, creating..");

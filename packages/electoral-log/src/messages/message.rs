@@ -8,7 +8,6 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::hash::STRAND_HASH_LENGTH_BYTES;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
