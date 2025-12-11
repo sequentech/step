@@ -386,36 +386,36 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
     }
 
     /// Gets Ballots, with a hash check.
-    pub(crate) fn get_ballots(
+    pub(crate) fn get_ballots<const W: usize>(
         &self,
         b_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<b5::messages::artifact::Ballots<C, 2>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Ballots<C, W>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Ballots, b_h.0, signer_position, batch)?;
-        Ok(b5::messages::artifact::Ballots::<C, 2>::deser(&bytes)?)
+        Ok(b5::messages::artifact::Ballots::<C, W>::deser(&bytes)?)
     }
 
     /// Gets a Mix, with a hash check.
-    pub(crate) fn get_mix(
+    pub(crate) fn get_mix<const W: usize>(
         &self,
         m_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<b5::messages::artifact::Mix<C, 2>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Mix<C, W>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Mix, m_h.0, signer_position, batch)?;
-        Ok(b5::messages::artifact::Mix::<C, 2>::deser(&bytes)?)
+        Ok(b5::messages::artifact::Mix::<C, W>::deser(&bytes)?)
     }
 
     /// Gets DecryptionFactors, with a hash check.
     /// Deserializes PartialDecryption from the wire and constructs DecryptionFactors
     /// by adding the signer_position from the message signature.
-    pub(crate) fn get_decryption_factors<const P: usize>(
+    pub(crate) fn get_decryption_factors<const W: usize, const P: usize>(
         &self,
         d_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, 2, P>, ProtocolError> {
+    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, W, P>, ProtocolError> {
         use cryptography::dkgd::recipient::{DecryptionFactors, ParticipantPosition};
         
         let bytes = self.get_artifact(
@@ -426,7 +426,7 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
         )?;
         
         // Deserialize PartialDecryption (message layer - no position)
-        let partial_decryption = b5::messages::artifact::PartialDecryption::<C, 2>::deser(&bytes)?;
+        let partial_decryption = b5::messages::artifact::PartialDecryption::<C, W>::deser(&bytes)?;
         
         // Construct DecryptionFactors (crypto layer - with position from signer)
         let position = ParticipantPosition::from_usize(signer_position + 1);
@@ -434,14 +434,14 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
     }
 
     /// Gets Plaintexts, with a hash check.
-    pub(crate) fn get_plaintexts(
+    pub(crate) fn get_plaintexts<const W: usize>(
         &self,
         p_h: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<b5::messages::artifact::Plaintexts<C, 2>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Plaintexts<C, W>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Plaintexts, p_h.0, signer_position, batch)?;
-        Ok(b5::messages::artifact::Plaintexts::<C, 2>::deser(&bytes)?)
+        Ok(b5::messages::artifact::Plaintexts::<C, W>::deser(&bytes)?)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -627,11 +627,11 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
         DkgPublicKey::<C>::deser(&entry.1).ok()
     }
 
-    pub(crate) fn get_plaintexts_nohash(
+    pub(crate) fn get_plaintexts_nohash<const W: usize>(
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<b5::messages::artifact::Plaintexts<C, 2>> {
+    ) -> Option<b5::messages::artifact::Plaintexts<C, W>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Plaintexts,
             signer_position,
@@ -639,7 +639,6 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
             0,
         );
         let entry = self.artifacts_memory.get(&aei)?;
-
-        b5::messages::artifact::Plaintexts::<C, 2>::deser(&entry.1).ok()
+        b5::messages::artifact::Plaintexts::<C, W>::deser(&entry.1).ok()
     }
 }

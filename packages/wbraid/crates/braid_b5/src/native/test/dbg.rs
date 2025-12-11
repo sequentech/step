@@ -324,6 +324,7 @@ fn mk_context<C: Context>(n_trustees: u8, threshold: &[usize]) -> ReplContext<C>
         C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks.clone(),
         threshold.len(),
+        2, // ciphertext_width
         PhantomData,
     );
 

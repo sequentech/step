@@ -622,12 +622,12 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_ballots(
+    pub(crate) fn get_ballots<const W: usize>(
         &self,
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<b5::messages::artifact::Ballots<C, 2>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Ballots<C, W>, ProtocolError> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -637,12 +637,12 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_mix(
+    pub(crate) fn get_mix<const W: usize>(
         &self,
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<b5::messages::artifact::Mix<C, 2>, ProtocolError> {
+    ) -> Result<b5::messages::artifact::Mix<C, W>, ProtocolError> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -652,12 +652,12 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_decryption_factors<const P: usize>(
+    pub(crate) fn get_decryption_factors<const W: usize, const P: usize>(
         &self,
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, 2, P>, ProtocolError> {
+    ) -> Result<cryptography::dkgd::recipient::DecryptionFactors<C, W, P>, ProtocolError> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -668,12 +668,12 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     /// an error is raised.
     ///
     /// Used by Actions.
-    pub(crate) fn get_plaintexts(
+    pub(crate) fn get_plaintexts<const W: usize>(
         &self,
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Result<Plaintexts<C, 2>, ProtocolError> {
+    ) -> Result<Plaintexts<C, W>, ProtocolError> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }
@@ -713,13 +713,13 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     }
 
     /// Convenience function used by tests and dbg
-    pub fn _get_plaintexts_nohash(
+    pub fn _get_plaintexts_nohash<const W: usize>(
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<b5::messages::artifact::Plaintexts<C, 2>> {
+    ) -> Option<b5::messages::artifact::Plaintexts<C, W>> {
         self.local_board
-            .get_plaintexts_nohash(batch, signer_position)
+            .get_plaintexts_nohash::<W>(batch, signer_position)
     }
 
     ///////////////////////////////////////////////////////////////////////////

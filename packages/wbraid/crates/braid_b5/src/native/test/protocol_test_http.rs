@@ -333,6 +333,7 @@ pub async fn create_protocol_test<C: Context>(
         C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
+        2, // ciphertext_width
         PhantomData,
     );
 

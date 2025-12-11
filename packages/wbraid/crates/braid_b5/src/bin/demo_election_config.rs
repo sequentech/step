@@ -58,6 +58,7 @@ fn gen_election_config<C: Context>(n_trustees: usize, threshold: &[usize]) {
         <<C as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
+        2, // ciphertext_width
         PhantomData,
     );
     let cfg_bytes = cfg.ser();

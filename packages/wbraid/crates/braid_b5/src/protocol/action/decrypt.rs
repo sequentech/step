@@ -60,47 +60,49 @@ pub(super) fn compute_decryption_factors<C: Context, S: crate::protocol::board::
         secret = secret.add(&share);
     }
 
-    let ciphertexts = trustee
-        .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .add_context("Computing decryption factors")?;
-
-    info!(
-        "ComputeDecryptionFactors [{}] ({})..",
-        dbg_hash(&ciphertexts_h.0),
-        ciphertexts.ciphertexts.len(),
-    );
-
     let suffix = format!("decryption proof");
     let label = cfg.label(*batch, suffix);
 
-    // Use dispatch macro to create Recipient with const generics
+    // Use nested dispatch macros to create Recipient with const generics for both T/P and W
     crate::dispatch_threshold_trustees!(*threshold, *num_t, {
-        use cryptography::dkgd::recipient::DkgCiphertext;
-        
-        let position = ParticipantPosition::from_usize(*self_p + 1);
-        let recipient = Recipient::<C, T, P>::new(position, vk, secret);
-        
-        // Wrap plain Ciphertexts into DkgCiphertext<C, 2, T> for decryption_factor
-        let wrapped_ciphertexts: Vec<DkgCiphertext<C, 2, T>> = ciphertexts.ciphertexts
-            .iter()
-            .map(|c| DkgCiphertext(c.clone()))
-            .collect();
-        
-        let dfactors_with_source = recipient.decryption_factor(&wrapped_ciphertexts, &label)
-            .map_err(|e| ProtocolError::InternalError(format!("Failed to compute decryption factors: {:?}", e)))?;
-        
-        // Create message-layer PartialDecryption (without source) from DecryptionFactors
-        let partial_decryption = b5::messages::artifact::PartialDecryption::new(dfactors_with_source.factors);
-        let m = b5::messages::message::Message::decryption_factors_msg(
-            &cfg,
-            *batch,
-            partial_decryption,
-            *ciphertexts_h,
-            *shares_hs,
-            trustee,
-        )?;
-        
-        Ok(vec![m])
+        crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
+            use cryptography::dkgd::recipient::DkgCiphertext;
+            
+            let ciphertexts = trustee
+                .get_mix(ciphertexts_h, *batch, *mix_signer)
+                .add_context("Computing decryption factors")?;
+
+            info!(
+                "ComputeDecryptionFactors [{}] ({})..",
+                dbg_hash(&ciphertexts_h.0),
+                ciphertexts.ciphertexts.len(),
+            );
+            
+            let position = ParticipantPosition::from_usize(*self_p + 1);
+            let recipient = Recipient::<C, T, P>::new(position, vk, secret);
+            
+            // Wrap plain Ciphertexts into DkgCiphertext<C, W, T> for decryption_factor
+            let wrapped_ciphertexts: Vec<DkgCiphertext<C, W, T>> = ciphertexts.ciphertexts
+                .iter()
+                .map(|c| DkgCiphertext(c.clone()))
+                .collect();
+            
+            let dfactors_with_source = recipient.decryption_factor(&wrapped_ciphertexts, &label)
+                .map_err(|e| ProtocolError::InternalError(format!("Failed to compute decryption factors: {:?}", e)))?;
+            
+            // Create message-layer PartialDecryption (without source) from DecryptionFactors
+            let partial_decryption = b5::messages::artifact::PartialDecryption::new(dfactors_with_source.factors);
+            let m = b5::messages::message::Message::decryption_factors_msg(
+                &cfg,
+                *batch,
+                partial_decryption,
+                *ciphertexts_h,
+                *shares_hs,
+                trustee,
+            )?;
+            
+            Ok(vec![m])
+        })
     })
 }
 
@@ -123,28 +125,34 @@ where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {
     let cfg = trustee.get_configuration(cfg_h)?;
-    let plaintexts = compute_plaintexts_(
-        cfg_h,
-        batch,
-        pk_h,
-        dfactors_hs,
-        ciphertexts_h,
-        mix_signer,
-        ts,
-        threshold,
-        trustee,
-    )?;
-    let m = Message::plaintexts_msg(
-        cfg,
-        *batch,
-        plaintexts,
-        *dfactors_hs,
-        *ciphertexts_h,
-        *pk_h,
-        trustee,
-    )?;
+    let num_trustees = cfg.trustees.len();
+    
+    crate::dispatch_threshold_trustees!(*threshold, num_trustees, {
+        crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
+            let plaintexts = compute_plaintexts_::<C, S, W, T, P>(
+                cfg_h,
+                batch,
+                pk_h,
+                dfactors_hs,
+                ciphertexts_h,
+                mix_signer,
+                ts,
+                threshold,
+                trustee,
+            )?;
+            let m = Message::plaintexts_msg(
+                cfg,
+                *batch,
+                plaintexts,
+                *dfactors_hs,
+                *ciphertexts_h,
+                *pk_h,
+                trustee,
+            )?;
 
-    Ok(vec![m])
+            Ok(vec![m])
+        })
+    })
 }
 
 /// Verifies the plaintexts by re-computing the plaintexts independently.
@@ -167,50 +175,56 @@ where
     Trustee<C, S>: b5::messages::message::Signer<C>,
 {
     let cfg = trustee.get_configuration(cfg_h)?;
+    let num_trustees = cfg.trustees.len();
+    
     info!(
         "SignPlaintexts verifying decryption [{}] => [{}]",
         dbg_hash(&ciphertexts_h.0),
         dbg_hash(&plaintexts_h.0),
     );
 
-    let expected = compute_plaintexts_(
-        cfg_h,
-        batch,
-        pk_h,
-        dfactors_hs,
-        ciphertexts_h,
-        mix_signer,
-        trustees,
-        threshold,
-        trustee,
-    )?;
-    let actual = trustee
-        .get_plaintexts(plaintexts_h, *batch, trustees[0] - 1)
-        .add_context("Signing plaintexts")?;
+    crate::dispatch_threshold_trustees!(*threshold, num_trustees, {
+        crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
+            let expected = compute_plaintexts_::<C, S, W, T, P>(
+                cfg_h,
+                batch,
+                pk_h,
+                dfactors_hs,
+                ciphertexts_h,
+                mix_signer,
+                trustees,
+                threshold,
+                trustee,
+            )?;
+            let actual = trustee
+                .get_plaintexts::<W>(plaintexts_h, *batch, trustees[0] - 1)
+                .add_context("Signing plaintexts")?;
 
-    if expected.0 == actual.0 {
-        info!(
-            "SignPlaintexts verifying decryption [{}] => [{}], ok",
-            dbg_hash(&ciphertexts_h.0),
-            dbg_hash(&plaintexts_h.0),
-        );
-        let m = Message::plaintexts_signed_msg(
-            cfg,
-            *batch,
-            *plaintexts_h,
-            *dfactors_hs,
-            *ciphertexts_h,
-            *pk_h,
-            trustee,
-        )
-        .add_context("Signing plaintexts")?;
+            if expected.0 == actual.0 {
+                info!(
+                    "SignPlaintexts verifying decryption [{}] => [{}], ok",
+                    dbg_hash(&ciphertexts_h.0),
+                    dbg_hash(&plaintexts_h.0),
+                );
+                let m = Message::plaintexts_signed_msg(
+                    cfg,
+                    *batch,
+                    *plaintexts_h,
+                    *dfactors_hs,
+                    *ciphertexts_h,
+                    *pk_h,
+                    trustee,
+                )
+                .add_context("Signing plaintexts")?;
 
-        Ok(vec![m])
-    } else {
-        Err(ProtocolError::VerificationError(format!(
-            "Mismatch when comparing plaintexts with retrieved ones"
-        )))
-    }
+                Ok(vec![m])
+            } else {
+                Err(ProtocolError::VerificationError(format!(
+                    "Mismatch when comparing plaintexts with retrieved ones"
+                )))
+            }
+        })
+    })
 }
 
 /// Computes the plaintexts from a threshold number of decryption factors.
@@ -222,7 +236,7 @@ where
 /// Returns a Message of type Plaintexts signed by this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
-fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
+fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage, const W: usize, const T: usize, const P: usize>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
     pk_h: &PublicKeyHash,
@@ -232,14 +246,14 @@ fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>
     ts: &TrusteeSet,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
-) -> Result<b5::messages::artifact::Plaintexts<C, 2>, ProtocolError> {
+) -> Result<b5::messages::artifact::Plaintexts<C, W>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
     let pk = trustee
         .get_dkg_public_key(pk_h, 0)
         .add_context("Computing plaintexts")?;
 
     let mix = trustee
-        .get_mix(ciphertexts_h, *batch, *mix_signer)
+        .get_mix::<W>(ciphertexts_h, *batch, *mix_signer)
         .add_context("Computing plaintexts")?;
 
     let num_ciphertexts = mix.ciphertexts.len();
@@ -256,69 +270,64 @@ fn compute_plaintexts_<C: Context, S: crate::protocol::board::LocalBoardStorage>
         "Unexpected number of decryption factors"
     );
 
-    let num_trustees = cfg.trustees.len();    
-    // Use dispatch macro to handle runtime threshold/trustee count -> compile-time const generics
-    let plaintexts = crate::dispatch_threshold_trustees!(*threshold, num_trustees, {
-        
-        // Collect decryption factors for the T trustees
-        let mut all_dfactors = Vec::new();
-        
-        for (t, df_h) in dfactors_hs.0.iter().enumerate() {
-            // Threshold is 1-based
-            if t < *threshold {
-                let dfactors_with_source = trustee
-                    .get_decryption_factors::<P>(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
-                    .add_context("Computing plaintexts")?;
+    // Collect decryption factors for the T trustees
+    let mut all_dfactors = Vec::new();
+    
+    for (t, df_h) in dfactors_hs.0.iter().enumerate() {
+        // Threshold is 1-based
+        if t < *threshold {
+            let dfactors_with_source = trustee
+                .get_decryption_factors::<W, P>(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
+                .add_context("Computing plaintexts")?;
 
-                assert_eq!(num_ciphertexts, dfactors_with_source.factors.len());
-                
-                all_dfactors.push(dfactors_with_source);
-            } else {
-                debug!("Processed all decryption factors (t = {})", t);
-                break;
-            }
+            assert_eq!(num_ciphertexts, dfactors_with_source.factors.len());
+            
+            all_dfactors.push(dfactors_with_source);
+        } else {
+            debug!("Processed all decryption factors (t = {})", t);
+            break;
         }
+    }
 
-        info!(
-            "ComputePlaintexts combining decryption factors[{}] ({})..",
-            dbg_hash(&ciphertexts_h.0),
-            num_ciphertexts,
-        );
+    info!(
+        "ComputePlaintexts combining decryption factors[{}] ({})..",
+        dbg_hash(&ciphertexts_h.0),
+        num_ciphertexts,
+    );
 
-        let suffix = format!("decryption proof");
-        let label = cfg.label(*batch, suffix);
-        
-        use cryptography::dkgd::recipient::{combine, DkgCiphertext};
-        
-        // Wrap plain Ciphertexts into DkgCiphertext<C, 2, T> for combine function
-        let wrapped_ciphertexts: Vec<DkgCiphertext<C, 2, T>> = mix.ciphertexts
-            .iter()
-            .map(|c| DkgCiphertext(c.clone()))
-            .collect();
-        
-        // Extract verification keys from public key - indexed by source position
-        let verification_keys_vec: Vec<C::Element> = all_dfactors
-            .iter()
-            .map(|df| pk.verification_keys[df.source.0 as usize - 1].clone())
-            .collect();
-        
-        // Convert Vec to fixed-size arrays
-        let dfactors_array: [cryptography::dkgd::recipient::DecryptionFactors<C, 2, P>; T] = 
-            all_dfactors.try_into()
-                .map_err(|_| ProtocolError::InternalError("Failed to convert decryption factors to array".to_string()))?;
-        let vkeys_array: [C::Element; T] = 
-            verification_keys_vec.try_into()
-                .map_err(|_| ProtocolError::InternalError("Failed to convert verification keys to array".to_string()))?;
-        
-        combine(
-            &wrapped_ciphertexts,
-            &dfactors_array,
-            &vkeys_array,
-            &label,
-        ).map_err(|e| ProtocolError::VerificationError(format!(
-            "Failed to combine decryption factors: {:?}", e
-        )))
-    })?;
+    let suffix = format!("decryption proof");
+    let label = cfg.label(*batch, suffix);
+    
+    use cryptography::dkgd::recipient::{combine, DkgCiphertext};
+    
+    // Wrap plain Ciphertexts into DkgCiphertext<C, W, T> for combine function
+    let wrapped_ciphertexts: Vec<DkgCiphertext<C, W, T>> = mix.ciphertexts
+        .iter()
+        .map(|c| DkgCiphertext(c.clone()))
+        .collect();
+    
+    // Extract verification keys from public key - indexed by source position
+    let verification_keys_vec: Vec<C::Element> = all_dfactors
+        .iter()
+        .map(|df| pk.verification_keys[df.source.0 as usize - 1].clone())
+        .collect();
+    
+    // Convert Vec to fixed-size arrays
+    let dfactors_array: [cryptography::dkgd::recipient::DecryptionFactors<C, W, P>; T] = 
+        all_dfactors.try_into()
+            .map_err(|_| ProtocolError::InternalError("Failed to convert decryption factors to array".to_string()))?;
+    let vkeys_array: [C::Element; T] = 
+        verification_keys_vec.try_into()
+            .map_err(|_| ProtocolError::InternalError("Failed to convert verification keys to array".to_string()))?;
+    
+    let plaintexts = combine(
+        &wrapped_ciphertexts,
+        &dfactors_array,
+        &vkeys_array,
+        &label,
+    ).map_err(|e| ProtocolError::VerificationError(format!(
+        "Failed to combine decryption factors: {:?}", e
+    )))?;
 
     Ok(Plaintexts(plaintexts))
 }

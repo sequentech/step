@@ -28,6 +28,7 @@ pub struct Configuration<C: Context> {
     pub protocol_manager: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
     pub trustees: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>,
     pub threshold: usize,
+    pub ciphertext_width: usize,
     pub phantom: PhantomData<C>,
 }
 
@@ -38,6 +39,7 @@ impl<C: Context> Clone for Configuration<C> {
             protocol_manager: self.protocol_manager.clone(),
             trustees: self.trustees.clone(),
             threshold: self.threshold,
+            ciphertext_width: self.ciphertext_width,
             phantom: PhantomData,
         }
     }
@@ -49,6 +51,7 @@ impl<C: Context> Configuration<C> {
         protocol_manager: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
         trustees: Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>,
         threshold: usize,
+        ciphertext_width: usize,
         _phantom: PhantomData<C>,
     ) -> Configuration<C> {
         let c = Configuration {
@@ -56,6 +59,7 @@ impl<C: Context> Configuration<C> {
             protocol_manager,
             trustees,
             threshold,
+            ciphertext_width,
             phantom: PhantomData,
         };
         assert!(c.is_valid());
@@ -70,6 +74,7 @@ impl<C: Context> Configuration<C> {
             && (self.trustees.len() > 1
                 && self.trustees.len() <= crate::messages::newtypes::MAX_TRUSTEES)
             && (self.threshold > 1 && self.threshold <= self.trustees.len())
+            && (self.ciphertext_width >= 1 && self.ciphertext_width <= crate::messages::newtypes::MAX_CIPHERTEXT_WIDTH)
     }
 
     pub fn get_trustee_position(&self, trustee_pk: &<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier) -> Option<usize> {

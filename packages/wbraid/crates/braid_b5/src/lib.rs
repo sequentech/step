@@ -32,6 +32,21 @@ macro_rules! dispatch_threshold_trustees {
     };
 }
 
+/// Macro to dispatch ciphertext width operations based on runtime values
+/// to compile-time const generic parameters
+#[macro_export]
+macro_rules! dispatch_ciphertext_width {
+    ($width:expr, $body:expr) => {
+        match $width {
+            1 => { const W: usize = 1; $body }
+            2 => { const W: usize = 2; $body }
+            3 => { const W: usize = 3; $body }
+            4 => { const W: usize = 4; $body }
+            _ => panic!("Unsupported ciphertext_width={}", $width)
+        }
+    };
+}
+
 // Platform-specific modules
 // Note: native::board is available in both builds because NoOpStorage is used by WASM temporarily
 #[cfg(any(feature = "native", feature = "wasm"))]

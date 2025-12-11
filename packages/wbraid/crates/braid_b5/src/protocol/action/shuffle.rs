@@ -39,70 +39,72 @@ pub(crate) fn mix<C: Context, S: crate::protocol::board::LocalBoardStorage>(
 ) -> Result<Vec<Message<C>>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
 
-    let ciphertexts = if *mix_no == 1 {
-        assert_eq!(signer_t, PROTOCOL_MANAGER_INDEX);
-        // Ballot ciphertexts
-        let ballots = trustee
-            .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
-            .add_context("Mixing")?;
+    crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
+        let ciphertexts = if *mix_no == 1 {
+            assert_eq!(signer_t, PROTOCOL_MANAGER_INDEX);
+            // Ballot ciphertexts
+            let ballots = trustee
+                .get_ballots::<W>(source_h, *batch, PROTOCOL_MANAGER_INDEX)
+                .add_context("Mixing")?;
 
-        info!(
-            "Mix computing shuffle [{} (ballots)] ({})..",
-            dbg_hash(&source_h.0),
-            ballots.ciphertexts.len()
-        );
-        ballots.ciphertexts
-    } else {
-        // First mix ciphertexts come from ballots, second from first mix, third from second, etc.
-        // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
-        // the trustee at index n - 2 (= (n - 1) - 1).
-        //
-        // For example, if we're on mix #2,
-        // the source mix is signed by the first trustee, which is trustees[0].
-        //
-        // Trustees[] elements are 1-based, so trustees[mix_no - 2] - 1.
-        assert_eq!(signer_t, trustees[mix_no - 2] - 1);
-        let signer_t = trustees[mix_no - 2] - 1;
-        let mix = trustee
-            .get_mix(source_h, *batch, signer_t)
-            .add_context("Mixing")?;
+            info!(
+                "Mix computing shuffle [{} (ballots)] ({})..",
+                dbg_hash(&source_h.0),
+                ballots.ciphertexts.len()
+            );
+            ballots.ciphertexts
+        } else {
+            // First mix ciphertexts come from ballots, second from first mix, third from second, etc.
+            // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
+            // the trustee at index n - 2 (= (n - 1) - 1).
+            //
+            // For example, if we're on mix #2,
+            // the source mix is signed by the first trustee, which is trustees[0].
+            //
+            // Trustees[] elements are 1-based, so trustees[mix_no - 2] - 1.
+            assert_eq!(signer_t, trustees[mix_no - 2] - 1);
+            let signer_t = trustees[mix_no - 2] - 1;
+            let mix = trustee
+                .get_mix::<W>(source_h, *batch, signer_t)
+                .add_context("Mixing")?;
 
-        info!(
-            "Mix computing shuffle [{} (mix)] ({})..",
-            dbg_hash(&source_h.0),
-            mix.ciphertexts.len()
-        );
+            info!(
+                "Mix computing shuffle [{} (mix)] ({})..",
+                dbg_hash(&source_h.0),
+                mix.ciphertexts.len()
+            );
 
-        mix.ciphertexts
-    };
+            mix.ciphertexts
+        };
 
-    // Null mix
-    if ciphertexts.len() == 0 {
-        let mix = Mix::<C, 2>::null(*mix_no);
+        // Null mix
+        if ciphertexts.len() == 0 {
+            let mix = Mix::<C, W>::null(*mix_no);
+            let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
+            return Ok(vec![m]);
+        }
+
+        let dkg_pk = trustee.get_dkg_public_key(pk_h, 0).add_context("Mixing")?;
+        let pk = PublicKey::new(dkg_pk.pk);
+
+        let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
+        info!("Mix computing generators..");
+
+        let hs = C::G::ind_generators(ciphertexts.len(), &seed)?;
+        let shuffler = Shuffler::new(hs, pk);
+
+        info!("Mix computing shuffle..");
+        let label = cfg.label(*batch, format!("shuffle{mix_no}"));
+        let (e_primes, proof) = shuffler.shuffle(&ciphertexts, &label)?;
+
+        // FIXME removed self-verify
+        // let ok = shuffler.verify(&ciphertexts, &e_primes, &proof, &label);
+        // assert!(ok);
+
+        let mix = Mix::new(e_primes, proof, *mix_no);
         let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
-        return Ok(vec![m]);
-    }
-
-    let dkg_pk = trustee.get_dkg_public_key(pk_h, 0).add_context("Mixing")?;
-    let pk = PublicKey::new(dkg_pk.pk);
-
-    let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
-    info!("Mix computing generators..");
-
-    let hs = C::G::ind_generators(ciphertexts.len(), &seed)?;
-    let shuffler = Shuffler::new(hs, pk);
-
-    info!("Mix computing shuffle..");
-    let label = cfg.label(*batch, format!("shuffle{mix_no}"));
-    let (e_primes, proof) = shuffler.shuffle(&ciphertexts, &label)?;
-
-    // FIXME removed self-verify
-    // let ok = shuffler.verify(&ciphertexts, &e_primes, &proof, &label);
-    // assert!(ok);
-
-    let mix = Mix::new(e_primes, proof, *mix_no);
-    let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
-    Ok(vec![m])
+        Ok(vec![m])
+    })
 }
 
 /// Verifies a mix.
@@ -130,79 +132,82 @@ pub(crate) fn sign_mix<C: Context, S: crate::protocol::board::LocalBoardStorage>
     trustee: &Trustee<C, S>,
 ) -> Result<Vec<Message<C>>, ProtocolError> {
     let cfg = trustee.get_configuration(cfg_h)?;
-    let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
-        let ballots = trustee
-            .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
-            .add_context("Signing mix")?;
+    
+    crate::dispatch_ciphertext_width!(cfg.ciphertext_width, {
+        let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
+            let ballots = trustee
+                .get_ballots::<W>(source_h, *batch, PROTOCOL_MANAGER_INDEX)
+                .add_context("Signing mix")?;
 
-        info!(
-            "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
-            dbg_hash(&source_h.0),
-            dbg_hash(&cipher_h.0),
-            ballots.ciphertexts.len()
-        );
-        ballots.ciphertexts
-    } else {
-        let mix = trustee
-            .get_mix(source_h, *batch, signers_t)
-            .add_context("Signing mix")?;
+            info!(
+                "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
+                dbg_hash(&source_h.0),
+                dbg_hash(&cipher_h.0),
+                ballots.ciphertexts.len()
+            );
+            ballots.ciphertexts
+        } else {
+            let mix = trustee
+                .get_mix::<W>(source_h, *batch, signers_t)
+                .add_context("Signing mix")?;
 
-        info!(
-            "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
-            dbg_hash(&source_h.0),
-            dbg_hash(&cipher_h.0),
-            mix.ciphertexts.len()
-        );
-        mix.ciphertexts
-    };
+            info!(
+                "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
+                dbg_hash(&source_h.0),
+                dbg_hash(&cipher_h.0),
+                mix.ciphertexts.len()
+            );
+            mix.ciphertexts
+        };
 
-    let target = trustee.get_mix(cipher_h, *batch, signert_t);
-    let mix = target.add_context("Signing mix")?;
+        let target = trustee.get_mix::<W>(cipher_h, *batch, signert_t);
+        let mix = target.add_context("Signing mix")?;
 
-    let mix_number = mix.mix_number;
+        let mix_number = mix.mix_number;
 
-    // Null mix
-    if source_cs.len() == 0 {
-        if (mix.ciphertexts.len() != 0) || mix.proof.is_some() {
+        // Null mix
+        if source_cs.len() == 0 {
+            if (mix.ciphertexts.len() != 0) || mix.proof.is_some() {
+                return Err(ProtocolError::VerificationError(format!(
+                    "A null mix should have no outout ciphertexts or proof"
+                )));
+            }
+
+            let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
+            return Ok(vec![m]);
+        }
+
+        let Some(proof) = mix.proof else {
             return Err(ProtocolError::VerificationError(format!(
-                "A null mix should have no outout ciphertexts or proof"
+                "Mix cannot be null if there are source ciphertexts"
+            )));
+        };
+
+        let dkg_pk = trustee
+            .get_dkg_public_key(pk_h, 0)
+            .add_context("Signing mix")?;
+        let pk = PublicKey::new(dkg_pk.pk);
+
+        let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
+        let hs = C::G::ind_generators(source_cs.len(), &seed)?;
+        let shuffler = Shuffler::new(hs, pk);
+
+        let label = cfg.label(*batch, format!("shuffle{mix_number}"));
+        let ok = shuffler.verify(&source_cs, &mix.ciphertexts, &proof, &label)?;
+        info!(
+            "SignMix shuffle verification [{}] => [{}] ok = {}",
+            dbg_hash(&source_h.0),
+            dbg_hash(&cipher_h.0),
+            ok
+        );
+
+        if !ok {
+            return Err(ProtocolError::VerificationError(format!(
+                "Mix verification failed"
             )));
         }
 
         let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
-        return Ok(vec![m]);
-    }
-
-    let Some(proof) = mix.proof else {
-        return Err(ProtocolError::VerificationError(format!(
-            "Mix cannot be null if there are source ciphertexts"
-        )));
-    };
-
-    let dkg_pk = trustee
-        .get_dkg_public_key(pk_h, 0)
-        .add_context("Signing mix")?;
-    let pk = PublicKey::new(dkg_pk.pk);
-
-    let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
-    let hs = C::G::ind_generators(source_cs.len(), &seed)?;
-    let shuffler = Shuffler::new(hs, pk);
-
-    let label = cfg.label(*batch, format!("shuffle{mix_number}"));
-    let ok = shuffler.verify(&source_cs, &mix.ciphertexts, &proof, &label)?;
-    info!(
-        "SignMix shuffle verification [{}] => [{}] ok = {}",
-        dbg_hash(&source_h.0),
-        dbg_hash(&cipher_h.0),
-        ok
-    );
-
-    if !ok {
-        return Err(ProtocolError::VerificationError(format!(
-            "Mix verification failed"
-        )));
-    }
-
-    let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
-    Ok(vec![m])
+        Ok(vec![m])
+    })
 }

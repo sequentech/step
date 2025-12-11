@@ -87,6 +87,15 @@ struct Cli {
     #[arg(long, default_value_t = 2)]
     threshold: usize,
 
+    /// The ciphertext width (number of group element pairs per ciphertext).
+    ///
+    /// Used when generating configuration data and posting ballots.
+    /// When posting ballots, you must supply the same value
+    /// as the one used during configuration generation.
+    /// Valid values: 1-4
+    #[arg(long, default_value_t = 2)]
+    ciphertext_width: usize,
+
     /// The operation to execute.
     #[arg(value_enum)]
     command: Command,
@@ -185,7 +194,7 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Command::GenConfigs => {
-            gen_configs::<RistrettoCtx>(args.num_trustees, args.threshold)?;
+            gen_configs::<RistrettoCtx>(args.num_trustees, args.threshold, args.ciphertext_width)?;
         }
         Command::InitProtocol => {
             let path = Path::new(DEMO_DIR).join(CONFIG);
@@ -285,7 +294,7 @@ async fn main() -> Result<()> {
 ///    └ 3
 ///    |
 ///   └ trustee.toml
-fn gen_configs<C: Context>(n_trustees: usize, threshold: usize) -> Result<()> {
+fn gen_configs<C: Context>(n_trustees: usize, threshold: usize, ciphertext_width: usize) -> Result<()> {
     let mut rng = C::get_rng();
     let pmkey = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
     let pm: ProtocolManager<C> = ProtocolManager {
@@ -307,6 +316,7 @@ fn gen_configs<C: Context>(n_trustees: usize, threshold: usize) -> Result<()> {
         <<C as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold,
+        ciphertext_width,
         PhantomData,
     );
     println!("Generated config: {:?}", cfg);
@@ -490,9 +500,6 @@ async fn post_ballots<C: Context>(
         let pk_element = dkgpk.pk;
         let _pk = PublicKey::<RistrettoCtx>::new(pk_element.clone());
 
-        let ballots = b5::random_ciphertexts::<RistrettoCtx, 1>(ciphertexts);
-        info!("Generated {} ballots", ballots.len());
-
         let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         let all = &max[0..n_trustees];
         let mut rng = &mut rand::rng();
@@ -501,11 +508,17 @@ async fn post_ballots<C: Context>(
         let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
         selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-        let ballot_batch = b5::messages::artifact::Ballots::new(ballots);
         let pm = get_pm(PhantomData::<RistrettoCtx>)?;
 
-        for i in 0..batches {
-            let message = b5::messages::message::Message::ballots_msg(
+        // Use dispatch macro to generate ballots with the configured ciphertext width
+        braid_b5::dispatch_ciphertext_width!(configuration.ciphertext_width, {
+            let ballots = b5::random_ciphertexts::<RistrettoCtx, W>(ciphertexts);
+            info!("Generated {} ballots with width={}", ballots.len(), W);
+
+            let ballot_batch = b5::messages::artifact::Ballots::new(ballots);
+
+            for i in 0..batches {
+                let message = b5::messages::message::Message::ballots_msg(
                 &configuration,
                 i as u64,
                 &ballot_batch,
@@ -538,22 +551,23 @@ async fn post_ballots<C: Context>(
             .bind(i as i32)
             .execute(pool)
             .await?;
-        }
-        
-        // Update board batch_count (similar to b3's approach)
-        sqlx::query(
-            r#"UPDATE boards 
-               SET batch_count = ?,
-                   message_count = message_count + ?,
-                   last_message_kind = ?
-               WHERE name = ?"#
-        )
-        .bind(batches as i32)
-        .bind(batches as i32)  // Added one message per batch
-        .bind("Ballots")
-        .bind(board_name)
-        .execute(pool)
-        .await?;
+            }
+            
+            // Update board batch_count (similar to b3's approach)
+            sqlx::query(
+                r#"UPDATE boards 
+                   SET batch_count = ?,
+                       message_count = message_count + ?,
+                       last_message_kind = ?
+                   WHERE name = ?"#
+            )
+            .bind(batches as i32)
+            .bind(batches as i32)  // Added one message per batch
+            .bind("Ballots")
+            .bind(board_name)
+            .execute(pool)
+            .await?;
+        }); // Close dispatch_ciphertext_width macro
     } else {
         return Err(anyhow!(
             "Could not find public key or configuration artifact(s)"
