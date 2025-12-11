@@ -13,10 +13,7 @@ use super::*;
 pub(super) fn sign_config<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     configuration_h: &ConfigurationHash,
     trustee: &Trustee<C, S>,
-) -> Result<Vec<Message<C>>, ProtocolError> 
-where 
-    Trustee<C, S>: b5::messages::message::Signer<C>,
-{
+) -> Result<Vec<Message<C>>, ProtocolError> {
     let cfg = trustee.get_configuration(configuration_h)?;
     // FIXME assert
     assert!(trustee.is_config_approved(cfg));
