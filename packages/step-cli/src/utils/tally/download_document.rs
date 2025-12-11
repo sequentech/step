@@ -4,8 +4,10 @@
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
+use reqwest::blocking::Client;
 use std::path::Path;
 use std::{fs, io};
+use url::Url;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -61,16 +63,40 @@ pub fn fetch_document(
     }
 }
 
-pub fn download_file(url: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::builder()
+pub fn download_file(
+    presigned_url: &str,
+    output_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Parse the original URL (with 127.0.0.1)
+    let original = Url::parse(presigned_url)?;
+
+    // Build the URL we will actually CONNECT to (minio:9000),
+    // but keep the same path + query.
+    let mut connect_url = original.clone();
+    connect_url.set_host(Some("minio"))?;
+    // keep the same port – if None, leave it
+    if let Some(port) = original.port() {
+        connect_url
+            .set_port(Some(port))
+            .map_err(|_| "failed setting port")?;
+    }
+
+    // Build the Host header exactly as it was originally signed
+    let host_header = match original.port() {
+        Some(port) => format!("{}:{}", original.host_str().unwrap(), port),
+        None => original.host_str().unwrap().to_string(),
+    };
+
+    let client = Client::builder()
         .redirect(reqwest::redirect::Policy::default())
         .build()?;
 
     let output_dir = Path::new(output_path).parent().unwrap_or(Path::new("."));
     fs::create_dir_all(output_dir)?;
 
-    let mut response = client.get(url).send()?;
+    let mut response = client.get(connect_url).header("Host", host_header).send()?;
 
+    println!("response status: {}", response.status());
     if !response.status().is_success() {
         let error_text = response.text()?;
         return Err(format!("Failed to download file: {}", error_text).into());

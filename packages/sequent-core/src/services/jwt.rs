@@ -127,19 +127,19 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
             {
                 auth_time_parsed
             } else {
-                // Try to use iat if auth_time parsing failed
-                if let Ok(iat_parsed) =
-                    ISO8601::timestamp_ms_utc_to_date_opt(claims.iat * 1000)
-                {
-                    iat_parsed
-                } else {
-                    warn!("Failed to parse both auth_time and iat");
-                    return false;
-                }
+                warn!("Failed to parse auth_time");
+                return false;
             }
         } else {
-            warn!("claims.auth_time is None");
-            return false;
+            info!("fallback to iat, claims.auth_time is None");
+            if let Ok(iat_parsed) =
+                ISO8601::timestamp_ms_utc_to_date_opt(claims.iat * 1000)
+            {
+                iat_parsed
+            } else {
+                warn!("Failed to parse iat");
+                return false;
+            }
         };
     // Let's asume fresh means token has at most 1 minute since authentication
     let freshness_limit = ISO8601::now() - Duration::seconds(60);
