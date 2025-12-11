@@ -421,6 +421,8 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     participateNow:
                         "Vous avez été invité à participer à une Cérémonie de Clés. Veuillez <1>cliquer ci-dessous sur l'action de clé de la cérémonie</1> pour participer.",
+                    plaintextNoKeys:
+                        "Les clés ne sont pas requises pour les élections non chiffrées.",
                 },
             },
             tabs: {

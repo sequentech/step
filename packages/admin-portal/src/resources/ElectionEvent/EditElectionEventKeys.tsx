@@ -48,6 +48,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
+import {EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
 
 const NotificationLink = styled("span")`
     text-decoration: underline;
@@ -129,6 +130,11 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
 
+    // Check if the election policy is Plaintext
+    const isUnencrypted =
+        electionEvent?.presentation?.contest_encryption_policy ===
+        EElectionEventContestEncryptionPolicy.PLAINTEXT
+
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
             tenantId: tenantId,
@@ -176,7 +182,8 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const CreateButton = () => (
         <Button
             onClick={() => setShowCeremony(true)}
-            disabled={!keysCeremonies}
+            // Disable if data is missing OR if it is a plaintext election
+            disabled={!keysCeremonies || isUnencrypted}
             className="keys-add-button"
         >
             <ResourceListStyles.CreateIcon icon={faPlus as any} />
@@ -189,7 +196,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.keys.emptyHeader")}
             </Typography>
-            {canCreateCeremony ? (
+            {canCreateCeremony && !isUnencrypted ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
@@ -255,6 +262,13 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
 
     return (
         <>
+            {/* Notification for Plaintext Elections */}
+            {isUnencrypted && !showCeremony && !showTrusteeCeremony && (
+                <Alert severity="info" sx={{marginBottom: 2}}>
+                    {t("electionEventScreen.keys.notify.plaintextNoKeys")}
+                </Alert>
+            )}
+
             {/* Show the notification if the conditions are met */}
             {canTrusteeCeremony && activeCeremony && !showCeremony && !showTrusteeCeremony && (
                 <Alert severity="info">
@@ -315,7 +329,8 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                             withExport={false}
                             actionLabel="common.label.add"
                             doAction={() => setShowCeremony(true)}
-                            withAction={canCreateCeremony}
+                            // Disable Create action if unencrypted
+                            withAction={canCreateCeremony && !isUnencrypted}
                         />
                     }
                 >

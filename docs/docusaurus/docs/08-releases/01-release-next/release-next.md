@@ -107,3 +107,8 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Documentation sidebar order has been restructured
 
 - Issue: [#8672](https://github.com/sequentech/meta/issues/8672)
+
+## ✨ Support public/unencrypted plaintext vote/voting
+
+Added support for unencrypted plaintext voting. Allows votes to be cast without encryption. 
+It no longer requires key cerimonies and trustees.

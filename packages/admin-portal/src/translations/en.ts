@@ -420,6 +420,8 @@ const englishTranslation = {
                 notify: {
                     participateNow:
                         "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                    plaintextNoKeys:
+                        "Keys are not required for unencrypted elections.",
                 },
             },
             tabs: {

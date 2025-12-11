@@ -420,6 +420,8 @@ const tagalogTranslation: TranslationType = {
                 notify: {
                     participateNow:
                         "Naanyayahan kang makibahagi sa seremonya ng mga susi. Mangyaring <1>i-click ang Aksyon ng Key ng seremonya</1> upang makilahok.",
+                    plaintextNoKeys:
+                        "Hindi kailangan ng mga susi para sa mga halalang hindi naka-encrypt.",
                 },
             },
             tabs: {

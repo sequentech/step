@@ -422,6 +422,8 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     participateNow:
                         "Ha sido invitado a participar a una Ceremonia de Claves. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
+                    plaintextNoKeys:
+                        "No se requieren claves para las elecciones no encriptadas.",
                 },
             },
             tabs: {
