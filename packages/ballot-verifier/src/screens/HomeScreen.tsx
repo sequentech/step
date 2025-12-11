@@ -204,7 +204,6 @@ export const HomeScreen: React.FC<IProps> = ({
                         auditableBallot as IAuditablePlaintextBallot
                     )
                 default:
-                    // TODO Show error and fix it
                     throw new Error("Failed to hash ballot")
             }
         })()

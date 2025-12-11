@@ -509,7 +509,8 @@ export const ReviewScreen: React.FC = () => {
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
-    const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
+    const ballotService = provideBallotService()
+    const {interpretContestSelection, interpretMultiContestSelection} = ballotService
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
@@ -561,20 +562,11 @@ export const ReviewScreen: React.FC = () => {
     const isMultiContest =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const encryptionPolicy =
-        auditableBallot?.config.election_event_presentation?.contest_encryption_policy
-    const hashableBallot = (function () {
-        switch (encryptionPolicy) {
-            case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                return hashBallot(auditableBallot as IAuditableSingleBallot)
-            case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
-            default:
-            // TODO Error?
-        }
-    })()
+    const hashableBallot = useMemo(() => {
+        if (!auditableBallot) return undefined
+        const policy = auditableBallot.config.election_event_presentation?.contest_encryption_policy
+        return getBallotStrategy(policy, ballotService).hash(auditableBallot)
+    }, [auditableBallot])
 
     const ballotId = useMemo(() => {
         return auditableBallot && hashableBallot ? hashableBallot : undefined

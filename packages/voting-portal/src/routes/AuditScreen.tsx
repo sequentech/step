@@ -36,6 +36,7 @@ import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
+import {getBallotStrategy} from "../services/BallotStrategy"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
 import StyledLinkContainer from "../components/Link"
@@ -117,25 +118,13 @@ const AuditScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
-    const {hashBallot, hashMultiBallot, hashPlaintextBallot} = provideBallotService()
+    const ballotService = provideBallotService()
 
     const encryptionPolicy =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy
-    const hashedBallot = (function () {
-        switch (encryptionPolicy) {
-            case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                return hashBallot(auditableBallot as IAuditableSingleBallot)
-            case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
-            default:
-                // TODO New VotingPortalError?
-                throw new VotingPortalError(VotingPortalErrorType.INCONSISTENT_HASH)
-        }
-    })()
 
-    const ballotHash = auditableBallot && hashedBallot
+    const ballotHash =
+        auditableBallot && getBallotStrategy(encryptionPolicy, ballotService).hash(auditableBallot)
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const location = useLocation()

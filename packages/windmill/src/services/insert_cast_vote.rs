@@ -744,7 +744,6 @@ pub async fn insert_cast_vote_and_commit<'a>(
         ),
     )?;
 
-    // TODO Check ballot signature is ok
     let voter_signature = voter_signature_data.clone().map(|val| val.1);
 
     let ballot_signature: [u8; 64] = voter_signature

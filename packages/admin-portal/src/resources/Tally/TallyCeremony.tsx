@@ -924,32 +924,35 @@ export const TallyCeremony: React.FC = () => {
                                 keysCeremonyId={keysCeremonyId ?? null}
                                 tallySession={tallySession}
                             />
-                            <FormControl fullWidth>
-                                <ElectionHeader
-                                    title={"tally.keysCeremonyTitle"}
-                                    subtitle={"tally.keysCeremonySubTitle"}
-                                />
+                            {/* Hide Key Selection for Plaintext events */}
+                            {!isUnencryptedElection && (
+                                <FormControl fullWidth>
+                                    <ElectionHeader
+                                        title={"tally.keysCeremonyTitle"}
+                                        subtitle={"tally.keysCeremonySubTitle"}
+                                    />
 
-                                <Select
-                                    id="keys-ceremony-for-tally"
-                                    value={keysCeremonyId ?? ""}
-                                    label={String(t("tally.keysCeremonyTitle"))}
-                                    disabled={isUnencryptedElection}
-                                    onChange={(props) => {
-                                        if (!props?.target?.value) {
-                                            return
-                                        }
-                                        setPristine(false)
-                                        setKeysCeremonyId(props?.target?.value)
-                                    }}
-                                >
-                                    {sortedKeysCeremonies.map((keysCeremony) => (
-                                        <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
-                                            {keysCeremony?.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                                    <Select
+                                        id="keys-ceremony-for-tally"
+                                        value={keysCeremonyId ?? ""}
+                                        label={String(t("tally.keysCeremonyTitle"))}
+                                        disabled={isUnencryptedElection}
+                                        onChange={(props) => {
+                                            if (!props?.target?.value) {
+                                                return
+                                            }
+                                            setPristine(false)
+                                            setKeysCeremonyId(props?.target?.value)
+                                        }}
+                                    >
+                                        {sortedKeysCeremonies.map((keysCeremony) => (
+                                            <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
+                                                {keysCeremony?.name}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
                         </>
                     )}
 

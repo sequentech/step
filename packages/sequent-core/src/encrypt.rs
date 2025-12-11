@@ -427,8 +427,6 @@ pub fn encode_plaintext_ballot<C: Ctx<P = [u8; 30]>>(
         )));
     }
 
-    // let public_key: C::E = parse_public_key::<C>(&config)?;
-
     let mut contests: Vec<AuditablePlaintextBallotContest<C>> = vec![];
 
     for decoded_contest in decoded_contests {
@@ -450,12 +448,7 @@ pub fn encode_plaintext_ballot<C: Ctx<P = [u8; 30]>>(
                     err
                 ))
             })?;
-        // let (choice, proof) = encrypt_plaintext_candidate(
-        //     ctx,
-        //     public_key.clone(),
-        //     plaintext,
-        //     &DEFAULT_PLAINTEXT_LABEL,
-        // )?;
+
         contests.push(AuditablePlaintextBallotContest::<C> {
             contest_id: contest.id.clone(),
             plaintext: plaintext,
