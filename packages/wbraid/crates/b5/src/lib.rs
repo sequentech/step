@@ -18,20 +18,15 @@ pub mod state;
 use anyhow::Result;
 
 use crate::messages::newtypes::Timestamp;
-
-use cryptography::context::{Context, RistrettoCtx};
+use cryptography::utils::hash::Hasher as HasherTrait;
 
 #[cfg(feature = "native")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// The concrete cryptographic context used throughout B5.
-/// This fixes SHA3-512 (64-byte hashes), Ristretto255, Ed25519, and ChaCha20Poly1305.
-pub type CryptographicContext = RistrettoCtx;
+/// The Hasher instance as defined by the cryptography library.
+pub type Hasher = cryptography::context::CryptographicHasher;
 
-/// The Hasher instance as defined by the cryptography context.
-pub type Hasher = <CryptographicContext as cryptography::context::Context>::Hasher;
-
-/// The Hash output type as defined by the cryptography context.
+/// The Hash output type as defined by the cryptography library.
 pub type CryptographicHash = sha3::digest::Output<Hasher>;
 
 #[cfg(feature = "native")]
@@ -57,7 +52,7 @@ pub fn get_schema_version() -> String {
 /// Hash bytes to produce a CryptographicHash
 pub fn hash_bytes(bytes: &[u8]) -> CryptographicHash {
     use sha3::Digest;
-    let mut hasher = CryptographicContext::get_hasher();
+    let mut hasher = Hasher::hasher();
     hasher.update(bytes);
     hasher.finalize()
 }

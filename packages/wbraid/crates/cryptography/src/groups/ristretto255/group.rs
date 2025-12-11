@@ -29,7 +29,8 @@ pub struct Ristretto255Group;
 impl CryptographicGroup for Ristretto255Group {
     type Element = RistrettoElement;
     type Scalar = RistrettoScalar;
-    type Hasher = hash::Hasher512;
+    // This should be a default at the group trait, but Rust doesn't support that yet
+    type Hasher = crate::context::CryptographicHasher;
 
     #[inline]
     fn generator() -> Self::Element {

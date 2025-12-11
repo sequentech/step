@@ -6,7 +6,8 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use crate::CryptographicContext;
+use crate::Hasher;
+use cryptography::utils::hash::Hasher as HasherTrait;
 use crate::messages::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::messages::newtypes::{BatchNumber, MixNumber};
 
@@ -263,7 +264,7 @@ pub struct Plaintexts<C: Context, const W: usize>(pub Vec<[C::Element; W]>);
 impl<C: Context> std::fmt::Debug for Configuration<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bytes = self.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&bytes);
         let hashed = hasher.finalize();
         write!(

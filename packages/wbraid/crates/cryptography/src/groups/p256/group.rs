@@ -15,7 +15,6 @@ use p256::ProjectivePoint;
 use p256::elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest};
 
 use crate::utils::error::Error;
-use crate::utils::hash;
 use crate::utils::rng;
 
 /// P-256 implementation of [`CryptographicGroup`]
@@ -25,7 +24,8 @@ pub struct P256Group;
 impl CryptographicGroup for P256Group {
     type Element = P256Element;
     type Scalar = P256Scalar;
-    type Hasher = hash::Hasher256;
+    // This should be a default at the group trait, but Rust doesn't support that yet
+    type Hasher = crate::context::CryptographicHasher;
 
     fn generator() -> Self::Element {
         P256Element::new(ProjectivePoint::GENERATOR)

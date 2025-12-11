@@ -6,7 +6,8 @@ use axum::{
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use b5::{CryptographicContext, db, handlers, s3, state::AppState};
+use b5::{db, handlers, s3, state::AppState};
+use cryptography::context::RistrettoCtx as CryptographicContext;
 
 #[tokio::main]
 async fn main() -> Result<()> {

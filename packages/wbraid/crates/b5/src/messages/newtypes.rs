@@ -4,7 +4,8 @@
 
 use anyhow::Result;
 
-use crate::CryptographicContext;
+use crate::Hasher;
+use cryptography::utils::hash::Hasher as HasherTrait;
 use crate::messages::artifact::Configuration;
 use cryptography::context::Context;
 use cryptography::utils::serialization::VSerializable;
@@ -38,7 +39,7 @@ impl ConfigurationHash {
         configuration: &Configuration<C>,
     ) -> Result<ConfigurationHash> {
         let bytes = configuration.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&bytes);
         Ok(ConfigurationHash(hasher.finalize()))
     }

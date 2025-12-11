@@ -18,6 +18,12 @@ use crate::utils::serialization::{FSer, VSer};
 use crate::utils::signatures::Ed25519;
 use crate::utils::signatures::SignatureScheme;
 
+/// Global hashing function
+/// 
+/// Used by 
+/// - cryptographic groups for hashing to curve and hashing to scalar
+pub type CryptographicHasher = crate::utils::hash::Hasher512;
+
 /**
  * A cryptographic context instantiates a set of interdependent functionalities
  * suitable for some application.

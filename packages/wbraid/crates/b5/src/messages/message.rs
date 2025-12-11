@@ -14,7 +14,8 @@ use crate::messages::artifact::*;
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementType;
 use crate::messages::newtypes::*;
-use crate::CryptographicContext;
+use crate::Hasher;
+use cryptography::utils::hash::Hasher as HasherTrait;
 
 ///////////////////////////////////////////////////////////////////////////
 // Message
@@ -42,7 +43,7 @@ impl<C: Context> Message<C> {
         manager: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
         let statement = Statement::configuration_stmt(ConfigurationHash(cfg_h));
@@ -55,7 +56,7 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
 
@@ -71,12 +72,12 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
         
         let commitments_bytes = channel.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&commitments_bytes);
         let commitments_hash = hasher.finalize();
         
@@ -97,7 +98,7 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
 
@@ -116,12 +117,12 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
         
         let share_bytes = shares.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&share_bytes);
         let shares_h = hasher.finalize();
 
@@ -139,12 +140,12 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
         
         let pk_bytes = dkgpk.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&pk_bytes);
         let pk_h = hasher.finalize();
 
@@ -177,12 +178,12 @@ impl<C: Context> Message<C> {
         pm: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
         
         let ballots_bytes = ballots.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&ballots_bytes);
         let bb_h = hasher.finalize();
 
@@ -205,12 +206,12 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
         
         let mix_bytes = mix.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&mix_bytes);
         let mix_h = hasher.finalize();
 
@@ -234,7 +235,7 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
 
@@ -257,12 +258,12 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
 
         let dfactors_bytes = dfactors.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&dfactors_bytes);
         let dfactors_h = hasher.finalize();
 
@@ -287,12 +288,12 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
 
         let plaintexts_bytes = plaintexts.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&plaintexts_bytes);
         let plaintexts_h = hasher.finalize();
 
@@ -318,7 +319,7 @@ impl<C: Context> Message<C> {
         trustee: &S,
     ) -> Result<Message<C>, CryptoError> {
         let cfg_bytes = cfg.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&cfg_bytes);
         let cfg_h = hasher.finalize();
 
@@ -381,7 +382,7 @@ impl<C: Context> Message<C> {
 
         // The message must belong to the same context as the configuration
         let config_bytes = configuration.ser();
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(&config_bytes);
         let config_hash = hasher.finalize();
         if config_hash != st_cfg_h {
@@ -402,7 +403,7 @@ impl<C: Context> Message<C> {
 
         // Artifact present
 
-        let mut hasher = CryptographicContext::get_hasher();
+        let mut hasher = Hasher::hasher();
         hasher.update(artifact);
         let artifact_hash = hasher.finalize();
         // If the cfg_h field matches the artifact, the artifact must be Configuration
