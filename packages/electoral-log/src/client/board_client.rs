@@ -764,21 +764,16 @@ impl BoardClient {
         let sql = format!(
             r#"
          CREATE TABLE IF NOT EXISTS {ELECTORAL_LOG_TABLE} (
-         CREATE TABLE IF NOT EXISTS {ELECTORAL_LOG_TABLE} (
             id INTEGER AUTO_INCREMENT,
             created TIMESTAMP,
             sender_pk VARCHAR,
             statement_timestamp TIMESTAMP,
-            statement_kind VARCHAR[{STATEMENT_KIND_VARCHAR_LENGTH}],
             statement_kind VARCHAR[{STATEMENT_KIND_VARCHAR_LENGTH}],
             message BLOB,
             version VARCHAR,
             user_id_key VARCHAR[{ID_KEY_VARCHAR_LENGTH}],
             user_id VARCHAR[{ID_VARCHAR_LENGTH}],
             username VARCHAR,
-            election_id VARCHAR[{ID_VARCHAR_LENGTH}],
-            area_id VARCHAR[{ID_VARCHAR_LENGTH}],
-            ballot_id VARCHAR[{BALLOT_ID_VARCHAR_LENGTH}],
             election_id VARCHAR[{ID_VARCHAR_LENGTH}],
             area_id VARCHAR[{ID_VARCHAR_LENGTH}],
             ballot_id VARCHAR[{BALLOT_ID_VARCHAR_LENGTH}],
@@ -820,19 +815,13 @@ impl BoardClient {
             println!("Database not found, creating..");
             self.client.create_database(database_name).await?;
             info!("Database created!");
-            info!("Database created!");
         };
         self.client.use_database(database_name).await?;
 
         // List tables and create them if missing
         if !self.client.has_tables().await? {
             info!("no tables! let's create them");
-            info!("no tables! let's create them");
             self.client.sql_exec(&tables, vec![]).await?;
-        }
-        for index in indexes {
-            info!("Inserting index...");
-            self.client.sql_exec(index, vec![]).await?;
         }
         for index in indexes {
             info!("Inserting index...");

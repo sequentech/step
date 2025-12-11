@@ -942,119 +942,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     })
 }
 
-// #[instrument]
-// pub fn get_cols_match_count_and_select(
-//     election_id: &str,
-//     user_id: &str,
-//     ballot_id_filter: &str,
-// ) -> (WhereClauseBTreeMap, WhereClauseBTreeMap) {
-//     let cols_match_count = BTreeMap::from([
-//         (
-//             ElectoralLogVarCharColumn::StatementKind,
-//             (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
-//         ),
-//         (
-//             ElectoralLogVarCharColumn::ElectionId,
-//             (SqlCompOperators::Equal, election_id.to_string()),
-//         ),
-//     ]);
-//     let mut cols_match_select = cols_match_count.clone();
-//     // Restrict the SQL query to user_id and ballot_id in case of filtering
-//     if !ballot_id_filter.is_empty() {
-//         cols_match_select.insert(
-//             ElectoralLogVarCharColumn::UserId,
-//             SqlCompOperators::Equal(user_id.to_string()),
-//         );
-//         cols_match_select.insert(
-//             ElectoralLogVarCharColumn::BallotId,
-//             SqlCompOperators::Like(ballot_id_filter.to_string()),
-//         );
-//     }
-
-//     (cols_match_count, cols_match_select)
-// }
-
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
-/// to a byte array
-// #[instrument(err)]
-// pub async fn list_cast_vote_messages_theirs(
-//     input: GetElectoralLogBody,
-//     ballot_id_filter: &str,
-//     user_id: &str,
-//     username: &str,
-// ) -> Result<CastVoteMessagesOutput> {
-//     ensure!(
-//         ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
-//         "Incorrect ballot_id, the length must be an even number of characters"
-//     );
-//     // The limits are used to cut the output after filtering the ballot id.
-//     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
-//     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
-//     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-//     let board_name = get_event_board(
-//         input.tenant_id.as_str(),
-//         input.election_event_id.as_str(),
-//         &slug,
-//     );
-//     info!("database name = {board_name}");
-//     let order_by = input.order_by.clone();
-//     let election_id = input.election_id.clone().unwrap_or_default();
-
-//     let limit: i64 = match ballot_id_filter.is_empty() {
-//         false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
-//         true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
-//     };
-//     let mut offset: i64 = input.offset.unwrap_or(0);
-//     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
-//     let (cols_match_count, cols_match_select) =
-//         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
-//     let mut client = get_board_client().await?;
-//     let total = client
-//         .count_electoral_log_messages(&board_name, Some(cols_match_count))
-//         .await?
-//         .to_u64()
-//         .unwrap_or(0) as usize;
-//     let mut filter_matched = false; // Exit at the first match if the filter is not empty
-//     while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
-//         let electoral_log_messages = client
-//             .get_electoral_log_messages_filtered(
-//                 &board_name,
-//                 Some(cols_match_select.clone()),
-//                 None,
-//                 None,
-//                 Some(limit),
-//                 Some(offset),
-//                 order_by.clone(),
-//             )
-//             .await
-//             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
-
-//         let t_entries = electoral_log_messages.len();
-//         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
-//         for message in electoral_log_messages.iter() {
-//             match CastVoteEntry::from_elog_message(&message)? {
-//                 Some(entry) if !ballot_id_filter.is_empty() => {
-//                     // If there is filter exit at the first match
-//                     filter_matched = true;
-//                     list.push(entry);
-//                 }
-//                 Some(entry) => {
-//                     // Add all the entries till the limit, when there is no filter
-//                     list.push(entry);
-//                 }
-//                 None => {}
-//             }
-//             if (list.len() as i64) >= output_limit || filter_matched {
-//                 break;
-//             }
-//         }
-//         offset += limit;
-//     }
-
-//     Ok(CastVoteMessagesOutput { list, total })
-// }
-
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input.
 /// ballot_id_filter is restricted to be an even number of characters, so thatnit can be converted
 /// to a byte array.
@@ -1106,6 +993,10 @@ pub async fn list_cast_vote_messages_and_count(
     Ok(data)
 }
 
+
+/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
+/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
+/// to a byte array
 #[instrument(err)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
@@ -1134,7 +1025,7 @@ pub async fn list_cast_vote_messages(
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
 
     let mut client = get_board_client().await?;
-    let mut exit = false; // Exit at the first match if the filter is not empty or when the query returns 0 entries
+    let mut exit = false; // Exit at the first match if the filter by ballot_id is not empty or when the query returns 0 entries
     while (list.len() as i64) < output_limit && !exit {
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
