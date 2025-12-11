@@ -115,22 +115,11 @@ pub struct SystemData {
 pub struct ActivityLogsTemplate {
     ids: ReportOrigins,
     report_format: ReportFormat,
-    board_name: String,
 }
 
 impl ActivityLogsTemplate {
     pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
-        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-        let board_name = get_event_board(
-            ids.tenant_id.as_str(),
-            ids.election_event_id.as_str(),
-            &slug,
-        );
-        ActivityLogsTemplate {
-            ids,
-            report_format,
-            board_name,
-        }
+        ActivityLogsTemplate { ids, report_format }
     }
 
     // Export data
@@ -222,8 +211,14 @@ impl TemplateRenderer for ActivityLogsTemplate {
         _hasura_transaction: Option<&Transaction<'_>>,
     ) -> Result<Option<i64>> {
         let mut client = get_board_client().await?;
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board_name = get_event_board(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+            &slug,
+        );
         let total = client
-            .count_electoral_log_messages(&self.board_name, None)
+            .count_electoral_log_messages(&board_name, None)
             .await
             .map_err(|e| anyhow!("Error counting electoral log messages: {e:?}"))?;
         Ok(Some(total))
@@ -240,8 +235,14 @@ impl TemplateRenderer for ActivityLogsTemplate {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut electoral_log: Vec<ElectoralLogRow> = vec![];
         let mut client = get_board_client().await?;
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board_name = get_event_board(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+            &slug,
+        );
         let electoral_log_msgs = client
-            .get_electoral_log_messages_batch(&self.board_name, limit, *offset)
+            .get_electoral_log_messages_batch(&board_name, limit, *offset)
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
         info!("Format: {:#?}", self.report_format);
