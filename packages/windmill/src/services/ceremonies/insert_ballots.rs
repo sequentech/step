@@ -127,26 +127,6 @@ pub async fn insert_ballots_messages(
     let board_messages =
         Arc::new(get_board_messages::<RistrettoCtx>(board_name, &mut board_client).await?);
 
-    if contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT {
-        let configuration_exists = check_configuration_exists(board_name).await?;
-
-        if !configuration_exists {
-            // create config/keys for board
-            public_keys::create_keys(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                board_name,
-                vec![
-                    "MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs=".to_string(),
-                    "MCowBQYDK2VwAyEA50mtZzCBnubUwMhRkKyGomrUCBGgvEsbu79D3Cckjbc=".to_string(),
-                ],
-                2,
-            )
-            .await?;
-        }
-    };
-
     let configuration = get_configuration(&board_messages)?;
     let public_key_hash = if contest_encryption_policy != ContestEncryptionPolicy::PLAINTEXT {
         get_public_key_hash::<RistrettoCtx>(&board_messages)?

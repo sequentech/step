@@ -53,6 +53,7 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {provideBallotService} from "../services/BallotService"
+import {getBallotStrategy} from "../services/BallotStrategy"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -327,8 +328,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const isCastingBallot = useRef<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot, toHashableMultiBallot, toHashablePlaintextBallot} =
-        provideBallotService()
+    const ballotService = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -402,30 +402,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             }
         }
 
-        let hashableBallot:
-            | IHashableSingleBallot
-            | IHashableMultiBallot
-            | IHashablePlaintextBallot
-            | undefined
+        let hashableBallot: IHashableBallot | undefined
         try {
             const encryptionPolicy =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy
 
-            hashableBallot = (function () {
-                switch (encryptionPolicy) {
-                    case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                        return toHashableBallot(auditableBallot as IAuditableSingleBallot)
-                    case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                        return toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                    case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                        return toHashablePlaintextBallot(
-                            auditableBallot as IAuditablePlaintextBallot
-                        )
-                    default:
-                        // TODO New VotingPortalError?
-                        throw new Error(VotingPortalErrorType.INCONSISTENT_HASH)
-                }
-            })()
+            const strategy = getBallotStrategy(encryptionPolicy, ballotService)
+
+            // Replaces the large switch/IIFE block
+            hashableBallot = strategy.toHashable(auditableBallot)
         } catch (error) {
             isCastingBallot.current = false
             console.error(error)

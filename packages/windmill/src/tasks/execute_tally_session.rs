@@ -37,6 +37,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
+use crate::services::public_keys;
 use crate::services::reports::electoral_results::ElectoralResults;
 use crate::services::reports::initialization::InitializationTemplate;
 use crate::services::reports::template_renderer::{
@@ -50,6 +51,7 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::tasks::execute_tally_session::protocol_manager::check_configuration_exists;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
@@ -88,7 +90,10 @@ use sequent_core::types::templates::SendTemplateBody;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
+use strand::{
+    backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize,
+    signature::{StrandSignaturePk, StrandSignatureSk},
+};
 use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, warn, Level};
@@ -784,6 +789,48 @@ async fn map_plaintext_data(
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
     print_messages(&messages, &bulletin_board)?;
+
+    // Since we skipped key ceremony for plaintext we generate the configuration using dummy trustees.
+    let contest_encryption_policy = tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_contest_encryption_policy();
+
+    if contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT {
+        let configuration_exists = check_configuration_exists(&bulletin_board).await?;
+
+        if !configuration_exists {
+            let dummy_trustees_count = 2;
+            let dummy_keys: Vec<String> = (0..dummy_trustees_count)
+                .map(|_| {
+                    // Generate a random secret key
+                    let sk = StrandSignatureSk::gen()
+                        .map_err(|e| anyhow!("Failed to gen dummy key: {:?}", e))?;
+                    // Derive the public key
+                    let pk = StrandSignaturePk::from_sk(&sk)
+                        .map_err(|e| anyhow!("Failed to derive dummy pk: {:?}", e))?;
+
+                    // Serialize to the format create_keys expects (Base64 DER)
+                    // Note: Verify the exact method name in your version of strand (e.g. to_string, to_b64, or to_der_b64_string)
+                    pk.to_der_b64_string()
+                        .map_err(|e| anyhow!("Failed to serialize dummy pk: {:?}", e))
+                })
+                .collect::<anyhow::Result<Vec<String>>>()?;
+
+            public_keys::create_keys(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &bulletin_board,
+                dummy_keys,
+                dummy_trustees_count,
+            )
+            .await?;
+
+            return Ok(None);
+        }
+    };
 
     let new_ballots_messages = upsert_ballots_messages(
         hasura_transaction,

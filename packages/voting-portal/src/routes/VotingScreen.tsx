@@ -35,6 +35,7 @@ import {
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {provideBallotService} from "../services/BallotService"
+import {getBallotStrategy} from "../services/BallotStrategy"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -301,19 +302,7 @@ const VotingScreen: React.FC = () => {
     const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {
-        encryptBallotSelection,
-        encryptMultiBallotSelection,
-        encodePlaintextBallotSelection,
-        decodeAuditableBallot,
-        decodeAuditableMultiBallot,
-        decodeAuditablePlaintextBallot,
-        signHashableMultiBallot,
-        signHashableBallot,
-        signHashablePlaintextBallot,
-        hashMultiBallot,
-        hashBallot,
-    } = provideBallotService()
+    const ballotService = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
@@ -385,65 +374,17 @@ const VotingScreen: React.FC = () => {
             const encryptionPolicy =
                 ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy
 
-            const auditableBallot = (function () {
-                switch (encryptionPolicy) {
-                    case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                        return encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-                    case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                        return encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
-                    case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                        return encodePlaintextBallotSelection(
-                            selectionState,
-                            ballotStyle.ballot_eml
-                        )
-                    default:
-                        // TODO Error?
-                        throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT)
-                }
-            })()
+            const strategy = getBallotStrategy(encryptionPolicy, ballotService)
 
-            let ballotId = (function () {
-                switch (encryptionPolicy) {
-                    case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                        return hashBallot(auditableBallot as IAuditableSingleBallot)
-                    case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                        return hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-                    case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                        return hashPlaintextBallot(auditableBallot as IAuditablePlaintextBallot)
-                    default:
-                        // TODO Error?
-                        throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT)
-                }
-            })()
+            const auditableBallot = strategy.encrypt(selectionState, ballotStyle.ballot_eml)
+            const ballotId = strategy.hash(auditableBallot)
 
             if (doSignBallot) {
-                let signedContent = (function () {
-                    switch (encryptionPolicy) {
-                        case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                            return signHashableBallot(
-                                ballotId,
-                                ballotStyle.election_id,
-                                auditableBallot as IAuditableSingleBallot
-                            )
-                        case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                            return signHashableMultiBallot(
-                                ballotId,
-                                ballotStyle.election_id,
-                                auditableBallot as IAuditableMultiBallot
-                            )
-                        case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                            return signHashablePlaintextBallot(
-                                ballotId,
-                                ballotStyle.election_id,
-                                auditableBallot as IAuditablePlaintextBallot
-                            )
-                        default:
-                            // TODO Error?
-                            throw new VotingPortalError(
-                                VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT
-                            )
-                    }
-                })()
+                const signedContent = strategy.sign(
+                    ballotId,
+                    ballotStyle.election_id,
+                    auditableBallot
+                )
                 auditableBallot.voter_signing_pk = signedContent?.public_key
                 auditableBallot.voter_ballot_signature = signedContent?.signature
             }
@@ -455,21 +396,7 @@ const VotingScreen: React.FC = () => {
                 })
             )
 
-            let decodedSelectionState = (function () {
-                switch (encryptionPolicy) {
-                    case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-                        return decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
-                    case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
-                        return decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                    case EElectionEventContestEncryptionPolicy.PLAINTEXT:
-                        return decodeAuditablePlaintextBallot(
-                            auditableBallot as IAuditablePlaintextBallot
-                        )
-                    default:
-                        // TODO Error?
-                        throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
-                }
-            })()
+            const decodedSelectionState = strategy.decode(auditableBallot)
 
             if (null !== decodedSelectionState) {
                 dispatch(
@@ -478,6 +405,8 @@ const VotingScreen: React.FC = () => {
                         ballotSelection: decodedSelectionState,
                     })
                 )
+            } else {
+                throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
             }
 
             submit(null, {method: "post"})
