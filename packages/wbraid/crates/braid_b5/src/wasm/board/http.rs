@@ -9,7 +9,7 @@ use wasm_bindgen_futures::JsFuture;
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
 use crate::protocol::board::{Board, BoardFactory};
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     GetMessagesResponse, ContentType,
@@ -40,7 +40,7 @@ impl WasmHttpBoard {
     /// Maintains all-or-nothing semantics: each HttpB3Message is only constructed
     /// after BOTH metadata (from list response) AND complete message data (inline or S3)
     /// are successfully fetched. If S3 download fails, the entire operation aborts.
-    async fn fetch_messages_internal(&self, board_name: &str, last_id: i64) -> Result<Vec<HttpB3Message>, JsValue> {
+    async fn fetch_messages_internal(&self, board_name: &str, last_id: i64) -> Result<Vec<HttpB5Message>, JsValue> {
         let url = format!("{}/boards/{}/messages?last_id={}", self.params.b4_url, board_name, last_id);
         
         let opts = RequestInit::new();
@@ -106,14 +106,10 @@ impl WasmHttpBoard {
             let id: i64 = msg.message.id.parse()
                 .map_err(|e| JsValue::from_str(&format!("Failed to parse message ID '{}': {}", msg.message.id, e)))?;
             
-            messages.push(HttpB3Message::new(
+            messages.push(HttpB5Message::new(
                 id,
                 message_bytes,
                 "1".to_string(),
-                msg.message.sender_pk,
-                msg.message.statement_kind,
-                msg.message.batch,
-                msg.message.mix_number,
             ));
         }
         
@@ -122,12 +118,6 @@ impl WasmHttpBoard {
 
     /// Post a single message to B4
     async fn post_message_internal<C: Context>(&self, board_name: &str, message: Message<C>) -> Result<(), JsValue> {
-        // Extract metadata
-        let sender_pk = C::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
-            .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {}", e)))?;
-        let statement_kind = message.statement.get_kind().to_string();
-        let batch: i32 = message.statement.get_batch_number() as i32;
-        let mix_number: i32 = message.statement.get_mix_number() as i32;
         
         // Serialize message
         let message_bytes = message.ser();
@@ -138,10 +128,6 @@ impl WasmHttpBoard {
         
         let initiate_req = InitiateMessageRequest {
             size,
-            sender_pk: sender_pk.clone(),
-            statement_kind: statement_kind.clone(),
-            batch,
-            mix_number,
         };
         
         let body = serde_json::to_string(&initiate_req)
@@ -265,7 +251,7 @@ impl WasmHttpBoard {
 impl<C: Context> Board<C> for WasmHttpBoard {
     type Factory = WasmHttpBoardFactory;
 
-    async fn get_messages(&mut self, board_name: &str, last_id: i64) -> anyhow::Result<Vec<HttpB3Message>> {
+    async fn get_messages(&mut self, board_name: &str, last_id: i64) -> anyhow::Result<Vec<HttpB5Message>> {
         self.fetch_messages_internal(board_name, last_id)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to fetch messages: {:?}", e))

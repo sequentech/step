@@ -99,4 +99,4 @@ pub fn gen_elgamal_keypair_with_proof<C: cryptography::context::Context>(
 }
 
 // Re-export HTTP message types for convenience
-pub use messages::http_message::{HttpB3Message, HttpBoardMessages};
+pub use messages::http_message::{HttpB5Message, HttpBoardMessages};

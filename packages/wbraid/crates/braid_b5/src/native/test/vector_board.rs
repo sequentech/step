@@ -3,18 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use b5::{
-    HttpB3Message,
+    HttpB5Message,
     messages::{message::Message, statement::StatementType},
 };
 use cryptography::utils::serialization::variable::{VSerializable, VDeserializable};
-use cryptography::utils::signatures::SignatureScheme;
 
 /// VectorBoard
 ///
 /// A vector backed dummy implementation for in memory testing.
 pub struct VectorBoard {
     session_id: u128,
-    pub(crate) messages: Vec<HttpB3Message>,
+    pub(crate) messages: Vec<HttpB5Message>,
 }
 
 impl Clone for VectorBoard {
@@ -44,24 +43,14 @@ impl VectorBoard {
         let last_id: i64 = self.messages.len() as i64;
         let m = message.ser();
         
-        // Extract metadata from message
-        let sender_pk = C::SignatureScheme::verifier_to_base64_string(&message.sender.pk).unwrap();
-        let statement_kind = message.statement.get_kind().to_string();
-        let batch: i32 = message.statement.get_batch_number().try_into().unwrap();
-        let mix_number: i32 = message.statement.get_mix_number().try_into().unwrap();
-        
-        self.messages.push(HttpB3Message::new(
+        self.messages.push(HttpB5Message::new(
             last_id,
             m,
             "".to_string(),
-            sender_pk,
-            statement_kind,
-            batch,
-            mix_number,
         ));
     }
 
-    pub fn get(&self, last_message: i64) -> Vec<HttpB3Message> {
+    pub fn get(&self, last_message: i64) -> Vec<HttpB5Message> {
         let next: usize = (last_message + 1) as usize;
 
         let mut ret = vec![];

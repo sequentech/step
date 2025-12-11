@@ -17,7 +17,7 @@ use crate::wasm::board::{WasmHttpBoardFactory, WasmHttpBoardParams, IndexedDbSto
 use cryptography::context::{RistrettoCtx, Context};
 use cryptography::utils::symm;
 use cryptography::utils::signatures::SignatureScheme;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     ListMessagesResponse, ContentType,
@@ -250,7 +250,7 @@ impl WasmSession {
     }
 
     /// Fetch messages from B4 for the current board
-    async fn fetch_messages(&self, last_id: i64) -> Result<Vec<HttpB3Message>, JsValue> {
+    async fn fetch_messages(&self, last_id: i64) -> Result<Vec<HttpB5Message>, JsValue> {
         let board_name = self.board_name.as_ref()
             .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
         
@@ -363,14 +363,10 @@ impl WasmSession {
             let id: i64 = http_msg.id.parse()
                 .map_err(|e| JsValue::from_str(&format!("Failed to parse message ID '{}': {}", http_msg.id, e)))?;
             
-            messages.push(HttpB3Message::new(
+            messages.push(HttpB5Message::new(
                 id,
                 message_bytes,
                 "1".to_string(),
-                http_msg.sender_pk,
-                http_msg.statement_kind,
-                http_msg.batch,
-                http_msg.mix_number,
             ));
         }
         
@@ -402,16 +398,10 @@ impl WasmSession {
         let num_messages = messages.len();
         
         for message in messages {
-            // Extract metadata
-            let sender_pk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifier_to_base64_string(&message.sender.pk)
-                .map_err(|e| JsValue::from_str(&format!("Failed to encode sender PK: {}", e)))?;
-            let statement_kind = message.statement.get_kind().to_string();
-            let batch: i32 = message.statement.get_batch_number() as i32;
-            let mix_number: i32 = message.statement.get_mix_number() as i32;
-            
             // Serialize message
             let message_bytes = message.ser();
             let size = message_bytes.len();
+            let statement_kind = message.statement.get_kind().to_string();
             
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "Posting {} message (size: {} bytes)",
@@ -423,10 +413,6 @@ impl WasmSession {
             
             let initiate_req = InitiateMessageRequest {
                 size,
-                sender_pk: sender_pk.clone(),
-                statement_kind: statement_kind.clone(),
-                batch,
-                mix_number,
             };
             
             let body = serde_json::to_string(&initiate_req)

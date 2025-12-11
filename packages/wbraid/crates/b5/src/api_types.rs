@@ -88,13 +88,10 @@ impl<'de> Deserialize<'de> for ContentType {
 // ============================================================================
 
 /// Request to initiate a message upload (step 1 of 2-step S3 flow)
+/// Only size is needed - metadata is extracted from message bytes during confirmation
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InitiateMessageRequest {
     pub size: usize,
-    pub sender_pk: String,
-    pub statement_kind: String,
-    pub batch: i32,
-    pub mix_number: i32,
 }
 
 /// Response from initiating a message upload
@@ -181,13 +178,10 @@ pub struct GetMessagesMultiResponse {
 // ============================================================================
 
 /// Metadata for a message to be uploaded
+/// Only size is needed - metadata is extracted from message bytes during confirmation
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessageMetadata {
     pub size: usize,
-    pub sender_pk: String,
-    pub statement_kind: String,
-    pub batch: i32,
-    pub mix_number: i32,
 }
 
 /// Request to initiate message uploads to a single board
@@ -250,4 +244,33 @@ pub struct ConfirmMessagesMultiRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfirmMessagesMultiResponse {
     pub success: bool,
+}
+
+// Board management types
+
+/// Information about a single board
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardResponse {
+    pub name: String,
+    pub created_at: i64,
+    pub status: String,
+}
+
+/// Response listing multiple boards
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoardsListResponse {
+    pub boards: Vec<BoardResponse>,
+}
+
+/// Request to create a new board
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateBoardRequest {
+    pub name: String,
+}
+
+/// Query parameters for getting messages
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetMessagesQuery {
+    pub last_id: Option<i64>,
+    pub limit: Option<i64>,
 }

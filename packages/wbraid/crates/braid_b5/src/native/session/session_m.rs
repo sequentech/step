@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use b5::messages::message::Message;
 use std::path::PathBuf;
 use cryptography::utils::symm::SymmetricKey;
@@ -56,7 +56,7 @@ impl<C: Context, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
     /// call is still required because there may be messages in the
     /// message_store whose required Actions have not yet executed,
     /// leading to a possible protocol hang.
-    pub fn step(&mut self, messages: &Vec<HttpB3Message>) -> Result<Vec<Message<C>>, ProtocolError> {
+    pub fn step(&mut self, messages: &Vec<HttpB5Message>) -> Result<Vec<Message<C>>, ProtocolError> {
         // NOTE: we must call step even if there are no new remote messages
         // because there may be actions pending in the trustees LocalBoard.
         let step_result = self.trustee.step(messages)?;
@@ -77,7 +77,7 @@ impl<C: Context, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
     /// Used when the remote bulletin board returns a truncated response
     /// indicating that a further request must be made before inferring any
     /// new Actions.
-    pub(crate) fn update_store(&self, messages: &Vec<HttpB3Message>) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &Vec<HttpB5Message>) -> Result<(), ProtocolError> {
         self.trustee.update_store(messages)
     }
 }

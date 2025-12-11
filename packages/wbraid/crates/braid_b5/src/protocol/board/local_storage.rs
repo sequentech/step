@@ -9,7 +9,7 @@
 //! LocalBoard business logic.
 
 use anyhow::Result;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use b5::messages::message::Message;
 use serde::{Deserialize, Serialize};
 
@@ -60,7 +60,7 @@ pub trait LocalBoardStorage: Send + Sync {
     ///
     /// - `messages`: Messages from bulletin board with external IDs
     /// - `ignore_existing`: If true, silently ignore duplicate inserts (for full refresh)
-    fn store_messages<C: Context>(&self, messages: &[HttpB3Message], ignore_existing: bool) -> Result<()>;
+    fn store_messages<C: Context>(&self, messages: &[HttpB5Message], ignore_existing: bool) -> Result<()>;
 
     /// Retrieve messages with local_id > last_local_board_id
     ///

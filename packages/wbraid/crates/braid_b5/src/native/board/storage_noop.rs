@@ -27,7 +27,7 @@ use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VDeserializable;
 
 use b5::messages::message::Message;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use crate::protocol::board::local_storage::LocalBoardStorage;
 
 /// No-op storage backend (no persistence, no security)
@@ -41,7 +41,7 @@ pub struct NoOpStorage {
     /// Transient buffer holding messages between store_messages() and retrieve_messages()
     /// within a single protocol step. Cleared after retrieval.
     /// Uses Mutex for thread-safety (required for parallel action execution).
-    transient: Mutex<Vec<HttpB3Message>>,
+    transient: Mutex<Vec<HttpB5Message>>,
 }
 
 impl NoOpStorage {
@@ -53,7 +53,7 @@ impl NoOpStorage {
 }
 
 impl LocalBoardStorage for NoOpStorage {
-    fn store_messages<C: Context>(&self, messages: &[HttpB3Message], _ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB5Message], _ignore_existing: bool) -> Result<()> {
         // Store messages transiently for this step only
         let mut transient = self.transient.lock().unwrap();
         *transient = messages.to_vec();

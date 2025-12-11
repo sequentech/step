@@ -7,36 +7,14 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::info;
 
+use b4::api_types::{
+    InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
+};
 use b4::messages::message::Message;
 use b4::HttpB3Message;
 use strand::serialization::StrandSerialize;
 
 use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
-
-#[derive(Debug, Serialize)]
-struct InitiateMessageRequest {
-    size: usize,
-    sender_pk: String,
-    statement_kind: String,
-    batch: i32,
-    mix_number: i32,
-}
-
-#[derive(Debug, Deserialize)]
-struct InitiateMessageResponse {
-    message_id: String,
-    upload_url: Option<String>,
-    should_upload: bool,
-}
-
-#[derive(Debug, Serialize)]
-struct ConfirmMessageRequest {
-    data: Option<Vec<u8>>,
-    sender_pk: String,
-    statement_kind: String,
-    batch: i32,
-    mix_number: i32,
-}
 
 #[derive(Debug, Deserialize)]
 struct GetMessagesResponse {

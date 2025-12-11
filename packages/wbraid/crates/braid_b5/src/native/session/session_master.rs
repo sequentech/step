@@ -15,7 +15,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use cryptography::context::Context;
 
 use crate::native::board::{HttpB3, HttpB3BoardParams};
@@ -295,7 +295,7 @@ impl<C: Context> SessionSet<C> {
                 let mut total_bytes: u32 = 0;
 
                 let tuples = responses.into_iter().map(|km| (km.board, km.messages));
-                let km_map: HashMap<String, Vec<HttpB3Message>> = HashMap::from_iter(tuples);
+                let km_map: HashMap<String, Vec<HttpB5Message>> = HashMap::from_iter(tuples);
 
                 for (k, s) in session_map.iter_mut() {
                     let empty = vec![];

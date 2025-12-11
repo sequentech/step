@@ -19,7 +19,7 @@ pub use local_storage::{LocalBoardStorage, StorageInfo};
 
 use anyhow::Result;
 use b5::messages::message::Message;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 
 /// Defines the interface with a bulletin board.
 ///
@@ -40,21 +40,26 @@ pub trait Board<C: cryptography::context::Context>: Sized {
     /// ids do not determine the message history; this history is defined
     /// locally by each trustee according to the order in which those messages
     /// were received.
+    
+    // Native: Requires Send bound for multi-threaded runtime
     #[cfg(not(target_arch = "wasm32"))]
     fn get_messages(
         &mut self,
         board: &str,
         last_id: i64,
-    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>> + Send;
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB5Message>>> + Send;
 
+    // WASM: Cannot satisfy Send (browser APIs use Rc, raw pointers)
     #[cfg(target_arch = "wasm32")]
     fn get_messages(
         &mut self,
         board: &str,
         last_id: i64,
-    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>>;
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB5Message>>>;
 
     /// Posts a messages to the given board of the bulletin board.
+    
+    // Native: Requires Send bound for multi-threaded runtime
     #[cfg(not(target_arch = "wasm32"))]
     fn insert_messages(
         &mut self,
@@ -62,6 +67,7 @@ pub trait Board<C: cryptography::context::Context>: Sized {
         messages: Vec<Message<C>>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
 
+    // WASM: Cannot satisfy Send (browser APIs use Rc, raw pointers)
     #[cfg(target_arch = "wasm32")]
     fn insert_messages(
         &mut self,

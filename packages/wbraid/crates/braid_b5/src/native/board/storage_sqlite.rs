@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use b5::messages::message::Message;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VDeserializable;
 
@@ -87,7 +87,7 @@ impl SqliteStorage {
 }
 
 impl LocalBoardStorage for SqliteStorage {
-    fn store_messages<C: Context>(&self, messages: &[HttpB3Message], ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB5Message], ignore_existing: bool) -> Result<()> {
         let now = Instant::now();
 
         // Ensure blob store directory exists if configured

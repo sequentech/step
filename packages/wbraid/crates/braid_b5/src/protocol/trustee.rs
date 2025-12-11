@@ -19,7 +19,7 @@ use crate::protocol::board::{LocalBoard, LocalBoardStorage};
 use crate::protocol::predicate::Predicate;
 
 use crate::util::{ProtocolContext, ProtocolError};
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use b5::messages::artifact::Channel;
 use b5::messages::artifact::Configuration;
 use b5::messages::artifact::DkgPublicKey;
@@ -161,7 +161,7 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     #[instrument(name = "Trustee::step", skip(remote_messages, self), level="trace")]
     pub fn step(
         &mut self,
-        remote_messages: &Vec<HttpB3Message>,
+        remote_messages: &Vec<HttpB5Message>,
     ) -> Result<StepResult<C>, ProtocolError> {
         
         // When retrieving all messages, some of them will already exist in 
@@ -212,7 +212,7 @@ impl<C: Context, S: LocalBoardStorage> Trustee<C, S> {
     /// Used when the remote bulletin board returns a truncated response
     /// indicating that a further request must be made before inferring any
     /// new Actions.
-    pub(crate) fn update_store(&self, messages: &Vec<HttpB3Message>) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &Vec<HttpB5Message>) -> Result<(), ProtocolError> {
         self.local_board
             .update_store(messages, false)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))

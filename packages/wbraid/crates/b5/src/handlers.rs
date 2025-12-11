@@ -5,7 +5,6 @@ use axum::{
 };
 use chrono::Utc;
 use cryptography::context::Context;
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::api_types::{
     ContentType, GetMessageResponse, ListMessagesResponse, Message,
@@ -13,33 +12,11 @@ use crate::api_types::{
     GetMessagesMultiRequest, GetMessagesMultiResponse, BoardMessagesResponse,
     InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ConfirmMessagesMultiRequest, ConfirmMessagesMultiResponse,
+    BoardResponse, BoardsListResponse, CreateBoardRequest, GetMessagesQuery,
     MAX_INLINE_MESSAGE_SIZE,
 };
 
 use crate::{db, s3, state::AppState};
-
-#[derive(Debug, Serialize)]
-pub struct BoardResponse {
-    pub name: String,
-    pub created_at: i64,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct BoardsListResponse {
-    pub boards: Vec<BoardResponse>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CreateBoardRequest {
-    pub name: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GetMessagesQuery {
-    pub last_id: Option<i64>,
-    pub limit: Option<i64>,
-}
 
 pub async fn create_board(
     State(state): State<AppState>,

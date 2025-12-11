@@ -26,7 +26,7 @@
 //!
 //! **Transient (in-memory, NOT persisted):**
 //! - `last_external_id: i64` - Optimization for fetching new messages within session
-//! - `message_buffer: Vec<HttpB3Message>` - Messages between store/retrieve calls
+//! - `message_buffer: Vec<HttpB5Message>` - Messages between store/retrieve calls
 //!
 //! # Why No Persistent last_external_id?
 //!
@@ -75,7 +75,7 @@ use web_sys::{IdbDatabase, IdbRequest, IdbTransactionMode};
 use cryptography::utils::signatures::SignatureScheme;
 
 use b5::messages::message::Message;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VDeserializable;
 
@@ -120,7 +120,7 @@ struct TransientState {
     last_external_id: i64,
     
     /// Messages buffered between store_messages() and retrieve_messages() calls
-    message_buffer: Vec<HttpB3Message>,
+    message_buffer: Vec<HttpB5Message>,
 }
 
 /// IndexedDB-backed storage for browser trustees
@@ -455,13 +455,13 @@ impl IndexedDbStorage {
     }
     
     /// Compute hash of message bytes
-    fn compute_hash(msg: &HttpB3Message) -> Result<Vec<u8>> {
+    fn compute_hash(msg: &HttpB5Message) -> Result<Vec<u8>> {
         let hash = b5::hash_to_array(&msg.message)?;
         Ok(hash.to_vec())
     }
     
     /// Extract metadata from message for duplicate detection
-    fn extract_metadata<C: Context>(msg: &HttpB3Message) -> Result<MessageMetadata> {
+    fn extract_metadata<C: Context>(msg: &HttpB5Message) -> Result<MessageMetadata> {
         let message = Message::<C>::deser(&msg.message)?;
         
         Ok(MessageMetadata {
@@ -487,7 +487,7 @@ impl IndexedDbStorage {
     /// Therefore: hash_list[id - 1] = hash for message with local_id=id
     fn verify_and_store<C: Context>(
         &self,
-        messages: &[HttpB3Message],
+        messages: &[HttpB5Message],
         local_board_id: i64,
         ignore_existing: bool,
     ) -> Result<(usize, usize)> { // Returns (verified_count, new_count)
@@ -638,7 +638,6 @@ impl IndexedDbStorage {
         }
         
         // Store messages in transient buffer for retrieve_messages()
-        // transient.message_buffer = messages.to_vec();
         transient.message_buffer = new_messages.to_vec();
         
         Ok((verify_count, new_count))
@@ -646,7 +645,7 @@ impl IndexedDbStorage {
 }
 
 impl LocalBoardStorage for IndexedDbStorage {
-    fn store_messages<C: Context>(&self, messages: &[HttpB3Message], _ignore_existing: bool) -> Result<()> {
+    fn store_messages<C: Context>(&self, messages: &[HttpB5Message], _ignore_existing: bool) -> Result<()> {
         // NOTE: We don't know last_local_board_id here, so we assume B = S (normal case)
         // The verification will happen in retrieve_messages() where we have access to B
         

@@ -23,7 +23,7 @@ use b5::messages::artifact::*;
 use b5::messages::message::VerifiedMessage;
 use b5::messages::statement::{Statement, StatementType};
 use b5::messages::newtypes::*;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 
 use crate::protocol::board::local_storage::LocalBoardStorage;
 use crate::util::{ProtocolContext, ProtocolError};
@@ -544,7 +544,7 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
     /// Updates the message store with the supplied remote messages
     pub(crate) fn update_store(
         &self,
-        messages: &[HttpB3Message],
+        messages: &[HttpB5Message],
         ignore_existing: bool,
     ) -> Result<()> {
         self.storage.store_messages::<C>(messages, ignore_existing)
@@ -569,7 +569,7 @@ impl<C: Context, S: LocalBoardStorage> LocalBoard<C, S> {
     /// to ensure append-only, tamper-proof message ordering.
     pub(crate) fn store_and_return_messages(
         &mut self,
-        messages: &[HttpB3Message],
+        messages: &[HttpB5Message],
         ignore_existing: bool,
     ) -> Result<Vec<(b5::messages::message::Message<C>, i64)>> {
         self.storage.store_messages::<C>(messages, ignore_existing)?;

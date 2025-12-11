@@ -8,35 +8,23 @@ use serde::{Deserialize, Serialize};
 ///
 /// This is the HTTP equivalent of GrpcB3Message, designed to work
 /// in both native and WASM contexts. It wraps a serialized Message
-/// along with metadata needed by the bulletin board.
+/// along with the bulletin board ID and schema version.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HttpB3Message {
+pub struct HttpB5Message {
     /// Message ID assigned by the bulletin board
     pub id: i64,
-    /// Serialized braid::message (from strand_serialize)
+    /// Serialized braid::message
     pub message: Vec<u8>,
     /// Schema version for compatibility checking
     pub version: String,
-    /// Sender public key (base64-encoded DER SPKI)
-    pub sender_pk: String,
-    /// Statement kind (e.g., "Configuration", "PublicKey", "PublicKeySigned")
-    pub statement_kind: String,
-    /// Batch number
-    pub batch: i32,
-    /// Mix number
-    pub mix_number: i32,
 }
 
-impl HttpB3Message {
-    pub fn new(id: i64, message: Vec<u8>, version: String, sender_pk: String, statement_kind: String, batch: i32, mix_number: i32) -> Self {
-        HttpB3Message {
+impl HttpB5Message {
+    pub fn new(id: i64, message: Vec<u8>, version: String) -> Self {
+        HttpB5Message {
             id,
             message,
             version,
-            sender_pk,
-            statement_kind,
-            batch,
-            mix_number,
         }
     }
 }
@@ -47,11 +35,11 @@ impl HttpB3Message {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpBoardMessages {
     pub board: String,
-    pub messages: Vec<HttpB3Message>,
+    pub messages: Vec<HttpB5Message>,
 }
 
 impl HttpBoardMessages {
-    pub fn new(board: String, messages: Vec<HttpB3Message>) -> Self {
+    pub fn new(board: String, messages: Vec<HttpB5Message>) -> Self {
         HttpBoardMessages { board, messages }
     }
 }

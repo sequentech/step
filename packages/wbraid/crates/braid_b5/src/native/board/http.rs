@@ -1,67 +1,18 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::path::PathBuf;
 use tracing::info;
 
+use b5::api_types::{
+    InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
+    GetMessagesResponse, ContentType,
+};
 use b5::messages::message::Message;
-use b5::HttpB3Message;
+use b5::HttpB5Message;
 use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VSerializable;
-use cryptography::utils::signatures::SignatureScheme;
 
 use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
-use crate::util::ProtocolError;
-
-#[derive(Debug, Serialize)]
-struct InitiateMessageRequest {
-    size: usize,
-    sender_pk: String,
-    statement_kind: String,
-    batch: i32,
-    mix_number: i32,
-}
-
-#[derive(Debug, Deserialize)]
-struct InitiateMessageResponse {
-    message_id: String,
-    upload_url: Option<String>,
-    should_upload: bool,
-}
-
-#[derive(Debug, Serialize)]
-struct ConfirmMessageRequest {
-    data: Option<Vec<u8>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GetMessagesResponse {
-    messages: Vec<MessageWithUrl>,
-}
-
-#[derive(Debug, Deserialize)]
-struct MessageWithUrl {
-    id: String,
-    #[allow(dead_code)]
-    timestamp: i64,
-    #[allow(dead_code)]
-    size: usize,
-    content_type: ContentTypeDto,
-    sender_pk: String,
-    statement_kind: String,
-    batch: i32,
-    mix_number: i32,
-    download_url: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum ContentTypeDto {
-    Inline { message: String },  // base64 encoded
-    S3 {
-        #[allow(dead_code)]
-        key: String
-    },
-}
 
 /// HTTP client for bulletin board using Service API
 pub struct HttpB3 {
@@ -87,13 +38,6 @@ impl HttpB3 {
 
     /// Helper to post a single message to a specific board
     async fn post_message_to_board<C: Context>(&self, board: &str, message: &Message<C>) -> Result<()> {
-        // Extract metadata from message
-        let sender_pk = C::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
-            .map_err(ProtocolError::InternalError)?;
-        let statement_kind = message.statement.get_kind().to_string();
-        let batch: i32 = message.statement.get_batch_number().try_into()?;
-        let mix_number: i32 = message.statement.get_mix_number().try_into()?;
-        
         // Serialize the message
         let message_bytes = message.ser();
         let size = message_bytes.len();
@@ -102,10 +46,6 @@ impl HttpB3 {
         let initiate_url = format!("{}/boards/{}/messages/initiate", self.base_url, board);
         let initiate_req = InitiateMessageRequest {
             size,
-            sender_pk: sender_pk.clone(),
-            statement_kind: statement_kind.clone(),
-            batch,
-            mix_number,
         };
 
         let initiate_response = self
@@ -201,7 +141,7 @@ impl HttpB3 {
 impl<C: Context> Board<C> for HttpB3 {
     type Factory = HttpB3BoardParams;
     
-    async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
+    async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB5Message>> {
         let url = format!(
             "{}/boards/{}/messages?last_id={}",
             self.base_url, board, last_id
@@ -227,12 +167,12 @@ impl<C: Context> Board<C> for HttpB3 {
         // With pre-signed URLs already available, there's no dependency between downloads.
 
         for msg in get_response.messages {
-            let message_bytes = match msg.content_type {
-                ContentTypeDto::Inline { message } => {
-                    // Decode base64
-                    base64::prelude::Engine::decode(&base64::prelude::BASE64_STANDARD, message)?
+            let message_bytes = match msg.message.content_type {
+                ContentType::Inline { data } => {
+                    // Already decoded by ContentType's Deserialize impl
+                    data
                 }
-                ContentTypeDto::S3 { key: _ } => {
+                ContentType::S3 { key: _ } => {
                     // Use pre-signed download URL from response
                     let download_url = msg.download_url
                         .ok_or_else(|| anyhow::anyhow!("S3 message missing download_url"))?;
@@ -252,16 +192,12 @@ impl<C: Context> Board<C> for HttpB3 {
                 }
             };
 
-            let id: i64 = msg.id.parse()?;
+            let id: i64 = msg.message.id.parse()?;
 
-            result.push(HttpB3Message::new(
+            result.push(HttpB5Message::new(
                 id,
                 message_bytes,
                 "1".to_string(),
-                msg.sender_pk,
-                msg.statement_kind,
-                msg.batch,
-                msg.mix_number,
             ));
         }
 
@@ -425,14 +361,10 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
                 
                 let id: i64 = msg_with_url.message.id.parse()?;
                 
-                http_messages.push(HttpB3Message::new(
+                http_messages.push(HttpB5Message::new(
                     id,
                     message_bytes,
                     "1".to_string(),
-                    msg_with_url.message.sender_pk,
-                    msg_with_url.message.statement_kind,
-                    msg_with_url.message.batch,
-                    msg_with_url.message.mix_number,
                 ));
             }
             
@@ -467,19 +399,10 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
             
             let mut metadata_list = Vec::new();
             for message in &messages {
-                let sender_pk = C::SignatureScheme::verifier_to_base64_string(&message.sender.pk)
-                    .map_err(ProtocolError::InternalError)?;
-                let statement_kind = message.statement.get_kind().to_string();
-                let batch: i32 = message.statement.get_batch_number().try_into()?;
-                let mix_number: i32 = message.statement.get_mix_number().try_into()?;
                 let message_bytes = message.ser();
                 
                 metadata_list.push(MessageMetadata {
                     size: message_bytes.len(),
-                    sender_pk,
-                    statement_kind,
-                    batch,
-                    mix_number,
                 });
             }
             
