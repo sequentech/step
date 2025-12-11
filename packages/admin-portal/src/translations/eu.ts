@@ -421,8 +421,7 @@ const basqueTranslation: TranslationType = {
                 notify: {
                     participateNow:
                         "Giltzen zeremonoia batean parte hartzeko gonbidatu zaituzte. Mesedez <1>sakatu zeremoniaren Giltza Ekintzaren</1> parte hartzeko.",
-                    plaintextNoKeys:
-                        "Ez da gakorik behar enkriptatu gabeko hauteskundeetarako.",
+                    plaintextNoKeys: "Ez da gakorik behar enkriptatu gabeko hauteskundeetarako.",
                 },
             },
             tabs: {

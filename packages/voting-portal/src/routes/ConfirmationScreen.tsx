@@ -5,11 +5,7 @@ import {Box, CircularProgress, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
-import {
-    stringToHtml,
-    IElectionEventPresentation,
-    EVotingStatus,
-} from "@sequentech/ui-core"
+import {stringToHtml, IElectionEventPresentation, EVotingStatus} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
@@ -38,9 +34,7 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
-import {
-    selectConfirmationScreenData,
-} from "../store/castVotes/confirmationScreenDataSlice"
+import {selectConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {GetCastVotesQuery} from "../gql/graphql"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
@@ -368,7 +362,7 @@ const ConfirmationScreen: React.FC = () => {
             console.log("auditableBallot normal flow")
             const encryptionPolicy =
                 auditableBallot?.config.election_event_presentation?.contest_encryption_policy
-            
+
             const strategy = getBallotStrategy(encryptionPolicy, ballotService)
             const hashableBallot = strategy.hash(auditableBallot)
 

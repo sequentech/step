@@ -91,7 +91,9 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
 use strand::{
-    backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize,
+    backend::ristretto::RistrettoCtx,
+    context::Ctx,
+    serialization::StrandDeserialize,
     signature::{StrandSignaturePk, StrandSignatureSk},
 };
 use tempfile::tempdir;
