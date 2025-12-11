@@ -15,7 +15,7 @@ $originalDir = Get-Location
 
 try {
     # Clean up old database in crates/b4 if it exists
-    del .\crates\b4\b4.db -Force -ErrorAction SilentlyContinue
+    # del .\b4.db -Force -ErrorAction SilentlyContinue
     
     # Run the service from workspace root (not crates/b4)
     cargo run --bin b5 --release

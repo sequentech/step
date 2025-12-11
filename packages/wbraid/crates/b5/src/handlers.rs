@@ -284,6 +284,7 @@ pub async fn confirm_message<C: Context>(
 
     }
 
+    tracing::info!("confirm_message: inserted one message to board '{}', uuid {}", board_name, id);
     Ok(Json(ConfirmMessageResponse { success: true }))
 }
 
@@ -416,7 +417,7 @@ pub async fn get_messages(
         });
     }
     
-    tracing::debug!("get_messages: returning {} messages with download URLs", enriched_messages.len());
+    tracing::info!("get_messages: returning {} messages with download URLs", enriched_messages.len());
     Ok(Json(GetMessagesResponse { messages: enriched_messages }))
 }
 

@@ -58,7 +58,7 @@ impl<C: Context, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, 
         batch: BatchNumber,
         signer_position: TrusteePosition,
     ) -> Option<b5::messages::artifact::Plaintexts<C, 2>> {
-        self.trustee._get_plaintexts_nohash(batch, signer_position)
+        self.trustee._get_plaintexts_nohash::<2>(batch, signer_position)
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.trustee._get_dkg_public_key_nohash()

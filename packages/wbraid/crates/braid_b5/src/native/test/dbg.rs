@@ -508,7 +508,7 @@ fn plaintexts<C: Context>(_args: ArgMatches, context: &mut ReplContext<C>) -> Re
 fn decrypted<C: Context>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     // FIXME hardcoded batch 1, use command line argument
     let decryptor = context.selected_trustees[0] - 1;
-    if let Some(plaintexts) = context.trustees[decryptor]._get_plaintexts_nohash(1, decryptor) {
+    if let Some(plaintexts) = context.trustees[decryptor]._get_plaintexts_nohash::<2>(1, decryptor) {
         let set1: HashSet<[C::Element; 2]> = HashSet::from_iter(plaintexts.0.clone());
         let set2 = HashSet::from_iter(context.plaintexts.iter().cloned());
 
