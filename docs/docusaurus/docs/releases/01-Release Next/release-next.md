@@ -38,8 +38,8 @@ Fix showing 'event' or 'election' instead of the actual election event or electi
  name/alias.
 
 - Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
-  
-## ## 🐞 Fix Graphql Typescript issues
+
+## 🐞 Fix Graphql Typescript issues
 
 Update Graphql definitions in the admin-portal, which is required after a
 bad merge from main.
