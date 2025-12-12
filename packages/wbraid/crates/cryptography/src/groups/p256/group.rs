@@ -94,7 +94,9 @@ impl CryptographicGroup for P256Group {
 
         #[crate::warning("The following code is not optimized. Parallelize with rayon")]
         for i in 0..count {
-            let inputs = &[label, &i.to_be_bytes()];
+            // Cannot use platform dependent type in random oracle
+            let i_u64 = i as u64;
+            let inputs = &[label, &i_u64.to_be_bytes()];
             let point = NistP256::hash_from_bytes::<ExpandMsgXmd<Self::Hasher>>(inputs, ds_tags);
             let point = point?;
             ret.push(P256Element(point));

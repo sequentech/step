@@ -600,8 +600,10 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         #[crate::warning("The following code is not optimized. Parallelize with rayon")]
         for i in 0..w_n.len() {
+            // Cannot use platform dependent type in random oracle
+            let i_u64 = i as u64;
             let prefix = bytes.clone();
-            let inputs: &[&[u8]] = &[prefix.as_slice(), &i.to_be_bytes()];
+            let inputs: &[&[u8]] = &[prefix.as_slice(), &i_u64.to_be_bytes()];
             let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
             let scalar = C::G::hash_to_scalar(inputs, ds_tags)?;
             ret.push(scalar);

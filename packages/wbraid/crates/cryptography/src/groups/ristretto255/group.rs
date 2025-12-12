@@ -114,7 +114,9 @@ impl CryptographicGroup for Ristretto255Group {
             .into_par_iter()
             .map(|i| {
                 let mut hasher = hasher.clone();
-                hasher.update(i.to_be_bytes());
+                // Cannot use platform dependent type in random oracle
+                let i_u64 = i as u64;
+                hasher.update(i_u64.to_be_bytes());
                 let point = RistrettoPoint::from_hash(hasher);
                 RistrettoElement(point)
             })

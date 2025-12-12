@@ -37,3 +37,29 @@ pub use vser_derive::VSerializable;
 /// as they will be importing `cryptography` as a dependency.
 #[doc(hidden)]
 extern crate self as cryptography;
+
+/// Debug macro that works in both native and WASM contexts.
+/// 
+/// In WASM builds (when `wasm` feature + `wasm32` target), uses browser `console.log`.
+/// In all other cases, uses `info!`.
+/// 
+/// # Examples
+/// ```ignore
+/// use strand::debug_log;
+/// debug_log!("Processing {} items", count);
+/// debug_log!("ZKP verification failed: {:?}", error);
+/// ```
+#[macro_export]
+macro_rules! debug_log {
+    ($($arg:tt)*) => {
+        #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
+        {
+            use wasm_bindgen::JsValue;
+            web_sys::console::log_1(&JsValue::from_str(&format!($($arg)*)));
+        }
+        #[cfg(not(all(target_arch = "wasm32", feature = "wasm")))]
+        {
+            info!($($arg)*);
+        }
+    };
+}
