@@ -12,8 +12,8 @@ use cryptography::utils::serialization::VSerializable;
 use cryptography::VSerializable as VSer;
 use sha3::Digest;
 
-pub const MAX_TRUSTEES: usize = 12;
-pub const MAX_CIPHERTEXT_WIDTH: usize = 10; 
+pub const MAX_TRUSTEES: usize = 8;
+pub const MAX_CIPHERTEXT_WIDTH: usize = 8; 
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
 pub const VERIFIER_INDEX: usize = 2000;
 pub const NULL_TRUSTEE: usize = 1001;

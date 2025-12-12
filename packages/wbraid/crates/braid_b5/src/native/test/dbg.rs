@@ -129,7 +129,7 @@ struct ReplContext<C: Context> {
     pub last_actions: HashSet<Action>,
     pub log_reload: Option<Handle<LevelFilter, Registry>>,
     pub plaintexts: Vec<[C::Element; 2]>,
-    pub selected_trustees: [usize; 12],
+    pub selected_trustees: [usize; MAX_TRUSTEES],
 }
 
 /// The information that is displayed with the status command.

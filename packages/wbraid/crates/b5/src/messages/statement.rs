@@ -632,7 +632,7 @@ pub(crate) mod tests {
         let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
         let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
         let cth = CiphertextsHash(crate::messages::newtypes::zero_hash());
-        let trustee_set: TrusteeSet = [1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let trustee_set: TrusteeSet = [1usize; MAX_TRUSTEES];
         
         let stmt = Statement::Ballots(
             11111,

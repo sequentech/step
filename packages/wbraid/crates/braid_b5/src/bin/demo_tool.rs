@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
-use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client as S3Client;
 use clap::Parser;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
@@ -188,7 +187,6 @@ enum Command {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    let Context = RistrettoCtx;
     braid_b5::native::logging::init_log(true);
     let args = Cli::parse();
 
@@ -233,7 +231,7 @@ async fn main() -> Result<()> {
                 } else {
                     format!("{}_{}", &args.board_name, i + 1)
                 };
-                post_ballots(
+                post_ballots::<RistrettoCtx>(
                     &pool,
                     &s3_client,
                     &bucket,
@@ -242,7 +240,6 @@ async fn main() -> Result<()> {
                     args.batches,
                     args.num_trustees,
                     args.threshold,
-                    &Context,
                 )
                 .await?;
             }
@@ -427,7 +424,6 @@ async fn post_ballots<C: Context>(
     batches: u32,
     n_trustees: usize,
     threshold: usize,
-    Context: &C,
 ) -> Result<()> {
     let pm = get_pm(PhantomData::<RistrettoCtx>)?;
     let sender_pk_obj = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key);

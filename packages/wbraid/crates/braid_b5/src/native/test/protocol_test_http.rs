@@ -38,7 +38,7 @@ const S3_ENDPOINT: &'static str = "http://127.0.0.1:4566";
 const BUCKET_NAME: &'static str = "wbraid-messages";
 
 pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
-    let n_trustees = rand::rng().random_range(2..7);
+    let n_trustees = rand::rng().random_range(2..=MAX_TRUSTEES);
     let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
     // let n_trustees = 2;

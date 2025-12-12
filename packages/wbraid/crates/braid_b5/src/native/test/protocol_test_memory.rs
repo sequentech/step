@@ -31,7 +31,7 @@ use crate::native::test::vector_board::VectorBoard;
 use crate::native::test::vector_session::VectorSession;
 
 pub fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
-    let n_trustees = rand::rng().random_range(2..7);
+    let n_trustees = rand::rng().random_range(2..=MAX_TRUSTEES);
     let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
     // let n_trustees = 12;
