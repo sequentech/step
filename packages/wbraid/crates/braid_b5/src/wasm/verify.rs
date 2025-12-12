@@ -8,9 +8,9 @@ use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::protocol::trustee::Trustee;
-use crate::native::verify::verifier::Verifier;
+use crate::protocol::verify::verifier::Verifier;
 use crate::wasm::board::{WasmHttpBoard, WasmHttpBoardParams};
-use crate::native::board::NoOpStorage;
+use crate::protocol::board::NoOpStorage;
 
 use cryptography::context::{RistrettoCtx, Context};
 use cryptography::utils::symm;

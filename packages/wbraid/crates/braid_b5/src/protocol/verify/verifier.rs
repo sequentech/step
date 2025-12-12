@@ -23,9 +23,9 @@ use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 
 use crate::util::dbg_hash;
-use crate::native::verify::datalog::Target;
-use crate::native::verify::datalog::Verified;
-use crate::native::verify::logger::{VerifierLogger, create_logger};
+use crate::protocol::verify::datalog::Target;
+use crate::protocol::verify::datalog::Verified;
+use crate::protocol::verify::logger::{VerifierLogger, create_logger};
 
 use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VDeserializable;
@@ -213,7 +213,7 @@ impl<C: Context, B: Board<C>, S: crate::protocol::board::LocalBoardStorage> Veri
         info!("{}", "Deriving verification targets..".blue());
         #[cfg(not(feature = "native"))]
         info!("Deriving verification targets..");
-        let (_, targets, _) = crate::native::verify::datalog::S.run(&predicates);
+        let (_, targets, _) = crate::protocol::verify::datalog::S.run(&predicates);
         for t in &targets {
             let tvr = t.get_verification_result();
             info!("Add verification target [batch {}]", t.get_batch());
@@ -236,7 +236,7 @@ impl<C: Context, B: Board<C>, S: crate::protocol::board::LocalBoardStorage> Veri
         // Collect verification results
 
         self.logger.log_step("Collecting verification results");
-        let (root, _targets, verified) = crate::native::verify::datalog::S.run(&predicates);
+        let (root, _targets, verified) = crate::protocol::verify::datalog::S.run(&predicates);
 
         let mut pk_h = None;
         let root = root.iter().next();

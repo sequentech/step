@@ -122,7 +122,7 @@ pub fn dbg<C: Context>(log_reload: Handle<LevelFilter, Registry>) -> Result<()> 
 struct ReplContext<C: Context> {
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
+    pub trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>>,
     pub trustee_pks: Vec<<C::SignatureScheme as cryptography::utils::signatures::SignatureScheme<C::Rng>>::Verifier>,
     pub remote: VectorBoard,
     pub last_messages: Vec<Message<C>>,
@@ -297,7 +297,7 @@ fn mk_context<C: Context>(n_trustees: u8, threshold: &[usize]) -> ReplContext<C>
         phantom: PhantomData,
     };
 
-    let trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>> = (0..n_trustees)
+    let trustees: Vec<Trustee<C, crate::protocol::board::NoOpStorage>> = (0..n_trustees)
         .into_iter()
         .map(|i| {
             let kp = C::SignatureScheme::gen_signing_key(&mut rng);
@@ -308,7 +308,7 @@ fn mk_context<C: Context>(n_trustees: u8, threshold: &[usize]) -> ReplContext<C>
                 "foo".to_string(),
                 kp,
                 encryption_key,
-                crate::native::board::NoOpStorage::new(),
+                crate::protocol::board::NoOpStorage::new(),
                 None,
             )
         })
@@ -572,7 +572,7 @@ fn step<C: Context>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Op
     let trustee = args.get_one::<String>("trustee");
     if let Some(value) = trustee {
         let t = value.parse::<u8>()?;
-        let trustee_: Option<&mut Trustee<C, crate::native::board::NoOpStorage>> = context.trustees.get_mut(t as usize);
+        let trustee_: Option<&mut Trustee<C, crate::protocol::board::NoOpStorage>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
             // let (messages, actions, _last_id) = trustee.step(context.remote.get(-1)).unwrap();
             let step_result = trustee.step(&context.remote.get(-1)).unwrap();

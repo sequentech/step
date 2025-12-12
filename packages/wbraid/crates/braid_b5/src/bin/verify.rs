@@ -10,7 +10,8 @@ use tracing::instrument;
 
 use braid_b5::native::board::{HttpB3, HttpB3BoardParams};
 use braid_b5::protocol::trustee::Trustee;
-use braid_b5::native::verify::verifier::Verifier;
+use braid_b5::protocol::verify::verifier::Verifier;
+use braid_b5::protocol::board::NoOpStorage;
 
 use cryptography::context::{RistrettoCtx, Context};
 use cryptography::utils::signatures::SignatureScheme;
@@ -53,17 +54,17 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
     
-    let trustee: Trustee<RistrettoCtx, braid_b5::native::board::NoOpStorage> = Trustee::new(
+    let trustee: Trustee<RistrettoCtx, NoOpStorage> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
         dummy_sk,
         dummy_encryption_key,
-        braid_b5::native::board::NoOpStorage::new(),
+        NoOpStorage::new(),
         None,
     );
     let board_params = HttpB3BoardParams::new(&args.server_url).await;
     let board: HttpB3 = board_params.create_board(&args.board, None);
-    let mut session: Verifier<RistrettoCtx, HttpB3, braid_b5::native::board::NoOpStorage> = 
+    let mut session: Verifier<RistrettoCtx, HttpB3, NoOpStorage> = 
         Verifier::new(trustee, board, &args.board);
     let _result = session.run().await?;
 

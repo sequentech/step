@@ -8,11 +8,14 @@ pub mod storage_schema;
 // Storage trait (persistence abstraction)
 pub mod local_storage;
 
+pub mod storage_noop;
+
 // Universal LocalBoard implementation and data structures
 pub mod local_board;
 
 // Re-export LocalBoard and its data structures
 pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, StatementEntryIdentifier};
+pub use storage_noop::NoOpStorage;
 
 // Re-export storage trait and types
 pub use local_storage::{LocalBoardStorage, StorageInfo};

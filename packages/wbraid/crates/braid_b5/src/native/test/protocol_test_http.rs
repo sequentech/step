@@ -28,6 +28,7 @@ use b5::messages::newtypes::NULL_TRUSTEE;
 use crate::native::board::HttpB3;
 use crate::native::board::HttpB3BoardParams;
 use crate::protocol::board::Board;
+use crate::protocol::board::NoOpStorage;
 
 use crate::native::session::Session;
 use crate::protocol::trustee::Trustee;
@@ -73,7 +74,7 @@ pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
 pub struct ProtocolTest<C: Context> {
     pub cfg: Configuration<C>,
     pub protocol_manager: b5::messages::protocol_manager::ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
+    pub trustees: Vec<Trustee<C, NoOpStorage>>,
 }
 
 async fn run_protocol_test_http<C: Context + 'static>(
@@ -89,7 +90,7 @@ async fn run_protocol_test_http<C: Context + 'static>(
 
     for t in test.trustees.into_iter() {
         let board_params = HttpB3BoardParams::new(HTTP_URL).await;
-        let session: Session<C, HttpB3, crate::native::board::NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
+        let session: Session<C, HttpB3, NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }
 
@@ -309,7 +310,7 @@ pub async fn create_protocol_test<C: Context>(
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C, crate::native::board::NoOpStorage>>, Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>) = (0..n_trustees)
+    let (trustees, trustee_pks): (Vec<Trustee<C, NoOpStorage>>, Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>) = (0..n_trustees)
         .map(|i| {
             let sk = C::SignatureScheme::gen_signing_key(&mut rng);
             let encryption_key = cryptography::utils::symm::gen_key();
@@ -320,7 +321,7 @@ pub async fn create_protocol_test<C: Context>(
                     "foo".to_string(),
                     sk,
                     encryption_key,
-                    crate::native::board::NoOpStorage::new(),
+                    NoOpStorage::new(),
                     None,
                 ),
                 pk,

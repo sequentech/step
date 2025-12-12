@@ -357,7 +357,7 @@ async fn init<C: Context>(
     board_name: &str,
     configuration: Configuration<RistrettoCtx>,
 ) -> Result<()> {
-    let pm = get_pm(PhantomData::<C>)?;
+    let pm = get_pm::<C>()?;
     let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
     
@@ -425,7 +425,8 @@ async fn post_ballots<C: Context>(
     n_trustees: usize,
     threshold: usize,
 ) -> Result<()> {
-    let pm = get_pm(PhantomData::<RistrettoCtx>)?;
+    let pm = get_pm::<C>()?;
+
     let sender_pk_obj = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifying_key(&pm.signing_key);
     let sender_pk_b64 = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::verifier_to_base64_string(&sender_pk_obj)
         .map_err(|e| anyhow!("Failed to encode sender pk: {}", e))?;
@@ -504,7 +505,7 @@ async fn post_ballots<C: Context>(
         let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
         selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-        let pm = get_pm(PhantomData::<RistrettoCtx>)?;
+        let pm = get_pm::<RistrettoCtx>()?;
 
         // Use dispatch macro to generate ballots with the configured ciphertext width
         braid_b5::dispatch_ciphertext_width!(configuration.ciphertext_width, {
@@ -648,7 +649,7 @@ async fn list_boards(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-fn get_pm<C: Context>(ctxp: PhantomData<C>) -> Result<ProtocolManager<RistrettoCtx>> {
+fn get_pm<C: Context>() -> Result<ProtocolManager<RistrettoCtx>> {
     let path = Path::new(DEMO_DIR).join(PROTOCOL_MANAGER);
     let contents = fs::read_to_string(&path)
         .expect("Should have been able to read the protocol manager file at '{path}'");

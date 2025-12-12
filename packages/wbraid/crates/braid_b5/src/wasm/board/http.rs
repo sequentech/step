@@ -17,7 +17,6 @@ use b5::api_types::{
 use b5::messages::message::Message;
 use cryptography::context::Context;
 use cryptography::utils::serialization::variable::VSerializable;
-use cryptography::utils::signatures::SignatureScheme;
 
 /// Parameters for creating a WASM HTTP board connection
 #[derive(Clone)]

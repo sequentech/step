@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use b5::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use base64::engine::general_purpose;
-use base64::Engine;
 use braid_b5::protocol::trustee::TrusteeConfig;
 use clap::Parser;
 use std::marker::PhantomData;
