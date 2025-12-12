@@ -880,20 +880,20 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Self, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
         let message: &Message = &Message::strand_deserialize(&entry.message)
             .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
         let message = Some(message.to_string());
 
-        Ok(Some(CastVoteEntry {
+        Ok(CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,
             statement_kind: StatementType::CastVote.to_string(),
             ballot_id,
             username,
             message,
-        }))
+        })
     }
 }
 
@@ -960,7 +960,7 @@ pub async fn list_cast_vote_messages_and_count(
     let (cols_match_count, cols_match_select) =
         input.as_cast_vote_count_and_select_clauses(&election_id, user_id, ballot_id_filter);
 
-    let (data_res, count_res) = tokio::join!(
+    let (entries_res, count_res) = tokio::join!(
         list_cast_vote_messages(
             input.clone(),
             ballot_id_filter,
@@ -986,13 +986,11 @@ pub async fn list_cast_vote_messages_and_count(
         }
     );
 
-    let mut data = data_res.map_err(|e| anyhow!("Eror listing electoral log: {e:?}"))?;
-    data.total =
+    let list = entries_res.map_err(|e| anyhow!("Error listing electoral log: {e:?}"))?;
+    let total =
         count_res.map_err(|e: anyhow::Error| anyhow!("Error counting electoral log: {e:?}"))?;
-
-    Ok(data)
+    Ok(CastVoteMessagesOutput { list, total })
 }
-
 
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
 /// ballot_id_filter is restricted to be an even number of characters, so that can be converted
@@ -1004,10 +1002,7 @@ pub async fn list_cast_vote_messages(
     user_id: &str,
     username: &str,
     cols_match_select: WhereClauseOrdMap,
-) -> Result<CastVoteMessagesOutput> {
-    // The limits are used to cut the output after filtering the ballot id.
-    // Because ballot_id cannot be filtered at SQL level the sql limit is constant
-    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
+) -> Result<Vec<CastVoteEntry>> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(
         input.tenant_id.as_str(),
@@ -1016,53 +1011,33 @@ pub async fn list_cast_vote_messages(
     );
     info!("database name = {board_name}");
     let order_by = input.order_by.clone();
-
+    let mut offset: i64 = input.offset.unwrap_or(0);
     let limit: i64 = match ballot_id_filter.is_empty() {
-        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
+        false => 1, // When there is a filter, limit to 1 result because ballot_id is unique
         true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
     };
-    let mut offset: i64 = input.offset.unwrap_or(0);
-    let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
-
     let mut client = get_board_client().await?;
-    let mut exit = false; // Exit at the first match if the filter by ballot_id is not empty or when the query returns 0 entries
-    while (list.len() as i64) < output_limit && !exit {
-        let electoral_log_messages = client
-            .get_electoral_log_messages_filtered(
-                &board_name,
-                Some(cols_match_select.clone()),
-                None,
-                None,
-                Some(limit),
-                Some(offset),
-                order_by.clone(),
-            )
-            .await
-            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+    let electoral_log_messages = client
+        .get_electoral_log_messages_filtered(
+            &board_name,
+            Some(cols_match_select.clone()),
+            None,
+            None,
+            Some(limit),
+            Some(offset),
+            order_by.clone(),
+        )
+        .await
+        .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+    let t_entries = electoral_log_messages.len();
+    info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}");
+    let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
+    list = electoral_log_messages
+        .iter()
+        .map(|message| CastVoteEntry::from_elog_message(message))
+        .collect::<Result<Vec<CastVoteEntry>>>()?;
 
-        let t_entries = electoral_log_messages.len();
-        info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}");
-        for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
-                Some(entry) if !ballot_id_filter.is_empty() => {
-                    // If there is filter exit at the first match
-                    exit = true;
-                    list.push(entry);
-                }
-                Some(entry) => {
-                    // Add all the entries till the limit, when there is no filter
-                    list.push(entry);
-                }
-                None => {}
-            }
-            if (list.len() as i64) >= output_limit || exit {
-                break;
-            }
-        }
-        exit = exit || t_entries == 0;
-        offset += limit;
-    }
-    Ok(CastVoteMessagesOutput { list, total: 0 })
+    Ok(list)
 }
 
 #[instrument(err)]
