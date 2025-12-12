@@ -16,6 +16,7 @@ import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {Loader} from "@sequentech/ui-essentials"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -37,6 +38,22 @@ interface GeneralInformationChartsProps {
     results: Sequent_Backend_Election_Extended[]
     selectedElectionId?: string
     aliasRenderer: (item: any) => string
+}
+
+export const LoadingResults: React.FC = () => {
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "200px",
+                position: "relative",
+            }}
+        >
+            <Loader />
+        </Box>
+    )
 }
 
 const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
@@ -133,6 +150,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
     const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
 
@@ -145,12 +163,25 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     )
 
     const results: Array<Sequent_Backend_Results_Election> | undefined = useMemo(
-        () => tallyData?.sequent_backend_results_election,
+        () =>
+            tallyData?.sequent_backend_results_election &&
+            tallyData?.sequent_backend_results_election.length > 0
+                ? tallyData?.sequent_backend_results_election.filter(
+                      (result) => result.results_event_id === resultsEventId
+                  )
+                : undefined,
         [tallyData?.sequent_backend_results_election]
     )
 
+    const isTallyDataMatchCurrentResults = useMemo(() => {
+        return !!tallyData?.sequent_backend_results_event.find(
+            (event) => event.id === resultsEventId
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
     useEffect(() => {
-        if (elections && results) {
+        setIsLoading(true)
+        if (elections && results && elections.length > 0 && results.length > 0) {
             const temp: Array<Sequent_Backend_Election_Extended> | undefined = elections?.map(
                 (item, index): Sequent_Backend_Election_Extended => {
                     const result = results?.find((r) => r.election_id === item.id)
@@ -173,8 +204,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             if (!selectedElectionId && temp.length > 0) {
                 setSelectedElectionId(temp[0].id)
             }
+            setIsLoading(false)
         }
-    }, [results, elections, selectedElectionId])
+        if (isTallyDataMatchCurrentResults && (!elections?.length || !results?.length)) {
+            setIsLoading(false)
+        }
+    }, [results, elections, selectedElectionId, isTallyDataMatchCurrentResults])
 
     const columns: GridColDef[] = [
         {
@@ -265,6 +300,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         />
                     </Box>
                 </Box>
+            ) : isLoading || !isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
             ) : (
                 <NoItem />
             )}
