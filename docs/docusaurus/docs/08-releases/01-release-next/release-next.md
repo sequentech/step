@@ -89,6 +89,15 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
 
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all places in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
+
+
 ## 🐞 Error with tenants and templates in Admin portal.
 
 Fixed issues that prevented tenant creation and template creation and deletion 
