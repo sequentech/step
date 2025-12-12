@@ -282,6 +282,7 @@ input ElectoralLogFilter {
   statement_kind: String
   statement_timestamp: String
   user_id: String
+  username: String
 }
 
 input ElectoralLogOrderBy {
