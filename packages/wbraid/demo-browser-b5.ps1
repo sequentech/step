@@ -8,7 +8,7 @@
 
 param(
     [int]$NumTrustees = 3,
-    [int]$Threshold = 2,
+    [int]$Threshold = 3,
     [int]$NumBallots = 10,
     [int]$CiphertextWidth = 2,  # NEW: W parameter for ciphertext width
     [int]$BrowserTrusteeIndex = 1,  # Which trustee slot for browser (1-indexed)
@@ -263,19 +263,6 @@ $browserConfig = @{
 } | ConvertTo-Json -Compress
 
 Write-Success "Browser trustee configuration extracted"
-
-# Step 6: Start web server for browser trustee UI
-Write-Step "Starting web server for browser UI"
-
-$serverProcess = Start-Process powershell -ArgumentList @(
-    "-NoExit",
-    "-Command",
-    "`$host.ui.RawUI.WindowTitle = 'Web Server (serve-b5.ps1)'; " +
-    "cd '$workingDir'; " +
-    "python -m http.server 8080"
-) -PassThru
-
-Write-Success "Web server started on http://127.0.0.1:8080 (PID: $($serverProcess.Id))"
 
 # Step 7: Start native trustees (all except browser slot)
 Write-Step "Starting native trustees"

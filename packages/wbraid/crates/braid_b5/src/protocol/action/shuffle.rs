@@ -95,6 +95,12 @@ pub(crate) fn mix<C: Context, S: crate::protocol::board::LocalBoardStorage>(
 
         info!("Mix computing shuffle..");
         let label = cfg.label(*batch, format!("shuffle{mix_no}"));
+        cryptography::debug_log!(
+            "Mix computing shuffle [{}] => ?, mix_number [{}], [{:?}]",
+            dbg_hash(&source_h.0),
+            mix_no,
+            label
+        );
         let (e_primes, proof) = shuffler.shuffle(&ciphertexts, &label)?;
 
         // FIXME removed self-verify
@@ -194,16 +200,19 @@ pub(crate) fn sign_mix<C: Context, S: crate::protocol::board::LocalBoardStorage>
 
         let label = cfg.label(*batch, format!("shuffle{mix_number}"));
         let ok = shuffler.verify(&source_cs, &mix.ciphertexts, &proof, &label)?;
-        info!(
-            "SignMix shuffle verification [{}] => [{}] ok = {}",
+        cryptography::debug_log!(
+            "SignMix shuffle verification [{}] => [{}], mix_number [{}], label {:?}, ok = {}",
             dbg_hash(&source_h.0),
             dbg_hash(&cipher_h.0),
+            mix_number,
+            label,
             ok
         );
 
         if !ok {
             return Err(ProtocolError::VerificationError(format!(
-                "Mix verification failed"
+                "Mix verification failed, mix number {}, label {:?}",
+                mix_no, label
             )));
         }
 
