@@ -7,6 +7,13 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Can't send message to voters
+
+Going to the Admin Portal > Election Event > Voters > Send generated an
+unexpected error.
+
+- Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
+
 ## 🐞 Tally > Election aliases not used
 
 Use election alias in all places in tally results.
