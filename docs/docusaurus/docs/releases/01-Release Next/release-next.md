@@ -19,6 +19,14 @@ Modify the tally export translations to show the format before the document name
 
 - Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
 
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all places in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
+
 ## 🐞 Fix Graphql Typescript issues
 
 Update Graphql definitions in the admin-portal, which is required after a
