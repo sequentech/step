@@ -37,7 +37,7 @@ fn test_dkgd_ristretto() {
     test_dkgd::<RCtx, 2, 2, 2>();
     test_dkgd::<RCtx, 2, 3, 2>();
     test_dkgd::<RCtx, 3, 4, 2>();
-    test_dkgd_non_t::<RCtx, 1, 1, 2>();
+    test_dkgd_all_participants::<RCtx, 1, 1, 2>();
 }
 
 #[test]
@@ -45,25 +45,25 @@ fn test_dkgd_p256() {
     test_dkgd::<PCtx, 2, 2, 2>();
     test_dkgd::<PCtx, 2, 3, 2>();
     test_dkgd::<PCtx, 3, 4, 2>();
-    test_dkgd_non_t::<PCtx, 1, 1, 2>();
+    test_dkgd_all_participants::<PCtx, 1, 1, 2>();
 }
 
 #[test]
 fn test_dkgd_non_t_ristretto() {
-    test_dkgd_non_t::<RCtx, 2, 2, 2>();
-    test_dkgd_non_t::<RCtx, 2, 3, 2>();
-    test_dkgd_non_t::<RCtx, 3, 3, 2>();
-    test_dkgd_non_t::<RCtx, 3, 4, 2>();
-    test_dkgd_non_t::<RCtx, 1, 1, 2>();
+    test_dkgd_all_participants::<RCtx, 2, 2, 2>();
+    test_dkgd_all_participants::<RCtx, 2, 3, 2>();
+    test_dkgd_all_participants::<RCtx, 3, 3, 2>();
+    test_dkgd_all_participants::<RCtx, 3, 4, 2>();
+    test_dkgd_all_participants::<RCtx, 1, 1, 2>();
 }
 
 #[test]
 fn test_dkgd_non_t_p256() {
-    test_dkgd_non_t::<PCtx, 2, 2, 2>();
-    test_dkgd_non_t::<PCtx, 2, 3, 2>();
-    test_dkgd_non_t::<PCtx, 3, 3, 2>();
-    test_dkgd_non_t::<PCtx, 3, 4, 2>();
-    test_dkgd_non_t::<PCtx, 1, 1, 2>();
+    test_dkgd_all_participants::<PCtx, 2, 2, 2>();
+    test_dkgd_all_participants::<PCtx, 2, 3, 2>();
+    test_dkgd_all_participants::<PCtx, 3, 3, 2>();
+    test_dkgd_all_participants::<PCtx, 3, 4, 2>();
+    test_dkgd_all_participants::<PCtx, 1, 1, 2>();
 }
 
 fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
@@ -115,7 +115,7 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
     assert!(message == decrypted.unwrap()[0]);
 }
 
-fn test_dkgd_non_t<C: Context, const T: usize, const P: usize, const W: usize>() {
+fn test_dkgd_all_participants<C: Context, const T: usize, const P: usize, const W: usize>() {
     assert!(T <= P);
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
