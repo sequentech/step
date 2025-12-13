@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
         braid::native::board::NoOpStorage::new(),
         None,
     );
-    let board_params = HttpB3BoardParams::new(&args.server_url).await;
+    let board_params = HttpB3BoardParams::new(&args.server_url);
     let board: HttpB3 = board_params.create_board(&args.board, None);
     let mut session: Verifier<RistrettoCtx, HttpB3, braid::native::board::NoOpStorage> = 
         Verifier::new(trustee, board, &args.board);

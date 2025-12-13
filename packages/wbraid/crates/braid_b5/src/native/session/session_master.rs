@@ -47,7 +47,7 @@ impl<C: Context> SessionMaster<C> {
     /// used to update them.
     ///
     pub async fn new(b3_url: &str, session_factory: SessionFactory<C>, size: usize) -> Result<Self> {
-        let board_params = HttpB3BoardParams::new(b3_url).await;
+        let board_params = HttpB3BoardParams::new(b3_url);
         
         let mut session_sets = vec![];
         let mut runners = vec![];

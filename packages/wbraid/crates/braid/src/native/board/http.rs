@@ -50,21 +50,13 @@ enum ContentTypeDto {
 pub struct HttpB3 {
     client: reqwest::Client,
     base_url: String,
-    // s3_client: aws_sdk_s3::Client,
-    // bucket_name: String,
 }
 
 impl HttpB3 {
-    pub async fn new(
-        base_url: &str,
-        s3_client: aws_sdk_s3::Client,
-        bucket_name: &str,
-    ) -> HttpB3 {
+    pub async fn new(base_url: &str) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
-            // s3_client,
-            // bucket_name: bucket_name.to_string(),
         }
     }
 
@@ -270,43 +262,12 @@ impl Board for HttpB3 {
 #[derive(Clone)]
 pub struct HttpB3BoardParams {
     base_url: String,
-    // s3_client: aws_sdk_s3::Client,
-    // bucket_name: String,
 }
 
 impl HttpB3BoardParams {
-    pub async fn new(base_url: &str) -> HttpB3BoardParams {
-        // Read S3 configuration from environment variables
-        let s3_endpoint = std::env::var("AWS_ENDPOINT_URL")
-            .unwrap_or_else(|_| "http://localhost:4566".to_string());
-        let bucket_name = std::env::var("S3_BUCKET_NAME")
-            .unwrap_or_else(|_| "wbraid-messages".to_string());
-        
-        // Use explicit credentials for LocalStack (avoids IMDS calls)
-        let creds = aws_sdk_s3::config::Credentials::new(
-            "test",
-            "test",
-            None,
-            None,
-            "static-credentials"
-        );
-        
-        let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
-            .credentials_provider(creds)
-            .region("us-east-1")
-            .load()
-            .await;
-            
-        let s3_config = aws_sdk_s3::config::Builder::from(&config)
-            .endpoint_url(&s3_endpoint)
-            .force_path_style(true)
-            .build();
-        let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
-
+    pub fn new(base_url: &str) -> HttpB3BoardParams {
         HttpB3BoardParams {
             base_url: base_url.to_string(),
-            // s3_client,
-            // bucket_name,
         }
     }
     
@@ -315,8 +276,6 @@ impl HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            // s3_client: self.s3_client.clone(),
-            // bucket_name: self.bucket_name.clone(),
         }
     }
 }
@@ -327,8 +286,6 @@ impl BoardFactory<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            // s3_client: self.s3_client.clone(),
-            // bucket_name: self.bucket_name.clone(),
         }
     }
 }
@@ -338,8 +295,6 @@ impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            // s3_client: self.s3_client.clone(),
-            // bucket_name: self.bucket_name.clone(),
         }
     }
 }

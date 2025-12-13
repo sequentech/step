@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
                 storage,
                 None,
             );
-            let board = HttpB3BoardParams::new(&args.b3_url).await;
+            let board = HttpB3BoardParams::new(&args.b3_url);
 
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);
