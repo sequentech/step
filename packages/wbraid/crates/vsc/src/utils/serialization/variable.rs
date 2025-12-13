@@ -726,6 +726,81 @@ impl<T> VDeserializable for std::marker::PhantomData<T> {
     }
 }
 
+// ============================================================================
+// Type Validation Infrastructure (Marker<C> and ConstMarker<M>)
+// ============================================================================
+//
+// Provides runtime type validation for serialized artifacts by embedding
+// type identifiers in the serialized format. This allows detecting type
+// mismatches at deserialization time rather than relying solely on
+// compile-time guarantees.
+//
+// Usage patterns:
+// - Marker<C: TypeId>: For type parameters (e.g., Context types)
+// - ConstMarker<M>: For const generic parameters (e.g., W, P, T)
+//
+// Current status: Infrastructure is available and tested (see tests.rs)
+// but currently unused in production artifacts. Artifacts use PhantomData
+// for type parameters (zero-byte serialization, no validation) following
+// the serde pattern. This infrastructure is retained for potential future
+// use if runtime type validation becomes necessary.
+//
+// See MIGRATION_TODO.md Task 2 for design rationale.
+
+/// Trait for types that have a unique type identifier
+pub trait TypeId {
+    /// Returns the unique type identifier for this type
+    fn type_id() -> u32;
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// Marker type for type `C`
+pub struct Marker<C> {
+    marker: u32,
+    phantom: std::marker::PhantomData<C>,
+}
+impl<C: TypeId> Default for Marker<C> {
+    fn default() -> Self {
+        Self {
+            marker: C::type_id(),
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
+impl<C: TypeId> VSerializable for Marker<C> {
+    fn ser(&self) -> Vec<u8> {
+        C::type_id().to_be_bytes().to_vec()
+    }
+}
+impl<C: TypeId> VDeserializable for Marker<C> {
+    fn deser(buffer: &[u8]) -> Result<Self, Error> {
+        let marker = u32::deser(buffer)?;
+        if marker != C::type_id() {
+            return Err(Error::DeserializationError("TypeId mismatch".into()));
+        }
+
+        Ok(Marker::default())
+    }
+}
+/// Marker type for constant type identifiers
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConstMarker<const M: u32>;
+impl<const M: u32> ConstMarker<M> {
+    /// Creates a new `Marker` instance for the constant type identifier `M`
+    pub fn new() -> Marker<Self> {
+        Marker {
+            marker: M,
+            phantom: std::marker::PhantomData,
+        }
+    }
+}
+impl<const M: u32> TypeId for ConstMarker<M> {
+    fn type_id() -> u32 {
+        // Start at the high end of the u32 space to avoid collisions 
+        // non-const type markers
+        u32::MAX - M
+    }
+}
+
 /// Implements [`VSerializable`] for String
 impl VSerializable for String {
     fn ser(&self) -> Vec<u8> {

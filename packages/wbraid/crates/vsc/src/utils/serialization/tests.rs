@@ -426,4 +426,84 @@ mod tests {
         let deserialized = BTreeMap::<u64, Vec<Ciphertext<Ctx, W>>>::deser(&serialized).unwrap();
         assert_eq!(map, deserialized);
     }
+
+    use crate::utils::serialization::variable::Marker;
+    use crate::utils::serialization::variable::TypeId;
+    use crate::utils::serialization::variable::ConstMarker;
+
+    #[test]
+    pub fn test_marker() {
+        struct ExampleType42;
+        impl TypeId for ExampleType42 {
+            fn type_id() -> u32 {
+                42
+            }
+        }
+        struct ExampleType24;
+        impl TypeId for ExampleType24 {
+            fn type_id() -> u32 {
+                24
+            }
+        }
+
+        #[derive(VSer)]
+        struct AnotherType<C: TypeId> {
+            marker: Marker<C>,
+        }
+        impl<C: TypeId> AnotherType<C> {
+            fn new() -> Self {
+                AnotherType {
+                    marker: Marker::<C>::default(),
+                }
+            }
+        }
+
+        let m42 = AnotherType::<ExampleType42>::new();
+        let m24 = AnotherType::<ExampleType24>::new();
+
+        let ser42 = m42.ser();
+        let ser24 = m24.ser();
+
+        let de42 = AnotherType::<ExampleType42>::deser(&ser42);
+        assert!(de42.is_ok());
+        let de24 = AnotherType::<ExampleType24>::deser(&ser24);
+        assert!(de24.is_ok());
+        let de42_from_24 = AnotherType::<ExampleType42>::deser(&ser24);
+        assert!(de42_from_24.is_err());
+        let de24_from_42 = AnotherType::<ExampleType24>::deser(&ser42);
+        assert!(de24_from_42.is_err());
+
+    }
+
+        #[test]
+    pub fn test_marker_const() {
+
+        #[derive(VSer)]
+        struct AnotherType<const A: u32, const B: u32> {
+            marker_a: Marker<ConstMarker<A>>,
+            marker_b: Marker<ConstMarker<B>>,
+        }
+        impl<const A: u32, const B: u32> AnotherType<A, B> {
+            fn new() -> Self {
+                AnotherType {
+                    marker_a: ConstMarker::<A>::new(),
+                    marker_b: ConstMarker::<B>::new(),
+                }
+            }
+        }
+
+        let m2_3 = AnotherType::<2, 3>::new();
+        let m3_2 = AnotherType::<3, 2>::new();
+        let ser2_3 = m2_3.ser();
+        let ser3_2 = m3_2.ser();
+        let de2_3 = AnotherType::<2, 3>::deser(&ser2_3);
+        assert!(de2_3.is_ok());
+        let de3_2 = AnotherType::<3, 2>::deser(&ser3_2);
+        assert!(de3_2.is_ok());
+        let de2_3_from_3_2 = AnotherType::<2, 3>::deser(&ser3_2);
+        assert!(de2_3_from_3_2.is_err());
+        let de3_2_from_2_3 = AnotherType::<3, 2>::deser(&ser2_3);
+        assert!(de3_2_from_2_3.is_err());
+
+    }
 }

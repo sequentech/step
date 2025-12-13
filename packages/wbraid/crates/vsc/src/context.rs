@@ -64,7 +64,7 @@ pub type CryptographicHasher = crate::utils::hash::Hasher512;
  * }
  * ```
  */
-pub trait Context: private::Sealed + std::fmt::Debug + PartialEq + Clone + Send + Sync + 'static 
+pub trait Context: private::Sealed + std::fmt::Debug + PartialEq + Clone + Send + Sync + 'static
 where
     <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Signer: Send + Sync,
     <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Verifier: Send + Sync,
@@ -156,6 +156,7 @@ impl Context for P256Ctx {
 
     type G = P256Group;
 }
+
 /**
  * Defines the Ristretto context.
  *
