@@ -494,41 +494,41 @@ impl IndexedDbStorage {
         let mut persistent = self.persistent.borrow_mut();
         let mut transient = self.transient.borrow_mut();
         
-        let S = persistent.hash_list.len() as i64;
-        let B = local_board_id;
+        let big_s = persistent.hash_list.len() as i64;
+        let big_b = local_board_id;
         
         // Normalize B: -1 is our initialization sentinel, treat as 0 for verification
-        let B_normalized = if B == -1 { 0 } else { B };
+        let big_b_normalized = if big_b == -1 { 0 } else { big_b };
         
         web_sys::console::log_1(&JsValue::from_str(&format!(
             "📊 VERIFICATION: S={} (store size), B={} (last_local_board_id, normalized={}), incoming={} messages",
-            S, B, B_normalized, messages.len()
+            big_s, big_b, big_b_normalized, messages.len()
         )));
         
         // Invariant check: LocalBoard cannot be ahead of metadata store
-        if B_normalized > S {
+        if big_b_normalized > big_s {
             bail!(
                 "Corruption: LocalBoard has {} messages but metadata store only has {}",
-                B_normalized, S
+                big_b_normalized, big_s
             );
         }
         
         // How many messages need verification against stored hashes?
-        let verify_count = (S - B_normalized) as usize;
+        let verify_count = (big_s - big_b_normalized) as usize;
         
         if verify_count > 0 {
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "🔍 Need to verify {} historical messages (hash_list positions {} through {})",
                 verify_count,
-                B_normalized,
-                S - 1
+                big_b_normalized,
+                big_s - 1
             )));
         }
         
         if messages.len() < verify_count {
             bail!(
                 "BB returned {} messages but we need {} to verify history (S={}, B={})",
-                messages.len(), verify_count, S, B
+                messages.len(), verify_count, big_s, big_b
             );
         }
         
@@ -544,8 +544,8 @@ impl IndexedDbStorage {
             // hash_list is 0-indexed, IDs are 1-indexed
             // For B_normalized=0: verify hash_list[0], hash_list[1], ...
             // For B_normalized=1: verify hash_list[1], hash_list[2], ...
-            let hash_index = B_normalized as usize + i;
-            let next_id = B_normalized + (i as i64) + 1;
+            let hash_index = big_b_normalized as usize + i;
+            let next_id = big_b_normalized + (i as i64) + 1;
             
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "  ✓ msg[{}] → hash_list[{}] (will be local_id={})",
@@ -569,7 +569,7 @@ impl IndexedDbStorage {
         
         if verify_count > 0 {
             web_sys::console::log_1(&JsValue::from_str(&format!(
-                "✅ Verified {} messages (S={}, B={})", verify_count, S, B
+                "✅ Verified {} messages (S={}, B={})", verify_count, big_s, big_b
             )));
             // Log prominent security verification message
             web_sys::console::log_1(&JsValue::from_str(&format!(
@@ -585,8 +585,8 @@ impl IndexedDbStorage {
             web_sys::console::log_1(&JsValue::from_str(&format!(
                 "💾 Storing {} new messages (will assign local_ids {} through {})",
                 new_messages.len(),
-                S + 1,
-                S + new_messages.len() as i64
+                big_s + 1,
+                big_s + new_messages.len() as i64
             )));
         }
         
@@ -595,7 +595,7 @@ impl IndexedDbStorage {
             let hash = Self::compute_hash(msg)?;
             let metadata = Self::extract_metadata::<C>(msg)?;
             
-            let new_local_id = S + 1 + idx as i64;
+            let new_local_id = big_s + 1 + idx as i64;
             
             // Check for duplicates
             if persistent.metadata_set.contains(&metadata) {
@@ -684,13 +684,13 @@ impl LocalBoardStorage for IndexedDbStorage {
         // We need messages with local_id > last_local_board_id
         // These are at hash_list positions [last_local_board_id, last_local_board_id+1, ..., S-1]
         // which correspond to local_ids [last_local_board_id+1, last_local_board_id+2, ..., S]
-        let S = {
+        let big_s = {
             let persistent = self.persistent.borrow();
             persistent.hash_list.len() as i64
         };
         
-        let B = last_local_board_id;
-        let messages_to_return = (S - B) as usize;
+        let big_b = last_local_board_id;
+        let messages_to_return = (big_s - big_b) as usize;
         
         // The messages we need are at the END of the buffer (most recent)
         // because verify_and_store ensures buffer has [verified_messages, new_messages]
@@ -701,7 +701,7 @@ impl LocalBoardStorage for IndexedDbStorage {
             .enumerate()
             .map(|(idx, msg)| {
                 // idx=0 is the last message (local_id=S), idx=1 is second-to-last (local_id=S-1), etc.
-                let local_id = S - (idx as i64);
+                let local_id = big_s - (idx as i64);
                 
                 match Message::<C>::deser(&msg.message) {
                     Ok(message) => Ok((message, local_id)),

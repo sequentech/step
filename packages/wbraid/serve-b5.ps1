@@ -17,7 +17,7 @@ $buildInfo = "braid-vsc v$version, built $buildTime"
 
 $htmlContent = Get-Content "trustee.html" -Raw
 # Remove any existing build info first, then add new one
-$htmlContent = $htmlContent -replace '(<p class="subtitle">verifiable mixnet node)( \(v[\d.]+, built .+?\))?(</p>)', "`$1 ($buildInfo)`$3"
+$htmlContent = $htmlContent -replace '(<p class="subtitle">verifiable mixnet node)( \([^)]+\))?(</p>)', "`$1 ($buildInfo)`$3"
 # Ensure HTML points to braid_b5 (not braid)
 $htmlContent = $htmlContent -replace 'crates/braid/pkg/braid\.js', 'crates/braid_b5/pkg/braid_b5.js'
 $htmlContent | Set-Content "trustee.html" -NoNewline
