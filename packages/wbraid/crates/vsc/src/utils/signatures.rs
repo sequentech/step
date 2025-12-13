@@ -116,7 +116,7 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
         
         // Ed25519 public keys are 32 bytes
         let bytes = verifier.to_bytes();
-        Ok(general_purpose::STANDARD.encode(&bytes))
+        Ok(general_purpose::STANDARD.encode(bytes))
     }
     
     fn verifier_from_base64_string(s: &str) -> Result<Self::Verifier, String> {
@@ -124,14 +124,14 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
         
         let bytes = general_purpose::STANDARD
             .decode(s)
-            .map_err(|e| format!("Failed to decode base64: {:?}", e))?;
+            .map_err(|e| format!("Failed to decode base64: {e:?}"))?;
         
         let bytes: [u8; 32] = bytes
             .try_into()
             .map_err(|_| "Invalid key length: expected 32 bytes".to_string())?;
         
         VerifyingKey::from_bytes(&bytes)
-            .map_err(|e| format!("Failed to parse verifying key: {:?}", e))
+            .map_err(|e| format!("Failed to parse verifying key: {e:?}"))
     }
     
     fn signer_to_base64_string(signer: &Self::Signer) -> Result<String, String> {
@@ -139,7 +139,7 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
         
         // Ed25519 secret keys are 32 bytes
         let bytes = signer.to_bytes();
-        Ok(general_purpose::STANDARD.encode(&bytes))
+        Ok(general_purpose::STANDARD.encode(bytes))
     }
     
     fn signer_from_base64_string(s: &str) -> Result<Self::Signer, String> {
@@ -147,7 +147,7 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
         
         let bytes = general_purpose::STANDARD
             .decode(s)
-            .map_err(|e| format!("Failed to decode base64: {:?}", e))?;
+            .map_err(|e| format!("Failed to decode base64: {e:?}"))?;
         
         let bytes: [u8; 32] = bytes
             .try_into()
