@@ -9,6 +9,7 @@ use crate::protocol::datalog;
 use anyhow::Result;
 use b5::messages::artifact::Channel;
 use b5::messages::newtypes::zero_hash;
+use cryptography::debug_log;
 use cryptography::traits::groups::CryptographicGroup;
 
 /// Generates a private communication channel for this trustee.
@@ -282,6 +283,9 @@ fn compute_pk_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
         // Collect all shares sent to us from all dealers
         let mut verifiable_shares = Vec::new();
 
+        // Collect all checking values from all dealers
+        let mut all_checking_values = Vec::new();
+        
         for (i, _h) in shares_hs.0.iter().filter(|h| **h != zero_hash()).enumerate() {
             let share_h = shares_hs.0[i];
             let share_msg = trustee.get_shares(&SharesHash(share_h), i)?;
@@ -298,9 +302,16 @@ fn compute_pk_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
                     format!("Expected {} commitments, got {}", T, share_msg.commitments.len())
                 ))?;
 
-            let verifiable_share = VerifiableShare::new(share_scalar, checking_values);
+            let verifiable_share = VerifiableShare::new(share_scalar, checking_values.clone());
             verifiable_shares.push(verifiable_share);
+
+            all_checking_values.push(checking_values);
         }
+
+        let all_cvs: [[C::Element; T]; P] = all_checking_values.try_into()
+        .map_err(|v: Vec<_>| ProtocolError::InternalError(
+            format!("Expected {} checking value sets, got {}", P, v.len())
+        ))?;
 
         // Convert Vec to array [VerifiableShare; P]
         let shares_array: [VerifiableShare<C, T>; P] = verifiable_shares.try_into()
@@ -320,31 +331,123 @@ fn compute_pk_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
         for j in 0..*num_t {
             let pos_j = ParticipantPosition::from_usize(j + 1);
             
-            // Collect all checking values from all dealers
-            let mut all_checking_values = Vec::new();
-            for (i, _h) in shares_hs.0.iter().filter(|h| **h != zero_hash()).enumerate() {
-                let share_h = shares_hs.0[i];
-                let share_msg = trustee.get_shares(&SharesHash(share_h), i)?;
-                
-                let checking_values: [C::Element; T] = share_msg.commitments.clone()
-                    .try_into()
-                    .map_err(|_| ProtocolError::InternalError(
-                        format!("Expected {} commitments, got {}", T, share_msg.commitments.len())
-                    ))?;
-                
-                all_checking_values.push(checking_values);
-            }
-            
-            let all_cvs: [[C::Element; T]; P] = all_checking_values.try_into()
-                .map_err(|v: Vec<_>| ProtocolError::InternalError(
-                    format!("Expected {} checking value sets, got {}", P, v.len())
-                ))?;
-            
             let vk = Recipient::<C, T, P>::verification_key(&pos_j, &all_cvs);
             verification_keys.push(vk);
         }
 
         trace!("Trustee {} verified all {} shares", self_pos, P);
         Ok((joint_pk, verification_keys))
+    })
+}
+
+// Verifier mode functions //////////////////////////////////
+
+/// Verifies the public key re-computing it independently.
+/// 
+/// This function is only used in verification mode.
+///
+/// Returns an empty vector on success.
+pub(super) fn verify_pk<C: Context, S: crate::protocol::board::LocalBoardStorage>(
+    cfg_h: &ConfigurationHash,
+    pk_h: &PublicKeyHash,
+    shares_hs: &SharesHashes,
+    channels_hs: &ChannelsHashes,
+    self_pos: &TrusteePosition,
+    num_t: &TrusteeCount,
+    threshold: &TrusteeCount,
+    trustee: &Trustee<C, S>,
+) -> Result<Vec<Message<C>>, ProtocolError> {
+    debug_log!(
+        "VerifyPk(Verifier) verifying public key [{}] ({})..",
+        dbg_hash(&pk_h.0),
+        num_t,
+    );
+    let cfg = trustee.get_configuration(cfg_h)?;
+    let expected = verify_pk_(
+        shares_hs,
+        self_pos,
+        num_t,
+        threshold,
+        trustee,
+    )?;
+
+    let actual = trustee
+        .get_dkg_public_key(pk_h, 0)
+        .add_context("Signing pk")?;
+
+    if (expected.0 == actual.pk) && (expected.1 == actual.verification_keys) {
+        debug_log!(
+            "VerifyPk(Verifier) verifying public key [{}] ({}), ok",
+            dbg_hash(&pk_h.0),
+            num_t,
+        );
+        let m = Message::public_key_msg(cfg, &actual, shares_hs, channels_hs, false, trustee)?;
+        Ok(vec![m])
+    } else {
+        debug_log!(
+            "VerifyPk(Verifier) verifying public key [{:?}] ({:?}), failed",
+            expected.0,
+            actual.pk,
+        );
+        Err(ProtocolError::VerificationError(format!(
+            "Mismatch when comparing computed public key with retrieved one"
+        )))
+    }
+}
+
+/// Computes the public key from the shares.
+/// 
+/// This function is only used in verification mode.
+///
+/// The share commitments are used to compute the public key as
+/// well as the all trustee's verification keys (used to verify
+/// decryptions).
+///
+/// Returns the public key and the verification keys for
+/// all trustees.
+fn verify_pk_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
+    shares_hs: &SharesHashes,
+    self_pos: &TrusteePosition,
+    num_t: &TrusteeCount,
+    threshold: &TrusteeCount,
+    trustee: &Trustee<C, S>,
+) -> Result<(C::Element, Vec<C::Element>), ProtocolError> {
+    use cryptography::dkgd::recipient::{Recipient, ParticipantPosition};
+    
+    // Use dispatch macro to work with const generics
+    crate::dispatch_threshold_trustees!(*threshold, *num_t, {
+
+        // Collect all checking values from all dealers
+        let mut all_checking_values = Vec::new();
+        for (i, _h) in shares_hs.0.iter().filter(|h| **h != zero_hash()).enumerate() {
+            let share_h = shares_hs.0[i];
+            let share_msg = trustee.get_shares(&SharesHash(share_h), i)?;
+            
+            let checking_values: [C::Element; T] = share_msg.commitments.clone()
+                .try_into()
+                .map_err(|_| ProtocolError::InternalError(
+                    format!("Expected {} commitments, got {}", T, share_msg.commitments.len())
+                ))?;
+            
+            all_checking_values.push(checking_values);
+        }
+        
+        let all_cvs: [[C::Element; T]; P] = all_checking_values.try_into()
+            .map_err(|v: Vec<_>| ProtocolError::InternalError(
+                format!("Expected {} checking value sets, got {}", P, v.len())
+            ))?;
+
+        let joint_pk = Recipient::<C, T, P>::joint_public_key(&all_cvs);
+
+        // Compute verification keys for all trustees
+        let mut verification_keys = Vec::new();
+        for j in 0..*num_t {
+            let pos_j = ParticipantPosition::from_usize(j + 1);
+            
+            let vk = Recipient::<C, T, P>::verification_key(&pos_j, &all_cvs);
+            verification_keys.push(vk);
+        }
+
+        Ok((joint_pk.inner.y, verification_keys))
     })
 }

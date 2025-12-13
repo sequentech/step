@@ -146,8 +146,8 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
     pub(crate) fn get_shares(&self) -> [C::Scalar; P] {
         array::from_fn(|p| {
             // p + 1 cannot overflow, P < 100 is compile-time checked
-            #[allow(clippy::arithmetic_side_effects)]
-            let recipient: u32 = (p + 1).try_into().expect("P < 100 < u32::MAX");
+            let recipient: u32 = p.checked_add(1).expect("P < 100")
+                .try_into().expect("P < 100 < u32::MAX");
             let recipient: C::Scalar = recipient.into();
             self.polynomial.eval(&recipient)
         })
@@ -159,7 +159,7 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
     /// Use [`Self::get_verifiable_shares`] to obtain the shares [along
     /// with][`DealerShares`] their checking values.
     #[crate::warning(
-        "DKG checking values should augment DKG with a Schnorr
+        "DKG checking values should include a Schnorr
         proof of knowledge. Use get_checking_values_proofs instead of this function."
     )]
     pub(crate) fn get_checking_values(&self) ->[C::Element; T] {
@@ -180,7 +180,7 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
     /// Use [`Self::get_verifiable_shares`] to obtain the shares [along
     /// with][`DealerShares`] their checking values.
     #[crate::warning(
-        "DKG checking values should augment DKG with a Schnorr
+        "DKG checking values should include a Schnorr
         proof of knowledge. Use this function instead of get_checking_values."
     )]
     pub(crate) fn get_checking_values_proofs(&self, proof_context: &[u8]) -> Result<[CheckingValue<C>; T], Error> {

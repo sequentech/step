@@ -271,7 +271,7 @@ impl Action {
     ) -> Result<Vec<Message<C>>, ProtocolError> {
         match self {
             Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th) => {
-                dkg::sign_pk(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th, trustee)
+                dkg::verify_pk(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th, trustee)
             }
             Self::SignMix(
                 cfg_h,
