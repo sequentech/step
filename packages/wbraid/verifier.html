@@ -8,10 +8,33 @@
         * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            max-width: 900px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
             background: #f8f9fa;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .right-column {
+            position: sticky;
+            top: 20px;
+        }
+        @media (max-width: 1200px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+            .right-column {
+                position: static;
+            }
         }
         h1 {
             color: #2c3e50;
@@ -286,7 +309,7 @@
 </head>
 <body>
     <h1>🔍 Election Verifier</h1>
-    <p class="subtitle">election verifier (braid-vsc v0.5.0, built 2025-12-13 15:49:01)</p>
+    <p class="subtitle">election verifier (braid-vsc v0.5.0, built 2025-12-13 15:53:58)</p>
 
     <div class="intro">
         <h3>What is this?</h3>
@@ -298,30 +321,36 @@
         </p>
     </div>
 
-    <div class="panel">
-        <h2>Verify an Election Board</h2>
-        <div class="form-group">
-            <label for="b4-url">Bulletin Board Server URL:</label>
-            <input type="text" id="b4-url" value="http://127.0.0.1:3000" placeholder="http://127.0.0.1:3000">
-        </div>
-        <div class="form-group">
-            <label for="board-name">Board Name:</label>
-            <input type="text" id="board-name" placeholder="e.g., browser_test" autofocus>
-        </div>
-        <button id="verify-btn">🔍 Verify Election</button>
-        <div id="status"></div>
-    </div>
+    <div class="grid-container">
+        <div class="left-column">
+            <div class="panel">
+                <h2>Verify an Election Board</h2>
+                <div class="form-group">
+                    <label for="b4-url">Bulletin Board Server URL:</label>
+                    <input type="text" id="b4-url" value="http://127.0.0.1:3000" placeholder="http://127.0.0.1:3000">
+                </div>
+                <div class="form-group">
+                    <label for="board-name">Board Name:</label>
+                    <input type="text" id="board-name" placeholder="e.g., browser_test" autofocus>
+                </div>
+                <button id="verify-btn">🔍 Verify Election</button>
+                <div id="status"></div>
+            </div>
 
-    <div id="results-container" class="hidden">
-        <div class="panel">
-            <h2>Verification Results</h2>
-            <div id="results"></div>
+            <div class="panel">
+                <h2>💻 Console Log</h2>
+                <div id="console"></div>
+            </div>
         </div>
-    </div>
 
-    <div class="panel">
-        <h2>💻 Console Log</h2>
-        <div id="console"></div>
+        <div class="right-column">
+            <div id="results-container" class="hidden">
+                <div class="panel">
+                    <h2>Verification Results</h2>
+                    <div id="results"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <footer>
@@ -337,34 +366,38 @@
         console.log('Loading WASM verifier with cache-busting timestamp:', timestamp);
         const { default: init, initThreadPool, WasmVerifier } = await import(`./crates/braid_b5/pkg/braid_b5.js?v=${timestamp}`);
 
-        // Console logging
+        // Console logging with max entries limit
         const consoleEl = document.getElementById('console');
-        
-        function log(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const line = document.createElement('div');
-            line.className = `log-${type}`;
-            line.textContent = `[${timestamp}] ${message}`;
-            consoleEl.appendChild(line);
+        const MAX_CONSOLE_ENTRIES = 500;
+        const originalLog = console.log;
+        const originalWarn = console.warn;
+        const originalError = console.error;
+
+        function addToConsole(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleEl.appendChild(entry);
+            
+            // Limit console entries to prevent memory issues
+            while (consoleEl.children.length > MAX_CONSOLE_ENTRIES) {
+                consoleEl.removeChild(consoleEl.firstChild);
+            }
+            
             consoleEl.scrollTop = consoleEl.scrollHeight;
         }
 
-        // Intercept console logs
-        const originalLog = console.log;
-        const originalError = console.error;
-        const originalWarn = console.warn;
-        
         console.log = (...args) => {
-            originalLog(...args);
-            log(args.join(' '), 'info');
-        };
-        console.error = (...args) => {
-            originalError(...args);
-            log(args.join(' '), 'error');
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'info');
         };
         console.warn = (...args) => {
-            originalWarn(...args);
-            log(args.join(' '), 'warn');
+            originalWarn.apply(console, args);
+            addToConsole(args.join(' '), 'warn');
+        };
+        console.error = (...args) => {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
         };
 
         // Status display helper
@@ -376,14 +409,14 @@
         // Initialize WASM
         async function initializeWasm() {
             try {
-                log('Initializing WebAssembly module...');
+                addToConsole('Initializing WebAssembly module...', 'info');
                 await init();
-                log('Initializing thread pool for parallel computation...');
+                addToConsole('Initializing thread pool for parallel computation...', 'info');
                 await initThreadPool(navigator.hardwareConcurrency || 4);
-                log('✅ WASM initialized successfully');
+                addToConsole('✅ WASM initialized successfully', 'info');
                 console.log('Verifier ready!');
             } catch (error) {
-                log(`❌ WASM initialization failed: ${error}`, 'error');
+                addToConsole(`❌ WASM initialization failed: ${error}`, 'error');
                 showStatus(`Failed to initialize: ${error}`, 'error');
             }
         }
