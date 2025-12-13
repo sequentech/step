@@ -13,7 +13,7 @@ if ($LASTEXITCODE -ne 0) {
 $wasmFile = "crates\braid_b5\pkg\braid_b5_bg.wasm"
 $buildTime = (Get-Item $wasmFile).LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss")
 $version = (Get-Content "crates\braid_b5\Cargo.toml" | Select-String -Pattern 'version = "(.+)"').Matches[0].Groups[1].Value
-$buildInfo = "v$version, built $buildTime"
+$buildInfo = "braid-vsc v$version, built $buildTime"
 
 $htmlContent = Get-Content "trustee.html" -Raw
 # Remove any existing build info first, then add new one
