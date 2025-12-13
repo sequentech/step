@@ -352,7 +352,6 @@ pub(super) fn verify_pk<C: Context, S: crate::protocol::board::LocalBoardStorage
     pk_h: &PublicKeyHash,
     shares_hs: &SharesHashes,
     channels_hs: &ChannelsHashes,
-    self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,
@@ -365,7 +364,6 @@ pub(super) fn verify_pk<C: Context, S: crate::protocol::board::LocalBoardStorage
     let cfg = trustee.get_configuration(cfg_h)?;
     let expected = verify_pk_(
         shares_hs,
-        self_pos,
         num_t,
         threshold,
         trustee,
@@ -407,7 +405,6 @@ pub(super) fn verify_pk<C: Context, S: crate::protocol::board::LocalBoardStorage
 /// all trustees.
 fn verify_pk_<C: Context, S: crate::protocol::board::LocalBoardStorage>(
     shares_hs: &SharesHashes,
-    self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C, S>,

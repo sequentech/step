@@ -203,7 +203,7 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::deser(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            let (pool, s3_client, bucket) = init_clients(&args.database_url).await?;
+            let (pool, _s3_client, _bucket) = init_clients(&args.database_url).await?;
             
             // Clear existing data
             clear_database(&pool).await?;
@@ -215,7 +215,7 @@ async fn main() -> Result<()> {
                     &format!("{}_{}", args.board_name, i + 1)
                 };
                 create_board(&pool, name).await?;
-                init::<RistrettoCtx>(&pool, &s3_client, &bucket, name, configuration.clone()).await?;
+                init::<RistrettoCtx>(&pool, name, configuration.clone()).await?;
             }
 
             info!(
@@ -349,11 +349,9 @@ fn gen_configs<C: Context>(n_trustees: usize, threshold: usize, ciphertext_width
 /// Initializes the bulletin board with the necessary information to start a protocol run.
 ///
 /// This information will be taken from the demo directory created in the gen-config step.
-#[instrument(skip(pool, s3_client))]
+#[instrument(skip(pool))]
 async fn init<C: Context>(
     pool: &SqlitePool,
-    s3_client: &S3Client,
-    bucket: &str,
     board_name: &str,
     configuration: Configuration<RistrettoCtx>,
 ) -> Result<()> {

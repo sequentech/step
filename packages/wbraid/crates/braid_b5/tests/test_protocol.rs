@@ -8,7 +8,7 @@ use cryptography::context::RistrettoCtx;
 fn test_protocol_memory() {
     braid_b5::native::logging::init_log(true);
 
-    braid_b5::native::test::protocol_test_memory::run::<RistrettoCtx>(1000, 1);
+    braid_b5::native::test::protocol_test_memory::run::<RistrettoCtx>(1000, 1, 2); // W=2 (default)
 }
 
 #[tokio::test]
@@ -16,5 +16,5 @@ fn test_protocol_memory() {
 async fn test_protocol_http() {
     braid_b5::native::logging::init_log(true);
 
-    braid_b5::native::test::protocol_test_http::run::<RistrettoCtx>(1000, 1).await;
+    braid_b5::native::test::protocol_test_http::run::<RistrettoCtx>(1000, 1, 2).await; // W=2 (default)
 }

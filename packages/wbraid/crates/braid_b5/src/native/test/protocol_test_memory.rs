@@ -31,7 +31,13 @@ use crate::protocol::board::NoOpStorage;
 use crate::native::test::vector_board::VectorBoard;
 use crate::native::test::vector_session::VectorSession;
 
-pub fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
+pub fn run<C: Context + 'static>(ciphertexts: u32, batches: usize, ciphertext_width: usize) {
+    crate::dispatch_ciphertext_width!(ciphertext_width, {
+        run_with_width::<C, W>(ciphertexts, batches)
+    })
+}
+
+fn run_with_width<C: Context + 'static, const W: usize>(ciphertexts: u32, batches: usize) {
     let n_trustees = rand::rng().random_range(2..=MAX_TRUSTEES);
     let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
@@ -46,8 +52,8 @@ pub fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
         .collect();
 
     let now = Instant::now();
-    let test: ProtocolTest<RistrettoCtx> = create_protocol_test(n_trustees, &threshold).unwrap();
-    run_protocol_test(test, ciphertexts, batches, &threshold).unwrap();
+    let test: ProtocolTest<RistrettoCtx> = create_protocol_test::<RistrettoCtx, W>(n_trustees, &threshold).unwrap();
+    run_protocol_test::<RistrettoCtx, W>(test, ciphertexts, batches, &threshold).unwrap();
 
     let time = now.elapsed().as_millis() as f64 / 1000.0;
     info!(
@@ -58,7 +64,7 @@ pub fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
     );
 }
 
-fn run_protocol_test<C: Context + 'static>(
+fn run_protocol_test<C: Context + 'static, const W: usize>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
     batches: usize,
@@ -103,11 +109,11 @@ fn run_protocol_test<C: Context + 'static>(
     let mut rng = C::get_rng();
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
-        let next_p: Vec<[C::Element; 2]> = (0..count).map(|_| [C::G::random_element(&mut rng), C::G::random_element(&mut rng)]).collect();
+        let next_p: Vec<[C::Element; W]> = (0..count).map(|_| std::array::from_fn(|_| C::G::random_element(&mut rng))).collect();
 
         info!("Encrypting {} ciphertexts..", next_p.len());
 
-        let ballots: Vec<Ciphertext<C, 2>> = next_p
+        let ballots: Vec<Ciphertext<C, W>> = next_p
             .par_iter()
             .map(|p| {
                 pk.encrypt(p)
@@ -127,7 +133,7 @@ fn run_protocol_test<C: Context + 'static>(
         data.lock().unwrap().add(message);
     }
 
-    let mut plaintexts_out: Option<Vec<b5::messages::artifact::Plaintexts<C, 2>>> = None;
+    let mut plaintexts_out: Option<Vec<b5::messages::artifact::Plaintexts<C, W>>> = None;
     for i in 0..30 {
         info!("Cycle {}", i);
 
@@ -136,9 +142,9 @@ fn run_protocol_test<C: Context + 'static>(
         });
 
         let decryptor = selected_trustees[0] - 1;
-        let plaintexts: Vec<b5::messages::artifact::Plaintexts<C, 2>> = (0..batches)
-            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash((b + 1) as u64, decryptor))
-            .map(|p| Plaintexts::<C, 2>(p.0.clone()))
+        let plaintexts: Vec<b5::messages::artifact::Plaintexts<C, W>> = (0..batches)
+            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash::<W>((b + 1) as u64, decryptor))
+            .map(|p| Plaintexts::<C, W>(p.0.clone()))
             .collect();
 
         if plaintexts.len() == batches {
@@ -149,8 +155,8 @@ fn run_protocol_test<C: Context + 'static>(
 
     if let Some(plaintexts) = plaintexts_out {
         for (i, p) in plaintexts.iter().enumerate() {
-            let expected: HashSet<[C::Element; 2]> = HashSet::from_iter(plaintexts_in[i].clone());
-            let actual: HashSet<[C::Element; 2]> = HashSet::from_iter(p.0.clone());
+            let expected: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts_in[i].clone());
+            let actual: HashSet<[C::Element; W]> = HashSet::from_iter(p.0.clone());
             assert!(expected == actual);
             info!("Match ok on plaintexts for batch {}", i + 1);
         }
@@ -163,7 +169,7 @@ fn run_protocol_test<C: Context + 'static>(
     info!("* Completed");
     info!("* Trustees = {}", sessions.len());
     info!("* Threshold = {}", threshold.len());
-    info!("* Ciphertexts = {}", count);
+    info!("* Ciphertexts = {} (width = {})", count, W);
     info!("***************************************************************");
 
     Ok(())
@@ -176,7 +182,7 @@ pub struct ProtocolTest<C: Context> {
     pub remote: VectorBoard,
 }
 
-pub fn create_protocol_test<C: Context>(
+pub fn create_protocol_test<C: Context, const W: usize>(
     n_trustees: usize,
     threshold: &[usize],
 ) -> Result<ProtocolTest<C>> {
@@ -214,7 +220,7 @@ pub fn create_protocol_test<C: Context>(
         C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
-        2, // ciphertext_width
+        W, // ciphertext_width (now generic)
         PhantomData,
     );
 

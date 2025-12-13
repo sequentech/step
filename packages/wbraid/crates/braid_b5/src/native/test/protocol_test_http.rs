@@ -38,7 +38,13 @@ const TEST_BOARD: &'static str = "protocoltest";
 const S3_ENDPOINT: &'static str = "http://127.0.0.1:4566";
 const BUCKET_NAME: &'static str = "wbraid-messages";
 
-pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
+pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize, ciphertext_width: usize) {
+    crate::dispatch_ciphertext_width!(ciphertext_width, {
+        run_with_width::<C, W>(ciphertexts, batches).await
+    })
+}
+
+async fn run_with_width<C: Context + 'static, const W: usize>(ciphertexts: u32, batches: usize) {
     let n_trustees = rand::rng().random_range(2..=MAX_TRUSTEES);
     let n_threshold = rand::rng().random_range(2..=n_trustees);
     // To test all trustees participating
@@ -54,11 +60,11 @@ pub async fn run<C: Context + 'static>(ciphertexts: u32, batches: usize) {
 
     let now = Instant::now();
 
-    let test: ProtocolTest<RistrettoCtx> = create_protocol_test(n_trustees, &threshold)
+    let test: ProtocolTest<RistrettoCtx> = create_protocol_test::<RistrettoCtx, W>(n_trustees, &threshold)
         .await
         .unwrap();
 
-    run_protocol_test_http(test, ciphertexts, batches, &threshold)
+    run_protocol_test_http::<RistrettoCtx, W>(test, ciphertexts, batches, &threshold)
         .await
         .unwrap();
 
@@ -77,7 +83,7 @@ pub struct ProtocolTest<C: Context> {
     pub trustees: Vec<Trustee<C, NoOpStorage>>,
 }
 
-async fn run_protocol_test_http<C: Context + 'static>(
+async fn run_protocol_test_http<C: Context + 'static, const W: usize>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
     batches: usize,
@@ -186,13 +192,13 @@ async fn run_protocol_test_http<C: Context + 'static>(
     // Encrypt and submit ballots
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
-        let next_p: Vec<[C::Element; 2]> = (0..count).map(|_| {
-            [C::Element::random(&mut rng), C::Element::random(&mut rng)]
+        let next_p: Vec<[C::Element; W]> = (0..count).map(|_| {
+            std::array::from_fn(|_| C::Element::random(&mut rng))
         }).collect();
 
         info!("Encrypting {} ciphertexts..", next_p.len());
 
-        let ballots: Vec<Ciphertext<C, 2>> = next_p
+        let ballots: Vec<Ciphertext<C, W>> = next_p
             .par_iter()
             .map(|p| {
                 pk.encrypt(p)
@@ -280,9 +286,9 @@ async fn run_protocol_test_http<C: Context + 'static>(
     
     for (_, message) in plaintexts_out {
         let batch = message.statement.get_batch_number();
-        let plaintexts = b5::messages::artifact::Plaintexts::<C, 2>::deser(&message.artifact.unwrap()).unwrap();
-        let expected: HashSet<[C::Element; 2]> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
-        let actual: HashSet<[C::Element; 2]> = HashSet::from_iter(plaintexts.0.clone());
+        let plaintexts = b5::messages::artifact::Plaintexts::<C, W>::deser(&message.artifact.unwrap()).unwrap();
+        let expected: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts_in[(batch - 1) as usize].clone());
+        let actual: HashSet<[C::Element; W]> = HashSet::from_iter(plaintexts.0.clone());
         info!("expected {} actual {}", expected.len(), actual.len());
 
         assert!(expected == actual, "Plaintext mismatch for batch {}", batch);
@@ -299,7 +305,7 @@ async fn run_protocol_test_http<C: Context + 'static>(
     Ok(())
 }
 
-pub async fn create_protocol_test<C: Context>(
+pub async fn create_protocol_test<C: Context, const W: usize>(
     n_trustees: usize,
     threshold: &[usize],
 ) -> Result<ProtocolTest<C>> {
@@ -334,7 +340,7 @@ pub async fn create_protocol_test<C: Context>(
         C::SignatureScheme::verifying_key(&pm.signing_key),
         trustee_pks,
         threshold.len(),
-        2, // ciphertext_width
+        W, // ciphertext_width (now generic)
         PhantomData,
     );
 

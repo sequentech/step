@@ -270,8 +270,8 @@ impl Action {
         trustee: &Trustee<C, S>,
     ) -> Result<Vec<Message<C>>, ProtocolError> {
         match self {
-            Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th) => {
-                dkg::verify_pk(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th, trustee)
+            Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, _self_pos, num_t, th) => {
+                dkg::verify_pk(cfg_h, pk_h, sh_hs, cm_hs, num_t, th, trustee)
             }
             Self::SignMix(
                 cfg_h,
