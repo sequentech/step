@@ -15,11 +15,11 @@ required-features = ["monitor"]
 [features]
 default = ["native"]
 monitor = ["dep:cursive", "dep:clap"]
-wasm-core = ["cryptography/wasm", "dep:js-sys"]
+wasm-core = ["vsc/wasm", "dep:js-sys"]
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
 
 [dependencies]
-cryptography = { path = "../cryptography" }
+vsc = { path = "../vsc" }
 tokio = { workspace = true, optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }

@@ -15,7 +15,7 @@ license = "AGPL-3.0-only"
 [dependencies]
 rand = "0.9"
 
-cryptography = { path="../cryptography", optional = true }
+vsc = { path="../vsc", optional = true }
 b5 = { path="../b5", optional = true, default-features = false }
 crepe = "0.1"
 strum = { version = "0.27", features = ["derive"] }
@@ -115,8 +115,8 @@ default = ["native"]
 
 # Native build with gRPC, filesystem, SQLite  
 native = [
-    "dep:cryptography",
-    "cryptography/server",
+    "dep:vsc",
+    "vsc/server",
     "dep:rayon",
     "dep:tonic",
     "dep:rusqlite",
@@ -139,8 +139,8 @@ native = [
 
 # WASM build with HTTP bulletin board and SQLite WASM storage
 wasm-core = [
-    "dep:cryptography",
-    "cryptography/wasm",
+    "dep:vsc",
+    "vsc/wasm",
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
     "dep:wasm-bindgen-rayon",
