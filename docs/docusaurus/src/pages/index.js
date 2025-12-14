@@ -9,5 +9,5 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 export default function Home() {
   const baseUrl = useBaseUrl('/');
-  return <Redirect to={`${baseUrl}docs/system_introduction/`} />;
+  return <Redirect to={`${baseUrl}docs/system_introduction`} />;
 }
