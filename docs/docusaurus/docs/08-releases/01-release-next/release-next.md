@@ -17,6 +17,7 @@ Added cargo caching for efficient test builds
 
 - Added ECR caching for docker artifacts
 - Added cargo caching for efficient test builds
+- Added 'sudo' to release-it installation
 
 - Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
 
