@@ -6,6 +6,7 @@ use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::types::permissions::Permissions;
 use serde_json::Value;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -129,13 +130,15 @@ pub fn export_election_event(
     let response = client
         .post(&config.endpoint_url)
         .bearer_auth(config.auth_token)
+        .header(
+            "x-hasura-role",
+            Permissions::ELECTION_EVENT_READ.to_string(),
+        )
         .json(&request_body)
         .send()?;
 
     let response_body: graphql_client::Response<export_election_event::ResponseData> =
-        response.json()?;
-
-    println!("response_body: {:?}", response_body);
+        response.json().map_err(|e| format!("{:?}", e))?;
 
     match (response_body.data, response_body.errors) {
         (Some(data), _) => {
