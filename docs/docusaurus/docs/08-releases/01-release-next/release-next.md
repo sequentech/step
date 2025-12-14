@@ -7,18 +7,19 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ ✨ Investigating costs increase in infra cluster (GHA)
+
+- Added ECR caching for docker artifacts
+- Added cargo caching for efficient test builds
+
+- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+
 ## 🐞 Admin Portal > Can't send message to voters
 
 Going to the Admin Portal > Election Event > Voters > Send generated an
 unexpected error.
 
 - Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
-
-## ✨ feat/meta-9293-add-cargo-cache/main
-
-Added cargo caching for efficient test builds
-
-- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
 
 ## ✨ Reports > Add pagination to the electoral results report
 
