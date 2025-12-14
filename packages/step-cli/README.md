@@ -174,9 +174,10 @@ cargo run step update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <U
 ## Publish Ballot
 > This generates a new publication and publishes it
 ```bash 
-cargo run step publish --election-event-id <ELECTION_EVENT_ID>```
+cargo run step publish --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID>```
 ```
 - Election event id - the election event to be associated with - required*
+- Election id - the election to be associated with. if set publish for spesific election- optional*
 
 ## Start Key Ceremony
 > This only starts a key ceremony - make sure to first run in .devcontainer:

@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::commands::update_event_voting_status::{
+    VOTING_CHANNEL_EARLY_VOTING, VOTING_CHANNEL_KIOSK, VOTING_CHANNEL_ONLINE, VOTING_STATUS_CLOSE,
+    VOTING_STATUS_OPEN, VOTING_STATUS_PAUSE,
+};
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
@@ -9,12 +13,9 @@ use graphql_client::{GraphQLQuery, Response};
 use std::str::FromStr;
 
 use update_election_voting_status::VotingStatus;
+use update_election_voting_status::VotingStatusChannel;
 
-const VOTING_STATUS_OPEN: &str = "OPEN";
-const VOTING_STATUS_CLOSE: &str = "CLOSE";
-const VOTING_STATUS_PAUSE: &str = "PAUSE";
-
-impl FromStr for update_election_voting_status::VotingStatus {
+impl FromStr for VotingStatus {
     type Err = String;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
@@ -25,6 +26,22 @@ impl FromStr for update_election_voting_status::VotingStatus {
             _ => Err(format!(
                 "Invalid voting status, status must be one of: {}, {}, {}",
                 VOTING_STATUS_OPEN, VOTING_STATUS_CLOSE, VOTING_STATUS_PAUSE
+            )),
+        }
+    }
+}
+
+impl FromStr for VotingStatusChannel {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            VOTING_CHANNEL_ONLINE => Ok(VotingStatusChannel::ONLINE),
+            VOTING_CHANNEL_KIOSK => Ok(VotingStatusChannel::KIOSK),
+            VOTING_CHANNEL_EARLY_VOTING => Ok(VotingStatusChannel::EARLY_VOTING),
+            _ => Err(format!(
+                "Invalid voting channel, channel must be one of: {}, {}, {}",
+                VOTING_CHANNEL_ONLINE, VOTING_CHANNEL_KIOSK, VOTING_CHANNEL_EARLY_VOTING
             )),
         }
     }
@@ -45,6 +62,9 @@ pub struct UpdateElectionVotingStatusCommand {
     /// The new voting status (OPEN, CLOSE, or PAUSE)
     #[arg(long)]
     voting_status: VotingStatus,
+
+    #[arg(long)]
+    voting_channel: Option<VotingStatusChannel>,
 }
 
 #[derive(GraphQLQuery)]
@@ -61,6 +81,7 @@ impl UpdateElectionVotingStatusCommand {
             &self.election_event_id,
             &self.election_id,
             &self.voting_status,
+            &self.voting_channel,
         ) {
             Ok(id) => {
                 println!(
@@ -91,16 +112,22 @@ pub fn update_election_voting_status(
     election_event_id: &str,
     election_id: &str,
     voting_status: &VotingStatus,
+    voting_channel: &Option<VotingStatusChannel>,
 ) -> Result<Option<String>> {
     let config = read_config().map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let client = reqwest::blocking::Client::new();
 
+    let voting_channels: Option<Vec<Option<VotingStatusChannel>>> = match voting_channel {
+        Some(channel) => Some(vec![Some(channel.clone())]),
+        None => None,
+    };
+
     let variables = update_election_voting_status::Variables {
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
         voting_status: voting_status.clone(),
-        voting_channels: None,
+        voting_channels: voting_channels.clone(),
     };
 
     let request_body = UpdateElectionVotingStatus::build_query(variables);

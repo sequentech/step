@@ -7,19 +7,44 @@ use std::str::FromStr;
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
-use update_event_voting_status::VotingStatus;
+use update_event_voting_status::{VotingStatus, VotingStatusChannel};
 
-impl FromStr for update_event_voting_status::VotingStatus {
+pub const VOTING_STATUS_OPEN: &str = "OPEN";
+pub const VOTING_STATUS_CLOSE: &str = "CLOSE";
+pub const VOTING_STATUS_PAUSE: &str = "PAUSE";
+
+pub const VOTING_CHANNEL_ONLINE: &str = "ONLINE";
+pub const VOTING_CHANNEL_KIOSK: &str = "KIOSK";
+pub const VOTING_CHANNEL_EARLY_VOTING: &str = "EARLY_VOTING";
+
+impl FromStr for VotingStatus {
     type Err = String;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
-            "OPEN" => Ok(VotingStatus::OPEN),
-            "CLOSE" => Ok(VotingStatus::CLOSED),
-            "PAUSED" => Ok(VotingStatus::PAUSED),
+            VOTING_STATUS_OPEN => Ok(VotingStatus::OPEN),
+            VOTING_STATUS_CLOSE => Ok(VotingStatus::CLOSED),
+            VOTING_STATUS_PAUSE => Ok(VotingStatus::PAUSED),
             // …and so on for every variant in your schema’s VotingStatus enum
             _ => Err(format!(
-                "Invalid voting status, status must be one of: OPEN, CLOSE, PAUSED"
+                "Invalid voting status, status must be one of: {}, {}, {}",
+                VOTING_STATUS_OPEN, VOTING_STATUS_CLOSE, VOTING_STATUS_PAUSE
+            )),
+        }
+    }
+}
+
+impl FromStr for VotingStatusChannel {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            VOTING_CHANNEL_ONLINE => Ok(VotingStatusChannel::ONLINE),
+            VOTING_CHANNEL_KIOSK => Ok(VotingStatusChannel::KIOSK),
+            VOTING_CHANNEL_EARLY_VOTING => Ok(VotingStatusChannel::EARLY_VOTING),
+            _ => Err(format!(
+                "Invalid voting channel, channel must be one of: {}, {}, {}",
+                VOTING_CHANNEL_ONLINE, VOTING_CHANNEL_KIOSK, VOTING_CHANNEL_EARLY_VOTING
             )),
         }
     }
@@ -34,6 +59,9 @@ pub struct UpdateElectionEventVotingStatus {
 
     #[arg(long)]
     voting_status: VotingStatus,
+
+    #[arg(long)]
+    voting_channel: Option<VotingStatusChannel>,
 }
 
 #[derive(GraphQLQuery)]
@@ -46,7 +74,11 @@ pub struct UpdateEventVotingStatus;
 
 impl UpdateElectionEventVotingStatus {
     pub fn run(&self) {
-        match update_event_voting_status(&self.election_event_id, &self.voting_status) {
+        match update_event_voting_status(
+            &self.election_event_id,
+            &self.voting_status,
+            &self.voting_channel,
+        ) {
             Ok(id) => {
                 println!(
                     "Success! Updated successfully! ID: {}",
@@ -62,15 +94,21 @@ impl UpdateElectionEventVotingStatus {
 pub fn update_event_voting_status(
     election_event_id: &str,
     voting_status: &VotingStatus,
+    voting_channel: &Option<VotingStatusChannel>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let config = read_config()?;
 
     let client = reqwest::blocking::Client::new();
 
+    let voting_channels: Option<Vec<Option<VotingStatusChannel>>> = match voting_channel {
+        Some(channel) => Some(vec![Some(channel.clone())]),
+        None => None,
+    };
+
     let variables = update_event_voting_status::Variables {
         election_event_id: election_event_id.to_string(),
         voting_status: voting_status.clone(),
-        voting_channel: None,
+        voting_channel: voting_channels.clone(),
     };
 
     let request_body = UpdateEventVotingStatus::build_query(variables);
