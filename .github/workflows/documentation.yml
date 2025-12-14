@@ -31,8 +31,17 @@ jobs:
   build:
     runs-on: gcp-selfhosted-ubuntu24
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v1
       - uses: actions/setup-node@v1
+=======
+      - uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Set Node.js 22.x
+        uses: actions/setup-node@v3
+>>>>>>> 12d26e9e0a (✨ step-GHA-use-ecr-cache (#2213))
         with:
           node-version: '>= 18.0'
       - name: Build Preview (PR)
