@@ -79,7 +79,7 @@ pub trait Name {
 }
 
 pub trait Alias {
-    fn get_alias(&self, default_language: &str) -> String;
+    fn get_alias(&self, default_language: &str) -> Option<String>;
 }
 
 fn get_name_from_i18n(
@@ -146,8 +146,8 @@ impl Name for Election {
 }
 
 impl Alias for Election {
-    fn get_alias(&self, language: &str) -> String {
-        let base_alias = self.alias.clone().unwrap_or("".to_string());
+    fn get_alias(&self, language: &str) -> Option<String> {
+        let base_alias = self.alias.clone();
         let Some(presentation_val) = self.presentation.clone() else {
             return base_alias;
         };
@@ -157,10 +157,7 @@ impl Alias for Election {
             return base_alias;
         };
         let i18n_alias = get_alias_from_i18n(&presentation.i18n, language);
-        if i18n_alias.is_some() {
-            return i18n_alias.unwrap();
-        }
-        base_alias
+        i18n_alias.or(base_alias)
     }
 }
 

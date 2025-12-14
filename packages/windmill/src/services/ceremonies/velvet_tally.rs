@@ -261,7 +261,7 @@ pub fn create_election_configs_blocking(
 
         // TODO: Refactor to just extract some Election Config with no subitems
         let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
-        let election_alias_otp = election_opt.map(|election| election.get_alias(&default_lang));
+        let election_alias_otp = election_opt.and_then(|e| e.get_alias(&default_lang));
 
         let election_description = election_opt
             .map(|election| election.description.clone().unwrap_or("".to_string()))
