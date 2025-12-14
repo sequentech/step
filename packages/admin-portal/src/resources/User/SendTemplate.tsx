@@ -103,7 +103,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     close,
     electionEventId,
 }) => {
-    const {isLoading} = useListContext()
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
@@ -309,27 +308,6 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
         setSelectedList(selectedReceipts ?? null)
     }, [selectedMethod, receipts])
-
-    //const possibleLanguages = ["en", "es"]
-    //const renderLangs = () => {
-    //    let langNodes = []
-    //    for (let lang of possibleLanguages) {
-    //        let checked = communication.language_conf.enabled_languages.includes(lang)
-    //        langNodes.push(
-    //            <FormControlLabel
-    //                key={lang}
-    //                sx={{width: "100%"}}
-    //                label={String(t(`common.language.${lang}`))}
-    //                control={<Switch checked={checked} onChange={handleLangChange(lang)} />}
-    //            />
-    //        )
-    //    }
-    //    return <div>{langNodes}</div>
-    //}
-
-    if (isLoading) {
-        return <></>
-    }
 
     return (
         <PageHeaderStyles.Wrapper>

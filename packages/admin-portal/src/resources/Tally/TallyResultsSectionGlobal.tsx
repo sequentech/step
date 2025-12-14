@@ -19,6 +19,7 @@ import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
 import {RunoffStatus} from "./types"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -93,6 +94,13 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         }
     }
 
+    const isTallyDataMatchCurrentResults = useMemo(() => {
+        return (
+            resultsEventId &&
+            !!tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -118,19 +126,25 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
 
     return (
         <>
-            <TallyResultsSummary
-                general={general}
-                chartName={getChartName(general?.[0].name ?? undefined)}
-            />
-            {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
-                <TallyResultsCandidatesPlurality
-                    resultsData={resultsData}
-                    orderedResultsData={orderedResultsData}
-                    chartName={getChartName(general?.[0].name ?? undefined)}
-                />
-            )}
-            {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
-                <TallyResultsCandidatesIRV processResults={processResults} />
+            {!isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
+            ) : (
+                <>
+                    <TallyResultsSummary
+                        general={general}
+                        chartName={getChartName(general?.[0].name ?? undefined)}
+                    />
+                    {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
+                        <TallyResultsCandidatesPlurality
+                            resultsData={resultsData}
+                            orderedResultsData={orderedResultsData}
+                            chartName={getChartName(general?.[0].name ?? undefined)}
+                        />
+                    )}
+                    {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
+                        <TallyResultsCandidatesIRV processResults={processResults} />
+                    )}
+                </>
             )}
         </>
     )

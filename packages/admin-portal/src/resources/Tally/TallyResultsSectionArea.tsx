@@ -21,6 +21,7 @@ import {TallyResultsCandidatesPlurality} from "./TallyResultsCandidatesPlurality
 import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -133,6 +134,13 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         }
     }
 
+    const isTallyDataMatchCurrentResults = useMemo(() => {
+        return (
+            resultsEventId &&
+            !!tallyData?.sequent_backend_results_event.find((event) => event.id === resultsEventId)
+        )
+    }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -158,21 +166,27 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
 
     return (
         <>
-            <TallyResultsSummary
-                general={general}
-                chartName={getChartName()}
-                showWeight={weightedVotingForAreas}
-                weight={weight}
-            />
-            {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
-                <TallyResultsCandidatesPlurality
-                    resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
-                    orderedResultsData={orderedResultsData}
-                    chartName={getChartName()}
-                />
-            )}
-            {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
-                <TallyResultsCandidatesIRV processResults={processResults} />
+            {!isTallyDataMatchCurrentResults ? (
+                <LoadingResults />
+            ) : (
+                <>
+                    <TallyResultsSummary
+                        general={general}
+                        chartName={getChartName()}
+                        showWeight={weightedVotingForAreas}
+                        weight={weight}
+                    />
+                    {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
+                        <TallyResultsCandidatesPlurality
+                            resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
+                            orderedResultsData={orderedResultsData}
+                            chartName={getChartName()}
+                        />
+                    )}
+                    {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
+                        <TallyResultsCandidatesIRV processResults={processResults} />
+                    )}
+                </>
             )}
         </>
     )
