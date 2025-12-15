@@ -1011,10 +1011,12 @@ pub async fn list_cast_vote_messages(
     );
     info!("database name = {board_name}");
     let order_by = input.order_by.clone();
-    let mut offset: i64 = input.offset.unwrap_or(0);
-    let limit: i64 = match ballot_id_filter.is_empty() {
-        false => 1, // When there is a filter, limit to 1 result because ballot_id is unique
-        true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+    let (limit, offset) = match ballot_id_filter.is_empty() {
+        false => (1, 0), // When there is a filter, limit to 1 the result because ballot_id is unique and offset to 0 to scan the whole table
+        true => (
+            input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+            input.offset.unwrap_or(0),
+        ),
     };
     let mut client = get_board_client().await?;
     let electoral_log_messages = client
