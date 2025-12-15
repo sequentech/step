@@ -290,7 +290,6 @@ export const EditReportForm: React.FC<CreateReportProps> = ({
                       cron_expression: cronValue,
                       email_recipients: values.cron_config.email_recipients,
                       executer_username: authContext.username,
-                      user_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                   }
                 : null,
         }
