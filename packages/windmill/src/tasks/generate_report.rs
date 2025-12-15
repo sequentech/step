@@ -56,7 +56,6 @@ pub async fn generate_report(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
     tally_session_id: Option<String>,
-    user_timezone: Option<String>,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
@@ -74,7 +73,6 @@ pub async fn generate_report(
         report_origin: ReportOriginatedFrom::ReportsTab, // Assuming this is visited only frrom the Reports tab
         executer_username,
         tally_session_id,
-        user_timezone,
     };
 
     let mut db_client: DbClient = match get_hasura_pool().await.get().await {
@@ -264,7 +262,6 @@ pub async fn generate_report(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
     tally_session_id: Option<String>,
-    user_timezone: Option<String>,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
@@ -279,7 +276,6 @@ pub async fn generate_report(
                     task_execution,
                     executer_username,
                     tally_session_id,
-                    user_timezone,
                 )
                 .await
                 .map_err(|err| anyhow!("generate_report error: {:?}", err))

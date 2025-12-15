@@ -9289,14 +9289,14 @@
                 "defaultValue": null
               },
               {
-                "name": "user_timezone",
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-                    "name": "String",
+                    "name": "uuid",
                     "ofType": null
                   }
                 },
@@ -12996,20 +12996,6 @@
                   }
                 },
                 "defaultValue": null
-              },
-              {
-                "name": "user_timezone",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
               }
             ],
             "type": {
@@ -13309,20 +13295,6 @@
               },
               {
                 "name": "tenant_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              },
-              {
-                "name": "user_timezone",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",

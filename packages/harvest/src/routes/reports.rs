@@ -267,7 +267,6 @@ pub struct GenerateReportBody {
     pub tenant_id: String,
     pub report_mode: GenerateReportMode,
     pub election_event_id: Option<String>,
-    pub user_timezone: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateReportResponse {
@@ -356,7 +355,6 @@ pub async fn generate_report(
             Some(task_execution.clone()),
             Some(executer_username),
             None,
-            Some(input.user_timezone.clone()),
         ))
         .await
         .map_err(|e| {
