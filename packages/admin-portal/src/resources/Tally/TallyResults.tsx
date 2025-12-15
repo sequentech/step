@@ -19,6 +19,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {LoadingResults} from "./TallyElectionsResults"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -40,6 +41,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const tallyData = useAtomValue(tallyQueryData)
 
         const {canExportCeremony} = useKeysPermissions()
+        const aliasRenderer = useAliasRenderer()
 
         const areas: Array<RaRecord<Identifier>> | undefined = useMemo(
             () => tallyData?.sequent_backend_area?.map((area): RaRecord<Identifier> => area),
@@ -117,6 +119,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
+        const currentElection = useMemo(() => {
+            return elections?.find((election) => election.id === electionId)
+        }, [elections, electionId])
+
         let documents: IResultDocumentsData | null = useMemo(() => {
             const documents =
                 !!resultsEventId &&
@@ -128,11 +134,11 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             return documents
                 ? {
                       documents,
-                      name: resultsElection?.[0]?.name ?? "election",
+                      name: aliasRenderer(currentElection) ?? "election",
                       class_type: "election",
                   }
                 : null
-        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, resultsElection?.[0]?.name])
+        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, currentElection])
 
         let areasDocuments: IResultDocumentsData[] | null = useMemo(
             () =>
@@ -157,8 +163,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             [resultsEventId, resultsElectionArea]
         )
 
-        const aliasRenderer = useAliasRenderer()
-
         const documentsList: IResultDocumentsData[] | null = useMemo(() => {
             if (documents && areasDocuments) {
                 return [documents, ...areasDocuments]
@@ -172,55 +176,75 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             return null
         }, [documents, areasDocuments])
 
+        const isTallyDataMatchCurrentResults = useMemo(() => {
+            return (
+                resultsEventId &&
+                !!tallyData?.sequent_backend_results_event?.find(
+                    (event) => event.id === resultsEventId
+                )
+            )
+        }, [tallyData?.sequent_backend_results_event, resultsEventId])
+
         return (
             <>
-                <Box
-                    sx={{
-                        borderBottom: 1,
-                        borderColor: "divider",
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "flex-start",
-                        alignItems: "center",
-                    }}
-                >
-                    <Typography variant="body2" component="div" sx={{width: "80px"}}>
-                        {t("electionEventScreen.stats.elections")}.{" "}
-                    </Typography>
-                    <Tabs value={value} sx={{flex: 1}} variant="scrollable" scrollButtons="auto">
+                {!isTallyDataMatchCurrentResults ? (
+                    <LoadingResults />
+                ) : (
+                    <>
+                        <Box
+                            sx={{
+                                borderBottom: 1,
+                                borderColor: "divider",
+                                display: "flex",
+                                flexDirection: "row",
+                                justifyContent: "flex-start",
+                                alignItems: "center",
+                            }}
+                        >
+                            <Typography variant="body2" component="div" sx={{width: "80px"}}>
+                                {t("electionEventScreen.stats.elections")}.{" "}
+                            </Typography>
+                            <Tabs
+                                value={value}
+                                sx={{flex: 1}}
+                                variant="scrollable"
+                                scrollButtons="auto"
+                            >
+                                {electionsData?.map((election, index) => (
+                                    <Tab
+                                        key={index}
+                                        label={aliasRenderer(election)}
+                                        onClick={() => tabClicked(election.id, index)}
+                                    />
+                                ))}
+                            </Tabs>
+                            {documentsList && canExportCeremony && tally?.id ? (
+                                <ExportElectionMenu
+                                    documentsList={documentsList}
+                                    electionEventId={data?.election_event_id}
+                                    itemName={aliasRenderer(currentElection) ?? "election"}
+                                    tallyType={data?.tally_type}
+                                    electionId={electionId}
+                                    onCreateTransmissionPackage={onCreateTransmissionPackage}
+                                    miruExportloading={loading}
+                                    tallySessionId={tally.id}
+                                />
+                            ) : null}
+                        </Box>
                         {electionsData?.map((election, index) => (
-                            <Tab
-                                key={index}
-                                label={aliasRenderer(election)}
-                                onClick={() => tabClicked(election.id, index)}
-                            />
+                            <CustomTabPanel key={index} index={index} value={value}>
+                                <TallyResultsContest
+                                    areas={areasData}
+                                    electionId={electionId}
+                                    electionEventId={election.election_event_id}
+                                    tenantId={election.tenant_id}
+                                    resultsEventId={resultsEventId}
+                                    tallySessionId={tally?.id ?? null}
+                                />
+                            </CustomTabPanel>
                         ))}
-                    </Tabs>
-                    {documentsList && canExportCeremony && tally?.id ? (
-                        <ExportElectionMenu
-                            documentsList={documentsList}
-                            electionEventId={data?.election_event_id}
-                            itemName={resultsElection?.[0]?.name ?? "election"}
-                            tallyType={data?.tally_type}
-                            electionId={electionId}
-                            onCreateTransmissionPackage={onCreateTransmissionPackage}
-                            miruExportloading={loading}
-                            tallySessionId={tally.id}
-                        />
-                    ) : null}
-                </Box>
-                {electionsData?.map((election, index) => (
-                    <CustomTabPanel key={index} index={index} value={value}>
-                        <TallyResultsContest
-                            areas={areasData}
-                            electionId={electionId}
-                            electionEventId={election.election_event_id}
-                            tenantId={election.tenant_id}
-                            resultsEventId={resultsEventId}
-                            tallySessionId={tally?.id ?? null}
-                        />
-                    </CustomTabPanel>
-                ))}
+                    </>
+                )}
             </>
         )
     }

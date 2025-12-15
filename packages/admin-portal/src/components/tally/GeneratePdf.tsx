@@ -96,7 +96,12 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
                     overflow: "hidden",
                 }}
             >
-                <span>
+                <span
+                    title={t("common.label.exportFormat", {
+                        item: name,
+                        format: EExportFormat.PDF.toUpperCase(),
+                    })}
+                >
                     {t("common.label.exportFormat", {
                         item: name,
                         format: EExportFormat.PDF.toUpperCase(),
