@@ -1,0 +1,388 @@
+services:
+  # PostgreSQL Database - shared database for all services
+  db:
+    image: postgres:${POSTGRES_VERSION:-13}
+    container_name: sequent-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sequent-network
+
+  # ImmuDB - Immutable database
+  immudb-primary:
+    image: codenotary/immudb:1.9.7
+    container_name: sequent-immudb-primary
+    environment:
+      IMMUDB_ADMIN_PASSWORD: ${IMMUDB_PASSWORD:-immudb}
+      IMMUDB_INDEXDB: ${IMMUDB_INDEX_DB:-indexdb}
+    ports:
+      - "3322:3322"  # gRPC
+      - "8080:8080"  # HTTP
+      - "9497:9497"  # Metrics
+    volumes:
+      - immudb_data:/var/lib/immudb
+    healthcheck:
+      test: ["CMD", "immuadmin", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - sequent-network
+
+  # RabbitMQ - Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: sequent-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-password}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+      - "4369:4369"   # EPMD
+      - "25672:25672" # Clustering
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - sequent-network
+  
+  # MinIO - S3-compatible object storage
+  minio:
+    image: minio/minio:latest
+    container_name: sequent-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sequent-network
+
+  # MinIO client for bucket creation
+  minio-init:
+    image: minio/mc:latest
+    container_name: sequent-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb myminio/${MINIO_BUCKET:-election-event-documents} --ignore-existing;
+      mc mb myminio/${MINIO_PUBLIC_BUCKET:-public} --ignore-existing;
+      mc anonymous set download myminio/${MINIO_PUBLIC_BUCKET:-public};
+      exit 0;
+      "
+    networks:
+      - sequent-network
+
+  # Hasura GraphQL Engine
+  hasura:
+    image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
+    container_name: sequent-hasura
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://${HASURA_DB_USER}:${HASURA_DB_PASSWORD}@db:5432/${HASURA_DB_DATABASE}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE}
+      HASURA_GRAPHQL_CORS_DOMAIN: ${HASURA_GRAPHQL_CORS_DOMAIN}
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: ${HASURA_GRAPHQL_UNAUTHORIZED_ROLE}
+      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url":"${AWS_S3_PUBLIC_URI}/public/certs.json"}'
+      PG_DATABASE_URL: postgres://${HASURA_DB_USER}:${HASURA_DB_PASSWORD}@db:5432/${HASURA_DB_DATABASE}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../hasura/migrations:/hasura-migrations
+      - ../hasura/metadata:/hasura-metadata
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - sequent-network
+
+  # Keycloak - Identity and Access Management
+  keycloakx:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: sequent-keycloak
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: db
+      KC_DB_URL_DATABASE: ${KEYCLOAK_DB_DATABASE}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: localhost
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    command:
+      - start-dev
+    ports:
+      - "8081:8080"  # Keycloak UI (mapped to 8081 to avoid conflict with Hasura)
+      - "7800:7800"  # JGroups
+      - "9000:9000"  # Metrics
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - sequent-network
+
+  # Voting Portal
+  voting-portal:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/voting-portal:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-voting-portal
+    depends_on:
+      - hasura
+      - keycloakx
+    environment:
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "8000:8000"
+    networks:
+      - sequent-network
+
+  # Admin Portal
+  admin-portal:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/admin-portal:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-admin-portal
+    depends_on:
+      - hasura
+      - keycloakx
+    environment:
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "8002:8000"
+    networks:
+      - sequent-network
+
+  # Ballot Verifier
+  ballot-verifier:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/ballot-verifier:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-ballot-verifier
+    depends_on:
+      - hasura
+    environment:
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "8001:8000"
+    networks:
+      - sequent-network
+
+  # B3 Service
+  b3:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/b3:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-b3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      B3_PG_HOST: db
+      B3_PG_PORT: "5432"
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+    ports:
+      - "50051:50051"  # gRPC
+    networks:
+      - sequent-network
+
+  # Harvest Service
+  harvest:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/harvest:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-harvest
+    depends_on:
+      - hasura
+      - rabbitmq
+    environment:
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      HARVEST_DOMAIN: harvest:8400
+    ports:
+      - "8400:8400"
+    networks:
+      - sequent-network
+
+  # Windmill Worker
+  windmill:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/windmill:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-windmill
+    depends_on:
+      - db
+      - rabbitmq
+      - immudb-primary
+      - keycloakx
+      - hasura
+    command: ["main", "consume", "-q", "short_queue", "communication_queue", "import_export_queue"]
+    environment:
+      # Database connections
+      B3_PG_HOST: db
+      B3_PG_PORT: "5432"
+      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B3_PG_USER: ${B3_PG_USER}
+      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
+      HASURA_DB__HOST: db
+      HASURA_DB__PORT: "5432"
+      HASURA_DB__DBNAME: ${HASURA_DB_DATABASE}
+      HASURA_DB__USER: ${HASURA_DB_USER}
+      HASURA_DB__PASSWORD: ${HASURA_DB_PASSWORD}
+      KEYCLOAK_DB__HOST: db
+      KEYCLOAK_DB__PORT: "5432"
+      KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB_DATABASE}
+      KEYCLOAK_DB__USER: ${KEYCLOAK_DB_USER}
+      KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      # RabbitMQ
+      AMQP_ADDR: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      # ImmuDB
+      IMMUDB_SERVER_URL: http://immudb-primary:3322
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      # Keycloak
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      # Hasura
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      # AWS/S3
+      AWS_REGION: ${AWS_REGION}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
+      AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
+      AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
+      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
+      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
+      AWS_S3_MAX_UPLOAD_BYTES: ${AWS_S3_MAX_UPLOAD_BYTES}
+      AWS_S3_JWKS_CACHE_POLICY: ${AWS_S3_JWKS_CACHE_POLICY}
+      # Other
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      WORKER_THREADS: ${WORKER_THREADS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      RUSTFLAGS: ${RUSTFLAGS}
+      DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+      DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
+      LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      BALLOT_VERIFIER_URL: ${BALLOT_VERIFIER_URL}
+      DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
+      SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
+      SECRETS_BACKEND: ${SECRETS_BACKEND}
+      DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      PUBLIC_ASSETS_PATH: ${PUBLIC_ASSETS_PATH}
+      PUBLIC_ASSETS_LOGO_IMG: ${PUBLIC_ASSETS_LOGO_IMG}
+      PUBLIC_ASSETS_EML_BASE_TEMPLATE: ${PUBLIC_ASSETS_EML_BASE_TEMPLATE}
+      PUBLIC_ASSETS_QRCODE_LIB: ${PUBLIC_ASSETS_QRCODE_LIB}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3030/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - sequent-network
+
+  # Windmill Beat (scheduler)
+  windmill-beat:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/windmill:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-windmill-beat
+    depends_on:
+      - rabbitmq
+      - db
+    command: ["main", "beat"]
+    environment:
+      AMQP_ADDR: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+    networks:
+      - sequent-network
+
+  # Windmill Electoral Log
+  windmill-electoral-log:
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/windmill:${APP_VERSION:-v9.3.0-rc.19}
+    container_name: sequent-windmill-electoral-log
+    depends_on:
+      - rabbitmq
+      - immudb-primary
+    command: ["main", "consume", "-q", "electoral_log_queue"]
+    environment:
+      AMQP_ADDR: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672
+      IMMUDB_SERVER_URL: http://immudb-primary:3322
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
+      BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
+      BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+    networks:
+      - sequent-network
+
+volumes:
+  db_data:
+    driver: local
+  immudb_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  sequent-network:
+    driver: bridge

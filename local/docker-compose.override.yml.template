@@ -1,0 +1,48 @@
+# Docker Compose Override Template
+# Copy this file to docker-compose.override.yml and customize for your local environment
+# This file is automatically loaded by docker-compose and overrides settings in docker-compose.yaml
+
+version: '3.8'
+
+services:
+  # Example: Add local volume mounts for development
+  # hasura:
+  #   volumes:
+  #     - ../hasura/migrations:/hasura-migrations
+  #     - ../hasura/metadata:/hasura-metadata
+  #     - ../hasura/seeds:/hasura-seeds
+
+  # Example: Override environment variables
+  # windmill:
+  #   environment:
+  #     LOG_LEVEL: trace
+  #     RUST_BACKTRACE: 1
+
+  # Example: Add port mappings for debugging
+  # b3:
+  #   ports:
+  #     - "5005:5005"  # Debug port
+
+  # Example: Mount local code for live development
+  # voting-portal:
+  #   volumes:
+  #     - ../../voting-portal/src:/app/src
+
+  # Example: Add development tools
+  # postgres-admin:
+  #   image: dpage/pgadmin4:latest
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@local.dev
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   networks:
+  #     - sequent-network
+
+  # Example: Add Redis for caching
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - sequent-network
