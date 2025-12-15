@@ -7,11 +7,20 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## ✨ feat/meta-9293-add-cargo-cache/main
+## ✨ ✨ Investigating costs increase in infra cluster (GHA)
 
-Added cargo caching for efficient test builds
+- Added ECR caching for docker artifacts
+- Added cargo caching for efficient test builds
+- Added 'sudo' to release-it installation
 
 - Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+
+## 🐞 Admin Portal > Can't send message to voters
+
+Going to the Admin Portal > Election Event > Voters > Send generated an
+unexpected error.
+
+- Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
 
 ## ✨ Reports > Add pagination to the electoral results report
 
@@ -88,6 +97,15 @@ Clear keys ceremony state when switching events.
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all places in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
+
 
 ## 🐞 Error with tenants and templates in Admin portal.
 
