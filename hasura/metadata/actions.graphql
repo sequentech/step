@@ -429,18 +429,6 @@ type Mutation {
 }
 
 type Query {
-    list_cast_vote_messages(
-        tenant_id: String!
-        election_event_id: String!
-        election_id: String
-        ballot_id: String!
-        limit: Int
-        offset: Int
-        order_by: ElectoralLogOrderBy
-    ): ListCastVoteMessagesOutput
-}
-
-type Query {
     listElectoralLog(
         limit: Int
         offset: Int
@@ -458,6 +446,18 @@ type Query {
         order_by: PgAuditOrderBy
         audit_table: PgAuditTable
     ): DataListPgAudit
+}
+
+type Query {
+    list_cast_vote_messages(
+        tenant_id: String!
+        election_event_id: String!
+        election_id: String
+        ballot_id: String!
+        limit: Int
+        offset: Int
+        order_by: ElectoralLogOrderBy
+    ): ListCastVoteMessagesOutput
 }
 
 type Query {
@@ -687,10 +687,10 @@ input PgAuditOrderBy {
 input ElectoralLogFilter {
     id: String
     user_id: String
-    username: String
     created: String
     statement_timestamp: String
     statement_kind: String
+    username: String
 }
 
 input ElectoralLogOrderBy {

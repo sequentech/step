@@ -883,7 +883,7 @@ impl CastVoteEntry {
     pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Self, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
-        let message: &Message = &Message::strand_deserialize(&entry.message)
+        let message: Message = Message::strand_deserialize(&entry.message)
             .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
         let message = Some(message.to_string());
 
