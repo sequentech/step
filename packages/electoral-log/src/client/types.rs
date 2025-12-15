@@ -87,19 +87,22 @@ impl WhereClauseOrdMap {
         self.0.iter()
     }
 
-    /// If the first element of the map (first column in the where clause) has an index, it will be used.
-    /// This will match the longest possible index.
+    /// USE INDEX ON clause for multicolumn indexes.
+    /// Where clause is longer than the index: the last index matched will be used.
+    /// Where clause is shorter than the index: No index will be used because it causes errors in unmmudb.
+    /// Will return the longest possible index to use or None.
     pub fn to_use_index_clause(&self) -> String {
         let mut try_index_clause = String::from("");
         let mut last_index_clause_match = String::from("");
         for (col_name, _) in self.iter() {
             if try_index_clause.is_empty() {
-                try_index_clause.push_str(&format!("({col_name}")); // For the contains() is important to mark with '(' the beginning of the index.
+                try_index_clause.push_str(&format!("({col_name}"));
             } else {
                 try_index_clause.push_str(&format!(", {col_name}"));
             }
             for index in MULTI_COLUMN_INDEXES {
-                if index.contains(&try_index_clause.as_str()) {
+                let try_index_clause_closed = format!("{try_index_clause})");
+                if index.eq(&try_index_clause_closed) {
                     last_index_clause_match = format!("USE INDEX ON {index}");
                 }
             }
@@ -220,10 +223,10 @@ impl GetElectoralLogBody {
                 match field {
                     OrderField::Created | OrderField::StatementTimestamp => {
                         let date_time_utc = DateTime::parse_from_rfc3339(&value)
-                            .map_err(|err| anyhow!("{:?}", err))?;
+                            .map_err(|err| anyhow!("Error parsing timestamp: {err:?}"))?;
                         let datetime = date_time_utc.with_timezone(&Utc);
                         let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
+                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the frontend UI.
                         min_ts = Some(ts);
                         max_ts = Some(ts_end);
                     }
