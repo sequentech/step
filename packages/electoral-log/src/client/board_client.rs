@@ -199,22 +199,23 @@ impl BoardClient {
         V: Debug + Display,
     {
         let start = Instant::now();
+        let (where_clause, mut params) = columns_matcher
+            .clone()
+            .unwrap_or_default()
+            .to_where_clause();
+        // Min and max clauses will go in the end of where_clause
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
-            ("AND statement_timestamp >= @min_ts", min_ts)
+            ("statement_timestamp >= @min_ts", min_ts)
         } else {
             ("", 0)
         };
 
         let (max_clause, max_clause_value) = if let Some(max_ts) = max_ts {
-            ("AND statement_timestamp <= @max_ts", max_ts)
+            ("statement_timestamp <= @max_ts", max_ts)
         } else {
             ("", 0)
         };
 
-        let (where_clause, mut params) = columns_matcher
-            .clone()
-            .unwrap_or_default()
-            .to_where_clause();
         let order_by_clauses = if let Some(order_by) = order_by {
             order_by
                 .iter()
@@ -256,18 +257,34 @@ impl BoardClient {
             }),
         });
 
-        let where_clauses =
-            if !where_clause.is_empty() || !min_clause.is_empty() || !max_clause.is_empty() {
-                format!(
-                    r#"
-                    WHERE {where_clause}
-                    {min_clause}
-                    {max_clause}
-                "#
-                )
-            } else {
-                String::from("")
-            };
+        let mut where_clauses = where_clause.clone();
+        match (min_clause.is_empty(), where_clauses.is_empty()) {
+            (true, _) => {}
+            (false, true) => {
+                where_clauses.push_str(min_clause);
+            }
+            (false, false) => {
+                // where_clauses is not empty, put the AND
+                where_clauses.push_str(&format!(" AND {min_clause}"));
+            }
+        };
+        match (max_clause.is_empty(), where_clauses.is_empty()) {
+            (true, _) => {}
+            (false, true) => {
+                where_clauses.push_str(max_clause);
+            }
+            (false, false) => {
+                // where_clauses is not empty, put the AND
+                where_clauses.push_str(&format!(" AND {max_clause}"));
+            }
+        };
+        if !where_clauses.is_empty() {
+            where_clauses = format!(
+                r#"
+                WHERE {where_clauses}
+            "#
+            );
+        }
 
         let use_index_clause = columns_matcher.unwrap_or_default().to_use_index_clause();
 

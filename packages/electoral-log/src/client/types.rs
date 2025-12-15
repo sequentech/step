@@ -226,7 +226,7 @@ impl GetElectoralLogBody {
                             .map_err(|err| anyhow!("Error parsing timestamp: {err:?}"))?;
                         let datetime = date_time_utc.with_timezone(&Utc);
                         let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the frontend UI.
+                        let ts_end: i64 = ts + 90_000; // Search along that day.
                         min_ts = Some(ts);
                         max_ts = Some(ts_end);
                     }

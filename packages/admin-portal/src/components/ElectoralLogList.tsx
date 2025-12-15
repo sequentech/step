@@ -204,11 +204,15 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             key={"created"}
             source={"created"}
             label={String(t("logsScreen.column.created"))}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
             label={String(t("logsScreen.column.statement_timestamp"))}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
         <TextInput
             key={"statement_kind"}
