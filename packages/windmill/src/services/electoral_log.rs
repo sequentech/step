@@ -1281,8 +1281,6 @@ pub async fn list_cast_vote_messages(
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
     let mut client = get_board_client().await?;
-    let has_ballot_id_column = client.has_column(&board_name, "ballot_id").await?;
-    info!("has_ballot_id_column: {has_ballot_id_column}");
     let total = client
         .count_electoral_log_messages(&board_name, Some(cols_match_count))
         .await?

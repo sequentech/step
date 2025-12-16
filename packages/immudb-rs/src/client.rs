@@ -120,22 +120,7 @@ impl Client {
             table_name: table_name.to_string(),
         })?;
         let describe_table_response = self.client.describe_table(describe_table_request).await?;
-        debug!(
-            "describe-table-response table_name={} response={:?}",
-            table_name, describe_table_response
-        );
-
         let result = describe_table_response.get_ref();
-
-        let found_in_row_columns = result
-            .rows
-            .iter()
-            .any(|row| row.columns.iter().any(|c| c == column_name));
-        debug!("found_in_row_columns={}", found_in_row_columns);
-        if found_in_row_columns {
-            return Ok(true);
-        }
-
         let found_in_string_values = result.rows.iter().any(|row| {
             row.values.iter().any(|v| match &v.value {
                 Some(crate::schema::sql_value::Value::S(s)) => s == column_name,

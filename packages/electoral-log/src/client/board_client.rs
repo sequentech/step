@@ -261,6 +261,16 @@ impl BoardClient {
         offset: Option<usize>,
     ) -> Result<Vec<ElectoralLogMessage>> {
         self.client.use_database(board_db).await?;
+        let has_ballot_id_column = self
+            .client
+            .has_column(ELECTORAL_LOG_TABLE, "ballot_id")
+            .await?;
+        info!("has_ballot_id_column?: {has_ballot_id_column}");
+        let mut ballot_id_col = "ballot_id,";
+        if !has_ballot_id_column {
+            ballot_id_col = "";
+        }
+
         let sql = format!(
             r#"
         SELECT
@@ -273,7 +283,7 @@ impl BoardClient {
             version,
             user_id,
             area_id,
-            ballot_id,
+            {ballot_id_col}
             username
         FROM {}
         WHERE id > @last_id
@@ -333,13 +343,28 @@ impl BoardClient {
     async fn get_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<WhereClauseBTreeMap>,
+        mut columns_matcher: Option<WhereClauseBTreeMap>,
         min_ts: Option<i64>,
         max_ts: Option<i64>,
         limit: Option<i64>,
         offset: Option<i64>,
         order_by: Option<HashMap<K, V>>,
     ) -> Result<Vec<ElectoralLogMessage>> {
+        self.client.use_database(board_db).await?;
+        let has_ballot_id_column = self
+            .client
+            .has_column(ELECTORAL_LOG_TABLE, "ballot_id")
+            .await?;
+        info!("has_ballot_id_column?: {has_ballot_id_column}");
+        let mut ballot_id_col = "ballot_id,";
+        if !has_ballot_id_column {
+            ballot_id_col = "";
+            columns_matcher = columns_matcher.map(|mut columns_matcher| {
+                columns_matcher.remove(&ElectoralLogVarCharColumn::BallotId);
+                columns_matcher
+            })
+        }
+
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
             ("AND created >= @min_ts", min_ts)
         } else {
@@ -376,7 +401,6 @@ impl BoardClient {
             format!("ORDER BY id desc")
         };
 
-        self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
         SELECT
@@ -385,7 +409,7 @@ impl BoardClient {
             user_id,
             area_id,
             election_id,
-            ballot_id,
+            {ballot_id_col}
             created,
             sender_pk,
             statement_timestamp,
@@ -478,8 +502,21 @@ impl BoardClient {
     pub async fn count_electoral_log_messages(
         &mut self,
         board_db: &str,
-        columns_matcher: Option<WhereClauseBTreeMap>,
+        mut columns_matcher: Option<WhereClauseBTreeMap>,
     ) -> Result<i64> {
+        self.client.use_database(board_db).await?;
+        let has_ballot_id_column = self
+            .client
+            .has_column(ELECTORAL_LOG_TABLE, "ballot_id")
+            .await?;
+        info!("has_ballot_id_column?: {has_ballot_id_column}");
+        if !has_ballot_id_column {
+            columns_matcher = columns_matcher.map(|mut columns_matcher| {
+                columns_matcher.remove(&ElectoralLogVarCharColumn::BallotId);
+                columns_matcher
+            })
+        }
+
         let mut params = vec![];
         let mut where_clause = String::from("statement_kind IS NOT NULL ");
         if let Some(columns_matcher) = &columns_matcher {
@@ -494,7 +531,6 @@ impl BoardClient {
             }
         }
 
-        self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
             SELECT COUNT(*)
@@ -539,6 +575,18 @@ impl BoardClient {
         transaction_id: &String,
         messages: &[ElectoralLogMessage],
     ) -> Result<()> {
+        let has_ballot_id_column = self
+            .client
+            .has_column(ELECTORAL_LOG_TABLE, "ballot_id")
+            .await?;
+        info!("has_ballot_id_column?: {has_ballot_id_column}");
+        let mut ballot_id_col = "ballot_id,";
+        let mut ballot_id_ref = "@ballot_id,";
+        if !has_ballot_id_column {
+            ballot_id_col = "";
+            ballot_id_ref = "";
+        }
+
         info!("Insert {} messages in batch..", messages.len());
         let mut sql_results = vec![];
         for message in messages {
@@ -554,8 +602,8 @@ impl BoardClient {
                     user_id,
                     username,
                     election_id,
-                    area_id,
-                    ballot_id
+                    {ballot_id_col}
+                    area_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -566,13 +614,13 @@ impl BoardClient {
                     @user_id,
                     @username,
                     @election_id,
-                    @area_id,
-                    @ballot_id
+                    {ballot_id_ref}
+                    @area_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
             );
-            let params = vec![
+            let mut params = vec![
                 NamedParam {
                     name: String::from("created"),
                     value: Some(SqlValue {
@@ -636,16 +684,9 @@ impl BoardClient {
                         },
                     }),
                 },
-                NamedParam {
-                    name: String::from("area_id"),
-                    value: Some(SqlValue {
-                        value: match message.area_id.clone() {
-                            Some(area_id) => Some(Value::S(area_id)),
-                            None => None,
-                        },
-                    }),
-                },
-                NamedParam {
+            ];
+            if has_ballot_id_column {
+                params.push(NamedParam {
                     name: String::from("ballot_id"),
                     value: Some(SqlValue {
                         value: match message.ballot_id.clone() {
@@ -653,8 +694,18 @@ impl BoardClient {
                             None => None,
                         },
                     }),
-                },
-            ];
+                });
+            }
+            params.push(NamedParam {
+                name: String::from("area_id"),
+                value: Some(SqlValue {
+                    value: match message.area_id.clone() {
+                        Some(area_id) => Some(Value::S(area_id)),
+                        None => None,
+                    },
+                }),
+            });
+
             let result = self
                 .client
                 .tx_sql_exec(&message_sql, transaction_id, params)
@@ -670,6 +721,18 @@ impl BoardClient {
         board_db: &str,
         messages: &Vec<ElectoralLogMessage>,
     ) -> Result<()> {
+        self.client.use_database(board_db).await?;
+        let has_ballot_id_column = self
+            .client
+            .has_column(ELECTORAL_LOG_TABLE, "ballot_id")
+            .await?;
+        info!("has_ballot_id_column?: {has_ballot_id_column}");
+        let mut ballot_id_col = "ballot_id,";
+        let mut ballot_id_ref = "@ballot_id,";
+        if !has_ballot_id_column {
+            ballot_id_col = "";
+            ballot_id_ref = "";
+        }
         info!("Insert {} messages..", messages.len());
         self.client.open_session(board_db).await?;
         // Start a new transaction
@@ -693,8 +756,8 @@ impl BoardClient {
                     user_id,
                     username,
                     election_id,
-                    area_id,
-                    ballot_id
+                    {ballot_id_col}
+                    area_id
                 ) VALUES (
                     @created,
                     @sender_pk,
@@ -705,13 +768,13 @@ impl BoardClient {
                     @user_id,
                     @username,
                     @election_id,
-                    @area_id,
-                    @ballot_id
+                    {ballot_id_ref}
+                    @area_id
                 );
             "#,
                 ELECTORAL_LOG_TABLE
             );
-            let params = vec![
+            let mut params = vec![
                 NamedParam {
                     name: String::from("created"),
                     value: Some(SqlValue {
@@ -775,16 +838,9 @@ impl BoardClient {
                         },
                     }),
                 },
-                NamedParam {
-                    name: String::from("area_id"),
-                    value: Some(SqlValue {
-                        value: match message.area_id.clone() {
-                            Some(area_id) => Some(Value::S(area_id)),
-                            None => None,
-                        },
-                    }),
-                },
-                NamedParam {
+            ];
+            if has_ballot_id_column {
+                params.push(NamedParam {
                     name: String::from("ballot_id"),
                     value: Some(SqlValue {
                         value: match message.ballot_id.clone() {
@@ -792,8 +848,18 @@ impl BoardClient {
                             None => None,
                         },
                     }),
-                },
-            ];
+                });
+            }
+            params.push(NamedParam {
+                name: String::from("area_id"),
+                value: Some(SqlValue {
+                    value: match message.area_id.clone() {
+                        Some(area_id) => Some(Value::S(area_id)),
+                        None => None,
+                    },
+                }),
+            });
+
             let result = self
                 .client
                 .tx_sql_exec(&message_sql, &transaction_id, params)
