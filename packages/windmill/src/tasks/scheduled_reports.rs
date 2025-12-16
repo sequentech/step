@@ -154,7 +154,6 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
                     Some(task_execution),
                     Some(cron_config.executer_username),
                     None,
-                    cron_config.user_timezone,
                 )
                 .with_eta(datetime.with_timezone(&Utc))
                 .with_expires_in(120),

@@ -298,7 +298,6 @@ impl TemplateRenderer for OVCSEventsTemplate {
                 app_hash,
                 executer_username: self.ids.executer_username.clone(),
                 results_hash: None,
-                user_timezone: self.ids.user_timezone.clone(),
             },
             elections: elections_data,
             ovcs_downtime: None,
