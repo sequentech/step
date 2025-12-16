@@ -7,6 +7,31 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Can't send message to voters
+
+Going to the Admin Portal > Election Event > Voters > Send generated an
+unexpected error.
+
+- Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
+
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all places in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
+
+## 🐞 Keycloak's custom event listener is not working
+
+Electoral logs from keycloak, for example when a voter logs in/off, are not being
+recorded. This happened because after the dependency updates, the inetum
+authenticator keycloak extension was removed, but it contained the custom event
+listener. This fix adds it back, only the custom event listener, not the inetum
+part.
+
+- Issue: [#9574](https://github.com/sequentech/meta/issues/9574)
+
 ## 🐞 Errors editing forms
 
 After the dependency updates, the Election Data form had stopped working.
