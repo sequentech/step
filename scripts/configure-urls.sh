@@ -12,7 +12,7 @@ fi
 PUBLIC_IP_OR_DOMAIN=$1
 
 # Set the path to the .env file
-ENV_FILE="/Users/odedeidelman/github/sequentech/step/.devcontainer/.env"
+ENV_FILE="$HOME/step/.devcontainer/.env"
 
 # Check if the .env file exists
 if [ ! -f "$ENV_FILE" ]; then

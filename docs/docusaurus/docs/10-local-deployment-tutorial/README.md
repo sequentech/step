@@ -31,9 +31,8 @@ Next, you need to configure the environment variables for the Docker Compose set
 1.  Navigate to the cloned repository's `.devcontainer` directory:
 
     ```bash
-    cd /home/your-user/step/.devcontainer
+    cd /home/ubuntu/step/.devcontainer
     ```
-    Replace `your-user` with your username on the server.
 
 2.  Copy the `.env.example` file to `.env`:
 
@@ -51,6 +50,7 @@ Now, you need to replace the placeholder `localhost` values in the `.env` file w
 
     ```bash
     cd ../scripts
+    chmod +x configure-urls.sh
     ./configure-urls.sh your-server-ip-or-domain
     ```
 
