@@ -1730,6 +1730,7 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
   ballot_tracker_url: Scalars['String']['input'];
   election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
 };
 
 
