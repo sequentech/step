@@ -822,6 +822,14 @@ impl BoardClient {
         self.client.has_database(database_name).await
     }
 
+    #[instrument(skip(self), level = "trace")]
+    pub async fn has_column(&mut self, board_db: &str, column_name: &str) -> Result<bool> {
+        self.client.use_database(board_db).await?;
+        self.client
+            .has_column(ELECTORAL_LOG_TABLE, column_name)
+            .await
+    }
+
     /// Creates the requested immudb database if it doesnt exist.
     /// Also creates the electoral log table.
     #[instrument(skip(self))]

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
+use serde::de;
 use std::fmt::Debug;
 use tonic::{metadata::MetadataValue, transport::Channel, Request, Response, Streaming};
 use tracing::{debug, info, instrument};
@@ -11,7 +12,7 @@ use crate::schema::immu_service_client::ImmuServiceClient;
 use crate::schema::{
     CommittedSqlTx, Database, DatabaseListRequestV2, DatabaseListResponseV2, DeleteDatabaseRequest,
     LoginRequest, NamedParam, NewTxRequest, OpenSessionRequest, SqlExecRequest, SqlQueryRequest,
-    SqlQueryResult, TxMode, UnloadDatabaseRequest,
+    SqlQueryResult, Table, TxMode, UnloadDatabaseRequest,
 };
 
 #[derive(Debug)]
@@ -111,6 +112,38 @@ impl Client {
         let list_tables_response = self.client.list_tables(list_tables_request).await?;
         debug!("list-tables-response={:?}", list_tables_response);
         Ok(!list_tables_response.get_ref().rows.is_empty())
+    }
+
+    #[instrument]
+    pub async fn has_column(&mut self, table_name: &str, column_name: &str) -> Result<bool> {
+        let describe_table_request = self.get_request(Table {
+            table_name: table_name.to_string(),
+        })?;
+        let describe_table_response = self.client.describe_table(describe_table_request).await?;
+        debug!(
+            "describe-table-response table_name={} response={:?}",
+            table_name, describe_table_response
+        );
+
+        let result = describe_table_response.get_ref();
+
+        let found_in_row_columns = result
+            .rows
+            .iter()
+            .any(|row| row.columns.iter().any(|c| c == column_name));
+        debug!("found_in_row_columns={}", found_in_row_columns);
+        if found_in_row_columns {
+            return Ok(true);
+        }
+
+        let found_in_string_values = result.rows.iter().any(|row| {
+            row.values.iter().any(|v| match &v.value {
+                Some(crate::schema::sql_value::Value::S(s)) => s == column_name,
+                _ => false,
+            })
+        });
+
+        Ok(found_in_string_values)
     }
 
     pub async fn sql_exec(&mut self, sql: &str, params: Vec<NamedParam>) -> Result<()> {
