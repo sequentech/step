@@ -13,14 +13,14 @@ use cryptography::context::Context;
 use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
 
 /// HTTP client for bulletin board using Service API
-pub struct HttpB3 {
+pub struct HttpB5 {
     client: reqwest::Client,
     base_url: String,
 }
 
-impl HttpB3 {
-    pub async fn new(base_url: &str) -> HttpB3 {
-        HttpB3 {
+impl HttpB5 {
+    pub async fn new(base_url: &str) -> HttpB5 {
+        HttpB5 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
         }
@@ -130,8 +130,8 @@ impl HttpB3 {
     }
 }
 
-impl<C: Context> Board<C> for HttpB3 {
-    type Factory = HttpB3BoardParams;
+impl<C: Context> Board<C> for HttpB5 {
+    type Factory = HttpB5BoardParams;
     
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB5Message>> {
         let url = format!(
@@ -204,49 +204,48 @@ impl<C: Context> Board<C> for HttpB3 {
     }
 }
 
-/// Factory for creating HttpB3 board clients
+/// Factory for creating HttpB5 board clients
 #[derive(Clone)]
-pub struct HttpB3BoardParams {
-    base_url: String,
+pub struct HttpB5BoardParams {
+    pub base_url: String,
 }
 
-impl HttpB3BoardParams {
-    pub fn new(base_url: &str) -> HttpB3BoardParams {
-        HttpB3BoardParams {
+impl HttpB5BoardParams {
+    pub fn new(base_url: &str) -> HttpB5BoardParams {
+        HttpB5BoardParams {
             base_url: base_url.to_string(),
         }
     }
     
     /// Create a board client for a specific board (helper for testing)
-    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB3 {
-        HttpB3 {
+    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB5 {
+        HttpB5 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
         }
     }
 }
 
-impl<C: Context> BoardFactory<C, HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
-        // Board name will be set when used with Session
-        HttpB3 {
+impl<C: Context> BoardFactory<C, HttpB5> for HttpB5BoardParams {
+    fn get_board(&self) -> HttpB5 {
+        HttpB5 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
         }
     }
 }
 
-impl<C: Context> BoardFactoryMulti<C, HttpB3> for HttpB3BoardParams {
-    fn get_board(&self) -> HttpB3 {
-        HttpB3 {
+impl<C: Context> BoardFactoryMulti<C, HttpB5> for HttpB5BoardParams {
+    fn get_board(&self) -> HttpB5 {
+        HttpB5 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
         }
     }
 }
 
-impl<C: Context> BoardMulti<C> for HttpB3 {
-    type Factory = HttpB3BoardParams;
+impl<C: Context> BoardMulti<C> for HttpB5 {
+    type Factory = HttpB5BoardParams;
 
     async fn get_messages_multi(
         &self,
@@ -467,14 +466,14 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
 }
 
 /// HTTP client for bulletin board index (list of boards)
-pub struct HttpB3Index {
+pub struct HttpB5Index {
     client: reqwest::Client,
     base_url: String,
 }
 
-impl HttpB3Index {
-    pub fn new(base_url: &str) -> HttpB3Index {
-        HttpB3Index {
+impl HttpB5Index {
+    pub fn new(base_url: &str) -> HttpB5Index {
+        HttpB5Index {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
         }

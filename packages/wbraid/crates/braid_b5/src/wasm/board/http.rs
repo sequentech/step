@@ -32,9 +32,9 @@ impl WasmHttpBoard {
         WasmHttpBoard { params }
     }
 
-    /// Fetch messages from B4 for a specific board
+    /// Fetch messages from B5 for a specific board
     /// 
-    /// Maintains all-or-nothing semantics: each HttpB3Message is only constructed
+    /// Maintains all-or-nothing semantics: each HttpB5Message is only constructed
     /// after BOTH metadata (from list response) AND complete message data (inline or S3)
     /// are successfully fetched. If S3 download fails, the entire operation aborts.
     async fn fetch_messages_internal(&self, board_name: &str, last_id: i64) -> Result<Vec<HttpB5Message>, JsValue> {

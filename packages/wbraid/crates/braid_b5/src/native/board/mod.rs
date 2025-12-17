@@ -7,5 +7,5 @@ pub mod http;
 // Native-only (requires filesystem)
 pub mod storage_sqlite;  
 
-pub use http::{HttpB3, HttpB3BoardParams, HttpB3Index};
+pub use http::{HttpB5, HttpB5BoardParams, HttpB5Index};
 pub use storage_sqlite::SqliteStorage;

@@ -25,8 +25,8 @@ use b5::messages::newtypes::PublicKeyHash;
 use b5::messages::newtypes::MAX_TRUSTEES;
 use b5::messages::newtypes::NULL_TRUSTEE;
 
-use crate::native::board::HttpB3;
-use crate::native::board::HttpB3BoardParams;
+use crate::native::board::HttpB5;
+use crate::native::board::HttpB5BoardParams;
 use crate::protocol::board::Board;
 use crate::protocol::board::NoOpStorage;
 
@@ -95,8 +95,8 @@ async fn run_protocol_test_http<C: Context + 'static, const W: usize>(
         test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
     for t in test.trustees.into_iter() {
-        let board_params = HttpB3BoardParams::new(HTTP_URL);
-        let session: Session<C, HttpB3, NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
+        let board_params = HttpB5BoardParams::new(HTTP_URL);
+        let session: Session<C, HttpB5, NoOpStorage> = Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }
 
@@ -217,8 +217,8 @@ async fn run_protocol_test_http<C: Context + 'static, const W: usize>(
         plaintexts_in.push(next_p);
         
         // Insert ballot message using a temporary board
-        let board_params = HttpB3BoardParams::new(HTTP_URL);
-        let mut temp_board: HttpB3 = board_params.create_board(TEST_BOARD, None);
+        let board_params = HttpB5BoardParams::new(HTTP_URL);
+        let mut temp_board: HttpB5 = board_params.create_board(TEST_BOARD, None);
         let http_msg = b5::HttpB5Message::from_protocol_message::<C>(message.try_into().unwrap());
         Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
     }
@@ -361,8 +361,8 @@ pub async fn create_protocol_test<C: Context, const W: usize>(
         .await;
     
     // Send bootstrap message
-    let board_params = HttpB3BoardParams::new(HTTP_URL);
-    let mut temp_board: HttpB3 = board_params.create_board(TEST_BOARD, None);
+    let board_params = HttpB5BoardParams::new(HTTP_URL);
+    let mut temp_board: HttpB5 = board_params.create_board(TEST_BOARD, None);
     let http_msg = b5::HttpB5Message::from_protocol_message::<C>(message.try_into().unwrap());
     Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
 

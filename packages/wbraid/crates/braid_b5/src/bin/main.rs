@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use braid_b5::native::board::{HttpB3, HttpB3BoardParams, HttpB3Index};
+use braid_b5::native::board::{HttpB5, HttpB5BoardParams, HttpB5Index};
 use braid_b5::util::ProtocolError;
 use clap::Parser;
 use std::collections::HashMap;
@@ -93,14 +93,14 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     ensure_directory(store_root.clone())?;
 
-    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB3, braid_b5::native::board::SqliteStorage>> = HashMap::new();
+    let mut session_map: HashMap<String, Session<RistrettoCtx, HttpB5, braid_b5::native::board::SqliteStorage>> = HashMap::new();
     let mut loop_count: i64 = 0;
     loop {
         info!("{} >", loop_count);
 
-        let b3index = HttpB3Index::new(&args.b3_url);
+        let b5index = HttpB5Index::new(&args.b3_url);
 
-        let boards_result = b3index.get_boards().await;
+        let boards_result = b5index.get_boards().await;
         let boards: Vec<String> = match boards_result {
             Ok(boards) => boards,
             Err(error) => {
@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
                 storage,
                 None,
             );
-            let board = HttpB3BoardParams::new(&args.b3_url);
+            let board = HttpB5BoardParams::new(&args.b3_url);
 
             let session = Session::new(&board_name, trustee, board);
             session_map.insert(board_name.clone(), session);

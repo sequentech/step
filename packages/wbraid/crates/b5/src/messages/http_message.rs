@@ -9,8 +9,7 @@ use crate::messages::message::Message;
 
 /// HTTP-based bulletin board message wrapper.
 ///
-/// This is the HTTP equivalent of GrpcB3Message, designed to work
-/// in both native and WASM contexts. It wraps a serialized Message
+/// Designed to work in both native and WASM contexts. It wraps a serialized Message
 /// along with the bulletin board ID and schema version.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpB5Message {
@@ -50,7 +49,7 @@ impl HttpB5Message {
 
 /// HTTP-based board messages container.
 ///
-/// Groups messages by board name, similar to BoardMessages in gRPC.
+/// Groups messages by board name.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpBoardMessages {
     pub board: String,

@@ -96,12 +96,12 @@ Write-Host @"
 ╔════════════════════════════════════════════════════════════════╗
 ║         Browser Trustee B5 Demo                                ║
 ║                                                                ║
-║  Total Trustees:   $NumTrustees                                            ║
-║  Native:           $($NumTrustees - 1) (automated)                                     ║
-║  Browser:          1 (manual - slot #$BrowserTrusteeIndex)                             ║
-║  Threshold:        $Threshold                                              ║
-║  Ballots:          $NumBallots                                             ║
-║  Ciphertext Width: $CiphertextWidth (W parameter)                          ║
+║  Total Trustees:   $NumTrustees                                ║
+║  Native:           $($NumTrustees - 1) (automated)             ║
+║  Browser:          1 (manual - slot #$BrowserTrusteeIndex)     ║
+║  Threshold:        $Threshold                                  ║
+║  Ballots:          $NumBallots                                 ║
+║  Ciphertext Width: $CiphertextWidth (W parameter)              ║
 ╚════════════════════════════════════════════════════════════════╝
 
 "@ -ForegroundColor Magenta

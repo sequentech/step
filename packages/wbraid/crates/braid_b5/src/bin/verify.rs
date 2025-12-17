@@ -8,7 +8,7 @@ use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
-use braid_b5::native::board::{HttpB3, HttpB3BoardParams};
+use braid_b5::native::board::{HttpB5, HttpB5BoardParams};
 use braid_b5::protocol::trustee::Trustee;
 use braid_b5::protocol::verify::verifier::Verifier;
 use braid_b5::protocol::board::NoOpStorage;
@@ -19,7 +19,7 @@ use cryptography::utils::signatures::SignatureScheme;
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
 struct Cli {
-    /// URL of the grpc bulletin board server
+    /// URL of the bulletin board server
     #[arg(long)]
     server_url: String,
 
@@ -36,8 +36,7 @@ struct Cli {
 
 /// Entry point for the braid verifier.
 ///
-/// Executes verification against the specified
-/// board on a grpc bulletin board.
+/// Executes verification against the specified board.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
@@ -62,9 +61,9 @@ async fn main() -> Result<()> {
         NoOpStorage::new(),
         None,
     );
-    let board_params = HttpB3BoardParams::new(&args.server_url);
-    let board: HttpB3 = board_params.create_board(&args.board, None);
-    let mut session: Verifier<RistrettoCtx, HttpB3, NoOpStorage> = 
+    let board_params = HttpB5BoardParams::new(&args.server_url);
+    let board: HttpB5 = board_params.create_board(&args.board, None);
+    let mut session: Verifier<RistrettoCtx, HttpB5, NoOpStorage> = 
         Verifier::new(trustee, board, &args.board);
     let _result = session.run().await?;
 
