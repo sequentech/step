@@ -97,3 +97,9 @@ in the Admin portal.
 Now tally view checks if it's an automatic ceremony based on only the keys ceremony policy.
 
 - Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
+
+## 🐞 Tally Multi Contest area votes not included in tally if area does not have the first contest assigned
+
+Fixed an issue that prevented ballots to be tallied if an area did not have the first contest assigned.
+
+- Issue: [#9994](https://github.com/sequentech/meta/issues/9994)
