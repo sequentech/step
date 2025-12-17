@@ -204,23 +204,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             key={"created"}
             source={"created"}
             label={String(t("logsScreen.column.created"))}
-            slotProps={{
-                htmlInput: {
-                    step: 1, // Adds seconds field to the datetime input
-                },
-            }}
-            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
             label={String(t("logsScreen.column.statement_timestamp"))}
-            slotProps={{
-                htmlInput: {
-                    step: 1, // Adds seconds field to the datetime input
-                },
-            }}
-            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <TextInput
             key={"statement_kind"}
