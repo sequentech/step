@@ -69,10 +69,10 @@ This step will automate the creation of the necessary DNS records in Cloudflare 
 2.  Run the `setup-cloudflare.sh` script:
 
     ```bash
-    ./setup-cloudflare.sh your-domain.com your-server-ip-or-domain 3000,3002,8080,8090,9002
+    ./setup-cloudflare.sh sequent.vote remote-test.sequent.vote your-server-ip-or-cname
     ```
 
-    Replace `your-domain.com` with your domain and `your-server-ip-or-domain` with your server's public IP or CNAME. This will set up DNS records for the five essential services.
+    Replace `your-server-ip-or-cname` with the actual public IP address or a CNAME that points to your server.
 
 ## 5. Deployment
 
