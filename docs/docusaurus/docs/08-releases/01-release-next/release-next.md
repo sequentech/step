@@ -61,6 +61,7 @@ bad merge from main.
 ## ✨ Instant-runoff Voting (IRV/RCV) System support
 
 Support for Instant-runoff elections. Adaptations and implementations were added:
+
 - Velvet tally and make the tally operation configurable.
 - Admin portal, selectable counting algorithm at contest level, UI tally results and results report.
 - Voting portal and ballot verifier for preferential order.
@@ -106,7 +107,6 @@ Fix showing 'event' or 'election' instead of the actual election event or electi
 
 - Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
 
-
 ## 🐞 Error with tenants and templates in Admin portal.
 
 Fixed issues that prevented tenant creation and template creation and deletion 
@@ -120,8 +120,17 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 
 - Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
 
-## ✨ Documentation: Structural Changes
+✨ Documentation: Structural Changes
 
 Documentation sidebar order has been restructured
 
 - Issue: [#8672](https://github.com/sequentech/meta/issues/8672)
+
+## ✨ Scalable export of electoral/immudb logs
+
+Support batching queries to export electoral logs into CSV files.
+Implementation with explicit ´USE INDEX ON´ to ensure index usage in the immudb queries.
+Breaking changes to change immudb the multicolumn indexes and other performance inprovements.
+Unify queries to immudb to use always board_client.rs in the electoral-log module.
+
+- Issue: [#6753](https://github.com/sequentech/meta/issues/6753)
