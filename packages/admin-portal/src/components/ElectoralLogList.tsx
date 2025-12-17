@@ -189,29 +189,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     const filters: Array<ReactElement> = [
-        <TextInput
-            key={"user_id"}
-            source={"user_id"}
-            label={String(t("logsScreen.column.user_id"))}
-        />,
-        <TextInput
-            key={"username"}
-            source={"username"}
-            label={String(t("logsScreen.column.username"))}
-        />,
-        <DateTimeInput
-            key={"created"}
-            source={"created"}
-            label={String(t("logsScreen.column.created"))}
-            inputProps={{step: 1}}
-            parse={(value) => (value ? new Date(value).toISOString() : value)}
-        />,
+        <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
+        <TextInput key={"username"} source={"username"} label={t("logsScreen.column.username")} />,
+        <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
-            label={String(t("logsScreen.column.statement_timestamp"))}
-            inputProps={{step: 1}}
-            parse={(value) => (value ? new Date(value).toISOString() : value)}
+            label={t("logsScreen.column.statement_timestamp")}
         />,
         <TextInput
             key={"statement_kind"}

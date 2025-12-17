@@ -69,6 +69,5 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 ## 🐞 New immudb column ballot_id is not backwards compatible
 
 Fix errors affecting election events that were created prior the addition of the ballot_id column.
-Fix the filter by timestamp in the Admin Portal's UI.
 
 - Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
