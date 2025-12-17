@@ -101,6 +101,5 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 ## 🐞 New immudb column ballot_id is not backwards compatible
 
 Fix errors affecting election events that were created prior the addition of the ballot_id column.
-Fix the filter by timestamp in the Admin Portal's UI.
 
 - Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
