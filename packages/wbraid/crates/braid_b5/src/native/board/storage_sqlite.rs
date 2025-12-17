@@ -77,6 +77,7 @@ impl SqliteStorage {
                 statement_kind TEXT NOT NULL, \
                 batch INT4 NOT NULL, \
                 mix_number INT4 NOT NULL, \
+                version TEXT NOT NULL, \
                 UNIQUE(sender_pk, statement_kind, batch, mix_number)\
             )",
             [],
@@ -103,11 +104,11 @@ impl LocalBoardStorage for SqliteStorage {
         // The trustee triggers a full message update via the RETRIEVE_ALL_MESSAGES_PERIOD,
         // so we can ignore duplicates in that case.
         let sql = if ignore_existing {
-            "INSERT OR IGNORE INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) \
-             VALUES(?1, ?2, ?3, ?4, ?5, ?6)"
+            "INSERT OR IGNORE INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number, version) \
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         } else {
-            "INSERT INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) \
-             VALUES(?1, ?2, ?3, ?4, ?5, ?6)"
+            "INSERT INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number, version) \
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)"
         };
 
         let mut statement = connection.prepare(sql)?;
@@ -115,15 +116,6 @@ impl LocalBoardStorage for SqliteStorage {
         connection.execute("BEGIN TRANSACTION", [])?;
 
         for m in messages {
-            // Verify schema version compatibility
-            if m.version != b5::get_schema_version() {
-                return Err(anyhow::anyhow!(
-                    "Mismatched schema version: {} != {}",
-                    m.version,
-                    b5::get_schema_version()
-                ));
-            }
-
             // Deserialize to extract metadata
             let message = Message::<C>::deser(&m.message)?;
             let sender_pk = <<C as Context>::SignatureScheme as cryptography::utils::signatures::SignatureScheme<_>>::verifier_to_base64_string(&message.sender.pk)
@@ -148,10 +140,10 @@ impl LocalBoardStorage for SqliteStorage {
                 }
 
                 // Store metadata only (empty message bytes)
-                statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
+                statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number, &m.version])?;
             } else {
                 // Store message bytes inline in database
-                statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number])?;
+                statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number, &m.version])?;
             }
         }
 
@@ -175,7 +167,7 @@ impl LocalBoardStorage for SqliteStorage {
         // SECURITY CRITICAL: ORDER BY id ASC ensures messages are processed in the
         // order established by our local AUTOINCREMENT ID, not the bulletin board's order
         let mut stmt = connection.prepare(
-            "SELECT id, message, sender_pk, statement_kind, batch, mix_number \
+            "SELECT id, message, sender_pk, statement_kind, batch, mix_number, version \
              FROM MESSAGES \
              WHERE id > ?1 \
              ORDER BY id ASC",
@@ -189,6 +181,7 @@ impl LocalBoardStorage for SqliteStorage {
                 kind: row.get(3)?,
                 batch: row.get(4)?,
                 mix_number: row.get(5)?,
+                version: row.get(6)?,
             })
         })?;
 
@@ -285,4 +278,5 @@ struct SqliteStoreMessageRow {
     kind: String,
     batch: i32,
     mix_number: i32,
+    version: String,
 }

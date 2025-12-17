@@ -239,23 +239,67 @@
 - **Priority**: Low - code hygiene
 
 ### 13. Version Field Strategy Review
-- **Issue**: The `version` field in `HttpB5Message` is used for schema validation, but the overall versioning strategy is unclear
-- **Current Behavior**:
-  - `HttpB5Message` contains a `version: String` field
-  - SQLite storage validates: `if m.version != b5::get_schema_version()` (currently returns "1")
-  - Purpose: Schema compatibility checking
-- **Questions to Address**:
-  - Is this version scheme sufficient?
-  - What happens when schema changes? (migration path unclear)
-  - Should version be part of the transport layer (HttpB5Message) or protocol layer?
-  - Document expected versioning behavior and upgrade paths
-  - Consider semantic versioning vs simple incrementing
-- **Files to Review**:
-  - `crates/b5/src/messages/http_message.rs` - HttpB5Message definition
-  - `crates/braid_b5/src/native/board/storage_sqlite.rs` - Version validation logic
-  - `crates/b5/src/lib.rs` - Schema version definition
+- **Issue**: Version field propagation and validation for schema compatibility
+- **Implementation Status**: ✅ Version propagation complete, validation pending
+- **Completed**:
+  - ✅ **HttpB5Message Symmetric Usage**: Board trait now uses `HttpB5Message` for both `get_messages()` and `post_messages()`, establishing clean architectural boundary between protocol layer (Message<C>) and wire format (HttpB5Message)
+  - ✅ **Version Field Propagation**: Version now flows bidirectionally through entire system:
+    - **Posting**: Client sends actual version from `HttpB5Message::from_protocol_message()` which calls `get_schema_version()` (currently returns "1")
+    - **Retrieval**: Server returns version from database in all API responses (`api_types::Message`, `MessageWithUrl`)
+    - **Construction**: Client uses returned version when creating `HttpB5Message` (no hardcoded "1")
+  - ✅ **API Updates**:
+    - Added `version: String` to `api_types::Message`
+    - Added `version: String` to `ConfirmMessageRequest` (single-board API)
+    - Added `version: String` to `MessageConfirmation` (multi-board API)
+  - ✅ **Database**: Version field already existed, now properly populated and returned
+  - ✅ **All Implementations Updated**:
+    - Native single-board and multi-board posting/retrieval
+    - WASM board posting/retrieval
+    - WASM session message fetching
+- **Infrastructure Complete**: ✅ Version storage and retrieval in place
+  - ✅ SQLite schema updated with `version TEXT NOT NULL` column
+  - ✅ `store_messages()` saves version to database
+  - ✅ `retrieve_messages()` returns version from database (in SqliteStoreMessageRow)
+  - ✅ Version flows through all APIs (client ↔ server ↔ database)
+- **Remaining: Version Validation Logic**
+  - **Purpose**: Prevent schema incompatibility between clients, servers, and storage
+  - **Note**: All infrastructure is now in place; validation is deliberately deferred for separate design discussion
+  - **Tentative Validation Points**:
+    - **(a) Server receives message from client**: When b5 handler processes `ConfirmMessageRequest` or `MessageConfirmation`, validate `request.version == get_schema_version()` before deserializing message bytes
+      - Location: `crates/b5/src/handlers.rs` - `confirm_message()`, `confirm_messages_multi()`
+      - Both S3 and inline message paths
+      - **Rationale**: Reject incompatible messages at ingestion boundary
+    - **(b) Client receives message from server**: When client constructs `HttpB5Message` from API response, validate `message.version == get_schema_version()` before processing
+      - Location: `crates/braid_b5/src/native/board/http.rs` - `get_messages()`, `get_messages_multi()`
+      - Location: `crates/braid_b5/src/wasm/board/http.rs` - `fetch_messages_internal()`
+      - Location: `crates/braid_b5/src/wasm/session.rs` - `fetch_messages()`
+      - Both S3 and inline message paths
+      - **Rationale**: Client shouldn't process messages it can't understand
+      - **Note**: Current validation in `store_messages()` is misplaced - it's case (b) logic in storage layer
+    - **(c) Server reads from database**: When b5 retrieves messages from SQLite, validate version matches current schema
+      - Location: `crates/b5/src/db.rs` - `get_messages_after()`, `get_message_by_id()`, `list_messages()`
+      - **Rationale**: Handle schema upgrades - old database, new server code
+      - Could reject mismatched versions or implement migration logic
+    - **(d) Native client reads from storage**: When native client retrieves messages from SQLite after app upgrade, validate version
+      - Location: `crates/braid_b5/src/native/board/storage_sqlite.rs` - `retrieve_messages()`
+      - **Rationale**: Handle schema upgrades - old database, new client code
+      - **Infrastructure**: ✅ Version now stored in database and returned in SqliteStoreMessageRow
+      - Could reject mismatched versions or implement migration logic
+    - **Note on WASM**: WASM clients use IndexedDB to store only message hashes (not serialized content), so version mismatches naturally cause hash verification failures - no explicit version check needed
+- **Design Decisions Pending**:
+  - Fail fast vs graceful degradation on version mismatch?
+  - Migration path when schema changes (auto-upgrade, manual conversion, reject old messages)?
+  - Should validation log warnings before errors?
+  - Consider semantic versioning (major.minor.patch) vs simple incrementing?
+- **Files Modified**:
+  - `crates/b5/src/api_types.rs` - Added version fields to Message, ConfirmMessageRequest, MessageConfirmation
+  - `crates/b5/src/db.rs` - Return version from queries
+  - `crates/b5/src/handlers.rs` - Use version from requests instead of hardcoding
+  - `crates/braid_b5/src/native/board/http.rs` - Send/receive version in all operations
+  - `crates/braid_b5/src/wasm/board/http.rs` - Send/receive version in WASM board
+  - `crates/braid_b5/src/wasm/session.rs` - Use version from API responses
 - **Priority**: Medium - architectural clarity and maintainability
-- **Status**: TODO
+- **Status**: 🔄 IN PROGRESS - Propagation complete ✅, validation design and implementation pending
 
 ### 14. B3 Nomenclature Audit and Cleanup
 - **Issue**: Despite HttpB3Message → HttpB5Message rename, many B3 references remain
