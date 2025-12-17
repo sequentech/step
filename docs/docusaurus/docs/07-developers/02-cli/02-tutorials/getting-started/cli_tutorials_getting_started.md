@@ -50,3 +50,8 @@ cargo run step config \
   --keycloak-client-id <KEYCLOAK_CLIENT_ID> \
   --keycloak-client-secret <KEYCLOAK_CLIENT_SECRET>
 ```
+Parameters:
+- endpoint-url: use `HASURA_ENDPOINT` .env variable
+- keycloak-url: use `KEYCLOAK_URL` .env variable
+- keycloak-client-id: use `api-key-client` 
+- keycloak-client-secret:  use the matching serect for `api-key-client` (found in the Keycloak console)
