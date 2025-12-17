@@ -4,7 +4,14 @@ This tutorial will guide you through setting up a Sequent Step development envir
 
 ## Prerequisites
 
-*   A fresh Ubuntu server (20.04 or later recommended). You can use the `provision-server.sh` script as a starting point, which contains links to tutorials for creating a new virtual machine instance on popular cloud providers.
+*   A cloud server with the following specifications:
+    *   **Minimum Recommended:** 8 vCPUs, 16 GB RAM, 50-100 GB SSD
+    *   **Recommended Instance Types:**
+        *   AWS: `c5.2xlarge` (8 vCPUs, 16 GB RAM)
+        *   GCP: `n2-standard-8` (8 vCPUs, 32 GB RAM)
+        *   Azure: `Standard_D8s_v3` (8 vCPUs, 32 GB RAM)
+    *   OS: Ubuntu 22.04 LTS or 24.04 LTS
+    *   See `provision-server.sh` for detailed specifications and provisioning examples.
 *   A domain name managed by Cloudflare (e.g., `sequent.vote`).
 *   A Cloudflare API token with DNS editing permissions.
 
@@ -31,9 +38,8 @@ Next, you need to configure the environment variables for the reverse proxy setu
 1.  Navigate to the cloned repository's `.devcontainer` directory:
 
     ```bash
-    cd /home/your-user/step/.devcontainer
+    cd ~/step/.devcontainer
     ```
-    *(Replace `your-user` with your username on the server.)*
 
 2.  Copy the `.env.remote-test.example` file to `.env`:
 
@@ -41,11 +47,32 @@ Next, you need to configure the environment variables for the reverse proxy setu
     cp .env.remote-test.example .env
     ```
 
-3.  Open the `.env` file and fill in your root domain and any required secrets. The file is pre-configured for the reverse proxy setup.
+3.  Configure the URLs using the `configure-urls.sh` script:
+
+    ```bash
+    cd ~/step
+    ./scripts/configure-urls.sh sequent.vote remote-test
+    ```
+
+    *   Replace `sequent.vote` with your root domain.
+    *   Replace `remote-test` with your chosen subdomain suffix (e.g., `qa`, `staging`, `prod`).
+
+    This will automatically configure all service URLs in your `.env` file:
+    *   `login-remote-test.sequent.vote` (Keycloak)
+    *   `admin-remote-test.sequent.vote` (Admin Portal)
+    *   `voting-remote-test.sequent.vote` (Voting Portal)
+    *   `hasura-remote-test.sequent.vote` (Hasura)
+    *   `minio-remote-test.sequent.vote` (MinIO)
+
+4.  Open the `.env` file and fill in any remaining required secrets (API tokens, passwords, etc.):
+
+    ```bash
+    nano ~/step/.devcontainer/.env
+    ```
 
 ## 3. Cloudflare DNS Setup
 
-This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for `remote-test.your-domain.com` and then CNAME records for each service (e.g., `admin-remote-test.your-domain.com`) pointing to the primary record.
+This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for the base subdomain (e.g., `remote-test.sequent.vote`) and then CNAME records for each service pointing to the primary record.
 
 1.  Set your Cloudflare API token as an environment variable:
 
@@ -56,12 +83,21 @@ This step will automate the creation of the necessary DNS records in Cloudflare.
 2.  Run the `setup-cloudflare.sh` script:
 
     ```bash
-    cd ../scripts
-    ./setup-cloudflare.sh your-domain.com your-server-ip-or-cname
+    cd ~/step/scripts
+    ./setup-cloudflare.sh sequent.vote YOUR_SERVER_IP remote-test
     ```
 
-    *   Replace `your-domain.com` with your root domain (e.g., `sequent.vote`).
-    *   Replace `your-server-ip-or-cname` with your server's public IP address or an existing CNAME.
+    *   Replace `sequent.vote` with your root domain.
+    *   Replace `YOUR_SERVER_IP` with your server's public IP address (or CNAME target).
+    *   Replace `remote-test` with your subdomain suffix (must match what you used in step 2).
+
+    The script will create:
+    *   `remote-test.sequent.vote` → YOUR_SERVER_IP (A record)
+    *   `admin-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
+    *   `voting-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
+    *   `hasura-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
+    *   `login-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
+    *   `minio-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
 
 ## 4. Deployment
 
@@ -70,7 +106,7 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
 1.  Navigate to the `.devcontainer` directory:
 
     ```bash
-    cd ../.devcontainer
+    cd ~/step/.devcontainer
     ```
 
 2.  Start the services using the `docker-compose-remote.yml` file:
@@ -79,10 +115,66 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     docker-compose -f docker-compose-remote.yml up -d
     ```
 
-Your Sequent Step development environment should now be up and running. You can access the different services through their subdomains:
+3.  Monitor the startup process:
 
-*   **Admin Portal:** `https://admin-remote-test.your-domain.com`
-*   **Voting Portal:** `https://voting-remote-test.your-domain.com`
-*   **Hasura Console:** `https://hasura-remote-test.your-domain.com`
-*   **Keycloak:** `https://login-remote-test.your-domain.com`
-*   **Minio:** `https://minio-remote-test.your-domain.com`
+    ```bash
+    docker-compose -f docker-compose-remote.yml logs -f
+    ```
+
+    Press `Ctrl+C` to stop following the logs.
+
+4.  Check service status:
+
+    ```bash
+    docker-compose -f docker-compose-remote.yml ps
+    ```
+
+Your Sequent Step environment should now be up and running! You can access the different services through their subdomains:
+
+*   **Admin Portal:** `https://admin-remote-test.sequent.vote`
+*   **Voting Portal:** `https://voting-remote-test.sequent.vote`
+*   **Hasura Console:** `https://hasura-remote-test.sequent.vote`
+*   **Keycloak:** `https://login-remote-test.sequent.vote`
+*   **MinIO:** `https://minio-remote-test.sequent.vote`
+
+## Troubleshooting
+
+### Check DNS Resolution
+
+```bash
+nslookup admin-remote-test.sequent.vote
+```
+
+### Check Docker Logs
+
+```bash
+# View logs for a specific service
+docker logs <container-name>
+
+# View logs for all services
+docker-compose -f ~/step/.devcontainer/docker-compose-remote.yml logs
+```
+
+### Check Resource Usage
+
+```bash
+# Monitor container resource usage
+docker stats
+
+# Check system resources
+htop
+```
+
+### Restart Services
+
+```bash
+cd ~/step/.devcontainer
+docker-compose -f docker-compose-remote.yml restart
+```
+
+### Stop All Services
+
+```bash
+cd ~/step/.devcontainer
+docker-compose -f docker-compose-remote.yml down
+```

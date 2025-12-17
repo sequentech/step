@@ -1,26 +1,66 @@
 #!/bin/bash
 
-# This script configures the .env file with the server's public IP or domain name.
+# This script configures the .env file for remote deployment with proper domain and subdomain settings.
 
-# Check if an argument is provided
-if [ -z "$1" ]; then
-  echo "Usage: ./configure-urls.sh <public_ip_or_domain>"
+# Check if arguments are provided
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Usage: ./configure-urls.sh <domain> <subdomain_suffix>"
+  echo "  <domain>: The root domain (e.g., sequent.vote)"
+  echo "  <subdomain_suffix>: The suffix for all subdomains (e.g., remote-test, qa, staging)"
+  echo ""
+  echo "Example: ./configure-urls.sh sequent.vote remote-test"
+  echo "This will configure URLs like:"
+  echo "  - admin-remote-test.sequent.vote"
+  echo "  - voting-remote-test.sequent.vote"
+  echo "  - hasura-remote-test.sequent.vote"
+  echo "  - login-remote-test.sequent.vote"
+  echo "  - minio-remote-test.sequent.vote"
   exit 1
 fi
 
-# Set the public IP or domain name
-PUBLIC_IP_OR_DOMAIN=$1
+# Set variables
+DOMAIN=$1
+SUBDOMAIN_SUFFIX=$2
 
 # Set the path to the .env file
 ENV_FILE="$HOME/step/.devcontainer/.env"
 
 # Check if the .env file exists
 if [ ! -f "$ENV_FILE" ]; then
-  echo "Error: .env file not found at $ENV_FILE. Please copy .env.example to .env first."
+  echo "Error: .env file not found at $ENV_FILE."
+  echo "Please copy .env.remote-test.example to .env first:"
+  echo "  cp $HOME/step/.devcontainer/.env.remote-test.example $HOME/step/.devcontainer/.env"
   exit 1
 fi
 
-# Replace localhost with the public IP or domain name
-sed -i "s/localhost/$PUBLIC_IP_OR_DOMAIN/g" "$ENV_FILE"
+echo "Configuring .env file for domain: $DOMAIN with subdomain suffix: $SUBDOMAIN_SUFFIX"
 
-echo ".env file configured successfully."
+# Update the DOMAIN variable
+sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|g" "$ENV_FILE"
+
+# Update all subdomain-based URLs to use the new suffix
+sed -i "s|login-[a-zA-Z0-9_-]*\.\${DOMAIN}|login-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i "s|admin-[a-zA-Z0-9_-]*\.\${DOMAIN}|admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i "s|voting-[a-zA-Z0-9_-]*\.\${DOMAIN}|voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i "s|hasura-[a-zA-Z0-9_-]*\.\${DOMAIN}|hasura-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i "s|minio-[a-zA-Z0-9_-]*\.\${DOMAIN}|minio-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i "s|^HARVEST_DOMAIN=.*|HARVEST_DOMAIN=$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+
+echo ""
+echo "✓ .env file configured successfully!"
+echo ""
+echo "Configuration:"
+echo "  Domain: $DOMAIN"
+echo "  Subdomain suffix: $SUBDOMAIN_SUFFIX"
+echo ""
+echo "Configured URLs:"
+echo "  - Keycloak:      https://login-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  - Admin Portal:  https://admin-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  - Voting Portal: https://voting-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  - Hasura:        https://hasura-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  - MinIO:         https://minio-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo ""
+echo "Next steps:"
+echo "  1. Review and update any remaining placeholders in $ENV_FILE"
+echo "  2. Set up DNS records with: ./scripts/setup-cloudflare.sh $DOMAIN <server_ip> $SUBDOMAIN_SUFFIX"
+echo "  3. Start the services with: docker-compose -f .devcontainer/docker-compose-remote.yml up -d"
