@@ -59,8 +59,8 @@ For local development:
 Get help:
 
 ```bash
-step --help
-step <command> --help
+cargo run step --help
+cargo run step <command> --help
 ```
 
 Common commands:
@@ -68,7 +68,7 @@ Common commands:
 ## Refresh Auth Token
 > This command should be called when the jwt has expired
 ```bash 
-step refresh-token
+cargo run step refresh-token
 ```
 
 # Create Election Event
