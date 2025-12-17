@@ -775,12 +775,14 @@ services:
     profiles: ["full"]
     image: sequentech.local/frontend
     container_name: voting-portal
-    depends_on:
-      - admin-portal
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile
     ports:
       - 3000:3000
     stdin_open: true
     entrypoint: ["./init.sh", "start"]
+    working_dir: /usr/src/app
     volumes:
        - ../packages:/usr/src/app
 
