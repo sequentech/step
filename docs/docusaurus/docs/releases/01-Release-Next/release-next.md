@@ -82,3 +82,9 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Tally Multi Contest area votes not included in tally if area does not have the first contest assigned
+
+Fixed an issue that prevented ballots to be tallied if an area did not have the first contest assigned.
+
+- Issue: [#9994](https://github.com/sequentech/meta/issues/9994)
