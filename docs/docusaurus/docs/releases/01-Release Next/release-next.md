@@ -65,3 +65,9 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Tally Multi Contest area votes not included in tally if area does not have the first contest assigned
+
+Fixed an issue that prevented ballots to be tallied if an area did not have the first contest assigned.
+
+- Issue: [#9994](https://github.com/sequentech/meta/issues/9994)
