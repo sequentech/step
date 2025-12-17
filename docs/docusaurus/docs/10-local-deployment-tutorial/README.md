@@ -51,6 +51,7 @@ Next, you need to configure the environment variables for the reverse proxy setu
 
     ```bash
     cd ~/step
+    chmod +x ./scripts/configure-urls.sh
     ./scripts/configure-urls.sh sequent.vote remote-test
     ```
 
@@ -84,6 +85,7 @@ This step will automate the creation of the necessary DNS records in Cloudflare.
 
     ```bash
     cd ~/step/scripts
+    chmod +x ./setup-cloudflare.sh
     ./setup-cloudflare.sh sequent.vote YOUR_SERVER_IP remote-test
     ```
 
