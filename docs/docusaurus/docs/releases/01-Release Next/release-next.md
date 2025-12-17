@@ -67,7 +67,7 @@ tally result files in `velvet-generate-reports`.
 It contains the value of some election metrics.
 
 - Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
-- 
+
 ## 🐞 Tally Multi Contest area votes not included in tally if area does not have the first contest assigned
 
 Fixed an issue that prevented ballots to be tallied if an area did not have the first contest assigned.
