@@ -82,3 +82,9 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Admin Portal > Electoral Logs > Timestamp filter does not work
+
+Fix the filter by timestamp in the Admin Portal's UI.
+
+- Issue: [#9995](https://github.com/sequentech/meta/issues/9995)
