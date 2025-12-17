@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use serde::de;
 use std::fmt::Debug;
 use tonic::{metadata::MetadataValue, transport::Channel, Request, Response, Streaming};
 use tracing::{debug, info, instrument};
