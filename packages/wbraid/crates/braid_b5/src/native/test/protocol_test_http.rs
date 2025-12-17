@@ -218,8 +218,9 @@ async fn run_protocol_test_http<C: Context + 'static, const W: usize>(
         
         // Insert ballot message using a temporary board
         let board_params = HttpB3BoardParams::new(HTTP_URL);
-        let mut temp_board = board_params.create_board(TEST_BOARD, None);
-        temp_board.insert_messages(TEST_BOARD, vec![message.try_into().unwrap()]).await?;
+        let mut temp_board: HttpB3 = board_params.create_board(TEST_BOARD, None);
+        let http_msg = b5::HttpB5Message::from_protocol_message::<C>(message.try_into().unwrap());
+        Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
     }
 
     // Wait for decryption
@@ -361,8 +362,9 @@ pub async fn create_protocol_test<C: Context, const W: usize>(
     
     // Send bootstrap message
     let board_params = HttpB3BoardParams::new(HTTP_URL);
-    let mut temp_board = board_params.create_board(TEST_BOARD, None);
-    temp_board.insert_messages(TEST_BOARD, vec![message.try_into().unwrap()]).await?;
+    let mut temp_board: HttpB3 = board_params.create_board(TEST_BOARD, None);
+    let http_msg = b5::HttpB5Message::from_protocol_message::<C>(message.try_into().unwrap());
+    Board::<C>::post_messages(&mut temp_board, TEST_BOARD, vec![http_msg]).await?;
 
     Ok(ProtocolTest {
         cfg,

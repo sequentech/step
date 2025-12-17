@@ -7,10 +7,8 @@ use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     GetMessagesResponse, ContentType,
 };
-use b5::messages::message::Message;
 use b5::HttpB5Message;
 use cryptography::context::Context;
-use cryptography::utils::serialization::variable::VSerializable;
 
 use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
 
@@ -28,10 +26,10 @@ impl HttpB3 {
         }
     }
 
-    /// Helper to post a single message to a specific board
-    async fn post_message_to_board<C: Context>(&self, board: &str, message: &Message<C>) -> Result<()> {
-        // Serialize the message
-        let message_bytes = message.ser();
+    /// Helper to post a single HttpB5Message to a specific board
+    async fn post_http_message_to_board(&self, board: &str, http_message: &HttpB5Message) -> Result<()> {
+        // Message is already serialized in HttpB5Message
+        let message_bytes = &http_message.message;
         let size = message_bytes.len();
 
         // Phase 1: Initiate message
@@ -103,7 +101,7 @@ impl HttpB3 {
                 self.base_url, board, init_resp.message_id
             );
             let confirm_req = ConfirmMessageRequest {
-                data: Some(message_bytes),
+                data: Some(message_bytes.clone()),
             };
 
             let confirm_response = self
@@ -196,9 +194,9 @@ impl<C: Context> Board<C> for HttpB3 {
         Ok(result)
     }
 
-    async fn insert_messages(&mut self, board: &str, messages: Vec<Message<C>>) -> Result<()> {
-        for message in messages {
-            self.post_message_to_board(board, &message).await?;
+    async fn post_messages(&mut self, board: &str, messages: Vec<HttpB5Message>) -> Result<()> {
+        for http_message in messages {
+            self.post_http_message_to_board(board, &http_message).await?;
         }
         Ok(())
     }
@@ -332,20 +330,18 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
         Ok((all_boards, has_more))
     }
 
-    async fn insert_messages_multi(&self, requests: Vec<(String, Vec<Message<C>>)>) -> Result<()> {
+    async fn post_messages_multi(&self, requests: Vec<(String, Vec<HttpB5Message>)>) -> Result<()> {
         use b5::api_types::{
             InitiateMessagesMultiRequest, BoardInitiateRequest, MessageMetadata,
             ConfirmMessagesMultiRequest, BoardConfirmRequest, MessageConfirmation,
         };
-        use cryptography::utils::serialization::variable::VSerializable;
-        
         if requests.is_empty() {
             return Ok(());
         }
         
         // Phase 1: Initiate multi-board upload - get S3 URLs for all messages
         let mut initiate_requests = Vec::new();
-        let mut messages_by_board: std::collections::HashMap<String, Vec<Message<C>>> = std::collections::HashMap::new();
+        let mut messages_by_board: std::collections::HashMap<String, Vec<HttpB5Message>> = std::collections::HashMap::new();
         
         for (board_name, messages) in requests {
             if messages.is_empty() {
@@ -353,11 +349,9 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
             }
             
             let mut metadata_list = Vec::new();
-            for message in &messages {
-                let message_bytes = message.ser();
-                
+            for http_message in &messages {
                 metadata_list.push(MessageMetadata {
-                    size: message_bytes.len(),
+                    size: http_message.message.len(),
                 });
             }
             
@@ -405,15 +399,15 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
             
             let mut confirmations = Vec::new();
             
-            for (message, upload_info) in messages.iter().zip(board_response.uploads.iter()) {
-                let message_bytes = message.ser();
+            for (http_message, upload_info) in messages.iter().zip(board_response.uploads.iter()) {
+                let message_bytes = &http_message.message;
                 
                 if upload_info.should_upload {
                     // Large message - upload to S3
                     if let Some(upload_url) = &upload_info.upload_url {
                         let s3_response = self.client
                             .put(upload_url)
-                            .body(message_bytes)
+                            .body(message_bytes.clone())
                             .send()
                             .await?;
                         
@@ -437,7 +431,7 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
                     // Small message - send inline in confirmation
                     confirmations.push(MessageConfirmation {
                         message_id: upload_info.message_id.clone(),
-                        data: Some(message_bytes),
+                        data: Some(message_bytes.clone()),
                     });
                 }
             }

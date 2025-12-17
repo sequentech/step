@@ -59,9 +59,14 @@ impl<C: Context, B: Board<C>, S: crate::protocol::board::LocalBoardStorage> Sess
         let posted_count = step_result.messages.len();
         info!("Posting {} messages..", posted_count);
 
-        // Post messages and clear the vector (we don't need to keep them)
+        // Convert protocol messages to wire format before posting
+        let http_messages: Vec<b5::HttpB5Message> = std::mem::take(&mut step_result.messages)
+            .into_iter()
+            .map(b5::HttpB5Message::from_protocol_message)
+            .collect();
+
         board
-            .insert_messages(&self.board_name, std::mem::take(&mut step_result.messages))
+            .post_messages(&self.board_name, http_messages)
             .await
             .map_err(|e| ProtocolError::BoardError(e.to_string()))?;
 

@@ -14,9 +14,7 @@ use b5::api_types::{
     InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     GetMessagesResponse, ContentType,
 };
-use b5::messages::message::Message;
 use cryptography::context::Context;
-use cryptography::utils::serialization::variable::VSerializable;
 
 /// Parameters for creating a WASM HTTP board connection
 #[derive(Clone)]
@@ -115,11 +113,11 @@ impl WasmHttpBoard {
         Ok(messages)
     }
 
-    /// Post a single message to B4
-    async fn post_message_internal<C: Context>(&self, board_name: &str, message: Message<C>) -> Result<(), JsValue> {
+    /// Post a single HttpB5Message to B4
+    async fn post_http_message_internal(&self, board_name: &str, http_message: HttpB5Message) -> Result<(), JsValue> {
         
-        // Serialize message
-        let message_bytes = message.ser();
+        // Message is already serialized in HttpB5Message
+        let message_bytes = http_message.message;
         let size = message_bytes.len();
         
         // Phase 1: Initiate message
@@ -256,9 +254,9 @@ impl<C: Context> Board<C> for WasmHttpBoard {
             .map_err(|e| anyhow::anyhow!("Failed to fetch messages: {:?}", e))
     }
 
-    async fn insert_messages(&mut self, board_name: &str, messages: Vec<Message<C>>) -> anyhow::Result<()> {
-        for message in messages {
-            self.post_message_internal::<C>(board_name, message)
+    async fn post_messages(&mut self, board_name: &str, messages: Vec<HttpB5Message>) -> anyhow::Result<()> {
+        for http_message in messages {
+            self.post_http_message_internal(board_name, http_message)
                 .await
                 .map_err(|e| anyhow::anyhow!("Failed to post message: {:?}", e))?;
         }

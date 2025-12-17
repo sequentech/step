@@ -21,7 +21,6 @@ pub use storage_noop::NoOpStorage;
 pub use local_storage::{LocalBoardStorage, StorageInfo};
 
 use anyhow::Result;
-use b5::messages::message::Message;
 use b5::HttpB5Message;
 
 /// Defines the interface with a bulletin board.
@@ -60,22 +59,25 @@ pub trait Board<C: cryptography::context::Context>: Sized {
         last_id: i64,
     ) -> impl std::future::Future<Output = Result<Vec<HttpB5Message>>>;
 
-    /// Posts a messages to the given board of the bulletin board.
+    /// Posts messages to the given board of the bulletin board.
+    /// 
+    /// Takes HttpB5Message (wire format) rather than Message<C> (protocol format)
+    /// to maintain clean separation between protocol and transport layers.
     
     // Native: Requires Send bound for multi-threaded runtime
     #[cfg(not(target_arch = "wasm32"))]
-    fn insert_messages(
+    fn post_messages(
         &mut self,
         board: &str,
-        messages: Vec<Message<C>>,
+        messages: Vec<HttpB5Message>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
 
     // WASM: Cannot satisfy Send (browser APIs use Rc, raw pointers)
     #[cfg(target_arch = "wasm32")]
-    fn insert_messages(
+    fn post_messages(
         &mut self,
         board: &str,
-        messages: Vec<Message<C>>,
+        messages: Vec<HttpB5Message>,
     ) -> impl std::future::Future<Output = Result<()>>;
 }
 
@@ -107,9 +109,12 @@ pub trait BoardMulti<C: cryptography::context::Context>: Sized {
         requests: &Vec<(String, i64)>,
     ) -> impl std::future::Future<Output = Result<(Vec<b5::HttpBoardMessages>, bool)>> + Send;
 
-    fn insert_messages_multi(
+    /// Posts messages to multiple boards.
+    /// 
+    /// Takes HttpB5Message (wire format) for clean layer separation.
+    fn post_messages_multi(
         &self,
-        requests: Vec<(String, Vec<Message<C>>)>,
+        requests: Vec<(String, Vec<HttpB5Message>)>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
 }
 

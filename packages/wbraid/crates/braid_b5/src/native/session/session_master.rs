@@ -348,7 +348,20 @@ impl<C: Context> SessionSet<C> {
                         f64::from(total_bytes) / (1024.0 * 1024.0)
                     );
                     let now = std::time::Instant::now();
-                    let result = board.insert_messages_multi(post_messages).await;
+                    
+                    // Convert protocol messages to wire format before posting
+                    let http_post_messages: Vec<(String, Vec<b5::HttpB5Message>)> = post_messages
+                        .into_iter()
+                        .map(|(board_name, messages)| {
+                            let http_messages = messages
+                                .into_iter()
+                                .map(b5::HttpB5Message::from_protocol_message)
+                                .collect();
+                            (board_name, http_messages)
+                        })
+                        .collect();
+                    
+                    let result = BoardMulti::<C>::post_messages_multi(&board, http_post_messages).await;
                     if let Err(err) = result {
                         error!("Error posting messages: '{:?} (set {})'", err, self.name);
                     }

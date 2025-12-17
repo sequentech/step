@@ -127,7 +127,7 @@ pub async fn initiate_message(
 
 pub async fn confirm_message<C: Context>(
     State(state): State<AppState>,
-    Path((board_name, id)): Path<(String, String)>,
+    Path((board_name, s3_message_id)): Path<(String, String)>,
     Json(req): Json<ConfirmMessageRequest>,
 ) -> Result<Json<ConfirmMessageResponse>, StatusCode> {
     // Validate board exists
@@ -172,7 +172,7 @@ pub async fn confirm_message<C: Context>(
         let content_type = ContentType::Inline { data: data.clone() };
         
         let msg = Message {
-            id: id.clone(),
+            id: s3_message_id.clone(),
             timestamp,
             size,
             content_type,
@@ -202,7 +202,7 @@ pub async fn confirm_message<C: Context>(
 
     } else {
         // S3 message - download, deserialize to extract metadata
-        let s3_key = format!("{}/messages/{}", board_name, id);
+        let s3_key = format!("{}/messages/{}", board_name, s3_message_id);
         
         // Download the message from S3 to extract metadata
         tracing::debug!("[S3] GET s3://{}/{} for metadata extraction", state.bucket_name, s3_key);
@@ -254,7 +254,7 @@ pub async fn confirm_message<C: Context>(
         let content_type = ContentType::S3 { key: s3_key.clone() };
         
         let msg = Message {
-            id: id.clone(),
+            id: s3_message_id.clone(),
             timestamp,
             size,
             content_type,
@@ -284,7 +284,7 @@ pub async fn confirm_message<C: Context>(
 
     }
 
-    tracing::info!("confirm_message: inserted one message to board '{}', uuid {}", board_name, id);
+    tracing::info!("confirm_message: inserted one message to board '{}', s3_message_id {}", board_name, s3_message_id);
     Ok(Json(ConfirmMessageResponse { success: true }))
 }
 
@@ -515,12 +515,12 @@ pub async fn initiate_messages_multi(
         let mut uploads = Vec::new();
         
         for msg_meta in board_req.messages {
-            let message_id = Uuid::new_v4().to_string();
+            let s3_message_id = Uuid::new_v4().to_string();
             let size = msg_meta.size;
             
             if size > MAX_INLINE_MESSAGE_SIZE {
                 // Large message - generate S3 upload URL
-                let s3_key = format!("{}/messages/{}", board_name, message_id);
+                let s3_key = format!("{}/messages/{}", board_name, s3_message_id);
                 
                 tracing::debug!("[S3] Generating upload URL for s3://{}/{}", state.bucket_name, s3_key);
                 let upload_url = s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
@@ -532,14 +532,14 @@ pub async fn initiate_messages_multi(
                 tracing::debug!("[S3] Generated upload URL for board '{}'", board_name);
                 
                 uploads.push(MessageUploadInfo {
-                    message_id,
+                    message_id: s3_message_id,
                     upload_url: Some(upload_url),
                     should_upload: true,
                 });
             } else {
                 // Small message - client should send data in confirm request
                 uploads.push(MessageUploadInfo {
-                    message_id,
+                    message_id: s3_message_id,
                     upload_url: None,
                     should_upload: false,
                 });
@@ -591,7 +591,7 @@ pub async fn confirm_messages_multi<C: Context>(
         let confirmation_count = board_req.confirmations.len();
         
         for confirmation in board_req.confirmations {
-            let message_id = &confirmation.message_id;
+            let s3_message_id = &confirmation.message_id;
             
             if let Some(data) = confirmation.data {
                 // Inline message - extract metadata from message data
@@ -622,7 +622,7 @@ pub async fn confirm_messages_multi<C: Context>(
                 let content_type = ContentType::Inline { data: data.clone() };
                 
                 let msg = Message {
-                    id: message_id.clone(),
+                    id: s3_message_id.clone(),
                     timestamp,
                     size,
                     content_type,
@@ -652,7 +652,7 @@ pub async fn confirm_messages_multi<C: Context>(
             } else {
                 // S3 message - download to extract metadata
                 s3_count += 1;
-                let s3_key = format!("{}/messages/{}", board_name, message_id);
+                let s3_key = format!("{}/messages/{}", board_name, s3_message_id);
                 
                 // Download message from S3 to extract metadata
                 tracing::debug!("[S3] GET s3://{}/{} (multi-board confirm)", state.bucket_name, s3_key);
@@ -699,7 +699,7 @@ pub async fn confirm_messages_multi<C: Context>(
                 let content_type = ContentType::S3 { key: s3_key.clone() };
                 
                 let msg = Message {
-                    id: message_id.clone(),
+                    id: s3_message_id.clone(),
                     timestamp,
                     size,
                     content_type,
