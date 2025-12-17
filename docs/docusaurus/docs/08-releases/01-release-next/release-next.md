@@ -125,3 +125,9 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Documentation sidebar order has been restructured
 
 - Issue: [#8672](https://github.com/sequentech/meta/issues/8672)
+
+## 🐞 Admin Portal > Electoral Logs > Timestamp filter does not work
+
+Fix the filter by timestamp in the Admin Portal's UI.
+
+- Issue: [#9995](https://github.com/sequentech/meta/issues/9995)
