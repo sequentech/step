@@ -143,7 +143,7 @@ pub async fn confirm_message<C: Context>(
         })?;
     
     let timestamp = Utc::now().timestamp();
-    let version = "1".to_string(); 
+    let version = req.version;
 
     // Check if this is an S3 message or inline message
     if let Some(data) = req.data {
@@ -180,6 +180,7 @@ pub async fn confirm_message<C: Context>(
             statement_kind: statement_kind.clone(),
             batch,
             mix_number,
+            version: version.clone(),
         };
 
         db::insert_message(
@@ -262,6 +263,7 @@ pub async fn confirm_message<C: Context>(
             statement_kind: statement_kind.clone(),
             batch,
             mix_number,
+            version: version.clone(),
         };
 
         db::insert_message(
@@ -584,7 +586,6 @@ pub async fn confirm_messages_multi<C: Context>(
             })?;
         
         let timestamp = Utc::now().timestamp();
-        let version = "1".to_string();
         
         let mut inline_count = 0;
         let mut s3_count = 0;
@@ -592,6 +593,7 @@ pub async fn confirm_messages_multi<C: Context>(
         
         for confirmation in board_req.confirmations {
             let s3_message_id = &confirmation.message_id;
+            let version = &confirmation.version;
             
             if let Some(data) = confirmation.data {
                 // Inline message - extract metadata from message data
@@ -630,6 +632,7 @@ pub async fn confirm_messages_multi<C: Context>(
                     statement_kind: statement_kind.clone(),
                     batch,
                     mix_number,
+                    version: version.clone(),
                 };
                 
                 db::insert_message(
@@ -638,7 +641,7 @@ pub async fn confirm_messages_multi<C: Context>(
                     &msg,
                     Some(data.as_slice()),
                     None,
-                    &version,
+                    version,
                     &sender_pk,
                     &statement_kind,
                     batch,
@@ -707,6 +710,7 @@ pub async fn confirm_messages_multi<C: Context>(
                     statement_kind: statement_kind.clone(),
                     batch,
                     mix_number,
+                    version: version.clone(),
                 };
                 
                 db::insert_message(
@@ -715,7 +719,7 @@ pub async fn confirm_messages_multi<C: Context>(
                     &msg,
                     None,
                     Some(&s3_key),
-                    &version,
+                    version,
                     &sender_pk,
                     &statement_kind,
                     batch,

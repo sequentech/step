@@ -76,6 +76,7 @@ impl HttpB3 {
                 );
                 let confirm_req = ConfirmMessageRequest {
                     data: None,
+                    version: http_message.version.clone(),
                 };
 
                 let confirm_response = self
@@ -102,6 +103,7 @@ impl HttpB3 {
             );
             let confirm_req = ConfirmMessageRequest {
                 data: Some(message_bytes.clone()),
+                version: http_message.version.clone(),
             };
 
             let confirm_response = self
@@ -187,7 +189,7 @@ impl<C: Context> Board<C> for HttpB3 {
             result.push(HttpB5Message::new(
                 id,
                 message_bytes,
-                "1".to_string(),
+                msg.message.version,
             ));
         }
 
@@ -317,7 +319,7 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
                 http_messages.push(HttpB5Message::new(
                     id,
                     message_bytes,
-                    "1".to_string(),
+                    msg_with_url.message.version,
                 ));
             }
             
@@ -423,6 +425,7 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
                         confirmations.push(MessageConfirmation {
                             message_id: upload_info.message_id.clone(),
                             data: None,
+                            version: http_message.version.clone(),
                         });
                     } else {
                         anyhow::bail!("Server indicated upload needed but provided no URL");
@@ -432,6 +435,7 @@ impl<C: Context> BoardMulti<C> for HttpB3 {
                     confirmations.push(MessageConfirmation {
                         message_id: upload_info.message_id.clone(),
                         data: Some(message_bytes.clone()),
+                        version: http_message.version.clone(),
                     });
                 }
             }

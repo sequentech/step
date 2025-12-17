@@ -19,7 +19,6 @@ use cryptography::utils::symm;
 use cryptography::utils::signatures::SignatureScheme;
 use b5::HttpB5Message;
 use b5::api_types::{
-    InitiateMessageRequest, InitiateMessageResponse, ConfirmMessageRequest,
     ListMessagesResponse, ContentType,
 };
 
@@ -366,7 +365,7 @@ impl WasmSession {
             messages.push(HttpB5Message::new(
                 id,
                 message_bytes,
-                "1".to_string(),
+                http_msg.version,
             ));
         }
         
@@ -376,181 +375,6 @@ impl WasmSession {
         )));
         
         Ok(messages)
-    }
-
-    /// Post messages to the bulletin board
-    async fn post_messages(&self, messages: Vec<b5::messages::message::Message<RistrettoCtx>>) -> Result<(), JsValue> {
-        use cryptography::utils::serialization::variable::VSerializable;
-        
-        if messages.is_empty() {
-            return Ok(());
-        }
-        
-        let board_name = self.board_name.as_ref()
-            .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
-        
-        web_sys::console::log_1(&JsValue::from_str(&format!(
-            "Posting {} messages to board '{}'",
-            messages.len(),
-            board_name
-        )));
-        
-        let num_messages = messages.len();
-        
-        for message in messages {
-            // Serialize message
-            let message_bytes = message.ser();
-            let size = message_bytes.len();
-            let statement_kind = message.statement.get_kind().to_string();
-            
-            web_sys::console::log_1(&JsValue::from_str(&format!(
-                "Posting {} message (size: {} bytes)",
-                statement_kind, size
-            )));
-            
-            // Phase 1: Initiate message
-            let initiate_url = format!("{}/boards/{}/messages/initiate", self.b4_url, board_name);
-            
-            let initiate_req = InitiateMessageRequest {
-                size,
-            };
-            
-            let body = serde_json::to_string(&initiate_req)
-                .map_err(|e| JsValue::from_str(&format!("JSON error: {}", e)))?;
-            
-            let opts = RequestInit::new();
-            opts.set_method("POST");
-            opts.set_mode(RequestMode::Cors);
-            opts.set_body(&JsValue::from_str(&body));
-            
-            let request = Request::new_with_str_and_init(&initiate_url, &opts)?;
-            request.headers().set("Content-Type", "application/json")?;
-            
-            let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
-            let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
-            let resp: Response = resp_value.dyn_into()?;
-            
-            if !resp.ok() {
-                return Err(JsValue::from_str(&format!(
-                    "Initiate failed: HTTP {}",
-                    resp.status()
-                )));
-            }
-            
-            let json = JsFuture::from(resp.json()?).await?;
-            
-            let init_resp: InitiateMessageResponse = serde_wasm_bindgen::from_value(json)
-                .map_err(|e| JsValue::from_str(&format!("Failed to parse initiate response: {}", e)))?;
-            
-            web_sys::console::log_1(&JsValue::from_str(&format!(
-                "Initiated message ID: {}, should_upload: {}",
-                init_resp.message_id, init_resp.should_upload
-            )));
-            
-            // Phase 2: Upload or inline confirm
-            if init_resp.should_upload {
-                // Large message - upload to S3
-                let upload_url = init_resp.upload_url.ok_or_else(|| 
-                    JsValue::from_str("Server indicated upload but no URL provided"))?;
-                
-                web_sys::console::log_1(&JsValue::from_str(&format!(
-                    "Uploading {} bytes to S3...",
-                    message_bytes.len()
-                )));
-                
-                let opts2 = RequestInit::new();
-                opts2.set_method("PUT");
-                opts2.set_mode(RequestMode::Cors);
-                
-                // Convert Vec<u8> to Uint8Array for upload
-                let array = js_sys::Uint8Array::from(&message_bytes[..]);
-                opts2.set_body(&array);
-                
-                let request2 = Request::new_with_str_and_init(&upload_url, &opts2)?;
-                let resp_value2 = JsFuture::from(window.fetch_with_request(&request2)).await?;
-                let resp2: Response = resp_value2.dyn_into()?;
-                
-                if !resp2.ok() {
-                    return Err(JsValue::from_str(&format!(
-                        "S3 upload failed: HTTP {}",
-                        resp2.status()
-                    )));
-                }
-                
-                // Phase 3: Confirm S3 upload
-                let confirm_url = format!(
-                    "{}/boards/{}/messages/{}/confirm",
-                    self.b4_url, board_name, init_resp.message_id
-                );
-                
-                let confirm_req = ConfirmMessageRequest {
-                    data: None,
-                };
-                
-                let confirm_json = serde_json::to_string(&confirm_req)
-                    .map_err(|e| JsValue::from_str(&format!("Failed to serialize confirm: {}", e)))?;
-                
-                let opts3 = RequestInit::new();
-                opts3.set_method("POST");
-                opts3.set_mode(RequestMode::Cors);
-                opts3.set_body(&JsValue::from_str(&confirm_json));
-                
-                let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
-                request3.headers().set("Content-Type", "application/json")?;
-                
-                let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
-                let resp3: Response = resp_value3.dyn_into()?;
-                
-                if !resp3.ok() {
-                    return Err(JsValue::from_str(&format!(
-                        "Confirm failed: HTTP {}",
-                        resp3.status()
-                    )));
-                }
-                
-                web_sys::console::log_1(&JsValue::from_str("✓ S3 message confirmed"));
-            } else {
-                // Small message - send inline
-                let confirm_url = format!(
-                    "{}/boards/{}/messages/{}/confirm",
-                    self.b4_url, board_name, init_resp.message_id
-                );
-                
-                let confirm_req = ConfirmMessageRequest {
-                    data: Some(message_bytes),
-                };
-                
-                let confirm_json = serde_json::to_string(&confirm_req)
-                    .map_err(|e| JsValue::from_str(&format!("Failed to serialize confirm: {}", e)))?;
-                
-                let opts3 = RequestInit::new();
-                opts3.set_method("POST");
-                opts3.set_mode(RequestMode::Cors);
-                opts3.set_body(&JsValue::from_str(&confirm_json));
-                
-                let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
-                request3.headers().set("Content-Type", "application/json")?;
-                
-                let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
-                let resp3: Response = resp_value3.dyn_into()?;
-                
-                if !resp3.ok() {
-                    return Err(JsValue::from_str(&format!(
-                        "Confirm failed: HTTP {}",
-                        resp3.status()
-                    )));
-                }
-                
-                web_sys::console::log_1(&JsValue::from_str("✓ Inline message confirmed"));
-            }
-        }
-        
-        web_sys::console::log_1(&JsValue::from_str(&format!(
-            "Successfully posted all {} messages",
-            num_messages
-        )));
-        
-        Ok(())
     }
 
     /// Perform one protocol step

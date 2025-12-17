@@ -242,7 +242,7 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
+    Ok(row.map(|(id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)| {
         let content_type = match content_type.as_str() {
             "inline" => crate::api_types::ContentType::Inline {
                 data: inline_data.unwrap_or_default(),
@@ -262,6 +262,7 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
             statement_kind,
             batch,
             mix_number,
+            version,
         }
     }))
 }
@@ -278,7 +279,7 @@ pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Me
 
     Ok(rows
         .into_iter()
-        .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
+        .map(|(id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)| {
             let content_type = match content_type.as_str() {
                 "inline" => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
@@ -298,6 +299,7 @@ pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Me
                 statement_kind,
                 batch,
                 mix_number,
+                version,
             }
         })
         .collect())
@@ -326,7 +328,7 @@ pub async fn get_messages_after(
     let messages: Vec<Message> = rows
         .into_iter()
         .take(limit as usize)
-        .map(|(id, timestamp, size, content_type, inline_data, s3_key, _version, sender_pk, statement_kind, batch, mix_number)| {
+        .map(|(id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)| {
             let content_type = match content_type.as_str() {
                 "inline" => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
@@ -346,6 +348,7 @@ pub async fn get_messages_after(
                 statement_kind,
                 batch,
                 mix_number,
+                version,
             }
         })
         .collect();

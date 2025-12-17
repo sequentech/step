@@ -106,7 +106,7 @@ impl WasmHttpBoard {
             messages.push(HttpB5Message::new(
                 id,
                 message_bytes,
-                "1".to_string(),
+                msg.message.version,
             ));
         }
         
@@ -186,6 +186,7 @@ impl WasmHttpBoard {
             
             let confirm_req = ConfirmMessageRequest {
                 data: None,
+                version: http_message.version.clone(),
             };
             
             let confirm_json = serde_json::to_string(&confirm_req)
@@ -217,6 +218,7 @@ impl WasmHttpBoard {
             
             let confirm_req = ConfirmMessageRequest {
                 data: Some(message_bytes),
+                version: http_message.version,
             };
             
             let confirm_json = serde_json::to_string(&confirm_req)

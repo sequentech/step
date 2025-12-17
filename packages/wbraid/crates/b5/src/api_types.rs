@@ -24,6 +24,7 @@ pub struct Message {
     pub statement_kind: String,
     pub batch: i32,
     pub mix_number: i32,
+    pub version: String,
 }
 
 /// Content storage type for messages
@@ -107,6 +108,8 @@ pub struct InitiateMessageResponse {
 pub struct ConfirmMessageRequest {
     /// Message data (only for inline messages; S3 messages already uploaded)
     pub data: Option<Vec<u8>>,
+    /// Protocol version of the message format
+    pub version: String,
 }
 
 /// Response from confirming a message upload
@@ -225,6 +228,7 @@ pub struct InitiateMessagesMultiResponse {
 pub struct MessageConfirmation {
     pub message_id: String,
     pub data: Option<Vec<u8>>, // Only for inline messages (when should_upload was false)
+    pub version: String, // Protocol version of the message format
 }
 
 /// Request to confirm uploads to a single board
