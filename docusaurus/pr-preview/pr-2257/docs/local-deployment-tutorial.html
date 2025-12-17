@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Remote Test Environment Deployment Tutorial | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Remote Test Environment Deployment Tutorial | Sequent Online Voting"><meta data-rh="true" name="description" content="This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic."><meta data-rh="true" property="og:description" content="This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic."><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2257/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Remote Test Environment Deployment Tutorial","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial/"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2257/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.05624233.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.99b7bb87.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2257/assets/js/main.834bc336.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,7 +15,20 @@
 <p>This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic.</p>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="prerequisites">Prerequisites<a href="#prerequisites" class="hash-link" aria-label="Direct link to Prerequisites" title="Direct link to Prerequisites">​</a></h2>
 <ul>
-<li>A fresh Ubuntu server (20.04 or later recommended). You can use the <code>provision-server.sh</code> script as a starting point, which contains links to tutorials for creating a new virtual machine instance on popular cloud providers.</li>
+<li>A cloud server with the following specifications:<!-- -->
+<ul>
+<li><strong>Minimum Recommended:</strong> 8 vCPUs, 16 GB RAM, 50-100 GB SSD</li>
+<li><strong>Recommended Instance Types:</strong>
+<ul>
+<li>AWS: <code>c5.2xlarge</code> (8 vCPUs, 16 GB RAM)</li>
+<li>GCP: <code>n2-standard-8</code> (8 vCPUs, 32 GB RAM)</li>
+<li>Azure: <code>Standard_D8s_v3</code> (8 vCPUs, 32 GB RAM)</li>
+</ul>
+</li>
+<li>OS: Ubuntu 22.04 LTS or 24.04 LTS</li>
+<li>See <code>provision-server.sh</code> for detailed specifications and provisioning examples.</li>
+</ul>
+</li>
 <li>A domain name managed by Cloudflare (e.g., <code>sequent.vote</code>).</li>
 <li>A Cloudflare API token with DNS editing permissions.</li>
 </ul>
@@ -38,19 +51,35 @@
 <ol>
 <li>
 <p>Navigate to the cloned repository&#x27;s <code>.devcontainer</code> directory:</p>
-<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> /home/your-user/step/.devcontainer</span><br></span></code></pre></div></div>
-<p><em>(Replace <code>your-user</code> with your username on the server.)</em></p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step/.devcontainer</span><br></span></code></pre></div></div>
 </li>
 <li>
 <p>Copy the <code>.env.remote-test.example</code> file to <code>.env</code>:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">cp</span><span class="token plain"> .env.remote-test.example .env</span><br></span></code></pre></div></div>
 </li>
 <li>
-<p>Open the <code>.env</code> file and fill in your root domain and any required secrets. The file is pre-configured for the reverse proxy setup.</p>
+<p>Configure the URLs using the <code>configure-urls.sh</code> script:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">./scripts/configure-urls.sh sequent.vote remote-test</span><br></span></code></pre></div></div>
+<ul>
+<li>Replace <code>sequent.vote</code> with your root domain.</li>
+<li>Replace <code>remote-test</code> with your chosen subdomain suffix (e.g., <code>qa</code>, <code>staging</code>, <code>prod</code>).</li>
+</ul>
+<p>This will automatically configure all service URLs in your <code>.env</code> file:</p>
+<ul>
+<li><code>login-remote-test.sequent.vote</code> (Keycloak)</li>
+<li><code>admin-remote-test.sequent.vote</code> (Admin Portal)</li>
+<li><code>voting-remote-test.sequent.vote</code> (Voting Portal)</li>
+<li><code>hasura-remote-test.sequent.vote</code> (Hasura)</li>
+<li><code>minio-remote-test.sequent.vote</code> (MinIO)</li>
+</ul>
+</li>
+<li>
+<p>Open the <code>.env</code> file and fill in any remaining required secrets (API tokens, passwords, etc.):</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">nano</span><span class="token plain"> ~/step/.devcontainer/.env</span><br></span></code></pre></div></div>
 </li>
 </ol>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="3-cloudflare-dns-setup">3. Cloudflare DNS Setup<a href="#3-cloudflare-dns-setup" class="hash-link" aria-label="Direct link to 3. Cloudflare DNS Setup" title="Direct link to 3. Cloudflare DNS Setup">​</a></h2>
-<p>This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for <code>remote-test.your-domain.com</code> and then CNAME records for each service (e.g., <code>admin-remote-test.your-domain.com</code>) pointing to the primary record.</p>
+<p>This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for the base subdomain (e.g., <code>remote-test.sequent.vote</code>) and then CNAME records for each service pointing to the primary record.</p>
 <ol>
 <li>
 <p>Set your Cloudflare API token as an environment variable:</p>
@@ -58,10 +87,20 @@
 </li>
 <li>
 <p>Run the <code>setup-cloudflare.sh</code> script:</p>
-<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">..</span><span class="token plain">/scripts</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">./setup-cloudflare.sh your-domain.com your-server-ip-or-cname</span><br></span></code></pre></div></div>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step/scripts</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">./setup-cloudflare.sh sequent.vote YOUR_SERVER_IP remote-test</span><br></span></code></pre></div></div>
 <ul>
-<li>Replace <code>your-domain.com</code> with your root domain (e.g., <code>sequent.vote</code>).</li>
-<li>Replace <code>your-server-ip-or-cname</code> with your server&#x27;s public IP address or an existing CNAME.</li>
+<li>Replace <code>sequent.vote</code> with your root domain.</li>
+<li>Replace <code>YOUR_SERVER_IP</code> with your server&#x27;s public IP address (or CNAME target).</li>
+<li>Replace <code>remote-test</code> with your subdomain suffix (must match what you used in step 2).</li>
+</ul>
+<p>The script will create:</p>
+<ul>
+<li><code>remote-test.sequent.vote</code> → YOUR_SERVER_IP (A record)</li>
+<li><code>admin-remote-test.sequent.vote</code> → remote-test.sequent.vote (CNAME)</li>
+<li><code>voting-remote-test.sequent.vote</code> → remote-test.sequent.vote (CNAME)</li>
+<li><code>hasura-remote-test.sequent.vote</code> → remote-test.sequent.vote (CNAME)</li>
+<li><code>login-remote-test.sequent.vote</code> → remote-test.sequent.vote (CNAME)</li>
+<li><code>minio-remote-test.sequent.vote</code> → remote-test.sequent.vote (CNAME)</li>
 </ul>
 </li>
 </ol>
@@ -70,20 +109,40 @@
 <ol>
 <li>
 <p>Navigate to the <code>.devcontainer</code> directory:</p>
-<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">..</span><span class="token plain">/.devcontainer</span><br></span></code></pre></div></div>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step/.devcontainer</span><br></span></code></pre></div></div>
 </li>
 <li>
 <p>Start the services using the <code>docker-compose-remote.yml</code> file:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> docker-compose-remote.yml up </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-d</span><br></span></code></pre></div></div>
 </li>
+<li>
+<p>Monitor the startup process:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> docker-compose-remote.yml logs </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><br></span></code></pre></div></div>
+<p>Press <code>Ctrl+C</code> to stop following the logs.</p>
+</li>
+<li>
+<p>Check service status:</p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> docker-compose-remote.yml </span><span class="token function" style="color:rgb(130, 170, 255)">ps</span><br></span></code></pre></div></div>
+</li>
 </ol>
-<p>Your Sequent Step development environment should now be up and running. You can access the different services through their subdomains:</p>
+<p>Your Sequent Step environment should now be up and running! You can access the different services through their subdomains:</p>
 <ul>
-<li><strong>Admin Portal:</strong> <code>https://admin-remote-test.your-domain.com</code></li>
-<li><strong>Voting Portal:</strong> <code>https://voting-remote-test.your-domain.com</code></li>
-<li><strong>Hasura Console:</strong> <code>https://hasura-remote-test.your-domain.com</code></li>
-<li><strong>Keycloak:</strong> <code>https://login-remote-test.your-domain.com</code></li>
-<li><strong>Minio:</strong> <code>https://minio-remote-test.your-domain.com</code></li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/10-local-deployment-tutorial/README.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2257/docs/support/support"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Support</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#prerequisites" class="table-of-contents__link toc-highlight">Prerequisites</a></li><li><a href="#1-server-preparation" class="table-of-contents__link toc-highlight">1. Server Preparation</a></li><li><a href="#2-environment-configuration" class="table-of-contents__link toc-highlight">2. Environment Configuration</a></li><li><a href="#3-cloudflare-dns-setup" class="table-of-contents__link toc-highlight">3. Cloudflare DNS Setup</a></li><li><a href="#4-deployment" class="table-of-contents__link toc-highlight">4. Deployment</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
+<li><strong>Admin Portal:</strong> <code>https://admin-remote-test.sequent.vote</code></li>
+<li><strong>Voting Portal:</strong> <code>https://voting-remote-test.sequent.vote</code></li>
+<li><strong>Hasura Console:</strong> <code>https://hasura-remote-test.sequent.vote</code></li>
+<li><strong>Keycloak:</strong> <code>https://login-remote-test.sequent.vote</code></li>
+<li><strong>MinIO:</strong> <code>https://minio-remote-test.sequent.vote</code></li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="troubleshooting">Troubleshooting<a href="#troubleshooting" class="hash-link" aria-label="Direct link to Troubleshooting" title="Direct link to Troubleshooting">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="check-dns-resolution">Check DNS Resolution<a href="#check-dns-resolution" class="hash-link" aria-label="Direct link to Check DNS Resolution" title="Direct link to Check DNS Resolution">​</a></h3>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">nslookup</span><span class="token plain"> admin-remote-test.sequent.vote</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="check-docker-logs">Check Docker Logs<a href="#check-docker-logs" class="hash-link" aria-label="Direct link to Check Docker Logs" title="Direct link to Check Docker Logs">​</a></h3>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># View logs for a specific service</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker</span><span class="token plain"> logs </span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token plain">container-name</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># View logs for all services</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> ~/step/.devcontainer/docker-compose-remote.yml logs</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="check-resource-usage">Check Resource Usage<a href="#check-resource-usage" class="hash-link" aria-label="Direct link to Check Resource Usage" title="Direct link to Check Resource Usage">​</a></h3>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Monitor container resource usage</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker</span><span class="token plain"> stats</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Check system resources</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">htop</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="restart-services">Restart Services<a href="#restart-services" class="hash-link" aria-label="Direct link to Restart Services" title="Direct link to Restart Services">​</a></h3>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step/.devcontainer</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> docker-compose-remote.yml restart</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="stop-all-services">Stop All Services<a href="#stop-all-services" class="hash-link" aria-label="Direct link to Stop All Services" title="Direct link to Stop All Services">​</a></h3>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step/.devcontainer</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> docker-compose-remote.yml down</span><br></span></code></pre></div></div></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/10-local-deployment-tutorial/README.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-2257/docs/support/support"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Support</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#prerequisites" class="table-of-contents__link toc-highlight">Prerequisites</a></li><li><a href="#1-server-preparation" class="table-of-contents__link toc-highlight">1. Server Preparation</a></li><li><a href="#2-environment-configuration" class="table-of-contents__link toc-highlight">2. Environment Configuration</a></li><li><a href="#3-cloudflare-dns-setup" class="table-of-contents__link toc-highlight">3. Cloudflare DNS Setup</a></li><li><a href="#4-deployment" class="table-of-contents__link toc-highlight">4. Deployment</a></li><li><a href="#troubleshooting" class="table-of-contents__link toc-highlight">Troubleshooting</a><ul><li><a href="#check-dns-resolution" class="table-of-contents__link toc-highlight">Check DNS Resolution</a></li><li><a href="#check-docker-logs" class="table-of-contents__link toc-highlight">Check Docker Logs</a></li><li><a href="#check-resource-usage" class="table-of-contents__link toc-highlight">Check Resource Usage</a></li><li><a href="#restart-services" class="table-of-contents__link toc-highlight">Restart Services</a></li><li><a href="#stop-all-services" class="table-of-contents__link toc-highlight">Stop All Services</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 Sequent</div></div></div></footer></div>
 </body>
 </html>
