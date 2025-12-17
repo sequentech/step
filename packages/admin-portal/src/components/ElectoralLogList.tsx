@@ -189,13 +189,37 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
     const filters: Array<ReactElement> = [
-        <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
-        <TextInput key={"username"} source={"username"} label={t("logsScreen.column.username")} />,
-        <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
+        <TextInput
+            key={"user_id"}
+            source={"user_id"}
+            label={String(t("logsScreen.column.user_id"))}
+        />,
+        <TextInput
+            key={"username"}
+            source={"username"}
+            label={String(t("logsScreen.column.username"))}
+        />,
+        <DateTimeInput
+            key={"created"}
+            source={"created"}
+            label={String(t("logsScreen.column.created"))}
+            slotProps={{
+                htmlInput: {
+                    step: 1, // Adds seconds field to the datetime input
+                }
+            }}
+            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
+        />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
-            label={t("logsScreen.column.statement_timestamp")}
+            label={String(t("logsScreen.column.statement_timestamp"))}
+            slotProps={{
+                htmlInput: {
+                    step: 1, // Adds seconds field to the datetime input
+                }
+            }}
+            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <TextInput
             key={"statement_kind"}

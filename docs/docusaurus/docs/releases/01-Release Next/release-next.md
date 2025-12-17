@@ -239,3 +239,10 @@ The correct version of java jvm for the container architecture is installed inst
 of just defaulting to installing x86-x64 version.
 
 - Issue: [#8621](https://github.com/sequentech/meta/issues/8621)
+
+## 🐞 New immudb column ballot_id is not backwards compatible
+
+Fix errors affecting election events that were created prior the addition of the ballot_id column.
+Fix the filter by timestamp in the Admin Portal's UI.
+
+- Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
