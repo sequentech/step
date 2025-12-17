@@ -65,3 +65,9 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Admin Portal > Electoral Logs > Timestamp filter does not work
+
+Fix the filter by timestamp in the Admin Portal's UI.
+
+- Issue: [#9995](https://github.com/sequentech/meta/issues/9995)

@@ -191,11 +191,19 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const filters: Array<ReactElement> = [
         <TextInput key={"user_id"} source={"user_id"} label={t("logsScreen.column.user_id")} />,
         <TextInput key={"username"} source={"username"} label={t("logsScreen.column.username")} />,
-        <DateTimeInput key={"created"} source={"created"} label={t("logsScreen.column.created")} />,
+        <DateTimeInput
+            key={"created"}
+            source={"created"}
+            label={t("logsScreen.column.created")}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
+        />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
             label={t("logsScreen.column.statement_timestamp")}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <TextInput
             key={"statement_kind"}
