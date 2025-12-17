@@ -7,6 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Multi-Tenant login doesn't work
+
+A loop blocked the multi-tenant login.
+
+- Issue: [#9993](https://github.com/sequentech/meta/issues/9993)
+
 ## ✨ ✨ Investigating costs increase in infra cluster (GHA)
 
 - Added ECR caching for docker artifacts
