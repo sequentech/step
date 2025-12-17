@@ -67,3 +67,9 @@ tally result files in `velvet-generate-reports`.
 It contains the value of some election metrics.
 
 - Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
+
+## 🐞 Admin Portal > Electoral Logs > Timestamp filter does not work
+
+Fix the filter by timestamp in the Admin Portal's UI.
+
+- Issue: [#9995](https://github.com/sequentech/meta/issues/9995)
