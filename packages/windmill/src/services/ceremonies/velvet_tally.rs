@@ -535,10 +535,6 @@ pub async fn build_ballot_images_pipe_config(
         ),
     };
 
-    println!(
-        "ballot_imagest_system_template::: {:?}",
-        &ballot_imagest_system_template
-    );
     let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let ballot_images_pipe_config = PipeConfigBallotImages {
