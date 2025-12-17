@@ -207,7 +207,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             slotProps={{
                 htmlInput: {
                     step: 1, // Adds seconds field to the datetime input
-                }
+                },
             }}
             parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
@@ -218,7 +218,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             slotProps={{
                 htmlInput: {
                     step: 1, // Adds seconds field to the datetime input
-                }
+                },
             }}
             parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
