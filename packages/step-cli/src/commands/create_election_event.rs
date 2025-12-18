@@ -48,7 +48,10 @@ impl CreateElectionEventCLI {
             self.is_archived,
         ) {
             Ok(id) => {
-                println!("Success! Election event created successfully! ID: {}", id);
+                println!(
+                    "Success! Election event created successfully! ID: {}",
+                    id.unwrap_or_else(|| "None".to_string())
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create election event: {}", err)
@@ -62,7 +65,7 @@ fn create_election_event(
     description: &str,
     encryption_protocol: &str,
     is_archived: bool,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 

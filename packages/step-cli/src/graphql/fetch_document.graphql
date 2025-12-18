@@ -1,0 +1,5 @@
+query FetchDocument($electionEventId: String, $documentId: String!) {
+    fetchDocument(election_event_id: $electionEventId, document_id: $documentId) {
+        url
+    }
+} 

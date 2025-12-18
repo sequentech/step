@@ -21,6 +21,22 @@ Sort contest shows on tally results tabs based on the contest-order
 
 - Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
 
+## ✨ Implement happy path for CLI
+- Modify step CLI to run an election event from start to finish.
+  Key commands:
+    - Import election event
+    - Create Publication (for both Election Event and Election)
+    - Start/Stop/Pause (both Election Event and Election)
+    - Create Keys Ceremony (including trustees part)
+    - Create Tally Ceremony (including trustees part)
+    - Download tally results 
+    - Export election event
+- Update the api-key-client to use the same mappers as the admin-portal client, 
+  and fix gold authentication for api-key-client by falling back to the iat claim
+  when auth_time is missing.
+
+- Issue: [#6680](https://github.com/sequentech/meta/issues/6680)
+
 ## 🐞 Multi-Tenant login doesn't work
 
 A loop blocked the multi-tenant login.

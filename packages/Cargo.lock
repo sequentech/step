@@ -8655,6 +8655,7 @@ dependencies = [
  "strum_macros 0.27.2",
  "tokio",
  "tokio-postgres",
+ "url",
  "uuid",
  "windmill",
 ]
