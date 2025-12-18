@@ -182,3 +182,19 @@ docker-compose -f docker-compose-remote.yml restart
 cd ~/step/.devcontainer
 docker-compose -f docker-compose-remote.yml down
 ```
+
+### Clean Up Docker System (if experiencing image corruption)
+
+If you encounter errors like `'ContainerConfig'` or `ImageNotFound`, clean up and rebuild:
+
+```bash
+# Stop all services
+cd ~/step/.devcontainer
+docker-compose -f docker-compose-remote.yml down
+
+# Clean up dangling images and build cache
+docker system prune -f
+
+# Rebuild and start
+docker-compose -f docker-compose-remote.yml up -d --build
+```
