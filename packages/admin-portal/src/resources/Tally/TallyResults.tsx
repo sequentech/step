@@ -10,7 +10,7 @@ import {
     Sequent_Backend_Results_Election_Area,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
-import {TallyResultsContest} from "./TallyResultsContests"
+import {TallyResultsContestsTabs} from "./TallyResultsContestsTabs"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {ExportElectionMenu, IResultDocumentsData} from "@/components/tally/ExportElectionMenu"
@@ -27,7 +27,7 @@ interface TallyResultsProps {
     onCreateTransmissionPackage: (v: {area_id: string; election_id: string}) => void
 }
 
-const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
+const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
 
@@ -40,6 +40,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const tallyData = useAtomValue(tallyQueryData)
 
         const {canExportCeremony} = useKeysPermissions()
+        const aliasRenderer = useAliasRenderer()
 
         const areas: Array<RaRecord<Identifier>> | undefined = useMemo(
             () => tallyData?.sequent_backend_area?.map((area): RaRecord<Identifier> => area),
@@ -117,6 +118,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
+        const currentElection = useMemo(() => {
+            return elections?.find((election) => election.id === electionId)
+        }, [elections, electionId])
+
         let documents: IResultDocumentsData | null = useMemo(() => {
             let parsedDocuments: IResultDocuments | null = null
             try {
@@ -141,11 +146,11 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             return parsedDocuments
                 ? {
                       documents: parsedDocuments,
-                      name: resultsElection?.[0]?.name ?? "election",
+                      name: aliasRenderer(currentElection) ?? "election",
                       class_type: "election",
                   }
                 : null
-        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, resultsElection?.[0]?.name])
+        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, currentElection])
 
         let areasDocuments: IResultDocumentsData[] | null = useMemo(
             () =>
@@ -169,8 +174,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 null,
             [resultsEventId, resultsElectionArea]
         )
-
-        const aliasRenderer = useAliasRenderer()
 
         const documentsList: IResultDocumentsData[] | null = useMemo(() => {
             if (documents && areasDocuments) {
@@ -213,7 +216,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                         <ExportElectionMenu
                             documentsList={documentsList}
                             electionEventId={data?.election_event_id}
-                            itemName={resultsElection?.[0]?.name ?? "election"}
+                            itemName={aliasRenderer(currentElection) ?? "election"}
                             tallyType={data?.tally_type}
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}
@@ -224,7 +227,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>
-                        <TallyResultsContest
+                        <TallyResultsContestsTabs
                             areas={areasData}
                             electionId={electionId}
                             electionEventId={election.election_event_id}
@@ -239,6 +242,6 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
     }
 )
 
-TallyResultsMemo.displayName = "TallyResults"
+TallyResultsElectionsTabs.displayName = "TallyResults"
 
-export const TallyResults = TallyResultsMemo
+export const TallyResults = TallyResultsElectionsTabs

@@ -113,7 +113,12 @@ export const GenerateResultsXlsx: React.FC<GenerateResultsXlsxProps> = ({
                 }}
             >
                 <span>
-                    <span title={"XLSX"}>
+                    <span
+                        title={t("common.label.exportFormat", {
+                            item: eventName,
+                            format: "XLSX",
+                        })}
+                    >
                         {t("common.label.exportFormat", {
                             item: eventName,
                             format: "XLSX",

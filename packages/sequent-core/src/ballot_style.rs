@@ -9,10 +9,12 @@ use crate::ballot::{
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
 use std::env;
+use std::str::FromStr;
 
 pub fn parse_i18n_field(
     i18n_opt: &Option<I18nContent<I18nContent<Option<String>>>>,
@@ -211,6 +213,15 @@ fn create_contest(
         })
         .collect::<Result<Vec<ballot::Candidate>>>()?;
 
+    let counting_algorithm = CountingAlgType::from_str(
+        &contest.counting_algorithm.clone().unwrap_or_default(),
+    )
+    .map_err(|err| {
+        anyhow!(
+            "Error parsing CountingAlgorithm from: {:?}. Error: {err:?}",
+            contest.counting_algorithm
+        )
+    })?;
     Ok(ballot::Contest {
         id: contest.id.clone(),
         tenant_id: (contest.tenant_id),
@@ -226,7 +237,7 @@ fn create_contest(
         min_votes: (contest.min_votes.unwrap_or(0)),
         winning_candidates_num: contest.winning_candidates_num.unwrap_or(1),
         voting_type: contest.voting_type,
-        counting_algorithm: contest.counting_algorithm,
+        counting_algorithm: Some(counting_algorithm),
         is_encrypted: (contest.is_encrypted.unwrap_or(false)),
         candidates,
         presentation: Some(contest_presentation),

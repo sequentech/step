@@ -80,6 +80,9 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Tenantconfiguratie Exporteren",
                 IMPORT_TENANT_CONFIG: "Tenantconfiguratie Importeren",
                 RENDER_DOCUMENT_PDF: "Document als PDF renderen",
+                CREATE_TENANT: "Tenant Aanmaken",
+                EXPORT_TEMPLATES: "Sjablonen Exporteren",
+                IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
@@ -362,6 +365,13 @@ const dutchTranslation: TranslationType = {
                     options: {
                         "areas-weighted-voting": "Gewogen Stemmen per Gebied",
                         "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Gedelegeerd stembeleid",
+                    options: {
+                        enabled: "Ingeschakeld",
+                        disabled: "Uitgeschakeld",
                     },
                 },
             },
@@ -1144,7 +1154,7 @@ const dutchTranslation: TranslationType = {
                 import: "Importeren",
                 export: "Exporteren",
                 loadingData: "Gegevens laden...",
-                exportFormat: "Exporteer '{{item}}' resultaten in {{format}} formaat",
+                exportFormat: "Exporteren in {{format}}-formaat - Resultaten van '{{item}}",
                 allResults: "verkiezingsevenement",
                 globalAreaResults: "alle gebieden",
                 title: "Titel",
@@ -1306,6 +1316,7 @@ const dutchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Niet-preferentieel",
                 "plurality-at-large": "Meerderheidsstelsel (meervoudig)",
+                "instant-runoff": "Instant-runoff stemmen",
                 "random": "Willekeurig",
                 "custom": "Aangepast",
                 "alphabetical": "Alfabetisch",
@@ -1652,6 +1663,12 @@ const dutchTranslation: TranslationType = {
                 number_of_votes: "Aantal Stemmen",
                 winning_position: "Winnende positie",
                 weight: "Gewicht",
+                preferential: {
+                    candidate: "Kandidaat",
+                    winner: "Winnaar",
+                    eliminated: "Geëlimineerd",
+                    round: "Ronde",
+                },
             },
             chart: {
                 votesForCandidates: "Stemmen voor Kandidaten",

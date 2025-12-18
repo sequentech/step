@@ -146,6 +146,7 @@ mod tests {
     use crate::fixtures::ballot_codec::get_configurable_contest;
     use crate::fixtures::ballot_codec::get_contest_candidates_n;
     use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use crate::types::ceremonies::CountingAlgType;
     use rand::Rng;
 
     #[test]
@@ -228,7 +229,7 @@ mod tests {
         let mut contest = get_configurable_contest(
             1,
             3,
-            "plurality-at-large".to_string(),
+            CountingAlgType::PluralityAtLarge,
             true,
             Some(vec![2]),
             false,

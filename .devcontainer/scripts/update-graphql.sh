@@ -6,10 +6,10 @@
 set -ex -o pipefail
 
 source .devcontainer/.env
-docker compose restart graphql-engine
+#docker compose restart graphql-engine
 
 # graphql-engine needs some waiting time before it's up and working
-sleep 10
+#sleep 10
 
 # Generate graphql schema
 cd packages/admin-portal
@@ -23,6 +23,7 @@ gq http://graphql-engine:8080/v1/graphql \
 cd ..
 cp admin-portal/graphql.schema.json voting-portal/graphql.schema.json
 cp admin-portal/graphql.schema.json ballot-verifier/graphql.schema.json
+cp admin-portal/graphql.schema.json step-cli/src/graphql/schema.json
 cp admin-portal/graphql.schema.json .
 
 yarn

@@ -12,11 +12,14 @@ mc admin accesskey create myminio/ "$MINIO_ROOT_USER" \
   --access-key "$MINIO_ACCESS_KEY" \
   --secret-key "$MINIO_ACCESS_SECRET"
 
-mc stat myminio/public/certs.json
-echo "Uploading certs.json..."
-mc cp /scripts/certs.json myminio/public/certs.json
-
 echo "Uploading public-assets folder..."
 mc cp --recursive /scripts/public-assets/ myminio/public/public-assets/
+
+if mc stat myminio/public/certs.json > /dev/null 2>&1; then
+  echo "certs.json already exists in MinIO, skipping upload..."
+else
+  echo "Uploading certs.json..."
+  mc cp /scripts/certs.json myminio/public/certs.json
+fi
 
 exit 0

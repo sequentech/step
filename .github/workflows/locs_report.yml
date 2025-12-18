@@ -7,15 +7,11 @@ name: LOCs Lines Of Code Report
 on:
     pull_request:
     push:
-      branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+      branches: [ 'main', 'release/[0-9]+.[0-9]+', 'feat/use-arc-runner-java-test' ]
 
 jobs:
   locs:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
 
     steps:
     - name: Checkout code

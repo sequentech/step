@@ -845,7 +845,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "./scripts/update-certs.sh && docker compose stop minio configure-minio && docker compose up -d --build --no-deps minio && docker compose up --build -d --no-deps configure-minio && docker compose logs -f minio configure-minio"
+                "docker compose stop minio configure-minio && docker compose up -d --build --no-deps minio && docker compose up --build -d --no-deps configure-minio && docker compose logs -f minio configure-minio",
             ],
             "options": {
                 "env": {

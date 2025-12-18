@@ -68,6 +68,11 @@
               pkgs.wasm-bindgen-cli
               pkgs.libiconv
               pkgs.m4
+
+              # Add all the necessary LLVM/Clang packages
+              pkgs.llvmPackages_19.clang-unwrapped
+              pkgs.llvmPackages_19.llvm
+              pkgs.llvmPackages_19.libclang
             ];
             buildPhase = ''
               echo 'Build: wasm-pack build'
@@ -114,6 +119,31 @@
                 firefox
                 geckodriver
               ];
+            shellHook = ''
+              export CC=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+              export CXX=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang++
+              export AR=${pkgs.llvmPackages_19.llvm}/bin/llvm-ar
+              export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
+              -
+              # Set up the clang resource directory properly
+              CLANG_MAJOR_VERSION="19"
+              CLANG_RESOURCE_DIR="${pkgs.llvmPackages_19.clang-unwrapped}/lib/clang/$CLANG_MAJOR_VERSION"
+              -
+              # Use libclang's include directory which has the standard headers
+              LIBCLANG_INCLUDE="${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include"
+              -
+              export CFLAGS_wasm32_unknown_unknown="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
+              export CPPFLAGS="-isystem $LIBCLANG_INCLUDE -resource-dir $CLANG_RESOURCE_DIR"
+              -
+              # Debug: Print the paths to verify they exist
+              echo "Clang resource dir: $CLANG_RESOURCE_DIR"
+              echo "Libclang include dir: $LIBCLANG_INCLUDE"
+              if [ -f "$LIBCLANG_INCLUDE/stddef.h" ]; then
+                echo "Found stddef.h at: $LIBCLANG_INCLUDE/stddef.h"
+              else
+                echo "stddef.h not found in $LIBCLANG_INCLUDE"
+              fi
+            '';
           };
         }
     );

@@ -81,6 +81,9 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
+                CREATE_TENANT: "Créer un locataire",
+                EXPORT_TEMPLATES: "Exporter les Modèles",
+                IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
@@ -364,6 +367,13 @@ const frenchTranslation: TranslationType = {
                     options: {
                         "areas-weighted-voting": "Vote Pondéré par Zones",
                         "disabled-weighted-voting": "Vote Pondéré Désactivé",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Politique de vote délégué",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
                     },
                 },
             },
@@ -1155,7 +1165,7 @@ const frenchTranslation: TranslationType = {
                 import: "Importer",
                 export: "Exporter",
                 loadingData: "Chargement des données ...",
-                exportFormat: "Exporter les résultats de '{{item}}' au format {{format}}",
+                exportFormat: "Exporter au format {{format}} - Résultats de '{{item}}",
                 allResults: "de l'événement électoral",
                 globalAreaResults: "de toutes les zones",
                 title: "Titre",
@@ -1317,6 +1327,7 @@ const frenchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sans Préférence",
                 "plurality-at-large": "Pluralité Générale",
+                "instant-runoff": "Vote à Second Tour Instantané",
                 "random": "Aléatoire",
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
@@ -1668,6 +1679,12 @@ const frenchTranslation: TranslationType = {
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
                 weight: "Poids",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Gagnant",
+                    eliminated: "Éliminé",
+                    round: "Tour",
+                },
             },
             chart: {
                 votesForCandidates: "Votes pour les Candidats",

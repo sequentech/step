@@ -671,7 +671,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     ) : (
                         <>
                             {canWrite && canPublishRegenerate && (
-                                <div className="list-actions" style={{paddingTop: "4px"}}>
+                                <div className="list-actions" style={{paddingBottom: "4px"}}>
                                     <StatusButton
                                         Icon={RotateLeft}
                                         disabledStatus={[]}

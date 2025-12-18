@@ -52,6 +52,7 @@ path = [
 	"docs/assets/**",
 	"docs/docusaurus/**",
 	".devcontainer/minio/public-assets/**",
+	".devcontainer/minio/certs.json",
 	"packages/orare/doc_renderer/assets/**",
 	"packages/windmill/external-bin/janitor/**.xlsx"
 ]

@@ -206,10 +206,12 @@ fn get_insert_user_query(
     let user_entity_columns = vec![
         "id",
         "email",
+        "email_constraint",
         "enabled",
         "first_name",
         "last_name",
         "username",
+        "not_before",
     ];
     let select_columns: Vec<String> = user_entity_columns
         .iter()
@@ -220,7 +222,7 @@ fn get_insert_user_query(
                 // Cast enabled to boolean, with TRUE as default
                 "enabled" => {
                     if voters_table_columns.contains(&col_name) {
-                        "enabled::boolean".to_string()
+                        "COALESCE(NULLIF(enabled, ''), 'TRUE')::boolean".to_string()
                     } else {
                         "'TRUE'::boolean".to_string()
                     }
@@ -228,11 +230,19 @@ fn get_insert_user_query(
                 // empty as default, lowercase required in keycloak
                 "email" => {
                     if voters_table_columns.contains(&col_name) {
-                        "LOWER(email)".to_string()
+                        "NULLIF(LOWER(email), '')".to_string()
                     } else {
-                        "''".to_string()
+                        "NULL".to_string()
                     }
                 }
+                "email_constraint" => {
+                    if voters_table_columns.contains(&"email".to_string()) {
+                        "NULLIF(LOWER(email), '')".to_string()
+                    } else {
+                        "NULL".to_string()
+                    }
+                }
+                "not_before" => "0".to_string(),
                 // empty as default
                 _ => {
                     if voters_table_columns.contains(&col_name) {
@@ -248,7 +258,7 @@ fn get_insert_user_query(
     // Conditionally create the SELECT statement for email_verified.
     // If the column doesn't exist in the source table, default to true.
     let email_verified_select = if voters_table_columns.contains(&"email_verified".to_string()) {
-        "COALESCE(email_verified::boolean, true)".to_string()
+        "COALESCE(NULLIF(email_verified, '')::boolean, true)".to_string()
     } else {
         "true".to_string()
     };
@@ -353,11 +363,13 @@ fn get_insert_user_query(
                 INSERT 
                 INTO user_group_membership (
                     group_id,
-                    user_id
+                    user_id,
+                    membership_type
                 )
                 SELECT
                     pug.group_id,
-                    pug.user_id
+                    pug.user_id,
+                    'UNMANAGED'
                 FROM pre_user_group pug
             )
             "#
