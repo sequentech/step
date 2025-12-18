@@ -14,7 +14,7 @@ This guide walks you through configuring your environment and executing a **Tall
 ## Prerequisites
 
 * Ensure your environment is configured with the correct credentials.
-  Use the `step config` command to point to your specific tenant and Keycloak instance.
+  Use the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration)  command to point to your specific tenant and Keycloak instance.
   Make sure you authenticate with an **admin user**.
 
 * Ensure the trustees containers are running:
@@ -51,7 +51,7 @@ Save this ID for use in the next step.
 After the ceremony has started, each trustee must confirm their key **once**.
 
 > ⚠️ This command must be executed separately by **every trustee**.
-> Before running it, re-run the `step config` command to authenticate as the specific trustee.
+> Before running it, re-run the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration)  command to authenticate as the specific trustee.
 
 ```bash
 cargo run step confirm-key-tally \
@@ -59,5 +59,21 @@ cargo run step confirm-key-tally \
   --tally-id <TALLY_ID>
 ```
 
-* `--election-event-id` – Election event ID used when starting the tally **(required)**
-* `--tally-id` – Tally ceremony ID returned from the start step **(required)**
+* `--election-event-id` – Election event ID **(required)**
+* `--tally-id` – Tally ceremony ID (returned from the start step) **(required)**
+
+---
+
+## Update Tally Ceremony Status
+Once the trustee keys have been confirmed, use this command to complete the ceremony by passing the `IN_PROGRESS` value to the `--status` flag.
+> ⚠️ Before running, re-run the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration) command to authenticate as **admin user**.
+```bash
+cargo run step update-tally \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --tally-id <TALLY_ID> \
+  --status <STATUS>
+```
+
+* `--election-event-id` – Election event ID **(required)**
+* `--tally-id` – Tally ceremony ID (returned from the start step) **(required)**
+* `--status` – Tally status **(required)**.

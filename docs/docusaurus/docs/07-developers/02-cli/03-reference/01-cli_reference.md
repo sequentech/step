@@ -222,10 +222,6 @@ cargo run step publish \
 ## Start Key Ceremony
 
 ```bash
-docker compose up -d --no-deps beat trustee1 trustee2
-```
-
-```bash
 cargo run step start-key-ceremony \
   --election-event-id <ELECTION_EVENT_ID> \
   --threshold <THRESHOLD> \
@@ -288,12 +284,13 @@ cargo run step confirm-key-tally \
 cargo run step update-tally \
   --election-event-id <ELECTION_EVENT_ID> \
   --tally-id <TALLY_ID> \
-  --status <IN_PROGRESS>
+  --status <STATUS>
 ```
 
 * `--election-event-id` – Election event ID **(required)**
 * `--tally-id` – Tally ceremony ID **(required)**
-* `--status` – Tally status **(required)**
+* `--status` – Tally status **(required)**. One of:   `STARTED`, `CONNECTED`,
+ `IN_PROGRESS`, `SUCCESS`, `CANCELLED`,
 
 ---
 
@@ -315,6 +312,8 @@ cargo run step render-template \
 ---
 
 ## Generate Voters
+This command create csv file with voters within the `working-directory` path. 
+> Required additional confituration at `external_config.json` in the `working-directory` (election_event_json_file and generate_voters fields)
 
 ```bash
 cargo run step generate-voters \
@@ -328,6 +327,8 @@ cargo run step generate-voters \
 ---
 
 ## Duplicate Votes
+This command duplicate ***existing*** cast_vote row.
+> Required additional confituration at `external_config.json` in the `working-directory` (realm_name, duplicate_votes  fields)
 
 ```bash
 cargo run step duplicate-votes \
@@ -341,6 +342,7 @@ cargo run step duplicate-votes \
 ---
 
 ## Create Applications
+> Required additional confituration at `external_config.json` in the `working-directory` (realm_name, tenant_id, election_event_id, generate_applications  fields)
 
 ```bash
 cargo run step create-applications \
@@ -358,6 +360,8 @@ cargo run step create-applications \
 ---
 
 ## Create Electoral Logs
+Create electoral logs in immudb.
+> Required additional confituration at `external_config.json` in the `working-directory` (tenant_id, election_event_id, election_id, area_id and realm_name fields)
 
 ```bash
 cargo run step create-electoral-logs \
@@ -371,7 +375,7 @@ cargo run step create-electoral-logs \
 ---
 
 ## Hash Passwords CSV
-
+This command takes a voter_list.csv as input where the input has password column and outputs a voter_list.csv with hashed passwords and salts for the passwords to make it faster to import.
 ```bash
 cargo run step hash-passwords \
   --input-file <INPUT_CSV_PATH> \
@@ -386,7 +390,7 @@ cargo run step hash-passwords \
 ---
 
 ## Export Cast Votes CSV
-
+This command accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
 ```bash
 cargo run step export-cast-votes \
   --server-url <IMMUDB_URL> \
@@ -395,7 +399,7 @@ cargo run step export-cast-votes \
   --board-db <BOARD_DB_NAME>
 ```
 
-* `--server-url` – ImmuDB server URL **(required)**
-* `--username` – ImmuDB username **(required)**
-* `--password` – ImmuDB password **(required)**
+* `--server-url` – ImmuDB server URL (`IMMUDB_SERVER_URL`) **(required)**
+* `--username` – ImmuDB username (`IMMUDB_USER`) **(required)**
+* `--password` – ImmuDB password (`IMMUDB_PASSWORD`) **(required)**
 * `--board-db` – Bulletin board database name **(required)**
