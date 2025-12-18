@@ -1,6 +1,6 @@
 ---
 id: cli_tutorials_running_a_keys_ceremony
-title: Running a Keys Ceremony Using Step CLI
+title: Running a Keys Ceremony with the CLI
 ---
 
 <!--

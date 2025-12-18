@@ -40,5 +40,5 @@ base64 = "0.22"
 url = "2"
 
 [[bin]]
-name = "step-cli"
+name = "cli"
 path = "src/main.rs"

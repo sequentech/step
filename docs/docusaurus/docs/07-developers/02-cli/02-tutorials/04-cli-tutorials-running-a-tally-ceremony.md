@@ -1,6 +1,6 @@
 ---
 id: cli_tutorials_running_a_tally_ceremony
-title: Running a Tally Ceremony Using Step CLI
+title: Running a Tally Ceremony with the CLI
 ---
 
 <!--

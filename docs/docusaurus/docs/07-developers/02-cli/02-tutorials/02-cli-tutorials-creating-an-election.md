@@ -1,6 +1,7 @@
 ---
-id: cli_tutorials_creating_an_election_with_the_cli
-title: Cli Tutorials Creating An Election With The Cli
+id: cli-creating-an-election
+title: Creating an Election with the CLI
+posiiton: 2
 ---
 
 <!--
