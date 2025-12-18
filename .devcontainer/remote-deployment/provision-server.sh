@@ -13,7 +13,7 @@
 # MINIMUM RECOMMENDED:
 #   - CPU: 8 vCPUs
 #   - RAM: 16 GB
-#   - Storage: 50-100 GB SSD
+#   - Storage: 100 GB SSD (minimum, 150 GB recommended)
 #   - OS: Ubuntu 22.04 LTS or 24.04 LTS
 #
 # RECOMMENDED INSTANCE TYPES BY PROVIDER:

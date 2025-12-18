@@ -5,7 +5,7 @@ This tutorial will guide you through setting up a Sequent Step development envir
 ## Prerequisites
 
 *   A cloud server with the following specifications:
-    *   **Minimum Recommended:** 8 vCPUs, 16 GB RAM, 50-100 GB SSD
+    *   **Minimum Recommended:** 8 vCPUs, 16 GB RAM, **100 GB SSD** (minimum)
     *   **Recommended Instance Types:**
         *   AWS: `c5.2xlarge` (8 vCPUs, 16 GB RAM)
         *   GCP: `n2-standard-8` (8 vCPUs, 32 GB RAM)
@@ -124,11 +124,21 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
 
 2.  Start the services using the `docker-compose-remote.yml` file:
 
+    **First time deployment:**
     ```bash
     docker-compose -f docker-compose-remote.yml up -d --build
     ```
 
-    **Note:** The `--build` flag ensures all images are built locally. The `full` profile is enabled by default in the `.env` file via `COMPOSE_PROFILES=full`.
+    **Subsequent restarts (if images already built):**
+    ```bash
+    docker-compose -f docker-compose-remote.yml up -d
+    ```
+
+    **Notes:**
+    - The `--build` flag is required for first-time setup to build all images locally
+    - Once images are built, you can omit `--build` for faster startups and to save disk space
+    - Only use `--build` again if you've updated Dockerfiles or need to rebuild images
+    - The `full` profile is enabled by default in the `.env` file via `COMPOSE_PROFILES=full`
 
 3.  Monitor the startup process:
 
