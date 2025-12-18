@@ -65,11 +65,22 @@ Next, you need to configure the environment variables for the reverse proxy setu
     *   `hasura-remote-test.sequent.vote` (Hasura)
     *   `minio-remote-test.sequent.vote` (MinIO)
 
-4.  Open the `.env` file and fill in any remaining required secrets (API tokens, passwords, etc.):
+4.  **(Optional)** Review the `.env` file:
 
     ```bash
     nano ~/step/.devcontainer/.env
     ```
+
+    **Note:** For a basic dev/demo deployment, the default values are sufficient. The system will work with:
+    - Default database passwords (`postgrespassword`)
+    - Default Keycloak admin credentials (`admin`/`admin`)
+    - Dummy email/SMS transports (logs to console)
+
+    You only need to configure additional secrets if you want:
+    - Real Twilio SMS (`TWILIO_*` variables)
+    - Cloudflare DNS management (`CLOUDFLARE_*` variables)
+    - Production secrets management (`VAULT_*` or `MASTER_SECRET`)
+    - SimpleSAMLphp integration (`SSP_*`, `TENANT_ID`, etc.)
 
 ## 3. Cloudflare DNS Setup
 
