@@ -8,6 +8,7 @@
 
 services:
   nginx-proxy:
+    profiles: ["full"]
     container_name: nginx-proxy
     image: nginx:latest
     ports:

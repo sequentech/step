@@ -11,7 +11,7 @@ This tutorial will guide you through setting up a Sequent Step development envir
         *   GCP: `n2-standard-8` (8 vCPUs, 32 GB RAM)
         *   Azure: `Standard_D8s_v3` (8 vCPUs, 32 GB RAM)
     *   OS: Ubuntu 22.04 LTS or 24.04 LTS
-    *   See `provision-server.sh` for detailed specifications and provisioning examples.
+    *   See `.devcontainer/remote-deployment/provision-server.sh` for detailed specifications and provisioning examples.
 *   A domain name managed by Cloudflare (e.g., `sequent.vote`).
 *   A Cloudflare API token with DNS editing permissions.
 
@@ -24,7 +24,7 @@ First, you need to prepare your server by installing git, Docker, and Docker Com
 2.  Download and run the `prepare-server.sh` script:
 
     ```bash
-    curl -fsSL https://raw.githubusercontent.com/sequentech/step/main/scripts/prepare-server.sh -o prepare-server.sh
+    curl -fsSL https://raw.githubusercontent.com/sequentech/step/main/.devcontainer/remote-deployment/prepare-server.sh -o prepare-server.sh
     chmod +x prepare-server.sh
     ./prepare-server.sh
     ```
@@ -51,8 +51,8 @@ Next, you need to configure the environment variables for the reverse proxy setu
 
     ```bash
     cd ~/step
-    chmod +x ./scripts/configure-urls.sh
-    ./scripts/configure-urls.sh sequent.vote remote-test
+    ./.devcontainer/remote-deployment/configure-urls.sh sequent.vote remote-test
+    ```
     ```
 
     *   Replace `sequent.vote` with your root domain.
@@ -84,9 +84,9 @@ This step will automate the creation of the necessary DNS records in Cloudflare.
 2.  Run the `setup-cloudflare.sh` script:
 
     ```bash
-    cd ~/step/scripts
-    chmod +x ./setup-cloudflare.sh
+    cd ~/step/.devcontainer/remote-deployment
     ./setup-cloudflare.sh sequent.vote YOUR_SERVER_IP remote-test
+    ```
     ```
 
     *   Replace `sequent.vote` with your root domain.
@@ -114,8 +114,10 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
 2.  Start the services using the `docker-compose-remote.yml` file:
 
     ```bash
-    docker-compose -f docker-compose-remote.yml up -d
+    docker-compose -f docker-compose-remote.yml up -d --build
     ```
+
+    **Note:** The `--build` flag ensures all images are built locally. The `full` profile is enabled by default in the `.env` file via `COMPOSE_PROFILES=full`.
 
 3.  Monitor the startup process:
 
