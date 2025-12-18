@@ -209,13 +209,42 @@ docker-compose -f docker-compose-remote.yml down
 If you encounter errors like `'ContainerConfig'` or `ImageNotFound`, clean up and rebuild:
 
 ```bash
+# Stop and remove all containers
+cd ~/step/.devcontainer
+docker-compose -f docker-compose-remote.yml down
+
+# Build all missing images (uses cache for existing layers)
+docker-compose -f docker-compose-remote.yml build
+
+# Start everything
+docker-compose -f docker-compose-remote.yml up -d
+```
+
+**Alternative: Full cleanup if needed**
+```bash
 # Stop all services
 cd ~/step/.devcontainer
 docker-compose -f docker-compose-remote.yml down
 
-# Clean up dangling images and build cache
+# Clean up dangling images and build cache (keeps built images)
 docker system prune -f
 
 # Rebuild and start
 docker-compose -f docker-compose-remote.yml up -d --build
+```
+
+**Note:** Use `docker system prune -f` (without `-a`) to keep your built images. Only use `docker system prune -a -f` if you need to free maximum space and don't mind rebuilding everything.
+
+### Rebuild Specific Services
+
+If some images were deleted but others exist, rebuild only the missing ones:
+
+```bash
+cd ~/step/.devcontainer
+
+# Build only specific services
+docker-compose -f docker-compose-remote.yml build harvest windmill mock_server beat b3
+
+# Then start all services
+docker-compose -f docker-compose-remote.yml up -d
 ```

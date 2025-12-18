@@ -270,6 +270,7 @@ services:
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
       POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
+      POSTGRES_DB: ${KC_DB_URL_DATABASE}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready  -U postgres"]
       interval: 5s
