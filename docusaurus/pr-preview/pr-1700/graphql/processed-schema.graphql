@@ -1000,7 +1000,7 @@ type mutation_root {
   """create scheduled event"""
   createScheduledEvent(created_by: String, cron_config: String, election_event_id: uuid, event_payload: jsonb!, event_processor: String!, tenant_id: String!): ScheduledEventOutput3
   """create_ballot_receipt"""
-  create_ballot_receipt(ballot_id: String!, ballot_tracker_url: String!, election_event_id: uuid!, election_id: uuid!, user_timezone: String!): createBallotReceiptOutput
+  create_ballot_receipt(ballot_id: String!, ballot_tracker_url: String!, election_event_id: uuid!, election_id: uuid!, tenant_id: uuid!): createBallotReceiptOutput
   create_election(description: String, election_event_id: String!, name: String!, presentation: jsonb): CreateElectionOutput
   """create keys ceremony"""
   create_keys_ceremony(object: CreateKeysCeremonyInput!): CreateKeysCeremonyOutput
@@ -1419,7 +1419,7 @@ type mutation_root {
   export_application(election_event_id: String, election_id: String, tenant_id: String!): ExportApplicationOutput
   export_ballot_publication(ballot_publication_id: String!, election_event_id: String!, election_id: String, tenant_id: String!): ExportBallotPublicationOutput
   export_election_event(election_event_id: String, export_configurations: ExportOptions): ExportElectionEventOutput
-  export_election_event_logs(election_event_id: String!, format: String!, user_timezone: String!): ExportLogsOutput
+  export_election_event_logs(election_event_id: String!, format: String!): ExportLogsOutput
   export_election_event_tasks(election_event_id: String): ExportTasksOutput
   export_tally_results(election_event_id: String!, tally_session_id: String!): ExportTallyResultsOutput
   export_tasks_execution(election_event_id: String!, tenant_id: String!): ExportTasksExecutionOutput
@@ -1430,7 +1430,7 @@ type mutation_root {
   generate_ballot_publication(election_event_id: uuid!, election_id: uuid): PublishBallotOutput
   """generate Google Meet link for election events"""
   generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
-  generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!, user_timezone: String!): generateReportOutput
+  generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!): generateReportOutput
   generate_template(election_event_id: String!, election_id: String!, tally_session_id: String!, type: String!): GenerateTemplateOutput
   generate_transmission_report(election_event_id: String!, election_id: String, tally_session_id: String, tenant_id: String!): generateReportOutput
   get_ballot_publication_changes(ballot_publication_id: uuid!, election_event_id: uuid!, limit: Int): GetBallotPublicationChangesOutput
