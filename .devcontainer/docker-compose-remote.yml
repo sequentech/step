@@ -777,6 +777,7 @@ services:
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
         WDS_SOCKET_HOST: ${ADMIN_PORTAL_HOSTNAME}
         WDS_SOCKET_PORT: 80
+        DANGEROUSLY_DISABLE_HOST_CHECK: "true"
 
   voting-portal:
     profiles: ["full"]
@@ -795,6 +796,7 @@ services:
     environment:
         WDS_SOCKET_HOST: ${VOTING_PORTAL_HOSTNAME}
         WDS_SOCKET_PORT: 80
+        DANGEROUSLY_DISABLE_HOST_CHECK: "true"
 
 volumes:
   db_data:
