@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Remote Test Environment Deployment Tutorial | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Remote Test Environment Deployment Tutorial | Sequent Online Voting"><meta data-rh="true" name="description" content="This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic."><meta data-rh="true" property="og:description" content="This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic."><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2257/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Remote Test Environment Deployment Tutorial","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial/"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2257/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.c6106e77.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.5320bf93.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2257/assets/js/main.834bc336.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -17,7 +17,7 @@
 <ul>
 <li>A cloud server with the following specifications:<!-- -->
 <ul>
-<li><strong>Minimum Recommended:</strong> 8 vCPUs, 16 GB RAM, 50-100 GB SSD</li>
+<li><strong>Minimum Recommended:</strong> 8 vCPUs, 16 GB RAM, <strong>100 GB SSD</strong> (minimum)</li>
 <li><strong>Recommended Instance Types:</strong>
 <ul>
 <li>AWS: <code>c5.2xlarge</code> (8 vCPUs, 16 GB RAM)</li>
@@ -102,8 +102,17 @@
 </li>
 <li>
 <p>Start the services using the <code>docker-compose-remote.yml</code> file:</p>
+<p><strong>First time deployment:</strong></p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> docker-compose-remote.yml up </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-d</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--build</span><br></span></code></pre></div></div>
-<p><strong>Note:</strong> The <code>--build</code> flag ensures all images are built locally. The <code>full</code> profile is enabled by default in the <code>.env</code> file via <code>COMPOSE_PROFILES=full</code>.</p>
+<p><strong>Subsequent restarts (if images already built):</strong></p>
+<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">docker-compose</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> docker-compose-remote.yml up </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-d</span><br></span></code></pre></div></div>
+<p><strong>Notes:</strong></p>
+<ul>
+<li>The <code>--build</code> flag is required for first-time setup to build all images locally</li>
+<li>Once images are built, you can omit <code>--build</code> for faster startups and to save disk space</li>
+<li>Only use <code>--build</code> again if you&#x27;ve updated Dockerfiles or need to rebuild images</li>
+<li>The <code>full</code> profile is enabled by default in the <code>.env</code> file via <code>COMPOSE_PROFILES=full</code></li>
+</ul>
 </li>
 <li>
 <p>Monitor the startup process:</p>
