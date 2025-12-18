@@ -253,6 +253,7 @@ input ElectoralLogFilter {
   statement_kind: String
   statement_timestamp: String
   user_id: String
+  username: String
 }
 
 input ElectoralLogOrderBy {
@@ -334,6 +335,7 @@ type ExportTasksOutput {
 type ExportTemplateOutput {
   document_id: String!
   error_msg: String
+  task_execution: tasks_execution_type
 }
 
 type ExportTenantUsersOutput {
@@ -494,8 +496,10 @@ type InsertCastVoteOutput {
 }
 
 type InsertTenantOutput {
+  error_msg: String
   id: uuid!
   slug: String!
+  task_execution: tasks_execution_type
 }
 
 """
@@ -21356,6 +21360,7 @@ type tasks_execution_type {
 type templateOutput {
   document_id: String!
   error_msg: String
+  task_execution: tasks_execution_type
 }
 
 scalar timestamptz
