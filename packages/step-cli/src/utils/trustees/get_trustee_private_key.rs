@@ -2,11 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::error::Error;
-
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::*,
+    utils::{
+        read_config::read_config,
+        trustees::get_trustee_private_key::{self, get_private_key::GetPrivateKeyInput},
+    },
+};
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
+use std::error::Error;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -17,7 +22,9 @@ use serde_json::Value;
 
 pub struct GetPrivateKey;
 
-impl GetPrivateKey {
+pub struct GetTrusteePrivateKey;
+
+impl GetTrusteePrivateKey {
     pub fn get_trustee_private_key(
         election_event_id: &str,
         key_ceremony_id: &str,
@@ -26,8 +33,10 @@ impl GetPrivateKey {
         let client = reqwest::blocking::Client::new();
 
         let variables = get_private_key::Variables {
-            election_event_id: election_event_id.to_string(),
-            keys_ceremony_id: key_ceremony_id.to_string(),
+            object: GetPrivateKeyInput {
+                election_event_id: election_event_id.to_string(),
+                keys_ceremony_id: key_ceremony_id.to_string(),
+            },
         };
 
         let request_body = GetPrivateKey::build_query(variables);
