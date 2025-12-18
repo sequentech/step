@@ -34,6 +34,8 @@ jobs:
     runs-on: gcp-selfhosted-ubuntu24
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Set Node.js 22.x
         uses: actions/setup-node@v3

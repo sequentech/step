@@ -1,6 +1,6 @@
-mutation GetPrivateKey($electionEventId: String!, $keysCeremonyId: String!) {
+mutation GetPrivateKey($object: GetPrivateKeyInput!) {
         get_private_key(
-            object: {election_event_id: $electionEventId, keys_ceremony_id: $keysCeremonyId}
+            object: $object
         ) {
             private_key_base64
         }
