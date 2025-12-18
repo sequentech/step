@@ -53,6 +53,10 @@ sed -i "s|hasura-[a-zA-Z0-9_-]*\.\${DOMAIN}|hasura-$SUBDOMAIN_SUFFIX.\${DOMAIN}|
 sed -i "s|minio-[a-zA-Z0-9_-]*\.\${DOMAIN}|minio-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
 sed -i "s|^HARVEST_DOMAIN=.*|HARVEST_DOMAIN=$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
 
+# Update hostname variables for webpack dev server
+sed -i "s|^VOTING_PORTAL_HOSTNAME=.*|VOTING_PORTAL_HOSTNAME=voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i "s|^ADMIN_PORTAL_HOSTNAME=.*|ADMIN_PORTAL_HOSTNAME=admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+
 echo "Configuring nginx reverse proxy..."
 
 # Update nginx config with domain and subdomain suffix
