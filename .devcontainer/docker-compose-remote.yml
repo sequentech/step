@@ -299,6 +299,9 @@ services:
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: mock_server
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
     volumes:
       - ..:/workspaces/step:z
     working_dir: /workspaces/step/packages/e2e/src/mock_server
