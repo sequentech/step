@@ -126,7 +126,7 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 
 - Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
 
-✨ Documentation: Structural Changes
+## ✨ Documentation: Structural Changes
 
 Documentation sidebar order has been restructured
 
