@@ -24,12 +24,19 @@ SUBDOMAIN_SUFFIX=$2
 
 # Set the path to the .env file
 ENV_FILE="$HOME/step/.devcontainer/.env"
+NGINX_CONF="$HOME/step/.devcontainer/nginx/default.conf"
 
 # Check if the .env file exists
 if [ ! -f "$ENV_FILE" ]; then
   echo "Error: .env file not found at $ENV_FILE."
   echo "Please copy .env.remote-test.example to .env first:"
   echo "  cp $HOME/step/.devcontainer/.env.remote-test.example $HOME/step/.devcontainer/.env"
+  exit 1
+fi
+
+# Check if nginx config exists
+if [ ! -f "$NGINX_CONF" ]; then
+  echo "Error: nginx config not found at $NGINX_CONF."
   exit 1
 fi
 
@@ -46,8 +53,19 @@ sed -i "s|hasura-[a-zA-Z0-9_-]*\.\${DOMAIN}|hasura-$SUBDOMAIN_SUFFIX.\${DOMAIN}|
 sed -i "s|minio-[a-zA-Z0-9_-]*\.\${DOMAIN}|minio-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
 sed -i "s|^HARVEST_DOMAIN=.*|HARVEST_DOMAIN=$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
 
+echo "Configuring nginx reverse proxy..."
+
+# Update nginx config with domain and subdomain suffix
+sed -i "s|server_name admin-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name admin-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
+sed -i "s|server_name voting-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name voting-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
+sed -i "s|server_name hasura-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name hasura-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
+sed -i "s|server_name login-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name login-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
+sed -i "s|server_name minio-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name minio-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
+sed -i "s|server_name verifier-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name verifier-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
+
 echo ""
 echo "✓ .env file configured successfully!"
+echo "✓ nginx config configured successfully!"
 echo ""
 echo "Configuration:"
 echo "  Domain: $DOMAIN"

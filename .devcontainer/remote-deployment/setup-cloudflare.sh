@@ -17,6 +17,7 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
   echo "  - hasura-remote-test.sequent.vote -> remote-test.sequent.vote"
   echo "  - login-remote-test.sequent.vote -> remote-test.sequent.vote"
   echo "  - minio-remote-test.sequent.vote -> remote-test.sequent.vote"
+  echo "  - verifier-remote-test.sequent.vote -> remote-test.sequent.vote"
   exit 1
 fi
 
@@ -61,13 +62,18 @@ SUCCESS=$(echo $RESPONSE | jq -r .success)
 if [ "$SUCCESS" == "true" ]; then
     echo "Successfully created DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN"
 else
-    echo "Error creating DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN:"
-    echo $RESPONSE | jq .errors
-    exit 1
+    ERROR_CODE=$(echo $RESPONSE | jq -r '.errors[0].code')
+    if [ "$ERROR_CODE" == "81054" ]; then
+        echo "DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN already exists, skipping..."
+    else
+        echo "Error creating DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN:"
+        echo $RESPONSE | jq .errors
+        exit 1
+    fi
 fi
 
 # List of services to create CNAME records for
-SERVICES=("admin" "voting" "hasura" "login" "minio")
+SERVICES=("admin" "voting" "hasura" "login" "minio" "verifier")
 
 for SERVICE in "${SERVICES[@]}"; do
   SUBDOMAIN="$SERVICE-$SUBDOMAIN_SUFFIX"
@@ -81,7 +87,12 @@ for SERVICE in "${SERVICES[@]}"; do
   if [ "$SUCCESS" == "true" ]; then
       echo "Successfully created CNAME record for $SUBDOMAIN.$ZONE_DOMAIN"
   else
-      echo "Error creating CNAME record for $SUBDOMAIN.$ZONE_DOMAIN:"
-      echo $RESPONSE | jq .errors
+      ERROR_CODE=$(echo $RESPONSE | jq -r '.errors[0].code')
+      if [ "$ERROR_CODE" == "81054" ]; then
+          echo "CNAME record for $SUBDOMAIN.$ZONE_DOMAIN already exists, skipping..."
+      else
+          echo "Error creating CNAME record for $SUBDOMAIN.$ZONE_DOMAIN:"
+          echo $RESPONSE | jq .errors
+      fi
   fi
 done
