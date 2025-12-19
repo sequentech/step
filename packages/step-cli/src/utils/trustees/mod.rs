@@ -4,5 +4,5 @@
 
 pub mod check_private_key;
 pub mod get;
-pub mod get_private_key;
+pub mod get_trustee_private_key;
 pub mod store_private_key;
