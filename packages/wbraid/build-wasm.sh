@@ -12,7 +12,7 @@ RED="\e[31m"
 RESET="\e[0m"
 
 # Enter crate directory
-cd crates/braid-wasm
+cd ../braid-wasm
 
 echo -e "${GREEN}Building WASM with atomics support...${RESET}"
 
@@ -30,7 +30,7 @@ fi
 
 # Run wasm-bindgen
 echo -e "${CYAN}Generating JS bindings with wasm-bindgen...${RESET}"
-if ! wasm-bindgen ../../target/wasm32-unknown-unknown/release/braid_wasm.wasm \
+if ! wasm-bindgen ../target/wasm32-unknown-unknown/release/braid_wasm.wasm \
         --out-dir pkg \
         --target web; then
     echo -e "${RED}wasm-bindgen failed!${RESET}"

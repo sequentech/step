@@ -42,10 +42,15 @@ function Cleanup {
     Get-Job | Where-Object { $_.Name -match "b4" } | Stop-Job -ErrorAction SilentlyContinue
     Get-Job | Where-Object { $_.Name -match "b4" } | Remove-Job -ErrorAction SilentlyContinue
     
-    # Remove database and artifacts
-    if (Test-Path ".\b4.db") { Remove-Item -Path ".\b4.db" -Force }
-    if (Test-Path ".\b4.db-shm") { Remove-Item -Path ".\b4.db-shm" -Force }
-    if (Test-Path ".\b4.db-wal") { Remove-Item -Path ".\b4.db-wal" -Force }
+    # Clear PostgreSQL database
+    Write-Host "Clearing PostgreSQL database tables..." -ForegroundColor Yellow
+    $truncateResult = docker exec postgres-b4 psql -U postgres -d b4 -c "TRUNCATE TABLE boards, messages CASCADE;" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Truncated boards and messages tables"
+    } else {
+        Write-Error "Failed to truncate PostgreSQL tables (is the container running?)"
+    }
+    
     if (Test-Path ".\configs") { Remove-Item -Path ".\configs" -Recurse -Force }
     if (Test-Path ".\demo") { 
         # Remove trustee message stores but keep config files for potential reuse
@@ -107,10 +112,13 @@ if (-not $SkipCleanup) {
     # Give processes time to terminate
     Start-Sleep -Seconds 2
     
-    # Remove database and config files
-    if (Test-Path ".\b4.db") { Remove-Item -Path ".\b4.db" -Force }
-    if (Test-Path ".\b4.db-shm") { Remove-Item -Path ".\b4.db-shm" -Force }
-    if (Test-Path ".\b4.db-wal") { Remove-Item -Path ".\b4.db-wal" -Force }
+    # Clear PostgreSQL database
+    Write-Host "Clearing PostgreSQL database tables..." -ForegroundColor Yellow
+    $truncateResult = docker exec postgres-b4 psql -U postgres -d b4 -c "TRUNCATE TABLE boards, messages CASCADE;" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Truncated boards and messages tables"
+    }
+    
     if (Test-Path ".\demo") { 
         # Remove trustee message stores but keep config files for potential reuse
         Get-ChildItem -Path ".\demo" -Filter "message_store" -Recurse -Directory | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
@@ -124,7 +132,7 @@ if (-not $SkipCleanup) {
 Write-Step "Generating shared configuration"
 Write-Info "Creating configuration with $NumTrustees trustees (threshold: $Threshold)..."
 
-cargo run --bin demo_tool --release -- gen-configs `
+cargo run --manifest-path ..\\braid\\Cargo.toml --bin demo_tool --release -- gen-configs `
     --num-trustees $NumTrustees `
     --threshold $Threshold `
     2>&1 | Out-Null
@@ -149,7 +157,12 @@ Write-Step "Starting b4 bulletin board server"
 
 # Set all required environment variables for b4 + LocalStack
 $env:RUST_LOG = "b4=info,wbraid_service=info"
-$env:DATABASE_URL = "sqlite:b4.db?mode=rwc"
+$env:B4_PG_HOST = "postgres-b4"
+$env:B4_PG_PORT = "5432"
+$env:B4_PG_USER = "postgres"
+$env:B4_PG_PASSWORD = "postgrespassword"
+$env:B4_PG_DATABASE = "b4"
+$env:B4_BIND = "0.0.0.0:50051"
 $env:AWS_ENDPOINT_URL = "http://localhost:4566"
 $env:AWS_ACCESS_KEY_ID = "test"
 $env:AWS_SECRET_ACCESS_KEY = "test"
@@ -165,14 +178,19 @@ $b4Process = Start-Process powershell -ArgumentList @(
     "`$host.ui.RawUI.WindowTitle = 'b4 Bulletin Board Server'; " +
     "cd '$workingDir'; " +
     "`$env:RUST_LOG = 'b4=info'; " +
-    "`$env:DATABASE_URL = 'sqlite:b4.db?mode=rwc'; " +
+    "`$env:B4_PG_HOST = 'postgres-b4'; " +
+    "`$env:B4_PG_PORT = '5432'; " +
+    "`$env:B4_PG_USER = 'postgres'; " +
+    "`$env:B4_PG_PASSWORD = 'postgrespassword'; " +
+    "`$env:B4_PG_DATABASE = 'b4'; " +
+    "`$env:B4_BIND = '0.0.0.0:50051'; " +
     "`$env:AWS_ENDPOINT_URL = 'http://localhost:4566'; " +
     "`$env:AWS_ACCESS_KEY_ID = 'test'; " +
     "`$env:AWS_SECRET_ACCESS_KEY = 'test'; " +
     "`$env:AWS_REGION = 'us-east-1'; " +
     "`$env:S3_BUCKET_NAME = 'wbraid-messages'; " +
     "`$env:AWS_FORCE_PATH_STYLE = 'true'; " +
-    "cargo run --bin b4 --release"
+    "cargo run --manifest-path ..\\b4\\Cargo.toml --bin b4 --release --features native"
 ) -PassThru
 
 Write-Info "Started b4 server in new window (PID: $($b4Process.Id))..."
@@ -187,7 +205,7 @@ while ($retryCount -lt $maxRetries -and -not $serverReady) {
     $retryCount++
     
     try {
-        $response = Invoke-WebRequest -Uri "http://127.0.0.1:3000/boards" -Method Get -TimeoutSec 2 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "http://127.0.0.1:50051/boards" -Method Get -TimeoutSec 2 -ErrorAction Stop
         $serverReady = $true
         Write-Success "b4 server is running and responding (PID: $($b4Process.Id))"
     } catch {
@@ -208,7 +226,7 @@ Write-Info "Using --board-count to create $NumBoards boards with shared configur
 
 # Use board-count to create all boards at once with the same configuration
 $firstBoardName = "election_board_1"
-cargo run --bin demo_tool --release -- init-protocol `
+cargo run --manifest-path ..\\braid\\Cargo.toml --bin demo_tool --release -- init-protocol `
     --board-name $firstBoardName `
     --board-count $NumBoards `
     2>&1 | Out-Null
@@ -228,7 +246,7 @@ $workingDir = Get-Location
 $monitorProcess = Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "cd '$workingDir'; cargo run --bin monitor --release --features monitor"
+    "cd '$workingDir'; cargo run --manifest-path ..\\b4\\Cargo.toml --bin monitor --release --features monitor -- --host postgres-b4 --username postgres --password postgrespassword --database b4"
 ) -PassThru
 
 Write-Success "Monitor started (PID: $($monitorProcess.Id))"
@@ -263,7 +281,7 @@ for ($t = 0; $t -lt $NumTrustees; $t++) {
         "-Command",
         "`$host.ui.RawUI.WindowTitle = '$processTitle'; " +
         "cd '$workingDir'; cd $trusteeDir; " +
-        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent -- --b3-url http://127.0.0.1:3000 --trustee-config trustee.toml"
+        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent --features native -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml"
     ) -PassThru -WindowStyle Minimized
     
     $trusteeProcesses += $trusteeProc
@@ -307,7 +325,7 @@ Write-Info "Posting $NumBallots ballots to $NumBoards boards..."
 
 # Use board-count to post ballots to all boards at once
 $firstBoardName = "election_board_1"
-cargo run --bin demo_tool --release -- post-ballots `
+cargo run --manifest-path ..\\braid\\Cargo.toml --bin demo_tool --release -- post-ballots `
     --board-name $firstBoardName `
     --board-count $NumBoards `
     --ciphertexts $NumBallots `
@@ -361,7 +379,7 @@ while ($elapsed -lt $maxWaitSeconds -and -not $allComplete) {
     
     foreach ($boardName in $boardNames) {
         try {
-            $output = cargo run --bin demo_tool --release -- list-messages `
+            $output = cargo run --manifest-path ..\\braid\\Cargo.toml --bin demo_tool --release -- list-messages `
                 --board-name $boardName 2>$null | Out-String
             
             # Check for Plaintexts messages (indicates completion)
@@ -392,7 +410,7 @@ if ($allComplete) {
     foreach ($boardName in $boardNames) {
         Write-Info "Verifying $boardName..."
         
-        $output = cargo run --bin demo_tool --release -- list-messages `
+        $output = cargo run --manifest-path ..\\braid\\Cargo.toml --bin demo_tool --release -- list-messages `
             --board-name $boardName 2>&1 | Out-String
         
         $hasConfig = $output -match "Configuration"

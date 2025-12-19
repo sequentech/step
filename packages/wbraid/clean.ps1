@@ -6,20 +6,13 @@
 
 Write-Host "Cleaning up WBraid POC..." -ForegroundColor Yellow
 
-# Remove SQLite database
-if (Test-Path "crates/service/b4.db") {
-    Remove-Item "crates/service/b4.db" -Force
-    Write-Host "✓ Removed b4.db" -ForegroundColor Green
-}
-
-if (Test-Path "crates/service/b4.db-shm") {
-    Remove-Item "crates/service/b4.db-shm" -Force
-    Write-Host "✓ Removed b4.db-shm" -ForegroundColor Green
-}
-
-if (Test-Path "crates/service/b4.db-wal") {
-    Remove-Item "crates/service/b4.db-wal" -Force
-    Write-Host "✓ Removed b4.db-wal" -ForegroundColor Green
+# Clear PostgreSQL database
+Write-Host "Clearing PostgreSQL database tables..." -ForegroundColor Yellow
+$truncateResult = docker exec postgres-b4 psql -U postgres -d b4 -c "TRUNCATE TABLE boards, messages CASCADE;" 2>$null
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "✓ Truncated boards and messages tables" -ForegroundColor Green
+} else {
+    Write-Host "✗ Failed to truncate PostgreSQL tables (is the container running?)" -ForegroundColor Red
 }
 
 # Remove WASM build artifacts

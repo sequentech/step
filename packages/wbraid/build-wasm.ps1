@@ -6,7 +6,7 @@
 # This requires nightly Rust and proper linker flags for SharedArrayBuffer
 # Based on: https://github.com/huggingface/xet-core/issues/554
 
-cd crates/braid-wasm
+cd ../braid-wasm
 
 Write-Host "Building WASM with atomics support..." -ForegroundColor Green
 
@@ -23,13 +23,13 @@ $buildResult = $LASTEXITCODE
 if ($buildResult -ne 0) {
     Write-Host "Cargo build failed!" -ForegroundColor Red
     rustup override unset 2>&1 | Out-Null
-    cd ../..
+    cd ..
     exit 1
 }
 
 # Run wasm-bindgen to generate JS bindings
 Write-Host "Generating JS bindings with wasm-bindgen..." -ForegroundColor Cyan
-wasm-bindgen ../../target/wasm32-unknown-unknown/release/braid_wasm.wasm --out-dir pkg --target web
+wasm-bindgen ../target/wasm32-unknown-unknown/release/braid_wasm.wasm --out-dir pkg --target web
 
 $bindgenResult = $LASTEXITCODE
 
@@ -37,11 +37,11 @@ $bindgenResult = $LASTEXITCODE
 Write-Host "Removing toolchain override..." -ForegroundColor Cyan
 rustup override unset 2>&1 | Out-Null
 
-cd ../..
+cd ..
 
 if ($bindgenResult -ne 0) {
     Write-Host "wasm-bindgen failed!" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Build complete! WASM bundle ready in crates/braid-wasm/pkg/" -ForegroundColor Green
+Write-Host "Build complete! WASM bundle ready in ../braid-wasm/pkg/" -ForegroundColor Green

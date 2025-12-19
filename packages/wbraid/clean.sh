@@ -14,17 +14,13 @@ RESET="\e[0m"
 
 echo -e "${YELLOW}Cleaning up WBraid POC...${RESET}"
 
-# --- Remove SQLite databases ---
-for file in \
-    "crates/service/b4.db" \
-    "crates/service/b4.db-shm" \
-    "crates/service/b4.db-wal"
-do
-    if [ -f "$file" ]; then
-        rm -f "$file"
-        echo -e "${GREEN}✓ Removed $(basename "$file")${RESET}"
-    fi
-done
+# --- Clear PostgreSQL database ---
+echo -e "${YELLOW}Clearing PostgreSQL database tables...${RESET}"
+if docker exec postgres-b4 psql -U postgres -d b4 -c "TRUNCATE TABLE boards, messages CASCADE;" >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Truncated boards and messages tables${RESET}"
+else
+    echo -e "${RED}✗ Failed to truncate PostgreSQL tables (is the container running?)${RESET}"
+fi
 
 # --- Remove WASM build artifacts ---
 if [ -d "crates/client/pkg" ]; then

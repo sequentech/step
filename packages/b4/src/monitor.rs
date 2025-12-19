@@ -100,7 +100,7 @@ struct Cli {
 
 fn main() {
     let args = Cli::parse();
-    
+
     let params = PgConnectionParams::new(
         &args.host,
         args.port,

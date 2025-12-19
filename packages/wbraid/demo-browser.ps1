@@ -70,10 +70,15 @@ function Cleanup {
     # Give processes time to terminate
     Start-Sleep -Seconds 2
     
-    # Remove database and message stores
-    if (Test-Path ".\b4.db") { Remove-Item -Path ".\b4.db" -Force }
-    if (Test-Path ".\b4.db-shm") { Remove-Item -Path ".\b4.db-shm" -Force }
-    if (Test-Path ".\b4.db-wal") { Remove-Item -Path ".\b4.db-wal" -Force }
+    # Clear PostgreSQL database
+    Write-Host "Clearing PostgreSQL database tables..." -ForegroundColor Yellow
+    $truncateResult = docker exec postgres-b4 psql -U postgres -d b4 -c "TRUNCATE TABLE boards, messages CASCADE;" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Truncated boards and messages tables"
+    } else {
+        Write-Error "Failed to truncate PostgreSQL tables (is the container running?)"
+    }
+    
     if (Test-Path ".\demo") { 
         Get-ChildItem -Path ".\demo" -Filter "message_store" -Recurse -Directory | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -116,9 +121,13 @@ if (-not $SkipCleanup) {
     
     Start-Sleep -Seconds 2
     
-    if (Test-Path ".\b4.db") { Remove-Item -Path ".\b4.db" -Force }
-    if (Test-Path ".\b4.db-shm") { Remove-Item -Path ".\b4.db-shm" -Force }
-    if (Test-Path ".\b4.db-wal") { Remove-Item -Path ".\b4.db-wal" -Force }
+    # Clear PostgreSQL database
+    Write-Host "Clearing PostgreSQL database tables..." -ForegroundColor Yellow
+    $truncateResult = docker exec postgres-b4 psql -U postgres -d b4 -c "TRUNCATE TABLE boards, messages CASCADE;" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Truncated boards and messages tables"
+    }
+    
     if (Test-Path ".\demo") { 
         Get-ChildItem -Path ".\demo" -Filter "message_store" -Recurse -Directory | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -154,14 +163,19 @@ $b4Process = Start-Process powershell -ArgumentList @(
     "`$host.ui.RawUI.WindowTitle = 'b4 Bulletin Board Server'; " +
     "cd '$workingDir'; " +
     "`$env:RUST_LOG = 'b4=info'; " +
-    "`$env:DATABASE_URL = 'sqlite:b4.db?mode=rwc'; " +
+    "`$env:B4_PG_HOST = 'postgres-b4'; " +
+    "`$env:B4_PG_PORT = '5432'; " +
+    "`$env:B4_PG_USER = 'postgres'; " +
+    "`$env:B4_PG_PASSWORD = 'postgrespassword'; " +
+    "`$env:B4_PG_DATABASE = 'b4'; " +
+    "`$env:B4_BIND = '0.0.0.0:50051'; " +
     "`$env:AWS_ENDPOINT_URL = 'http://localhost:4566'; " +
     "`$env:AWS_ACCESS_KEY_ID = 'test'; " +
     "`$env:AWS_SECRET_ACCESS_KEY = 'test'; " +
     "`$env:AWS_REGION = 'us-east-1'; " +
     "`$env:S3_BUCKET_NAME = 'wbraid-messages'; " +
     "`$env:AWS_FORCE_PATH_STYLE = 'true'; " +
-    "cargo run --bin b4 --release"
+    "cargo run --bin b4 --release --features native"
 ) -PassThru
 
 Write-Info "Started B4 server in new window (PID: $($b4Process.Id))..."
@@ -176,7 +190,7 @@ while ($retryCount -lt $maxRetries -and -not $serverReady) {
     $retryCount++
     
     try {
-        $response = Invoke-WebRequest -Uri "http://127.0.0.1:3000/boards" -Method Get -TimeoutSec 2 -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "http://127.0.0.1:50051/boards" -Method Get -TimeoutSec 2 -ErrorAction Stop
         $serverReady = $true
         Write-Success "B4 server is running and responding (PID: $($b4Process.Id))"
     } catch {
@@ -248,7 +262,7 @@ $browserConfig = @{
     signing_key_sk = $signingKeySk
     signing_key_pk = $signingKeyPk
     encryption_key = $encryptionKey
-    b4_url = "http://127.0.0.1:3000"
+    b4_url = "http://127.0.0.1:50051"
 } | ConvertTo-Json -Compress
 
 Write-Success "Browser trustee configuration extracted"
@@ -282,7 +296,7 @@ for ($t = 0; $t -lt $NumTrustees; $t++) {
         "-Command",
         "`$host.ui.RawUI.WindowTitle = '$processTitle'; " +
         "cd '$workingDir'; cd $trusteeDir; " +
-        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent -- --b3-url http://127.0.0.1:3000 --trustee-config trustee.toml"
+        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent --features native -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml"
     ) -PassThru -WindowStyle Minimized
     
     $trusteeProcesses += $trusteeProc
@@ -312,7 +326,7 @@ Write-Host "   Trustee Name:      browser_trustee_$BrowserTrusteeIndex" -Foregro
 Write-Host "   Signing Key (SK):  $signingKeySk" -ForegroundColor White
 Write-Host "   Signing Key (PK):  $signingKeyPk" -ForegroundColor White
 Write-Host "   Encryption Key:    $encryptionKey" -ForegroundColor White
-Write-Host "   B4 URL:            http://127.0.0.1:3000" -ForegroundColor White
+Write-Host "   B4 URL:            http://127.0.0.1:50051" -ForegroundColor White
 Write-Host ""
 Write-Host "   OR paste this JSON into any field (auto-fills all):" -ForegroundColor Cyan
 Write-Host "   $browserConfig" -ForegroundColor White
@@ -331,7 +345,7 @@ Write-Host ""
 Write-Host "7. Click 'Execute Step' or 'Auto (1s)' to participate in the protocol" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Current Status:" -ForegroundColor Yellow
-Write-Host "  - B4 Server:        Running on port 3000" -ForegroundColor Gray
+Write-Host "  - B4 Server:        Running on port 50051" -ForegroundColor Gray
 Write-Host "  - Board Name:       $boardName" -ForegroundColor Gray
 Write-Host "  - Native Trustees:  $($trusteeProcesses.Count) running" -ForegroundColor Gray
 Write-Host "  - Browser Trustee:  Waiting for you (slot #$BrowserTrusteeIndex)" -ForegroundColor Gray

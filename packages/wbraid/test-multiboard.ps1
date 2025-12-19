@@ -4,7 +4,7 @@
 
 # Test script for multi-board bulletin board service
 
-$baseUrl = "http://127.0.0.1:3000"
+$baseUrl = "http://127.0.0.1:50051"
 
 Write-Host "`n=== Testing Multi-Board Bulletin Board Service ===" -ForegroundColor Cyan
 
