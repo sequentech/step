@@ -91,9 +91,9 @@ impl WhereClauseOrdMap {
     /// Where clause is longer than the index: the last index matched will be used.
     /// Where clause is shorter than the index: No index will be used because it causes errors in unmmudb.
     /// Will return the longest possible index to use or None.
-    pub fn to_use_index_clause(&self) -> String {
+    pub fn to_use_index_clause(&self) -> Option<String> {
         let mut try_index_clause = String::from("");
-        let mut last_index_clause_match = String::from("");
+        let mut last_index_clause_match = None;
         for (col_name, _) in self.iter() {
             if try_index_clause.is_empty() {
                 try_index_clause.push_str(&format!("({col_name}"));
@@ -103,7 +103,7 @@ impl WhereClauseOrdMap {
             for index in MULTI_COLUMN_INDEXES {
                 let try_index_clause_closed = format!("{try_index_clause})");
                 if index.eq(&try_index_clause_closed) {
-                    last_index_clause_match = format!("USE INDEX ON {index}");
+                    last_index_clause_match = Some(format!("USE INDEX ON {index}"));
                 }
             }
         }
@@ -281,10 +281,9 @@ impl GetElectoralLogBody {
 
         if let Some(area_ids) = &self.area_ids {
             if !area_ids.is_empty() {
-                // NOTE: `IN` values must be handled later in SQL building, here we just join them
                 cols_match_select.insert(
                     ElectoralLogVarCharColumn::AreaId,
-                    SqlCompOperators::In(area_ids.clone()), // TODO: NullOrIn
+                    SqlCompOperators::In(area_ids.clone()),
                 );
             }
         }

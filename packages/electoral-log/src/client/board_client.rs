@@ -286,7 +286,7 @@ impl BoardClient {
             );
         }
 
-        let use_index_clause = columns_matcher.unwrap_or_default().to_use_index_clause();
+        let use_index_clause = columns_matcher.unwrap_or_default().to_use_index_clause().unwrap_or_default();
 
         self.client.use_database(board_db).await?;
         let sql = format!(
@@ -379,7 +379,7 @@ impl BoardClient {
         } else {
             String::from("")
         };
-        let use_index_clause = columns_matcher.unwrap_or_default().to_use_index_clause();
+        let use_index_clause = columns_matcher.unwrap_or_default().to_use_index_clause().unwrap_or_default();
         self.client.use_database(board_db).await?;
 
         let count = if use_index_clause.is_empty() && where_clauses.is_empty() && params.is_empty()
