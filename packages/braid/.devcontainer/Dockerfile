@@ -1,7 +1,6 @@
-# SPDX-FileCopyrightText: 2022 X-Truder <jaka@x-truder.net>
-# SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # Reuse a base image made for devcontainers.
 FROM mcr.microsoft.com/vscode/devcontainers/base:bullseye
