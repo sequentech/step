@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Build and serve the WASM client with atomics support
 
 # Clear any inherited RUSTFLAGS that might interfere with .cargo/config.toml

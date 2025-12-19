@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 $env:AWS_ENDPOINT_URL="http://localhost:4566"
 $env:AWS_ACCESS_KEY_ID="test"
 $env:AWS_SECRET_ACCESS_KEY="test"

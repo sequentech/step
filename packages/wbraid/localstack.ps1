@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Stop and remove existing LocalStack containers (if any)
 docker ps -q --filter ancestor=localstack/localstack | ForEach-Object { docker stop $_ }
 docker ps -aq --filter ancestor=localstack/localstack | ForEach-Object { docker rm $_ }

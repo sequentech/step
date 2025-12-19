@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Demo script for testing browser-based trustees
 # Starts B4 + (N-1) native trustees, leaving one slot for a browser trustee
 #

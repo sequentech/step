@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Configuration for building WASM with atomics and SharedArrayBuffer support
 # Required for wasm-bindgen-rayon to work with multi-threading
 # Based on: https://github.com/huggingface/xet-core/issues/554

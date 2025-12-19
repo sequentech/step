@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Test script for multi-board bulletin board service
 
 $baseUrl = "http://127.0.0.1:3000"

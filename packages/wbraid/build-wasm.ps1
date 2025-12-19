@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # Build WASM client with atomics support for wasm-bindgen-rayon
 # This requires nightly Rust and proper linker flags for SharedArrayBuffer
 # Based on: https://github.com/huggingface/xet-core/issues/554

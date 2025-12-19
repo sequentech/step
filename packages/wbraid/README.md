@@ -1,3 +1,8 @@
+<!--
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 # WBraid - Braid WASM Migration
 
 Migration of the Braid crate to support WebAssembly targets alongside native builds. See [summary.md](summary.md) for detailed information about the migration strategy and architecture.

@@ -1,3 +1,8 @@
+<!--
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
 # Browser-Based Mixnet Trustee
 
 This is a browser implementation of a WBraid mixnet trustee using WebAssembly. It allows running a full cryptographic mixnet node entirely in your browser.
