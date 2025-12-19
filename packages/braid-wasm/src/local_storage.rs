@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use b4::api_types::Message;
 use indexed_db_futures::prelude::*;
 use wasm_bindgen::prelude::*;

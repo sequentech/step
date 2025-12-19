@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 mod bulletin_board;
 mod local_storage;
 mod s3;
