@@ -818,20 +818,21 @@ async fn check_status(
         dates.end_date = None;
     }
 
-    let close_date_opt: Option<DateTime<Local>> = if let Some(end_date_str) = dates.end_date {
-        match ISO8601::to_date(&end_date_str) {
-            Ok(close_date) => {
-                info!("Parsed end_date: {}", close_date);
-                Some(close_date)
+    let close_date_esq_event_opt: Option<DateTime<Local>> =
+        if let Some(end_date_str) = dates.end_date {
+            match ISO8601::to_date(&end_date_str) {
+                Ok(close_date) => {
+                    info!("Parsed end_date: {}", close_date);
+                    Some(close_date)
+                }
+                Err(err) => {
+                    info!("Failed to parse end_date: {}", err);
+                    None
+                }
             }
-            Err(err) => {
-                info!("Failed to parse end_date: {}", err);
-                None
-            }
-        }
-    } else {
-        None
-    };
+        } else {
+            None
+        };
 
     let election_status: ElectionStatus = election
         .status
@@ -873,23 +874,23 @@ async fn check_status(
             == VotingStatus::OPEN
         && election_status.status_by_channel(VotingStatusChannel::ONLINE)
             == VotingStatus::NOT_STARTED;
+    // We only apply the grace period if:
+    // 1. Grace period policy is not NO_GRACE_PERIOD
+    // 2. Voting Channel is ONLINE
+    // 3. Current Voting Status is not PAUSED
+    let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
+        && voting_channel == VotingStatusChannel::ONLINE
+        && current_voting_status != VotingStatus::PAUSED;
+    let grace_period_duration = Duration::seconds(grace_period_secs as i64);
 
     // We can only calculate grace period if there's a close date
-    if let Some(close_date) = close_date_opt {
-        // We only apply the grace period if:
-        // 1. Grace period policy is not NO_GRACE_PERIOD
-        // 2. Voting Channel is ONLINE
-        // 3. Current Voting Status is not PAUSED
-        let apply_grace_period: bool = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
-            && voting_channel == VotingStatusChannel::ONLINE
-            && current_voting_status != VotingStatus::PAUSED;
-        let grace_period_duration = Duration::seconds(grace_period_secs as i64);
-        let close_date_plus_grace_period = close_date + grace_period_duration;
+    if let Some(close_date_esq_event) = close_date_esq_event_opt {
+        let close_date_plus_grace_period = close_date_esq_event + grace_period_duration;
 
         if apply_grace_period {
             // a voter cannot cast a vote after the grace period or if the voter
             // authenticated after the closing date
-            if now > close_date_plus_grace_period || auth_time_local > close_date {
+            if now > close_date_plus_grace_period || auth_time_local > close_date_esq_event {
                 return Err(CastVoteError::CheckStatusFailed(
                     "Cannot vote outside grace period".to_string(),
                 ));
@@ -897,7 +898,7 @@ async fn check_status(
 
             // if voting before the closing date, we don't apply the grace
             // period so current voting status needs to be open
-            if now <= close_date && current_voting_status != VotingStatus::OPEN {
+            if now <= close_date_esq_event && current_voting_status != VotingStatus::OPEN {
                 return Err(CastVoteError::CheckStatusFailed(
                     format!("Election voting status is not open (={current_voting_status:?}) while voting before the closing date of the election"),
                 ));
@@ -905,7 +906,7 @@ async fn check_status(
         } else {
             // if grace period does not apply and there's a closing date, to
             // cast a vote you need to do it before the closing date
-            if now > close_date {
+            if now > close_date_esq_event {
                 return Err(CastVoteError::CheckStatusFailed(
                     "Election close date passed and grace period does not apply or is not set"
                         .to_string(),
@@ -925,23 +926,30 @@ async fn check_status(
     } else if allow_early_voting {
         info!("Allowing early voting for election id {election_id}");
     } else {
-        if current_voting_status != VotingStatus::OPEN {
-            return Err(CastVoteError::CheckStatusFailed(
-                format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?} instead of Open"),
-            ));
-        }
         let last_stopped_at = dates_by_channel
             .last_stopped_at
             .map(|val| val.with_timezone(&Local));
 
-        if let Some(close_date) = last_stopped_at {
-            if now > close_date {
-                return Err(CastVoteError::CheckStatusFailed(format!(
-                    "Election close date passed for channel {}",
-                    voting_channel
-                )));
+        match (current_voting_status, last_stopped_at) {
+            (VotingStatus::OPEN, _) => {}
+            (VotingStatus::PAUSED | VotingStatus::NOT_STARTED, _) => {
+                return Err(CastVoteError::CheckStatusFailed(
+                    format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
+                ));
             }
-        }
+            (VotingStatus::CLOSED, Some(close_date))
+                if apply_grace_period
+                    && (now < (close_date + grace_period_duration))
+                    && auth_time_local < close_date =>
+            {
+                info!("Grace period vote at {now}");
+            }
+            (VotingStatus::CLOSED, _) => {
+                return Err(CastVoteError::CheckStatusFailed(
+                    format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
+                ));
+            }
+        };
     }
     Ok(())
 }
