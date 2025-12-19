@@ -518,7 +518,7 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.b3",
+            "label": "logs.b4",
             "command": "docker",
             "args": [
                 "compose",
@@ -526,7 +526,7 @@
                 "-f",
                 "--tail",
                 "200",
-                "b3",
+                "b4",
             ],
             "options": {
                 "env": {
@@ -549,11 +549,11 @@
             "problemMatcher": []
         },
         {
-            "label": "logs.restart.b3",
+            "label": "logs.restart.b4",
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop b3; docker compose up -d --no-deps b3 && docker compose logs -f --tail 100 b3",
+                "docker compose stop b4; docker compose up -d --no-deps b4 && docker compose logs -f --tail 100 b4",
             ],
             "options": {
                 "env": {
