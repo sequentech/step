@@ -1,8 +1,15 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::api_types::Message;
-use anyhow::Result;
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use anyhow::{anyhow, Context, Result};
+use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use std::env;
-use std::path::PathBuf;
+use tokio_postgres::NoTls;
+
+/// PostgreSQL connection pool type alias
+pub type DbPool = Pool<PostgresConnectionManager<NoTls>>;
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -11,74 +18,138 @@ pub struct Board {
     pub status: String,
 }
 
-pub async fn init_db() -> Result<SqlitePool> {
-    // Use DATABASE_URL env var if set, otherwise default to b4.db in current directory
-    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
-        let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        path.push("b4.db");
-        // Add mode=rwc to create the file if it doesn't exist
-        format!("sqlite:{}?mode=rwc", path.display())
-    });
+/// PostgreSQL connection parameters
+#[derive(Clone)]
+pub struct PgConnectionParams {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub database: String,
+}
 
-    tracing::info!("Connecting to database: {}", db_url);
+impl PgConnectionParams {
+    pub fn new(host: &str, port: u16, username: &str, password: &str, database: &str) -> Self {
+        Self {
+            host: host.to_string(),
+            port,
+            username: username.to_string(),
+            password: password.to_string(),
+            database: database.to_string(),
+        }
+    }
 
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url)
+    pub fn from_env() -> Result<Self> {
+        let host = env::var("B4_PG_HOST").context("B4_PG_HOST must be set")?;
+        let port: u16 = env::var("B4_PG_PORT")
+            .context("B4_PG_PORT must be set")?
+            .parse()
+            .context("B4_PG_PORT must be a valid port number")?;
+        let username = env::var("B4_PG_USER").context("B4_PG_USER must be set")?;
+        let password = env::var("B4_PG_PASSWORD").context("B4_PG_PASSWORD must be set")?;
+        let database = env::var("B4_PG_DATABASE").context("B4_PG_DATABASE must be set")?;
+
+        Ok(Self {
+            host,
+            port,
+            username,
+            password,
+            database,
+        })
+    }
+
+    pub fn connection_string(&self) -> String {
+        format!(
+            "host={} port={} user={} password={} dbname={}",
+            self.host, self.port, self.username, self.password, self.database
+        )
+    }
+}
+
+pub async fn init_db() -> Result<DbPool> {
+    let params = PgConnectionParams::from_env()?;
+    init_db_with_params(&params).await
+}
+
+pub async fn init_db_with_params(params: &PgConnectionParams) -> Result<DbPool> {
+    tracing::info!(
+        "Connecting to PostgreSQL database at {}:{}",
+        params.host,
+        params.port
+    );
+
+    let manager =
+        PostgresConnectionManager::new_from_stringlike(params.connection_string(), NoTls)?;
+
+    let pool = Pool::builder().max_size(5).build(manager).await?;
+
+    // Create tables in a scoped block so connection is dropped before returning pool
+    {
+        let conn = pool.get().await?;
+
+        // Create boards table (Superset of INDEX and boards)
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS boards (
+                id SERIAL UNIQUE,
+                board_name VARCHAR PRIMARY KEY,
+                created_at TIMESTAMP DEFAULT NOW(),
+                is_archived BOOLEAN DEFAULT FALSE,
+                status VARCHAR DEFAULT 'active',
+                cfg_id VARCHAR,
+                threshold_no INTEGER,
+                trustees_no INTEGER,
+                last_message_kind VARCHAR,
+                last_updated TIMESTAMP,
+                message_count INTEGER DEFAULT 0,
+                batch_count INTEGER DEFAULT 0
+            )
+            "#,
+            &[],
+        )
         .await?;
 
-    // Create boards table
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS boards (
-            name TEXT PRIMARY KEY,
-            created_at INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'active',
-            cfg_id TEXT,
-            threshold_no INTEGER,
-            trustees_no INTEGER,
-            last_message_kind TEXT,
-            message_count INTEGER DEFAULT 0,
-            batch_count INTEGER DEFAULT 0
+        // Create messages table (Superset + Partitioned)
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS messages (
+                id BIGSERIAL,
+                board_name VARCHAR NOT NULL,
+                -- b4/db.rs specific columns
+                timestamp BIGINT, 
+                size BIGINT,
+                content_type VARCHAR,
+                inline_data BYTEA,
+                s3_key VARCHAR,
+                -- pgsql.rs specific columns
+                created TIMESTAMP,
+                statement_timestamp TIMESTAMP,
+                message BYTEA,
+                -- Common columns
+                sender_pk VARCHAR NOT NULL,
+                statement_kind VARCHAR NOT NULL,
+                batch INTEGER NOT NULL DEFAULT 0,
+                mix_number INTEGER NOT NULL DEFAULT 0,
+                version VARCHAR NOT NULL,
+                
+                PRIMARY KEY (board_name, id),
+                UNIQUE (board_name, sender_pk, statement_kind, batch, mix_number)
+            ) PARTITION BY LIST (board_name);
+            "#,
+            &[],
         )
-        "#,
-    )
-    .execute(&pool)
-    .await?;
+        .await?;
 
-    // Create messages table with B3-compatible schema
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            board_name TEXT NOT NULL,
-            timestamp INTEGER NOT NULL,
-            sender_pk TEXT NOT NULL,
-            statement_kind TEXT NOT NULL,
-            batch INTEGER NOT NULL DEFAULT 0,
-            mix_number INTEGER NOT NULL DEFAULT 0,
-            size INTEGER NOT NULL,
-            content_type TEXT NOT NULL,
-            inline_data BLOB,
-            s3_key TEXT,
-            version TEXT NOT NULL,
-            FOREIGN KEY (board_name) REFERENCES boards(name),
-            UNIQUE (board_name, sender_pk, statement_kind, batch, mix_number)
+        // Create index for efficient range queries
+        conn.execute(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_messages_board_id 
+            ON messages(board_name, id)
+            "#,
+            &[],
         )
-        "#,
-    )
-    .execute(&pool)
-    .await?;
-
-    // Create index for efficient range queries
-    sqlx::query(
-        r#"
-        CREATE INDEX IF NOT EXISTS idx_messages_board_id 
-        ON messages(board_name, id)
-        "#,
-    )
-    .execute(&pool)
-    .await?;
+        .await?;
+    }
 
     Ok(pool)
 }
@@ -101,21 +172,42 @@ pub fn validate_board_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn create_board(pool: &SqlitePool, name: &str) -> Result<Board> {
+pub async fn create_board(pool: &DbPool, name: &str) -> Result<Board> {
     validate_board_name(name)?;
 
-    let created_at = chrono::Utc::now().timestamp();
+    let now_chrono = chrono::Utc::now();
+    let created_at = now_chrono.timestamp();
+    // tokio-postgres requires SystemTime (chrono feature not strictly enabled)
+    let created_at_sql: std::time::SystemTime = now_chrono.into();
 
-    sqlx::query(
-        r#"
-        INSERT INTO boards (name, created_at, status)
-        VALUES (?, ?, 'active')
+    let mut conn = pool.get().await?;
+
+    // Create transaction to insert board and create partition
+    let transaction = conn.transaction().await?;
+
+    transaction
+        .execute(
+            r#"
+        INSERT INTO boards (board_name, created_at, status, last_updated)
+        VALUES ($1, $2, 'active', $2)
         "#,
-    )
-    .bind(name)
-    .bind(created_at)
-    .execute(pool)
-    .await?;
+            &[&name, &created_at_sql],
+        )
+        .await?;
+
+    // Create partition
+    let partition_name = format!("messages_{}", name);
+    transaction
+        .execute(
+            &format!(
+                "CREATE TABLE IF NOT EXISTS \"{}\" PARTITION OF messages FOR VALUES IN ('{}')",
+                partition_name, name
+            ),
+            &[],
+        )
+        .await?;
+
+    transaction.commit().await?;
 
     Ok(Board {
         name: name.to_string(),
@@ -124,40 +216,43 @@ pub async fn create_board(pool: &SqlitePool, name: &str) -> Result<Board> {
     })
 }
 
-pub async fn get_board(pool: &SqlitePool, name: &str) -> Result<Option<Board>> {
-    let row = sqlx::query_as::<_, (String, i64, String)>(
-        "SELECT name, created_at, status FROM boards WHERE name = ?",
-    )
-    .bind(name)
-    .fetch_optional(pool)
-    .await?;
+pub async fn get_board(pool: &DbPool, name: &str) -> Result<Option<Board>> {
+    let conn = pool.get().await?;
+    let row = conn
+        .query_opt(
+            "SELECT board_name, EXTRACT(EPOCH FROM created_at)::BIGINT, status FROM boards WHERE board_name = $1",
+            &[&name],
+        )
+        .await?;
 
-    Ok(row.map(|(name, created_at, status)| Board {
-        name,
-        created_at,
-        status,
+    Ok(row.map(|r| Board {
+        name: r.get(0),
+        created_at: r.get(1),
+        status: r.get(2),
     }))
 }
 
-pub async fn list_boards(pool: &SqlitePool) -> Result<Vec<Board>> {
-    let rows = sqlx::query_as::<_, (String, i64, String)>(
-        "SELECT name, created_at, status FROM boards ORDER BY created_at DESC",
-    )
-    .fetch_all(pool)
-    .await?;
+pub async fn list_boards(pool: &DbPool) -> Result<Vec<Board>> {
+    let conn = pool.get().await?;
+    let rows = conn
+        .query(
+            "SELECT board_name, EXTRACT(EPOCH FROM created_at)::BIGINT, status FROM boards ORDER BY created_at DESC",
+            &[],
+        )
+        .await?;
 
     Ok(rows
         .into_iter()
-        .map(|(name, created_at, status)| Board {
-            name,
-            created_at,
-            status,
+        .map(|r| Board {
+            name: r.get(0),
+            created_at: r.get(1),
+            status: r.get(2),
         })
         .collect())
 }
 
 pub async fn insert_message(
-    pool: &SqlitePool,
+    pool: &DbPool,
     board_name: &str,
     message: &Message,
     inline_data: Option<&[u8]>,
@@ -175,27 +270,38 @@ pub async fn insert_message(
         crate::api_types::ContentType::S3 { .. } => "s3",
     };
 
-    let result = sqlx::query(
+    let conn = pool.get().await?;
+    let row = conn.query_one(
         r#"
-        INSERT INTO messages (board_name, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (
+            board_name, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number,
+            created, statement_timestamp, message
+        )
+        VALUES (
+            $1, $2::BIGINT, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+            TO_TIMESTAMP($2::DOUBLE PRECISION), -- created
+            TO_TIMESTAMP($2::DOUBLE PRECISION), -- statement_timestamp
+            $5 -- message (copy of inline_data)
+        )
+        RETURNING id
         "#,
+        &[
+            &board_name,
+            &message.timestamp,
+            &(message.size as i64),
+            &content_type,
+            &inline_data,
+            &s3_key,
+            &version,
+            &sender_pk,
+            &statement_kind,
+            &batch,
+            &mix_number,
+        ],
     )
-    .bind(board_name)
-    .bind(message.timestamp)
-    .bind(message.size as i64)
-    .bind(content_type)
-    .bind(inline_data)
-    .bind(s3_key)
-    .bind(version)
-    .bind(sender_pk)
-    .bind(statement_kind)
-    .bind(batch)
-    .bind(mix_number)
-    .execute(pool)
     .await?;
 
-    let message_id = result.last_insert_rowid();
+    let message_id: i64 = row.get(0);
 
     // Update board statistics (similar to b3's insert() function)
     // We don't care if these fail - they are statistics for monitoring
@@ -207,66 +313,141 @@ pub async fn insert_message(
 /// Update board statistics after message insertion (like b3's INDEX table updates)
 /// This is best-effort - failures are logged but don't fail the insertion
 async fn update_board_statistics(
-    pool: &SqlitePool,
+    pool: &DbPool,
     board_name: &str,
     statement_kind: &str,
 ) -> Result<()> {
     // Count batches if this is a Ballots message
     let batch_increment = if statement_kind == "Ballots" { 1 } else { 0 };
 
+    let conn = pool.get().await?;
     // Update statistics in a single query
-    sqlx::query(
+    conn.execute(
         r#"
         UPDATE boards 
-        SET last_message_kind = ?,
-            message_count = (SELECT COUNT(*) FROM messages WHERE board_name = ?),
-            batch_count = batch_count + ?
-        WHERE name = ?
+        SET last_message_kind = $1,
+            message_count = (SELECT COUNT(*) FROM messages WHERE board_name = $2),
+            batch_count = batch_count + $3
+        WHERE board_name = $2
         "#,
+        &[&statement_kind, &board_name, &batch_increment],
     )
-    .bind(statement_kind)
-    .bind(board_name)
-    .bind(batch_increment)
-    .bind(board_name)
-    .execute(pool)
     .await?;
 
     Ok(())
 }
 
-pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result<Option<Message>> {
+pub async fn get_message(pool: &DbPool, board_name: &str, id: i64) -> Result<Option<Message>> {
     validate_board_name(board_name)?;
 
-    let row = sqlx::query_as::<_, (i64, i64, i64, String, Option<Vec<u8>>, Option<String>, String, String, String, i32, i32)>(
-        "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number FROM messages WHERE board_name = ? AND id = ?",
-    )
-    .bind(board_name)
-    .bind(id)
-    .fetch_optional(pool)
-    .await?;
+    let conn = pool.get().await?;
+    let row = conn
+        .query_opt(
+            "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number, message FROM messages WHERE board_name = $1 AND id = $2",
+            &[&board_name, &id],
+        )
+        .await?;
 
-    Ok(row.map(
-        |(
-            id,
+    Ok(row.map(|r| {
+        let id: i64 = r.get(0);
+        let timestamp: i64 = r.try_get(1).unwrap_or_default();
+        let _version: String = r.try_get(6).unwrap_or_default();
+        let sender_pk: String = r.get(7);
+        let statement_kind: String = r.get(8);
+        let batch: i32 = r.get(9);
+        let mix_number: i32 = r.get(10);
+        let inline_data: Option<Vec<u8>> = r.get(4);
+        let s3_key: Option<String> = r.get(5);
+        let pg_message: Option<Vec<u8>> = r.try_get(11).unwrap_or_default();
+
+        let size: i64 = match r.try_get::<_, Option<i64>>(2) {
+            Ok(Some(s)) if s > 0 => s,
+            _ => {
+                if let Some(ref d) = inline_data {
+                    d.len() as i64
+                } else if let Some(ref m) = pg_message {
+                    m.len() as i64
+                } else {
+                    0
+                }
+            }
+        };
+
+        let content_type_str: Option<String> = r.try_get(3).unwrap_or_default();
+        let content_type = match content_type_str.as_deref() {
+            Some("inline") => crate::api_types::ContentType::Inline {
+                data: inline_data.unwrap_or_default(),
+            },
+            Some("s3") => crate::api_types::ContentType::S3 {
+                key: s3_key.unwrap_or_default(),
+            },
+            _ => crate::api_types::ContentType::Inline {
+                data: pg_message.unwrap_or_else(|| inline_data.unwrap_or_default()),
+            },
+        };
+
+        Message {
+            id: id.to_string(),
             timestamp,
-            size,
+            size: size as usize,
             content_type,
-            inline_data,
-            s3_key,
-            _version,
             sender_pk,
             statement_kind,
             batch,
             mix_number,
-        )| {
-            let content_type = match content_type.as_str() {
-                "inline" => crate::api_types::ContentType::Inline {
+        }
+    }))
+}
+
+pub async fn list_messages(pool: &DbPool, board_name: &str) -> Result<Vec<Message>> {
+    validate_board_name(board_name)?;
+
+    let conn = pool.get().await?;
+    let rows = conn
+        .query(
+            "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number, message FROM messages WHERE board_name = $1 ORDER BY id ASC",
+            &[&board_name],
+        )
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| {
+            let id: i64 = r.get(0);
+            let timestamp: i64 = r.try_get(1).unwrap_or_default();
+            let _version: String = r.try_get(6).unwrap_or_default();
+            let sender_pk: String = r.get(7);
+            let statement_kind: String = r.get(8);
+            let batch: i32 = r.get(9);
+            let mix_number: i32 = r.get(10);
+            let inline_data: Option<Vec<u8>> = r.get(4);
+            let s3_key: Option<String> = r.get(5);
+            let pg_message: Option<Vec<u8>> = r.try_get(11).unwrap_or_default();
+
+            let size: i64 = match r.try_get::<_, Option<i64>>(2) {
+                Ok(Some(s)) if s > 0 => s,
+                _ => {
+                    if let Some(ref d) = inline_data {
+                        d.len() as i64
+                    } else if let Some(ref m) = pg_message {
+                        m.len() as i64
+                    } else {
+                        0
+                    }
+                }
+            };
+
+            let content_type_str: Option<String> = r.try_get(3).unwrap_or_default();
+            let content_type = match content_type_str.as_deref() {
+                Some("inline") => crate::api_types::ContentType::Inline {
                     data: inline_data.unwrap_or_default(),
                 },
-                "s3" => crate::api_types::ContentType::S3 {
+                Some("s3") => crate::api_types::ContentType::S3 {
                     key: s3_key.unwrap_or_default(),
                 },
-                _ => crate::api_types::ContentType::Inline { data: vec![] },
+                _ => crate::api_types::ContentType::Inline {
+                    data: pg_message.unwrap_or_else(|| inline_data.unwrap_or_default()),
+                },
             };
 
             Message {
@@ -279,120 +460,80 @@ pub async fn get_message(pool: &SqlitePool, board_name: &str, id: i64) -> Result
                 batch,
                 mix_number,
             }
-        },
-    ))
-}
-
-pub async fn list_messages(pool: &SqlitePool, board_name: &str) -> Result<Vec<Message>> {
-    validate_board_name(board_name)?;
-
-    let rows = sqlx::query_as::<_, (i64, i64, i64, String, Option<Vec<u8>>, Option<String>, String, String, String, i32, i32)>(
-        "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number FROM messages WHERE board_name = ? ORDER BY id ASC",
-    )
-    .bind(board_name)
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(
-            |(
-                id,
-                timestamp,
-                size,
-                content_type,
-                inline_data,
-                s3_key,
-                _version,
-                sender_pk,
-                statement_kind,
-                batch,
-                mix_number,
-            )| {
-                let content_type = match content_type.as_str() {
-                    "inline" => crate::api_types::ContentType::Inline {
-                        data: inline_data.unwrap_or_default(),
-                    },
-                    "s3" => crate::api_types::ContentType::S3 {
-                        key: s3_key.unwrap_or_default(),
-                    },
-                    _ => crate::api_types::ContentType::Inline { data: vec![] },
-                };
-
-                Message {
-                    id: id.to_string(),
-                    timestamp,
-                    size: size as usize,
-                    content_type,
-                    sender_pk,
-                    statement_kind,
-                    batch,
-                    mix_number,
-                }
-            },
-        )
+        })
         .collect())
 }
 
 /// Get messages greater than last_id (for trustee synchronization)
 pub async fn get_messages_after(
-    pool: &SqlitePool,
+    pool: &DbPool,
     board_name: &str,
     last_id: i64,
     limit: i64,
 ) -> Result<(Vec<Message>, bool)> {
     validate_board_name(board_name)?;
 
+    let conn = pool.get().await?;
     // Fetch limit + 1 to detect if there are more messages
-    let rows = sqlx::query_as::<_, (i64, i64, i64, String, Option<Vec<u8>>, Option<String>, String, String, String, i32, i32)>(
-        "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number FROM messages WHERE board_name = ? AND id > ? ORDER BY id ASC LIMIT ?",
+    let rows = conn.query(
+        "SELECT id, timestamp, size, content_type, inline_data, s3_key, version, sender_pk, statement_kind, batch, mix_number, message FROM messages WHERE board_name = $1 AND id > $2 ORDER BY id ASC LIMIT $3",
+        &[&board_name, &last_id, &(limit + 1)],
     )
-    .bind(board_name)
-    .bind(last_id)
-    .bind(limit + 1)
-    .fetch_all(pool)
     .await?;
 
     let truncated = rows.len() > limit as usize;
     let messages: Vec<Message> = rows
         .into_iter()
         .take(limit as usize)
-        .map(
-            |(
-                id,
+        .map(|r| {
+            let id: i64 = r.get(0);
+            let timestamp: i64 = r.try_get(1).unwrap_or_default();
+            let _version: String = r.try_get(6).unwrap_or_default();
+            let sender_pk: String = r.get(7);
+            let statement_kind: String = r.get(8);
+            let batch: i32 = r.get(9);
+            let mix_number: i32 = r.get(10);
+            let inline_data: Option<Vec<u8>> = r.get(4);
+            let s3_key: Option<String> = r.get(5);
+            let pg_message: Option<Vec<u8>> = r.try_get(11).unwrap_or_default();
+
+            let size: i64 = match r.try_get::<_, Option<i64>>(2) {
+                Ok(Some(s)) if s > 0 => s,
+                _ => {
+                    if let Some(ref d) = inline_data {
+                        d.len() as i64
+                    } else if let Some(ref m) = pg_message {
+                        m.len() as i64
+                    } else {
+                        0
+                    }
+                }
+            };
+
+            let content_type_str: Option<String> = r.try_get(3).unwrap_or_default();
+            let content_type = match content_type_str.as_deref() {
+                Some("inline") => crate::api_types::ContentType::Inline {
+                    data: inline_data.unwrap_or_default(),
+                },
+                Some("s3") => crate::api_types::ContentType::S3 {
+                    key: s3_key.unwrap_or_default(),
+                },
+                _ => crate::api_types::ContentType::Inline {
+                    data: pg_message.unwrap_or_else(|| inline_data.unwrap_or_default()),
+                },
+            };
+
+            Message {
+                id: id.to_string(),
                 timestamp,
-                size,
+                size: size as usize,
                 content_type,
-                inline_data,
-                s3_key,
-                _version,
                 sender_pk,
                 statement_kind,
                 batch,
                 mix_number,
-            )| {
-                let content_type = match content_type.as_str() {
-                    "inline" => crate::api_types::ContentType::Inline {
-                        data: inline_data.unwrap_or_default(),
-                    },
-                    "s3" => crate::api_types::ContentType::S3 {
-                        key: s3_key.unwrap_or_default(),
-                    },
-                    _ => crate::api_types::ContentType::Inline { data: vec![] },
-                };
-
-                Message {
-                    id: id.to_string(),
-                    timestamp,
-                    size: size as usize,
-                    content_type,
-                    sender_pk,
-                    statement_kind,
-                    batch,
-                    mix_number,
-                }
-            },
-        )
+            }
+        })
         .collect();
 
     Ok((messages, truncated))
@@ -401,7 +542,7 @@ pub async fn get_messages_after(
 /// Update board metadata when Configuration is posted (similar to b3's update_index)
 /// This is called separately from insert_message because it needs to parse the Configuration artifact
 pub async fn update_board_config_metadata(
-    pool: &SqlitePool,
+    pool: &DbPool,
     board_name: &str,
     cfg_id: &str,
     threshold_no: i32,
@@ -409,16 +550,13 @@ pub async fn update_board_config_metadata(
 ) -> Result<()> {
     validate_board_name(board_name)?;
 
-    sqlx::query(
+    let conn = pool.get().await?;
+    conn.execute(
         r#"UPDATE boards 
-           SET cfg_id = ?, threshold_no = ?, trustees_no = ?
-           WHERE name = ?"#,
+           SET cfg_id = $1, threshold_no = $2, trustees_no = $3
+           WHERE board_name = $4"#,
+        &[&cfg_id, &threshold_no, &trustees_no, &board_name],
     )
-    .bind(cfg_id)
-    .bind(threshold_no)
-    .bind(trustees_no)
-    .bind(board_name)
-    .execute(pool)
     .await?;
 
     Ok(())

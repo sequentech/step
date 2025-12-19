@@ -11,7 +11,7 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 /// Maximum size for inline message storage (set to 0 to force all messages to S3 for testing)
-pub const MAX_INLINE_MESSAGE_SIZE: usize = 0; // Was: 1024 * 1024 (1MB)
+pub const MAX_INLINE_MESSAGE_SIZE: usize = 1024 * 1024; // 1MB
 
 /// A message stored in the bulletin board
 #[derive(Debug, Clone, Serialize, Deserialize)]

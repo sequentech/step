@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::{Context, Result};
 use axum::{
     routing::{get, post},
@@ -9,15 +13,15 @@ use sequent_core::util::init_log::init_log;
 use std::env;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
 
-    let B4_BIND = env::var("B4_BIND").context("B4_BIND must be set")?;
-    // Initialize database
+    let b4_bind = env::var("B4_BIND").context("B4_BIND must be set")?;
+
+    // Initialize PostgreSQL database
     let db = db::init_db().await?;
 
     let state = AppState::new(db);
@@ -61,7 +65,7 @@ async fn main() -> Result<()> {
         .layer(cors)
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind(B4_BIND).await?;
+    let listener = tokio::net::TcpListener::bind(&b4_bind).await?;
     tracing::info!(
         "Bulletin board service listening on {}",
         listener.local_addr()?

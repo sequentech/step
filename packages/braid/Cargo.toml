@@ -25,7 +25,8 @@ strum = { version = "0.27", features = ["derive"] }
 rayon = { version = "1.5", optional = true }
 tonic = { version = "0.13", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"], optional = true }
+tokio-postgres = { version = "0.7", optional = true }
+bb8-postgres = { version = "0.9", optional = true }
 tokio = { version = "1.40", optional = true }
 aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
 aws-sdk-s3 = { version = "1.52", optional = true }
@@ -78,14 +79,15 @@ crate-type = ["cdylib", "rlib"]
 # Default feature for native builds (server mode)
 default = ["native"]
 
-# Native build with gRPC, filesystem, SQLite  
+# Native build with gRPC, filesystem, PostgreSQL  
 native = [
     "dep:strand",
     "strand/rayon", 
     "dep:rayon",
     "dep:tonic",
     "dep:rusqlite",
-    "dep:sqlx",
+    "dep:tokio-postgres",
+    "dep:bb8-postgres",
     "dep:tokio",
     "dep:b4",
     "b4/native",

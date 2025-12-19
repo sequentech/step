@@ -86,8 +86,8 @@ module.exports = function (env, argv) {
         ignoreWarnings: [
             // Silence the wasm-bindgen-rayon dynamic importScripts warning
             {
-            module: /workerHelpers\.no-bundler\.js/,
-            message: /Critical dependency: the request of a dependency is an expression/,
+                module: /workerHelpers\.no-bundler\.js/,
+                message: /Critical dependency: the request of a dependency is an expression/,
             },
         ],
         plugins: [

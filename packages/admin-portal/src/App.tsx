@@ -62,7 +62,7 @@ import {SelectTenant} from "./screens/SelectTenant"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {customSortData} from "./lib/helpers"
 import {UpsertArea} from "./resources/Area/UpsertArea"
-import { TrusteeDashboard } from "./screens/TrusteeDashboard"
+import {TrusteeDashboard} from "./screens/TrusteeDashboard"
 
 interface AppProps {}
 

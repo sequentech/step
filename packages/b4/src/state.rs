@@ -1,14 +1,18 @@
-use sqlx::SqlitePool;
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::db::DbPool;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: SqlitePool,
+    pub db: DbPool,
 }
 
 // std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
 
 impl AppState {
-    pub fn new(db: SqlitePool) -> Self {
+    pub fn new(db: DbPool) -> Self {
         Self { db }
     }
 }

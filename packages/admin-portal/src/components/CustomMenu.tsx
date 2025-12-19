@@ -123,7 +123,11 @@ export const CustomMenu = () => {
     const {t, i18n} = useTranslation()
 
     const showUsers = authContext.isAuthorized(true, authContext.tenantId, IPermissions.USERS_MENU)
-    const isTrustee = authContext.isAuthorized(true, authContext.tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const isTrustee = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.TRUSTEE_CEREMONY
+    )
     const showSettings = authContext.isAuthorized(
         true,
         authContext.tenantId,

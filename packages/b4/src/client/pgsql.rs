@@ -22,7 +22,8 @@ use crate::messages::statement::StatementType;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-const INDEX_TABLE: &'static str = "INDEX";
+const BOARDS_TABLE: &'static str = "boards";
+const MESSAGES_TABLE: &'static str = "messages";
 const PG_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const PG_DEFAULT_OFFSET: usize = 0;
 const PG_DEFAULT_LIMIT: usize = 2500;
@@ -418,77 +419,108 @@ impl PgsqlB3Client {
     }
 }
 
-/// Creates the index table if it doesn't exist.
+/// Creates the boards and parent messages table if they don't exist.
+/// The messages table is partitioned by board_name (LIST partitioning).
 #[instrument(err, skip(client))]
 async fn create_index_ine(client: &mut Client) -> Result<()> {
     let transaction = client.transaction().await?;
+
+    // Create boards table (replaces INDEX table)
     transaction
         .execute(
             &format!(
                 r#"
         CREATE TABLE IF NOT EXISTS {} (
-            id SERIAL PRIMARY KEY,
-            board_name VARCHAR UNIQUE,
-            is_archived BOOLEAN,
+            id SERIAL UNIQUE,
+            board_name VARCHAR PRIMARY KEY,
+            created_at TIMESTAMP DEFAULT NOW(),
+            is_archived BOOLEAN DEFAULT FALSE,
+            status VARCHAR DEFAULT 'active',
             cfg_id VARCHAR,
             threshold_no INT,
             trustees_no INT,
             last_message_kind VARCHAR,
             last_updated TIMESTAMP,
-            message_count INT,
-            batch_count INT DEFAULT 0,
-            UNIQUE(board_name)
+            message_count INT DEFAULT 0,
+            batch_count INT DEFAULT 0
         );
         "#,
-                INDEX_TABLE
+                BOARDS_TABLE
             ),
             &[],
         )
         .await?;
 
-    /*transaction
-    .execute(
-        &format!(
-            r#"
-    CREATE UNIQUE INDEX IF NOT EXISTS BOARD_NAME_IDX ON {}(board_name);
-    "#,
-            INDEX_TABLE
-        ),
-        &[],
-    )
-    .await?;*/
-    transaction.commit().await?;
-
-    Ok(())
-}
-
-/// Creates the requested board table and adds it to the index, if it doesn't exist.
-#[instrument(err, skip(client))]
-async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
-    let transaction = client.transaction().await?;
+    // Create parent messages table with LIST partitioning on board_name
     transaction
         .execute(
             &format!(
                 r#"
         CREATE TABLE IF NOT EXISTS {} (
-            id BIGSERIAL PRIMARY KEY,
-            created TIMESTAMP,
-            sender_pk VARCHAR,
+            id BIGSERIAL,
+            board_name VARCHAR NOT NULL,
+            -- b4/db.rs specific columns
+            timestamp BIGINT, 
+            size BIGINT,
+            content_type VARCHAR,
+            inline_data BYTEA,
+            s3_key VARCHAR,
+            -- pgsql.rs specific columns
+            created TIMESTAMP DEFAULT NOW(),
             statement_timestamp TIMESTAMP,
-            statement_kind VARCHAR,
-            batch INT,
-            mix_number INT,
             message BYTEA,
-            version VARCHAR,
-            UNIQUE (sender_pk, statement_kind, batch, mix_number)
-        );
+            -- Common columns
+            sender_pk VARCHAR NOT NULL,
+            statement_kind VARCHAR NOT NULL,
+            batch INT DEFAULT 0,
+            mix_number INT DEFAULT 0,
+            version VARCHAR NOT NULL,
+            
+            PRIMARY KEY (board_name, id),
+            UNIQUE (board_name, sender_pk, statement_kind, batch, mix_number)
+        ) PARTITION BY LIST (board_name);
         "#,
-                board
+                MESSAGES_TABLE
             ),
             &[],
         )
         .await?;
 
+    // Create index for efficient queries by board_name and id
+    let _ = transaction
+        .execute(
+            &format!(
+                r#"CREATE INDEX IF NOT EXISTS idx_messages_board_id ON {}(board_name, id);"#,
+                MESSAGES_TABLE
+            ),
+            &[],
+        )
+        .await;
+
+    transaction.commit().await?;
+
+    Ok(())
+}
+
+/// Creates a partition for the requested board and adds it to the boards table.
+/// Uses LIST partitioning with naming convention: messages_{board_name}
+#[instrument(err, skip(client))]
+async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
+    let transaction = client.transaction().await?;
+
+    // Create partition for this board: messages_{board_name}
+    let partition_name = format!("{}_{}", MESSAGES_TABLE, board);
+    transaction
+        .execute(
+            &format!(
+                r#"CREATE TABLE IF NOT EXISTS {} PARTITION OF {} FOR VALUES IN ('{}');"#,
+                partition_name, MESSAGES_TABLE, board
+            ),
+            &[],
+        )
+        .await?;
+
+    // Add board to boards table
     let message_sql = &format!(
         r#"
         INSERT INTO {} (
@@ -499,7 +531,7 @@ async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
             $2
         ) ON CONFLICT (board_name) DO NOTHING;
         "#,
-        INDEX_TABLE
+        BOARDS_TABLE
     );
     transaction.execute(message_sql, &[&board, &false]).await?;
     transaction.commit().await?;
@@ -556,11 +588,12 @@ async fn get_message_count(client: &Client, board: &str) -> Result<i64> {
         r#"
     SELECT count(*)
     FROM {}
+    WHERE board_name = $1
     "#,
-        board
+        MESSAGES_TABLE
     );
 
-    let sql_query_response = client.query(&sql, &[]).await?;
+    let sql_query_response = client.query(&sql, &[&board]).await?;
     let count: i64 = sql_query_response[0].get(0);
 
     Ok(count)
@@ -595,13 +628,13 @@ async fn get_with_kind(
         message,
         version
     FROM {}
-    WHERE sender_pk = $1 AND statement_kind = $2
+    WHERE board_name = $1 AND sender_pk = $2 AND statement_kind = $3
     ORDER BY id;
     "#,
-        board
+        MESSAGES_TABLE
     );
 
-    let sql_query_response = client.query(&sql, &[&sender_pk, &kind]).await?;
+    let sql_query_response = client.query(&sql, &[&board, &sender_pk, &kind]).await?;
     let messages = sql_query_response
         .iter()
         .map(B3MessageRow::try_from)
@@ -625,13 +658,13 @@ async fn get_with_kind_only(client: &Client, board: &str, kind: &str) -> Result<
         message,
         version
     FROM {}
-    WHERE statement_kind = $1
+    WHERE board_name = $1 AND statement_kind = $2
     ORDER BY id;
     "#,
-        board
+        MESSAGES_TABLE
     );
 
-    let sql_query_response = client.query(&sql, &[&kind]).await?;
+    let sql_query_response = client.query(&sql, &[&board, &kind]).await?;
     let messages = sql_query_response
         .iter()
         .map(B3MessageRow::try_from)
@@ -660,7 +693,7 @@ async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
     WHERE is_archived = {}
     ORDER BY board_name
     "#,
-        INDEX_TABLE, false
+        BOARDS_TABLE, false
     );
     let sql_query_response = client.query(&sql, &[]).await?;
     let boards = sql_query_response
@@ -671,7 +704,7 @@ async fn get_boards(client: &Client) -> Result<Vec<B3IndexRow>> {
     Ok(boards)
 }
 
-/// Gets the requested board from the index.
+/// Gets the requested board from the boards table.
 #[instrument(err, skip(client))]
 async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRow>> {
     let message_sql = format!(
@@ -690,7 +723,7 @@ async fn get_board(client: &Client, board_name: &str) -> Result<Option<B3IndexRo
         FROM {}
         WHERE board_name = $1;
     "#,
-        INDEX_TABLE
+        BOARDS_TABLE
     );
 
     let sql_query_response = client.query(&message_sql, &[&board_name]).await?;
@@ -721,7 +754,7 @@ async fn update_index<C: Ctx>(
             AND
             is_archived = $5;
         "#,
-        INDEX_TABLE
+        BOARDS_TABLE
     );
 
     transaction
@@ -836,10 +869,13 @@ async fn insert_messages(
     Ok(())
 }
 
-/// Deletes the requested board table and removes it from the index.
+/// Deletes the requested board partition and removes it from the boards table.
+/// For archived boards, use archive_board() to detach the partition without dropping data.
 #[instrument(err, skip(client))]
 async fn delete_board(client: &mut Client, board_name: &str) -> Result<()> {
     let transaction = client.transaction().await?;
+
+    // Delete from boards table
     let message_sql = format!(
         r#"
             DELETE from {} where
@@ -847,14 +883,17 @@ async fn delete_board(client: &mut Client, board_name: &str) -> Result<()> {
             AND
             is_archived = $2;
         "#,
-        INDEX_TABLE
+        BOARDS_TABLE
     );
 
     transaction
         .execute(&message_sql, &[&board_name, &false])
         .await?;
+
+    // Drop the partition (messages_{board_name})
+    let partition_name = format!("{}_{}", MESSAGES_TABLE, board_name);
     transaction
-        .execute(&format!("DROP TABLE IF EXISTS {};", board_name), &[])
+        .execute(&format!("DROP TABLE IF EXISTS {};", partition_name), &[])
         .await?;
 
     transaction.commit().await?;
@@ -897,17 +936,17 @@ async fn get(
         message,
         version
     FROM {}
-    WHERE id > $1
+    WHERE board_name = $1 AND id > $2
     ORDER BY id
     LIMIT {}
     OFFSET {};
     "#,
-        board,
+        MESSAGES_TABLE,
         limit.unwrap_or(PG_DEFAULT_LIMIT),
         offset.unwrap_or(PG_DEFAULT_OFFSET),
     );
 
-    let sql_query_response = client.query(&sql, &[&last_id]).await?;
+    let sql_query_response = client.query(&sql, &[&board, &last_id]).await?;
     let messages = sql_query_response
         .iter()
         .map(B3MessageRow::try_from)
@@ -924,8 +963,6 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
     // https://stackoverflow.com/questions/52432459/postgresql-serialized-inserts-interleaving-sequence-numbers
     let lock = format!("select pg_advisory_xact_lock(hashtext($1))");
     transaction.execute(&lock, &[&board_name]).await?;
-    // let lock = format!("select pg_advisory_xact_lock(id) from {}", board_name);
-    // transaction.execute(&lock, &[]).await?;
     let mut batches: i32 = 0;
 
     for message in messages {
@@ -936,7 +973,9 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
         let message_sql = format!(
             r#"
             INSERT INTO {} (
+                board_name,
                 created,
+                timestamp, -- b4 compat
                 sender_pk,
                 statement_timestamp,
                 statement_kind,
@@ -952,10 +991,12 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
                 $5,
                 $6,
                 $7,
-                $8
+                $8,
+                $9,
+                $10
             );
         "#,
-            board_name
+            MESSAGES_TABLE
         );
 
         let created = crate::system_time_from_timestamp(message.created).ok_or(anyhow!(
@@ -964,12 +1005,15 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
         let statement_timestamp = crate::system_time_from_timestamp(message.created).ok_or(
             anyhow!("Could not extract system time from 'statement_timestamp' value"),
         )?;
+        let timestamp_i64 = message.created as i64;
 
         transaction
             .execute(
                 &message_sql,
                 &[
+                    &board_name,
                     &created,
+                    &timestamp_i64,
                     &message.sender_pk,
                     &statement_timestamp,
                     &message.statement_kind,
@@ -995,12 +1039,12 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
            UPDATE {}
            SET
            last_message_kind = $1,
-           message_count = (SELECT COUNT(*) FROM {}),
+           message_count = (SELECT COUNT(*) FROM {} WHERE board_name = $3),
            batch_count = batch_count + $2,
            last_updated = localtimestamp
            WHERE board_name = $3
         "#,
-            INDEX_TABLE, board_name,
+            BOARDS_TABLE, MESSAGES_TABLE,
         );
 
         let Ok(_) = transaction
@@ -1026,15 +1070,17 @@ async fn get_one(client: &Client, board_name: &str, id: i64) -> Result<Option<B3
         sender_pk,
         statement_timestamp,
         statement_kind,
+        batch,
+        mix_number,
         message,
         version
     FROM {}
-    WHERE id = @id
+    WHERE board_name = $1 AND id = $2
     "#,
-        board_name
+        MESSAGES_TABLE
     );
 
-    let rows = client.query(&sql, &[&id]).await?;
+    let rows = client.query(&sql, &[&board_name, &id]).await?;
 
     if rows.len() > 0 {
         Ok(Some(B3MessageRow::try_from(&rows[0])?))
@@ -1050,6 +1096,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
     use tokio_postgres::types::{ToSql, Type};
 
     // Uses the COPY postgresql command
+    // Note: For partitioned tables, COPY goes to the partition directly via messages_{board_name}
     async fn insert_copy(
         client: &mut Client,
         board_name: &str,
@@ -1058,7 +1105,9 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
         // Start a new transaction
         let transaction = client.transaction().await?;
         let types: Vec<Type> = vec![
-            Type::TIMESTAMP,
+            Type::VARCHAR,  // board_name
+            Type::TIMESTAMP, // created
+            Type::INT8,      // timestamp (b4 compat)
             Type::VARCHAR,
             Type::TIMESTAMP,
             Type::VARCHAR,
@@ -1067,7 +1116,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
             Type::BYTEA,
             Type::VARCHAR,
         ];
-        let stmt = format!("COPY {} (created, sender_pk, statement_timestamp, statement_kind, batch, mix_number, message, version) FROM STDIN BINARY", board_name);
+        let stmt = format!("COPY {} (board_name, created, timestamp, sender_pk, statement_timestamp, statement_kind, batch, mix_number, message, version) FROM STDIN BINARY", MESSAGES_TABLE);
 
         // http://disq.us/p/2ficy6c
         // https://stackoverflow.com/questions/52432459/postgresql-serialized-inserts-interleaving-sequence-numbers
@@ -1075,7 +1124,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
         transaction.execute(&lock, &[&board_name]).await?;
         let sink = transaction.copy_in(&stmt).await?;
         let writer = BinaryCopyInWriter::new(sink, &types);
-        let batches = _write(writer, &messages).await?;
+        let batches = _write(writer, board_name, &messages).await?;
         transaction.commit().await?;
 
         // We do not care if any of these operations fail, they are statistics
@@ -1089,12 +1138,12 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
             UPDATE {}
             SET
             last_message_kind = $1,
-            message_count = (SELECT COUNT(*) FROM {}),
+            message_count = (SELECT COUNT(*) FROM {} WHERE board_name = $3),
             batch_count = batch_count + $2,
             last_updated = localtimestamp
             WHERE board_name = $3
             "#,
-                INDEX_TABLE, board_name,
+                BOARDS_TABLE, MESSAGES_TABLE,
             );
 
             let Ok(_) = transaction
@@ -1110,7 +1159,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
         Ok(())
     }
 
-    async fn _write(writer: BinaryCopyInWriter, messages: &[B3MessageRow]) -> Result<i32> {
+    async fn _write(writer: BinaryCopyInWriter, board_name: &str, messages: &[B3MessageRow]) -> Result<i32> {
         pin_mut!(writer);
 
         let mut row: Vec<&'_ (dyn ToSql + Sync)> = vec![];
@@ -1132,10 +1181,13 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
             ts.push((created, statement_timestamp));
         }
         for (i, message) in messages.iter().enumerate() {
+            let timestamp_i64 = message.created as i64;
             row.clear();
-            row.push(&ts[i].0);
+            row.push(&board_name);  // board_name first
+            row.push(&ts[i].0);     // created
+            row.push(&timestamp_i64); // timestamp
             row.push(&message.sender_pk);
-            row.push(&ts[i].1);
+            row.push(&ts[i].1);     // statement_timestamp
             row.push(&message.statement_kind);
             row.push(&message.batch);
             row.push(&message.mix_number);

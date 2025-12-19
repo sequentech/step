@@ -212,7 +212,7 @@ pub async fn confirm_message(
         )
         .await
         .map_err(|e| {
-            tracing::error!("Failed to insert message: {}", e);
+            tracing::error!("Failed to insert message: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     } else {
@@ -265,7 +265,7 @@ pub async fn confirm_message(
         )
         .await
         .map_err(|e| {
-            tracing::error!("Failed to insert message: {}", e);
+            tracing::error!("Failed to insert message: {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     }
