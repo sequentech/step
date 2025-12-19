@@ -16,9 +16,7 @@ use cursive::view::Resizable;
 use cursive::views::{Canvas, Layer};
 use cursive::{Cursive, Printer, Rect, Vec2};
 
-use sqlx::SqlitePool;
-
-const DEFAULT_DB_PATH: &'static str = "sqlite://b4.db";
+use b4::db::{DbPool, PgConnectionParams};
 
 // Equivalent to b3's B3IndexRow - board metadata for monitoring
 struct BoardInfo {
@@ -31,13 +29,13 @@ struct BoardInfo {
 }
 
 struct CData {
-    db_path: String,
+    pool: DbPool,
     timer_start: Option<SystemTime>,
 }
 impl CData {
-    fn new(db_path: String) -> Self {
+    fn new(pool: DbPool) -> Self {
         CData {
-            db_path,
+            pool,
             timer_start: None,
         }
     }
@@ -79,14 +77,44 @@ impl Data {
 
 #[derive(Parser)]
 struct Cli {
-    /// Path to SQLite database
-    #[arg(long, default_value_t = DEFAULT_DB_PATH.to_string())]
-    db: String,
+    /// PostgreSQL host
+    #[arg(long, env = "B4_PG_HOST", default_value = "localhost")]
+    host: String,
+
+    /// PostgreSQL port
+    #[arg(long, env = "B4_PG_PORT", default_value_t = 5432)]
+    port: u16,
+
+    /// PostgreSQL user
+    #[arg(long, env = "B4_PG_USER", default_value = "postgres")]
+    username: String,
+
+    /// PostgreSQL password
+    #[arg(long, env = "B4_PG_PASSWORD", default_value = "postgres")]
+    password: String,
+
+    /// PostgreSQL database name
+    #[arg(long, env = "B4_PG_DATABASE", default_value = "b4")]
+    database: String,
 }
 
 fn main() {
     let args = Cli::parse();
-    let db_path = args.db;
+    
+    let params = PgConnectionParams::new(
+        &args.host,
+        args.port,
+        &args.username,
+        &args.password,
+        &args.database,
+    );
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let pool = rt.block_on(b4::db::init_db_with_params(&params)).unwrap();
 
     let mut siv = cursive::default();
 
@@ -104,11 +132,8 @@ fn main() {
     siv.add_global_callback('t', timer);
     siv.set_fps(1);
 
-    // detect db connection errors early
-    q(&db_path).unwrap();
-
     siv.add_global_callback(Event::Refresh, step);
-    siv.set_user_data(CData::new(db_path));
+    siv.set_user_data(CData::new(pool));
 
     siv.run();
 }
@@ -120,7 +145,7 @@ fn timer(c: &mut Cursive) {
 
 fn step(c: &mut Cursive) {
     let cdata: &CData = c.user_data().unwrap();
-    let rows = if let Ok(rows) = q(&cdata.db_path) {
+    let rows = if let Ok(rows) = q(&cdata.pool) {
         rows
     } else {
         vec![]
@@ -409,14 +434,12 @@ fn get_progress(row: &BoardInfo) -> (f64, f64) {
     }
 }
 
-async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
-    let pool = SqlitePool::connect(db_path).await?;
+async fn query(pool: &DbPool) -> Result<Vec<BoardInfo>> {
+    let conn = pool.get().await?;
 
-    // Query boards table directly (equivalent to b3's INDEX table query)
-    // SELECT * FROM INDEX WHERE is_archived = false
-    let boards: Vec<(String, i32, i32, i32, i32, String)> = sqlx::query_as(
+    let rows = conn.query(
         r#"SELECT
-            name,
+            board_name,
             COALESCE(trustees_no, 0) as trustees_no,
             COALESCE(threshold_no, 0) as threshold_no,
             COALESCE(batch_count, 0) as batch_count,
@@ -424,29 +447,28 @@ async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
             COALESCE(last_message_kind, 'None') as last_message_kind
         FROM boards 
         WHERE status = 'active'
-        ORDER BY name"#
-    )
-    .fetch_all(&pool)
-    .await?;
+        ORDER BY board_name"#,
+        &[]
+    ).await?;
 
-    Ok(boards.into_iter().map(|(board_name, trustees_no, threshold_no, batch_count, message_count, last_message_kind)| {
+    Ok(rows.into_iter().map(|r| {
         BoardInfo {
-            board_name,
-            trustees_no,
-            threshold_no,
-            batch_count,
-            message_count,
-            last_message_kind,
+            board_name: r.get(0),
+            trustees_no: r.get(1),
+            threshold_no: r.get(2),
+            batch_count: r.get(3),
+            message_count: r.get(4),
+            last_message_kind: r.get(5),
         }
     }).collect())
 }
 
-fn q(db_path: &str) -> Result<Vec<BoardInfo>> {
+fn q(pool: &DbPool) -> Result<Vec<BoardInfo>> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
 
-    let inner = rt.block_on(query(db_path))?;
+    let inner = rt.block_on(query(pool))?;
 
     Ok(inner)
 }
