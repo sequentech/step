@@ -18,7 +18,7 @@ for EXT_DIR in "$ROOT"/packages/plugins/*; do
   [ -d "$EXT_DIR" ] || continue
 
   EXT_NAME="$(basename "$EXT_DIR")"
-  WASM_PATH="$EXT_DIR/rust-local-target/wasm32-wasip2/debug/${EXT_NAME}.wasm"
+  WASM_PATH="$EXT_DIR/rust-local-target/wasm32-wasip2/release/${EXT_NAME}.wasm"
 
   if [ ! -f "$WASM_PATH" ]; then
     echo "Wasm artefact not found: $WASM_PATH" >&2
