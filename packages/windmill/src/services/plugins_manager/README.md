@@ -65,7 +65,7 @@ let res = plugin_manager.my_hook(42, "example input".to_string())
 When creating a new plugin under `packages/plugins`, you must:
 
 1.  **Use WIT files from sequent-core**
-    * Reference the WIT files in `sequent-core` when `plugins-manager:common/plugin-common` is mendatory in order to add plugin to the system
+    * Referencing the WIT files in `sequent-core` when `plugins-manager:common/plugin-common` is mandatory in order to add the plugin to the system
     * Example:
       ```world wit
       import plugins-manager:transactions-manager/transaction;
