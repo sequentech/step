@@ -697,6 +697,10 @@ enum PgAuditTable {
   pgaudit_keycloak
 }
 
+type PluginsRouteOutput {
+  data: jsonb
+}
+
 type PrepareBallotPublicationPreviewOutput {
   document_id: String!
   error_msg: String
@@ -995,6 +999,7 @@ type mutation_root {
   ApplicationChangeStatus(body: ApplicationChangeStatusBody!): ApplicationChangeStatusOutput
   """Verify User Registration Application"""
   VerifyApplication(body: ApplicationVerifyBody!): String!
+  call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """check private key"""
   check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
   """create scheduled event"""
