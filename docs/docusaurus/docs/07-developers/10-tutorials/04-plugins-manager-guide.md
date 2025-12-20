@@ -1,8 +1,11 @@
+---
+id: plugins_manager_guide
+title: Windmill Plugin Manager Guide
+---
+
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
-
+SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
-
 -->
 # Windmill Plugin Manager Guide
 
