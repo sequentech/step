@@ -761,25 +761,28 @@ services:
 
   admin-portal:
     profiles: ["full"]
-    image: sequentech.local/frontend
+    image: sequentech.local/admin-portal-prod
     container_name: admin-portal
     build:
       context: ../packages/
-      dockerfile: Dockerfile
-    ports:
-      - 3002:3000
-    stdin_open: true
-    entrypoint: ["/workspaces/step/packages/init.sh", "start:admin-portal"]
-    working_dir: /workspaces/step/packages
-    volumes:
-      - ..:/workspaces/step:z
+      dockerfile: Dockerfile.prod
+      args:
+        SPA_NAME: admin-portal
     environment:
         MAX_DIFF_LINES: ${MAX_DIFF_LINES}
         SECONDS_TO_SHOW_COUNTDOWN: ${SECONDS_TO_SHOW_COUNTDOWN}
         SECONDS_TO_SHOW_ALRET: ${SECONDS_TO_SHOW_ALRET}
-        WDS_SOCKET_HOST: ${ADMIN_PORTAL_HOSTNAME}
-        WDS_SOCKET_PORT: 80
-        DANGEROUSLY_DISABLE_HOST_CHECK: "true"
+        HASURA_URL: ${HASURA_ENDPOINT}
+        KEYCLOAK_URL: ${KEYCLOAK_URL}/
+        PUBLIC_BUCKET_URL: ${AWS_S3_PUBLIC_URI}/public/
+        VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+        APP_VERSION: ${APP_VERSION}
+        APP_HASH: ${APP_HASH}
+        DEFAULT_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+        ONLINE_VOTING_CLIENT_ID: admin-portal
+        QUERY_POLL_INTERVAL_MS: 30000
+        ACTIVATE_MIRU_EXPORT: true
+        CUSTOM_URLS_DOMAIN_NAME: ${DOMAIN}
 
   voting-portal:
     profiles: ["full"]
