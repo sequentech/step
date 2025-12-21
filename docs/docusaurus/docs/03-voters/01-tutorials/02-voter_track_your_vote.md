@@ -12,14 +12,12 @@ It is possible to verify that your ballot has been correctly submitted.
 In the Voting Portal's landing page `/election-chooser` click on the button 
 "Locate Your Ballot" to go to `/ballot-locator`.
 
-## Tabs in the Ballot Locator
+## Ballot Locator
 
-### BALLOT LOCATOR
-
-#### How to Verify Your Cast Ballot
+### How to Verify Your Cast Ballot
 Once you have finished voting, you can verify that your ballot was successfully recorded in the digital ballot box. Follow these steps to locate your ballot.
 
-**Step 1: Secure Your Ballot ID**
+### **Step 1: Secure Your Ballot ID**
 
 ![Ballot List](/img/voter_guide/voter_ballot_review.png)
 After casting your vote, you will reach the Confirmation screen.
@@ -28,7 +26,7 @@ Copy the Ballot ID: Highlight and copy the long string of characters (the hash) 
 
 Alternative: You can also scan the provided QR code on this screen to view your verification details instantly on your mobile device.
 
-**Step 2: Access the Ballot Locator**
+### **Step 2: Access the Ballot Locator**
 
 If you have already moved past the confirmation screen, you can still find the locator tool:
 
@@ -40,16 +38,16 @@ Find the relevant election for your ballot.
 
 Click the white Locate your ballot button.
 
-**Step 3: Search for Your Ballot**
+### **Step 3: Search for Your Ballot**
 
 ![Ballot List](/img/voter_guide/voter_ballot_locator.png)
 Once you are on the Ballot Locator page:
 
 Enter your Ballot ID: Paste the ID you saved from Step 1 into the search field.
-
 Submit: Click the button to search the records.
 
-**Step 4: Review the Results**
+
+### **Step 4: Review the Results**
 
 ![Ballot List](/img/voter_guide/voter_ballot_located.png)
 If the ballot is found, you will see a green confirmation message stating:
@@ -58,7 +56,7 @@ If the ballot is found, you will see a green confirmation message stating:
 
 Below this message, you will see the Ballot Content. This is a JSON-formatted block of data that contains the technical details of your submission, including the timestamp and encrypted contest data, proving your vote is securely in the system.
 
-### LOGS
+### Logs
 
 The immutable logs of the type `CastVote` are displayed in the Logs tab. 
 To see the immutable logs, it's policy must be enabled in the Admin Portal at 
