@@ -7,59 +7,98 @@ title: Running a Keys Ceremony with the CLI
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-This guide walks you through configuring your environment and executing a **Keys Ceremony**.
+
+This guide walks you through configuring your environment, starting a Keys Ceremony, and completing it as trustees.
 
 ---
 
 ## Prerequisites
 
-* Ensure your environment is configured with the correct credentials.
-  Use the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration) command to point to your specific tenant and Keycloak instance.
-  Make sure you authenticate with an **admin user**.
-
-* Ensure the trustees containers are running:
-
+1. Start the Required Containers
 ```bash
 cd .devcontainer
 docker compose up -d --no-deps beat trustee1 trustee2
 ```
 
----
-
-## Start the Keys Ceremony
-
-Run the following command to start a keys ceremony:
-
+2. Navigate to the CLI:
 ```bash
-cargo run step start-key-ceremony \
-  --election-event-id <ELECTION_EVENT_ID> \
-  --threshold <THRESHOLD> \
-  --election-id <ELECTION_ID> \
-  --name <NAME>
+cd packages/step-cli  # or ../packages/step-cli if already in .devcontainer
 ```
 
-* `--election-event-id` – Unique ID of the election event **(required)**
-* `--threshold` – Minimum number of trustees required to complete the ceremony *(optional, default: 2)*
-* `--election-id` – Start the ceremony for a specific election *(optional)*
-* `--name` – Alias or name for the ceremony *(optional)*
-
-Once successful, the command outputs a **Key Ceremony ID**.
-Save this ID for use in the next step.
+3. Ensure a Valid Election Event Exists  
+>Make sure a valid election event is already set up in the system.
+* You can [create or import](./02-cli-tutorials-creating-an-election-event.md) an election event using the CLI if necessary.
+* The election event ID will be required when starting the Keys Ceremony.
 
 ---
 
-## Complete the Key Ceremony (Trustees)
+## Step 1: Start the Keys Ceremony (Admin Step)
+### 1. Configure the CLI as an Admin
 
-After the ceremony has started, it must be completed **once by each trustee**.
-
-> ⚠️ This command must be executed separately by **every trustee**.
-> Before running it, re-run the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration) command to authenticate as the specific trustee.
+First, configure the CLI to point to the correct tenant and Keycloak instance, and authenticate as an ***admin user***:
+```bash
+cd packages/step-cli
+cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
+--endpoint-url http://graphql-engine:8080/v1/graphql \
+--keycloak-url http://keycloak:8090 \
+--keycloak-user admin \
+--keycloak-password admin \
+--keycloak-client-id api-key-client \
+--keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
+```
+### 2. Start the Keys Ceremony
+After successfully authenticating as the admin user, start a Keys Ceremony for the given election event:
 
 ```bash
-cargo run step complete-key-ceremony \
-  --election-event-id <ELECTION_EVENT_ID> \
-  --key-ceremony-id <KEY_CEREMONY_ID>
+cli step start-key-ceremony \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+```
+> This command starts a Keys Ceremony for all elections within the specified election event. 
+
+### Output:
+
+If the command succeeds, you will see output similar to:
+
+
+```bash 
+Success! Successfully started key ceremony. ID: d9792af0-71b8-4952-8aac-94bc0fead5f7
+```
+📌 Important:
+Save the Key Ceremony ID (d9792af0-71b8-4952-8aac-94bc0fead5f7 in this example).
+You will need it in Step 2.
+
+---
+
+## Step 2: Complete the Key Ceremony (Trustees)
+
+After the ceremony has started, each trustee must complete it ***individually***.
+
+### 1. Authenticate as a Trustee
+Reconfigure the CLI and log in as the specific trustee (for example, trustee1):
+
+```bash
+cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
+--endpoint-url http://graphql-engine:8080/v1/graphql \
+--keycloak-url http://keycloak:8090 \
+--keycloak-user trustee1 \
+--keycloak-password trustee1 \
+--keycloak-client-id api-key-client \
+--keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
 ```
 
-* `--election-event-id` – Election event ID used when starting the ceremony **(required)**
-* `--key-ceremony-id` – Key ceremony ID returned from the start step **(required)**
+### 2. Run the Completion Command
+Use the Key Ceremony ID returned in Step 1 to complete this trustee’s part of the ceremony:
+```bash
+cli step complete-key-ceremony \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --key-ceremony-id d9792af0-71b8-4952-8aac-94bc0fead5f7
+```
+
+### Repeat for the Next Trustee
+After completing the ceremony as trustee1:
+> Re-run Step 2 again, starting with authentication,
+> this time logging in as trustee2, in order to fully complete the Keys Ceremony.
+
+ℹ️ Reminder:
+Values like ac037831-66bd-451b-bdf7-e0a30eb2bfa0 and d9792af0-71b8-4952-8aac-94bc0fead5f7 are examples only.
+Your actual IDs will differ depending on your system configuration.

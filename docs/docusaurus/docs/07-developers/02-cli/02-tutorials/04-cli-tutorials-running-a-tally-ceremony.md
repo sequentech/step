@@ -7,73 +7,131 @@ title: Running a Tally Ceremony with the CLI
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-This guide walks you through configuring your environment and executing a **Tally Ceremony**.
+
+This guide walks you through configuring your environment, starting a Tally Ceremony, confirming trustee keys, and completing the tally process.
 
 ---
 
 ## Prerequisites
 
-* Ensure your environment is configured with the correct credentials.
-  Use the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration)  command to point to your specific tenant and Keycloak instance.
-  Make sure you authenticate with an **admin user**.
-
-* Ensure the trustees containers are running:
-
+1. Start the required containers:
 ```bash
 cd .devcontainer
 docker compose up -d --no-deps beat trustee1 trustee2
 ```
 
----
-
-## Start the Tally Ceremony
-
-Run the following command to start a tally ceremony:
-
+2. Navigate to the CLI:
 ```bash
-cargo run step start-tally \
-  --election-event-id <ELECTION_EVENT_ID> \
-  --election-ids <ELECTION_ID> \
-  --tally-type <ELECTORAL_RESULTS|INITIALIZATION_REPORT>
+cd packages/step-cli  # or ../packages/step-cli if already in .devcontainer
 ```
 
-* `--election-event-id` – Election event ID associated with the tally **(required)**
-* `--election-ids` – Election IDs to tally *(repeatable, optional)*
-* `--tally-type` – Type of tally to perform **(required)**
+3. Ensure a Keys Ceremony Has Been Completed
 
-Once successful, the command outputs a **Tally Ceremony ID**.
-Save this ID for use in the next step.
+>  A Keys Ceremony must be completed successfully for the election event before starting a Tally Ceremony. To learn about how to run a keys ceremony click [here](./03-cli-tutorials-running-a-keys-ceremony.md)
+
+4. Publish the Ballot
+  > Before starting the Tally Ceremony, the ballot for the election event must be published.
+
+⚠️ This step requires authentication as an admin user with **gold** permission.
+If you are not already authenticated as admin, configure the CLI first:
+```bash
+cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
+--endpoint-url http://graphql-engine:8080/v1/graphql \
+--keycloak-url http://keycloak:8090 \
+--keycloak-user admin \
+--keycloak-password admin \
+--keycloak-client-id api-key-client \
+--keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
+```
+Then you will be able to publish the election event and create publication.
+```bash
+cli step publish \
+--election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0
+```
+---
+
+## Step 1: Start the Tally Ceremony (Admin Step)
+start a Tally Ceremony for the given election event: 
+> ⚠️ You must be authenticated as an admin user before running this command.
+If you have not already done so, re-run cli step config with admin credentials.
+
+```bash
+cli step start-tally \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --election-ids 6f5c2c7b-8b3f-4c2b-9e36-1b87c4c2e9c1 \
+  --tally-type ELECTORAL_RESULTS
+```
+> This command starts a Tally Ceremony for the specified elections within the election event.
+
+### Output:
+
+If the command succeeds, you will see output similar to:
+
+```bash 
+Success! Successfully started Tally ceremony. ID: bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9
+```
+📌 Important:
+Save the Tally Ceremony ID (bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 in this example).
+You will need it in the next steps.
 
 ---
 
-## Confirm Trustee Key for Tally Ceremony
+## Step 2: Confirm Trustee Keys (Trustees)
 
-After the ceremony has started, each trustee must confirm their key **once**.
+After the Tally Ceremony has started, each trustee must confirm their key ***individually***.
 
-> ⚠️ This command must be executed separately by **every trustee**.
-> Before running it, re-run the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration)  command to authenticate as the specific trustee.
-
+### 1. Authenticate as a Trustee
+Reconfigure the CLI and log in as the specific trustee (for example, trustee1):
 ```bash
-cargo run step confirm-key-tally \
-  --election-event-id <ELECTION_EVENT_ID> \
-  --tally-id <TALLY_ID>
+cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
+--endpoint-url http://graphql-engine:8080/v1/graphql \
+--keycloak-url http://keycloak:8090 \
+--keycloak-user trustee1 \
+--keycloak-password trustee1 \
+--keycloak-client-id api-key-client \
+--keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
+```
+### 2. Confirm the Trustee Key
+Use the Tally Ceremony ID returned in Step 1 to confirm this trustee’s key:
+```bash
+cli step confirm-key-tally \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --tally-id bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9
 ```
 
-* `--election-event-id` – Election event ID **(required)**
-* `--tally-id` – Tally ceremony ID (returned from the start step) **(required)**
+### Repeat for the Next Trustee
+After confirming the key as trustee1:
+> 🔁 Re-run Step 2 from the beginning,
+> authenticate as trustee2, and confirm the key again.
 
 ---
 
-## Update Tally Ceremony Status
-Once the trustee keys have been confirmed, use this command to complete the ceremony by passing the `IN_PROGRESS` value to the `--status` flag.
-> ⚠️ Before running, re-run the [`step config`](../getting-started/cli_tutorials_getting_started.md#configuration) command to authenticate as **admin user**.
+## Step 3: Update Tally Ceremony Status (Admin Step)
+Once all trustee keys have been confirmed, the admin must update the Tally Ceremony status.
+
+
+### 1. Re-authenticate as Admin
+
 ```bash
-cargo run step update-tally \
-  --election-event-id <ELECTION_EVENT_ID> \
-  --tally-id <TALLY_ID> \
-  --status <STATUS>
+cli step config \
+  --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
+  --endpoint-url http://graphql-engine:8080/v1/graphql \
+  --keycloak-url http://keycloak:8090 \
+  --keycloak-user admin \
+  --keycloak-password admin \
+  --keycloak-client-id api-key-client \
+  --keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
 ```
 
-* `--election-event-id` – Election event ID **(required)**
-* `--tally-id` – Tally ceremony ID (returned from the start step) **(required)**
-* `--status` – Tally status **(required)**.
+### 2. Update the Tally Ceremony Status
+Update the Tally Ceremony status to IN_PROGRESS:
+```bash
+cli step update-tally
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --tally-id bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 \
+  --status IN_PROGRESS
+```
+
+ℹ️ Reminder: 
+Values like ac037831-66bd-451b-bdf7-e0a30eb2bfa0, election IDs, and bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 are examples only.
+Your actual IDs will differ depending on your system configuration.

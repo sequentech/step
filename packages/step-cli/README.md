@@ -36,7 +36,7 @@ Configure CLI with your environment credentials:
 This is a mandatory first command to setup the credentials in order to use the CLI 
 
 ```bash
-cargo run step config \
+cli step config \
   --tenant-id <TENANT_ID> \
   --endpoint-url <ENDPOINT_URL> \
   --keycloak-url <KEYCLOAK_URL> \
@@ -59,8 +59,8 @@ For local development:
 Get help:
 
 ```bash
-cargo run step --help
-cargo run step <command> --help
+cli step --help
+cli step <command> --help
 ```
 
 Common commands:
@@ -68,12 +68,12 @@ Common commands:
 ## Refresh Auth Token
 > This command should be called when the jwt has expired
 ```bash 
-cargo run step refresh-token
+cli step refresh-token
 ```
 
 # Create Election Event
 ```bash 
-cargo run step create-election-event --name <ELECTION_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived
+cli step create-election-event --name <ELECTION_NAME> --description <DESCRIPTION> --encryption-protocol "RSA256" --is-archived
 ```
 - name - the election event name - required*
 - description - the election event description - optional*
@@ -82,7 +82,7 @@ cargo run step create-election-event --name <ELECTION_NAME> --description <DESCR
 
 ## Create Election
 ```bash 
-cargo run step create-election --name <ELECTION_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>
+cli step create-election --name <ELECTION_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>
 ```
 - name - the election name - required*
 - description - the election description - optional*
@@ -90,7 +90,7 @@ cargo run step create-election --name <ELECTION_NAME> --description <DESCRIPTION
 
 ## Create Contest
 ```bash 
-cargo run step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>
+cli step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>
 ```
 - name - the contest name - required*
 - description - the contest description - optional*
@@ -99,7 +99,7 @@ cargo run step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> 
 
 ## Create Candidate
 ```bash 
-cargo run step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION> 
+cli step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTION> 
 --election-event-id <ELECTION_EVENT_ID>
 ```
 - name - the candidate name - required*
@@ -109,7 +109,7 @@ cargo run step create-candidate --name <CANDIDATE_NAME> --description <DESCRIPTI
 
 ## Create Area
 ```bash 
-cargo run step create-area --name <AREA_NAME> --description <DESCRIPTION> 
+cli step create-area --name <AREA_NAME> --description <DESCRIPTION> 
 --election-event-id <ELECTION_EVENT_ID>
 ```
 - name - the area name - required*
@@ -118,7 +118,7 @@ cargo run step create-area --name <AREA_NAME> --description <DESCRIPTION>
 
 ## Create Area Contest
 ```bash 
-cargo run step create-area-contest --election-event-id <ELECTION_EVENT_ID> --contest-id <CONTEST_ID> --area-id <AREA_ID>
+cli step create-area-contest --election-event-id <ELECTION_EVENT_ID> --contest-id <CONTEST_ID> --area-id <AREA_ID>
 ```
 - election_event_id - The associated election event id - required*
 - contest_id - The associated contest id - required*
@@ -126,14 +126,14 @@ cargo run step create-area-contest --election-event-id <ELECTION_EVENT_ID> --con
 
 ## Update Election Event Voting Status
 ```bash 
-cargo run step update-event-voting-status --election-event-id <ELECTION_EVENT_ID> --voting-status <VOTING_STATUS>
+cli step update-event-voting-status --election-event-id <ELECTION_EVENT_ID> --voting-status <VOTING_STATUS>
 ```
 - election-event-id - The associated election event id - required*
 - voting-status - A valid voting status (OPEN, CLOSE, PAUSE) - required*
 
 ## Update Election Voting Status
 ```bash 
-cargo run step update-election-voting-status --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --voting-status <VOTING_STATUS>
+cli step update-election-voting-status --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --voting-status <VOTING_STATUS>
 ```
 - election-event-id - The associated election event id - required*
 - election-id - The associated election id - required*
@@ -141,7 +141,7 @@ cargo run step update-election-voting-status --election-event-id <ELECTION_EVENT
 
 ## Import election event from .json file
 ```bash 
-cargo run step import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>
+cli step import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL ONLY>
 ```
 - file-path - Path to file - required* (Example - /workspaces/step/packages/step-cli/data/mock.json)
 - is-local - If run locally add this flag
@@ -149,7 +149,7 @@ cargo run step import-election --file-path <PATH> --is-local <ADD THIS FOR LOCAL
 ## Create Voter
 > This can be used to create a new voter for an election event
 ```bash 
-cargo run step create-voter --election-event-id <ELECTION_EVENT_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>
+cli step create-voter --election-event-id <ELECTION_EVENT_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>
 ```
 - Election event id - the election event to be associated with - required*
 - Email - voter email - required*
@@ -160,7 +160,7 @@ cargo run step create-voter --election-event-id <ELECTION_EVENT_ID> --first-name
 ## Update Voter
 > This can be used to update voter details, set a password and area for a voter
 ```bash 
-cargo run step update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <USER_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>  --password <PASSWORD> --area-id <AREA_ID>
+cli step update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <USER_ID> --first-name <FIRST_NAME> --last-name <LAST_NAME> --username <USERNAME> --email <EMAIL>  --password <PASSWORD> --area-id <AREA_ID>
 ```
 - Election event id - the election event to be associated with - required*
 - User Id - user identifier - required*
@@ -174,7 +174,7 @@ cargo run step update-voter --election-event-id <ELECTION_EVENT_ID> --user-id <U
 ## Publish Ballot
 > This generates a new publication and publishes it
 ```bash 
-cargo run step publish --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID>```
+cli step publish --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID>```
 ```
 - Election event id - the election event to be associated with - required*
 - Election id - the election to be associated with. if set publish for spesific election- optional*
@@ -183,7 +183,7 @@ cargo run step publish --election-event-id <ELECTION_EVENT_ID> --election-id <EL
 > This only starts a key ceremony - make sure to first run in .devcontainer:
 ```bash 
 docker compose up -d --no-deps beat trustee1 trustee2
-cargo run step start-key-ceremony --election-event-id <ELECTION_EVENT_ID> --threshold <THRESHOLD> --election-id <ELECTION_ID> --name <NAME>
+cli step start-key-ceremony --election-event-id <ELECTION_EVENT_ID> --threshold <THRESHOLD> --election-id <ELECTION_ID> --name <NAME>
 ```
 - Election event id - the election event to be associated with - required*
 - Threshold - the minimum number of trustees required to tally - optional* (default: 2)
@@ -193,14 +193,14 @@ cargo run step start-key-ceremony --election-event-id <ELECTION_EVENT_ID> --thre
 ## Complete Key Ceremony
 > This needs to be done by a trustee - authenticate with a trustee using the config command
 ```bash 
-cargo run step complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-ceremony-id <KEY_CEREMONY_ID>
+cli step complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-ceremony-id <KEY_CEREMONY_ID>
 ```
 - Election event id - the election event to be associated with - required*
 - Key ceremony id - the key ceremony to complete - required*
 
 ## Start Tally Ceremony
 ```bash 
-cargo run step start-tally --election-event-id <ELECTION_EVENT_ID> --election-ids <ELECTION_IDS> --tally-type <TALLY_TYPE>
+cli step start-tally --election-event-id <ELECTION_EVENT_ID> --election-ids <ELECTION_IDS> --tally-type <TALLY_TYPE>
 ```
 - Election event id - the election event to be associated with - required*
 - Election ids - optional specific elections to start the tally for - optional*
@@ -209,7 +209,7 @@ cargo run step start-tally --election-event-id <ELECTION_EVENT_ID> --election-id
 ## Confirm Trustee Key For Tally Ceremony
 > This needs to be done by a trustee - authenticate with a trustee using the config command
 ```bash 
-cargo run step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID>
+cli step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID>
 ```
 - Election event id - the election event to be associated with - required*
 - Tally id - the tally ceremony id to confirm the key for - required*
@@ -217,7 +217,7 @@ cargo run step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally
 ## Update Tally Ceremony Status
 > This can be used to complete the tally ceremony after the trustee keys have been confirmed
 ```bash 
-cargo run step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID> --status <STATUS>
+cli step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID> --status <STATUS>
 ```
 - Election event id - the election event to be associated with - required*
 - Tally id - the tally ceremony id to confirm the key for - required*
@@ -226,7 +226,7 @@ cargo run step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <
 ## Render Template
 > This can be used to renders a handlerbars file into html
 ```bash 
-cargo run step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --template <PATH_TO_TEMPLATE_FILE> --vars <PATH_TO_VARIABLES_FILE> --output  <PATH_TO_OUTPUT_FILE>
+cli step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --template <PATH_TO_TEMPLATE_FILE> --vars <PATH_TO_VARIABLES_FILE> --output  <PATH_TO_OUTPUT_FILE>
 ```
 - template = path to the handlebars-rs template file can be example.hbs
 - vars - path to variables file needs to be a json file containing the vars needed for the handlebars-rs file
@@ -237,7 +237,7 @@ cargo run step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --templ
 > This can be used to create csv file with voters. 
 > this action require to have export_election_event-<id>.json file in working-directory.
 ```bash 
-cargo run step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users <NUMBER_VOTERS_TO_GENERATE>
+cli step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users <NUMBER_VOTERS_TO_GENERATE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
 - num-users - how much voters to generate
@@ -247,7 +247,7 @@ cargo run step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num
 > This can be used to duplicate existing cast_vote row.
 > this required additional confituration at config.json in working-directory
 ```bash 
-cargo run step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes <NUMBER_VOTES_TO_DUPLICATE>
+cli step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes <NUMBER_VOTES_TO_DUPLICATE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
 - num-votes - how much votes to duplicate
@@ -256,7 +256,7 @@ cargo run step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num
 > This can be used to create applicaiton.
 > this required additional confituration at config.json in working-directory
 ```bash 
-cargo run step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-applications <NUMBER_APPLICATIONS_TO_CREATE> --status <STATUS> --type <TYPE>
+cli step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-applications <NUMBER_APPLICATIONS_TO_CREATE> --status <STATUS> --type <TYPE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
 - num-applications - how much applications to create
@@ -267,7 +267,7 @@ cargo run step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> -
 > This can be used to create electoral logs in immudb.
 > this required additional confituration at config.json in working-directory (like area_id and election_id)
 ```bash 
-cargo run step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num-logs <NUMBER_LOGS_TO_CREATE>
+cli step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num-logs <NUMBER_LOGS_TO_CREATE>
 ```
 - working-directory = path to the config.json files and output directoty (workspaces/step/packages/step-cli/data)
 - num-logs - how much logs to create
@@ -275,12 +275,12 @@ cargo run step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT>
 ## Hash password csv
 > This takes a voter_list.csv as input where the input has password column and outputs a voter_list.csv with hashed passwords and salts for the passwords to make it faster to import. 
 ```bash 
-cargo run step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>
+cli step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>
 ```
 ## Export cast votes csv
 > This accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
 ```bash 
-cargo run step export-cast-votes --server-url http://immudb:3322 --username immudb --password immudb --board-db tenant90505c8a23a94cdfaevent3a9fcf6515c4478db32105e02b509899
+cli step export-cast-votes --server-url http://immudb:3322 --username immudb --password immudb --board-db tenant90505c8a23a94cdfaevent3a9fcf6515c4478db32105e02b509899
 ```
 - iterations = number of iterations for the hashing where the default if 600000
 

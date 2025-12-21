@@ -11,12 +11,51 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ---
 
+### Get help:
+For detailed usage instructions:
+> To see all available CLI commands:
+```bash
+cli step --help
+```
+> To get detailed help for a specific command:
+```bash
+cli step <command> --help
+```
+
+---
+
+## Configuration
+
+Configure CLI with your environment credentials:
+This is a mandatory first command to setup the credentials in order to use the CLI 
+
+```bash
+cli step step config \
+  --tenant-id <TENANT_ID> \
+  --endpoint-url <ENDPOINT_URL> \
+  --keycloak-url <KEYCLOAK_URL> \
+  --keycloak-user <KEYCLOAK_USER> \
+  --keycloak-password <KEYCLOAK_PASSWORD> \
+  --keycloak-client-id <KEYCLOAK_CLIENT_ID> \
+  --keycloak-client-secret <KEYCLOAK_CLIENT_SECRET>
+```
+
+* `--tenant-id` - Tenant ID used to connect to the corresponding Keycloak realm **(required)**
+* `--endpoint-url` -  GraphQL endpoint URL (HASURA_ENDPOINT) **(required)**
+* `--keycloak-url` - Keycloak server URL (KEYCLOAK_URL) **(required)**
+* `--keycloak-user` - Username of a user that exists in the realm associated with the tenant **(required)**
+* `--keycloak-password` - Password of the specified user  **(required)**
+* `--keycloak-client-id` - Keycloak realm client ID **(required)**
+* `--keycloak-client-secret` - Keycloak realm client secret **(required)**
+
+---
+
 ## Refresh Auth Token
 
 > Call this command when the JWT has expired.
 
 ```bash
-step refresh-token
+cli step refresh-token
 ```
 
 ---
@@ -24,7 +63,7 @@ step refresh-token
 ## Create Election Event
 
 ```bash
-cargo run step create-election-event \
+cli step create-election-event \
   --name <ELECTION_NAME> \
   --description <DESCRIPTION> \
   --encryption-protocol RSA256 \
@@ -41,7 +80,7 @@ cargo run step create-election-event \
 ## Create Election
 
 ```bash
-cargo run step create-election \
+cli step create-election \
   --name <ELECTION_NAME> \
   --description <DESCRIPTION> \
   --election-event-id <ELECTION_EVENT_ID>
@@ -56,7 +95,7 @@ cargo run step create-election \
 ## Create Contest
 
 ```bash
-cargo run step create-contest \
+cli step create-contest \
   --name <CONTEST_NAME> \
   --description <DESCRIPTION> \
   --election-event-id <ELECTION_EVENT_ID> \
@@ -73,7 +112,7 @@ cargo run step create-contest \
 ## Create Candidate
 
 ```bash
-cargo run step create-candidate \
+cli step create-candidate \
   --name <CANDIDATE_NAME> \
   --description <DESCRIPTION> \
   --election-event-id <ELECTION_EVENT_ID> \
@@ -90,7 +129,7 @@ cargo run step create-candidate \
 ## Create Area
 
 ```bash
-cargo run step create-area \
+cli step create-area \
   --name <AREA_NAME> \
   --description <DESCRIPTION> \
   --election-event-id <ELECTION_EVENT_ID>
@@ -105,7 +144,7 @@ cargo run step create-area \
 ## Create Area Contest
 
 ```bash
-cargo run step create-area-contest \
+cli step create-area-contest \
   --election-event-id <ELECTION_EVENT_ID> \
   --contest-id <CONTEST_ID> \
   --area-id <AREA_ID>
@@ -120,7 +159,7 @@ cargo run step create-area-contest \
 ## Update Election Event Voting Status
 
 ```bash
-cargo run step update-event-voting-status \
+cli step update-event-voting-status \
   --election-event-id <ELECTION_EVENT_ID> \
   --voting-status <VOTING_STATUS> \
   --voting-channel <VOTING_CHANNEL>
@@ -135,7 +174,7 @@ cargo run step update-event-voting-status \
 ## Update Election Voting Status
 
 ```bash
-cargo run step update-election-voting-status \
+cli step update-election-voting-status \
   --election-event-id <ELECTION_EVENT_ID> \
   --election-id <ELECTION_ID> \
   --voting-status <VOTING_STATUS> \
@@ -152,7 +191,7 @@ cargo run step update-election-voting-status \
 ## Import Election Event
 
 ```bash
-cargo run step import-election \
+cli step import-election \
   --file-path <PATH> \
   --is-local
 ```
@@ -165,7 +204,7 @@ cargo run step import-election \
 ## Create Voter
 
 ```bash
-cargo run step create-voter \
+cli step create-voter \
   --election-event-id <ELECTION_EVENT_ID> \
   --first-name <FIRST_NAME> \
   --last-name <LAST_NAME> \
@@ -184,7 +223,7 @@ cargo run step create-voter \
 ## Update Voter
 
 ```bash
-cargo run step update-voter \
+cli step update-voter \
   --election-event-id <ELECTION_EVENT_ID> \
   --user-id <USER_ID> \
   --first-name <FIRST_NAME> \
@@ -209,7 +248,7 @@ cargo run step update-voter \
 ## Publish Ballot
 
 ```bash
-cargo run step publish \
+cli step publish \
   --election-event-id <ELECTION_EVENT_ID> \
   --election-id <ELECTION_ID>
 ```
@@ -222,7 +261,7 @@ cargo run step publish \
 ## Start Key Ceremony
 
 ```bash
-cargo run step start-key-ceremony \
+cli step start-key-ceremony \
   --election-event-id <ELECTION_EVENT_ID> \
   --threshold <THRESHOLD> \
   --election-id <ELECTION_ID> \
@@ -239,7 +278,7 @@ cargo run step start-key-ceremony \
 ## Complete Key Ceremony
 
 ```bash
-cargo run step complete-key-ceremony \
+cli step complete-key-ceremony \
   --election-event-id <ELECTION_EVENT_ID> \
   --key-ceremony-id <KEY_CEREMONY_ID>
 ```
@@ -252,7 +291,7 @@ cargo run step complete-key-ceremony \
 ## Start Tally Ceremony
 
 ```bash
-cargo run step start-tally \
+cli step start-tally \
   --election-event-id <ELECTION_EVENT_ID> \
   --election-ids <ELECTION_ID> \
   --election-ids <ELECTION_ID> \
@@ -268,7 +307,7 @@ cargo run step start-tally \
 ## Confirm Trustee Key for Tally Ceremony
 
 ```bash
-cargo run step confirm-key-tally \
+cli step confirm-key-tally \
   --election-event-id <ELECTION_EVENT_ID> \
   --tally-id <TALLY_ID>
 ```
@@ -281,7 +320,7 @@ cargo run step confirm-key-tally \
 ## Update Tally Ceremony Status
 
 ```bash
-cargo run step update-tally \
+cli step update-tally \
   --election-event-id <ELECTION_EVENT_ID> \
   --tally-id <TALLY_ID> \
   --status <STATUS>
@@ -297,7 +336,7 @@ cargo run step update-tally \
 ## Render Template
 
 ```bash
-cargo run step render-template \
+cli step render-template \
   --base-template <BASE_TEMPLATE_PATH> \
   --template <TEMPLATE_PATH> \
   --vars <VARS_JSON_PATH> \
@@ -316,7 +355,7 @@ This command create csv file with voters within the `working-directory` path.
 > Required additional confituration at `external_config.json` in the `working-directory` (election_event_json_file and generate_voters fields)
 
 ```bash
-cargo run step generate-voters \
+cli step generate-voters \
   --working-directory <PATH> \
   --num-users <NUMBER>
 ```
@@ -331,7 +370,7 @@ This command duplicate ***existing*** cast_vote row.
 > Required additional confituration at `external_config.json` in the `working-directory` (realm_name, duplicate_votes  fields)
 
 ```bash
-cargo run step duplicate-votes \
+cli step duplicate-votes \
   --working-directory <PATH> \
   --num-votes <NUMBER>
 ```
@@ -345,7 +384,7 @@ cargo run step duplicate-votes \
 > Required additional confituration at `external_config.json` in the `working-directory` (realm_name, tenant_id, election_event_id, generate_applications  fields)
 
 ```bash
-cargo run step create-applications \
+cli step create-applications \
   --working-directory <PATH> \
   --num-applications <NUMBER> \
   --status <STATUS> \
@@ -364,7 +403,7 @@ Create electoral logs in immudb.
 > Required additional confituration at `external_config.json` in the `working-directory` (tenant_id, election_event_id, election_id, area_id and realm_name fields)
 
 ```bash
-cargo run step create-electoral-logs \
+cli step create-electoral-logs \
   --working-directory <PATH> \
   --num-logs <NUMBER>
 ```
@@ -377,7 +416,7 @@ cargo run step create-electoral-logs \
 ## Hash Passwords CSV
 This command takes a voter_list.csv as input where the input has password column and outputs a voter_list.csv with hashed passwords and salts for the passwords to make it faster to import.
 ```bash
-cargo run step hash-passwords \
+cli step hash-passwords \
   --input-file <INPUT_CSV_PATH> \
   --output-file <OUTPUT_CSV_PATH> \
   --iterations <NUMBER>
@@ -392,7 +431,7 @@ cargo run step hash-passwords \
 ## Export Cast Votes CSV
 This command accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
 ```bash
-cargo run step export-cast-votes \
+cli step export-cast-votes \
   --server-url <IMMUDB_URL> \
   --username <USERNAME> \
   --password <PASSWORD> \
