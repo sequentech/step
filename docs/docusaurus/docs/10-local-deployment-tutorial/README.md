@@ -233,7 +233,21 @@ docker-compose -f docker-compose-remote.yml down
 
 ### Clean Up Docker System (if experiencing image corruption)
 
-If you encounter errors like `'ContainerConfig'` or `ImageNotFound`, clean up and rebuild:
+If you encounter errors like `'ContainerConfig'` or `ImageNotFound`, this usually means a container is corrupted and needs to be forcefully removed:
+
+```bash
+# Find the corrupted container
+docker ps -a | grep <service-name>
+
+# Force remove the specific container by ID or name
+docker rm -f <container-id-or-name>
+
+# Recreate the container
+cd ~/step/.devcontainer
+docker-compose -f docker-compose-remote.yml up -d
+```
+
+**If the above doesn't work, try a full cleanup:**
 
 ```bash
 # Stop and remove all containers
@@ -275,3 +289,55 @@ docker-compose -f docker-compose-remote.yml build harvest windmill mock_server b
 # Then start all services
 docker-compose -f docker-compose-remote.yml up -d
 ```
+
+### Updating Configuration After Code Changes
+
+When pulling updates from git that include configuration changes:
+
+```bash
+cd ~/step
+git reset --hard  # Discard local changes if any
+git pull
+
+# Reconfigure URLs (if domain/subdomain changed)
+cd ~/step/.devcontainer
+remote-deployment/configure-urls.sh sequent.vote remote-test
+
+# Rebuild affected services (if Dockerfiles or build configs changed)
+docker-compose -f docker-compose-remote.yml build <service-name>
+
+# Restart services to apply changes
+docker-compose -f docker-compose-remote.yml up -d
+```
+
+### Fixing Nginx Proxy Issues
+
+If you get 502 Bad Gateway or services are unreachable:
+
+```bash
+# Check if nginx-proxy is running
+docker ps | grep nginx-proxy
+
+# If not running, start it
+docker start nginx-proxy
+
+# Or restart it via docker-compose
+cd ~/step/.devcontainer
+docker-compose -f docker-compose-remote.yml restart nginx-proxy
+
+# Check nginx logs for errors
+docker logs nginx-proxy
+```
+
+### Production Build Notes
+
+The admin-portal and voting-portal use production builds (static files served by nginx) in the remote deployment:
+
+- They run on internal port 8000 (not 3000/3002)
+- Webpack dev server is NOT used
+- Changes to frontend code require rebuilding:
+  ```bash
+  cd ~/step/.devcontainer
+  docker-compose -f docker-compose-remote.yml build admin-portal voting-portal
+  docker-compose -f docker-compose-remote.yml up -d admin-portal voting-portal
+  ```
