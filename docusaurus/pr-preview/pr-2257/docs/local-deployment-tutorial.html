@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Remote Test Environment Deployment Tutorial | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Remote Test Environment Deployment Tutorial | Sequent Online Voting"><meta data-rh="true" name="description" content="This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic."><meta data-rh="true" property="og:description" content="This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic."><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2257/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Remote Test Environment Deployment Tutorial","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/local-deployment-tutorial/"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2257/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.f47d583e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.327879ff.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2257/assets/js/main.00573df1.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -47,23 +47,33 @@
 </li>
 </ol>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="2-environment-configuration">2. Environment Configuration<a href="#2-environment-configuration" class="hash-link" aria-label="Direct link to 2. Environment Configuration" title="Direct link to 2. Environment Configuration">​</a></h2>
-<p>Next, you need to configure the environment variables for the reverse proxy setup.</p>
+<p>The configuration script generates all necessary files from templates, including secrets.</p>
 <ol>
 <li>
-<p>Navigate to the cloned repository&#x27;s <code>.devcontainer</code> directory:</p>
-<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step/.devcontainer</span><br></span></code></pre></div></div>
-</li>
-<li>
-<p>Copy the <code>.env.remote-test.example</code> file to <code>.env</code>:</p>
-<div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">cp</span><span class="token plain"> .env.remote-test.example .env</span><br></span></code></pre></div></div>
-</li>
-<li>
-<p>Configure the URLs using the <code>configure-urls.sh</code> script:</p>
+<p>Run the configuration script:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> ~/step</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">chmod</span><span class="token plain"> +x .devcontainer/remote-deployment/configure-urls.sh</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">./.devcontainer/remote-deployment/configure-urls.sh sequent.vote remote-test</span><br></span></code></pre></div></div>
-<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">*   Replace `sequent.vote` with your root domain.</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">*   Replace `remote-test` with your chosen subdomain suffix (e.g., `qa`, `staging`, `prod`).</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">This will automatically configure all service URLs in your `.env` file:</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">*   `login-remote-test.sequent.vote` (Keycloak)</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">*   `admin-remote-test.sequent.vote` (Admin Portal)</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">*   `voting-remote-test.sequent.vote` (Voting Portal)</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">*   `hasura-remote-test.sequent.vote` (Hasura)</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">*   `minio-remote-test.sequent.vote` (MinIO)</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span></code></pre></div></div>
+<ul>
+<li>Replace <code>sequent.vote</code> with your root domain.</li>
+<li>Replace <code>remote-test</code> with your chosen subdomain suffix (e.g., <code>qa</code>, <code>staging</code>, <code>prod</code>).</li>
+</ul>
+<p>This script will:</p>
+<ul>
+<li>Generate <code>.env</code> from <code>.env.remote-test.example</code></li>
+<li>Generate <code>nginx/default.conf</code> from <code>nginx/default.conf.template</code></li>
+<li>Generate random secrets (MASTER_SECRET, Keycloak client secrets)</li>
+<li>Configure all service URLs:<!-- -->
+<ul>
+<li><code>login-remote-test.sequent.vote</code> (Keycloak)</li>
+<li><code>admin-remote-test.sequent.vote</code> (Admin Portal)</li>
+<li><code>voting-remote-test.sequent.vote</code> (Voting Portal)</li>
+<li><code>hasura-remote-test.sequent.vote</code> (Hasura)</li>
+<li><code>minio-remote-test.sequent.vote</code> (MinIO)</li>
+</ul>
+</li>
+</ul>
 </li>
 <li>
-<p><strong>(Optional)</strong> Review the <code>.env</code> file:</p>
+<p><strong>(Optional)</strong> Review the generated <code>.env</code> file:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">nano</span><span class="token plain"> ~/step/.devcontainer/.env</span><br></span></code></pre></div></div>
 <p><strong>Note:</strong> For a basic dev/demo deployment, the default values are sufficient. The system will work with:</p>
 <ul>
