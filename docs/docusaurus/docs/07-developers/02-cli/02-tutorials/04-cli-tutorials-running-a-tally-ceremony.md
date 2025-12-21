@@ -63,6 +63,8 @@ cli step start-tally \
 ```
 > This command starts a Tally Ceremony for the specified elections within the election event.
 
+> If you want to start a Tally Ceremony for all elections, dont pass `--election-ids` flag
+
 ### Output:
 
 If the command succeeds, you will see output similar to:
@@ -133,5 +135,5 @@ cli step update-tally
 ```
 
 ℹ️ Reminder: 
-Values like ac037831-66bd-451b-bdf7-e0a30eb2bfa0, election IDs, and bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 are examples only.
+Values like ac037831-66bd-451b-bdf7-e0a30eb2bfa0 and bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 are examples only.
 Your actual IDs will differ depending on your system configuration.
