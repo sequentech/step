@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use update_event_voting_status::{VotingStatus, VotingStatusChannel};
 
@@ -81,8 +82,9 @@ impl UpdateElectionEventVotingStatus {
         ) {
             Ok(id) => {
                 println!(
-                    "Success! Updated successfully! ID: {}",
-                    id.unwrap_or_else(|| "None".to_string())
+                    "{} {}",
+                    "Success! Updated successfully! ID:".green(),
+                    id.unwrap_or_else(|| "None".to_string()).cyan()
                 );
             }
             Err(err) => {

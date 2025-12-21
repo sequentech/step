@@ -5,6 +5,7 @@
 use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
 
@@ -46,8 +47,9 @@ impl CreateElectionEventCLI {
         ) {
             Ok(id) => {
                 println!(
-                    "Success! Election event created successfully! ID: {}",
-                    id.unwrap_or_else(|| "None".to_string())
+                    "{} {}",
+                    "Success! Election event created successfully! ID:".green(),
+                    id.unwrap_or_else(|| "None".to_string()).cyan()
                 );
             }
             Err(err) => {

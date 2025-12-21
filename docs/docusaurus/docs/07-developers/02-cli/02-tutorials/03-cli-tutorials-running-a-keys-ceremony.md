@@ -51,7 +51,7 @@ After successfully authenticating as the admin user, start a Keys Ceremony for t
 
 ```bash
 cli step start-key-ceremony \
-  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0
 ```
 > This command starts a Keys Ceremony for all elections within the specified election event. 
 

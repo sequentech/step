@@ -9,9 +9,9 @@ use crate::commands::update_event_voting_status::{
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use std::str::FromStr;
-
 use update_election_voting_status::VotingStatus;
 use update_election_voting_status::VotingStatusChannel;
 
@@ -85,8 +85,9 @@ impl UpdateElectionVotingStatusCommand {
         ) {
             Ok(id) => {
                 println!(
-                    "Success! Updated successfully! ID: {}",
-                    id.unwrap_or_else(|| "None".to_string())
+                    "{} {}",
+                    "Success! Updated successfully! ID:".green(),
+                    id.unwrap_or_else(|| "None".to_string()).cyan()
                 );
             }
             Err(err) => {
