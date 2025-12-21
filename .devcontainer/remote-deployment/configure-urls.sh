@@ -35,8 +35,9 @@ generate_base64() {
 DOMAIN=$1
 SUBDOMAIN_SUFFIX=$2
 
-# Set paths
-DEVCONTAINER_DIR="$HOME/step/.devcontainer"
+# Set paths relative to script location
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DEVCONTAINER_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 ENV_TEMPLATE="$DEVCONTAINER_DIR/.env.remote-test.example"
 ENV_FILE="$DEVCONTAINER_DIR/.env"
 NGINX_TEMPLATE="$DEVCONTAINER_DIR/nginx/default.conf.template"
@@ -73,13 +74,13 @@ KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_ADMIN_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
 
-# Update secrets in .env
-sed -i "s|^SECRETS_BACKEND=.*|SECRETS_BACKEND=EnvVarMasterSecret|g" "$ENV_FILE"
-sed -i "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE"
-sed -i "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE"
-sed -i "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE"
-sed -i "s|^KEYCLOAK_CLI_CLIENT_SECRET=.*|KEYCLOAK_CLI_CLIENT_SECRET=$KEYCLOAK_CLI_CLIENT_SECRET|g" "$ENV_FILE"
-sed -i "s|^ACTIONS_ADMIN_SECRET=.*|ACTIONS_ADMIN_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE"
+# Update secrets in .env (macOS compatible)
+sed -i.bak "s|^SECRETS_BACKEND=.*|SECRETS_BACKEND=EnvVarMasterSecret|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^KEYCLOAK_CLI_CLIENT_SECRET=.*|KEYCLOAK_CLI_CLIENT_SECRET=$KEYCLOAK_CLI_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^ACTIONS_ADMIN_SECRET=.*|ACTIONS_ADMIN_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
 echo "  ✓ Generated Keycloak client secrets"
 echo "  ✓ Set SECRETS_BACKEND=EnvVarMasterSecret"
@@ -88,31 +89,31 @@ echo ""
 # Step 3: Configure domain and URLs
 echo "[3/4] Configuring domain: $DOMAIN with subdomain: $SUBDOMAIN_SUFFIX..."
 
-# Update the DOMAIN variable
-sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|g" "$ENV_FILE"
+# Update the DOMAIN variable (macOS compatible)
+sed -i.bak "s|^DOMAIN=.*|DOMAIN=$DOMAIN|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 # Update all subdomain-based URLs to use the new suffix
-sed -i "s|login-[a-zA-Z0-9_-]*\.\${DOMAIN}|login-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
-sed -i "s|admin-[a-zA-Z0-9_-]*\.\${DOMAIN}|admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
-sed -i "s|voting-[a-zA-Z0-9_-]*\.\${DOMAIN}|voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
-sed -i "s|hasura-[a-zA-Z0-9_-]*\.\${DOMAIN}|hasura-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
-sed -i "s|minio-[a-zA-Z0-9_-]*\.\${DOMAIN}|minio-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
-sed -i "s|^HARVEST_DOMAIN=.*|HARVEST_DOMAIN=$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i.bak "s|login-[a-zA-Z0-9_-]*\.\${DOMAIN}|login-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|admin-[a-zA-Z0-9_-]*\.\${DOMAIN}|admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|voting-[a-zA-Z0-9_-]*\.\${DOMAIN}|voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|hasura-[a-zA-Z0-9_-]*\.\${DOMAIN}|hasura-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|minio-[a-zA-Z0-9_-]*\.\${DOMAIN}|minio-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^HARVEST_DOMAIN=.*|HARVEST_DOMAIN=$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 # Update hostname variables for webpack dev server
-sed -i "s|^VOTING_PORTAL_HOSTNAME=.*|VOTING_PORTAL_HOSTNAME=voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
-sed -i "s|^ADMIN_PORTAL_HOSTNAME=.*|ADMIN_PORTAL_HOSTNAME=admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
+sed -i.bak "s|^VOTING_PORTAL_HOSTNAME=.*|VOTING_PORTAL_HOSTNAME=voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^ADMIN_PORTAL_HOSTNAME=.*|ADMIN_PORTAL_HOSTNAME=admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 # Step 4: Configure nginx
 echo "[4/4] Configuring nginx reverse proxy..."
 
-# Update nginx config with domain and subdomain suffix
-sed -i "s|server_name admin-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name admin-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
-sed -i "s|server_name voting-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name voting-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
-sed -i "s|server_name hasura-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name hasura-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
-sed -i "s|server_name login-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name login-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
-sed -i "s|server_name minio-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name minio-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
-sed -i "s|server_name verifier-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name verifier-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
+# Update nginx config with domain and subdomain suffix (macOS compatible)
+sed -i.bak "s|server_name admin-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name admin-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF" && rm "$NGINX_CONF.bak"
+sed -i.bak "s|server_name voting-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name voting-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF" && rm "$NGINX_CONF.bak"
+sed -i.bak "s|server_name hasura-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name hasura-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF" && rm "$NGINX_CONF.bak"
+sed -i.bak "s|server_name login-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name login-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF" && rm "$NGINX_CONF.bak"
+sed -i.bak "s|server_name minio-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name minio-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF" && rm "$NGINX_CONF.bak"
+sed -i.bak "s|server_name verifier-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name verifier-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF" && rm "$NGINX_CONF.bak"
 
 echo ""
 echo "================================================"
